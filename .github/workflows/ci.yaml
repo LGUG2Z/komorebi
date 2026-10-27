@@ -1,0 +1,46 @@
+# Every job is gated on the repository, so that a fork does not run them on its own runners.
+
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - "*"
+  push:
+    branches:
+      - master
+      - feature/*
+      - hotfix/*
+    tags:
+      - v*
+  schedule:
+    - cron: "30 0 * * 0" # Every Sunday at 00:30 UTC
+  workflow_dispatch:
+
+jobs:
+  cargo-deny:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  # Everything that does not need a virtual machine: the formatting, clippy, rustdoc and the tests,
+  # as derivations. The jobs that boot KWin are separate.
+  lint:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v31
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/Cargo.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 8G
+      - run: nix flake check -L
+      - run: nix develop --command just lint

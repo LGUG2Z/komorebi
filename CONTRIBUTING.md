@@ -42,6 +42,15 @@ warnings denied. `just fmt` formats the Rust sources, and `nix fmt` every file
 type the repository has. `nix flake check` is what CI runs; it builds the same
 checks, plus `cargo deny`, as derivations.
 
+## Continuous integration
+
+[`ci.yaml`](.github/workflows/ci.yaml) runs on every pull request and on every
+push to `master`, `feature/*` and `hotfix/*`, in this repository only. The
+`lint` job runs `nix flake check` and the repository's own lint rules, and
+`cargo-deny` checks licenses and advisories. A weekly
+[workflow](.github/workflows/update-flake-lock.yaml) opens a pull request that
+moves `flake.lock`, and the same jobs run on it.
+
 ## Commits
 
 Commit messages follow the
