@@ -17,6 +17,7 @@ ignore = [
   { id = "RUSTSEC-2024-0320", reason = "not using any yaml features from this library" },
   { id = "RUSTSEC-2025-0056", reason = "only used for colour palette generation" },
   { id = "RUSTSEC-2026-0192", reason = "will address this when upgrading egui" },
+  { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml is only pulled in via serde_yaml, and there is no safe upgrade available" },
 ]
 
 [licenses]
