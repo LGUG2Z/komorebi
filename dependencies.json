@@ -1,0 +1,93 @@
+{
+  "licenses": [
+    [
+      "Apache-2.0",
+      [
+        "anstream 1.0.0 registry+https://github.com/rust-lang/crates.io-index",
+        "anstyle 1.0.14 registry+https://github.com/rust-lang/crates.io-index",
+        "anstyle-parse 1.0.0 registry+https://github.com/rust-lang/crates.io-index",
+        "anstyle-query 1.1.5 registry+https://github.com/rust-lang/crates.io-index",
+        "anstyle-wincon 3.0.11 registry+https://github.com/rust-lang/crates.io-index",
+        "bitflags 2.11.1 registry+https://github.com/rust-lang/crates.io-index",
+        "clap 4.6.1 registry+https://github.com/rust-lang/crates.io-index",
+        "clap_builder 4.6.0 registry+https://github.com/rust-lang/crates.io-index",
+        "clap_derive 4.6.1 registry+https://github.com/rust-lang/crates.io-index",
+        "clap_lex 1.1.0 registry+https://github.com/rust-lang/crates.io-index",
+        "colorchoice 1.0.5 registry+https://github.com/rust-lang/crates.io-index",
+        "errno 0.3.14 registry+https://github.com/rust-lang/crates.io-index",
+        "heck 0.5.0 registry+https://github.com/rust-lang/crates.io-index",
+        "is_terminal_polyfill 1.70.2 registry+https://github.com/rust-lang/crates.io-index",
+        "libc 0.2.186 registry+https://github.com/rust-lang/crates.io-index",
+        "once_cell_polyfill 1.70.2 registry+https://github.com/rust-lang/crates.io-index",
+        "proc-macro2 1.0.106 registry+https://github.com/rust-lang/crates.io-index",
+        "quote 1.0.45 registry+https://github.com/rust-lang/crates.io-index",
+        "rustix 1.1.4 registry+https://github.com/rust-lang/crates.io-index",
+        "syn 2.0.117 registry+https://github.com/rust-lang/crates.io-index",
+        "terminal_size 0.4.4 registry+https://github.com/rust-lang/crates.io-index",
+        "unicode-ident 1.0.24 registry+https://github.com/rust-lang/crates.io-index",
+        "utf8parse 0.2.2 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-sys 0.52.0 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-sys 0.59.0 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-sys 0.60.2 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-targets 0.52.6 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-targets 0.53.5 registry+https://github.com/rust-lang/crates.io-index",
+        "windows_x86_64_msvc 0.52.6 registry+https://github.com/rust-lang/crates.io-index",
+        "windows_x86_64_msvc 0.53.1 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ],
+    [
+      "Apache-2.0 WITH LLVM-exception",
+      [
+        "rustix 1.1.4 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ],
+    [
+      "LicenseRef-Komorebi-2.0",
+      [
+        "komorebi-recorder 0.1.1 path+file:///Users/lgug2z/.cache/komorebi-recorder/lockwork/komorebi-recorder"
+      ]
+    ],
+    [
+      "MIT",
+      [
+        "anstream 1.0.0 registry+https://github.com/rust-lang/crates.io-index",
+        "anstyle 1.0.14 registry+https://github.com/rust-lang/crates.io-index",
+        "anstyle-parse 1.0.0 registry+https://github.com/rust-lang/crates.io-index",
+        "anstyle-query 1.1.5 registry+https://github.com/rust-lang/crates.io-index",
+        "anstyle-wincon 3.0.11 registry+https://github.com/rust-lang/crates.io-index",
+        "bitflags 2.11.1 registry+https://github.com/rust-lang/crates.io-index",
+        "clap 4.6.1 registry+https://github.com/rust-lang/crates.io-index",
+        "clap_builder 4.6.0 registry+https://github.com/rust-lang/crates.io-index",
+        "clap_derive 4.6.1 registry+https://github.com/rust-lang/crates.io-index",
+        "clap_lex 1.1.0 registry+https://github.com/rust-lang/crates.io-index",
+        "colorchoice 1.0.5 registry+https://github.com/rust-lang/crates.io-index",
+        "errno 0.3.14 registry+https://github.com/rust-lang/crates.io-index",
+        "heck 0.5.0 registry+https://github.com/rust-lang/crates.io-index",
+        "is_terminal_polyfill 1.70.2 registry+https://github.com/rust-lang/crates.io-index",
+        "libc 0.2.186 registry+https://github.com/rust-lang/crates.io-index",
+        "once_cell_polyfill 1.70.2 registry+https://github.com/rust-lang/crates.io-index",
+        "proc-macro2 1.0.106 registry+https://github.com/rust-lang/crates.io-index",
+        "quote 1.0.45 registry+https://github.com/rust-lang/crates.io-index",
+        "rustix 1.1.4 registry+https://github.com/rust-lang/crates.io-index",
+        "strsim 0.11.1 registry+https://github.com/rust-lang/crates.io-index",
+        "syn 2.0.117 registry+https://github.com/rust-lang/crates.io-index",
+        "terminal_size 0.4.4 registry+https://github.com/rust-lang/crates.io-index",
+        "unicode-ident 1.0.24 registry+https://github.com/rust-lang/crates.io-index",
+        "utf8parse 0.2.2 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-sys 0.52.0 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-sys 0.59.0 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-sys 0.60.2 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-targets 0.52.6 registry+https://github.com/rust-lang/crates.io-index",
+        "windows-targets 0.53.5 registry+https://github.com/rust-lang/crates.io-index",
+        "windows_x86_64_msvc 0.52.6 registry+https://github.com/rust-lang/crates.io-index",
+        "windows_x86_64_msvc 0.53.1 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ],
+    [
+      "Unicode-3.0",
+      [
+        "unicode-ident 1.0.24 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ]
+  ]
+}

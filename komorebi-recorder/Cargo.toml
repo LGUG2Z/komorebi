@@ -1,0 +1,9 @@
+[package]
+name = "komorebi-recorder"
+version.workspace = true
+description = "Synchronized screen, log and trace capture for komorebi bug reproduction"
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+clap = { workspace = true }
