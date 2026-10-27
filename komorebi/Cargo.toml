@@ -5,6 +5,18 @@ description = "A tiling window manager for KDE Plasma"
 edition = "2024"
 
 [dependencies]
+komorebi-layouts = { workspace = true }
 version = { path = "../version" }
 
 clap = { workspace = true }
+schemars = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_with = { version = "3", features = ["schemars_1"] }
+strum = { version = "0.28", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[features]
+default = ["schemars"]
+schemars = ["dep:schemars"]

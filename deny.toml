@@ -10,12 +10,22 @@ no-default-features = false
 [output]
 feature-depth = 1
 
+[advisories]
+ignore = [
+  { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml comes with serde_yaml, which komorebi-layouts reads Windows-only custom layouts with; nothing here calls it" },
+]
+
 [licenses]
 allow = ["Apache-2.0", "MIT", "Unicode-3.0", "Zlib", "LicenseRef-Komorebi-2.0"]
 confidence-threshold = 0.8
 
 [[licenses.clarify]]
 crate = "komorebi"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-layouts"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
@@ -35,3 +45,4 @@ external-default-features = "allow"
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = ["https://github.com/LGUG2Z/komorebi"]

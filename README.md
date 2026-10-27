@@ -21,8 +21,15 @@ without a checkout of the toolchain.
 
 ## Crates
 
-- [`komorebi`](komorebi): the daemon.
+- [`komorebi`](komorebi): the daemon, and the library behind it. The library has
+  the vocabulary the window manager is written in (`core`), the `Ring` that
+  holds monitors, workspaces and containers, and the lists in which some
+  elements are locked in place.
 - [`version`](version): the version string every binary reports.
+
+The layouts, which turn a work area and a number of containers into a rectangle
+for each, are `komorebi-layouts` from [komorebi](https://github.com/LGUG2Z/komorebi),
+a git dependency at the revision `Cargo.toml` pins.
 
 ## Checks
 
