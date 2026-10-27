@@ -5,8 +5,16 @@
 //! workspace each window it manages is on. It changes when an event comes in
 //! ([`WindowManager::process_event`]), and every change ends with the focused workspace tiled
 //! again ([`WindowManager::update_focused_workspace`]).
+//!
+//! It also owns the daemon's command socket, which [`listen_for_commands`] reads
+//! ([`WindowManager::process_command`]), and stops the daemon when it is asked to
+//! ([`WindowManager::stop`]).
+//!
+//! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
+use crate::DATA_DIR;
 use crate::LibraryError;
+use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Rect;
 use crate::desktop;
@@ -19,10 +27,16 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use crossbeam_channel::Receiver;
 use std::collections::HashMap;
+use std::io::ErrorKind;
+use std::os::unix::net::UnixListener;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
+    /// The socket the daemon takes messages on, `komorebi.sock` in [`struct@DATA_DIR`] unless
+    /// [`WindowManager::new`] was given another path
+    pub command_listener: UnixListener,
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
     /// The events the backend has reported and the window manager has yet to handle, from
@@ -37,10 +51,37 @@ impl_ring_elements!(WindowManager, Monitor);
 
 impl WindowManager {
     /// Returns a window manager with no monitors, which handles the events that arrive on
-    /// `incoming`: [`WindowManager::init`] loads the monitors from the backend
-    pub fn new(incoming: Receiver<WindowManagerEvent>) -> eyre::Result<Self> {
+    /// `incoming` and listens on `custom_socket_path`, or on `komorebi.sock` in
+    /// [`struct@DATA_DIR`] when that is `None`: [`WindowManager::init`] loads the monitors from
+    /// the backend
+    ///
+    /// A socket file that is left over at that path is removed first.
+    ///
+    /// # Errors
+    ///
+    /// - The leftover socket file is there but cannot be removed.
+    /// - The socket cannot be bound, for example because its directory does not exist.
+    pub fn new(
+        incoming: Receiver<WindowManagerEvent>,
+        custom_socket_path: Option<PathBuf>,
+    ) -> eyre::Result<Self> {
+        let socket = custom_socket_path.unwrap_or_else(|| DATA_DIR.join("komorebi.sock"));
+
+        match std::fs::remove_file(&socket) {
+            Ok(()) => {}
+            Err(error) => match error.kind() {
+                ErrorKind::NotFound => {}
+                _ => {
+                    return Err(error.into());
+                }
+            },
+        };
+
+        let listener = UnixListener::bind(&socket)?;
+
         Ok(Self {
             monitors: Ring::default(),
+            command_listener: listener,
             mouse_follows_focus: true,
             work_area_offset: None,
             incoming_events: incoming,
@@ -155,6 +196,20 @@ impl WindowManager {
         self.update_focused_workspace(false, false)
     }
 
+    /// Stops the daemon: removes the command socket, lets the backend give up what it set up in
+    /// the compositor, and exits the process with status 0
+    #[tracing::instrument(skip(self))]
+    pub fn stop(&mut self) -> eyre::Result<()> {
+        tracing::info!("received stop command, terminating process");
+
+        let socket = DATA_DIR.join("komorebi.sock");
+        let _ = std::fs::remove_file(socket);
+
+        backend().shutdown();
+
+        std::process::exit(0)
+    }
+
     /// Tiles the focused workspace of every monitor
     #[tracing::instrument(skip(self))]
     pub fn retile_all(&mut self) -> eyre::Result<()> {
@@ -205,23 +260,73 @@ mod tests {
     use super::*;
     use crate::backend::fake::FakeBackend;
     use crate::backend::with_backend;
+    use crossbeam_channel::Sender;
+    use crossbeam_channel::bounded;
+    use std::path::PathBuf;
     use std::sync::Arc;
+    use uuid::Uuid;
 
-    fn setup_window_manager() -> WindowManager {
-        let (_sender, receiver) = crossbeam_channel::bounded(1);
+    struct TestContext {
+        socket_path: Option<PathBuf>,
+    }
+
+    impl Drop for TestContext {
+        fn drop(&mut self) {
+            if let Some(socket_path) = &self.socket_path {
+                // Clean up the socket file
+                std::fs::remove_file(socket_path).unwrap();
+            }
+        }
+    }
+
+    fn setup_window_manager() -> (WindowManager, TestContext) {
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+
+        // Temporary socket path for testing
+        // /tmp: short enough for a unix socket path on macOS, and writable wherever the tests run
+        let socket_name = format!("/tmp/komorebi-test-{}.sock", Uuid::new_v4());
+        let socket_path = PathBuf::from(socket_name);
 
         // Create a new WindowManager instance
-        let wm = WindowManager::new(receiver);
+        let wm = WindowManager::new(receiver, Some(socket_path.clone()));
 
         // Window Manager should be created successfully
         assert!(wm.is_ok());
 
-        wm.unwrap()
+        (
+            wm.unwrap(),
+            TestContext {
+                socket_path: Some(socket_path),
+            },
+        )
     }
 
     #[test]
     fn test_create_window_manager() {
-        let _wm = setup_window_manager();
+        let (_wm, _test_context) = setup_window_manager();
+    }
+
+    #[test]
+    fn a_socket_file_left_behind_is_replaced() -> eyre::Result<()> {
+        let socket_path = PathBuf::from(format!("/tmp/komorebi-test-{}.sock", Uuid::new_v4()));
+        std::fs::write(&socket_path, "left behind by a daemon that crashed")?;
+        let _test_context = TestContext {
+            socket_path: Some(socket_path.clone()),
+        };
+
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+        let wm = WindowManager::new(receiver, Some(socket_path.clone()))?;
+
+        assert_eq!(
+            wm.command_listener
+                .local_addr()?
+                .as_pathname()
+                .map(PathBuf::from),
+            Some(socket_path)
+        );
+        Ok(())
     }
 
     fn rect(left: i32, top: i32, right: i32, bottom: i32) -> Rect {
@@ -256,7 +361,7 @@ mod tests {
     #[test]
     fn init_puts_each_open_window_on_the_monitor_it_is_on() -> eyre::Result<()> {
         let fake = two_monitors(&[601]);
-        let mut wm = setup_window_manager();
+        let (mut wm, _test_context) = setup_window_manager();
 
         with_backend(fake, || wm.init())?;
 
@@ -273,7 +378,7 @@ mod tests {
     #[test]
     fn retile_all_tiles_the_focused_workspace_of_every_monitor() -> eyre::Result<()> {
         let fake = two_monitors(&[611]);
-        let mut wm = setup_window_manager();
+        let (mut wm, _test_context) = setup_window_manager();
 
         with_backend(fake.clone(), || {
             wm.init()?;
@@ -292,7 +397,7 @@ mod tests {
         let fake = Arc::new(FakeBackend::with_one_monitor());
         fake.open_window(621, "foot", "foot", "stays");
         fake.open_window(622, "foot", "foot", "closes");
-        let mut wm = setup_window_manager();
+        let (mut wm, _test_context) = setup_window_manager();
 
         with_backend(fake.clone(), || {
             wm.init()?;
@@ -309,7 +414,7 @@ mod tests {
     fn a_minimized_window_is_kept_out_of_the_workspace() -> eyre::Result<()> {
         let fake = Arc::new(FakeBackend::with_one_monitor());
         fake.open_window(631, "foot", "foot", "minimized");
-        let mut wm = setup_window_manager();
+        let (mut wm, _test_context) = setup_window_manager();
 
         with_backend(fake, || {
             wm.init()?;

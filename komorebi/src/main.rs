@@ -6,15 +6,18 @@
 //! The backend is KWin's ([`komorebi::kwin`]): the daemon connects to the session bus, loads its
 //! script into KWin and waits for the script to report the desktop. `--fake-backend` replaces it
 //! with an in-memory desktop with one monitor and no windows, for development and testing. The
-//! daemon then loads the monitors and the windows that are open, tiles them, handles the events
-//! the backend reports on a thread of their own, and runs until it is stopped with `SIGINT` or
-//! `SIGTERM`.
+//! daemon then loads the monitors and the windows that are open, tiles them, listens for
+//! messages on `komorebi.sock` in [`struct@DATA_DIR`], handles the events the backend reports on
+//! a thread of their own, and runs until it is stopped, with `SIGINT`, `SIGTERM` or a `Stop`
+//! message.
 
 use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
+use komorebi::DATA_DIR;
 use komorebi::backend;
 use komorebi::backend::fake::FakeBackend;
+use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
@@ -118,8 +121,8 @@ struct Opts {
     /// Level of log output verbosity
     #[clap(long, value_enum, default_value_t=LogLevel::Info)]
     log_level: LogLevel,
-    /// Run against an in-memory desktop instead of KWin, for development and testing. Windows
-    /// and monitors are not real.
+    /// Run against an in-memory desktop instead of KWin, for development and testing of the
+    /// socket interface. Windows and monitors are not real.
     #[clap(long, hide = true)]
     fake_backend: bool,
 }
@@ -127,6 +130,10 @@ struct Opts {
 fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
     setup(opts.log_level)?;
+
+    if !DATA_DIR.is_dir() {
+        std::fs::create_dir_all(&*DATA_DIR)?;
+    }
 
     if opts.fake_backend {
         tracing::warn!("running against an in-memory desktop; nothing here is a real window");
@@ -141,11 +148,13 @@ fn main() -> eyre::Result<()> {
 
     let wm = Arc::new(Mutex::new(WindowManager::new(
         window_manager_event_listener::event_rx(),
+        None,
     )?));
 
     wm.lock().init()?;
     wm.lock().retile_all()?;
 
+    listen_for_commands(wm.clone());
     listen_for_events(wm.clone());
 
     let (quit_sender, quit_receiver) = std::sync::mpsc::channel();
@@ -159,6 +168,9 @@ fn main() -> eyre::Result<()> {
     tracing::info!("stop signal received");
 
     backend::backend().shutdown();
+
+    let socket = DATA_DIR.join("komorebi.sock");
+    let _ = std::fs::remove_file(socket);
 
     std::process::exit(130);
 }

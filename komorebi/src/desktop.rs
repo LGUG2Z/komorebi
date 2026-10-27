@@ -8,6 +8,7 @@
 //! # Example
 //!
 //! ```rust
+//! use std::path::PathBuf;
 //! use std::sync::Arc;
 //!
 //! use komorebi::backend::fake::FakeBackend;
@@ -20,7 +21,8 @@
 //! fake.open_window(1, "foot", "foot", "a terminal");
 //!
 //! let (_sender, events) = crossbeam_channel::bounded(1);
-//! let mut wm = WindowManager::new(events)?;
+//! let socket = PathBuf::from(format!("/tmp/komorebi-desktop-doc-{}.sock", std::process::id()));
+//! let mut wm = WindowManager::new(events, Some(socket.clone()))?;
 //! with_backend(fake, || {
 //!     load_monitor_information(&mut wm)?;
 //!     load_workspace_information(&mut wm)
@@ -28,6 +30,7 @@
 //!
 //! assert_eq!(wm.monitors().len(), 1);
 //! assert!(wm.focused_workspace()?.contains_window(1));
+//! # std::fs::remove_file(socket)?;
 //! # Ok::<(), color_eyre::eyre::Report>(())
 //! ```
 
@@ -96,6 +99,7 @@ pub fn latest_monitor_information() -> eyre::Result<Vec<Monitor>> {
 /// # Example
 ///
 /// ```rust
+/// use std::path::PathBuf;
 /// use std::sync::Arc;
 ///
 /// use komorebi::backend::fake::FakeBackend;
@@ -105,7 +109,8 @@ pub fn latest_monitor_information() -> eyre::Result<Vec<Monitor>> {
 ///
 /// let fake = Arc::new(FakeBackend::with_one_monitor());
 /// let (_sender, events) = crossbeam_channel::bounded(1);
-/// let mut wm = WindowManager::new(events)?;
+/// let socket = PathBuf::from(format!("/tmp/komorebi-monitors-doc-{}.sock", std::process::id()));
+/// let mut wm = WindowManager::new(events, Some(socket.clone()))?;
 ///
 /// with_backend(fake, || {
 ///     load_monitor_information(&mut wm)?;
@@ -113,6 +118,7 @@ pub fn latest_monitor_information() -> eyre::Result<Vec<Monitor>> {
 /// })?;
 ///
 /// assert_eq!(wm.monitors().len(), 1);
+/// # std::fs::remove_file(socket)?;
 /// # Ok::<(), color_eyre::eyre::Report>(())
 /// ```
 #[tracing::instrument(skip_all)]
@@ -148,6 +154,7 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
 /// # Example
 ///
 /// ```rust
+/// use std::path::PathBuf;
 /// use std::sync::Arc;
 ///
 /// use komorebi::backend::fake::FakeBackend;
@@ -162,7 +169,8 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
 /// fake.set_normal(2, false);
 ///
 /// let (_sender, events) = crossbeam_channel::bounded(1);
-/// let mut wm = WindowManager::new(events)?;
+/// let socket = PathBuf::from(format!("/tmp/komorebi-windows-doc-{}.sock", std::process::id()));
+/// let mut wm = WindowManager::new(events, Some(socket.clone()))?;
 /// with_backend(fake, || {
 ///     load_monitor_information(&mut wm)?;
 ///     load_workspace_information(&mut wm)
@@ -171,6 +179,7 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
 /// let workspace = wm.focused_workspace()?;
 /// assert!(workspace.contains_window(1));
 /// assert!(!workspace.contains_window(2));
+/// # std::fs::remove_file(socket)?;
 /// # Ok::<(), color_eyre::eyre::Report>(())
 /// ```
 #[tracing::instrument(skip_all)]

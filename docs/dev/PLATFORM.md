@@ -88,10 +88,11 @@ an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a runnin
 
 #### What komorebi leaves behind
 
-When it is stopped with `SIGINT` or `SIGTERM` it asks KWin to unload the script. The file
-`bridge.js` stays in the runtime directory, which is removed at logout. A daemon that is
-killed leaves the script running in KWin, reporting to nobody, until the next start replaces
-it or the session ends.
+When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it asks KWin
+to unload the script and removes the socket. The file `bridge.js` stays in the runtime
+directory, which is removed at logout. A daemon that is killed leaves the script running in
+KWin, reporting to nobody, and the socket file in the runtime directory, until the next start
+replaces both or the session ends.
 
 ### A headless KWin
 
@@ -142,6 +143,7 @@ What komorebi calls:
 | Path | What | Lifetime |
 |---|---|---|
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
+| `$XDG_RUNTIME_DIR/komorebi/komorebi.sock` | the command socket | bound once the daemon is connected to KWin, after a file left there is removed; removed when the daemon stops |
 
 Without `XDG_RUNTIME_DIR` the directory is `komorebi` in the local data directory instead
 (see [`XDG_DATA_HOME`](#xdg_data_home)).
@@ -157,11 +159,11 @@ either. An address with no bus behind it is the first error under [No KWin](#no-
 ### `XDG_RUNTIME_DIR`
 
 The runtime directory of the user, normally `/run/user/<uid>`: komorebi writes the bridge to
-the `komorebi` directory in it.
+the `komorebi` directory in it, and binds its command socket there.
 
 ### `XDG_DATA_HOME`
 
-Read only when `XDG_RUNTIME_DIR` is not set: the bridge is then written to
+Read only when `XDG_RUNTIME_DIR` is not set: the bridge and the socket then go to
 `$XDG_DATA_HOME/komorebi` (`~/.local/share/komorebi` if `XDG_DATA_HOME` is not set either).
 
 ### `RUST_LOG`

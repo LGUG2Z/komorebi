@@ -1,0 +1,412 @@
+//! How the daemon answers the messages on its socket: [`listen_for_commands`] and
+//! [`WindowManager::process_command`].
+//!
+//! A client connects to `komorebi.sock` in [`struct@DATA_DIR`](crate::DATA_DIR) and writes one
+//! [`SocketMessage`] as JSON per line. Each connection is read on a separate thread, and each
+//! message is handled with the window manager locked. A message that asks a question is answered
+//! on the same connection, and the answer ends when the daemon closes it:
+//!
+//! - **State**: the window manager's [`State`], as JSON.
+//! - **MonitorInformation**: the id, the name and the bounds of each monitor, as JSON.
+//! - **Query**: one value as text, the answer to a [`StateQuery`].
+//!
+//! The others answer nothing: **Retile** tiles the focused workspace of every monitor again, and
+//! **Stop** stops the daemon ([`WindowManager::stop`]).
+
+use crate::core::Layout;
+use crate::core::SocketMessage;
+use crate::core::StateQuery;
+use crate::monitor::MonitorInformation;
+use crate::state::State;
+use crate::window_manager::WindowManager;
+use color_eyre::eyre;
+use color_eyre::eyre::OptionExt;
+use parking_lot::Mutex;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::os::unix::net::UnixStream;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
+use version::build;
+
+/// Starts the thread that accepts connections on the window manager's
+/// [`command_listener`](WindowManager::command_listener), and reads each connection on a separate
+/// thread ([`read_commands_uds`])
+///
+/// When accepting fails, the error is logged and the listening thread is started again.
+#[tracing::instrument]
+pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
+    std::thread::spawn(move || {
+        loop {
+            let wm = wm.clone();
+
+            let _ = std::thread::spawn(move || {
+                let listener = wm
+                    .lock()
+                    .command_listener
+                    .try_clone()
+                    .expect("could not clone unix listener");
+
+                tracing::info!("listening on komorebi.sock");
+                for client in listener.incoming() {
+                    match client {
+                        Ok(stream) => {
+                            let wm_clone = wm.clone();
+                            std::thread::spawn(move || {
+                                match read_commands_uds(&wm_clone, stream) {
+                                    Ok(()) => {}
+                                    Err(error) => {
+                                        tracing::error!("{error}")
+                                    }
+                                }
+                            });
+                        }
+                        Err(error) => {
+                            tracing::error!("failed to get unix stream {}", error);
+                            break;
+                        }
+                    }
+                }
+            })
+            .join();
+
+            tracing::error!("restarting failed thread");
+        }
+    });
+}
+
+impl WindowManager {
+    /// Handles one message, and writes the answer to a question to `reply`
+    ///
+    /// # Errors
+    ///
+    /// - A query about the focused monitor, workspace or container when there is none.
+    /// - The window manager fails to retile, for one of the reasons
+    ///   [`WindowManager::retile_all`] gives.
+    /// - The answer cannot be written to `reply`.
+    #[tracing::instrument(skip(self, reply, message))]
+    pub fn process_command(
+        &mut self,
+        message: SocketMessage,
+        mut reply: impl std::io::Write,
+    ) -> eyre::Result<()> {
+        tracing::info!("processing command: {message}");
+
+        match message {
+            SocketMessage::Retile => self.retile_all()?,
+            SocketMessage::State => {
+                let state = match serde_json::to_string_pretty(&State::from(&*self)) {
+                    Ok(state) => state,
+                    Err(error) => error.to_string(),
+                };
+
+                tracing::info!("replying to state");
+
+                reply.write_all(state.as_bytes())?;
+
+                tracing::info!("replying to state done");
+            }
+            SocketMessage::MonitorInformation => {
+                let mut monitors = vec![];
+                for monitor in self.monitors() {
+                    monitors.push(MonitorInformation::from(monitor));
+                }
+
+                let monitors_state = serde_json::to_string_pretty(&monitors)
+                    .unwrap_or_else(|error| error.to_string());
+
+                reply.write_all(monitors_state.as_bytes())?;
+            }
+            SocketMessage::Query(query) => {
+                let response = match query {
+                    StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
+                    StateQuery::FocusedWorkspaceIndex => self
+                        .focused_monitor()
+                        .ok_or_eyre("there is no monitor")?
+                        .focused_workspace_idx()
+                        .to_string(),
+                    StateQuery::FocusedContainerIndex => self
+                        .focused_workspace()?
+                        .focused_container_idx()
+                        .to_string(),
+                    StateQuery::FocusedWindowIndex => {
+                        self.focused_container()?.focused_window_idx().to_string()
+                    }
+                    StateQuery::Version => build::VERSION.to_string(),
+                    StateQuery::FocusedWorkspaceLayout => {
+                        let focused_monitor =
+                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                        focused_monitor.focused_workspace_layout().map_or_else(
+                            || "None".to_string(),
+                            |layout| match layout {
+                                Layout::Default(default_layout) => default_layout.to_string(),
+                            },
+                        )
+                    }
+                    StateQuery::FocusedContainerKind => {
+                        match self.focused_workspace()?.focused_container() {
+                            None => "None".to_string(),
+                            Some(container) => {
+                                if container.windows().len() > 1 {
+                                    "Stack".to_string()
+                                } else {
+                                    "Single".to_string()
+                                }
+                            }
+                        }
+                    }
+                };
+
+                reply.write_all(response.as_bytes())?;
+            }
+            SocketMessage::Stop => {
+                self.stop()?;
+            }
+        }
+
+        self.update_known_window_ids();
+
+        tracing::info!("processed command: {message}");
+
+        Ok(())
+    }
+}
+
+/// Reads the messages on one connection, one per line, and hands each to
+/// [`WindowManager::process_command`] with the connection to answer on
+///
+/// A message that arrives while the window manager has been locked for a second is logged and
+/// dropped.
+///
+/// # Errors
+///
+/// - The connection cannot be read, or cloned to be read and written at once.
+/// - A line is not a [`SocketMessage`]: the lines after it are not read.
+/// - [`WindowManager::process_command`] fails: the lines after it are not read.
+pub fn read_commands_uds(
+    wm: &Arc<Mutex<WindowManager>>,
+    mut stream: UnixStream,
+) -> eyre::Result<()> {
+    let reader = BufReader::new(stream.try_clone()?);
+    // TODO(raggi): while this processes more than one command, if there are
+    // replies there is no clearly defined protocol for framing yet - it's
+    // perhaps whole-json objects for now, but termination is signalled by
+    // socket shutdown.
+    for line in reader.lines() {
+        let message = SocketMessage::from_str(&line?)?;
+
+        match wm.try_lock_for(Duration::from_secs(1)) {
+            None => {
+                tracing::warn!(
+                    "could not acquire window manager lock, not processing message: {message}"
+                );
+            }
+            Some(mut wm) => {
+                wm.process_command(message.clone(), &mut stream)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backend::fake::FakeBackend;
+    use crate::backend::with_backend;
+    use crate::core::Rect;
+    use std::io::Read;
+    use std::io::Write;
+    use std::net::Shutdown;
+    use std::path::PathBuf;
+    use uuid::Uuid;
+
+    /// A window manager over `fake`, listening on a socket for this test alone in /tmp, which is
+    /// short enough for a unix socket path on macOS. The socket is removed when the test is done.
+    struct Daemon {
+        fake: Arc<FakeBackend>,
+        wm: Arc<Mutex<WindowManager>>,
+        socket: PathBuf,
+    }
+
+    impl Drop for Daemon {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.socket);
+        }
+    }
+
+    impl Daemon {
+        fn new(fake: FakeBackend) -> Self {
+            let fake = Arc::new(fake);
+            let socket = PathBuf::from(format!("/tmp/komorebi-test-{}.sock", Uuid::new_v4()));
+
+            let (_sender, events) = crossbeam_channel::bounded(1);
+
+            let wm = with_backend(fake.clone(), || {
+                let mut wm = WindowManager::new(events, Some(socket.clone())).unwrap();
+                wm.init().unwrap();
+                wm
+            });
+
+            Self {
+                fake,
+                wm: Arc::new(Mutex::new(wm)),
+                socket,
+            }
+        }
+
+        /// Writes `lines` on a new connection, has the window manager read the connection the
+        /// way the daemon does, and returns what it wrote back
+        fn send(&self, lines: &str) -> eyre::Result<String> {
+            let mut client = UnixStream::connect(&self.socket)?;
+            client.write_all(lines.as_bytes())?;
+            client.shutdown(Shutdown::Write)?;
+
+            // the client reads on another thread, so that an answer bigger than the
+            // socket's buffer does not block the window manager writing it
+            let reading = std::thread::spawn(move || {
+                let mut reply = String::new();
+                client.read_to_string(&mut reply).map(|_| reply)
+            });
+
+            let (stream, _) = self.wm.lock().command_listener.accept()?;
+            let handled = with_backend(self.fake.clone(), || read_commands_uds(&self.wm, stream));
+
+            let reply = reading.join().expect("the client does not panic")?;
+            handled.map(|()| reply)
+        }
+
+        fn ask(&self, message: SocketMessage) -> eyre::Result<String> {
+            self.send(&serde_json::to_string(&message)?)
+        }
+    }
+
+    fn rect(left: i32, top: i32, right: i32, bottom: i32) -> Rect {
+        Rect {
+            left,
+            top,
+            right,
+            bottom,
+        }
+    }
+
+    fn two_windows(first: u32) -> FakeBackend {
+        let fake = FakeBackend::with_one_monitor();
+        fake.open_window(first, "foot", "foot", "first");
+        fake.open_window(first + 1, "foot", "foot", "second");
+        fake
+    }
+
+    #[test]
+    fn the_state_has_every_window_of_every_workspace() -> eyre::Result<()> {
+        let daemon = Daemon::new(two_windows(701));
+
+        let state: serde_json::Value = serde_json::from_str(&daemon.ask(SocketMessage::State)?)?;
+
+        let windows = &state["monitors"]["elements"][0]["workspaces"]["elements"][0]["containers"]
+            ["elements"];
+        assert_eq!(windows[0]["windows"]["elements"][0]["id"], 701);
+        assert_eq!(windows[1]["windows"]["elements"][0]["id"], 702);
+        assert_eq!(
+            windows[1]["windows"]["elements"][0]["details"]["title"],
+            "second"
+        );
+        assert_eq!(state["mouse_follows_focus"], true);
+        Ok(())
+    }
+
+    #[test]
+    fn monitor_information_names_each_monitor_and_its_bounds() -> eyre::Result<()> {
+        let fake = FakeBackend::with_one_monitor();
+        fake.add_monitor(
+            2,
+            "Virtual-1",
+            rect(1920, 0, 1920, 1080),
+            rect(1920, 0, 1920, 1080),
+        );
+        let daemon = Daemon::new(fake);
+
+        let monitors: serde_json::Value =
+            serde_json::from_str(&daemon.ask(SocketMessage::MonitorInformation)?)?;
+
+        assert_eq!(monitors.as_array().map(Vec::len), Some(2));
+        assert_eq!(monitors[1]["id"], 2);
+        assert_eq!(monitors[1]["device"], "Virtual-1");
+        assert_eq!(monitors[1]["size"]["left"], 1920);
+        assert_eq!(monitors[0]["size"]["right"], 1920);
+        Ok(())
+    }
+
+    #[test]
+    fn a_query_is_answered_with_one_value() -> eyre::Result<()> {
+        let daemon = Daemon::new(two_windows(711));
+        let query = |query| daemon.ask(SocketMessage::Query(query));
+
+        assert_eq!(query(StateQuery::FocusedMonitorIndex)?, "0");
+        assert_eq!(query(StateQuery::FocusedWorkspaceIndex)?, "0");
+        assert_eq!(query(StateQuery::FocusedContainerIndex)?, "0");
+        assert_eq!(query(StateQuery::FocusedWindowIndex)?, "0");
+        assert_eq!(query(StateQuery::FocusedWorkspaceLayout)?, "BSP");
+        assert_eq!(query(StateQuery::FocusedContainerKind)?, "Single");
+        // the version is shadow-rs's description of the build, the package version first
+        let version = format!("pkg_version:{}", env!("CARGO_PKG_VERSION"));
+        assert!(query(StateQuery::Version)?.contains(&version));
+        Ok(())
+    }
+
+    #[test]
+    fn a_query_about_a_container_on_an_empty_workspace_is_an_error() {
+        let daemon = Daemon::new(FakeBackend::with_one_monitor());
+
+        let answer = daemon.ask(SocketMessage::Query(StateQuery::FocusedWindowIndex));
+
+        assert_eq!(
+            answer.map_err(|error| error.to_string()),
+            Err(String::from("there is no container"))
+        );
+    }
+
+    #[test]
+    fn retile_puts_a_window_moved_by_hand_back_on_its_tile() -> eyre::Result<()> {
+        let daemon = Daemon::new(two_windows(721));
+        daemon.ask(SocketMessage::Retile)?;
+        let tile = daemon.fake.rect_of(721);
+
+        daemon
+            .fake
+            .move_window_by_user(721, rect(300, 300, 400, 400));
+        assert_ne!(daemon.fake.rect_of(721), tile);
+
+        assert_eq!(daemon.ask(SocketMessage::Retile)?, "");
+        assert_eq!(daemon.fake.rect_of(721), tile);
+        Ok(())
+    }
+
+    #[test]
+    fn the_messages_on_one_connection_are_handled_in_order() -> eyre::Result<()> {
+        let daemon = Daemon::new(two_windows(731));
+        daemon
+            .fake
+            .move_window_by_user(731, rect(300, 300, 400, 400));
+
+        let reply = daemon.send(
+            "{\"type\":\"Retile\"}\n{\"type\":\"Query\",\"content\":\"FocusedContainerKind\"}\n",
+        )?;
+
+        assert_eq!(reply, "Single");
+        assert_ne!(daemon.fake.rect_of(731), Some(rect(300, 300, 400, 400)));
+        Ok(())
+    }
+
+    #[test]
+    fn a_line_that_is_not_a_message_is_an_error() {
+        let daemon = Daemon::new(FakeBackend::with_one_monitor());
+
+        let reply = daemon.send("{\"type\":\"Nonsense\"}\n");
+
+        assert!(reply.is_err());
+    }
+}

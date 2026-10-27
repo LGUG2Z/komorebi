@@ -9,6 +9,7 @@
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::container::Container;
+use crate::core::Layout;
 use crate::core::Rect;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
@@ -19,6 +20,27 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
+
+/// A monitor's identity and bounds, as the daemon answers
+/// [`SocketMessage::MonitorInformation`](crate::core::SocketMessage::MonitorInformation) with them
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MonitorInformation {
+    pub id: u32,
+    pub device: String,
+    pub serial_number_id: String,
+    pub size: Rect,
+}
+
+impl From<&Monitor> for MonitorInformation {
+    fn from(value: &Monitor) -> Self {
+        Self {
+            id: value.id,
+            device: value.device.clone(),
+            serial_number_id: value.serial_number_id.clone(),
+            size: value.size,
+        }
+    }
+}
 
 impl_ring_elements!(Monitor, Workspace);
 
@@ -163,6 +185,12 @@ impl Monitor {
             self.workspaces_mut()
                 .resize(ensure_count, Workspace::default());
         }
+    }
+
+    /// The layout of the focused workspace, if the monitor has one
+    pub fn focused_workspace_layout(&self) -> Option<Layout> {
+        self.focused_workspace()
+            .map(|workspace| workspace.layout.clone())
     }
 }
 

@@ -1,0 +1,16 @@
+[package]
+name = "komorebi-client"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
+komorebi = { path = "../komorebi", default-features = false }
+
+serde_json = { workspace = true }
+
+[dev-dependencies]
+parking_lot = "0.12"
+
+[features]
+default = ["schemars"]
+schemars = ["komorebi/default"]

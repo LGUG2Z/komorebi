@@ -28,6 +28,9 @@ tracing-subscriber = { workspace = true }
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 futures-util = "0.3"
 
+[dev-dependencies]
+uuid = { version = "1", features = ["v4"] }
+
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]

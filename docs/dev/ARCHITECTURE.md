@@ -7,8 +7,8 @@ tested, without one.
 
 This page describes that trait, who implements and calls it, where each of its rules is
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
-and how an event about a window becomes a tile. It grows with the code: each part of the
-daemon that is added has its place here.
+how an event about a window becomes a tile, and how a message on the daemon's socket is
+answered. It grows with the code: each part of the daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -24,6 +24,10 @@ daemon that is added has its place here.
   number of containers into one rectangle, a **tile**, for each container.
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
   the focus, minimized or restored ([`WindowManagerEvent`]).
+- **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
+  (retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
+- **State**: the window manager's monitors, workspaces, containers and windows, and its
+  settings, as the daemon answers a `State` message with them ([`State`]).
 - **Compositor**: the program that owns the screen and the windows. On KDE Plasma it is
   KWin.
 - **Backend**: the implementation of the [`Backend`](../../komorebi/src/backend/mod.rs)
@@ -154,6 +158,39 @@ and returns once the snapshot has arrived, so that the window manager reads a fu
 it starts. [PLATFORM.md](PLATFORM.md) has the D-Bus names, the files and the environment
 variables; [DESIGN.md](DESIGN.md#why-does-komorebi-run-a-script-inside-kwin) has the reasons.
 
+## The command socket
+
+The daemon takes messages on a Unix socket, `komorebi.sock` in [`DATA_DIR`]
+(`$XDG_RUNTIME_DIR/komorebi`, or the local data directory without a runtime directory).
+[`WindowManager::new`] binds it, after it removes a socket file that a daemon that did not
+stop cleanly left behind, and the window manager keeps the listener. The daemon connects to
+KWin before it makes the window manager, so a komorebi that cannot connect, such as a second
+one in the same session, whose bus refuses it `org.komorebi.Bridge`, exits before it touches
+the socket of the one that is running.
+
+[`listen_for_commands`] starts a thread that accepts connections, and reads each connection
+on a separate thread ([`read_commands_uds`]). A connection carries one [`SocketMessage`]
+per line, as JSON with the variant's name in `type` and its arguments in `content`:
+`{"type":"Query","content":"FocusedWorkspaceIndex"}`. Each message is handled by
+[`WindowManager::process_command`] with the window manager locked, so messages are handled
+one at a time. A message that waited a second for the lock is logged and dropped.
+
+A question is answered on the same connection: the [`State`] or the monitors as JSON, or
+the answer to a [`StateQuery`] as one value in plain text. The answer has no framing; it
+ends when the daemon closes the connection, which it does once it has read the last line.
+A client therefore shuts down its side for writing after its message, and reads until the
+end ([`send_query`]). An order is answered with nothing, and a client that sends only
+orders can close the connection as soon as it has written them ([`send_message`],
+[`send_batch`]).
+
+A message that fails (a query about the focused container when the workspace has none) is
+logged, and the lines after it on that connection are not read. The client sees the
+connection close with no answer.
+
+`Stop` ends the daemon: [`WindowManager::stop`] removes the socket, lets the backend give up
+what it set up in the compositor (the KWin backend unloads the bridge), and exits with
+status 0. `SIGINT` and `SIGTERM` do the same from `main.rs`, with the exit status 130.
+
 ## The parts
 
 - [`backend`](../../komorebi/src/backend/mod.rs): the trait, the two data types, and the
@@ -181,9 +218,15 @@ variables; [DESIGN.md](DESIGN.md#why-does-komorebi-run-a-script-inside-kwin) has
 - [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
   call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table; and
   [`bridge.js`](../../komorebi/src/kwin/bridge.js), the bridge.
+- [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
+  socket, and what the window manager does with each message.
+- [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with.
+- [`komorebi-client`](../../komorebi-client/src/lib.rs): a library that writes messages on
+  the socket and reads the answers, for programs that talk to the daemon.
 - [`main.rs`](../../komorebi/src/main.rs): the daemon. It connects to KWin, or installs the
-  fake with `--fake-backend`, loads and tiles the desktop, starts the thread that handles
-  events, and waits to be stopped.
+  fake with `--fake-backend`, makes the window manager, which binds the socket, loads and
+  tiles the desktop, starts the threads that listen on the socket and handle events, and
+  waits to be stopped.
 
 The handle is a process-wide singleton so that a window can be a small `Copy` value
 that carries only its id, and ask the backend for what it needs. A test replaces it for
@@ -222,6 +265,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A destroyed window leaves whichever workspace has it | framework path: the destroy is looked up in the index of managed windows, which is rebuilt at startup and before and after every event | `a_window_that_was_open_before_komorebi_started_is_removed_when_it_closes` | none |
 | The daemon does not start without KWin, unless it is told to run against the fake | startup check: [`connect`] fails, and the daemon exits with the error, code 1 | `without_a_session_bus_komorebi_exits_with_an_error_naming_it` | `--fake-backend` |
 | One komorebi per session | startup check: the session bus gives `org.komorebi.Bridge` to one connection | none | none |
+| A komorebi that cannot connect to KWin leaves the socket of the running one alone | startup order: `main.rs` connects to KWin before [`WindowManager::new`] binds the socket | `without_kwin_komorebi_leaves_the_socket_it_finds_alone` | `--fake-backend` asks no bus, and takes the socket |
 | Events reach the window manager in the order KWin raised them | framework path: the `Event` interface is `spawn = false`, so the calls are handled inline, and one channel and one thread carry the events to the window manager | `vm-kwin-events` ("the Show came first") | none |
 | No event names a window before the event that announces it | convention in the bridge, which announces a window it has not seen when it is activated; the table shows a window once | `a_new_window_raises_show_and_then_focus_in_that_order`, `announcing_the_same_window_twice_shows_it_once`, `vm-kwin-events` | none |
 | A window's id names one window while the daemon runs | framework path: the table numbers each KWin window the first time it sees it, and never gives a number out twice | `ids_are_assigned_once_per_window_and_survive_a_new_snapshot`, `tombstones_are_dropped_after_a_while_and_their_ids_are_not_reused` | none |
@@ -231,6 +275,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | The window manager sees a frame it asked for at once | framework path: the KWin backend's `set_rect` records it in the table before KWin answers | `a_requested_rect_is_visible_at_once_and_replaced_by_the_real_one` | none |
 | A KWin that restarts gets the bridge again, and the windows of the old one leave the layout | framework path: the connection's thread watches `NameOwnerChanged` for `org.kde.KWin`, and the table destroys every window when the name is lost | `when_kwin_goes_away_every_window_it_had_is_destroyed`, `vm-kwin-restart` | none |
 | After KWin restarts, the commands go to the new bridge | framework path: a `Poll` held since before KWin last left the bus is answered with nothing, and passes on the wake-up it got | `a_poll_held_by_the_bridge_of_a_kwin_that_has_gone_gets_no_commands`, `vm-kwin-restart` ("a window opened in the third KWin is tiled") | none |
+| Messages are handled one at a time, and in order on one connection | framework path: [`read_commands_uds`] reads a connection line by line and handles each message with the window manager locked | `the_messages_on_one_connection_are_handled_in_order` | none |
+| A socket left behind by a daemon that did not stop cleanly does not keep the next one from starting | framework path: [`WindowManager::new`] removes the file before it binds | `a_socket_file_left_behind_is_replaced` | none |
+| A daemon that is told to stop leaves no socket behind | framework path: [`WindowManager::stop`] removes it before it exits | `the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to` | `SIGKILL` |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
 | What the bridge sends is what the table reads | type checker: the JSDoc types of the messages in [`bridge.js`]; tests: the events of [`fixtures`] are what the bridge's tests check it sends and what the table's tests feed it | `what the bridge sends for a session is what the daemon's tests read`, `the_bridges_events_for_a_session_are_the_window_events_komorebi_expects` | none |
 | What the backend sends is what the bridge carries out | tests: the commands of [`fixtures`] are what the backend's tests check it sends and what the bridge's tests answer it with, checking what KWin is asked to do for each | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a command for a window KWin no longer has is given back, and the rest are carried out` | none |
@@ -276,6 +323,24 @@ A window is shown, and ends up on a tile:
    shortcut).
 8. The index is rebuilt again, so the next event finds the window.
 
+## One message, end to end
+
+A client asks for the state of the window manager:
+
+1. [`send_query`] connects to `komorebi.sock` in [`DATA_DIR`], writes
+   `{"type":"State"}`, and shuts down its side of the connection for writing.
+2. The thread that [`listen_for_commands`] started accepts the connection and starts a
+   thread for it, which calls [`read_commands_uds`].
+3. `read_commands_uds` reads the line, parses it into [`SocketMessage`]`::State`, and locks
+   the window manager, waiting up to a second.
+4. [`WindowManager::process_command`] makes a [`State`] from the window manager, a copy of
+   every monitor with its workspaces, containers and windows. Each window is serialized
+   with what the backend reports about it now: its frame, title, executable, class and path.
+5. The state is written to the connection as pretty-printed JSON, and the index of managed
+   windows is rebuilt, as after every message.
+6. There are no more lines, so `read_commands_uds` returns and the connection is closed.
+   `send_query` has read to the end, and returns the JSON.
+
 ## Where to look in the code
 
 - [`komorebi/src/backend/mod.rs`](../../komorebi/src/backend/mod.rs): the trait.
@@ -289,6 +354,10 @@ A window is shown, and ends up on a tile:
   offset a monitor gives the workspace it shows.
 - [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
   does, and the thread that handles them.
+- [`komorebi/src/process_command.rs`](../../komorebi/src/process_command.rs): the socket, what
+  each message does, and the tests that send messages through a real socket.
+- [`komorebi-client/src/lib.rs`](../../komorebi-client/src/lib.rs): the client side of the
+  socket.
 - [`komorebi/src/kwin/mod.rs`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus
   service and the held call.
 - [`komorebi/src/kwin/state.rs`](../../komorebi/src/kwin/state.rs): the table, with the
@@ -305,6 +374,8 @@ A window is shown, and ends up on a tile:
   restarting under the daemon.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
   driven end to end against the fake.
+- [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
+  from its start to a `Stop`.
 
 [`Backend`]: ../../komorebi/src/backend/mod.rs
 [`WindowInfo`]: ../../komorebi/src/backend/mod.rs
@@ -339,3 +410,15 @@ A window is shown, and ends up on a tile:
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts
 [`bridge.test.js`]: ../../komorebi/src/kwin/bridge.test.js
 [`fixtures`]: ../../komorebi/src/kwin/fixtures
+[`DATA_DIR`]: ../../komorebi/src/lib.rs
+[`SocketMessage`]: ../../komorebi/src/core/mod.rs
+[`StateQuery`]: ../../komorebi/src/core/mod.rs
+[`State`]: ../../komorebi/src/state.rs
+[`WindowManager::new`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::stop`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::process_command`]: ../../komorebi/src/process_command.rs
+[`listen_for_commands`]: ../../komorebi/src/process_command.rs
+[`read_commands_uds`]: ../../komorebi/src/process_command.rs
+[`send_query`]: ../../komorebi-client/src/lib.rs
+[`send_message`]: ../../komorebi-client/src/lib.rs
+[`send_batch`]: ../../komorebi-client/src/lib.rs

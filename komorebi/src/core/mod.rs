@@ -5,10 +5,15 @@
 //! those of `komorebi-layouts`, re-exported here so that the rest of the crate has one place to
 //! import from. [`pathext`] resolves environment variables in configured paths and
 //! [`config_generation`] holds the rules that match applications by what they are called.
+//!
+//! [`SocketMessage`] is every message the daemon takes on its socket, and [`StateQuery`] every
+//! question [`SocketMessage::Query`] can ask.
 
 use clap::ValueEnum;
+use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
+use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
 
@@ -251,4 +256,67 @@ pub enum WindowKind {
     Unfocused,
     UnfocusedLocked,
     Floating,
+}
+
+/// A question about the window manager that [`SocketMessage::Query`] asks, answered with one
+/// value as text: an index, the name of a layout or of a container kind, or the version of the
+/// daemon.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum StateQuery {
+    FocusedMonitorIndex,
+    FocusedWorkspaceIndex,
+    FocusedContainerIndex,
+    FocusedWindowIndex,
+    FocusedWorkspaceLayout,
+    FocusedContainerKind,
+    Version,
+}
+
+/// A message to the daemon, as it is written on its socket: JSON, with the variant's name in
+/// `type` and its arguments, if it has any, in `content`.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi::core::SocketMessage;
+/// use komorebi::core::StateQuery;
+///
+/// let query = SocketMessage::Query(StateQuery::FocusedWorkspaceIndex);
+/// assert_eq!(
+///     String::from_utf8(query.as_bytes()?)?,
+///     r#"{"type":"Query","content":"FocusedWorkspaceIndex"}"#,
+/// );
+///
+/// let stop: SocketMessage = r#"{"type":"Stop"}"#.parse()?;
+/// assert!(matches!(stop, SocketMessage::Stop));
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+// serde_as must be before derive
+#[serde_with::serde_as]
+#[derive(Clone, Debug, Serialize, Deserialize, Display)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(tag = "type", content = "content")]
+pub enum SocketMessage {
+    Stop,
+    Retile,
+    State,
+    MonitorInformation,
+    Query(StateQuery),
+}
+
+impl SocketMessage {
+    /// Returns the message as JSON, the way the daemon reads it from its socket
+    pub fn as_bytes(&self) -> eyre::Result<Vec<u8>> {
+        Ok(serde_json::to_string(self)?.as_bytes().to_vec())
+    }
+}
+
+impl FromStr for SocketMessage {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
 }

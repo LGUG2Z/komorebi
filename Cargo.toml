@@ -1,7 +1,7 @@
 [workspace]
 
 resolver = "2"
-members = ["komorebi", "version"]
+members = ["komorebi", "komorebi-client", "version"]
 
 [workspace.package]
 version = "0.1.0"

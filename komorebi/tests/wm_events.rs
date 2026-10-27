@@ -57,9 +57,16 @@ fn desktop() -> (Arc<FakeBackend>, WindowManager) {
 fn desktop_on(fake: FakeBackend) -> (Arc<FakeBackend>, WindowManager) {
     let fake = Arc::new(fake);
     let (_sender, receiver) = crossbeam_channel::bounded(1);
+    // unix socket paths are limited to ~104 bytes on macOS, which the temp dir alone can exceed
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let socket = std::path::PathBuf::from(format!(
+        "/tmp/kmb-{}-{}.sock",
+        std::process::id(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    ));
 
     let wm = with_backend(fake.clone(), || {
-        let mut wm = WindowManager::new(receiver).unwrap();
+        let mut wm = WindowManager::new(receiver, Some(socket)).unwrap();
         wm.init().unwrap();
         wm
     });

@@ -155,3 +155,12 @@ bus itself: `NameOwnerChanged` says that `org.kde.KWin` has lost its owner, and 
 has a new one. So losing the name counts as every window closing, and getting it back as the
 moment to load the bridge into the new KWin, which then reports its desktop as it does at
 start.
+
+## Why does komorebi take its orders on a socket?
+
+komorebi responds to two things: what the compositor reports about windows, and the
+messages it receives on its socket. It handles no keyboard or mouse input. Binding a key to
+an action is the job of another program, which runs a command that writes a message on the
+socket. This is the architecture that bspwm made popular on Linux and yabai on macOS, and
+the one komorebi has on Windows and on macOS
+([the design notes of komorebi for Mac](https://github.com/LGUG2Z/komorebi-for-mac/blob/master/docs/design.md)).

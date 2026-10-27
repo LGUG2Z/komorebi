@@ -12,6 +12,10 @@
 //! [`window_manager_event_listener`].
 //!
 //! On KDE Plasma the backend is [`kwin::KWinBackend`], which talks to a script it loads into KWin.
+//!
+//! The daemon also listens on a socket, `komorebi.sock` in [`struct@DATA_DIR`], for the messages
+//! in [`core::SocketMessage`]: [`process_command`] reads them and answers, with the window
+//! manager's [`state::State`] for one.
 
 use color_eyre::eyre;
 use lazy_static::lazy_static;
@@ -28,7 +32,9 @@ pub mod desktop;
 pub mod kwin;
 pub mod lockable_sequence;
 pub mod monitor;
+pub mod process_command;
 pub mod process_event;
+pub mod state;
 pub mod window;
 pub mod window_manager;
 pub mod window_manager_event;
@@ -41,9 +47,9 @@ pub type LibraryError = eyre::Report;
 
 lazy_static! {
     /// Where komorebi keeps the files it needs while it runs, such as the script it loads into
-    /// KWin: `$XDG_RUNTIME_DIR/komorebi`, which is per-user, on tmpfs and removed at logout.
-    /// Without a runtime directory (a bare ssh session, or the tests on a Mac) it falls back to the
-    /// local data directory.
+    /// KWin and its command socket: `$XDG_RUNTIME_DIR/komorebi`, which is per-user, on tmpfs and
+    /// removed at logout. Without a runtime directory (a bare ssh session, or the tests on a Mac)
+    /// it falls back to the local data directory.
     pub static ref DATA_DIR: PathBuf = std::env::var_os("XDG_RUNTIME_DIR")
         .filter(|dir| !dir.is_empty())
         .map(|dir| PathBuf::from(dir).join("komorebi"))

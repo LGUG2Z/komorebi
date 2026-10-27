@@ -24,6 +24,12 @@ session. Outside a Plasma session it exits with an error that says what is
 missing. `--fake-backend` runs the window manager against an in-memory desktop
 with one monitor and no windows instead.
 
+While it runs, the daemon takes messages on a Unix socket, `komorebi.sock` in
+`$XDG_RUNTIME_DIR/komorebi` (the local data directory when there is no runtime
+directory): a message can ask for the state of the window manager, ask which
+monitor, workspace or container has the focus, retile every monitor, or stop
+the daemon. [`komorebi-client`](komorebi-client) writes them.
+
 `nix develop` provides the Rust toolchain that [`rust-toolchain.toml`](rust-toolchain.toml)
 selects, a nightly `rustfmt`, and the tools `just check` and the flake's checks
 use. With [direnv](https://direnv.net), the [`.envrc`](.envrc) does it on
@@ -41,7 +47,11 @@ without a checkout of the toolchain.
   backend (`desktop`) and changes it when the compositor reports an event
   (`window_manager_event`, `window_manager_event_listener`, `process_event`), the
   `Ring` that holds monitors, workspaces and containers, and the lists in which
-  some elements are locked in place.
+  some elements are locked in place. It answers the messages on the daemon's
+  socket (`core::SocketMessage`, `process_command`) and shows its state
+  (`state`).
+- [`komorebi-client`](komorebi-client): a library that sends messages to the
+  daemon and reads its answers, and re-exports the types they are made of.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -86,6 +96,10 @@ window manager loads the monitors and the windows that are open from the
 backend and tiles them; after that it changes the model when the compositor
 reports that a window was shown, closed, focused, minimized or restored, and
 tiles the workspace in front again.
+
+Everything else reaches the daemon as a message on its socket: one JSON
+`SocketMessage` per line, handled one at a time with the window manager
+locked. A message that asks a question is answered on the same connection.
 
 ## Documentation
 
