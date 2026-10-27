@@ -964,8 +964,9 @@ configuration or a wallpaper that is not there, a wallpaper no theme can be made
 that is only a name, which is not tiled, and a workspace that appends windows to a container and
 has placement rules, which are not used then (the workspace's `window_container_behaviour`, or the
 file's when it has none). [`check_configuration`] also returns the [`Wants`] of the file: whether
-it draws borders, which animation style it asks for and whether it has wallpapers. `komorebic`
-prints [`Report::render`] and exits with status 1 if [`Report::has_errors`].
+it draws borders, which animation style it asks for and whether it has wallpapers. The key binding
+file has a section of its own, which `komorebic` makes (see [Key bindings](#key-bindings)).
+`komorebic` prints [`Report::render`] and exits with status 1 if [`Report::has_errors`].
 
 [`check_environment`] looks at the desktop, with D-Bus calls of its own on the session bus (they
 are in the table of [PLATFORM.md](PLATFORM.md#d-bus)), and `komorebic check --configuration-only`
@@ -1633,6 +1634,27 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 - [`tests/fixtures`](../../komorebi-hotkeys/tests/fixtures): the corpus, `<case>.skhdrc`,
   `<case>.whkdrc` and `<case>.sxhkdrc`, each case in every format that can express it.
 
+### The front end
+
+[`komorebic/src/hotkeys.rs`](../../komorebic/src/hotkeys.rs) is the command line over the
+crate, and decides nothing about what a file means. `komorebic hotkeys compile` reads a file (by default the
+first of `skhdrc`, `whkdrc` and `sxhkdrc` in the komorebi config directory, its format from
+the end of its name), plans it in the mode it is given (by default `PlanMode::default()`),
+prints the diagnostics of reading and of planning on standard error, and writes the static
+shortcuts to `$XDG_DATA_HOME/kglobalaccel` or `--output`, replacing the files it wrote before.
+With `--strict`, a diagnostic that is a warning or an error stops it before it writes
+anything. `--dry-run` writes nothing and prints what a write would change, and `--reload`
+hands each new file to the running KWin, which otherwise reads them at the next login.
+`komorebic export-kde-shortcuts` is the same for an skhdrc, in `PlanMode::Static`.
+
+`komorebic check` has a section for the key bindings, between the configuration and the desktop.
+`hotkeys::check` finds the file as `compile` does, reads and plans it in the default mode, and
+returns [`Finding`]s: how many bindings the file has and where they go, how many lines cannot be
+read and left out (a warning) and how many bindings are not realized as their own daemon would
+(a note), each with the first five, and whether the generated files in the shortcut directory are
+the ones `kde::diff` says that plan would write. It reads no file the desktop has no part in, so
+`--configuration-only` keeps it.
+
 ### What is guaranteed, and by what
 
 | Rule | Enforced by | Proof | Escape hatch |
@@ -1654,6 +1676,12 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 | Stopping the engine gives every key back | test, of the effects; carrying them out is the daemon's | `start_activates_the_default_mode_and_stop_gives_everything_back` | none |
 | The engine does no I/O and reads no clock | convention only | none | none |
 | The whkd reader reads a whkdrc as whkd does | test, on the files it is given | `every_whkdrc_of_the_corpus_reads_as_whkd_reads_it`, `the_example_of_whkds_readme_reads_as_whkd_reads_it` | none |
+| `hotkeys compile` writes the static shortcuts of the plan and nothing else, from a file of any format | test, through the binary | `compile_writes_the_same_shortcut_files_from_each_format`, `compile_in_engine_mode_writes_no_shortcut_and_removes_the_ones_it_wrote` | none |
+| `komorebic check` reads the key binding file `hotkeys compile` would read, the way it does | framework path: `check` and `export` share `find` and `diagnostics`, and call the same `parse` and `plan` | `the_first_file_of_the_three_formats_is_the_one_that_is_read`, `the_key_binding_file_of_the_config_home_is_read_and_a_line_it_cannot_read_is_a_warning` | none |
+| A line of the key binding file that cannot be read does not fail `komorebic check` | test, through the binary | `the_key_binding_file_of_the_config_home_is_read_and_a_line_it_cannot_read_is_a_warning` | none |
+| `komorebic check` says when the shortcut files are not the ones `hotkeys compile` would write | test | `shortcut_files_that_are_not_the_ones_of_the_plan_are_a_warning_that_says_how_many`, `shortcut_files_the_file_does_not_call_for_are_a_warning_until_compile_replaces_them` | none |
+| `--strict` writes nothing when a diagnostic is a warning or an error | test, through the binary | `strict_refuses_a_file_with_a_warning_and_writes_nothing` | none |
+| KWin runs a static shortcut's command on its key, from the system profile at the start of a session and from the user's directory after `--reload` | VM test | `vm-keys-static` | none |
 
 ## Where to look in the code
 
@@ -1686,7 +1714,8 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   format.
 - [`komorebi/src/check.rs`](../../komorebi/src/check.rs): the checks of `komorebic check`, with
   their tests; [`komorebic/tests/check.rs`](../../komorebic/tests/check.rs) runs the command on
-  configurations and on buses that are not there, and reads what it prints and its exit status;
+  configurations, on key binding files and on buses that are not there, and reads what it prints
+  and its exit status;
   [`nix/tests/vm/suites/check`](../../nix/tests/vm/suites/check/test.py), the desktop check against
   a real KWin, with the daemon running, with its script gone, with no daemon and with no KWin.
 - [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
@@ -1836,6 +1865,11 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   [`sxhkd.rs`](../../komorebi-hotkeys/src/sxhkd.rs);
   [`plan.rs`](../../komorebi-hotkeys/src/plan.rs) and [`kde.rs`](../../komorebi-hotkeys/src/kde.rs)
   for the shortcuts, [`engine.rs`](../../komorebi-hotkeys/src/engine.rs) for the engine.
+- [`komorebic/src/hotkeys.rs`](../../komorebic/src/hotkeys.rs): `export-kde-shortcuts` and
+  `hotkeys compile`, and the key bindings section of `komorebic check`;
+  [`komorebic/tests/hotkeys.rs`](../../komorebic/tests/hotkeys.rs), what they write.
+- [`nix/tests/vm/suites/keys-static`](../../nix/tests/vm/suites/keys-static/test.py): static
+  shortcuts run by a real KWin.
 - [`komorebi-hotkeys/tests`](../../komorebi-hotkeys/tests): the corpus test and the comparison
   with `whkd-parser`.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;

@@ -184,6 +184,25 @@ the run.
   pointer lands within a pixel of where it is asked. The program itself is
   [`komorebi_vm/uinput.py`](../../nix/tests/vm/lib/komorebi_vm/uinput.py),
   whose arithmetic the `vm-lib` check tests.
+- `Keys(machine).send("alt-shift-k")` presses a combo on the machine's
+  keyboard, written as KDE writes it in lower case with `-` between the keys
+  (`meta` and `super` are the left Super key).
+
+## Pressing keys
+
+A key test presses keys with QEMU's `sendkey` (`machine.send_key`), through
+`Keys`. The key reaches the guest's kernel as a key of the machine's virtual
+keyboard, and KWin sees it as it sees a person's: a global shortcut fires on
+it, and any other key goes to the focused window. QEMU holds the keys for 100
+ms, less than the delay before a key repeats. Phase 0 drove keys from a uinput
+device inside the guest instead, as the pointer is driven now; `sendkey` needs
+no helper program for keys, and on x86_64 under KVM `vm-keys-static` passed with
+it on its first run (2026-10-27).
+
+Global shortcuts need the session node: the headless KWin runs with
+`--no-global-shortcuts`, so it has no `org.kde.kglobalaccel`. A static
+shortcut written into the system profile by the suite's `node` (as
+`vm-keys-static` does) is found when the session starts.
 
 Poll for what the test needs with `wait_for`. A fixed sleep is too long on
 KVM and too short on TCG.

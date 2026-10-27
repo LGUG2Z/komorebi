@@ -76,7 +76,8 @@ changes size, is unplugged or is plugged in, and
 [Sleeping and locking](usage/sleeping-and-locking.md) what it does when the machine wakes up and
 the screen is unlocked.
 [Checking the setup](usage/checking-the-setup.md) explains how `komorebic check` finds the
-mistakes in a configuration, and what is missing from the desktop, before the daemon does.
+mistakes in a configuration and a key binding file, and what is missing from the desktop, before
+the daemon does.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.

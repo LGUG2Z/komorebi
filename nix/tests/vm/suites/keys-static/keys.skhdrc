@@ -1,0 +1,5 @@
+# vm-keys-static: shortcut files in the system profile, each leaving a file behind when it runs
+alt - j : touch /tmp/keys-static-alt-j
+alt + shift - k : echo pressed >> /tmp/keys-static-alt-shift-k
+# a % is a field code in a desktop entry's Exec line: the shortcut file writes it as %%
+alt - p : date +%s > /tmp/keys-static-alt-p

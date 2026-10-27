@@ -14,6 +14,7 @@ class FakeMachine:
         self.out_dir = out_dir
 
         self.commands: list[str] = []
+        self.keys: list[str] = []
         self.replies: list[tuple[Callable[[str], bool], tuple[int, str]]] = []
 
     def reply(self, contains: str, status: int = 0, output: str = "") -> None:
@@ -26,6 +27,9 @@ class FakeMachine:
             if matches(command):
                 return answer
         return 0, ""
+
+    def send_key(self, key: str, /) -> None:
+        self.keys.append(key)
 
     def screenshot(self, filename: str, /) -> None:
         Image.new("RGB", (4, 4), (10, 20, 30)).save(self.out_dir / f"{filename}.png")

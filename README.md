@@ -86,8 +86,9 @@ without a checkout of the toolchain.
   unlocked (`monitor_reconciliator`, `reconcile`, `kwin::power`), sends its
   subscribers a notification of each event, message and change of the monitors
   it handles (`notify_subscribers`), and is configured by a `komorebi.json` that
-  it reads and reads again when it changes (`static_config`), and checks it, and
-  the desktop it runs on, for mistakes without the daemon (`check`).
+  it reads and reads again when it changes (`static_config`), and checks it, the
+  key binding file, and the desktop it runs on, for mistakes without the daemon
+  (`check`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
@@ -101,7 +102,9 @@ without a checkout of the toolchain.
 - [`komorebic`](komorebic): the command line. A subcommand that asks something
   of the daemon is one message on its socket; `quickstart`, `enable-autostart`,
   `disable-autostart`, `start`, `check`, `configuration`, `log`, `data-directory`,
-  `completions` and the hidden `docgen` work without the daemon.
+  `completions` and the hidden `docgen` work without the daemon, and so do
+  `export-kde-shortcuts` and `hotkeys compile`, which write the bindings of a
+  key binding file that KDE can run by itself as shortcut files.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -287,9 +290,11 @@ module's `config` option is typed from that schema (`nix/komorebi-options.nix`, 
 `check` reads the file the way the daemon does and says in words what is wrong with it: JSON that
 does not parse, with the line, a value komorebi does not read, a key that is not a setting (with
 the nearest one that is), a workspace that is not tiled, and an applications file that is not
-there. It also looks at the desktop (a Plasma session on Wayland, KWin 6 on the session bus, the
-daemon and its script in KWin, and what starts komorebi at login), unless `--configuration-only`
-leaves that out. It exits with status 1 if something is an error.
+there. It looks at the key binding file as well (how many bindings it has, the lines that cannot
+be read, and whether the shortcut files `hotkeys compile` wrote are the ones it would write now),
+and at the desktop (a Plasma session on Wayland, KWin 6 on the session bus, the daemon and its
+script in KWin, and what starts komorebi at login), unless `--configuration-only` leaves that out.
+It exits with status 1 if something is an error.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event, each message and each
@@ -315,6 +320,12 @@ pointer, by its own focus policy. A theme gives the borders their colors, and
 the palette of a picture is made and kept in the cache directory. A monitor or a workspace
 can have a wallpaper, which the Plasma shell is asked to show when the workspace comes into view,
 and which gives the borders the colors of its palette.
+
+Key bindings are written in the format of skhd, whkd or sxhkd. `komorebi-hotkeys`
+reads such a file into one model and sorts its bindings into static shortcuts,
+which KDE runs by itself from a `.desktop` file, and those that need komorebi
+to register the keys and decide what each press does. `komorebic hotkeys
+compile` writes the static shortcuts.
 
 ## Documentation
 

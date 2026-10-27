@@ -204,3 +204,106 @@ fn what_starts_komorebi_at_login_is_said_whether_or_not_the_desktop_is_there() {
 
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// Runs `komorebic check --configuration-only` in the config home `dir`, with a data home of its
+/// own: the section of the key bindings is the one this looks at.
+fn check_keys(dir: &Path) -> (Output, String) {
+    let output = Command::new(env!("CARGO_BIN_EXE_komorebic"))
+        .arg("check")
+        .arg("--configuration-only")
+        .env("KOMOREBI_CONFIG_HOME", dir)
+        .env("XDG_DATA_HOME", dir.join("data"))
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&output.stdout).into_owned();
+    (output, text)
+}
+
+#[test]
+fn without_a_key_binding_file_the_section_says_where_key_bindings_come_from() {
+    let dir = scratch("keys-none");
+
+    let (output, text) = check_keys(&dir);
+
+    assert!(output.status.success(), "{text}");
+    assert!(text.contains("Key bindings"), "{text}");
+    assert!(
+        text.contains("there is no skhdrc, whkdrc or sxhkdrc in"),
+        "{text}"
+    );
+    assert!(text.contains("komorebic hotkeys compile"), "{text}");
+
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn the_key_binding_file_of_the_config_home_is_read_and_a_line_it_cannot_read_is_a_warning() {
+    let dir = scratch("keys-file");
+    std::fs::write(
+        dir.join("skhdrc"),
+        "alt - h : komorebic focus left\nalt - nosuchkey : komorebic focus up\n",
+    )
+    .unwrap();
+
+    let (output, text) = check_keys(&dir);
+
+    // a warning is not a reason to fail
+    assert!(output.status.success(), "{text}");
+    assert!(text.contains("skhdrc has 1 key binding"), "{text}");
+    assert!(
+        text.contains("1 line of it cannot be read and left out"),
+        "{text}"
+    );
+    assert!(text.contains("line 2: error: "), "{text}");
+    assert!(text.contains("1 warning(s)"), "{text}");
+
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+// the data home is where `dirs` looks on Linux only
+#[cfg(target_os = "linux")]
+#[test]
+fn shortcut_files_the_file_does_not_call_for_are_a_warning_until_compile_replaces_them() {
+    let dir = scratch("keys-stale");
+    std::fs::write(dir.join("skhdrc"), "alt - h : komorebic focus left\n").unwrap();
+    let shortcuts = dir.join("data/kglobalaccel");
+    std::fs::create_dir_all(&shortcuts).unwrap();
+    std::fs::write(
+        shortcuts.join("komorebi-old.desktop"),
+        "[Desktop Entry]\nX-Komorebi-Generated=true\n",
+    )
+    .unwrap();
+
+    let (output, text) = check_keys(&dir);
+
+    assert!(output.status.success(), "{text}");
+    assert!(
+        text.contains(
+            "the shortcut files are not the ones `komorebic hotkeys compile` would write"
+        ),
+        "{text}"
+    );
+    assert!(text.contains("1 to remove"), "{text}");
+    assert!(
+        text.contains("komorebic hotkeys compile --reload"),
+        "{text}"
+    );
+
+    let compiled = Command::new(env!("CARGO_BIN_EXE_komorebic"))
+        .args(["hotkeys", "compile"])
+        .env("KOMOREBI_CONFIG_HOME", &dir)
+        .env("XDG_DATA_HOME", dir.join("data"))
+        .output()
+        .unwrap();
+    assert!(compiled.status.success(), "{compiled:?}");
+
+    let (_, text) = check_keys(&dir);
+    assert!(!text.contains("are not the ones"), "{text}");
+    assert!(
+        text.contains("the shortcut files are the ones")
+            || text.contains("no shortcut files are needed"),
+        "{text}"
+    );
+
+    let _ = std::fs::remove_dir_all(dir);
+}

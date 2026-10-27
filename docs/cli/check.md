@@ -8,7 +8,7 @@ Options:
           Path to a static configuration JSON file
 
       --configuration-only
-          Look at the configuration only, not at the desktop
+          Look at the configuration and the key bindings only, not at the desktop
 
   -h, --help
           Print help

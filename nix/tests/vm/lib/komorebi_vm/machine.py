@@ -34,3 +34,7 @@ class Machine(Protocol):
     def screenshot(self, filename: str, /) -> None:
         """Saves a PNG of the machine's display as `filename` in `out_dir`."""
         ...
+
+    def send_key(self, key: str, /) -> None:
+        """Presses the keys `key` names together on the machine's keyboard (QEMU's `sendkey`)."""
+        ...

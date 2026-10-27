@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 komorebi-client = { path = "../komorebi-client", default-features = false }
+komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 version = { path = "../version" }
 
 clap = { workspace = true }

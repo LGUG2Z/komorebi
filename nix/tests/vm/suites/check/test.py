@@ -3,9 +3,10 @@
 # own, komorebi without its script in KWin, komorebi not running, no KWin on the bus. What only a
 # real KWin can tell: that its version is read from what KWin says of itself, that the effects are
 # komorebi's builds because of what they contain, that a daemon is told from its script by KWin's
-# own answer, and that a bus with no KWin on it is an error with an exit status that says so. The
-# configuration and the exit status are covered by `komorebi/src/check.rs` and
-# `komorebic/tests/check.rs`, against no desktop.
+# own answer, that a bus with no KWin on it is an error with an exit status that says so, and that
+# the shortcut files the check compares with are in the directory `komorebic hotkeys compile`
+# writes to in a session. The configuration and the exit status are covered by
+# `komorebi/src/check.rs` and `komorebic/tests/check.rs`, against no desktop.
 import base64
 import json
 import re
@@ -164,6 +165,56 @@ checks.check(
     and "KWin is not on the session bus" in out
     and "komorebi is running" not in out
     and "komorebi is not running" not in out,
+)
+
+print("== 6. the key bindings")
+KEYS_HOME = "/tmp/check-keys-home"
+SHORTCUTS = "~/.local/share/kglobalaccel"
+STALE = "[Desktop Entry]\nX-Komorebi-Generated=true\n"
+
+
+def check_keys() -> tuple[int, str]:
+    """Runs `komorebic check` on the key bindings alone, in a config home of their own."""
+    status, out = kde.run(f"KOMOREBI_CONFIG_HOME={KEYS_HOME} komorebic check --configuration-only")
+    print(out)
+    return status, out
+
+
+kde.sh(f"mkdir -p {KEYS_HOME}")
+status, out = check_keys()
+checks.check(
+    "without a key binding file it is a note, not an error",
+    status == 0 and re.search(r"note +there is no skhdrc, whkdrc or sxhkdrc in ", out) is not None,
+)
+
+kde.sh(
+    "printf %s "
+    + shlex.quote("alt - h : komorebic focus left\nalt - nosuchkey : komorebic focus up\n")
+    + f" > {KEYS_HOME}/skhdrc"
+)
+status, out = check_keys()
+checks.check(
+    "the file is read, and the line it cannot read is a warning that does not fail the check",
+    status == 0
+    and "skhdrc has 1 key binding" in out
+    and re.search(r"warning +1 line of it cannot be read and left out", out) is not None,
+)
+
+# a shortcut file komorebi wrote that the file does not call for, in the directory of the session
+kde.sh(
+    f"mkdir -p {SHORTCUTS} && printf %s {shlex.quote(STALE)} > {SHORTCUTS}/komorebi-stale.desktop"
+)
+status, out = check_keys()
+checks.check(
+    "it says the shortcut files are not the ones `hotkeys compile` would write",
+    status == 0
+    and "the shortcut files are not the ones `komorebic hotkeys compile` would write" in out,
+)
+kde.sh(f"KOMOREBI_CONFIG_HOME={KEYS_HOME} komorebic hotkeys compile")
+status, out = check_keys()
+checks.check(
+    "after `hotkeys compile` it does not: both use the directory of the session",
+    status == 0 and "are not the ones" not in out,
 )
 
 kde.stop()

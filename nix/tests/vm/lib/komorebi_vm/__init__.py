@@ -8,6 +8,7 @@ A suite imports what it needs from here:
   and the komorebi daemon that runs in it.
 * [`Outputs`](komorebi_vm.kde.Outputs) are the session's outputs, which a suite
   disables, enables and scales to change the monitors under the daemon.
+* [`Keys`](komorebi_vm.keys.Keys) presses keys on the machine's keyboard.
 * [`daemon`](komorebi_vm.daemon) reads what the daemon logs about the events it
   handles and the frames it asks for.
 * [`pixels`](komorebi_vm.pixels) reads a screenshot: the color of a pixel, and
@@ -25,12 +26,14 @@ against a fake machine (the `vm-lib` check does).
 from komorebi_vm import daemon, latency, pixels, uinput
 from komorebi_vm.checks import Checks
 from komorebi_vm.kde import Kde, Outputs, Rect
+from komorebi_vm.keys import Keys
 from komorebi_vm.machine import Machine
 from komorebi_vm.pointer import Pointer
 
 __all__ = [
     "Checks",
     "Kde",
+    "Keys",
     "Machine",
     "Outputs",
     "Pointer",

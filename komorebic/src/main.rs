@@ -101,17 +101,19 @@
 //! The others work without the daemon: `quickstart` writes an example `komorebi.json` and
 //! `applications.json` in the config home, `enable-autostart` and `disable-autostart` write and
 //! remove the entry that has Plasma start komorebi at login, `start` runs `komorebi` in the
-//! background, with the
-//! `komorebi.json` it is given with `--config`, `check` reads the `komorebi.json` the daemon would
-//! and looks at the desktop, and reports what is wrong, exiting with status 1 if something is an
-//! error,
-//! `configuration` shows the path of the
-//! `komorebi.json` the daemon reads, `log` follows its log, `data-directory` shows where its
+//! background, with the `komorebi.json` it is given with `--config`, `check` reads the
+//! `komorebi.json` the daemon would and the key binding file, looks at the desktop, and reports
+//! what is wrong, exiting with status 1 if something is an error, `configuration` shows the path
+//! of the `komorebi.json` the daemon reads, `log` follows its log, `data-directory` shows where its
 //! socket is, `completions` prints a completion script for a shell, and `static-config-schema`,
 //! `application-specific-configuration-schema`, `notification-schema` and `socket-schema` print
 //! the JSON Schema of `komorebi.json`, of an `applications.json`, of a notification and of a
 //! message. The hidden `docgen` writes the help of every subcommand as Markdown, wrapped
 //! at 100 columns whatever the width of the terminal, which is how `docs/cli` is made.
+//!
+//! `export-kde-shortcuts` and `hotkeys compile` read a key binding file (an skhdrc, a whkdrc or an
+//! sxhkdrc) and write the bindings KDE can run by itself as shortcut files; the [`hotkeys`] module
+//! has the details.
 
 use chrono::Utc;
 use clap::CommandFactory;
@@ -148,6 +150,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use sysinfo::ProcessesToUpdate;
+
+mod hotkeys;
 
 lazy_static! {
     static ref HAS_CUSTOM_CONFIG_HOME: AtomicBool = AtomicBool::new(false);
@@ -836,7 +840,7 @@ struct Check {
     #[clap(action, short, long)]
     #[clap(value_parser = replace_env_in_path)]
     komorebi_config: Option<PathBuf>,
-    /// Look at the configuration only, not at the desktop
+    /// Look at the configuration and the key bindings only, not at the desktop
     #[clap(long)]
     configuration_only: bool,
 }
@@ -863,6 +867,11 @@ enum SubCommand {
     Completions(Completions),
     /// Gather example configurations for a new-user quickstart
     Quickstart,
+    /// Turn an skhdrc into KDE global shortcuts (they work over RDP, unlike evdev hotkey daemons)
+    ExportKdeShortcuts(hotkeys::ExportKdeShortcuts),
+    /// Turn a key binding file (skhdrc, whkdrc, sxhkdrc) into KDE global shortcuts
+    #[clap(arg_required_else_help = true)]
+    Hotkeys(hotkeys::Hotkeys),
     /// Start komorebi as a background process
     Start(Start),
     /// Stop the komorebi process
@@ -1367,12 +1376,18 @@ fn main() -> eyre::Result<()> {
             for cmd in subcommands {
                 let name = cmd.get_name().to_string();
                 if !ignore.contains(&name.as_str()) {
-                    // the same pages whatever the width of the terminal docgen runs in
-                    let help_text = cmd.clone().term_width(100).render_long_help().to_string();
-                    let outpath = output_dir.join(format!("{name}.md"));
-                    let markdown = format!("```text\n{help_text}\n```\n");
-                    std::fs::write(&outpath, markdown)?;
-                    println!("{}", outpath.display());
+                    // a subcommand of a subcommand (`hotkeys compile`) gets a page of its own
+                    let nested = cmd
+                        .get_subcommands()
+                        .map(|sub| (format!("{name}-{}", sub.get_name()), sub.clone()));
+                    for (name, cmd) in std::iter::once((name.clone(), cmd.clone())).chain(nested) {
+                        // the same pages whatever the width of the terminal docgen runs in
+                        let help_text = cmd.term_width(100).render_long_help().to_string();
+                        let outpath = output_dir.join(format!("{name}.md"));
+                        let markdown = format!("```text\n{help_text}\n```\n");
+                        std::fs::write(&outpath, markdown)?;
+                        println!("{}", outpath.display());
+                    }
                 }
             }
         }
@@ -1380,6 +1395,8 @@ fn main() -> eyre::Result<()> {
             let mut cli = Opts::command();
             clap_complete::generate(args.shell, &mut cli, "komorebic", &mut std::io::stdout());
         }
+        SubCommand::ExportKdeShortcuts(args) => hotkeys::export_kde_shortcuts(args)?,
+        SubCommand::Hotkeys(args) => hotkeys::hotkeys(args)?,
         SubCommand::Quickstart => {
             fn write_file_with_prompt(
                 path: &PathBuf,
@@ -1495,6 +1512,8 @@ fn main() -> eyre::Result<()> {
             let (findings, wants) = komorebi_client::check::check_configuration(&static_config);
             place.extend(findings);
             report.push("Configuration", place);
+
+            report.push("Key bindings", hotkeys::check(&HOME_DIR));
 
             if !args.configuration_only {
                 report.push(

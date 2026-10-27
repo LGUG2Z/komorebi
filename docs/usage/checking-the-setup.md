@@ -1,8 +1,8 @@
 # Checking the setup
 
-[`komorebic check`](../cli/check.md) reads your configuration the way the daemon does, looks at the
-desktop komorebi has to run on, and says in words what is wrong. It does not need the daemon to be
-running, and it changes nothing.
+[`komorebic check`](../cli/check.md) reads your configuration the way the daemon does, reads your
+key binding file, looks at the desktop komorebi has to run on, and says in words what is wrong. It
+does not need the daemon to be running, and it changes nothing.
 
 ```sh
 komorebic check
@@ -12,10 +12,10 @@ komorebic check --configuration-only
 
 It reads `komorebi.json` in the [config home](configuration.md#where-the-file-is), or the file
 `--komorebi-config` names (`-k`; environment variables in the path are replaced). It prints a
-section of findings for the configuration and one for the desktop, then the number of errors and
-warnings, and exits with status 1 if and only if a finding is an error, so a script can run it
-before it starts the daemon. `--configuration-only` leaves the desktop out, for a machine that is
-not the one komorebi will run on: a build that checks a file, say.
+section of findings for the configuration, one for the key bindings and one for the desktop, then
+the number of errors and warnings, and exits with status 1 if and only if a finding is an error, so
+a script can run it before it starts the daemon. `--configuration-only` leaves the desktop out, for
+a machine that is not the one komorebi will run on: a build that checks a file, say.
 
 ## What a finding says
 
@@ -82,9 +82,32 @@ The first section says where komorebi looks, and then what it finds in the file:
 The check takes the keys it knows from the schema of the types the daemon reads the file with, at
 every level, so it knows every setting komorebi reads.
 
+## The key bindings
+
+The second section is about the key binding file `komorebic hotkeys compile` would read: the first
+of `skhdrc`, `whkdrc` and `sxhkdrc` in the config home. It reads the file as
+[`hotkeys compile`](../cli/hotkeys-compile.md) does, plans it in the mode `hotkeys compile` uses
+when it is not given one, and looks at:
+
+- **No file.** A `note`, with where key bindings come from: a key binding file made into shortcuts
+  by `komorebic hotkeys compile`, or shortcuts set up in System Settings.
+- **The bindings.** `ok` with the file, how many bindings it has, and how many of them become
+  shortcut files and how many are for komorebi's engine.
+- **Lines that cannot be read.** A `warning` that says how many are left out, and shows the first
+  five with their line numbers. The rest of the file is read all the same.
+- **Bindings that are not realized as the file's own hotkey daemon would.** A `note` with how many,
+  and the first five: a left Alt that is the same as the right one, say, since KDE does not tell
+  them apart.
+- **Shortcut files that are not the plan's.** A `warning` when the generated files in
+  `$XDG_DATA_HOME/kglobalaccel` are not the ones `komorebic hotkeys compile` would write for the
+  file now: how many to add, to change and to remove. The hint is the command that makes them
+  match. Otherwise `ok`.
+
+`--configuration-only` leaves this section in: it looks at files, not at the desktop.
+
 ## The desktop
 
-The second section is about the desktop `komorebic check` runs in, which has to be the session
+The third section is about the desktop `komorebic check` runs in, which has to be the session
 komorebi runs in: it asks the session bus of the environment it is run from, so run it in a
 terminal of the Plasma session, not over ssh. It looks, in this order, at:
 

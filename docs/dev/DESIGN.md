@@ -747,6 +747,9 @@ The cost is the robustness of static shortcuts: the engine works only while komo
 and a komorebi process that was killed leaves its keys registered and dead until they are
 released.
 
+Which of the two is the default is still open for a decision. `PlanMode::default()` is the
+one place it is set, and `komorebic hotkeys compile` takes its default from there.
+
 ## Why does the engine grab and give back keys, instead of using KDE's own key sequences?
 
 Because KDE's do not work for this, as measured on KWin 6.8.1 (2026-10-27). kglobalacceld

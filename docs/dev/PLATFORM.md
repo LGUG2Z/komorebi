@@ -292,6 +292,31 @@ At time of writing (2026-10-27), the headless KWin of the VM tests (Plasma 6.8) 
 major version from it. The check does not need the answer: without the line it says that KWin is
 there and its version could not be read.
 
+## Global shortcuts
+
+KDE's global shortcut daemon runs inside KWin 6.8: `kwin_wayland` owns `org.kde.kglobalaccel`
+on the session bus, and there is no separate `kglobalacceld` process. A KWin started with
+`--no-global-shortcuts`, as the headless VM tests start it, has none.
+
+A static shortcut is a `.desktop` file in a `kglobalaccel` directory with
+`X-KDE-GlobalAccel-CommandShortcut=true` and the key in `X-KDE-Shortcuts`; KWin runs its
+`Exec` line on the key. `komorebic hotkeys compile` and `komorebic export-kde-shortcuts`
+write such files. What follows was measured at time of writing (2026-10-27) on KWin 6.8.1:
+
+- KWin reads the files when it starts: those in `$XDG_DATA_HOME/kglobalaccel` and those in
+  `share/kglobalaccel` of the data directories, the system profile of NixOS among them.
+- A file added while KWin runs is not read until something calls
+  `doRegister(["<file name>", "_launch", "", ""])` on `/kglobalaccel`, which is what `--reload`
+  does for each new file (through `busctl`); the shortcut then works at once. A file whose
+  content changed keeps the old content until the next login, and a removed file stays
+  registered until then too.
+- In `Exec`, `%` starts a field code, so a command's `%` is written `%%`.
+- A static shortcut ran its command 165 to 436 ms after the key, 233 ms at the median, over 8
+  presses, in a virtual machine under HVF with 4 cores. A key held for 1.5 s ran the command
+  once.
+- The VM test `vm-keys-static` presses the keys of shortcut files in the system profile, and of
+  one written and handed over in the middle of the session.
+
 ## Files and directories
 
 | Path | What | Lifetime |
@@ -309,11 +334,17 @@ there and its version could not be read.
 | `$XDG_CACHE_HOME/komorebi` (`~/.cache/komorebi`) | the palettes made from wallpapers, a file for each picture and variant, `NAME-HASH.base16.VARIANT.json` | never removed by komorebi; made again when the picture's path, size or time of last change differ |
 | `$XDG_DATA_HOME/komorebi/komorebi.log.YYYY-MM-DD` | the daemon's log, with colors, which `komorebic log` follows | a file a day (the UTC date), never removed by komorebi |
 | `$XDG_DATA_HOME/komorebi/komorebi_plaintext.log.YYYY-MM-DD` | the same log without colors | as above |
+| `$XDG_DATA_HOME/kglobalaccel/komorebi-*.desktop` | the static shortcuts `komorebic hotkeys compile` and `komorebic export-kde-shortcuts` write, each with `X-Komorebi-Generated=true` | replaced at every write: the files with that key are removed, and no other |
+| `$KOMOREBI_CONFIG_HOME/{skhdrc,whkdrc,sxhkdrc}` | the key binding file `komorebic hotkeys compile` reads when it is given none (the first that exists), and the skhdrc of `export-kde-shortcuts` | the user's |
 
 Without `XDG_RUNTIME_DIR` the bridge and the socket are in `komorebi` in the local data
 directory instead, with the logs (see [`XDG_DATA_HOME`](#xdg_data_home)).
 
 ## What `komorebic check` looks at
+
+The key binding file is the first of `skhdrc`, `whkdrc` and `sxhkdrc` in `$KOMOREBI_CONFIG_HOME`,
+and the shortcut files it compares with are the generated `komorebi-*.desktop` files in
+`$XDG_DATA_HOME/kglobalaccel`; neither needs a bus.
 
 Apart from the bus, it looks at the files that start komorebi at login, in this order, and says which
 it found first: `$XDG_CONFIG_HOME/autostart/komorebi.desktop` (the autostart entry),
@@ -348,7 +379,9 @@ either. An address with no bus behind it is the first error under [No KWin](#no-
 The config home, where komorebi looks for `komorebi.json`: a directory, in which `komorebic
 configuration` and the daemon look for the file. Without it the config home is
 `~/.config/komorebi`, whatever `XDG_CONFIG_HOME` is. When it is set and is not a directory, the
-daemon and `komorebic` panic when they first need the config home, and say so.
+daemon and `komorebic` panic when they first need the config home, and say so. Environment
+variables in it are expanded (`$HOME/komorebi`). `komorebic hotkeys compile` looks in it for the
+key binding file it is not given.
 
 ### `XDG_RUNTIME_DIR`
 
@@ -374,6 +407,8 @@ The logs are written to `$XDG_DATA_HOME/komorebi` (`~/.local/share/komorebi` if
 `XDG_DATA_HOME` is not set), which the daemon makes before anything else: a home it cannot
 write to stops it at once. When `XDG_RUNTIME_DIR` is not set, the bridge and the socket go
 there too.
+`komorebic` writes static shortcuts to `$XDG_DATA_HOME/kglobalaccel` unless it is given
+`--output`.
 
 ### `KWIN_EFFECTS_FORCE_ANIMATIONS`
 
