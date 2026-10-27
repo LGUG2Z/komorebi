@@ -7,6 +7,14 @@
 kde-rounded-corners.overrideAttrs (old: {
   version = "0.11.0";
 
+  # per-window outline colors, set over D-Bus (org.komorebi.BorderColours1): komorebi colors a
+  # window by what it is to the layout (the focused one on each monitor, a stack, a monocle, a
+  # floating window, a locked container), which "the active window" cannot say. Without this the
+  # effect still works, with the colors of the settings for the active and the other windows. The
+  # patch also redraws a window from a fresh texture when only its opacity changes, which the
+  # effect's texture would not show otherwise.
+  patches = (old.patches or [ ]) ++ [ ./kde-rounded-corners/komorebi-border-colours.patch ];
+
   src = fetchFromGitHub {
     owner = "matinlotfali";
     repo = "KDE-Rounded-Corners";

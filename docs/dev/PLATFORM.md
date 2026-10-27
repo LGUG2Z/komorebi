@@ -227,6 +227,7 @@ What komorebi calls:
 | `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin leave the bus and come back |
 | `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
 | `org.kde.KWin` | `/Effects` | `org.kde.kwin.Effects` | `isEffectSupported(s)`, `isEffectLoaded(s)`, `loadEffect(s)`, `unloadEffect(s)`, `reconfigureEffect(s)`, with `kwin4_effect_shapecorners` | when the look changes (the border is turned on, off or changed), and at exit |
+| `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.komorebi.BorderColours1` | `SetColours(asau)`: the UUID of each window and its color, `0xRRGGBB` | when the color of a window's border changes; the object is komorebi's build of the border effect ([The patches](#the-patches)) |
 | `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
 | `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the properties `desktops` and `count`, `createDesktop(us)`, `setDesktopName(ss)`, `removeDesktop(s)` | when a workspace has no desktop, and at start; `createDesktop` also for the parking desktop, the first time a window is hidden, and `removeDesktop` for it when komorebi stops and for one a killed run left |
 
@@ -401,7 +402,8 @@ The spikes measured the channel alone, with twenty windows in each batch, at 16,
 ## KWin effects
 
 An effect is a plugin of KWin's compositor that changes how windows are drawn. The flake
-builds the effects komorebi drives as packages of their own, from source:
+builds the effects komorebi drives as packages of their own, from source, with komorebi's
+patches (see [The patches](#the-patches)):
 
 | Package | Effect | Plugin id | Installed as |
 |---|---|---|---|
@@ -460,6 +462,32 @@ hands an effect the copy of `kwinrc` it read when it started, so the new values 
 that way, also for an effect loaded a moment before. A screenshot of a session shows the border
 in the pixels just outside the frame the window has in KWin, on all four sides, in the focused
 and unfocused colors, and not inside the frame.
+
+### The patches
+
+Each patch is a derivative work of the effect it changes, and is under the same license, the
+GNU General Public License version 3; its header states the license and describes the
+change. The check of each package asserts that its patch is in the build.
+
+[`komorebi-border-colours.patch`](../../nix/kde-rounded-corners/komorebi-border-colours.patch),
+for KDE Rounded Corners, makes two changes:
+
+- **A color for each window.** The stock effect has one outline color for the active window
+  and one for the others. The patched effect exports an object through KWin's name, which
+  takes a color for each window:
+
+  | Name | Object | Interface | Member |
+  |---|---|---|---|
+  | `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.komorebi.BorderColours1` | `SetColours(asau)` |
+
+  `SetColours` replaces the colors of every window at once: the windows' UUIDs as KWin writes
+  them (with or without braces), and `0xRRGGBB` values in the same order. A window it does not
+  name gets the colors of the settings for the active and the other windows. The object is
+  registered when the effect is loaded, and removed with every color when it is unloaded.
+- **A window is drawn again when its opacity changes.** The effect draws a window from a
+  texture that has the window's opacity in it, and makes the texture again only when the
+  contents change or the window is resized, so a change of opacity alone would not show. The
+  patched effect redirects the window again when its opacity changes.
 
 ## Rendering in virtual machines and over RDP
 

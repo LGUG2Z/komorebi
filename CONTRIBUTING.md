@@ -87,6 +87,22 @@ the Rust test that covers the same behavior against the fake desktop.
 [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) says how they are laid out, how
 to run one (`just vm NAME`) and how to add one.
 
+## The KWin effects
+
+The patches in [`nix`](nix) change the KWin effects komorebi drives. Each one
+is a derivative work of its effect, which is under the GNU General Public
+License version 3, and is under the same license. A patch starts with a header
+that describes the change and carries the license notice; `patch` skips the
+text before the first `diff` line. To change a patch, make the change in the
+effect's source at the version the package pins, and write the whole diff again
+with `diff -ruN a b` below the header. The check of the package (in
+[`nix/tests/effects.nix`](nix/tests/effects.nix)) builds it and checks the
+files it installs, the patch included:
+
+```sh
+nix build .#checks.x86_64-linux.kde-rounded-corners-komorebi-install
+```
+
 ## Continuous integration
 
 [`ci.yaml`](.github/workflows/ci.yaml) runs on every pull request and on every

@@ -488,6 +488,21 @@ fn the_border_subcommands_send_what_they_are_given() {
         r#"{"type":"Border","content":true}"#,
     );
     sends(
+        &["border-colour", "10", "20", "30"],
+        r#"{"type":"BorderColour","content":["Single",10,20,30]}"#,
+    );
+    sends(
+        &[
+            "border-colour",
+            "--window-kind",
+            "unfocused-locked",
+            "1",
+            "2",
+            "3",
+        ],
+        r#"{"type":"BorderColour","content":["UnfocusedLocked",1,2,3]}"#,
+    );
+    sends(
         &["border-width", "8"],
         r#"{"type":"BorderWidth","content":8}"#,
     );
@@ -1015,6 +1030,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "adjust-container-padding.md",
             "adjust-workspace-padding.md",
             "application-specific-configuration-schema.md",
+            "border-colour.md",
             "border-offset.md",
             "border-width.md",
             "border.md",

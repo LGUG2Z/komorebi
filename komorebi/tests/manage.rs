@@ -112,7 +112,7 @@ fn minimize_and_close_ask_the_compositor_about_the_window_that_has_the_focus() {
     fake.clear_commands();
 
     send(&fake, &mut wm, SocketMessage::Minimize).unwrap();
-    assert_eq!(fake.commands(), [Command::Minimize(27_002)]);
+    assert_eq!(fake.window_commands(), [Command::Minimize(27_002)]);
     // the window leaves the layout when the compositor reports it minimized, not before
     assert_eq!(order(&wm), [27_001, 27_002]);
     with_backend(fake.clone(), || wm.process_event(minimized(27_002))).unwrap();
@@ -121,7 +121,7 @@ fn minimize_and_close_ask_the_compositor_about_the_window_that_has_the_focus() {
     fake.set_foreground(Some(27_001));
     fake.clear_commands();
     send(&fake, &mut wm, SocketMessage::Close).unwrap();
-    assert_eq!(fake.commands(), [Command::Close(27_001)]);
+    assert_eq!(fake.window_commands(), [Command::Close(27_001)]);
 
     fake.set_foreground(None);
     assert_eq!(

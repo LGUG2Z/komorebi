@@ -50,6 +50,11 @@ in
           fail "$needed resolves to '$found', not to the KWin of this nixpkgs (${kwin})"
         echo "ok: $needed is ${kwin}/lib/$needed"
 
+        # komorebi's patch: the interface that takes a color for each window
+        grep -q -a -F org.komorebi.BorderColours1 "$plugin" ||
+          fail "the plugin has no org.komorebi.BorderColours1: komorebi-border-colours.patch is not in it"
+        echo "ok: the plugin has org.komorebi.BorderColours1"
+
         touch $out
       '';
 }

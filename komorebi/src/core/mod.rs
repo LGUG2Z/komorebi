@@ -240,6 +240,7 @@ pub enum ApplicationIdentifier {
     Path,
 }
 
+/// What a window is to the layout, which decides the color of its border
 #[derive(
     Copy,
     Clone,
@@ -471,6 +472,8 @@ pub enum SocketMessage {
     // AltFocusHack(bool),
     #[serde(alias = "ActiveWindowBorder")]
     Border(bool),
+    #[serde(alias = "ActiveWindowBorderColour")]
+    BorderColour(WindowKind, u32, u32, u32),
     // #[serde(alias = "ActiveWindowBorderStyle")]
     // BorderStyle(BorderStyle),
     BorderWidth(i32),

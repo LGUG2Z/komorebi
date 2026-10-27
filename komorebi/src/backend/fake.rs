@@ -67,6 +67,9 @@ pub enum Command {
     SetWindowWorkspace(u32, usize),
     /// [`Backend::apply_look`]: the look, when it is not the one applied before.
     ApplyLook(Look),
+    /// [`Backend::set_border_colours`]: the colors of each window's border, when they are not the
+    /// ones given before.
+    BorderColours(Vec<(u32, u32)>),
 }
 
 #[derive(Default)]
@@ -90,6 +93,8 @@ struct State {
     window_ws: HashMap<u32, usize>,
     /// the desktop each monitor (by id) shows
     shown: HashMap<u32, usize>,
+    /// the border color each window was last given, `0xRRGGBB`
+    border_colours: HashMap<u32, u32>,
     /// the look last applied, so that asking for it again is not a command
     last_look: Option<Look>,
     /// whether the compositor has an effect that draws borders
@@ -363,6 +368,12 @@ impl FakeBackend {
         state.shown.insert(monitor_id, idx);
     }
 
+    /// Returns the border color the window manager last gave this window, `0xRRGGBB`, if it gave
+    /// it one.
+    pub fn border_colour_of(&self, id: u32) -> Option<u32> {
+        self.state.lock().border_colours.get(&id).copied()
+    }
+
     /// Says whether the compositor has an effect that draws borders. Without one, which is how a
     /// fake starts, [`Backend::apply_look`] answers false however much of a border it is asked
     /// for, as it does on a machine where the effect is not installed.
@@ -373,6 +384,20 @@ impl FakeBackend {
     /// Returns every command received so far, oldest first.
     pub fn commands(&self) -> Vec<Command> {
         self.state.lock().commands.clone()
+    }
+
+    /// Returns every command received so far that is not about the look, oldest first.
+    ///
+    /// The window manager asks for the look, and tells the colors of the borders, after every event
+    /// and every message, and the fake records each one that is not what it was told before: a
+    /// test that checks what the window manager did to the windows exactly compares this, and a
+    /// test about the look compares [`FakeBackend::commands`].
+    pub fn window_commands(&self) -> Vec<Command> {
+        let mut commands = self.commands();
+        commands.retain(|command| {
+            !matches!(command, Command::ApplyLook(_) | Command::BorderColours(_))
+        });
+        commands
     }
 
     /// Forgets the commands received so far.
@@ -577,6 +602,19 @@ impl Backend for FakeBackend {
             state.last_look = Some(look.clone());
         }
         Ok(state.borders_drawn && look.border.is_some())
+    }
+
+    fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
+        let mut state = self.state.lock();
+        let colours_now: HashMap<u32, u32> = colours.iter().copied().collect();
+        // like a real backend: nothing is sent for what has not changed
+        if state.border_colours != colours_now {
+            state.border_colours = colours_now;
+            state
+                .commands
+                .push(Command::BorderColours(colours.to_vec()));
+        }
+        Ok(true)
     }
 }
 
@@ -882,6 +920,40 @@ mod tests {
                 Command::ApplyLook(bordered)
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn border_colours_are_a_command_only_when_they_change() -> eyre::Result<()> {
+        let fake = fake_with(&[1, 2]);
+
+        assert!(fake.set_border_colours(&[(1, 0xFF0000), (2, 0x00FF00)])?);
+        assert!(fake.set_border_colours(&[(2, 0x00FF00), (1, 0xFF0000)])?);
+        assert_eq!(fake.border_colour_of(1), Some(0xFF0000));
+        assert_eq!(fake.border_colour_of(2), Some(0x00FF00));
+
+        fake.set_border_colours(&[(2, 0x00FF00)])?;
+        assert_eq!(fake.border_colour_of(1), None);
+        assert_eq!(
+            fake.commands(),
+            [
+                Command::BorderColours(vec![(1, 0xFF0000), (2, 0x00FF00)]),
+                Command::BorderColours(vec![(2, 0x00FF00)]),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn window_commands_leave_out_the_look() -> eyre::Result<()> {
+        let fake = fake_with(&[1]);
+
+        fake.apply_look(&Look::default())?;
+        fake.focus(1, false)?;
+        fake.set_border_colours(&[(1, 0xFF0000)])?;
+
+        assert_eq!(fake.commands().len(), 3);
+        assert_eq!(fake.window_commands(), [Command::Focus(1, false)]);
         Ok(())
     }
 

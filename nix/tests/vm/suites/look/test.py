@@ -7,8 +7,7 @@
 #   A  the borders, as they are by default: the ring is outside the frame on all four sides
 #   B  the commands that change them: the effect follows, and takes the border away and back
 #
-# Every window is a `foot` of one color all over, `sleep 3000` inside it: NixOS wraps programs, so
-# the process names are not what they seem.
+# Every window is a `foot` of one color all over (`Kde.colored_window`).
 import time
 
 from komorebi_vm import Checks, Kde, Rect, daemon, pixels
@@ -41,17 +40,6 @@ def asked(title: str) -> Rect | None:
     return daemon.asked(machine.execute(f"cat {LOG}")[1], title)
 
 
-def colored_window(title: str, color: str) -> None:
-    command = f"foot -T {title} -o colors-dark.background={color} -o colors-dark.alpha=1.0"
-    kde.spawn(f"{command} sleep 3000")
-    kde.wait_for(lambda: kde.wid(title) != "", timeout=30)
-
-
-def close_windows() -> None:
-    kde.run("pkill -f 'sleep 3000'")
-    kde.wait_for(lambda: kde.run("pgrep -f 'sleep 3000'")[0] != 0, timeout=10)
-
-
 def start_komorebi() -> None:
     kde.systemctl("start", UNIT)
     kde.wait_for(answering, timeout=60)
@@ -65,7 +53,7 @@ def start_komorebi() -> None:
 
 def stop_komorebi() -> None:
     kde.systemctl("stop", UNIT)
-    close_windows()
+    kde.close_colored_windows()
 
 
 print("== the effect is installed, and not loaded by anyone")
@@ -104,9 +92,9 @@ checks.check(
 checks.check("the corner radius is the border radius", rc.get("Size") == "10")
 
 print("== A. two windows, side by side")
-colored_window("red", "ff0000")
+kde.colored_window("red", "ff0000")
 time.sleep(1)
-colored_window("blue", "0000ff")
+kde.colored_window("blue", "0000ff")
 checks.check("komorebi tiles both", kde.wait_for(lambda: kde.managed() == 2, timeout=30))
 time.sleep(3)
 red, blue = kde.wid("red"), kde.wid("blue")

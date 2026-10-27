@@ -778,6 +778,15 @@ the two colors. [`border_manager::current_look`] makes the [`Look`] of them, and
 after every retile. A backend remembers the look it applied last and does nothing when it is asked
 for the same again, so nothing reaches KWin unless a setting changed.
 
+What a window is to the layout decides the color of its border: the focused window of the focused
+container on the focused monitor is `Single`, or `Stack` when its container has more than one
+window, the focused window of every other container is `Unfocused` or, when the container is
+locked, `UnfocusedLocked`, and a floating window is `Floating` while it has the focus and
+`Unfocused` otherwise ([`border_manager::window_kinds`]). After every event and every message
+[`border_manager::update_colours`] tells the backend the color of each window's border
+([`Backend::set_border_colours`]), or that none has one when borders are off, and the backend sends
+nothing it sent last time. `BorderColour` sets the color of one kind.
+
 A drawn border takes room. While [`BORDER_DRAWN`] is set, [`Monitor::update_workspace_globals`]
 gives the workspace the width and the offset of the border, and [`Workspace::update`] takes both
 off every side of every tile, so the border falls in the gap and not on the window next to it.
@@ -791,7 +800,11 @@ into the user's `kwinrc`, group `[Round-Corners]`, through [`Kwinrc`]; loads the
 (`reconfigureEffect`), since KWin hands an effect the copy of `kwinrc` it read when it started. A
 look without a border unloads the effect, if komorebi loaded it, and puts the user's settings
 back. `shutdown` does the same. An effect KWin did not find when it started is reported once and
-komorebi goes on without it, with `apply_look` answering false.
+komorebi goes on without it, with `apply_look` answering false. The stock effect has one color for
+the active window and one for the others; komorebi's build of it takes a color for each window,
+over D-Bus, by the UUID KWin knows the window by. `set_border_colours` answers false, and logs it
+once, when the effect is the stock one: every border is then the focused or the unfocused color of
+the look.
 [PLATFORM.md](PLATFORM.md#kwin-effects) has the effect, its settings and what was measured.
 
 ## The NixOS module
@@ -1029,6 +1042,8 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A border takes room around the windows only while the compositor draws it | framework path: [`border_manager::send_notification`] keeps the backend's answer in [`BORDER_DRAWN`], which [`Monitor::update_workspace_globals`] reads | `a_border_the_compositor_draws_takes_room_around_each_window_and_none_is_taken_without_one`, `a_look_is_a_command_once_and_says_whether_borders_are_drawn` | none |
 | The compositor is asked for the look after every event, every message and every retile, and only a changed look reaches it | framework path: [`WindowManager::process_event`], [`WindowManager::process_command`] and [`WindowManager::retile_all`] call [`border_manager::send_notification`], and a backend compares with the look it applied last | `the_border_messages_set_the_border_and_the_compositor_is_asked_for_it`, `a_look_is_a_command_once_and_says_whether_borders_are_drawn` | the same look applied twice by the KWin backend is not tested |
 | No outline is drawn inside a window, and a border is never thicker than the effect can draw | framework path: [`kwin::effects`](../../komorebi/src/kwin/effects.rs) sets every inner outline to 0 and clamps the width to 20 | `the_border_is_the_outer_outline_and_nothing_is_drawn_inside_the_window`, `a_border_thicker_than_the_effect_can_draw_is_the_thickest_it_can`, `vm-look` | none |
+| Every window has the border color of what it is to the layout, and a window whose kind changes has the new one at once | framework path: [`border_manager::update_colours`] is called after every event and every message, from [`border_manager::window_kinds`], and the backend sends the colors it did not send last time | `the_focused_window_has_the_focus_colour_and_the_others_do_not`, `a_locked_container_that_is_not_focused_is_marked`, `a_stack_has_its_own_colour_when_it_has_the_focus`, `a_monocled_window_has_the_monocle_colour`, `a_floating_window_has_the_floating_colour_while_it_has_the_focus`, `border_colours_are_a_command_only_when_they_change`, `vm-features` (section C) | the stock effect: two colors for every window |
+| With borders off no window has a color | framework path: [`border_manager::update_colours`] tells the backend an empty list when `BORDER_ENABLED` is false | `with_borders_off_no_window_has_a_colour` | none |
 | The effect komorebi loaded is unloaded, and the user's settings of it are put back, when komorebi stops using it or exits | framework path: the effect's state unloads what komorebi loaded, and [`Kwinrc`] puts the group back | `one_group_can_be_put_back_while_the_others_stay_changed`, `vm-look` | `SIGKILL`: the next run puts the settings back when it stops |
 | Queries never block on the compositor | convention only | none | the KWin backend's `cursor_pos` waits up to 250 ms |
 | Only the backend module reaches the compositor | convention only | none | none |
@@ -1149,14 +1164,21 @@ A window is shown, and ends up on a tile:
 - [`nix/tests/vm/suites/kwin-restart`](../../nix/tests/vm/suites/kwin-restart/test.py): KWin
   restarting under the daemon.
 - [`nix/kde-rounded-corners.nix`](../../nix/kde-rounded-corners.nix): the build of the KWin
-  effect that draws an outline around each window, and
+  effect that draws an outline around each window, with
+  [`komorebi-border-colours.patch`](../../nix/kde-rounded-corners/komorebi-border-colours.patch),
+  which lets komorebi give each window a color; and
   [`nix/tests/effects.nix`](../../nix/tests/effects.nix), the checks of the files each effect
   package installs.
 - [`komorebi/tests/borders.rs`](../../komorebi/tests/borders.rs) and
   [`komorebi/tests/border_commands.rs`](../../komorebi/tests/border_commands.rs): the room a drawn
   border takes, and the messages that set the border, against the fake;
+  [`komorebi/tests/border_colours.rs`](../../komorebi/tests/border_colours.rs) and
+  [`komorebi/tests/borders_off.rs`](../../komorebi/tests/borders_off.rs), the color of each
+  window's border, and none with borders off;
   [`nix/tests/vm/suites/look`](../../nix/tests/vm/suites/look/test.py), the border in a real
-  Plasma session, read from the pixels of a screenshot.
+  Plasma session, read from the pixels of a screenshot, and
+  [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py), the colors of the
+  kinds of window.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
   driven end to end against the fake.
 - [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
@@ -1240,6 +1262,9 @@ A window is shown, and ends up on a tile:
 [`border_manager::current_look`]: ../../komorebi/src/border_manager/mod.rs
 [`border_manager::send_notification`]: ../../komorebi/src/border_manager/mod.rs
 [`BORDER_DRAWN`]: ../../komorebi/src/border_manager/mod.rs
+[`Backend::set_border_colours`]: ../../komorebi/src/backend/mod.rs
+[`border_manager::window_kinds`]: ../../komorebi/src/border_manager/mod.rs
+[`border_manager::update_colours`]: ../../komorebi/src/border_manager/mod.rs
 [`WindowManager::retile_all`]: ../../komorebi/src/window_manager.rs
 [`Ring`]: ../../komorebi/src/ring.rs
 [`Monitor`]: ../../komorebi/src/monitor.rs

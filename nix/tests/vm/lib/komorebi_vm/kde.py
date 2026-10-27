@@ -241,6 +241,23 @@ class Kde:
         """
         self.sh(f"setsid nohup {command} > {shlex.quote(log)} 2>&1 < /dev/null &")
 
+    def colored_window(self, title: str, color: str, timeout: float = 30) -> None:
+        """Opens a window that is one color all over, titled `title`, and waits for KWin to have it.
+
+        The window is a `foot` terminal with a background of `color` (`rrggbb`) that is not
+        see-through, running `sleep 3000`: a test that wants to read its pixels from a screenshot
+        wants one color and nothing else, and [`Kde.close_colored_windows`][] finds it by the
+        command it runs, since NixOS wraps programs and their process names are not what they seem.
+        """
+        words = f"foot -T {shlex.quote(title)} -o colors-dark.background={color}"
+        self.spawn(f"{words} -o colors-dark.alpha=1.0 sleep 3000")
+        self.wait_for(lambda: self.wid(title) != "", timeout=timeout)
+
+    def close_colored_windows(self) -> None:
+        """Closes every window [`Kde.colored_window`][] opened, and waits until they are gone."""
+        self.run("pkill -f 'sleep 3000'")
+        self.wait_for(lambda: self.run("pgrep -f 'sleep 3000'")[0] != 0, timeout=10)
+
     def systemctl(self, *args: str) -> str:
         """Runs `systemctl --user` as the test user."""
         return self.as_user("systemctl --user " + " ".join(args))

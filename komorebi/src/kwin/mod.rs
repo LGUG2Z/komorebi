@@ -54,7 +54,9 @@
 //!
 //! Borders are drawn by a KWin effect, KDE Rounded Corners, which the backend configures: it writes
 //! the effect's settings into the user's `kwinrc`, loads the effect, and takes the settings back
-//! out when komorebi exits ([`Backend::apply_look`]).
+//! out when komorebi exits ([`Backend::apply_look`]). The effect komorebi builds
+//! (`nix/kde-rounded-corners.nix`) also takes a color for each window, which the backend gives it
+//! by KWin's UUID of the window ([`Backend::set_border_colours`]).
 //!
 //! `docs/dev/PLATFORM.md` has the D-Bus names, the files and the environment variables involved,
 //! and `docs/dev/DESIGN.md` the reasons for this design.
@@ -897,6 +899,24 @@ impl Backend for KWinBackend {
             let connection = shared.connection().await?;
             let mut effects = shared.effects.lock().await;
             effects.apply(&connection, kwinrc, &look).await
+        })?
+    }
+
+    fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
+        let shared = self.shared.clone();
+
+        let named: Vec<(String, u32)> = {
+            let table = shared.table.lock();
+            colours
+                .iter()
+                .filter_map(|(id, rgb)| table.uuid(*id).map(|uuid| (uuid, *rgb)))
+                .collect()
+        };
+
+        self.shared.block_on(async move {
+            let connection = shared.connection().await?;
+            let mut effects = shared.effects.lock().await;
+            Ok(effects.set_window_colours(&connection, &named).await)
         })?
     }
 

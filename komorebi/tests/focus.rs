@@ -73,7 +73,7 @@ fn focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing() {
     );
 
     assert_eq!(focused(&wm), 19_001);
-    assert_eq!(fake.commands(), [Command::Focus(19_001, true)]);
+    assert_eq!(fake.window_commands(), [Command::Focus(19_001, true)]);
 
     send(
         &fake,
@@ -83,7 +83,7 @@ fn focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing() {
 
     assert_eq!(focused(&wm), 19_002);
     assert_eq!(
-        fake.commands(),
+        fake.window_commands(),
         [Command::Focus(19_001, true), Command::Focus(19_002, true)]
     );
     assert_eq!((fake.rect_of(19_001), fake.rect_of(19_002)), tiles);
@@ -143,7 +143,7 @@ fn cycle_focus_goes_round_the_containers_in_order() {
     assert_eq!(focused(&wm), 19_023, "previous from the first is the last");
 
     assert_eq!(
-        fake.commands(),
+        fake.window_commands(),
         [
             Command::Focus(19_021, true),
             Command::Focus(19_022, true),
@@ -186,7 +186,7 @@ fn without_mouse_follows_focus_the_pointer_stays_where_it_is() {
     );
 
     assert_eq!(
-        fake.commands(),
+        fake.window_commands(),
         [Command::Focus(19_031, false), Command::Focus(19_032, true)]
     );
     assert!(wm.mouse_follows_focus);

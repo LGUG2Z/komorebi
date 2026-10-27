@@ -425,3 +425,23 @@ Because KWin keeps the copy of `kwinrc` it read when it started, and an effect r
 from that copy, also one loaded a moment ago. Writing the file and loading the effect leaves the
 effect with the settings the file had at the start of the session. `reconfigureEffect` makes it
 read them again, so komorebi calls it every time, after loading too.
+
+## Why does the border effect take a color for each window?
+
+Because komorebi colors a window by what it is to the layout (the focused window of each monitor,
+a stack, a monocle, a floating window, a locked container), and the stock effect knows only "the
+active window" and "the others". komorebi's build of KDE Rounded Corners takes a color for each
+window over D-Bus, through KWin's name ([PLATFORM.md](PLATFORM.md#the-patches)). Without that
+build every kind falls back to the two colors of the look, and komorebi says so once in its log.
+
+## Why are the effects patched?
+
+Because the stock effects lack what komorebi needs of them. Each patch leaves the effect
+working without komorebi, with the settings the stock effect has:
+
+| Effect | Patched for | Why |
+|---|---|---|
+| KDE Rounded Corners | a color for each window, set over D-Bus; drawing a window again when its opacity changes | komorebi colors a window by what it is to the layout (the focused window of each monitor, a stack, a monocle, a floating window, a locked container), and the stock effect has one color for the active window and one for the others. It also draws a window from a texture that has the window's opacity in it, made again only when the contents change or the window is resized, so a change of opacity alone would not show |
+
+The patches are derivative works of the effects and are under the effects' license, the GNU
+General Public License version 3 ([PLATFORM.md](PLATFORM.md#the-patches)).

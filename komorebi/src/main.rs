@@ -234,6 +234,12 @@ fn main() -> eyre::Result<()> {
 
     wm.lock().retile_all(false)?;
 
+    // and what the windows that are already there look like: their border colors
+    {
+        let wm = wm.lock();
+        border_manager::update_colours(&wm);
+    }
+
     listen_for_commands(wm.clone());
     listen_for_events(wm.clone());
 

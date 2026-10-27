@@ -184,7 +184,8 @@ fn toggle_monocle_gives_the_focused_window_the_work_area_and_toggling_again_puts
     assert_eq!(fake.rect_of(35_002), Some(alone(35_009)));
     assert_ne!(fake.rect_of(35_002), Some(tile));
     assert!(
-        fake.commands().ends_with(&[Command::Focus(35_002, true)]),
+        fake.window_commands()
+            .ends_with(&[Command::Focus(35_002, true)]),
         "the monocle window is given the focus"
     );
     assert_eq!(

@@ -657,6 +657,33 @@ def test_unload_effect_asks_kwin_over_the_session_bus(machine: FakeMachine) -> N
     assert "kwin4_effect_shapecorners" in command
 
 
+def test_a_colored_window_is_a_foot_of_one_color_that_the_session_waits_for(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("kdotool search --name", output="{abc}\n")
+    kde = Kde(machine, "main")
+
+    kde.colored_window("red", "ff0000")
+
+    spawn = next(command for command in machine.commands if "setsid nohup" in command)
+    assert "foot -T red -o colors-dark.background=ff0000 -o colors-dark.alpha=1.0 sleep 3000" in (
+        inner(spawn)
+    )
+    assert "WAYLAND_DISPLAY=wayland-main" in spawn
+
+
+def test_close_colored_windows_kills_what_ran_sleep_and_waits_for_them_to_go(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("pgrep", status=1)
+    kde = Kde(machine, "main")
+
+    kde.close_colored_windows()
+
+    assert "pkill -f 'sleep 3000'" in inner(machine.commands[0])
+    assert "pgrep -f 'sleep 3000'" in inner(machine.commands[1])
+
+
 def test_a_kwin_script_is_loaded_run_and_unloaded_and_its_reports_returned(
     machine: FakeMachine,
 ) -> None:

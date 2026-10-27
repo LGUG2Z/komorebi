@@ -148,6 +148,9 @@ the run.
 - `effect_supported(name)` and `effect_loaded(name)` ask KWin whether an effect is
   installed (KWin found it when it started) and loaded, and `unload_effect(name)`
   unloads one, whoever loaded it.
+- `colored_window(title, color)` opens a terminal that is one color all over, and
+  waits for KWin to have it, and `close_colored_windows()` closes them: a test
+  reads the color of a pixel of a screenshot, and wants nothing else there.
 - `pixels` reads a screenshot: `pixels.pixel(image, x, y)` is the color of a
   pixel, `pixels.near(a, b)` compares two colors within a tolerance, since a
   compositor blends the edge of what it draws, and `pixels.ring(image, frame,

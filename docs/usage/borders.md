@@ -2,8 +2,9 @@
 
 komorebi puts a colored border around every window. It does not draw it: a KWin effect, KDE
 Rounded Corners, draws the border outside each window, in the gap between the tiles, and komorebi
-tells the effect how wide it is, how round the corners are and which color to use. The border
-around the window that has the focus is blue, and the border around every other window is gray.
+tells the effect how wide it is, how round the corners are and which color each window's border
+has. The border around the window that has the focus is blue, and the border around every other
+window is gray.
 
 ## Installing the effect
 
@@ -25,6 +26,34 @@ once in its log, and leaves no room for them.
 komorebic border disable
 komorebic border enable
 ```
+
+## Colors
+
+A window's border has the color of what the window is to the layout:
+
+| Kind | Window | Default |
+|---|---|---|
+| `single` | the focused window | blue, `66 165 245` |
+| `unfocused` | every other window | gray, `128 128 128` |
+| `unfocused-locked` | a locked container that does not have the focus | red, `158 8 8` |
+| `stack` | a stack that has the focus | green, `0 165 66` |
+| `monocle` | a monocled window | pink, `255 51 153` |
+| `floating` | a floating window that has the focus | yellow, `245 245 165` |
+
+[`komorebic border-colour`](../cli/border-colour.md) sets the color of a kind, from its red,
+green and blue, each from 0 to 255; without `--window-kind` it sets `single`.
+
+```sh
+komorebic border-colour 255 128 0
+komorebic border-colour --window-kind unfocused 64 64 64
+komorebic border-colour --window-kind floating 200 200 0
+```
+
+The stock KDE Rounded Corners has one color for the active window and one for the others. The
+build the flake installs also takes a color for each window, which is what lets a locked, a
+floating, a stack and a monocled window have colors of their own. With the stock effect every
+kind is drawn as `single` or `unfocused`, whichever is closer, and komorebi says so once in its
+log.
 
 ## Width and room
 

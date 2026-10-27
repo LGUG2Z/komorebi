@@ -179,7 +179,9 @@
 //! - **Border** sets whether the compositor draws a border around each window, and **BorderWidth**
 //!   and **BorderOffset** the room the layout leaves for it: each asks the backend for the look
 //!   again ([`border_manager::send_notification`]), as does every message once it has been
-//!   handled.
+//!   handled. **BorderColour** sets the color of the border of one kind of window
+//!   ([`WindowKind`]), and every message, once handled, tells the backend the color of each
+//!   window's border ([`border_manager::update_colours`]).
 //! - **Retile** tiles the focused workspace of every monitor again, without the resize
 //!   adjustments, and **RetileWithResizeDimensions** with them.
 //! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
@@ -215,6 +217,7 @@ use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowKind;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -1941,6 +1944,28 @@ impl WindowManager {
                     border_manager::destroy_all_borders()?;
                 }
             }
+            SocketMessage::BorderColour(kind, r, g, b) => match kind {
+                WindowKind::Single => {
+                    border_manager::FOCUSED.store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                }
+                WindowKind::Stack => {
+                    border_manager::STACK.store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                }
+                WindowKind::Monocle => {
+                    border_manager::MONOCLE.store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                }
+                WindowKind::Unfocused => {
+                    border_manager::UNFOCUSED
+                        .store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                }
+                WindowKind::UnfocusedLocked => {
+                    border_manager::UNFOCUSED_LOCKED
+                        .store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                }
+                WindowKind::Floating => {
+                    border_manager::FLOATING.store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                }
+            },
             SocketMessage::BorderWidth(width) => {
                 border_manager::BORDER_WIDTH.store(width, Ordering::SeqCst);
                 border_manager::destroy_all_borders()?;
@@ -1962,6 +1987,7 @@ impl WindowManager {
         )?;
 
         border_manager::send_notification();
+        border_manager::update_colours(self);
 
         tracing::info!("processed command: {message}");
 

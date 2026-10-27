@@ -43,7 +43,8 @@
 //! frames, the corners and the shadows. The window manager describes a [`Look`] and the backend
 //! sees that it is drawn ([`Backend::apply_look`]); the window manager is told whether the
 //! compositor draws a border, because a border that is drawn takes room around each window, which
-//! the layout leaves.
+//! the layout leaves. The color of each window's border is another request
+//! ([`Backend::set_border_colours`]), which a compositor may not be able to honor.
 
 #![deny(missing_docs)]
 
@@ -388,6 +389,37 @@ pub trait Backend: Send + Sync + 'static {
     /// # Ok::<(), color_eyre::eyre::Report>(())
     /// ```
     fn apply_look(&self, _look: &Look) -> eyre::Result<bool> {
+        Ok(false)
+    }
+
+    /// Tells the compositor the color of each window's border, as `(window id, 0xRRGGBB)`: the
+    /// window manager picks it by what the window is to the layout (the focused window of the
+    /// focused monitor, a stack, a monocle, a floating window, a locked container). A window that
+    /// is not named has the border [`Backend::apply_look`] gave it. The colors replace the ones
+    /// given before, and a backend sends the compositor nothing it sent last time.
+    ///
+    /// Returns true if and only if the compositor can give each window a color of its own. When it
+    /// cannot, the borders are the look's two colors, one for the focused window and one for every
+    /// other. The default draws nothing and answers false.
+    ///
+    /// # Errors
+    ///
+    /// When the compositor cannot be reached.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi::backend::Backend;
+    /// use komorebi::backend::fake::FakeBackend;
+    ///
+    /// let fake = FakeBackend::with_one_monitor();
+    /// fake.open_window(7, "foot", "foot", "a terminal");
+    ///
+    /// assert!(fake.set_border_colours(&[(7, 0x42A5F5)])?);
+    /// assert_eq!(fake.border_colour_of(7), Some(0x42A5F5));
+    /// # Ok::<(), color_eyre::eyre::Report>(())
+    /// ```
+    fn set_border_colours(&self, _colours: &[(u32, u32)]) -> eyre::Result<bool> {
         Ok(false)
     }
 

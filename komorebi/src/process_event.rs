@@ -48,8 +48,9 @@
 //! [`listen_for_events`], one at a time and in the order the backend raised them.
 //!
 //! Once an event about a managed window has been handled, every subscriber is sent a notification
-//! of it ([`notify_subscribers`]), and the backend is asked for the look again
-//! ([`border_manager::send_notification`]), which it does nothing about unless a setting changed.
+//! of it ([`notify_subscribers`]), the backend is asked for the look again
+//! ([`border_manager::send_notification`]), which it does nothing about unless a setting changed,
+//! and told the color of each window's border ([`border_manager::update_colours`]).
 //!
 //! [`Window::should_manage`]: crate::window::Window::should_manage
 //! [`Monitor::assign_windows_to_workspaces`]: crate::monitor::Monitor::assign_windows_to_workspaces
@@ -139,7 +140,12 @@ impl WindowManager {
 
         // a monitor changed which workspace it shows; nothing to do with any window
         if let WindowManagerEvent::WorkspaceChange(_, monitor_id, idx) = event {
-            return self.adopt_workspace_change(monitor_id, idx);
+            let result = self.adopt_workspace_change(monitor_id, idx);
+
+            // other windows are in view
+            border_manager::send_notification();
+            border_manager::update_colours(self);
+            return result;
         }
 
         let Some(window) = event.window() else {
@@ -510,6 +516,7 @@ impl WindowManager {
         )?;
 
         border_manager::send_notification();
+        border_manager::update_colours(self);
 
         Ok(())
     }

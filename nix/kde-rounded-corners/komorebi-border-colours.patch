@@ -1,0 +1,218 @@
+komorebi-border-colours.patch, for KDE Rounded Corners 0.11.0
+(https://github.com/matinlotfali/KDE-Rounded-Corners), applied by
+nix/kde-rounded-corners.nix. It gives each window's outer outline the color
+komorebi sets for it over D-Bus (org.komorebi.BorderColours1 at
+/org/komorebi/BorderColours, on KWin's name org.kde.KWin); a window without one
+is drawn with the colors of the settings. It also redirects a window drawn
+through the effect again when the window's opacity changes, so that a change
+of opacity alone shows.
+
+This patch is a derivative work of KDE Rounded Corners, which is distributed
+under the GNU General Public License version 3, and it is distributed under
+the same license.
+
+SPDX-License-Identifier: GPL-3.0-only
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, version 3.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+
+diff -ruN a/src/CMakeLists.txt b/src/CMakeLists.txt
+--- a/src/CMakeLists.txt	2026-10-26 21:49:20
++++ b/src/CMakeLists.txt	2026-10-26 21:49:44
+@@ -5,6 +5,7 @@
+     Shader.cpp
+     Window.h
+     Window.cpp
++    WindowColours.h
+     TileChecker.h
+     TileChecker.cpp
+     FloatColor.h
+diff -ruN a/src/Effect.cpp b/src/Effect.cpp
+--- a/src/Effect.cpp	2026-10-26 21:49:20
++++ b/src/Effect.cpp	2026-10-26 23:24:01
+@@ -27,6 +27,7 @@
+ #include "Config.h"
+ #include "Utils.h"
+ #include "Window.h"
++#include "WindowColours.h"
+ #include "WindowManager.h"
+ #if QT_VERSION_MAJOR >= 6
+ #include <core/output.h>
+@@ -87,6 +88,9 @@
+ 
+ ShapeCorners::Effect::Effect()
+ {
++    // komorebi tells this effect which colour each window's border is
++    WindowColours::instance().registerOnBus();
++
+     // Read configuration and initialize the effect.
+     reconfigure(ReconfigureAll);
+ 
+@@ -98,11 +102,33 @@
+         m_windowManager = std::make_unique<WindowManager>();
+         // Connect the windowAdded signal to handle new windows.
+         connect(KWin::effects, &KWin::EffectsHandler::windowAdded, this, &Effect::windowAdded);
++        // A window drawn through this effect is drawn from a texture that has the window's opacity
++        // in it, and that is made again only when the window's contents change or it is resized: a
++        // change of opacity alone (komorebi's transparency) would not show. Redirect it afresh.
++        const auto refreshOnOpacity = [this](KWin::EffectWindow *kwindow, qreal, qreal) {
++            auto *window = m_windowManager->findWindow(kwindow);
++            if (window == nullptr || !window->hasEffect()) {
++                return;
++            }
++            unredirect(kwindow);
++            redirect(kwindow);
++            setShader(kwindow, m_shaderManager.GetShader().get());
++            kwindow->addRepaintFull();
++        };
++        for (auto *kwindow: KWin::effects->stackingOrder()) {
++            connect(kwindow, &KWin::EffectWindow::windowOpacityChanged, this, refreshOnOpacity);
++        }
++        connect(KWin::effects, &KWin::EffectsHandler::windowAdded, this,
++                [this, refreshOnOpacity](KWin::EffectWindow *kwindow) {
++                    connect(kwindow, &KWin::EffectWindow::windowOpacityChanged, this, refreshOnOpacity);
++                });
+     }
+ }
+ 
+ ShapeCorners::Effect::~Effect()
+ {
++    WindowColours::instance().unregisterFromBus();
++
+     // If the shader manager is valid, then the effect has been active, so some cleanup is needed.
+     if (m_shaderManager.IsValid()) {
+         // Restore Breeze outline setting when effect is unloaded:
+diff -ruN a/src/Shader.cpp b/src/Shader.cpp
+--- a/src/Shader.cpp	2026-10-26 21:49:20
++++ b/src/Shader.cpp	2026-10-26 21:49:44
+@@ -5,6 +5,7 @@
+ #include "Config.h"
+ #include "Utils.h"
+ #include "Window.h"
++#include "WindowColours.h"
+ #include "WindowConfig.h"
+ #if QT_VERSION_MAJOR >= 6
+ #include <core/pixelgrid.h>
+@@ -160,8 +161,10 @@
+         m_shader->setUniform(m_shader_secondOutlineColor1, secondOutline.color1.toQColor());
+         m_shader->setUniform(m_shader_secondOutlineColor2, secondOutline.color2.toQColor());
+         m_shader->setUniform(m_shader_secondOutlineAngle, secondOutline.angle);
+-        m_shader->setUniform(m_shader_outerOutlineColor1, outerOutline.color1.toQColor());
+-        m_shader->setUniform(m_shader_outerOutlineColor2, outerOutline.color2.toQColor());
++        // a colour komorebi gave this window wins over the active and inactive settings
++        const auto given = ShapeCorners::WindowColours::instance().colourFor(window.w);
++        m_shader->setUniform(m_shader_outerOutlineColor1, given ? *given : outerOutline.color1.toQColor());
++        m_shader->setUniform(m_shader_outerOutlineColor2, given ? *given : outerOutline.color2.toQColor());
+         m_shader->setUniform(m_shader_outerOutlineAngle, outerOutline.angle);
+     } else {
+         const QColor transparent(0, 0, 0, 0);
+diff -ruN a/src/WindowColours.h b/src/WindowColours.h
+--- a/src/WindowColours.h	1969-12-31 16:00:00
++++ b/src/WindowColours.h	2026-10-26 23:12:15
+@@ -0,0 +1,98 @@
++/**
++ * @file WindowColours.h
++ * @brief Per-window colours for the outer outline, set from outside over D-Bus (komorebi).
++ *
++ * A tiling window manager knows better than "the active window" which windows are what: the
++ * focused one on each monitor, a stack, a monocled window, a floating window, a locked container.
++ * It says so, and this effect draws the outer outline of each window it has a colour for in that
++ * colour. Windows it has none for are drawn as the settings say.
++ *
++ * The object is on the session bus at /org/komorebi/BorderColours, interface
++ * org.komorebi.BorderColours1, reached through KWin's own name (org.kde.KWin).
++ */
++
++#pragma once
++
++#include <QColor>
++#include <QDBusConnection>
++#include <QHash>
++#include <QList>
++#include <QObject>
++#include <QStringList>
++#include <QUuid>
++#include <optional>
++
++#if QT_VERSION_MAJOR >= 6
++#include <effect/effecthandler.h>
++#include <effect/effectwindow.h>
++#else
++#include <kwineffects.h>
++#endif
++
++namespace ShapeCorners
++{
++    class WindowColours final : public QObject
++    {
++        Q_OBJECT
++        Q_CLASSINFO("D-Bus Interface", "org.komorebi.BorderColours1")
++
++    public:
++        static WindowColours &instance()
++        {
++            static WindowColours colours;
++            return colours;
++        }
++
++        void registerOnBus()
++        {
++            QDBusConnection::sessionBus().registerObject(QStringLiteral("/org/komorebi/BorderColours"), this,
++                                                         QDBusConnection::ExportAllSlots);
++        }
++
++        void unregisterFromBus()
++        {
++            QDBusConnection::sessionBus().unregisterObject(QStringLiteral("/org/komorebi/BorderColours"));
++            m_colours.clear();
++        }
++
++        /// The colour this window's outer outline is to be drawn in, if it was given one
++        [[nodiscard]]
++        std::optional<QColor> colourFor(const KWin::EffectWindow *window) const
++        {
++            if (m_colours.isEmpty()) {
++                return std::nullopt;
++            }
++            const auto found = m_colours.constFind(window->internalId());
++            if (found == m_colours.constEnd()) {
++                return std::nullopt;
++            }
++            return *found;
++        }
++
++    public Q_SLOTS:
++        /// Replace the colours of every window at once: window uuids (as KWin writes them, with or
++        /// without braces) and 0xRRGGBB values, in step. Windows not named go back to the settings.
++        void SetColours(const QStringList &windows, const QList<uint> &rgb)
++        {
++            QHash<QUuid, QColor> colours;
++            for (qsizetype i = 0; i < windows.size() && i < rgb.size(); ++i) {
++                const auto id = QUuid::fromString(windows[i]);
++                if (!id.isNull()) {
++                    colours.insert(id, QColor::fromRgb(rgb[i] & 0xFFFFFF));
++                }
++            }
++
++            if (colours == m_colours) {
++                return;
++            }
++            m_colours = colours;
++
++            for (auto *window: KWin::effects->stackingOrder()) {
++                window->addRepaintFull();
++            }
++        }
++
++    private:
++        QHash<QUuid, QColor> m_colours;
++    };
++} // namespace ShapeCorners

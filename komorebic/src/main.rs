@@ -66,8 +66,9 @@
 //!   find by its name; `workspace-layout` and `workspace-tiling` set the layout and the tiling of
 //!   a workspace by its index, and `ensure-workspaces` and `ensure-named-workspaces` give a
 //!   monitor workspaces up to a number, or with names.
-//! - `border` sets whether the compositor draws a border around each window, and `border-width`
-//!   and `border-offset` the room the layout leaves for it.
+//! - `border` sets whether the compositor draws a border around each window, `border-colour` the
+//!   color of the border of a kind of window, and `border-width` and `border-offset` the room the
+//!   layout leaves for it.
 //!
 //! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
 //! always in it, `session-float-rule` floats the focused window and every window like it until the
@@ -120,6 +121,7 @@ use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
+use komorebi_client::WindowKind;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
@@ -730,6 +732,18 @@ struct Border {
 }
 
 #[derive(Parser)]
+struct BorderColour {
+    #[clap(value_enum, short, long, default_value = "single")]
+    window_kind: WindowKind,
+    /// Red
+    r: u32,
+    /// Green
+    g: u32,
+    /// Blue
+    b: u32,
+}
+
+#[derive(Parser)]
 struct BorderWidth {
     /// Desired width of the window border
     width: i32,
@@ -1160,6 +1174,10 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "active-window-border")]
     Border(Border),
+    /// Set the color for a window border kind
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border-colour")]
+    BorderColour(BorderColour),
     /// Set the border width
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "active-window-border-width")]
@@ -1983,6 +2001,14 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::Border(args) => {
             send_message(&SocketMessage::Border(args.boolean_state.into()))?;
+        }
+        SubCommand::BorderColour(args) => {
+            send_message(&SocketMessage::BorderColour(
+                args.window_kind,
+                args.r,
+                args.g,
+                args.b,
+            ))?;
         }
         SubCommand::BorderWidth(args) => {
             send_message(&SocketMessage::BorderWidth(args.width))?;

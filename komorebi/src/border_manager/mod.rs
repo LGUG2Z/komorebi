@@ -8,6 +8,9 @@
 //!   ([`current_look`]): the border's width, radius and two colors, one for the focused window and
 //!   one for the others. The backend answers whether the borders are drawn, which is kept in
 //!   [`BORDER_DRAWN`]: a drawn border takes room around each window, which the layout leaves.
+//! - [`update_colours`] tells the backend the color of each window's border, by what the window
+//!   is to the layout ([`window_kinds`]). Only komorebi's build of the effect takes them; the
+//!   stock one draws the look's two colors, one for the active window and one for the others.
 //!
 //! The settings are the statics of this module, which the `komorebic border*` commands set and
 //! the `border*` keys of `komorebi.json` ([`crate::static_config::StaticConfig`]) give their
@@ -16,6 +19,8 @@
 use crate::backend::BorderLook;
 use crate::backend::Look;
 use crate::backend::backend;
+use crate::core::WindowKind;
+use crate::window_manager::WindowManager;
 use color_eyre::eyre;
 use lazy_static::lazy_static;
 use std::sync::atomic::AtomicBool;
@@ -42,6 +47,151 @@ lazy_static! {
     pub static ref FOCUSED: AtomicU32 = AtomicU32::new(pack(66, 165, 245));
     /// The color of the border of every other window, as [`pack`] stores it.
     pub static ref UNFOCUSED: AtomicU32 = AtomicU32::new(pack(128, 128, 128));
+    /// The color of the border of a locked container that does not have the focus.
+    pub static ref UNFOCUSED_LOCKED: AtomicU32 = AtomicU32::new(pack(158, 8, 8));
+    /// The color of the border of a monocled window.
+    pub static ref MONOCLE: AtomicU32 = AtomicU32::new(pack(255, 51, 153));
+    /// The color of the border of a stack that has the focus.
+    pub static ref STACK: AtomicU32 = AtomicU32::new(pack(0, 165, 66));
+    /// The color of the border of a floating window that has the focus.
+    pub static ref FLOATING: AtomicU32 = AtomicU32::new(pack(245, 245, 165));
+}
+
+/// Returns the kind of border the stock border effect gives a window of this kind.
+///
+/// The stock effect has one color for the active window and one for the others, so `Stack`,
+/// `Monocle` and `Floating` are shown as `Single`, and `UnfocusedLocked` as `Unfocused`.
+///
+/// ```rust
+/// use komorebi::border_manager::outline_kind;
+/// use komorebi::core::WindowKind;
+///
+/// assert_eq!(outline_kind(WindowKind::Stack), WindowKind::Single);
+/// assert_eq!(outline_kind(WindowKind::UnfocusedLocked), WindowKind::Unfocused);
+/// ```
+pub fn outline_kind(kind: WindowKind) -> WindowKind {
+    match kind {
+        WindowKind::Single | WindowKind::Stack | WindowKind::Monocle | WindowKind::Floating => {
+            WindowKind::Single
+        }
+        WindowKind::Unfocused | WindowKind::UnfocusedLocked => WindowKind::Unfocused,
+    }
+}
+
+/// Returns the color the settings give a kind of window, as the statics store it (red, green and
+/// blue in one number).
+fn kind_colour(kind: WindowKind) -> u32 {
+    match kind {
+        WindowKind::Single => FOCUSED.load(Ordering::SeqCst),
+        WindowKind::Stack => STACK.load(Ordering::SeqCst),
+        WindowKind::Monocle => MONOCLE.load(Ordering::SeqCst),
+        WindowKind::Floating => FLOATING.load(Ordering::SeqCst),
+        WindowKind::Unfocused => UNFOCUSED.load(Ordering::SeqCst),
+        WindowKind::UnfocusedLocked => UNFOCUSED_LOCKED.load(Ordering::SeqCst),
+    }
+}
+
+/// Returns what the border of each window is to the layout, which decides its color.
+///
+/// Only the workspace each monitor shows is looked at. On it, the focused window of the focused
+/// container on the focused monitor is `Single`, or `Stack` if its container has more than one
+/// window; a monocled window is `Monocle` on the focused monitor; the focused window of any other
+/// container is `Unfocused`, or `UnfocusedLocked` if its container is locked; a floating window is
+/// `Floating` if it has the focus and `Unfocused` if not. A workspace with a monocle lists the
+/// monocled window, and its floating windows only when the floating layer is in front.
+pub fn window_kinds(wm: &WindowManager) -> Vec<(u32, WindowKind)> {
+    let mut out = vec![];
+    let focused_monitor_idx = wm.focused_monitor_idx();
+    let foreground = backend().foreground_window();
+
+    let floating = |workspace: &crate::workspace::Workspace, out: &mut Vec<(u32, WindowKind)>| {
+        for window in workspace.floating_windows() {
+            let kind = if foreground == Some(window.id) {
+                WindowKind::Floating
+            } else {
+                WindowKind::Unfocused
+            };
+            out.push((window.id, kind));
+        }
+    };
+
+    for (monitor_idx, monitor) in wm.monitors().iter().enumerate() {
+        let Some(workspace) = monitor.focused_workspace() else {
+            continue;
+        };
+
+        if let Some(monocle) = &workspace.monocle_container {
+            if let Some(window) = monocle.focused_window() {
+                let kind = if monitor_idx == focused_monitor_idx {
+                    WindowKind::Monocle
+                } else {
+                    WindowKind::Unfocused
+                };
+                out.push((window.id, kind));
+            }
+
+            if matches!(workspace.layer, crate::workspace::WorkspaceLayer::Floating) {
+                floating(workspace, &mut out);
+            }
+
+            continue;
+        }
+
+        for (idx, container) in workspace.containers().iter().enumerate() {
+            let kind =
+                if idx != workspace.focused_container_idx() || monitor_idx != focused_monitor_idx {
+                    if container.locked {
+                        WindowKind::UnfocusedLocked
+                    } else {
+                        WindowKind::Unfocused
+                    }
+                } else if container.windows().len() > 1 {
+                    WindowKind::Stack
+                } else {
+                    WindowKind::Single
+                };
+
+            if let Some(window) = container.focused_window() {
+                out.push((window.id, kind));
+            }
+        }
+
+        floating(workspace, &mut out);
+    }
+
+    out
+}
+
+/// Returns the border color of each window [`window_kinds`] lists, as `0xRRGGBB`.
+pub fn window_colours(wm: &WindowManager) -> Vec<(u32, u32)> {
+    window_kinds(wm)
+        .into_iter()
+        .map(|(id, kind)| {
+            let (r, g, b) = unpack(kind_colour(kind));
+            (
+                id,
+                (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b),
+            )
+        })
+        .collect()
+}
+
+/// Tells the backend the color of every window's border, or that no window has one when the
+/// borders are off.
+///
+/// Called whenever anything about the windows could have changed, after [`send_notification`]
+/// (the compositor has to be drawing the borders first). The backend sends nothing it sent last
+/// time, and a failure is logged.
+pub fn update_colours(wm: &WindowManager) {
+    let colours = if BORDER_ENABLED.load(Ordering::SeqCst) {
+        window_colours(wm)
+    } else {
+        vec![]
+    };
+
+    if let Err(error) = backend().set_border_colours(&colours) {
+        tracing::warn!("could not set the colour of the borders: {error}");
+    }
 }
 
 /// Returns a color as the statics store it: red in the low byte, then green, then blue.
@@ -53,8 +203,8 @@ lazy_static! {
 /// assert_eq!(pack(1, 2, 3), 0x030201);
 /// assert_eq!(unpack(pack(66, 165, 245)), (66, 165, 245));
 /// ```
-pub const fn pack(r: u8, g: u8, b: u8) -> u32 {
-    (r as u32) | ((g as u32) << 8) | ((b as u32) << 16)
+pub const fn pack(r: u32, g: u32, b: u32) -> u32 {
+    r | (g << 8) | (b << 16)
 }
 
 /// Returns the red, green and blue of a color as the statics store it. The bits above the third
@@ -158,6 +308,28 @@ mod tests {
         assert_eq!(border.focused, (66, 165, 245));
         assert_eq!(border.unfocused, (128, 128, 128));
         assert_eq!((border.width, border.radius), (10, 12));
+    }
+
+    #[test]
+    fn every_kind_of_window_has_a_color_of_its_own_and_the_stock_effect_has_two() {
+        let colours: Vec<u32> = [
+            WindowKind::Single,
+            WindowKind::Stack,
+            WindowKind::Monocle,
+            WindowKind::Floating,
+            WindowKind::Unfocused,
+            WindowKind::UnfocusedLocked,
+        ]
+        .into_iter()
+        .map(kind_colour)
+        .collect();
+        let mut distinct = colours.clone();
+        distinct.sort_unstable();
+        distinct.dedup();
+        assert_eq!(distinct.len(), colours.len());
+
+        assert_eq!(outline_kind(WindowKind::Floating), WindowKind::Single);
+        assert_eq!(outline_kind(WindowKind::Unfocused), WindowKind::Unfocused);
     }
 
     #[test]

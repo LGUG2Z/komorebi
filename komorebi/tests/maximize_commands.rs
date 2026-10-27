@@ -169,7 +169,7 @@ fn a_window_goes_back_in_a_container_of_its_own_at_the_index_it_came_from() {
 fn while_a_window_is_maximized_what_is_about_the_tiles_does_nothing() {
     let (fake, mut wm) = desktop_with(&[36_011, 36_012]);
     send(&fake, &mut wm, SocketMessage::ToggleMaximize);
-    let asked = fake.commands();
+    let asked = fake.window_commands();
 
     for message in [
         SocketMessage::MoveWindow(OperationDirection::Left),
@@ -203,7 +203,11 @@ fn while_a_window_is_maximized_what_is_about_the_tiles_does_nothing() {
             .floating_windows()
             .is_empty()
     );
-    assert_eq!(fake.commands(), asked, "nothing was asked of the backend");
+    assert_eq!(
+        fake.window_commands(),
+        asked,
+        "nothing was asked of the backend"
+    );
 }
 
 #[test]
@@ -214,7 +218,7 @@ fn a_retile_while_a_window_is_maximized_asks_the_compositor_to_maximize_it_again
 
     send(&fake, &mut wm, SocketMessage::Retile);
 
-    assert_eq!(fake.commands(), [Command::Maximize(36_022, true)]);
+    assert_eq!(fake.window_commands(), [Command::Maximize(36_022, true)]);
     assert!(fake.is_maximized(36_022));
 }
 
@@ -321,9 +325,10 @@ fn a_maximized_window_is_hidden_with_its_workspace_and_shown_and_focused_with_it
     with_backend(fake.clone(), || workspace.restore(true)).unwrap();
     assert!(!fake.is_hidden(36_072), "the maximized window is shown");
     assert!(
-        fake.commands().ends_with(&[Command::Focus(36_072, true)]),
+        fake.window_commands()
+            .ends_with(&[Command::Focus(36_072, true)]),
         "and has the focus, ahead of the window of the container: {:?}",
-        fake.commands()
+        fake.window_commands()
     );
 }
 

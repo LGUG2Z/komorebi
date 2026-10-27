@@ -102,7 +102,8 @@ KWin:
 - `kde-rounded-corners-komorebi`
   ([`nix/kde-rounded-corners.nix`](nix/kde-rounded-corners.nix)): KDE Rounded
   Corners 0.11.0, which draws an outline around each window, built so that KWin
-  does not load it until it is asked to.
+  does not load it until it is asked to, and with a patch that lets komorebi
+  give each window a color of its own.
 
 Each one is a package for Linux and an attribute of `overlays.default`, built
 with the KWin of the nixpkgs the overlay is applied to.
@@ -248,8 +249,10 @@ starts it again if it fails.
 The borders are KWin's: komorebi asks the backend for a look, a border of a
 width, a radius and two colors, and the KWin backend has the KDE Rounded Corners
 effect draw it, which the module installs. A border takes room around each
-window, so the layout leaves the room while the compositor says it draws one.
-`border`, `border-width` and `border-offset` set it.
+window, so the layout leaves the room while the compositor says it draws one, and
+komorebi gives each window the border color of what it is to the layout: the focused
+window, the others, a locked container, a floating window. `border`, `border-colour`,
+`border-width` and `border-offset` set it.
 
 ## Documentation
 
@@ -274,4 +277,6 @@ are accepted under the terms in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 The license lets others distribute the source code but not binaries, so there
 is no public binary cache for what the flake builds: komorebi and the KWin
 effects are built on each machine that installs them, with their dependencies
-from nixpkgs.
+from nixpkgs. The patches to the effects in [`nix`](nix) are derivative works
+of the effects, which are under the GNU General Public License version 3, and
+are under the same license, as the header of each one states.

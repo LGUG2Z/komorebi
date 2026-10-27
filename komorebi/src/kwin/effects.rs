@@ -13,6 +13,9 @@
 //! installed later cannot be loaded until the next login. An effect that is not installed is
 //! reported once in the log, and komorebi carries on without it.
 //!
+//! komorebi's build of the effect (`nix/kde-rounded-corners.nix`) adds what the stock one lacks: a
+//! border color for each window, set over D-Bus with [`EffectsState::set_window_colours`].
+//!
 //! # What is guaranteed, and by what
 //!
 //! | Rule | Enforced by | Proof |
@@ -42,6 +45,12 @@ pub const ROUNDED_CORNERS: &str = "kwin4_effect_shapecorners";
 /// The `kwinrc` group KDE Rounded Corners reads, as its `options.kcfg` names it.
 const ROUNDED_CORNERS_GROUP: &str = "Round-Corners";
 
+/// The D-Bus object path at which komorebi's build of the border effect takes a color for each
+/// window, on KWin's bus name.
+const COLOURS_PATH: &str = "/org/komorebi/BorderColours";
+/// The D-Bus interface of [`COLOURS_PATH`].
+const COLOURS_INTERFACE: &str = "org.komorebi.BorderColours1";
+
 /// The thickest outline, in pixels, that the border effect can draw.
 ///
 /// The effect draws the outer outline only where the window has a shadow (its shader returns early
@@ -64,6 +73,11 @@ pub struct EffectsState {
     loaded_by_us: Vec<&'static str>,
     /// The effects komorebi found missing, so that each is reported once.
     missing: Vec<&'static str>,
+    /// The border color of each window that the border effect was last given.
+    colours: Option<Vec<(String, u32)>>,
+    /// Whether the border effect takes a color for each window, once known: only komorebi's build
+    /// of it does.
+    colours_supported: Option<bool>,
 }
 
 /// Returns the settings of KDE Rounded Corners, as `kwinrc` keys and values, for this border.
@@ -180,6 +194,62 @@ impl EffectsState {
 
         self.last = Some(look.clone());
         Ok(self.drawn)
+    }
+
+    /// Tells the border effect the border color of each window, given as KWin's UUID of the window
+    /// and `0xRRGGBB`, and returns true if and only if the effect has them.
+    ///
+    /// It returns false when the effect cannot be told: the borders are not being drawn, there is
+    /// no proxy for the effect's object, or the effect is the stock one, which has a color for the
+    /// active window and one for the others, from its settings, and nothing else. The first call
+    /// that finds the stock effect logs it once; later calls return false without asking. The same
+    /// colors as the last call send nothing.
+    pub async fn set_window_colours(
+        &mut self,
+        connection: &Connection,
+        colours: &[(String, u32)],
+    ) -> bool {
+        if !self.drawn {
+            // unloaded, and the next time it is loaded it knows nothing
+            self.colours = None;
+            return false;
+        }
+
+        if self.colours_supported == Some(false) {
+            return false;
+        }
+
+        if self.colours.as_deref() == Some(colours) {
+            return true;
+        }
+
+        let proxy =
+            match Proxy::new(connection, "org.kde.KWin", COLOURS_PATH, COLOURS_INTERFACE).await {
+                Ok(proxy) => proxy,
+                Err(error) => {
+                    tracing::debug!("no proxy for the border colours: {error}");
+                    return false;
+                }
+            };
+
+        let (names, rgbs): (Vec<String>, Vec<u32>) = colours.iter().cloned().unzip();
+        match proxy.call_method("SetColours", &(names, rgbs)).await {
+            Ok(_) => {
+                self.colours_supported = Some(true);
+                self.colours = Some(colours.to_vec());
+                true
+            }
+            Err(error) => {
+                // a stock build of the effect has no such object; this is the answer, not a fault
+                self.colours_supported = Some(false);
+                tracing::info!(
+                    "the border effect does not take a colour for each window ({error}): borders \
+                     are the focused and the unfocused colour only. komorebi's build of KDE \
+                     Rounded Corners (nix/kde-rounded-corners.nix) does."
+                );
+                false
+            }
+        }
     }
 
     /// Gives the effect these settings and has it running, and returns true if and only if it is
