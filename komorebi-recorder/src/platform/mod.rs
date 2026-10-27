@@ -7,6 +7,8 @@
 //! |---|---|
 //! | [`clock`] | the master monotonic clock and its tick size |
 //! | [`shell`] | the OS version, and (for the recorder window) showing a folder and asking for one |
+//! | [`apps`] | which process owns a window id |
+//! | [`process`] | stopping a child process |
 //!
 //! A third host, `unsupported`, builds on anything else so that the investigation commands (which
 //! only read a session directory) still work on a Linux agent box; recording there says so.
@@ -42,7 +44,9 @@ mod win;
 #[cfg(windows)]
 use win as imp;
 
+pub use imp::apps;
 pub use imp::clock;
+pub use imp::process;
 pub use imp::shell;
 
 /// Things the OS wants done once, first thing in `main`: on Windows, becoming DPI aware so that

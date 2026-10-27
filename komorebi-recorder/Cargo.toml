@@ -6,6 +6,7 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
+chrono = { workspace = true }
 clap = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
@@ -16,6 +17,25 @@ serde_json = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "CFArray",
+  "CFDictionary",
+  "CFNumber",
+  "CFString",
+  "CFCGTypes",
+] }
+objc2-core-graphics = { version = "0.3", default-features = false, features = [
+  "std",
+  "libc",
+  "CGDirectDisplay",
+  "CGDisplayConfiguration",
+  "CGError",
+  "CGGeometry",
+  "CGRemoteOperation",
+  "CGSession",
+  "CGWindow",
+] }
 
 [target.'cfg(windows)'.dependencies]
 uds_windows = "1"

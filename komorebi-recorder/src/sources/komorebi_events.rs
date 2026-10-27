@@ -486,6 +486,14 @@ fn write_loop(
                 let event = value.get_mut("event").map(Value::take);
                 let state = value.get_mut("state").map(Value::take);
 
+                if let Some(pid) = event
+                    .as_ref()
+                    .and_then(crate::sources::managed_apps::event_pid)
+                    && let Some(discovery) = discovery
+                {
+                    let _ = discovery.send(Discovery::Pid(pid));
+                }
+
                 if let Some(state) = state
                     && previous_state.as_ref() != Some(&state)
                 {

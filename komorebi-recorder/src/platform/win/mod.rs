@@ -21,7 +21,9 @@
 //! `just check-windows`, and the checklist for running it on a real machine is
 //! `docs/dev/windows-checkpoints.md`.
 
+pub mod apps;
 pub mod clock;
+pub mod process;
 pub mod shell;
 
 /// Does what Windows needs once, first thing in `main`: makes the process per-monitor DPI aware

@@ -63,6 +63,18 @@ refuses an implementor that misses one. A method with a default is a question mo
 doc of each says what the default is. `Rules::verified` is how a flavor says that its rules were written from komorebi's
 source and have not been checked against a recording of it: an analysis that reads such a session says so.
 
+## The session
+
+A session is a directory. Its manifest, `session.json`, is the one file everything else is read through: the host and the
+flavor, the clock anchors, the komorebi processes that were seen and how each was logging, the byte ranges of komorebi's
+log that were recorded and the applications that were traced. It is written to a temporary file and renamed, so a reader
+or a crash never sees half of one, and its `schema_version` is checked on every read: a manifest written by a newer
+build is refused with an error that says so, rather than read wrongly.
+
+The files beside it are the raw records, and they are written as the data arrives and never rewritten: komorebi's log
+(`komorebi.log`, the exact byte range recorded), its events (`events.jsonl`, with full `State` snapshots in `states/`
+only when they changed), and what happened to the recording itself (`recorder.jsonl`).
+
 ## Rules and the layer that enforces them
 
 | Rule | Enforced by |
@@ -73,3 +85,5 @@ source and have not been checked against a recording of it: an analysis that rea
 | Code that reads komorebi's output asks `Rules` and does not match on `Flavor` | convention only |
 | Rules that were not checked against a recording of komorebi say so | the framework path: an analysis that reads such a session adds a warning |
 | A running recorder can be told from one that died | the OS: an exclusive lock on `recorder.lock`, held for as long as the recorder runs and dropped by the OS when the process ends however it ends |
+| A manifest from a newer build is not read | a runtime error when the manifest is read, covered by `rejects_manifests_from_the_future` |
+| A manifest is never half-written | write to a temporary file and rename |

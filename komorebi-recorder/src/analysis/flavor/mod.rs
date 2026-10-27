@@ -485,6 +485,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_session_with_no_flavor_recorded_is_komorebi_for_mac() {
+        let info: crate::session::KomorebiInfo = serde_json::from_str(
+            r#"{"running":false,"pid":null,"observed_levels":[],"data_dir":""}"#,
+        )
+        .expect("an old manifest's komorebi section");
+        assert_eq!(info.flavor, Flavor::Macos);
+    }
+
+    #[test]
     fn flavors_are_spelled_in_lowercase_and_the_host_has_one() {
         assert_eq!(
             serde_json::to_string(&Flavor::Windows).expect("json"),

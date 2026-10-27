@@ -20,7 +20,10 @@
 //! that produced it is done by `blocks::pair`. Both read the events this module returns.
 
 use super::flavor::Rules;
+use crate::session::Session;
 use crate::sources::komorebi_events::EventRow;
+use color_eyre::eyre;
+use color_eyre::eyre::WrapErr;
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value;
@@ -232,5 +235,102 @@ impl EventRecord {
             info,
             parse_error: row.parse_error.clone(),
         }
+    }
+}
+
+/// Returns every event of a session, in the order they were received, with the warnings from
+/// reading them.
+///
+/// The events are the lines of the session's `events.jsonl`, read with `rules` and sorted by
+/// `recv_mach_ns`, then by `seq`. A session with no `events.jsonl` has no events, which is not an
+/// error. A line that is not a valid row (as opposed to a row whose notification could not be
+/// parsed, which is kept as an unreadable event) is skipped, and the warnings say how many were:
+/// `N unreadable lines of events.jsonl were skipped`. Blank lines are ignored silently.
+///
+/// # Errors
+///
+/// Returns an error if `events.jsonl` exists and cannot be read: `could not read <path>`, with
+/// the I/O error as its cause. A missing file is not one of those cases.
+///
+/// # Example
+///
+/// Reading a session needs a session directory on disk, so this example is only compiled. It is
+/// covered by `loading_sorts_by_receipt_and_skips_what_it_cannot_read` in this module's tests.
+///
+/// ```rust,no_run
+/// use komorebi_recorder::analysis::events;
+/// use komorebi_recorder::analysis::flavor::Flavor;
+/// use komorebi_recorder::session::Session;
+///
+/// let session = Session::open("/path/to/session")?;
+/// let (records, warnings) = events::load(&session, Flavor::Macos.rules())?;
+/// for record in &records {
+///     println!("#{} {}", record.seq, record.info.summary());
+/// }
+/// assert!(warnings.is_empty());
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn load(session: &Session, rules: &dyn Rules) -> eyre::Result<(Vec<EventRecord>, Vec<String>)> {
+    let path = session.path("events.jsonl");
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok((Vec::new(), Vec::new()));
+        }
+        Err(error) => {
+            return Err(error).wrap_err_with(|| format!("could not read {}", path.display()));
+        }
+    };
+
+    let mut records = Vec::new();
+    let mut skipped = 0_usize;
+    for line in text.lines().filter(|line| !line.trim().is_empty()) {
+        match serde_json::from_str::<EventRow>(line) {
+            Ok(row) => records.push(EventRecord::from_row(&row, rules)),
+            Err(_) => skipped += 1,
+        }
+    }
+
+    records.sort_by_key(|record| (record.recv_mach_ns, record.seq));
+    let warnings = if skipped > 0 {
+        vec![format!(
+            "{skipped} unreadable lines of events.jsonl were skipped"
+        )]
+    } else {
+        Vec::new()
+    };
+    Ok((records, warnings))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analysis::flavor::Flavor;
+
+    #[test]
+    fn loading_sorts_by_receipt_and_skips_what_it_cannot_read() {
+        let dir =
+            std::env::temp_dir().join(format!("komorebi-recorder-events-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let session = Session::create(Some(dir.clone()), chrono::Utc::now()).expect("create");
+        std::fs::write(
+            session.path("events.jsonl"),
+            concat!(
+                "{\"seq\":2,\"recv_wall_us\":0,\"recv_mach_ns\":20,\"event\":{\"type\":\"Retile\"}}\n",
+                "garbage\n",
+                "{\"seq\":1,\"recv_wall_us\":0,\"recv_mach_ns\":10,\"state_id\":4}\n",
+            ),
+        )
+        .expect("events");
+
+        let (records, warnings) = load(&session, Flavor::Macos.rules()).expect("load");
+        assert_eq!(
+            records.iter().map(|record| record.seq).collect::<Vec<_>>(),
+            [1, 2]
+        );
+        assert_eq!(records[0].state_id, Some(4));
+        assert_eq!(records[0].info.family, Family::Unknown);
+        assert_eq!(records[1].info.name, "Retile");
+        assert_eq!(warnings.len(), 1);
     }
 }

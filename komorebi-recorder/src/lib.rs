@@ -47,6 +47,7 @@
 //! | [`incidents`] | what happened to the recording itself, as a log of its own |
 //! | [`lock`] | telling a running recorder from one that died |
 //! | [`sources`] | the sources that write raw files into the session |
+//! | [`session`] | the session directory and its manifest |
 //!
 //! # What is not supported
 //!
@@ -65,5 +66,6 @@ pub mod incidents;
 pub mod komorebi_link;
 pub mod lock;
 pub mod platform;
+pub mod session;
 pub mod sources;
 pub mod timecode;

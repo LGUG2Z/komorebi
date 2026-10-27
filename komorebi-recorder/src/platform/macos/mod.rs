@@ -14,7 +14,9 @@
 //! Nothing here is public API except through the facade: this module is private, and the facade
 //! re-exports its submodules under the same names on every host.
 
+pub mod apps;
 pub mod clock;
+pub mod process;
 pub mod shell;
 
 /// Does nothing: a Mac needs nothing done once at the start of `main`. (Windows makes the process

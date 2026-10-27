@@ -4,6 +4,18 @@
 /// Nothing to do first.
 pub fn init() {}
 
+/// Which process owns a window: nothing is known on this host.
+pub mod apps {
+    use crate::sources::managed_apps::WindowOwner;
+    use std::collections::HashMap;
+
+    /// Returns no windows: this host has no window server to ask.
+    #[must_use]
+    pub fn window_owners() -> HashMap<u32, WindowOwner> {
+        HashMap::new()
+    }
+}
+
 /// The master clock, which here is Rust's monotonic [`Instant`].
 pub mod clock {
     use crate::clock::Timebase;
@@ -32,6 +44,29 @@ pub mod clock {
     pub fn now_ns() -> u64 {
         static START: OnceLock<Instant> = OnceLock::new();
         START.get_or_init(Instant::now).elapsed().as_nanos() as u64 + 1_000_000_000
+    }
+}
+
+/// Starting and stopping child processes, with nothing host-specific to do.
+pub mod process {
+    use std::process::Child;
+    use std::process::Command;
+    use std::process::ExitStatus;
+
+    /// Returns `command` as it is: there is nothing to isolate it with.
+    pub fn isolate(command: &mut Command) -> &mut Command {
+        command
+    }
+
+    /// Kills `child`.
+    pub fn terminate(child: &mut Child) {
+        let _ = child.kill();
+    }
+
+    /// Returns `false`: this host reports no signal.
+    #[must_use]
+    pub fn was_terminated(_status: &ExitStatus) -> bool {
+        false
     }
 }
 
