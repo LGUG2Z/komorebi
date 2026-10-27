@@ -44,6 +44,40 @@ ends, or Shift-drag on the timeline) or from the playhead, asks what goes wrong 
 moment you press Save. Drag a region's edges on the timeline to adjust it. **Copy a prompt for an agent** in the _Bugs_
 tab puts an instruction on the clipboard that starts an agent on `brief` with your description.
 
+### Proposing a rule for a ghost tile
+
+A _ghost tile_ is a tile of the layout that holds a window nobody can see: komorebi has the window in front on a
+workspace that is showing, and it never was on screen. When a bug region you marked was made while one was there, the
+_Bugs_ tab says so under the region, and **Propose a rule to komorebi-application-specific-configuration** opens a
+form with the rule that would ignore that window: which window it was, what the recording showed of it, and the entry
+that would go in the repository. Nothing is sent until you press **Send as a pull request**.
+
+Sending clones the repository into a temporary folder, commits the rule on a new branch with a message that says what
+was seen and why, and opens a pull request under your account with the credentials you already have set up for `git`
+(and the GitHub CLI, `gh`, if you have it). With `gh` signed in, the branch goes to your fork of the repository, made
+if you have none, unless you may push to the repository itself. Without `gh` the branch is pushed with `git` and you
+are given the link that opens the pull request. If anything fails, the form says what, keeps the clone, and gives the
+commands to push it and open the pull request yourself.
+
+The rule goes in the file of the komorebi the recording is of, whatever you are looking at it on:
+`applications.json` for komorebi for Windows and `applications.mac.json` for komorebi for Mac. It is always narrow
+enough to leave the application's other windows alone:
+
+| | komorebi for Windows | komorebi for Mac |
+|---|---|---|
+| matches | the program and the window class, as a composite rule | the application and the window title, as a composite rule |
+| when the application's visible windows share that class | the title is added, if it tells them apart | (windows have no class) |
+| when nothing tells the ghost from a visible window | no rule is written, and the form says why | no rule is written, and the form says why |
+
+The entry is put where it sorts and the rest of the file is unchanged, line for line.
+
+What counts as a ghost tile depends on what the recording can say. On Windows it needs `record --probe-windows` (see
+[Probing windows on Windows](recording-a-bug-repro.md#probing-windows-on-windows)): Windows says whether each window is
+on screen, and a ghost is one it said was cloaked or not visible on every read and never on screen. A Mac cannot be
+asked, so there it is a window whose frame, as komorebi read it from the accessibility API, was never one a person
+could see: zero-sized, or outside every display. That is weaker evidence, and the pull request says which it is. A
+recording that has none of this has no ghost tiles to propose, which is not the same as having none.
+
 Everything the viewer shows is also available from the command line, so an agent can investigate headlessly:
 
 ## What the user said
