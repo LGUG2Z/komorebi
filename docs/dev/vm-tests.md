@@ -10,6 +10,7 @@ they are laid out, how to run them, and how to add one.
 | Where | How | Accelerator |
 |---|---|---|
 | CI, `x86_64-linux` | `nix build -L .#checks.x86_64-linux.vm-NAME` | KVM |
+| CI, `x86_64-linux`, the weekly canary | the same, with nixpkgs moved to the tip of nixpkgs-unstable | KVM |
 | A Linux machine with KVM | `just vm NAME` | KVM |
 | A Mac | `just vm NAME`, which runs `scripts/vm-mac` | HVF |
 | A Linux machine with no KVM | `nix build -L .#legacyPackages.SYSTEM.vmTcg.NAME` | TCG |
@@ -21,6 +22,14 @@ by hand instead of building the check, so that the screenshots and journals of a
 failed run can be uploaded as an artifact. KVM on GitHub-hosted runners is
 documented for public repositories; the first step of each VM job checks that
 `/dev/kvm` is writable and fails there if it is not.
+
+The `canary` job runs both tiers once more every week, against the tip of
+nixpkgs-unstable instead of the nixpkgs `flake.lock` pins: it runs
+`nix flake update nixpkgs` in a copy of the checkout, builds every check there,
+the suites one after the other on one machine, and opens an issue when one
+fails ([`CONTRIBUTING.md`](../../CONTRIBUTING.md#continuous-integration)). It is
+how a new KWin or Plasma that breaks a suite is found before the lock moves to
+it.
 
 TCG is software emulation. It is slow enough that only short suites are worth
 running that way, and the library's `scale` argument (below) is 8 for it.
@@ -265,7 +274,7 @@ The script prints where the artifacts (screenshots, logs) are, under
    [`suites/kwin-events`](../../nix/tests/vm/suites/kwin-events) for a test that
    runs the daemon.
 2. Pick the tier. `fast` suites are the pull request gate and should take
-   minutes. `slow` suites run on `master` and every night.
+   minutes. `slow` suites run on `master` and every week.
 3. Run it: `just vm NAME`.
 4. If the test covers behavior the daemon has, write the Rust test that covers
    the same behavior against the fake desktop in the same commit, and say in

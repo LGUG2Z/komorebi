@@ -110,3 +110,99 @@ jobs:
           name: vm-${{ matrix.suite }}-${{ github.sha }}
           path: out/
           retention-days: 7
+
+  # The flake follows the tip of nixpkgs-unstable, so KWin and Plasma change under it whenever
+  # flake.lock moves. Every week, and on a manual run, this job moves nixpkgs to the tip in a copy
+  # of the checkout and builds every check against it, the VM suites of both tiers included, one
+  # after the other on one machine, so that komorebi and the guests are built once. When a check
+  # fails, it opens an issue, or comments on the one that is open. Nothing is pushed: the new lock
+  # exists only in the copy.
+  canary:
+    if: >-
+      github.repository == 'LGUG2Z/komorebi-for-kde' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+          cache: "false"
+      - name: Move nixpkgs to the tip in a copy of the checkout
+        run: |
+          cp -a . "$RUNNER_TEMP/canary"
+          cd "$RUNNER_TEMP/canary"
+          locked=$(nix eval --raw --inputs-from . nixpkgs#kdePackages.kwin.version)
+          nix flake update nixpkgs
+          rev=$(jq -r .nodes.nixpkgs.locked.rev flake.lock)
+          echo "NIXPKGS_REV=$rev" >>"$GITHUB_ENV"
+          tip=$(nix eval --raw --inputs-from . nixpkgs#kdePackages.kwin.version)
+          echo "KWIN=$tip (flake.lock has $locked)" >>"$GITHUB_ENV"
+      - id: build
+        name: Build every check against it
+        working-directory: ${{ runner.temp }}/canary
+        run: |
+          failed="$RUNNER_TEMP/canary-failed"
+          : >"$failed"
+          # the checks that need no virtual machine, as the lint job lists them, then the suites
+          # of both tiers, as the discover job lists them
+          checks=$(nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
+            jq -r '(.[] | select(startswith("vm-") | not)), "vm-lib"')
+          suites=$(nix eval --json .#legacyPackages.x86_64-linux.vmTiers |
+            jq -r '(.fast // []) + (.slow // []) | .[] | "vm-" + .')
+          for check in $checks $suites; do
+            echo "::group::$check"
+            nix build -L --no-link ".#checks.x86_64-linux.$check" || echo "$check" >>"$failed"
+            echo "::endgroup::"
+          done
+          test ! -s "$failed"
+      - name: Report
+        if: always()
+        env:
+          BUILD: ${{ steps.build.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          failed="$RUNNER_TEMP/canary-failed"
+          {
+            echo "- commit: $GITHUB_SHA"
+            if [ -n "${NIXPKGS_REV:-}" ]; then
+              echo "- nixpkgs-unstable:" \
+                "[\`${NIXPKGS_REV:0:12}\`](https://github.com/NixOS/nixpkgs/commit/$NIXPKGS_REV)${KWIN:+, with KWin $KWIN}"
+            else
+              echo "- nixpkgs-unstable: the update of flake.lock failed"
+            fi
+            echo
+            if [ -s "$failed" ]; then
+              echo "These failed:"
+              echo
+              while read -r check; do echo "- \`$check\`"; done <"$failed"
+            elif [ "$BUILD" = success ]; then
+              echo "Every check passed."
+            else
+              echo "The job failed before it could build the checks."
+            fi
+            echo
+            echo "The logs are in [the run]($RUN_URL)."
+          } >"$RUNNER_TEMP/canary.md"
+          cat "$RUNNER_TEMP/canary.md" >>"$GITHUB_STEP_SUMMARY"
+      - name: Open or update the canary issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Canary: a check fails against the tip of nixpkgs-unstable"
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 1000 \
+            --json number,title |
+            jq -r --arg title "$title" 'map(select(.title == $title)) | first | .number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/canary.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --body-file "$RUNNER_TEMP/canary.md"
+          fi

@@ -38,7 +38,8 @@ formatter is a nightly one.
 
 `just check` runs everything a change has to pass before it is pushed: the
 formatting check, clippy with warnings denied, the tests, rustdoc with warnings
-denied, and the checks of the bridge. `just fmt` formats the Rust sources, and `nix fmt` every file
+denied, the checks of the bridge, and `just lint`: the macros the code does not
+use, and actionlint (with shellcheck) over the workflows. `just fmt` formats the Rust sources, and `nix fmt` every file
 type the repository has. `nix flake check` builds the same checks, plus
 `cargo deny`, as derivations; on Linux it also boots every VM test, which needs
 KVM.
@@ -115,12 +116,24 @@ nix build .#checks.x86_64-linux.kwin-effect-geometry-change-komorebi-install
 
 [`ci.yaml`](.github/workflows/ci.yaml) runs on every pull request and on every
 push to `master`, `feature/*` and `hotfix/*`, in this repository only. The
-`lint` job builds every check that needs no virtual machine and runs the
-repository's own lint rules, `cargo-deny` checks licenses and advisories, and
+`lint` job builds every check that needs no virtual machine and runs
+`just lint`, `cargo-deny` checks licenses and advisories, and
 the VM tests run on KVM in two jobs: `vm-fast` on every pull request and
 `vm-slow` on `master`, every week, and on pull requests labeled `ci:vm-slow`. A weekly
 [workflow](.github/workflows/update-flake-lock.yaml) opens a pull request that
 moves `flake.lock`, and the same jobs run on it.
+
+The flake follows the tip of nixpkgs-unstable, so KWin and Plasma change
+whenever `flake.lock` moves. The `canary` job of `ci.yaml` runs every week, and
+when the workflow is started by hand: it runs `nix flake update nixpkgs` in a
+copy of the checkout and builds every check against the result, the VM suites
+of both tiers included. When a check fails, it opens an issue titled "Canary: a
+check fails against the tip of nixpkgs-unstable" with the failed checks, the
+nixpkgs revision and its KWin version, or comments on that issue if it is
+still open. The job changes nothing in the repository. To reproduce a failure,
+run `nix flake update nixpkgs` in a checkout and build the check the issue
+names (`just vm NAME` for a VM suite). The fix goes in a commit of its own;
+nixpkgs is not pinned back.
 
 ## Commits
 

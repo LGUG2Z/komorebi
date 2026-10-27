@@ -783,3 +783,13 @@ daemon that stops on its own unregisters its keys, but one that crashes or is ki
 and the next start may never come. So the NixOS module's unit runs `komorebic hotkeys
 release` after the daemon stops, however it stops (`ExecStopPost`), and a start takes over
 what is still registered.
+
+## Why does a weekly job build against the tip of nixpkgs?
+
+Because KWin and Plasma come from nixpkgs, and the flake follows the tip of nixpkgs-unstable
+rather than a release branch, so a new KWin or Plasma arrives whenever `flake.lock` moves.
+Only the VM tests can notice what a new KWin changes, and the pull request that moves the
+lock every week runs the slow tier only when it is labeled. The canary job builds every
+check, both VM tiers included, against the tip every week, without changing the repository,
+and opens an issue when one fails, so that a break is known before the lock moves to it. A
+break is fixed in a commit of its own rather than by pinning nixpkgs back.

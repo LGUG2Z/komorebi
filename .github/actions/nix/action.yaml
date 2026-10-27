@@ -5,6 +5,9 @@ inputs:
   kvm:
     description: Make /dev/kvm usable and tell nix that this machine can run NixOS tests
     default: "false"
+  cache:
+    description: Restore the nix store from the cache, and save it when the job ends
+    default: "true"
 
 runs:
   using: composite
@@ -37,7 +40,11 @@ runs:
         extra_nix_config: |
           system-features = nixos-test benchmark big-parallel ${{ inputs.kvm == 'true' && 'kvm' || '' }}
 
-    - uses: nix-community/cache-nix-action@v7
+    # The key is flake.lock, so a job that builds against another nixpkgs (the canary) turns the
+    # cache off: what it restored would be of no use to it, and what it saved would replace the
+    # store of the jobs that do use this lock.
+    - if: inputs.cache == 'true'
+      uses: nix-community/cache-nix-action@v7
       with:
         primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/Cargo.lock') }}
         restore-prefixes-first-match: nix-${{ runner.os }}-

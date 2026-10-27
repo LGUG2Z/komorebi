@@ -17,11 +17,13 @@ check-js:
     cd komorebi/src/kwin && tsc -p tsconfig.json
     node --test komorebi/src/kwin/bridge.test.js
 
-# the macros the codebase has agreed not to use
+# the macros the codebase has agreed not to use, and the workflows, which actionlint checks (with
+# shellcheck over their scripts), both from the nixpkgs flake.lock pins
 lint:
     test -z "$(rg 'eyre!' --type rust .)" || (echo "eyre! macro not allowed"; false)
     test -z "$(rg 'dbg!' --type rust .)" || (echo "dbg! macro not allowed"; false)
     test -z "$(rg 'println!' --type rust ./komorebi/src)" || (echo "println! macro not allowed"; false)
+    nix shell --inputs-from . nixpkgs#actionlint nixpkgs#shellcheck --command actionlint .github/workflows/*.yaml
 
 # the JSON Schemas of komorebi.json and of applications.json, from the Rust types
 jsonschema:
