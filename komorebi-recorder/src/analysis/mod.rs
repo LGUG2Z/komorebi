@@ -20,6 +20,7 @@ pub mod envelope;
 pub mod events;
 pub mod facade;
 pub mod flavor;
+pub mod ghost;
 pub mod guard;
 pub mod history;
 pub mod ids;

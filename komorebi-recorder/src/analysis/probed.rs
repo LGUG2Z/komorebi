@@ -94,7 +94,7 @@ use super::overview::Finding;
 use std::collections::HashMap;
 
 /// A probe read this long after its event may be of a window that has since changed.
-const STALE_NS: u64 = 1_000_000_000;
+pub(super) const STALE_NS: u64 = 1_000_000_000;
 
 /// A problem seen once, for less than this, is usually a transition in progress.
 const TRANSIENT_NS: u64 = 500_000_000;

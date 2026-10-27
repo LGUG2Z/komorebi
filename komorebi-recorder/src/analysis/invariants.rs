@@ -137,7 +137,7 @@ fn name(window: &Window) -> String {
 /// on a workspace that is showing, `Some(false)` for one that should be hidden (another workspace,
 /// a tab behind the front one, something else filling the workspace), `None` where the state does
 /// not say (a floating window).
-fn should_be_shown(snapshot: &Snapshot, location: &Location) -> Option<bool> {
+pub(super) fn should_be_shown(snapshot: &Snapshot, location: &Location) -> Option<bool> {
     if !location.workspace_visible {
         return Some(false);
     }
