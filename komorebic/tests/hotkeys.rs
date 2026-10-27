@@ -299,3 +299,46 @@ fn a_file_whose_name_says_no_format_needs_one() {
     assert!(output.status.success(), "{output:?}");
     assert_eq!(scratch.written(), ["komorebi-focus-left.desktop"]);
 }
+
+#[test]
+fn state_and_release_without_a_session_bus_say_that_kde_cannot_be_reached() {
+    let scratch = Scratch::new();
+    let run = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_komorebic"))
+            .args(args)
+            .env(
+                "DBUS_SESSION_BUS_ADDRESS",
+                "unix:path=/nonexistent/komorebic-test.bus",
+            )
+            .env("XDG_RUNTIME_DIR", &scratch.0)
+            .output()
+            .unwrap()
+    };
+
+    let output = run(&["hotkeys", "release"]);
+    assert!(!output.status.success(), "{output:?}");
+    assert!(
+        stderr(&output).contains("could not release the keys"),
+        "{output:?}"
+    );
+
+    let output = run(&["hotkeys", "state"]);
+    assert!(!output.status.success(), "{output:?}");
+    assert!(
+        stderr(&output).contains("could not ask KDE for the keys"),
+        "{output:?}"
+    );
+}
+
+#[test]
+fn reload_without_a_daemon_fails() {
+    let scratch = Scratch::new();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_komorebic"))
+        .args(["hotkeys", "reload"])
+        .env("XDG_RUNTIME_DIR", &scratch.0)
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success(), "{output:?}");
+}

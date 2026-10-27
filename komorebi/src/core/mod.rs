@@ -748,6 +748,8 @@ pub enum SocketMessage {
     StaticConfigSchema,
     GenerateStaticConfig,
     DebugWindow(u32),
+    ReloadHotkeys,
+    HotkeysState,
 }
 
 impl SocketMessage {

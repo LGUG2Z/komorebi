@@ -65,23 +65,40 @@
 //! names are taken over, and released unless the default mode wants them, and every other action
 //! of the component is unregistered. A stop ([`stop`]) releases every key and unregisters every
 //! action, so that nothing is left behind; [`KWinBackend`](super::KWinBackend) stops the engine
-//! when it shuts down, which every way the daemon stops goes through.
+//! when it shuts down, which every way the daemon stops goes through. A daemon that is killed
+//! cannot: [`release`] (`komorebic hotkeys release`, which the NixOS module's unit runs after
+//! the daemon stops) unregisters what it left.
+//!
+//! # Reloading, and KWin restarting
+//!
+//! [`load`] reads the key binding file, plans it and starts the engine; [`reload`]
+//! (`komorebic hotkeys reload`) does it again with the same settings. A new engine takes over
+//! the keys of the one it replaces, as a start does, so the keys both have stay grabbed and the
+//! others are unregistered. kglobalaccel lives in KWin, so when KWin restarts the keys go with
+//! it: the KWin backend watches `org.kde.kglobalaccel` on the session bus, and when it has an
+//! owner again, [`rebind`] loads the key bindings into the new one.
 //!
 //! `docs/dev/PLATFORM.md` has what was measured of kglobalaccel, and the VM test `vm-keys-engine`
 //! presses keys in a Plasma session with the daemon running.
 
+use crate::HOME_DIR;
 use color_eyre::eyre;
 use futures_util::StreamExt;
 use futures_util::future::join_all;
+use komorebi_hotkeys::Format;
 use komorebi_hotkeys::Keymap;
+use komorebi_hotkeys::ParseOptions;
 use komorebi_hotkeys::engine::Effect;
 use komorebi_hotkeys::engine::Engine;
 use komorebi_hotkeys::engine::EngineOptions;
 use komorebi_hotkeys::engine::Focus;
+use komorebi_hotkeys::plan::PlanMode;
+use komorebi_hotkeys::plan::PlanOptions;
 use komorebi_hotkeys::qt::Combo;
 use komorebi_hotkeys::qt::Key;
 use komorebi_hotkeys::qt::Mods;
 use parking_lot::Mutex;
+use serde::Serialize;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -376,7 +393,10 @@ fn spawn(effect: &Effect) {
 /// What the thread of the keys is told
 enum Message {
     Focus(Option<Focus>),
-    Stop(std::sync::mpsc::Sender<()>),
+    State(std::sync::mpsc::Sender<State>),
+    /// `true`: release and unregister every key first; `false`: leave them to the engine that
+    /// replaces this one
+    Stop(std::sync::mpsc::Sender<()>, bool),
 }
 
 /// The application that has the focus, as [`focus`] was last told
@@ -414,18 +434,155 @@ pub fn is_running() -> bool {
 /// Releases every key, unregisters every action of the component and ends the engine's thread,
 /// and returns when that is done, or after 2 seconds. Does nothing when no engine runs.
 pub fn stop() {
+    end(true);
+}
+
+fn end(release: bool) {
     let Some(messages) = RUNNING.lock().take() else {
         return;
     };
     let (done, wait) = std::sync::mpsc::channel();
-    if messages.send(Message::Stop(done)).is_ok() {
+    if messages.send(Message::Stop(done, release)).is_ok() {
         let _ = wait.recv_timeout(Duration::from_secs(2));
     }
 }
 
+/// What the engine that runs is doing, as `komorebic hotkeys state` shows it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct State {
+    /// The mode the engine is in.
+    pub mode: String,
+    /// The combos it holds, as KDE writes them, in order.
+    pub active: Vec<String>,
+    /// Whether a chord chain is being typed.
+    pub chain: bool,
+}
+
+/// Returns what the engine that runs is doing, or `None` when no engine runs.
+pub fn state() -> Option<State> {
+    let (answer, wait) = std::sync::mpsc::channel();
+    RUNNING.lock().as_ref()?.send(Message::State(answer)).ok()?;
+    wait.recv_timeout(Duration::from_secs(2)).ok()
+}
+
+/// Where the daemon's key bindings come from, and how the engine runs them.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Keybindings {
+    /// The key binding file. `None` is the first of `skhdrc`, `whkdrc` and `sxhkdrc` in
+    /// [`struct@HOME_DIR`], if there is one.
+    pub file: Option<PathBuf>,
+    /// The format of the file. `None` is the format the end of its name says.
+    pub format: Option<Format>,
+    /// The mode the file is planned in: the engine takes the bindings the plan gives it, and
+    /// leaves the static shortcuts to KDE.
+    pub mode: PlanMode,
+    /// The options of the engine.
+    pub options: EngineOptions,
+}
+
+/// The key bindings [`load`] was last given
+static KEYBINDINGS: Mutex<Option<Keybindings>> = Mutex::new(None);
+
+/// Reads the key binding file, plans it, and runs the engine for the bindings the plan gives it,
+/// in place of the engine that runs; stops the engine when there is no file or nothing in it for
+/// the engine. Remembers `keybindings` for [`reload`].
+///
+/// An engine that replaces another takes over its keys, as a start does ([`Registry::startup`]),
+/// so the keys the two have in common stay grabbed. The diagnostics of reading and planning are
+/// logged at debug level, and one line at info level says what the file gave.
+///
+/// # Errors
+///
+/// - The file cannot be read, or its format is neither given nor in its name.
+/// - The engine cannot start, for one of the reasons [`start`] gives.
+pub fn load(keybindings: Keybindings) -> eyre::Result<()> {
+    *KEYBINDINGS.lock() = Some(keybindings.clone());
+
+    let file = match keybindings.file {
+        Some(file) => file,
+        None => {
+            let found = [Format::Skhd, Format::Whkd, Format::Sxhkd]
+                .iter()
+                .map(|format| HOME_DIR.join(format.file_name()))
+                .find(|path| path.is_file());
+            match found {
+                Some(file) => file,
+                None => {
+                    stop();
+                    return Ok(());
+                }
+            }
+        }
+    };
+    let format = match keybindings.format {
+        Some(format) => format,
+        None => {
+            let name = file
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default();
+            [Format::Skhd, Format::Whkd, Format::Sxhkd]
+                .into_iter()
+                .find(|format| name.ends_with(format.file_name()))
+                .ok_or_else(|| {
+                    eyre::Report::msg(format!(
+                        "{} does not end with skhdrc, whkdrc or sxhkdrc: give its format \
+                         (--keybindings-format)",
+                        file.display()
+                    ))
+                })?
+        }
+    };
+
+    let text = std::fs::read_to_string(&file).map_err(|error| {
+        eyre::Report::msg(format!("could not read {}: {error}", file.display()))
+    })?;
+    let parsed = komorebi_hotkeys::parse(format, &text, &ParseOptions::default());
+    let plan = komorebi_hotkeys::plan::plan(
+        &parsed.keymap,
+        &PlanOptions {
+            mode: keybindings.mode,
+        },
+    );
+    let diagnostics = parsed.diagnostics.iter().chain(&plan.diagnostics);
+    for diagnostic in diagnostics.clone() {
+        tracing::debug!("{}: {diagnostic}", file.display());
+    }
+    let engine: usize = plan.engine.modes.iter().map(|m| m.bindings.len()).sum();
+    tracing::info!(
+        "read {}: {engine} bindings for the engine, {} static shortcuts, {} diagnostics \
+         (`komorebic hotkeys compile --dry-run` shows them)",
+        file.display(),
+        plan.static_files.len(),
+        diagnostics.count()
+    );
+
+    if plan.needs_engine() {
+        start(plan.engine, keybindings.options)
+    } else {
+        stop();
+        Ok(())
+    }
+}
+
+/// Runs [`load`] again with the key bindings it was last given, which reads the file again:
+/// `komorebic hotkeys reload`, and a kglobalaccel that has come back.
+///
+/// # Errors
+///
+/// - [`load`] has not been called.
+/// - [`load`] fails.
+pub fn reload() -> eyre::Result<()> {
+    let keybindings = KEYBINDINGS
+        .lock()
+        .clone()
+        .ok_or_else(|| eyre::Report::msg("the daemon was started without key bindings"))?;
+    load(keybindings)
+}
+
 /// Starts the engine for `keymap` against kglobalaccel on the session bus, on a thread of its
 /// own (`kwin-hotkeys`), and returns once its keys are registered. An engine that runs already
-/// is [stopped](stop) first.
+/// ends first, and the new one takes over its keys.
 ///
 /// The engine runs until [`stop`] or until the session bus goes away.
 ///
@@ -435,7 +592,7 @@ pub fn stop() {
 /// - kglobalaccel is not on it (a KWin started with `--no-global-shortcuts`, or no KWin), or
 ///   refuses a call.
 pub fn start(keymap: Keymap, options: EngineOptions) -> eyre::Result<()> {
-    stop();
+    end(false);
     let (messages, receiver) = mpsc::unbounded_channel();
     let (started, wait) = std::sync::mpsc::channel::<eyre::Result<()>>();
 
@@ -465,6 +622,91 @@ pub fn start(keymap: Keymap, options: EngineOptions) -> eyre::Result<()> {
     let _ = messages.send(Message::Focus(FOCUS.lock().clone()));
     *RUNNING.lock() = Some(messages);
     Ok(())
+}
+
+/// Loads the key bindings again into a kglobalaccel that has come back on the session bus: KWin
+/// restarted, and the keys went with the old one. Tries for up to 15 seconds while kglobalaccel
+/// is not ready. Does nothing when [`load`] has not been called.
+///
+/// The KWin backend calls this when `org.kde.kglobalaccel` has an owner again.
+pub fn rebind() {
+    if KEYBINDINGS.lock().is_none() {
+        return;
+    }
+    let started = Instant::now();
+    loop {
+        match reload() {
+            Ok(()) => return,
+            Err(error) if started.elapsed() < Duration::from_secs(15) => {
+                tracing::debug!("kglobalaccel is not ready for the keys yet: {error}");
+                std::thread::sleep(Duration::from_millis(250));
+            }
+            Err(error) => {
+                tracing::error!("could not register the keys with the new kglobalaccel: {error}");
+                return;
+            }
+        }
+    }
+}
+
+/// Returns the names of the actions of the component in kglobalaccel, whether a komorebi runs or
+/// not: the keys `komorebic hotkeys state` shows as registered.
+///
+/// # Errors
+///
+/// The session bus cannot be reached, or kglobalaccel is not on it.
+pub fn registered() -> eyre::Result<Vec<String>> {
+    block_on(async {
+        let (_connection, kglobalaccel) = connect().await?;
+        actions(&kglobalaccel).await
+    })
+}
+
+/// Unregisters every action of the component, whatever komorebi registered it, and returns their
+/// names.
+///
+/// This is `komorebic hotkeys release`, which the NixOS module's unit runs after the daemon has
+/// stopped (`ExecStopPost`): a daemon that was killed could not give its keys back, and
+/// kglobalaccel keeps them, swallowed, until they are unregistered.
+///
+/// # Errors
+///
+/// The session bus cannot be reached, kglobalaccel is not on it, or it refuses a call.
+pub fn release() -> eyre::Result<Vec<String>> {
+    block_on(async {
+        let (_connection, kglobalaccel) = connect().await?;
+        let names = actions(&kglobalaccel).await?;
+        for name in &names {
+            kglobalaccel
+                .call_method("unRegister", &(action_id(name),))
+                .await?;
+        }
+        Ok(names)
+    })
+}
+
+fn block_on<T>(future: impl std::future::Future<Output = eyre::Result<T>>) -> eyre::Result<T> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(future)
+}
+
+async fn connect() -> eyre::Result<(Connection, Proxy<'static>)> {
+    let connection = Connection::session().await?;
+    let kglobalaccel = Proxy::new(&connection, SERVICE, PATH, IFACE).await?;
+    Ok((connection, kglobalaccel))
+}
+
+/// The names of the component's actions
+async fn actions(kglobalaccel: &Proxy<'_>) -> eyre::Result<Vec<String>> {
+    let ids: Vec<Vec<String>> = kglobalaccel
+        .call("allActionsForComponent", &(action_id(""),))
+        .await?;
+    Ok(ids
+        .into_iter()
+        .filter_map(|id| id.get(1).cloned())
+        .collect())
 }
 
 fn action_id(action: &str) -> Vec<String> {
@@ -533,12 +775,7 @@ async fn serve(
     mut messages: mpsc::UnboundedReceiver<Message>,
     started: std::sync::mpsc::Sender<eyre::Result<()>>,
 ) -> eyre::Result<()> {
-    let setup = async {
-        let connection = Connection::session().await?;
-        let kglobalaccel = Proxy::new(&connection, SERVICE, PATH, IFACE).await?;
-        Ok::<_, eyre::Report>((connection, kglobalaccel))
-    };
-    let (connection, kglobalaccel) = match setup.await {
+    let (connection, kglobalaccel) = match connect().await {
         Ok(setup) => setup,
         Err(error) => {
             let _ = started.send(Err(error));
@@ -552,13 +789,8 @@ async fn serve(
     // the bindings of the application that has the focus are the ones to grab at start
     let mut start = engine.on_focus(FOCUS.lock().clone());
 
-    let existing: Vec<String> = kglobalaccel
-        .call::<_, _, Vec<Vec<String>>>("allActionsForComponent", &(action_id(""),))
-        .await
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|id| id.get(1).cloned())
-        .collect();
+    // a component kglobalaccel does not know yet has no actions
+    let existing = actions(&kglobalaccel).await.unwrap_or_default();
     start.extend(engine.start());
     let calls = registry.startup(&existing, &known, &start);
     let registered = calls.iter().filter(|c| matches!(c, Call::Grab(_))).count();
@@ -622,11 +854,21 @@ async fn serve(
                     }
                     engine.on_focus(focus)
                 }
-                Some(Message::Stop(done)) => {
-                    let mut calls = registry.calls(&engine.stop());
-                    calls.extend(registry.unregister_all());
-                    execute(&kglobalaccel, calls).await;
-                    tracing::info!("gave every key back to kglobalaccel");
+                Some(Message::State(answer)) => {
+                    let _ = answer.send(State {
+                        mode: engine.mode().to_string(),
+                        active: engine.active().map(|combo| combo.to_string()).collect(),
+                        chain: engine.deadline().is_some(),
+                    });
+                    continue;
+                }
+                Some(Message::Stop(done, release)) => {
+                    if release {
+                        let mut calls = registry.calls(&engine.stop());
+                        calls.extend(registry.unregister_all());
+                        execute(&kglobalaccel, calls).await;
+                        tracing::info!("gave every key back to kglobalaccel");
+                    }
                     let _ = done.send(());
                     return Ok(());
                 }

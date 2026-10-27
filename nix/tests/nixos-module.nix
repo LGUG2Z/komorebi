@@ -350,6 +350,13 @@ let
       ok = (unit enabled).serviceConfig.SuccessExitStatus == 130;
     }
     {
+      name = "the unit releases the keys of the daemon when it stops";
+      ok =
+        (unit enabled).serviceConfig.ExecStopPost
+        == "${enabled.services.komorebi.package}/bin/komorebic hotkeys release";
+      got = (unit enabled).serviceConfig.ExecStopPost;
+    }
+    {
       name = "the unit runs execStart";
       ok = (unit enabled).serviceConfig.ExecStart == enabled.services.komorebi.execStart;
       got = (unit enabled).serviceConfig.ExecStart;

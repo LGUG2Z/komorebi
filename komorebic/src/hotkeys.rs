@@ -1,17 +1,24 @@
 //! The key binding subcommands: `export-kde-shortcuts` and `hotkeys`.
 //!
-//! Both are front ends over [`komorebi_hotkeys`]: they read a key binding file
-//! ([`komorebi_hotkeys::parse`]), sort its bindings into KDE shortcut files and the engine's
-//! ([`komorebi_hotkeys::plan::plan`]), print what the crate has to say about the file, and write the
-//! shortcut files ([`komorebi_hotkeys::kde::write`]). `export-kde-shortcuts` does this for an
-//! skhdrc, as static shortcuts only; `hotkeys compile` for a file of any of the three formats, in
-//! any [`PlanMode`].
+//! `export-kde-shortcuts` and `hotkeys compile` are front ends over [`komorebi_hotkeys`]: they read
+//! a key binding file ([`komorebi_hotkeys::parse`]), sort its bindings into KDE shortcut files and
+//! the engine's ([`komorebi_hotkeys::plan::plan`]), print what the crate has to say about the file,
+//! and write the shortcut files ([`komorebi_hotkeys::kde::write`]). `export-kde-shortcuts` does
+//! this for an skhdrc, as static shortcuts only; `hotkeys compile` for a file of any of the three
+//! formats, in any [`PlanMode`].
+//!
+//! The other `hotkeys` subcommands are about the engine of the daemon. `hotkeys state` prints the
+//! keys komorebi has registered with KDE ([`komorebi::kwin::hotkeys::registered`]) and what the
+//! engine is doing (the daemon's answer to `HotkeysState`), `hotkeys reload` has the daemon read
+//! its key binding file again (`ReloadHotkeys`), and `hotkeys release` unregisters every key
+//! komorebi registered ([`komorebi::kwin::hotkeys::release`]), with or without a daemon.
 
 use crate::HOME_DIR;
 use clap::Parser;
 use clap::Subcommand;
 use clap::ValueEnum;
 use color_eyre::eyre;
+use komorebi_client::SocketMessage;
 use komorebi_client::check::Finding;
 use komorebi_hotkeys::Diagnostic;
 use komorebi_hotkeys::Format;
@@ -54,6 +61,12 @@ enum HotkeysCommand {
     /// Plan the bindings of a key binding file, and write those that are static shortcuts as KDE
     /// shortcut files
     Compile(Compile),
+    /// Show the keys komorebi has registered with KDE, and what the engine of the daemon is doing
+    State,
+    /// Have the daemon read its key binding file again
+    Reload,
+    /// Unregister every key komorebi has registered with KDE, whether a daemon runs or not
+    Release,
 }
 
 #[derive(Parser)]
@@ -174,6 +187,34 @@ pub fn hotkeys(args: Hotkeys) -> eyre::Result<()> {
                 reload: args.reload,
                 dry_run: args.dry_run,
             })
+        }
+        HotkeysCommand::State => {
+            let registered = komorebi::kwin::hotkeys::registered().map_err(|error| {
+                eyre::Report::msg(format!("could not ask KDE for the keys: {error}"))
+            })?;
+            // no daemon: no engine
+            let engine = komorebi_client::send_query(&SocketMessage::HotkeysState)
+                .ok()
+                .and_then(|answer| serde_json::from_str(&answer).ok())
+                .unwrap_or(serde_json::Value::Null);
+            let state = serde_json::json!({ "registered": registered, "engine": engine });
+            println!("{}", serde_json::to_string_pretty(&state)?);
+            Ok(())
+        }
+        HotkeysCommand::Reload => {
+            komorebi_client::send_message(&SocketMessage::ReloadHotkeys)?;
+            Ok(())
+        }
+        HotkeysCommand::Release => {
+            let released = komorebi::kwin::hotkeys::release().map_err(|error| {
+                eyre::Report::msg(format!("could not release the keys: {error}"))
+            })?;
+            if released.is_empty() {
+                println!("komorebi had no key registered");
+            } else {
+                println!("released {} keys: {}", released.len(), released.join(", "));
+            }
+            Ok(())
         }
     }
 }

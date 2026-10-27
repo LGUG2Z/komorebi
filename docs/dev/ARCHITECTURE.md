@@ -1196,6 +1196,8 @@ With `services.komorebi.enable`, the module:
 - runs `execStart` in it, with `Restart=on-failure`, the exit status of a `SIGTERM` (130)
   counted as success, and a `PATH` of `/run/wrappers/bin`, `/etc/profiles/per-user/%u/bin` and
   `/run/current-system/sw/bin` instead of the store paths NixOS gives a unit;
+- runs `komorebic hotkeys release` after the daemon has stopped (`ExecStopPost`), which
+  unregisters the keys a daemon that was killed left in kglobalaccel;
 - asserts that Plasma 6 is enabled.
 
 The VM tests run on machines built with it ([vm-tests.md](vm-tests.md)). Their headless node
@@ -1217,6 +1219,7 @@ module's unit.
 | The animation effect is installed with komorebi, and not loaded until komorebi asks | the module installs `effects.animation.package` when `effects.animation.enable` is set, and the package's metadata says `EnabledByDefault` false | `nixos-module-eval` ("the animation effect is installed in the system profile", "with the animation effect off, ..."), the `kwin-effect-geometry-change-komorebi-install` check, `vm-look` | `effects.animation.enable = false` |
 | Every Plasma session starts komorebi, once KWin's service has started | systemd: the user unit is wanted by `plasma-workspace.target`, after `plasma-core.target` | `nixos-module-eval`, `vm-module` | `systemctl --user mask komorebi` |
 | A daemon that fails or is killed is started again | systemd: `Restart=on-failure` | `vm-module` (`SIGKILL`) | none |
+| The keys of a daemon that was killed are given back | systemd: `ExecStopPost` runs `komorebic hotkeys release` | `nixos-module-eval` ("the unit releases the keys of the daemon when it stops"), `vm-restart-survival` | none |
 | A daemon that is told to stop stays stopped, and the unit is not failed | systemd: the exit statuses of `Stop` (0) and of `SIGTERM` (130) are successes | `vm-module` | none |
 | The daemon has the `PATH` of a terminal in the session | the unit's environment, with NixOS's default `PATH` turned off | `nixos-module-eval`, `vm-module` | none |
 | The VM suites run komorebi as the module installs it | framework path: the test nodes import the module, and `komorebi@NAME` runs its `execStart` | every VM suite | a suite's `node` can set `services.komorebi.enable = false` (`vm-render-smoke` does) |
@@ -1687,7 +1690,19 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   unless the default mode wants them; the others are unregistered. The engine starts in the
   default mode.
 - **Stop**: every key is released and every action unregistered, from
-  `KWinBackend::shutdown`, which every way the daemon stops goes through.
+  `KWinBackend::shutdown`, which every way the daemon stops goes through. A daemon that is
+  killed cannot: `kwin::hotkeys::release` (`komorebic hotkeys release`, the module's
+  `ExecStopPost`) unregisters every action of the component, with or without a daemon.
+- **Reload**: `kwin::hotkeys::load` reads the file, plans it and starts the engine, and keeps
+  its settings; `reload` (the message `ReloadHotkeys`, `komorebic hotkeys reload`) does it again.
+  A new engine replaces the running one without unregistering its keys first, and takes them
+  over as a start does.
+- **KWin restarting**: kglobalaccel runs in KWin. The KWin backend's watch of
+  `NameOwnerChanged` also follows `org.kde.kglobalaccel`, and when it has an owner again,
+  `kwin::hotkeys::rebind` loads the key bindings into it, trying for 15 seconds.
+- **State**: the message `HotkeysState` is answered with the engine's mode, the combos it
+  holds and whether a chain is pending, or `null` when no engine runs; `komorebic hotkeys
+  state` adds the actions kglobalaccel has for the component.
 
 ### What is guaranteed, and by what
 
@@ -1724,6 +1739,10 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 | After the prefix of a chain only its next keys and Escape are grabbed, until a key ends the chain or its deadline passes, and the keys of the mode come back then | test, of the calls; VM test | `a_chain_grabs_its_next_keys_until_its_deadline`, the `Engine::deadline` doctest, `vm-keys-engine` | none |
 | The application of the focus is the one of the window KWin activated, a dialog included, and none once that window is gone | test | `the_focused_application_is_the_one_of_the_window_kwin_activated` | none |
 | A per-application key is grabbed only while the focused application (or an alias of it) has an action for it, and reaches the application otherwise | test, of the calls; VM test | `a_scoped_key_is_grabbed_only_while_its_application_has_the_focus`, `vm-keys-engine` | none |
+| A key of a daemon that stopped answering is given back by `hotkeys release`, and a new daemon registers it again | VM test | `vm-restart-survival` | none |
+| After KWin restarts, the keys are registered with the new kglobalaccel | framework path: the KWin backend's name-owner watch calls `kwin::hotkeys::rebind`; VM test | `vm-restart-survival` | none |
+| A reload reads the file again, and the keys both files have stay grabbed | framework path: `start` replaces an engine without unregistering, and `Registry::startup` takes over; VM test | `a_start_takes_over_the_keys_of_a_killed_komorebi_and_drops_the_rest`, `vm-restart-survival` | none |
+| Without key bindings, the daemon shows no engine and refuses a reload | test | `without_key_bindings_there_is_no_engine_to_show_or_reload` | none |
 | Holding a key runs its binding once | convention only: the transport listens to `globalShortcutPressed` and not to `globalShortcutRepeated` | none (measured in PLATFORM.md) | none |
 
 ## Where to look in the code
@@ -1916,7 +1935,9 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 - [`komorebi/src/kwin/hotkeys.rs`](../../komorebi/src/kwin/hotkeys.rs): the engine against
   kglobalaccel, and
   [`nix/tests/vm/suites/keys-engine`](../../nix/tests/vm/suites/keys-engine/test.py), keys
-  pressed in a real KWin with the daemon running.
+  pressed in a real KWin with the daemon running;
+  [`nix/tests/vm/suites/restart-survival`](../../nix/tests/vm/suites/restart-survival/test.py),
+  the keys when the daemon and KWin go away.
 - [`komorebi-hotkeys/tests`](../../komorebi-hotkeys/tests): the corpus test and the comparison
   with `whkd-parser`.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;

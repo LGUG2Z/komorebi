@@ -190,7 +190,11 @@ of the old KWin out of its layout, as if each had been closed: the bridge went w
 nothing reports them closing. When the name has an owner again, komorebi loads the bridge into
 the new KWin, trying again for up to 15 seconds while KWin is not ready for it, and the bridge
 reports the new KWin's windows and outputs as it does at start. A window that opens in the new
-KWin is tiled. In the spikes the bridge was loaded again 1.0 to 1.1 seconds after the name had
+KWin is tiled. kglobalaccel runs in KWin, so the keys of the engine go with the old KWin:
+komorebi watches `org.kde.kglobalaccel` the same way, and when it has an owner again, it reads
+its key binding file again and registers the keys with the new one, trying for up to 15
+seconds. The VM test `vm-restart-survival` kills the KWin of a Plasma session under the
+daemon and presses a key afterwards. In the spikes the bridge was loaded again 1.0 to 1.1 seconds after the name had
 an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a running daemon.
 
 #### What komorebi leaves behind
@@ -210,8 +214,9 @@ on, and the parking desktop with the hidden windows on it, until the next start 
 script and the socket, sends the windows on the parking desktop to the first workspace's desktop
 and removes the desktop, and its stop puts the setting back (the backup in the runtime
 directory keeps the user's value), or the session ends. It also leaves the keys of its engine
-grabbed: they are swallowed, and run nothing, until the next start takes them over and unregisters
-those its key bindings no longer have.
+grabbed: they are swallowed, and run nothing, until `komorebic hotkeys release` unregisters them, or
+the next start takes them over and unregisters those its key bindings no longer have. The NixOS
+module's unit runs `komorebic hotkeys release` after the daemon stops, however it stops.
 
 ### A headless KWin
 
@@ -255,7 +260,7 @@ What komorebi calls:
 |---|---|---|---|---|
 | `org.kde.KWin` | `/Scripting` | `org.kde.kwin.Scripting` | `unloadScript(s)`, `loadScript(ss) -> i` | at start, and when KWin is back after a restart; `unloadScript` again at exit |
 | `org.kde.KWin` | `/Scripting/Script<id>` | `org.kde.kwin.Script` | `run()` | after `loadScript` |
-| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin leave the bus and come back |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin (`org.kde.KWin`, and `org.kde.kglobalaccel`, which it owns too) leave the bus and come back |
 | `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
 | `org.kde.KWin` | `/Effects` | `org.kde.kwin.Effects` | `isEffectSupported(s)`, `isEffectLoaded(s)`, `loadEffect(s)`, `unloadEffect(s)`, `reconfigureEffect(s)`, with `kwin4_effect_shapecorners` and `kwin4_effect_geometry_change` | when the look changes (the border is turned on, off or changed), and at exit |
 | `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.komorebi.BorderColours1` | `SetColours(asau)`: the UUID of each window and its color, `0xRRGGBB` | when the color of a window's border changes; the object is komorebi's build of the border effect ([The patches](#the-patches)) |

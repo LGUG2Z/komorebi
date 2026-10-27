@@ -420,6 +420,7 @@ impl WindowManager {
     ///   [`WindowManager::retile_all`] gives.
     /// - The answer cannot be written to `reply`.
     /// - `Stop` or `StopIgnoreRestore` fails, for the reason [`WindowManager::stop`] gives.
+    /// - `ReloadHotkeys` fails, for one of the reasons [`crate::kwin::hotkeys::reload`] gives.
     /// - The notification cannot be sent, for one of the reasons [`notify_subscribers`] gives.
     #[tracing::instrument(skip(self, reply, message))]
     pub fn process_command(
@@ -2074,6 +2075,11 @@ impl WindowManager {
                     ANIMATION_STYLE_PER_ANIMATION.lock().clear();
                 }
             },
+            SocketMessage::ReloadHotkeys => crate::kwin::hotkeys::reload()?,
+            SocketMessage::HotkeysState => {
+                let state = serde_json::to_string_pretty(&crate::kwin::hotkeys::state())?;
+                reply.write_all(state.as_bytes())?;
+            }
         }
 
         self.update_known_window_ids();
@@ -2283,6 +2289,19 @@ mod tests {
         assert_eq!(monitors[1]["device"], "Virtual-1");
         assert_eq!(monitors[1]["size"]["left"], 1920);
         assert_eq!(monitors[0]["size"]["right"], 1920);
+        Ok(())
+    }
+
+    #[test]
+    fn without_key_bindings_there_is_no_engine_to_show_or_reload() -> eyre::Result<()> {
+        let daemon = Daemon::new(two_windows(751));
+
+        assert_eq!(daemon.ask(SocketMessage::HotkeysState)?, "null");
+        let error = daemon.ask(SocketMessage::ReloadHotkeys).unwrap_err();
+        assert!(
+            error.to_string().contains("started without key bindings"),
+            "{error}"
+        );
         Ok(())
     }
 

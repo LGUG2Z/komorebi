@@ -32,7 +32,8 @@
 //! when nobody does, every window of the old KWin is gone, and nothing will report it closing, so
 //! the table reports each as destroyed ([`state::Table::compositor_lost`]); when the name has an
 //! owner again, the daemon loads the script into the new KWin, which reports its desktop as it
-//! does at start.
+//! does at start. The same watch sees `org.kde.kglobalaccel`, which KWin owns too, come back,
+//! and has [`hotkeys::rebind`] register the keys with it again.
 //!
 //! The script also reports the outputs when KWin's list of them changes, when a panel (a dock
 //! window) opens, closes or moves, and once a second, because KWin has no signal for the room a
@@ -565,6 +566,14 @@ async fn supervise(shared: Arc<Shared>) {
 
     while let Some(signal) = owner_changes.next().await {
         let Ok(args) = signal.args() else { continue };
+        // the global shortcut daemon runs in KWin, and its keys go with it
+        if args.name().as_str() == "org.kde.kglobalaccel" {
+            if args.new_owner().is_some() {
+                tracing::info!("kglobalaccel is back; registering the keys again");
+                tokio::task::spawn_blocking(hotkeys::rebind);
+            }
+            continue;
+        }
         if args.name().as_str() != "org.kde.KWin" {
             continue;
         }

@@ -112,8 +112,9 @@
 //! at 100 columns whatever the width of the terminal, which is how `docs/cli` is made.
 //!
 //! `export-kde-shortcuts` and `hotkeys compile` read a key binding file (an skhdrc, a whkdrc or an
-//! sxhkdrc) and write the bindings KDE can run by itself as shortcut files; the [`hotkeys`] module
-//! has the details.
+//! sxhkdrc) and write the bindings KDE can run by itself as shortcut files. `hotkeys state`,
+//! `hotkeys reload` and `hotkeys release` look after the keys the daemon registers with KDE; the
+//! [`hotkeys`] module has the details.
 
 use chrono::Utc;
 use clap::CommandFactory;
@@ -869,7 +870,7 @@ enum SubCommand {
     Quickstart,
     /// Turn an skhdrc into KDE global shortcuts (they work over RDP, unlike evdev hotkey daemons)
     ExportKdeShortcuts(hotkeys::ExportKdeShortcuts),
-    /// Turn a key binding file (skhdrc, whkdrc, sxhkdrc) into KDE global shortcuts
+    /// Key bindings: KDE global shortcuts from a key binding file, and the keys of the daemon
     #[clap(arg_required_else_help = true)]
     Hotkeys(hotkeys::Hotkeys),
     /// Start komorebi as a background process

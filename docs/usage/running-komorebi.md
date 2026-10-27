@@ -99,8 +99,14 @@ do, so give the daemon the names they have on KDE:
 komorebic start -- --app-alias firefox=firefox-esr,librewolf --app-alias Terminal=konsole
 ```
 
-A daemon that is killed leaves its keys swallowed until it is started again; `komorebic stop`
-gives them back.
+[`komorebic hotkeys state`](../cli/hotkeys-state.md) shows the keys komorebi has registered
+with KDE and what the daemon's engine is doing (its mode, and the keys it holds), and
+[`komorebic hotkeys reload`](../cli/hotkeys-reload.md) has the daemon read its key binding
+file again. A daemon that is killed leaves its keys swallowed until it is started again;
+`komorebic stop` gives them back, and so does
+[`komorebic hotkeys release`](../cli/hotkeys-release.md), with or without a daemon, which the
+NixOS module's unit runs after the daemon stops. When KWin restarts, the daemon registers the
+keys again with the new KWin.
 
 ## Asking komorebi what it is doing
 

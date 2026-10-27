@@ -5,6 +5,7 @@ description = "The command-line interface for Komorebi, a tiling window manager 
 edition = "2024"
 
 [dependencies]
+komorebi = { path = "../komorebi", default-features = false }
 komorebi-client = { path = "../komorebi-client", default-features = false }
 komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 version = { path = "../version" }

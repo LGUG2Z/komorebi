@@ -3,8 +3,9 @@
 # engine's effects become; only KWin can say that a grabbed key reports its presses to the daemon,
 # that the keys of a killed daemon stay registered until the next start takes them over, and that
 # a stop gives them back.
+import json
 import shlex
-import time
+from typing import Any
 
 from komorebi_vm import Checks, Kde, Keys
 
@@ -25,14 +26,50 @@ def press(combo: str, marker: str) -> bool:
     return kde.wait_for(lambda: ran(marker), timeout=10)
 
 
-def start(skhdrc: str, *args: str) -> None:
+def engine() -> dict[str, Any]:
+    """What the engine is doing: its `mode`, the keys it holds (`active`) and whether a chord
+    `chain` is being typed. It is empty when no engine answers.
+
+    The engine answers once it has told kglobalaccel everything its last event needed, so what it
+    says it holds is what KWin has grabbed. A key pressed before that is not the engine's yet and
+    goes to the window, and how long the grab takes is how slow the machine is: the engine is
+    asked, and no fixed time is waited.
+    """
+    status, out = kde.run("komorebic hotkeys state")
+    return (json.loads(out).get("engine") or {}) if status == 0 else {}
+
+
+def in_mode(mode: str) -> bool:
+    """Waits for the engine to be in `mode`, with the keys of the mode grabbed."""
+    return kde.wait_for(lambda: engine().get("mode") == mode, timeout=10)
+
+
+def chain_is(on: bool, within: float = 10) -> bool:
+    """Waits for the engine to be in a chord chain (or, with `on` false, to be done with it, and to
+    hold the keys of the mode again), for up to `within` seconds."""
+    return kde.wait_for(lambda: engine().get("chain") is on, timeout=within)
+
+
+def write(skhdrc: str) -> None:
     kde.sh(
         f"mkdir -p ~/.config/komorebi && printf '%s' {shlex.quote(skhdrc)} > ~/.config/komorebi/skhdrc"
     )
+
+
+def start(skhdrc: str, *args: str) -> None:
+    write(skhdrc)
     # no --keybindings: the daemon finds the skhdrc in the config directory
     kde.spawn_komorebi("--log-level", "debug", *args)
     if not kde.wait_for(lambda: "keys in kglobalaccel" in kde.komorebi_log(), timeout=60):
         raise AssertionError(f"the keys were not registered:\n{kde.komorebi_log()}")
+
+
+def stop() -> None:
+    """Stops the daemon, and waits until it is gone: it takes its KWin script and its keys with
+    it when it exits, and a daemon started before that would find them taken from it."""
+    kde.komorebic("stop")
+    if not kde.wait_for(lambda: machine.execute("pgrep -x komorebi")[0] != 0, timeout=10):
+        raise AssertionError("the daemon did not stop")
 
 
 start(
@@ -83,7 +120,20 @@ checks.check(
 kde.spawn("stdbuf -oL wev", log="/tmp/wev.log")
 if not kde.wait_for(lambda: kde.wid_by_class("wev") != "", timeout=30):
     raise AssertionError("wev did not open")
-kde.activate(kde.wid_by_class("wev"))
+
+
+def activate(wid: str) -> None:
+    """Gives the window the focus, asking again until KWin has: it lists a window before it
+    can have the focus, and refuses to activate it until then."""
+    if not kde.wait_for(
+        lambda: kde.run(f"kdotool windowactivate {shlex.quote(wid)}")[0] == 0
+        and kde.active() == wid,
+        timeout=30,
+    ):
+        raise AssertionError(f"{wid} did not take the focus")
+
+
+activate(kde.wid_by_class("wev"))
 
 
 def typed(key: str) -> int:
@@ -108,41 +158,75 @@ keys.send("h")
 checks.check("in the default mode H reaches the focused window", reaches_wev("h", 1))
 checks.check("Alt+R enters the mode and runs its command", press("alt-r", "keys-modes-entered"))
 checks.check(
-    "the daemon logs the mode it is in",
-    kde.wait_for(lambda: "the mode is now resize" in kde.komorebi_log()),
+    "the daemon logs the mode it is in, and holds the keys of the mode",
+    kde.wait_for(lambda: "the mode is now resize" in kde.komorebi_log()) and in_mode("resize"),
 )
 checks.check("in the mode H runs its binding", press("h", "keys-modes-h"))
 checks.check("and does not reach the window", typed("h") == 1)
 keys.send("esc")
 checks.check(
-    "Escape goes back to the default mode",
-    kde.wait_for(lambda: "the mode is now default" in kde.komorebi_log()),
+    "Escape goes back to the default mode, and gives the keys of the mode back",
+    kde.wait_for(lambda: "the mode is now default" in kde.komorebi_log()) and in_mode("default"),
 )
 keys.send("h")
 checks.check("back in the default mode H reaches the window again", reaches_wev("h", 2))
-kde.komorebic("stop")
+stop()
 
 # chord chains: the prefix grabs the keys that can come next, until a key, Escape or the timeout
 sxhkdrc = "/home/komorebi/.config/komorebi/sxhkdrc"
 chain = "alt + w ; {h,l}\n    touch /tmp/keys-chords-{h,l}\n"
 kde.sh(f"printf '%s' {shlex.quote(chain)} > {sxhkdrc}")
-kde.spawn_komorebi("--log-level", "debug", "--keybindings", sxhkdrc, "--chord-timeout", "1500")
+# The timeout is long, and is scaled like every wait, so that the keys of a chain are sent well
+# inside it however slowly the machine grabs them, and that Escape can be told from the timeout.
+CHORD_TIMEOUT = 3
+kde.spawn_komorebi(
+    "--log-level",
+    "debug",
+    "--keybindings",
+    sxhkdrc,
+    "--chord-timeout",
+    str(int(CHORD_TIMEOUT * 1000 * SCALE)),
+)
 if not kde.wait_for(lambda: "keys in kglobalaccel" in kde.komorebi_log(), timeout=60):
     raise AssertionError(f"the keys were not registered:\n{kde.komorebi_log()}")
+
+
+def chain_begins() -> None:
+    """Presses Alt+W and waits until the engine has grabbed the keys that can come next.
+
+    A key pressed before that goes to the window, not to the chain.
+    """
+    keys.send("alt-w")
+    if not chain_is(True):
+        raise AssertionError(f"Alt+W did not begin the chain ({engine()}):\n{kde.komorebi_log()}")
+
+
+def chain_ends() -> None:
+    """Waits until the chain is over and the engine holds Alt+W again, which a key pressed
+    before that would not find."""
+    if not chain_is(False):
+        raise AssertionError(f"the chain did not end ({engine()}):\n{kde.komorebi_log()}")
+
+
 h_before = typed("h")
-keys.send("alt-w")
+chain_begins()
 checks.check("Alt+W, H runs the binding of the chain", press("h", "keys-chords-h"))
 checks.check("the H of the chain does not reach the window", typed("h") == h_before)
-keys.send("alt-w")
+chain_ends()
+chain_begins()
 keys.send("esc")
+checks.check(
+    "Escape ends the chain, which the timeout has not yet done",
+    chain_is(False, within=CHORD_TIMEOUT / 2),
+)
 keys.send("h")
 checks.check("after Alt+W, Escape, H reaches the window", reaches_wev("h", h_before + 1))
-keys.send("alt-w")
-time.sleep(2 * SCALE)
+chain_begins()
+checks.check("the chain ends at its timeout", chain_is(False, within=CHORD_TIMEOUT + 1))
 keys.send("l")
 checks.check("after Alt+W and the timeout, L reaches the window", reaches_wev("l", 1))
 checks.check("and runs nothing", not ran("keys-chords-l"))
-kde.komorebic("stop")
+stop()
 
 # per-application bindings: a key is grabbed only while the focused application has an action
 start(
@@ -157,16 +241,26 @@ if not kde.wait_for(lambda: kde.wid_by_class("foot") != "", timeout=30):
 wev, foot = kde.wid_by_class("wev"), kde.wid_by_class("foot")
 
 
-def focus(wid: str, app_id: str) -> None:
-    """Activates the window and waits for the engine to see its application take the focus."""
-    kde.activate(wid)
+def sees_focus(wid: str, app_id: str) -> bool:
+    """Activates the window and waits for the engine to log that its application has the focus."""
+    activate(wid)
 
     def seen() -> bool:
         lines = [x for x in kde.komorebi_log().splitlines() if "the focus is now" in x]
         return bool(lines) and f"({app_id}, " in lines[-1]
 
-    if not kde.wait_for(seen, timeout=10):
+    return kde.wait_for(seen, timeout=10)
+
+
+def focus(wid: str, app_id: str) -> None:
+    """Activates the window, and returns once the engine has grabbed the keys that its
+    application has an action for, and given the others back."""
+    if not sees_focus(wid, app_id):
         raise AssertionError(f"the engine did not see {app_id} take the focus")
+    # the engine logs the focus before it grabs and gives back the keys of the application, and
+    # answers once it has: a key pressed before that would find the keys of the other window
+    if not engine():
+        raise AssertionError("the engine does not answer")
 
 
 focus(wev, "wev")
@@ -188,6 +282,21 @@ checks.check(
 focus(wev, "wev")
 keys.send("alt-g")
 checks.check("back in wev, Alt+G reaches wev again", reaches_wev("g", g_before + 2))
-kde.komorebic("stop")
+
+# An engine that starts while the focused application has nothing to grab starts all the same:
+# the key bindings are read again with wev focused, and every binding is for the terminal.
+write('alt - j [\n    "terminal" : touch /tmp/keys-scopes-reload\n]\n')
+reads = kde.komorebi_log().count("bindings for the engine")
+kde.komorebic("hotkeys", "reload")
+kde.wait_for(lambda: kde.komorebi_log().count("bindings for the engine") > reads, timeout=10)
+checks.check(
+    "an engine that starts with nothing to grab goes on to see foot take the focus",
+    sees_focus(foot, "foot") and bool(engine()),
+)
+checks.check(
+    "and in foot, Alt+J runs the terminal's binding",
+    press("alt-j", "keys-scopes-reload"),
+)
+stop()
 
 checks.finish()

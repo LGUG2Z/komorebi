@@ -67,6 +67,9 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
 - systemd starts the daemon again when it fails or is killed. When it is stopped (`komorebic
   stop`, or `systemctl --user stop komorebi`), it stays stopped until the next login or
   `systemctl --user start komorebi`.
+- After the daemon stops, however it stops, the unit runs `komorebic hotkeys release`, which
+  gives back to KDE the keys the daemon had registered for its key bindings: a daemon that was
+  killed could not, and KDE would keep them, doing nothing, until the next start.
 - Without `services.desktopManager.plasma6.enable`, the configuration does not evaluate: an
   assertion of the module fails, and its message names the option to set.
 
@@ -179,6 +182,7 @@ After=plasma-core.target
 
 [Service]
 ExecStart=%h/.cargo/bin/komorebi
+ExecStopPost=%h/.cargo/bin/komorebic hotkeys release
 Restart=on-failure
 SuccessExitStatus=130
 

@@ -772,3 +772,13 @@ engine acts on the pressed signal only, so holding a key runs its binding once.
 
 The engine itself does no I/O: it returns what to do, and the daemon does it. This entry
 needs the reason for that split.
+
+## Why does the unit release the keys after the daemon stops?
+
+Because nothing else does when a daemon dies. kglobalaccel keeps the actions of a client
+that was killed, and their keys with them: on KWin 6.8.1 (2026-10-27) a killed client's key
+stayed swallowed, and its signal was sent to nobody, until the action was unregistered. A
+daemon that stops on its own unregisters its keys, but one that crashes or is killed cannot,
+and the next start may never come. So the NixOS module's unit runs `komorebic hotkeys
+release` after the daemon stops, however it stops (`ExecStopPost`), and a start takes over
+what is still registered.

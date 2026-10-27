@@ -19,11 +19,11 @@
 //! With a key binding file (`--keybindings`, or the first of `skhdrc`, `whkdrc` and `sxhkdrc` in
 //! [`struct@HOME_DIR`]), the daemon also runs the engine of [`komorebi_hotkeys`]: it registers the
 //! keys of the bindings that are not static shortcuts with KWin's global shortcut daemon and runs
-//! their commands ([`komorebi::kwin::hotkeys`]). The bindings it takes are the engine's part of
-//! the file's plan in `--keybindings-mode`, the mode `komorebic hotkeys compile --mode` wrote the
-//! static shortcuts in. `--chord-timeout` is how long the next key of a chord chain is waited
-//! for, and `--app-alias` gives an application other names for the bindings that are for one
-//! application.
+//! their commands ([`komorebi::kwin::hotkeys::load`]). A file that cannot be read is logged, and
+//! the window manager runs without keys. The bindings it takes are the engine's part of the file's
+//! plan in `--keybindings-mode`, the mode `komorebic hotkeys compile --mode` wrote the static
+//! shortcuts in. `--chord-timeout` is how long the next key of a chord chain is waited for, and
+//! `--app-alias` gives an application other names for the bindings that are for one application.
 //!
 //! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
 //! follows.
@@ -43,6 +43,7 @@ use komorebi::backend;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::border_manager;
 use komorebi::core::pathext::replace_env_in_path;
+use komorebi::kwin::hotkeys::Keybindings;
 use komorebi::monitor_reconciliator;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
@@ -50,10 +51,8 @@ use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
 use komorebi_hotkeys::Format;
-use komorebi_hotkeys::ParseOptions;
 use komorebi_hotkeys::engine::EngineOptions;
 use komorebi_hotkeys::plan::PlanMode;
-use komorebi_hotkeys::plan::PlanOptions;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -269,87 +268,6 @@ fn app_alias(value: &str) -> Result<(String, Vec<String>), String> {
     Ok((name.trim().to_string(), aliases))
 }
 
-/// Reads the key binding file, and starts the engine for the bindings that are not static
-/// shortcuts. Does nothing when there is no file, or nothing in it for the engine. An engine that
-/// cannot start is logged, and the window manager runs without keys.
-///
-/// # Errors
-///
-/// The file cannot be read, or its format is neither given nor in its name.
-fn keybindings(opts: &Opts) -> eyre::Result<()> {
-    let file = match &opts.keybindings {
-        Some(file) => file.clone(),
-        None => {
-            let found = [Format::Skhd, Format::Whkd, Format::Sxhkd]
-                .iter()
-                .map(|format| HOME_DIR.join(format.file_name()))
-                .find(|path| path.is_file());
-            match found {
-                Some(file) => file,
-                None => return Ok(()),
-            }
-        }
-    };
-    let format = match opts.keybindings_format {
-        Some(format) => format.into(),
-        None => {
-            let name = file
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or_default();
-            [Format::Skhd, Format::Whkd, Format::Sxhkd]
-                .into_iter()
-                .find(|format| name.ends_with(format.file_name()))
-                .ok_or_else(|| {
-                    eyre::Report::msg(format!(
-                        "{} does not end with skhdrc, whkdrc or sxhkdrc: give its --keybindings-format",
-                        file.display()
-                    ))
-                })?
-        }
-    };
-
-    let text = std::fs::read_to_string(&file).map_err(|error| {
-        eyre::Report::msg(format!("could not read {}: {error}", file.display()))
-    })?;
-    let parsed = komorebi_hotkeys::parse(format, &text, &ParseOptions::default());
-    let plan = komorebi_hotkeys::plan::plan(
-        &parsed.keymap,
-        &PlanOptions {
-            mode: opts.keybindings_mode.into(),
-        },
-    );
-    let diagnostics = parsed.diagnostics.iter().chain(&plan.diagnostics);
-    for diagnostic in diagnostics.clone() {
-        tracing::debug!("{}: {diagnostic}", file.display());
-    }
-    let engine: usize = plan.engine.modes.iter().map(|m| m.bindings.len()).sum();
-    tracing::info!(
-        "read {}: {engine} bindings for the engine, {} static shortcuts, {} diagnostics \
-         (`komorebic hotkeys compile --dry-run` shows them)",
-        file.display(),
-        plan.static_files.len(),
-        diagnostics.count()
-    );
-    let mut app_aliases: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (name, aliases) in &opts.app_alias {
-        app_aliases
-            .entry(name.clone())
-            .or_default()
-            .extend(aliases.iter().cloned());
-    }
-    let options = EngineOptions {
-        chord_timeout: Duration::from_millis(opts.chord_timeout),
-        app_aliases,
-    };
-    if plan.needs_engine()
-        && let Err(error) = komorebi::kwin::hotkeys::start(plan.engine, options)
-    {
-        tracing::error!("the key bindings are not active: {error}");
-    }
-    Ok(())
-}
-
 fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
     let (_guard, _color_guard) = setup(opts.log_level.clone())?;
@@ -430,7 +348,25 @@ fn main() -> eyre::Result<()> {
 
     // the keys need KWin's global shortcut daemon, and the in-memory desktop has none
     if !opts.fake_backend {
-        keybindings(&opts)?;
+        let mut app_aliases: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (name, aliases) in &opts.app_alias {
+            app_aliases
+                .entry(name.clone())
+                .or_default()
+                .extend(aliases.iter().cloned());
+        }
+        let keybindings = Keybindings {
+            file: opts.keybindings.clone(),
+            format: opts.keybindings_format.map(Format::from),
+            mode: opts.keybindings_mode.into(),
+            options: EngineOptions {
+                chord_timeout: Duration::from_millis(opts.chord_timeout),
+                app_aliases,
+            },
+        };
+        if let Err(error) = komorebi::kwin::hotkeys::load(keybindings) {
+            tracing::error!("the key bindings are not active: {error}");
+        }
     }
 
     let (quit_sender, quit_receiver) = std::sync::mpsc::channel();

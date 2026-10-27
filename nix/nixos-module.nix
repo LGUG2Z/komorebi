@@ -354,6 +354,9 @@ in
         ];
         serviceConfig = {
           ExecStart = cfg.execStart;
+          # kglobalaccel keeps the keys of a daemon that died until they are unregistered: without
+          # this they would stay swallowed, running nothing, until the next start
+          ExecStopPost = "${lib.getExe' cfg.package "komorebic"} hotkeys release";
           Restart = "on-failure";
           # what komorebi exits with when it is stopped with SIGTERM, as systemd stops a unit
           SuccessExitStatus = 130;
