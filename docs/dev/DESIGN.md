@@ -50,3 +50,11 @@ window ended up. A backend keeps a table that the compositor's events update, so
 is a lookup. The trade-off is that the table can be a moment behind the compositor, which
 is why a command returns when it has been accepted and not when the client has acted, and
 why the frame a window really has is read back afterwards.
+
+## Why does komorebi not pick the next window to focus when one closes?
+
+Because the compositor already has. When a window is destroyed, KWin activates the window
+it considers next and reports that as a focus change, which komorebi follows. If komorebi
+also focused a window of its own choosing, the two would fight over the focus. komorebi
+focuses the window of its focused container only when the compositor has left nothing
+focused.

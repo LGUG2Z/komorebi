@@ -11,7 +11,12 @@ moving and the drawing.
 ```sh
 nix develop
 cargo run --bin komorebi --locked -- --version
+cargo run --bin komorebi --locked -- --fake-backend
 ```
+
+`--fake-backend` runs the window manager against an in-memory desktop with one
+monitor and no windows, and logs what it does until it is stopped with Ctrl-C.
+Without a backend, `komorebi` exits with a usage error.
 
 `nix develop` provides the Rust toolchain that [`rust-toolchain.toml`](rust-toolchain.toml)
 selects, a nightly `rustfmt`, and the tools `just check` and the flake's checks
@@ -25,8 +30,11 @@ without a checkout of the toolchain.
   the vocabulary the window manager is written in (`core`), the `Backend` trait
   through which it reaches a compositor and the in-memory desktop the tests use
   (`backend`), the model of what it tiles (`monitor`, `workspace`, `container`,
-  `window`), the `Ring` that holds monitors, workspaces and containers, and the
-  lists in which some elements are locked in place.
+  `window`), the window manager that keeps the model (`window_manager`), loads
+  it from the backend (`desktop`) and changes it when the compositor reports an
+  event (`window_manager_event`, `process_event`), the `Ring` that holds
+  monitors, workspaces and containers, and the lists in which some elements are
+  locked in place.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -58,7 +66,11 @@ describes the trait and where each of its rules is enforced.
 The window manager models the desktop as monitors, each with a ring of
 workspaces, each with a ring of containers, each with a ring of windows. A
 workspace's layout gives each of its containers a tile of the monitor's work
-area, and every window of a container is moved onto its tile.
+area, and every window of a container is moved onto its tile. At startup the
+window manager loads the monitors and the windows that are open from the
+backend and tiles them; after that it changes the model when the compositor
+reports that a window was shown, closed, focused, minimized or restored, and
+tiles the workspace in front again.
 
 ## Documentation
 

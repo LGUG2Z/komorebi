@@ -6,8 +6,9 @@ compositor to put it there. Everything it needs from the compositor is behind on
 tested, without one.
 
 This page describes that trait, who implements and calls it, where each of its rules is
-enforced, and the model of the desktop the window manager tiles. It grows with the code:
-each part of the daemon that is added has its place here.
+enforced, the model of the desktop the window manager tiles, and how an event about a
+window becomes a tile. It grows with the code: each part of the daemon that is added has
+its place here.
 
 ## Vocabulary
 
@@ -21,6 +22,8 @@ each part of the daemon that is added has its place here.
   that tile.
 - **Layout**: the arrangement (BSP, columns, rows, ...) that turns a work area and a
   number of containers into one rectangle, a **tile**, for each container.
+- **Event**: what the compositor reports about a window: it was shown, destroyed, given
+  the focus, minimized or restored ([`WindowManagerEvent`]).
 - **Compositor**: the program that owns the screen and the windows. On KDE Plasma it is
   KWin.
 - **Backend**: the implementation of the [`Backend`](../../komorebi/src/backend/mod.rs)
@@ -74,6 +77,13 @@ area, the layout gives one tile per container, in order, each shrunk by the cont
 padding, and every window of a container is asked to move onto its tile with `set_rect`. A
 tile is clamped to the work area, so it cannot reach onto a neighboring monitor.
 
+The [`WindowManager`] keeps the monitors, the windows the user minimized (they are in no
+workspace until they are restored), and an index from each window it manages to the
+monitor and workspace that have it. It is loaded from the backend at startup: every
+monitor, and every open window that is normal, alive and not minimized, on the focused
+workspace of the monitor its middle is on. After that it changes only when an event comes
+in, and each event ends with the workspace in front tiled again.
+
 ## The parts
 
 - [`backend`](../../komorebi/src/backend/mod.rs): the trait, the two data types, and the
@@ -87,6 +97,17 @@ tile is clamped to the work area, so it cannot reach onto a neighboring monitor.
 - [`lockable_sequence`](../../komorebi/src/lockable_sequence.rs): inserting, removing and
   swapping in a list where some elements are locked in place, which is how a workspace
   changes its containers.
+- [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
+  operations on it (tile the workspace in front, tile every monitor, take a minimized
+  window out).
+- [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
+  the backend.
+- [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
+  [`process_event`](../../komorebi/src/process_event.rs): the events, and what the window
+  manager does with each.
+- [`main.rs`](../../komorebi/src/main.rs): the daemon. It installs the backend chosen on the
+  command line (`--fake-backend` is the only one), loads and tiles the desktop, and waits to
+  be stopped.
 
 The handle is a process-wide singleton so that a window can be a small `Copy` value
 that carries only its id, and ask the backend for what it needs. A test replaces it for
@@ -119,11 +140,41 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A test's backend does not outlive the test | framework path: [`with_backend`] restores the previous one on drop | `with_backend_puts_the_previous_backend_back_when_the_closure_panics` | none |
 | A command about a missing window is an error, not a panic | test | `a_command_about_a_window_nobody_opened_is_an_error` and `a_command_about_a_closed_window_is_an_error`, against the fake only | none |
 | A locked container keeps its index | framework path: a [`Workspace`] inserts, removes and swaps its containers through `LockableSequence` | `test_locked_containers_with_new_window` and `test_locked_containers_remove_window` | `containers_mut()` is the `VecDeque` itself |
+| A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone` | none |
+| A destroyed window leaves whichever workspace has it | framework path: the destroy is looked up in the index of managed windows, which is rebuilt at startup and before and after every event | `a_window_that_was_open_before_komorebi_started_is_removed_when_it_closes` | none |
+| The daemon does not start without a backend | startup check: a usage error, exit code 2 | `without_a_backend_komorebi_exits_with_an_error_naming_the_flag` | none |
 | Queries never block on the compositor | convention only | none | none |
 | Only the backend module reaches the compositor | convention only | none | none |
 
 The last two rows are rules nothing checks. A real backend that waits inside a query
 breaks the first, and a module that talks to D-Bus directly breaks the second.
+
+## One event, end to end
+
+A window is shown, and ends up on a tile:
+
+1. The event is a [`WindowManagerEvent`]`::Show` carrying the window and the compositor
+   signal it came from. The end-to-end tests build it and call
+   [`WindowManager::process_event`], which hands it to `handle_event` and logs how long
+   that took.
+2. `handle_event` asks [`Window::should_manage`], which asks the backend's `window(id)`
+   whether the window is alive and normal. If it is not, the event changes nothing.
+3. The index of managed windows is rebuilt from the containers. If the workspace in front
+   already has the window, or the index has it on another monitor or workspace, the event
+   creates nothing.
+4. [`Workspace::new_container_for_window`] puts the window in a new container after the
+   focused one, inserted through `LockableSequence` so that a locked container keeps its
+   index, and focuses the new container.
+5. [`WindowManager::update_focused_workspace`] asks the focused [`Monitor`] to give its
+   focused workspace the work area, the padding and the offset ([`WorkspaceGlobals`]),
+   and calls [`Workspace::update`].
+6. `Workspace::update` asks the layout for one tile per container, clamps each to the work
+   area, and calls [`Window::set_position`] for each window, which is the backend's
+   `set_rect`. The fake puts the window there at once; the frame a window ends up with is
+   what `window_rect` says afterwards.
+7. If the new container is the only one, the window is given the focus with the backend's
+   `focus`, and the pointer follows it.
+8. The index is rebuilt again, so the next event finds the window.
 
 ## Where to look in the code
 
@@ -136,6 +187,10 @@ breaks the first, and a module that talks to D-Bus directly breaks the second.
   `Workspace::update`.
 - [`komorebi/src/monitor.rs`](../../komorebi/src/monitor.rs): the work area, padding and
   offset a monitor gives the workspace it shows.
+- [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
+  does.
+- [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
+  driven end to end against the fake.
 
 [`Backend`]: ../../komorebi/src/backend/mod.rs
 [`WindowInfo`]: ../../komorebi/src/backend/mod.rs
@@ -150,3 +205,10 @@ breaks the first, and a module that talks to D-Bus directly breaks the second.
 [`WorkspaceGlobals`]: ../../komorebi/src/workspace.rs
 [`Container`]: ../../komorebi/src/container.rs
 [`Window`]: ../../komorebi/src/window.rs
+[`Window::should_manage`]: ../../komorebi/src/window.rs
+[`Window::set_position`]: ../../komorebi/src/window.rs
+[`Workspace::new_container_for_window`]: ../../komorebi/src/workspace.rs
+[`WindowManager`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::process_event`]: ../../komorebi/src/process_event.rs
+[`WindowManager::update_focused_workspace`]: ../../komorebi/src/window_manager.rs
+[`WindowManagerEvent`]: ../../komorebi/src/window_manager_event.rs

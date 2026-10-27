@@ -153,6 +153,28 @@ impl Workspace {
         Ok(())
     }
 
+    /// Remove every window that no longer exists
+    #[tracing::instrument(skip(self))]
+    pub fn reap_invalid_windows(&mut self) -> eyre::Result<usize> {
+        let mut invalid_window_ids = vec![];
+
+        for container in self.containers() {
+            for window in container.windows() {
+                if !window.is_valid() {
+                    invalid_window_ids.push(window.id);
+                }
+            }
+        }
+
+        for window_id in &invalid_window_ids {
+            let _ = self.remove_window(*window_id);
+        }
+
+        tracing::debug!("reaping invalid windows {invalid_window_ids:?}");
+
+        Ok(invalid_window_ids.len())
+    }
+
     pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
         let container_idx = self
             .container_idx_for_window(window_id)

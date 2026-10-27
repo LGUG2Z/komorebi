@@ -190,6 +190,26 @@ impl Window {
     pub fn unminimize(self) -> eyre::Result<()> {
         backend().unminimize(self.id)
     }
+
+    /// Whether the window is one komorebi should tile: a window that is still alive and that the
+    /// compositor considers a normal application window, as opposed to a dialog, a splash screen,
+    /// a utility window or a dock ([`WindowInfo::normal`](crate::backend::WindowInfo::normal)).
+    ///
+    /// A window the compositor has no record of is not managed. Windows that are minimized when
+    /// komorebi starts are not picked up either
+    /// ([`load_workspace_information`](crate::desktop::load_workspace_information)).
+    pub fn should_manage(&self) -> bool {
+        let Some(info) = self.info() else {
+            return false;
+        };
+
+        if !info.alive {
+            return false;
+        }
+
+        // dialogs, splash screens, utility windows, docks and the like are not for tiling
+        info.normal
+    }
 }
 
 #[cfg(test)]
@@ -287,6 +307,23 @@ mod tests {
             ]
         );
         Ok(())
+    }
+
+    #[test]
+    fn only_a_normal_window_that_is_alive_is_managed() {
+        let fake = Arc::new(FakeBackend::with_one_monitor());
+        fake.open_window(205, "foot", "foot", "a terminal");
+        fake.open_window(206, "foot", "foot", "a dialog");
+        fake.set_normal(206, false);
+        fake.open_window(207, "foot", "foot", "closed");
+        fake.close_window_now(207);
+
+        with_backend(fake, || {
+            assert!(Window::from(205).should_manage());
+            assert!(!Window::from(206).should_manage());
+            assert!(!Window::from(207).should_manage());
+            assert!(!Window::from(208).should_manage());
+        });
     }
 
     #[test]
