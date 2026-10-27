@@ -178,6 +178,38 @@ class Kde:
             "stop", f"kwin-virtual@{self.name}.service", f"session-bus@{self.name}.service"
         )
 
+    def start_komorebi(self, *args: str) -> None:
+        """Starts the daemon in this session, with `args`, as the user unit `komorebi@NAME`.
+
+        The unit runs the `komorebi` the node has, against this session's bus and KWin, and
+        writes its log to a file that [`Kde.komorebi_log`][] reads, emptied on every start.
+        """
+        words = shlex.quote(" ".join(args))
+        self.as_user(f"echo KOMOREBI_ARGS={words} > {self.runtime}/komorebi-{self.name}.env")
+        self.systemctl("start", f"komorebi@{self.name}.service")
+
+    def stop_komorebi(self) -> None:
+        """Stops the daemon with `SIGTERM`, as a logout does, and waits for it to exit."""
+        self.systemctl("stop", f"komorebi@{self.name}.service")
+
+    def komorebi_running(self) -> bool:
+        """Returns true if and only if the daemon of this session is running."""
+        unit = f"komorebi@{self.name}.service"
+        command = self._wrap(f"systemctl --user is-active --quiet {unit}", session=False)
+        return self.machine.execute(command)[0] == 0
+
+    def komorebi_log(self) -> str:
+        """The daemon's log since it was last started, or the empty string before that."""
+        return self.machine.execute(f"cat {self.runtime}/komorebi-{self.name}.log")[1]
+
+    def script_loaded(self, name: str = "komorebi-bridge") -> bool:
+        """Returns true if and only if KWin runs a script loaded under `name`."""
+        status, out = self.run(
+            "busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting"
+            f" isScriptLoaded s {shlex.quote(name)}"
+        )
+        return status == 0 and out.strip() == "b true"
+
     def wait_for(
         self,
         predicate: Callable[[], bool],
@@ -227,6 +259,18 @@ class Kde:
         """The id of the window KWin has focused, or the empty string."""
         lines = self.run("kdotool getactivewindow")[1].strip().splitlines()
         return lines[-1] if lines else ""
+
+    def activate(self, wid: str) -> None:
+        """Asks KWin to give the window the focus, as a click on it would."""
+        self.sh(f"kdotool windowactivate {shlex.quote(wid)}")
+
+    def minimize(self, wid: str) -> None:
+        """Asks KWin to minimize the window, as its title bar button would."""
+        self.sh(f"kdotool windowminimize {shlex.quote(wid)}")
+
+    def close(self, wid: str) -> None:
+        """Asks KWin to close the window, as its title bar button would."""
+        self.sh(f"kdotool windowclose {shlex.quote(wid)}")
 
     def shot(self, name: str) -> Image.Image:
         """Takes a screenshot of the machine's display and returns it, as RGB.

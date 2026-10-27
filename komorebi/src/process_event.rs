@@ -12,13 +12,47 @@
 //! - **Minimize**: a window the user minimized leaves its workspace and the rest are tiled
 //!   again; **Restore** brings it back in a container of its own.
 //!
+//! The daemon hands events to the window manager on a thread of their own,
+//! [`listen_for_events`], one at a time and in the order the backend raised them.
+//!
 //! [`Window::should_manage`]: crate::window::Window::should_manage
 
 use crate::backend::backend;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
+use parking_lot::Mutex;
+use std::sync::Arc;
 use tracing::instrument;
+
+/// Starts the thread that takes each event from the window manager's channel
+/// ([`WindowManager::incoming_events`]) and handles it with [`WindowManager::process_event`].
+///
+/// An event that fails is logged and the next one is taken: one event the window manager could
+/// not act on does not stop the ones after it.
+#[tracing::instrument]
+pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
+    let receiver = wm.lock().incoming_events.clone();
+
+    std::thread::spawn(move || {
+        tracing::info!("listening");
+        loop {
+            if let Ok(event) = receiver.recv() {
+                let mut guard = wm.lock();
+                match guard.process_event(event) {
+                    Ok(()) => {}
+                    Err(error) => {
+                        if cfg!(debug_assertions) {
+                            tracing::error!("{:?}", error)
+                        } else {
+                            tracing::error!("{}", error)
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
 
 /// After a managed window is destroyed KWin activates whatever it considers next. Only when there
 /// is nothing to activate does komorebi step in and focus its own selection; otherwise the

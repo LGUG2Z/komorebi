@@ -40,7 +40,16 @@
             pkgs.rust-bin.nightly.latest.minimal.override { extensions = [ "rustfmt" ]; }
           );
 
-          src = craneLib.cleanCargoSource ./.;
+          src = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter =
+              path: type:
+              (craneLib.filterCargoSources path type)
+              # the script komorebi loads into KWin, which the daemon includes
+              || (pkgs.lib.hasSuffix ".js" path)
+              # the messages the tests of the bridge and of the daemon share
+              || (pkgs.lib.hasSuffix ".json" path);
+          };
 
           commonArgs = {
             inherit src;
@@ -113,9 +122,12 @@
           pkgs = mkPkgs system;
           build = mkKomorebiPackages { inherit pkgs; };
           isLinux = pkgs.stdenv.hostPlatform.isLinux;
+          # the daemon each guest runs, built for the guest's system
+          komorebiFor = guestSystem: self.packages.${guestSystem}.komorebi;
           # a Mac runs the guests under HVF, which is slower than KVM
           vm = import ./nix/tests/vm {
             hostPkgs = pkgs;
+            inherit komorebiFor;
             scale = if isLinux then 1 else 1.5;
           };
           nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
@@ -176,6 +188,27 @@
               build.individualCrateArgs // { doCheck = true; }
             );
 
+            # The bridge is not Rust: tsc checks its types from its JSDoc comments, and node runs
+            # its tests against a fake KWin. No package.json and no build step.
+            komorebi-bridge-js =
+              pkgs.runCommand "komorebi-bridge-js"
+                {
+                  nativeBuildInputs = [
+                    pkgs.nodejs
+                    pkgs.typescript
+                  ];
+                  src = lib.fileset.toSource {
+                    root = ./komorebi/src/kwin;
+                    fileset = lib.fileset.fileFilter (file: !file.hasExt "rs") ./komorebi/src/kwin;
+                  };
+                }
+                ''
+                  cd $src
+                  tsc -p tsconfig.json
+                  node --test bridge.test.js
+                  touch $out
+                '';
+
             vm-lib = vm.lib;
           }
           # The VM tests need QEMU with KVM, so only Linux checks them. A Mac runs the same tests
@@ -197,6 +230,7 @@
             vmTcg =
               (import ./nix/tests/vm {
                 hostPkgs = pkgs;
+                inherit komorebiFor;
                 scale = 8;
               }).suites;
           };
@@ -232,6 +266,10 @@
               pkgs.jq
               pkgs.just
               pkgs.ripgrep
+
+              # the bridge's type check and tests (`just check-js`)
+              pkgs.nodejs
+              pkgs.typescript
 
               # the VM test library
               pkgs.ruff

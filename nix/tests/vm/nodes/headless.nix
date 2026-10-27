@@ -1,11 +1,13 @@
 # A machine with Plasma installed and no login: `kwin_wayland --virtual` runs as the test user's
 # own user units, once for every session a test starts, each with its own private session bus and
 # Wayland socket (`session-bus@NAME`, `kwin-virtual@NAME`). A virtual KWin has no real output, so it
-# cannot draw: pixel and pointer tests use the session node instead.
+# cannot draw: pixel and pointer tests use the session node instead. `komorebi@NAME` runs the daemon
+# in a session; `komorebi` is the package, which the test framework passes in.
 {
   config,
   lib,
   pkgs,
+  komorebi,
   ...
 }:
 {
@@ -37,6 +39,7 @@
     kdotool
     kdePackages.libkscreen
     kdePackages.qttools
+    komorebi
   ];
 
   systemd.user.services = {
@@ -61,6 +64,31 @@
         # the library writes KWIN_ARGS (size, number of outputs) before it starts the unit
         EnvironmentFile = "-%t/kwin-virtual-%i.env";
         ExecStart = "${pkgs.kdePackages.kwin}/bin/kwin_wayland --virtual --socket wayland-%i --no-lockscreen --no-global-shortcuts $KWIN_ARGS";
+      };
+    };
+
+    # Not bound to KWin's unit: a test restarts KWin under a running daemon
+    "komorebi@" = {
+      description = "komorebi in the test session %i";
+      requires = [ "session-bus@%i.service" ];
+      after = [
+        "session-bus@%i.service"
+        "kwin-virtual@%i.service"
+      ];
+      environment = {
+        DBUS_SESSION_BUS_ADDRESS = "unix:path=%t/session-%i.bus";
+        WAYLAND_DISPLAY = "wayland-%i";
+        XDG_SESSION_TYPE = "wayland";
+        # the log is read by the test, not a terminal
+        NO_COLOR = "1";
+      };
+      serviceConfig = {
+        # the library writes KOMOREBI_ARGS (the log level) before it starts the unit
+        EnvironmentFile = "-%t/komorebi-%i.env";
+        # a log file per run, emptied on every start, which the library reads
+        ExecStart = "${pkgs.runtimeShell} -c 'exec ${komorebi}/bin/komorebi $${KOMOREBI_ARGS} > %t/komorebi-%i.log 2>&1'";
+        # what komorebi exits with when it is told to stop
+        SuccessExitStatus = 130;
       };
     };
   };

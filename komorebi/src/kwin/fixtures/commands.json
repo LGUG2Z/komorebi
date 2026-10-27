@@ -1,0 +1,3 @@
+[
+    {"after_seq": 7, "batch": {"batch": 1, "cmds": [{"op": "cursor", "token": 1}]}}
+]

@@ -1,0 +1,46 @@
+[
+    {
+        "type": "snapshot", "seq": 1,
+        "windows": [
+            {
+                "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "pid": 4242,
+                "class": "org.kde.kate", "name": "kate", "desktopFile": "org.kde.kate",
+                "caption": "notes.txt — Kate", "normal": true, "minimized": false,
+                "fullscreen": false, "maximized": false,
+                "geo": {"x": 0, "y": 0, "w": 1920, "h": 1050}, "minSize": {"w": 300, "h": 200},
+                "desktops": ["desktop-1"]
+            }
+        ],
+        "screens": [
+            {
+                "name": "DP-1", "manufacturer": "ACME", "model": "M1", "serial": "S1",
+                "geo": {"x": 0, "y": 0, "w": 1920, "h": 1080}, "scale": 1,
+                "area": {"x": 0, "y": 0, "w": 1920, "h": 1050}
+            }
+        ],
+        "active": "{0e5a1c3b-0000-4000-8000-00000000000a}", "cursor": {"x": 481, "y": 525}
+    },
+    {
+        "type": "added", "seq": 2, "id": "{7f3d9e21-0000-4000-8000-00000000000b}", "pid": 4343,
+        "class": "foot", "name": "foot", "desktopFile": "foot", "caption": "a terminal",
+        "normal": true, "minimized": false, "fullscreen": false, "maximized": false,
+        "geo": {"x": 480, "y": 270, "w": 960, "h": 540}, "minSize": {"w": 21, "h": 35},
+        "desktops": ["desktop-1"]
+    },
+    {"type": "activated", "seq": 3, "id": "{7f3d9e21-0000-4000-8000-00000000000b}"},
+    {
+        "type": "added", "seq": 4, "id": "{c4b8a2f0-0000-4000-8000-00000000000c}", "pid": 4242,
+        "class": "org.kde.kate", "name": "kate", "desktopFile": "org.kde.kate",
+        "caption": "Save As — Kate", "normal": false, "minimized": false, "fullscreen": false,
+        "maximized": false, "geo": {"x": 660, "y": 290, "w": 600, "h": 500},
+        "minSize": {"w": 0, "h": 0}, "desktops": ["desktop-1"]
+    },
+    {"type": "minimized", "seq": 5, "id": "{7f3d9e21-0000-4000-8000-00000000000b}", "v": true},
+    {"type": "minimized", "seq": 6, "id": "{7f3d9e21-0000-4000-8000-00000000000b}", "v": false},
+    {
+        "type": "geometry", "seq": 7, "id": "{7f3d9e21-0000-4000-8000-00000000000b}",
+        "geo": {"x": 480, "y": 270, "w": 956, "h": 532}
+    },
+    {"type": "cursor", "seq": 8, "token": 1, "x": 1200, "y": 701},
+    {"type": "removed", "seq": 9, "id": "{7f3d9e21-0000-4000-8000-00000000000b}"}
+]

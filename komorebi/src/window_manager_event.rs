@@ -18,7 +18,7 @@ pub enum SystemNotification {
     KWin(KWinNotification),
 }
 
-/// The signals of the KWin script API an event comes from
+/// The KWin script signals the bridge listens to
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display, PartialEq, Eq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum KWinNotification {

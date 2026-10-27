@@ -56,9 +56,10 @@ fn desktop() -> (Arc<FakeBackend>, WindowManager) {
 
 fn desktop_on(fake: FakeBackend) -> (Arc<FakeBackend>, WindowManager) {
     let fake = Arc::new(fake);
+    let (_sender, receiver) = crossbeam_channel::bounded(1);
 
     let wm = with_backend(fake.clone(), || {
-        let mut wm = WindowManager::new().unwrap();
+        let mut wm = WindowManager::new(receiver).unwrap();
         wm.init().unwrap();
         wm
     });

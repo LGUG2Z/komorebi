@@ -52,6 +52,9 @@ D-Bus session bus) and `kwin-virtual@NAME` (`kwin_wayland --virtual` with its
 own Wayland socket), so a test can run several sessions side by side and none
 touches another. A virtual KWin has no real output, so it cannot draw: it can
 place windows and answer questions about them, but it cannot take a screenshot.
+A third unit, `komorebi@NAME`, runs the daemon in a session, built from the
+commit under test and installed on the node; it is not bound to KWin's unit, so
+a test can restart KWin under a running daemon.
 
 KWin wants a DRM render node, which needs a GPU. The test driver gives every aarch64 guest one
 `virtio-gpu-pci`; on x86_64 the node adds it, unless `komorebi.vm.renderNode` is false.
@@ -92,6 +95,15 @@ the run.
 - `Kde.session(machine, scale=)` attaches to the session node's own Plasma
   session once its desktop is up, and `shot(name)` returns a screenshot as a
   Pillow image, keeping `NAME.png` in the output directory.
+- `activate`, `minimize` and `close` act on a window through `kdotool`, as the
+  user would.
+- `start_komorebi(*args)` starts the daemon in the session, `stop_komorebi()`
+  stops it with `SIGTERM`, `komorebi_log()` returns its log since it was last
+  started, and `script_loaded()` asks KWin whether it runs the bridge.
+- `daemon` reads the daemon's view of the desktop from that log, started with
+  `--log-level debug`: `daemon.events(log)` lists the window events it handled,
+  in order, and `daemon.window_ids(log)` maps a window's title to the daemon's id
+  for it.
 
 Poll for what the test needs with `wait_for`. A fixed sleep is too long on
 KVM and too short on TCG.
@@ -133,7 +145,9 @@ The script prints where the artifacts (screenshots, logs) are, under
 ## Writing a test
 
 1. Create `nix/tests/vm/suites/NAME/default.nix` and `test.py`. Start from
-   [`suites/kwin`](../../nix/tests/vm/suites/kwin).
+   [`suites/kwin`](../../nix/tests/vm/suites/kwin), or from
+   [`suites/kwin-events`](../../nix/tests/vm/suites/kwin-events) for a test that
+   runs the daemon.
 2. Pick the tier. `fast` suites are the pull request gate and should take
    minutes. `slow` suites run on `master` and every night.
 3. Run it: `just vm NAME`.
@@ -150,4 +164,5 @@ Add `git add -N` for new files first: a flake only sees files git knows about.
 build `driverInteractive` instead of `driver`, run it, and call `start_all()`
 and `machine.shell_interact()` at its prompt. In the guest, KWin's own log is
 `journalctl --user -u kwin-virtual@NAME` as the test user, and a KWin script's
-`print()` goes to the same journal.
+`print()` goes to the same journal. The daemon's log is
+`/run/user/1000/komorebi-NAME.log`.

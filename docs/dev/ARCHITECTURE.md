@@ -6,9 +6,9 @@ compositor to put it there. Everything it needs from the compositor is behind on
 tested, without one.
 
 This page describes that trait, who implements and calls it, where each of its rules is
-enforced, the model of the desktop the window manager tiles, and how an event about a
-window becomes a tile. It grows with the code: each part of the daemon that is added has
-its place here.
+enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
+and how an event about a window becomes a tile. It grows with the code: each part of the
+daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -30,6 +30,12 @@ its place here.
   trait that talks to a compositor.
 - **Fake**: [`FakeBackend`](../../komorebi/src/backend/fake.rs), the in-memory backend
   the tests use.
+- **Bridge**: the script komorebi loads into KWin ([`bridge.js`]). It reports what KWin
+  tells it and carries out what the daemon asks.
+- **Table**: the KWin backend's model of the desktop ([`Table`]), which the bridge's events
+  keep up to date and the queries are answered from.
+- **Held call**: the `Poll` call the bridge always has open, which the daemon answers when it
+  has commands for the bridge, or after 10 seconds with none.
 
 ## Design
 
@@ -84,6 +90,52 @@ monitor, and every open window that is normal, alive and not minimized, on the f
 workspace of the monitor its middle is on. After that it changes only when an event comes
 in, and each event ends with the workspace in front tiled again.
 
+## The KWin backend
+
+[`KWinBackend`] is the backend of a real Plasma session. KWin has no protocol that lets
+another process read and set window geometry, so the backend is in two processes:
+
+- **The bridge**, [`bridge.js`], a script KWin runs inside itself. It subscribes to KWin's
+  signals and sends each as a JSON `Event` call over the session bus, and it carries out the
+  commands it gets as the answer to its held `Poll` call. When it starts it sends a snapshot
+  of the desktop. It holds no window manager logic.
+- **The daemon's side**, [`kwin`], owns `org.komorebi.Bridge` on the session bus, with one
+  object for `Event` and one for `Poll`. `Event` calls are handled one at a time, in the order
+  they arrive, and never wait. A `Poll` call is held until there are commands, so that the
+  bridge gets them as soon as they are queued, without a timer and without a call from the
+  daemon into KWin.
+
+Every decision about what an event means is made in the daemon, by the table
+([`kwin::state`]): an event goes in, the table is updated, and what follows comes out, a
+window event for the window manager or the answer to a query. The table is pure (no D-Bus,
+no threads), so the unit tests drive it with the JSON the bridge sends.
+
+The bridge is JavaScript, which no Rust build compiles, and KWin loads the file as it is, so
+it is checked without a build step. `tsc` checks it as strict TypeScript through its JSDoc
+comments, which type every message, against [`kwin-api.d.ts`], the part of KWin's scripting
+API the bridge uses. [`bridge.test.js`] runs it with `node --test` against a fake of that API.
+The two sides share the messages of a session in [`fixtures`]: the bridge's tests check that
+it sends exactly those events, and answer it with those commands, and the Rust tests feed
+the events to the table and check that the backend sends those commands. A change to a
+message on one side fails a test on the other.
+
+The path of an event: a KWin signal, the bridge's handler, `Event(json)` on the session bus,
+[`Table::handle`], a [`WindowManagerEvent`] on the channel of
+[`window_manager_event_listener`], the thread that [`listen_for_events`] starts, and
+[`WindowManager::process_event`]. The queries (`windows`, `window`, `foreground_window`,
+`monitors`) are answered from the table. `cursor_pos` is the exception: only the bridge can
+read the pointer, so it is asked through the held call, and given 250 ms to answer before
+the table's last known position is returned.
+
+The KWin backend only reads the desktop: every command is an error, "the KWin backend only
+reads the desktop", which the window manager logs. When komorebi stops, the backend asks KWin
+to unload the bridge.
+
+[`connect`] makes the backend: it connects to the session bus, loads the bridge into KWin,
+and returns once the snapshot has arrived, so that the window manager reads a full table when
+it starts. [PLATFORM.md](PLATFORM.md) has the D-Bus names, the files and the environment
+variables; [DESIGN.md](DESIGN.md#why-does-komorebi-run-a-script-inside-kwin) has the reasons.
+
 ## The parts
 
 - [`backend`](../../komorebi/src/backend/mod.rs): the trait, the two data types, and the
@@ -105,9 +157,15 @@ in, and each event ends with the workspace in front tiled again.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
   [`process_event`](../../komorebi/src/process_event.rs): the events, and what the window
   manager does with each.
-- [`main.rs`](../../komorebi/src/main.rs): the daemon. It installs the backend chosen on the
-  command line (`--fake-backend` is the only one), loads and tiles the desktop, and waits to
-  be stopped.
+- [`window_manager_event_listener`](../../komorebi/src/window_manager_event_listener.rs): the
+  channel that carries events from the backend to the window manager, and
+  [`listen_for_events`], the thread that takes them off it.
+- [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
+  call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table; and
+  [`bridge.js`](../../komorebi/src/kwin/bridge.js), the bridge.
+- [`main.rs`](../../komorebi/src/main.rs): the daemon. It connects to KWin, or installs the
+  fake with `--fake-backend`, loads and tiles the desktop, starts the thread that handles
+  events, and waits to be stopped.
 
 The handle is a process-wide singleton so that a window can be a small `Copy` value
 that carries only its id, and ask the backend for what it needs. A test replaces it for
@@ -120,7 +178,8 @@ done, also if it panics.
 the fake. The window manager is its only caller, through [`backend`]. The contract:
 
 - Queries (`windows`, `window`, `foreground_window`, `cursor_pos`) answer from the
-  backend's own table and never wait for the compositor. `monitors` may fail.
+  backend's own table and never wait for the compositor, except the KWin backend's
+  `cursor_pos`, which waits up to 250 ms for the bridge. `monitors` may fail.
 - A command returns once the compositor has accepted it, not once the client has acted on
   it. The frame a window ends up with is what `window_rect` says afterwards, because a
   client may refuse a size.
@@ -142,21 +201,36 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A locked container keeps its index | framework path: a [`Workspace`] inserts, removes and swaps its containers through `LockableSequence` | `test_locked_containers_with_new_window` and `test_locked_containers_remove_window` | `containers_mut()` is the `VecDeque` itself |
 | A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone` | none |
 | A destroyed window leaves whichever workspace has it | framework path: the destroy is looked up in the index of managed windows, which is rebuilt at startup and before and after every event | `a_window_that_was_open_before_komorebi_started_is_removed_when_it_closes` | none |
-| The daemon does not start without a backend | startup check: a usage error, exit code 2 | `without_a_backend_komorebi_exits_with_an_error_naming_the_flag` | none |
-| Queries never block on the compositor | convention only | none | none |
+| The daemon does not start without KWin, unless it is told to run against the fake | startup check: [`connect`] fails, and the daemon exits with the error, code 1 | `without_a_session_bus_komorebi_exits_with_an_error_naming_it` | `--fake-backend` |
+| One komorebi per session | startup check: the session bus gives `org.komorebi.Bridge` to one connection | none | none |
+| Events reach the window manager in the order KWin raised them | framework path: the `Event` interface is `spawn = false`, so the calls are handled inline, and one channel and one thread carry the events to the window manager | `vm-kwin-events` ("the Show came first") | none |
+| No event names a window before the event that announces it | convention in the bridge, which announces a window it has not seen when it is activated; the table shows a window once | `a_new_window_raises_show_and_then_focus_in_that_order`, `announcing_the_same_window_twice_shows_it_once`, `vm-kwin-events` | none |
+| A window's id names one window while the daemon runs | framework path: the table numbers each KWin window the first time it sees it, and never gives a number out twice | `ids_are_assigned_once_per_window_and_survive_a_new_snapshot`, `tombstones_are_dropped_after_a_while_and_their_ids_are_not_reused` | none |
+| A backend never waits for the window manager | framework path: an event that does not fit in the channel (20 waiting) is dropped and logged | none | none |
+| The KWin backend changes nothing on the desktop | runtime error: every command returns "the KWin backend only reads the desktop"; type checker: [`kwin-api.d.ts`] declares every property the bridge could set read-only | `vm-kwin-events` ("nothing was moved"), `tsc` | none |
+| The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
+| What the bridge sends is what the table reads | type checker: the JSDoc types of the messages in [`bridge.js`]; tests: the events of [`fixtures`] are what the bridge's tests check it sends and what the table's tests feed it | `what the bridge sends for a session is what the daemon's tests read`, `the_bridges_events_for_a_session_are_the_window_events_komorebi_expects` | none |
+| What the backend sends is what the bridge carries out | tests: the commands of [`fixtures`] are what the backend's tests check it sends and what the bridge's tests answer it with | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read` | none |
+| Everything the bridge sends over D-Bus is one string | type checker: [`kwin-api.d.ts`] gives `callDBus` one string argument | `tsc`, `every call goes to the daemon's names, with one JSON string` | none |
+| The bridge uses nothing a KWin script does not have | type checker: the library is ECMAScript 2016 alone, and KWin's API is what [`kwin-api.d.ts`] declares | `tsc` | a declaration KWin does not match: the VM tests run the bridge in KWin |
+| Queries never block on the compositor | convention only | none | the KWin backend's `cursor_pos` waits up to 250 ms |
 | Only the backend module reaches the compositor | convention only | none | none |
 
-The last two rows are rules nothing checks. A real backend that waits inside a query
-breaks the first, and a module that talks to D-Bus directly breaks the second.
+The rows enforced by convention are rules nothing checks. A real backend that waits inside a
+query breaks one of them, a module that talks to D-Bus directly breaks another, and a bridge
+that decides something in JavaScript breaks a third: the bridge's tests check what it sends,
+not that it decides nothing.
 
 ## One event, end to end
 
 A window is shown, and ends up on a tile:
 
-1. The event is a [`WindowManagerEvent`]`::Show` carrying the window and the compositor
-   signal it came from. The end-to-end tests build it and call
-   [`WindowManager::process_event`], which hands it to `handle_event` and logs how long
-   that took.
+1. KWin raises `windowAdded`. The bridge sends an `added` event with what KWin says about
+   the window, and [`Table::handle`] gives the window an id, records it, and returns a
+   [`WindowManagerEvent`]`::Show` carrying the window and the compositor signal it came
+   from. The event goes on the channel, and the event thread calls
+   [`WindowManager::process_event`], which hands it to `handle_event` and logs how long that
+   took. The end-to-end tests build the event themselves and call `process_event`.
 2. `handle_event` asks [`Window::should_manage`], which asks the backend's `window(id)`
    whether the window is alive and normal. If it is not, the event changes nothing.
 3. The index of managed windows is rebuilt from the containers. If the workspace in front
@@ -171,7 +245,8 @@ A window is shown, and ends up on a tile:
 6. `Workspace::update` asks the layout for one tile per container, clamps each to the work
    area, and calls [`Window::set_position`] for each window, which is the backend's
    `set_rect`. The fake puts the window there at once; the frame a window ends up with is
-   what `window_rect` says afterwards.
+   what `window_rect` says afterwards. The KWin backend refuses, and the window stays where
+   KWin put it.
 7. If the new container is the only one, the window is given the focus with the backend's
    `focus`, and the pointer follows it.
 8. The index is rebuilt again, so the next event finds the window.
@@ -188,7 +263,17 @@ A window is shown, and ends up on a tile:
 - [`komorebi/src/monitor.rs`](../../komorebi/src/monitor.rs): the work area, padding and
   offset a monitor gives the workspace it shows.
 - [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
-  does.
+  does, and the thread that handles them.
+- [`komorebi/src/kwin/mod.rs`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus
+  service and the held call.
+- [`komorebi/src/kwin/state.rs`](../../komorebi/src/kwin/state.rs): the table, with the
+  shapes of the bridge's events, and its tests.
+- [`komorebi/src/kwin/bridge.js`](../../komorebi/src/kwin/bridge.js): the bridge, with the
+  types of its messages; [`kwin-api.d.ts`] and
+  [`tsconfig.json`](../../komorebi/src/kwin/tsconfig.json), what `tsc` checks it against;
+  [`bridge.test.js`], its tests; [`fixtures`], the messages both sides' tests read.
+- [`nix/tests/vm/suites/kwin-events`](../../nix/tests/vm/suites/kwin-events/test.py): the
+  daemon against a real KWin.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
   driven end to end against the fake.
 
@@ -212,3 +297,15 @@ A window is shown, and ends up on a tile:
 [`WindowManager::process_event`]: ../../komorebi/src/process_event.rs
 [`WindowManager::update_focused_workspace`]: ../../komorebi/src/window_manager.rs
 [`WindowManagerEvent`]: ../../komorebi/src/window_manager_event.rs
+[`window_manager_event_listener`]: ../../komorebi/src/window_manager_event_listener.rs
+[`listen_for_events`]: ../../komorebi/src/process_event.rs
+[`KWinBackend`]: ../../komorebi/src/kwin/mod.rs
+[`connect`]: ../../komorebi/src/kwin/mod.rs
+[`kwin`]: ../../komorebi/src/kwin/mod.rs
+[`kwin::state`]: ../../komorebi/src/kwin/state.rs
+[`Table`]: ../../komorebi/src/kwin/state.rs
+[`Table::handle`]: ../../komorebi/src/kwin/state.rs
+[`bridge.js`]: ../../komorebi/src/kwin/bridge.js
+[`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts
+[`bridge.test.js`]: ../../komorebi/src/kwin/bridge.test.js
+[`fixtures`]: ../../komorebi/src/kwin/fixtures

@@ -5,11 +5,17 @@ fmt:
     cargo fmt
 
 # everything a change has to pass before it is pushed
-check: lint
+check: lint check-js
     cargo fmt --check
     cargo clippy --workspace --all-targets --locked -- -D warnings
     cargo test --workspace --locked
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
+
+# the KWin bridge, which is JavaScript: its types, checked by tsc from its JSDoc comments, and its
+# tests, which node runs against a fake KWin (no package.json, no build step)
+check-js:
+    cd komorebi/src/kwin && tsc -p tsconfig.json
+    node --test komorebi/src/kwin/bridge.test.js
 
 # the macros the codebase has agreed not to use
 lint:

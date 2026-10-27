@@ -37,11 +37,27 @@ provides the Rust toolchain, a nightly `rustfmt` and the tools the checks use.
 formatter is a nightly one.
 
 `just check` runs everything a change has to pass before it is pushed: the
-formatting check, clippy with warnings denied, the tests, and rustdoc with
-warnings denied. `just fmt` formats the Rust sources, and `nix fmt` every file
+formatting check, clippy with warnings denied, the tests, rustdoc with warnings
+denied, and the checks of the bridge. `just fmt` formats the Rust sources, and `nix fmt` every file
 type the repository has. `nix flake check` builds the same checks, plus
 `cargo deny`, as derivations; on Linux it also boots every VM test, which needs
 KVM.
+
+## The bridge
+
+[`bridge.js`](komorebi/src/kwin/bridge.js), the script komorebi loads into
+KWin, is JavaScript that KWin runs as it is: there is no package.json and no
+build step. Its types are JSDoc comments, which `tsc` checks against
+[`kwin-api.d.ts`](komorebi/src/kwin/kwin-api.d.ts), the part of KWin's
+scripting API the bridge uses; something the bridge starts to use is declared
+there first. Its tests, [`bridge.test.js`](komorebi/src/kwin/bridge.test.js),
+run under `node --test` against a fake KWin. `just check-js` runs both, with the
+`tsc` and `node` of the dev shell.
+
+The messages between the bridge and the daemon are in
+[`komorebi/src/kwin/fixtures`](komorebi/src/kwin/fixtures), which the tests of
+both sides read. A change to a message changes the fixture, the bridge and the
+daemon in the same commit.
 
 ## VM tests
 

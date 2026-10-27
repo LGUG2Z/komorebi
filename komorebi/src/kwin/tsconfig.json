@@ -1,0 +1,22 @@
+{
+    // Checks bridge.js as KWin runs it, as strict TypeScript through its JSDoc comments, against
+    // the declarations of KWin's API in kwin-api.d.ts. Nothing is emitted. `lib` is ECMAScript
+    // 2016, the edition Qt's JavaScript engine implements, and nothing else, so the globals of a
+    // browser or of node (`setTimeout`, `console`) are errors. Beyond `strict`: an unused local, a
+    // function that does not return on every path, a switch case that falls through and code that
+    // cannot be reached are errors too.
+    "compilerOptions": {
+        "target": "es2016",
+        "lib": ["es2016"],
+        "types": [],
+        "allowJs": true,
+        "checkJs": true,
+        "noEmit": true,
+        "strict": true,
+        "noUnusedLocals": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "allowUnreachableCode": false
+    },
+    "files": ["bridge.js", "kwin-api.d.ts"]
+}

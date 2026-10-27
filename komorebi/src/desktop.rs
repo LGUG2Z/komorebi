@@ -19,7 +19,8 @@
 //! let fake = Arc::new(FakeBackend::with_one_monitor());
 //! fake.open_window(1, "foot", "foot", "a terminal");
 //!
-//! let mut wm = WindowManager::new()?;
+//! let (_sender, events) = crossbeam_channel::bounded(1);
+//! let mut wm = WindowManager::new(events)?;
 //! with_backend(fake, || {
 //!     load_monitor_information(&mut wm)?;
 //!     load_workspace_information(&mut wm)
@@ -103,7 +104,8 @@ pub fn latest_monitor_information() -> eyre::Result<Vec<Monitor>> {
 /// use komorebi::window_manager::WindowManager;
 ///
 /// let fake = Arc::new(FakeBackend::with_one_monitor());
-/// let mut wm = WindowManager::new()?;
+/// let (_sender, events) = crossbeam_channel::bounded(1);
+/// let mut wm = WindowManager::new(events)?;
 ///
 /// with_backend(fake, || {
 ///     load_monitor_information(&mut wm)?;
@@ -159,7 +161,8 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
 /// fake.open_window(2, "foot", "foot", "a dialog");
 /// fake.set_normal(2, false);
 ///
-/// let mut wm = WindowManager::new()?;
+/// let (_sender, events) = crossbeam_channel::bounded(1);
+/// let mut wm = WindowManager::new(events)?;
 /// with_backend(fake, || {
 ///     load_monitor_information(&mut wm)?;
 ///     load_workspace_information(&mut wm)

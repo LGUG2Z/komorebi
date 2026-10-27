@@ -13,10 +13,20 @@ feature-depth = 1
 [advisories]
 ignore = [
   { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml comes with serde_yaml, which komorebi-layouts reads Windows-only custom layouts with; nothing here calls it" },
+  { id = "RUSTSEC-2026-0370", reason = "zvariant is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
 ]
 
 [licenses]
-allow = ["Apache-2.0", "MIT", "Unicode-3.0", "Zlib", "LicenseRef-Komorebi-2.0"]
+allow = [
+  "Apache-2.0",
+  "MIT",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "Zlib",
+  "LicenseRef-Komorebi-2.0",
+]
 confidence-threshold = 0.8
 
 [[licenses.clarify]]

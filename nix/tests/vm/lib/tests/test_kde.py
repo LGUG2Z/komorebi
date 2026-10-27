@@ -135,3 +135,54 @@ def test_shot_returns_the_screenshot_as_rgb(machine: FakeMachine) -> None:
     assert image.size == (4, 4)
     assert image.getpixel((0, 0)) == (10, 20, 30)
     assert (machine.out_dir / "desktop.png").exists()
+
+
+def test_start_komorebi_writes_the_arguments_and_starts_the_unit(machine: FakeMachine) -> None:
+    Kde(machine, "main").start_komorebi("--log-level", "debug")
+
+    scripts = [inner(command) for command in machine.commands if " sh -c " in command]
+    assert "echo KOMOREBI_ARGS='--log-level debug' > /run/user/1000/komorebi-main.env" in scripts
+    assert "systemctl --user start komorebi@main.service" in scripts
+
+
+def test_the_log_is_the_file_of_the_session_and_empty_before_a_start(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("cat /run/user/1000/komorebi-main.log", output="a line\n")
+    assert Kde(machine, "main").komorebi_log() == "a line\n"
+
+    machine.replies.clear()
+    machine.reply("cat /run/user/1000/komorebi-main.log", status=1, output="")
+    assert Kde(machine, "main").komorebi_log() == ""
+
+
+def test_komorebi_running_asks_the_user_manager(machine: FakeMachine) -> None:
+    machine.reply("is-active --quiet komorebi@main.service", status=3)
+    assert not Kde(machine, "main").komorebi_running()
+
+    machine.replies.clear()
+    assert Kde(machine, "main").komorebi_running()
+
+
+def test_script_loaded_reads_the_answer_of_kwin(machine: FakeMachine) -> None:
+    machine.reply("isScriptLoaded s komorebi-bridge", output="b true\n")
+    assert Kde(machine, "main").script_loaded()
+
+    machine.replies.clear()
+    machine.reply("isScriptLoaded s komorebi-bridge", output="b false\n")
+    assert not Kde(machine, "main").script_loaded()
+
+
+def test_window_actions_go_through_kdotool_inside_the_session(machine: FakeMachine) -> None:
+    kde = Kde(machine, "main")
+
+    kde.activate("{a}")
+    kde.minimize("{a}")
+    kde.close("{a}")
+
+    assert [inner(command) for command in machine.commands] == [
+        "kdotool windowactivate '{a}'",
+        "kdotool windowminimize '{a}'",
+        "kdotool windowclose '{a}'",
+    ]
+    assert all("WAYLAND_DISPLAY=wayland-main" in command for command in machine.commands)

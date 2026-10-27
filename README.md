@@ -11,12 +11,19 @@ moving and the drawing.
 ```sh
 nix develop
 cargo run --bin komorebi --locked -- --version
+cargo run --bin komorebi --locked -- --log-level debug
 cargo run --bin komorebi --locked -- --fake-backend
 ```
 
-`--fake-backend` runs the window manager against an in-memory desktop with one
-monitor and no windows, and logs what it does until it is stopped with Ctrl-C.
-Without a backend, `komorebi` exits with a usage error.
+Inside a Plasma Wayland session, `komorebi` loads a script into KWin, reads the
+monitors and the windows that are open, and logs every window that opens,
+closes, takes the focus, is minimized or comes back, until it is stopped with
+Ctrl-C. It reads the desktop and does not change it: every attempt to move
+a window is logged as refused. It needs KWin 6.8 or newer;
+[`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md) has what it expects of the
+session. Outside a Plasma session it exits with an error that says what is
+missing. `--fake-backend` runs the window manager against an in-memory desktop
+with one monitor and no windows instead.
 
 `nix develop` provides the Rust toolchain that [`rust-toolchain.toml`](rust-toolchain.toml)
 selects, a nightly `rustfmt`, and the tools `just check` and the flake's checks
@@ -29,12 +36,13 @@ without a checkout of the toolchain.
 - [`komorebi`](komorebi): the daemon, and the library behind it. The library has
   the vocabulary the window manager is written in (`core`), the `Backend` trait
   through which it reaches a compositor and the in-memory desktop the tests use
-  (`backend`), the model of what it tiles (`monitor`, `workspace`, `container`,
-  `window`), the window manager that keeps the model (`window_manager`), loads
-  it from the backend (`desktop`) and changes it when the compositor reports an
-  event (`window_manager_event`, `process_event`), the `Ring` that holds
-  monitors, workspaces and containers, and the lists in which some elements are
-  locked in place.
+  (`backend`), the backend that reaches KWin through a script it runs (`kwin`),
+  the model of what it tiles (`monitor`, `workspace`, `container`, `window`), the
+  window manager that keeps the model (`window_manager`), loads it from the
+  backend (`desktop`) and changes it when the compositor reports an event
+  (`window_manager_event`, `window_manager_event_listener`, `process_event`), the
+  `Ring` that holds monitors, workspaces and containers, and the lists in which
+  some elements are locked in place.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -43,11 +51,12 @@ a git dependency at the revision `Cargo.toml` pins.
 
 ## Checks
 
-`just check` runs the formatting check, clippy with warnings denied, the tests
-and rustdoc with warnings denied, inside `nix develop`. `nix flake check` runs
-the same checks as derivations, plus `cargo deny`, the TOML and Nix formatting,
-and the tests under `cargo nextest`, on Linux and on an Apple silicon Mac. On
-Linux it also boots every VM test, which needs KVM. A Mac
+`just check` runs the formatting check, clippy with warnings denied, the tests,
+rustdoc with warnings denied, and the type check and tests of the bridge (no
+package.json: `tsc` and `node` come from the dev shell), inside `nix develop`.
+`nix flake check` runs the same checks as derivations, plus `cargo deny`, the
+TOML and Nix formatting, and the tests under `cargo nextest`, on Linux and on an
+Apple silicon Mac. On Linux it also boots every VM test, which needs KVM. A Mac
 runs the tests against the fake desktop, since KWin only exists on Linux.
 `nix fmt` formats every file the checks look at.
 
@@ -63,6 +72,13 @@ so the window manager logic runs against a real compositor and against an
 in-memory fake desktop alike. [`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md)
 describes the trait and where each of its rules is enforced.
 
+On KDE Plasma the backend is in two parts. A script that komorebi loads into
+KWin, the bridge, reports what KWin sees over the session bus, and carries out
+the commands it is given as the answer to a call it holds open. The daemon keeps
+a table of the windows and monitors from those reports, answers the window
+manager's questions from it, and turns each report into an event for the window
+manager.
+
 The window manager models the desktop as monitors, each with a ring of
 workspaces, each with a ring of containers, each with a ring of windows. A
 workspace's layout gives each of its containers a tile of the monitor's work
@@ -77,8 +93,9 @@ tiles the workspace in front again.
 `cargo doc --workspace --no-deps --open` builds the API documentation.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) says how to work on the code.
 [`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md) describes the model,
-[`docs/dev/DESIGN.md`](docs/dev/DESIGN.md) says why it is built that way, and
-[`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work.
+[`docs/dev/DESIGN.md`](docs/dev/DESIGN.md) says why it is built that way,
+[`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md) what it needs from KDE Plasma,
+and [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work.
 
 ## License
 

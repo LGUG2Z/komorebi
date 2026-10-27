@@ -13,9 +13,11 @@ use crate::desktop;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window::Window;
+use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::Workspace;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use crossbeam_channel::Receiver;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -23,6 +25,9 @@ pub struct WindowManager {
     pub monitors: Ring<Monitor>,
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
+    /// The events the backend has reported and the window manager has yet to handle, from
+    /// [`crate::window_manager_event_listener`]
+    pub incoming_events: Receiver<WindowManagerEvent>,
     pub minimized_windows: HashMap<u32, Window>,
     /// Maps each known window id to the (monitor, workspace) index pair managing it
     pub known_window_ids: HashMap<u32, (usize, usize)>,
@@ -31,13 +36,14 @@ pub struct WindowManager {
 impl_ring_elements!(WindowManager, Monitor);
 
 impl WindowManager {
-    /// Returns a window manager with no monitors: [`WindowManager::init`] loads them from the
-    /// backend
-    pub fn new() -> eyre::Result<Self> {
+    /// Returns a window manager with no monitors, which handles the events that arrive on
+    /// `incoming`: [`WindowManager::init`] loads the monitors from the backend
+    pub fn new(incoming: Receiver<WindowManagerEvent>) -> eyre::Result<Self> {
         Ok(Self {
             monitors: Ring::default(),
             mouse_follows_focus: true,
             work_area_offset: None,
+            incoming_events: incoming,
             minimized_windows: HashMap::new(),
             known_window_ids: Default::default(),
         })
@@ -202,8 +208,10 @@ mod tests {
     use std::sync::Arc;
 
     fn setup_window_manager() -> WindowManager {
+        let (_sender, receiver) = crossbeam_channel::bounded(1);
+
         // Create a new WindowManager instance
-        let wm = WindowManager::new();
+        let wm = WindowManager::new(receiver);
 
         // Window Manager should be created successfully
         assert!(wm.is_ok());
