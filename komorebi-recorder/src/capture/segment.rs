@@ -13,7 +13,7 @@
 //! | [`FrameLog`] | the `frames-<display>[-<n>].csv` file: when each frame was shown and received, and a row for each repeat |
 //! | [`keepalive_due`], [`KEEPALIVE_AFTER`], [`KEEPALIVE_SOURCE_TIMEOUT_NS`] | when a display that has shown nothing new needs its last frame repeated |
 //! | [`Latency`] | the clock-unification check, as [`LatencyStats`] |
-//! | [`even`], [`h264_bitrate`], [`rebased_100ns`] | the encoding's size and bitrate, and the file's unit of time |
+//! | [`even`], [`h264_size`], [`h264_bitrate`], [`rebased_100ns`] | the encoding's size and bitrate, and the file's unit of time |
 //!
 //! # Who uses it
 //!
@@ -80,6 +80,45 @@ const MIN_STEP_NS: u64 = 1_000_000;
 pub fn even(value: f64) -> usize {
     let value = value.round().max(2.0) as usize;
     value & !1
+}
+
+/// The longest side H.264 can have: level 5.2, which is as far as hardware encoders go, allows
+/// 4096 x 2304.
+const H264_LONG_SIDE: f64 = 4096.0;
+/// The longest the shorter side of a frame can be: see [`H264_LONG_SIDE`].
+const H264_SHORT_SIDE: f64 = 2304.0;
+
+/// Returns the size to encode a screen of `width` x `height` pixels at: the screen's own size
+/// (made even) when H.264 can take it, and otherwise the largest even size with the same shape
+/// that it can.
+///
+/// An H.264 encoder refuses a frame bigger than 4096 x 2304 (either way round), which a 5K
+/// ultrawide or an 8K display is. Only the Windows backend calls it: the macOS encoder scales for
+/// itself.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::capture::segment::h264_size;
+///
+/// assert_eq!(h264_size(1920, 1080), (1920, 1080));
+/// assert_eq!(h264_size(3840, 2160), (3840, 2160));
+/// // Odd sizes are made even, as ever.
+/// assert_eq!(h264_size(1919, 1081), (1918, 1080));
+/// // A 5K ultrawide is brought down to the width H.264 allows.
+/// assert_eq!(h264_size(5120, 2160), (4096, 1728));
+/// // And so is a tall one.
+/// assert_eq!(h264_size(2160, 5120), (1728, 4096));
+/// assert_eq!(h264_size(7680, 4320), (4096, 2304));
+/// ```
+#[must_use]
+pub fn h264_size(width: usize, height: usize) -> (usize, usize) {
+    let (width, height) = (width as f64, height as f64);
+    let (long, short) = (width.max(height), width.min(height));
+    let scale = (H264_LONG_SIDE / long)
+        .min(H264_SHORT_SIDE / short)
+        .min(1.0);
+    (even(width * scale), even(height * scale))
 }
 
 /// Returns the bitrate to encode a screen of this size at, in bits per second.

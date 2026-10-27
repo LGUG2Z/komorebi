@@ -69,6 +69,7 @@ use super::segment::Latency;
 use super::segment::Placement;
 use super::segment::even;
 use super::segment::h264_bitrate;
+use super::segment::h264_size;
 use super::segment::keepalive_due;
 use super::video_file_name;
 use crate::clock;
@@ -95,13 +96,29 @@ use windows::Win32::Graphics::Direct3D11::D3D11_BOX;
 use windows::Win32::Graphics::Direct3D11::D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 use windows::Win32::Graphics::Direct3D11::D3D11_CREATE_DEVICE_VIDEO_SUPPORT;
 use windows::Win32::Graphics::Direct3D11::D3D11_SDK_VERSION;
+use windows::Win32::Graphics::Direct3D11::D3D11_TEX2D_VPIV;
+use windows::Win32::Graphics::Direct3D11::D3D11_TEX2D_VPOV;
 use windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE2D_DESC;
 use windows::Win32::Graphics::Direct3D11::D3D11_USAGE_DEFAULT;
+use windows::Win32::Graphics::Direct3D11::D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
+use windows::Win32::Graphics::Direct3D11::D3D11_VIDEO_PROCESSOR_CONTENT_DESC;
+use windows::Win32::Graphics::Direct3D11::D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC;
+use windows::Win32::Graphics::Direct3D11::D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC_0;
+use windows::Win32::Graphics::Direct3D11::D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC;
+use windows::Win32::Graphics::Direct3D11::D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC_0;
+use windows::Win32::Graphics::Direct3D11::D3D11_VIDEO_PROCESSOR_STREAM;
+use windows::Win32::Graphics::Direct3D11::D3D11_VIDEO_USAGE_PLAYBACK_NORMAL;
+use windows::Win32::Graphics::Direct3D11::D3D11_VPIV_DIMENSION_TEXTURE2D;
+use windows::Win32::Graphics::Direct3D11::D3D11_VPOV_DIMENSION_TEXTURE2D;
 use windows::Win32::Graphics::Direct3D11::D3D11CreateDevice;
 use windows::Win32::Graphics::Direct3D11::ID3D11Device;
 use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext;
 use windows::Win32::Graphics::Direct3D11::ID3D11Multithread;
 use windows::Win32::Graphics::Direct3D11::ID3D11Texture2D;
+use windows::Win32::Graphics::Direct3D11::ID3D11VideoContext;
+use windows::Win32::Graphics::Direct3D11::ID3D11VideoDevice;
+use windows::Win32::Graphics::Direct3D11::ID3D11VideoProcessor;
+use windows::Win32::Graphics::Direct3D11::ID3D11VideoProcessorEnumerator;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_SAMPLE_DESC;
 use windows::Win32::Graphics::Dxgi::IDXGIDevice;
@@ -226,6 +243,34 @@ impl Gpu {
         width: u32,
         height: u32,
     ) -> eyre::Result<ID3D11Texture2D> {
+        let texture = self.texture(width, height)?;
+        let region = D3D11_BOX {
+            left: 0,
+            top: 0,
+            front: 0,
+            right: width,
+            bottom: height,
+            back: 1,
+        };
+        // SAFETY: a copy between textures of the same device, and the immediate context is
+        // protected for use from many threads
+        unsafe {
+            self.context.CopySubresourceRegion(
+                &texture,
+                0,
+                0,
+                0,
+                0,
+                source,
+                0,
+                Some(&raw const region),
+            );
+        }
+        Ok(texture)
+    }
+
+    /// An empty texture of our own, a frame's size.
+    fn texture(&self, width: u32, height: u32) -> eyre::Result<ID3D11Texture2D> {
         let description = D3D11_TEXTURE2D_DESC {
             Width: width,
             Height: height,
@@ -241,34 +286,110 @@ impl Gpu {
             ..Default::default()
         };
 
-        // SAFETY: the texture is created from a valid description; the copy is between textures
-        // of the same device, and the immediate context is protected for use from many threads
+        // SAFETY: the texture is created from a valid description
         unsafe {
             let mut texture = None;
             self.device
                 .CreateTexture2D(&raw const description, None, Some(&raw mut texture))
                 .wrap_err("could not allocate a frame")?;
-            let texture = texture.ok_or_else(|| eyre::Report::msg("no frame texture"))?;
+            texture.ok_or_else(|| eyre::Report::msg("no frame texture"))
+        }
+    }
+}
 
-            let region = D3D11_BOX {
-                left: 0,
-                top: 0,
-                front: 0,
-                right: width,
-                bottom: height,
-                back: 1,
+/// Scales frames down on the GPU, for a display too big for H.264 (see [`h264_size`]).
+struct Scaler {
+    device: ID3D11VideoDevice,
+    context: ID3D11VideoContext,
+    enumerator: ID3D11VideoProcessorEnumerator,
+    processor: ID3D11VideoProcessor,
+}
+
+impl Scaler {
+    fn new(gpu: &Gpu, from: (u32, u32), to: (u32, u32)) -> eyre::Result<Self> {
+        let description = D3D11_VIDEO_PROCESSOR_CONTENT_DESC {
+            InputFrameFormat: D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE,
+            InputWidth: from.0,
+            InputHeight: from.1,
+            OutputWidth: to.0,
+            OutputHeight: to.1,
+            Usage: D3D11_VIDEO_USAGE_PLAYBACK_NORMAL,
+            ..Default::default()
+        };
+        // SAFETY: creation calls on the capture's device with a valid description
+        unsafe {
+            let device: ID3D11VideoDevice = gpu.device.cast()?;
+            let context: ID3D11VideoContext = gpu.context.cast()?;
+            let enumerator = device
+                .CreateVideoProcessorEnumerator(&raw const description)
+                .wrap_err("could not create a video processor to scale frames")?;
+            let processor = device
+                .CreateVideoProcessor(&enumerator, 0)
+                .wrap_err("could not create a video processor to scale frames")?;
+            Ok(Self {
+                device,
+                context,
+                enumerator,
+                processor,
+            })
+        }
+    }
+
+    /// Scales all of `source` to fill `target`.
+    fn scale(&self, source: &ID3D11Texture2D, target: &ID3D11Texture2D) -> eyre::Result<()> {
+        let input_description = D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC {
+            FourCC: 0,
+            ViewDimension: D3D11_VPIV_DIMENSION_TEXTURE2D,
+            Anonymous: D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC_0 {
+                Texture2D: D3D11_TEX2D_VPIV {
+                    MipSlice: 0,
+                    ArraySlice: 0,
+                },
+            },
+        };
+        let output_description = D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC {
+            ViewDimension: D3D11_VPOV_DIMENSION_TEXTURE2D,
+            Anonymous: D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC_0 {
+                Texture2D: D3D11_TEX2D_VPOV { MipSlice: 0 },
+            },
+        };
+
+        // SAFETY: views of textures of the device the processor was made on; the stream holds
+        // its own reference to the input view for the call
+        unsafe {
+            let mut input = None;
+            self.device
+                .CreateVideoProcessorInputView(
+                    source,
+                    &self.enumerator,
+                    &raw const input_description,
+                    Some(&raw mut input),
+                )
+                .wrap_err("could not read a frame to scale it")?;
+            let mut output = None;
+            self.device
+                .CreateVideoProcessorOutputView(
+                    target,
+                    &self.enumerator,
+                    &raw const output_description,
+                    Some(&raw mut output),
+                )
+                .wrap_err("could not write a scaled frame")?;
+            let output = output.ok_or_else(|| eyre::Report::msg("no scaled frame view"))?;
+
+            let stream = D3D11_VIDEO_PROCESSOR_STREAM {
+                Enable: true.into(),
+                pInputSurface: std::mem::ManuallyDrop::new(input),
+                ..Default::default()
             };
-            self.context.CopySubresourceRegion(
-                &texture,
-                0,
-                0,
-                0,
-                0,
-                source,
-                0,
-                Some(&raw const region),
-            );
-            Ok(texture)
+            let streams = [stream];
+            let blt = self
+                .context
+                .VideoProcessorBlt(&self.processor, &output, 0, &streams);
+            // takes back the reference the stream held, so that the view is released
+            let [stream] = streams;
+            drop(std::mem::ManuallyDrop::into_inner(stream.pInputSurface));
+            blt.wrap_err("could not scale a frame")
         }
     }
 }
@@ -419,7 +540,10 @@ struct Shared {
     stats: Arc<CaptureStats>,
     state: Mutex<State>,
     gpu: Gpu,
-    /// The size the segment is recorded at, in pixels (the source's, made even).
+    /// Brings frames down to the size they are recorded at, when the source is too big for H.264.
+    scaler: Option<Scaler>,
+    /// The size the segment is recorded at, in pixels (the source's, made even, and scaled down
+    /// if H.264 cannot take it).
     width: u32,
     height: u32,
     /// The size of the display when the capture began: a frame of any other size means it changed.
@@ -483,7 +607,19 @@ fn frame_into_file(
     let access: IDirect3DDxgiInterfaceAccess = surface.cast()?;
     // SAFETY: a capture surface is a texture of the capture's device
     let source: ID3D11Texture2D = unsafe { access.GetInterface()? };
-    let texture = shared.gpu.copy(&source, shared.width, shared.height)?;
+    let texture = match &shared.scaler {
+        Some(scaler) => {
+            let whole = shared.gpu.copy(
+                &source,
+                shared.source.Width as u32,
+                shared.source.Height as u32,
+            )?;
+            let scaled = shared.gpu.texture(shared.width, shared.height)?;
+            scaler.scale(&whole, &scaled)?;
+            scaled
+        }
+        None => shared.gpu.copy(&source, shared.width, shared.height)?,
+    };
     let buffer = buffer_of(&texture)?;
 
     let mut state = shared.state.lock();
@@ -602,12 +738,22 @@ impl DisplayCapture {
         crate::platform::media::start()?;
         let item = item_for(display)?;
         let size = item.Size()?;
-        let (width, height) = (
-            u32::try_from(even(f64::from(size.Width)))?,
-            u32::try_from(even(f64::from(size.Height)))?,
-        );
+        let evened = (even(f64::from(size.Width)), even(f64::from(size.Height)));
+        let (width, height) = h264_size(evened.0, evened.1);
+        let (width, height) = (u32::try_from(width)?, u32::try_from(height)?);
 
         let gpu = Gpu::new()?;
+        // a display H.264 cannot take is scaled down; any other has the top left of it recorded
+        // (which is all of it, unless its size is odd)
+        let scaler = if (width as usize, height as usize) == evened {
+            None
+        } else {
+            Some(Scaler::new(
+                &gpu,
+                (size.Width as u32, size.Height as u32),
+                (width, height),
+            )?)
+        };
         let file = video_file_name(display.id, segment);
         let frames_file = frames_file_name(display.id, segment);
         let path = dir.join(&file);
@@ -627,6 +773,7 @@ impl DisplayCapture {
                 finished: false,
             }),
             gpu,
+            scaler,
             width,
             height,
             source: size,
