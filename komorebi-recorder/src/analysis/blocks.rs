@@ -421,6 +421,7 @@ fn push_for<'a>(
 ///     state_id: None,
 ///     info: Flavor::Macos.rules().describe_event(&moved),
 ///     parse_error: None,
+///     probe: None,
 /// }];
 ///
 /// // the log names the subscriber the push went to, so the pairing is exact
@@ -549,6 +550,7 @@ mod tests {
             state_id: None,
             info: Flavor::Macos.rules().describe_event(&value),
             parse_error: None,
+            probe: None,
         }
     }
 

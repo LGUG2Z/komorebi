@@ -28,6 +28,7 @@ pub mod logparse;
 pub mod lookup;
 pub mod os_trace;
 pub mod overview;
+pub mod probed;
 pub mod schemas;
 pub mod search;
 pub mod sheet;

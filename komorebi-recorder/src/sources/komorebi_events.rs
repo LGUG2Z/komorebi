@@ -52,6 +52,8 @@ use crate::komorebi_link::Message;
 use crate::komorebi_link::SubscribeOptions;
 use crate::komorebi_link::UnixListener;
 use crate::komorebi_link::UnixStream;
+use crate::sources::winprobe::EventProber;
+use crate::sources::winprobe::WindowFacts;
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
 use crossbeam_channel::Receiver;
@@ -153,6 +155,11 @@ pub struct EventRow {
     /// The payload as text, with any invalid UTF-8 replaced. Present only in an unreadable row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub raw: Option<String>,
+    /// What Windows said about the window the event is about, when recording with
+    /// `--probe-windows` (see `crate::sources::winprobe`). Absent for events that are not about a
+    /// window, and on every row of a recording made without the probe.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub probe: Option<WindowFacts>,
 }
 
 /// Something the app-discovery logic wants to know about as it happens, sent by the writer thread.
@@ -288,6 +295,21 @@ impl EventRecorder {
     ///
     /// An error from the subscription itself is not one of them.
     pub fn start(dir: &Path, discovery: Option<Sender<Discovery>>) -> eyre::Result<Self> {
+        Self::start_with(dir, discovery, None)
+    }
+
+    /// [`EventRecorder::start`], with a prober that reads the real state of the window each event is
+    /// about (`--probe-windows`). It runs on the writer thread, which is also where the events are
+    /// parsed: the accept thread does nothing but receive.
+    ///
+    /// # Errors
+    ///
+    /// The same as [`EventRecorder::start`].
+    pub fn start_with(
+        dir: &Path,
+        discovery: Option<Sender<Discovery>>,
+        prober: Option<EventProber>,
+    ) -> eyre::Result<Self> {
         std::fs::create_dir_all(dir.join("states"))?;
 
         let name = format!("komorebi-recorder-{}", std::process::id());
@@ -311,12 +333,14 @@ impl EventRecorder {
         let writer = std::thread::Builder::new()
             .name("komorebi-events-write".to_string())
             .spawn(move || {
+                let mut prober = prober;
                 write_loop(
                     &rx,
                     events_file,
                     &states_dir,
                     &writer_counters,
                     discovery.as_ref(),
+                    prober.as_mut(),
                 )
             })?;
 
@@ -470,6 +494,7 @@ fn write_loop(
     states_dir: &Path,
     counters: &EventCounters,
     discovery: Option<&Sender<Discovery>>,
+    mut prober: Option<&mut EventProber>,
 ) {
     let mut events = BufWriter::new(events_file);
     let mut previous_state: Option<Value> = None;
@@ -508,6 +533,11 @@ fn write_loop(
                     previous_state = Some(state);
                 }
 
+                let probe = prober
+                    .as_mut()
+                    .zip(event.as_ref())
+                    .and_then(|(prober, event)| prober.probe(event, clock::mono_now_ns()));
+
                 EventRow {
                     seq: raw.seq,
                     recv_wall_us: raw.recv_wall_us,
@@ -516,6 +546,7 @@ fn write_loop(
                     state_id: (state_id > 0).then_some(state_id),
                     parse_error: None,
                     raw: None,
+                    probe,
                 }
             }
             Err(error) => {
@@ -528,6 +559,7 @@ fn write_loop(
                     state_id: (state_id > 0).then_some(state_id),
                     parse_error: Some(error.to_string()),
                     raw: Some(String::from_utf8_lossy(&raw.bytes).into_owned()),
+                    probe: None,
                 }
             }
         };
@@ -601,9 +633,11 @@ mod tests {
             state_id: Some(2),
             parse_error: None,
             raw: None,
+            probe: None,
         };
         let text = serde_json::to_string(&row).expect("serialize");
         assert!(!text.contains("parse_error"));
+        assert!(!text.contains("probe"));
         let back: EventRow = serde_json::from_str(&text).expect("parse");
         assert_eq!(back.seq, 3);
         assert_eq!(back.state_id, Some(2));
@@ -644,6 +678,7 @@ mod tests {
             &dir.join("states"),
             &counters,
             None,
+            None,
         );
 
         assert_eq!(counters.events.load(Ordering::Relaxed), 4);
@@ -669,5 +704,71 @@ mod tests {
         assert!(dir.join("states/000001.json").exists());
         assert!(dir.join("states/000002.json").exists());
         assert!(!dir.join("states/000003.json").exists());
+    }
+
+    #[test]
+    fn the_writer_stores_what_the_prober_read_beside_the_event_it_is_about() {
+        let dir = std::env::temp_dir().join(format!(
+            "komorebi-recorder-events-probe-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("states")).expect("dir");
+
+        let window = serde_json::json!({"hwnd": 131072, "title": "t", "exe": "a.exe", "class": "C",
+            "rect": {"left": 0, "top": 0, "right": 1, "bottom": 1}});
+        let (tx, rx) = crossbeam_channel::unbounded();
+        let send = |seq: u64, event: &str| {
+            tx.send(RawNotification {
+                seq,
+                recv_wall_us: 1,
+                recv_mach_ns: seq * 1000,
+                bytes: format!(r#"{{"event":{event},"state":{{"a":1}}}}"#).into_bytes(),
+            })
+            .expect("send");
+        };
+        send(
+            1,
+            &serde_json::json!({"type": "FocusChange", "content": ["SystemForeground", window]})
+                .to_string(),
+        );
+        // a command that happens to carry a number is not about a window
+        send(2, r#"{"type":"DebugWindow","content":131072}"#);
+        drop(tx);
+
+        let mut prober = EventProber::new(
+            |hwnd| {
+                Some(WindowFacts {
+                    hwnd,
+                    at_ns: 0,
+                    exists: true,
+                    visible: true,
+                    cloaked: true,
+                    minimized: false,
+                    rect: None,
+                    komorebi_says: None,
+                })
+            },
+            |_| None,
+        );
+        write_loop(
+            &rx,
+            File::create(dir.join("events.jsonl")).expect("file"),
+            &dir.join("states"),
+            &EventCounters::default(),
+            None,
+            Some(&mut prober),
+        );
+
+        let rows: Vec<EventRow> = std::fs::read_to_string(dir.join("events.jsonl"))
+            .expect("events")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("row"))
+            .collect();
+        let probe = rows[0].probe.as_ref().expect("the window event was probed");
+        assert_eq!((probe.hwnd, probe.cloaked), (131_072, true));
+        assert!(probe.at_ns > 0, "stamped when it was read");
+        assert!(rows[1].probe.is_none(), "a command is not about a window");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

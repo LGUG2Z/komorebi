@@ -1065,6 +1065,40 @@ pub fn trace_text(data: &TraceData) -> String {
         let _ = writeln!(out, "\nwrong before this event, and not after:");
         violation_lines(&mut out, &data.violations_resolved);
     }
+    if let Some(probe) = &data.window_probe {
+        let facts = &probe.facts;
+        let _ = writeln!(
+            out,
+            "\nwhat Windows said about window {} ({:.0} ms after the event):",
+            facts.hwnd, probe.read_after_ms
+        );
+        let _ = writeln!(
+            out,
+            "  exists {}, visible {}, cloaked {}, minimized {}{}",
+            facts.exists,
+            facts.visible,
+            facts.cloaked,
+            facts.minimized,
+            facts
+                .rect
+                .map_or_else(String::new, |[left, top, right, bottom]| format!(
+                    ", at {}x{} ({left}, {top})",
+                    right - left,
+                    bottom - top
+                ))
+        );
+        if let Some(says) = &facts.komorebi_says {
+            let _ = writeln!(out, "  komorebi says:");
+            for line in says.lines() {
+                let _ = writeln!(out, "    {line}");
+            }
+        }
+        if probe.violations.is_empty() {
+            let _ = writeln!(out, "  which agrees with komorebi's state");
+        } else {
+            violation_lines(&mut out, &probe.violations);
+        }
+    }
     if let Some(os) = &data.os_trace {
         os_trace_text(&mut out, os);
     }

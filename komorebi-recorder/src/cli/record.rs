@@ -62,6 +62,13 @@ pub struct RecordArgs {
     /// Do not capture komorebi's log or events (video and OS trace only)
     #[arg(long)]
     pub no_komorebi: bool,
+    /// komorebi for Windows hides a window by cloaking it in place, which its state cannot show.
+    /// With this, each window event is followed by a read of what Windows says about that window
+    /// (visible, cloaked, minimized, where it is) and, now and then, komorebi's own answer to "would
+    /// you manage this window, and why", so that a window komorebi shows but Windows has hidden (or
+    /// the reverse) can be found. Windows only
+    #[arg(long)]
+    pub probe_windows: bool,
     /// Do not capture the screen: record everything else (komorebi's events and log, the OS
     /// trace and incidents) on the same clock
     #[arg(long, conflicts_with = "displays")]
@@ -106,6 +113,7 @@ impl Default for RecordArgs {
             codec: Codec::default(),
             no_komorebi: false,
             no_video: false,
+            probe_windows: false,
             no_oslog: false,
             oslog_apps: AppsMode::Managed,
             oslog_all: false,
@@ -170,6 +178,7 @@ impl RecordArgs {
             duration: self.duration.map(Duration::from_secs_f64),
             no_komorebi: self.no_komorebi,
             no_video: self.no_video,
+            probe_windows: self.probe_windows,
         }
     }
 }

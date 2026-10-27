@@ -408,6 +408,7 @@ impl Analysis {
     pub fn findings(&self) -> eyre::Result<Vec<Finding>> {
         let mut found = Vec::new();
         self.find_state_problems(&mut found)?;
+        self.find_probed_problems(&mut found)?;
         self.find_event_problems(&mut found);
         self.find_log_problems(&mut found);
         self.find_incidents(&mut found);

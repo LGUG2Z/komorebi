@@ -12,8 +12,11 @@
 //! again on Windows: windows are created after the last call (the viewer opened from the recorder,
 //! a dialog), so the request to be left out of captures is repeated. On macOS it does nothing.
 //!
+//! [`inspect`] is a separate matter: it reads what Windows says about any window handle, for the
+//! per-event probe (`crate::sources::winprobe`), and is `None` on every other host.
 
 use crate::komorebi_link;
+use crate::sources::winprobe::WindowFacts;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -33,6 +36,35 @@ const PROBE_AFTER: Duration = Duration::from_secs(3);
 /// real machine whether the window is left alone, and what komorebi says if not. On a host that
 /// has no such windows the file says so.
 pub const PROBE_VARIABLE: &str = "KOMOREBI_RECORDER_PROBE_WINDOW";
+
+/// Returns what Windows says about the window with handle `hwnd` right now (see
+/// `crate::sources::winprobe`), or `None` on a host that has no such windows to ask about.
+///
+/// On Windows the answer is always `Some`, even for a handle that names no window: that is a
+/// `WindowFacts` whose `exists` is `false`. The rect it carries is the visible frame, which is how
+/// komorebi reads one, so the two can be compared. `at_ns` and `komorebi_says` are not filled in;
+/// the prober that calls this sets them.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::platform::window::inspect;
+///
+/// // only Windows has windows to ask about
+/// assert_eq!(inspect(0x20000).is_some(), cfg!(windows));
+/// ```
+#[must_use]
+pub fn inspect(hwnd: u32) -> Option<WindowFacts> {
+    #[cfg(windows)]
+    {
+        super::win::window::inspect(hwnd)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = hwnd;
+        None
+    }
+}
 
 /// Per-window housekeeping for a window's update loop. Call [`tick`](Chrome::tick) on every frame:
 /// it is cheap, and does something about once a second.

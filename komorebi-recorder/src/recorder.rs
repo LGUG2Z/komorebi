@@ -52,6 +52,7 @@ use crate::sources::oslog;
 use crate::sources::oslog::OsLogLevel;
 use crate::sources::oslog::StreamLive;
 use crate::sources::oslog::StreamSet;
+use crate::sources::winprobe::EventProber;
 use crate::sources::wintrace::TraceSet;
 use crate::system_state;
 use crate::system_state::SessionTracker;
@@ -166,6 +167,10 @@ pub struct RecordOptions {
     /// Do not capture the screen: everything else is recorded, on the same clock. For a headless
     /// machine, or when what is on the screen must not be recorded.
     pub no_video: bool,
+    /// After each komorebi window event, read what Windows says about that window (visible,
+    /// cloaked, minimized, where) and, now and then, ask komorebi whether it manages it. komorebi
+    /// for Windows hides windows by cloaking them in place, which `State` cannot show.
+    pub probe_windows: bool,
 }
 
 /// Where a recording is in its life.
@@ -726,6 +731,13 @@ impl<'a> Recording<'a> {
     /// Start every source, in the order that makes the non-video sources a superset of the video.
     #[allow(clippy::too_many_lines)]
     fn begin(options: &'a RecordOptions, live: &'a Live) -> eyre::Result<Self> {
+        if options.probe_windows && !cfg!(windows) {
+            eyre::bail!(
+                "--probe-windows reads the state of komorebi for Windows' windows from Windows, \
+                 and this is not Windows"
+            );
+        }
+
         // without video there is no screen to ask about, or permission to ask for
         let present = if options.no_video {
             Vec::new()
@@ -947,7 +959,8 @@ impl<'a> Recording<'a> {
         let events = if options.no_komorebi {
             None
         } else {
-            match EventRecorder::start(&session.dir, Some(discovery_tx)) {
+            let prober = options.probe_windows.then(EventProber::windows);
+            match EventRecorder::start_with(&session.dir, Some(discovery_tx), prober) {
                 Ok(recorder) => {
                     manifest.komorebi.subscriber = Some(recorder.subscriber_name().to_string());
                     Some(recorder)

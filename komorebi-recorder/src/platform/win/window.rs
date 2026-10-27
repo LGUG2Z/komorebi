@@ -10,17 +10,26 @@
 //! |---|---|
 //! | [`exclude_from_capture`] | asking for this process's windows to be left out of captures |
 //! | [`own_window_handles`] | the handles of those windows, as komorebi knows windows |
+//! | [`inspect`] | what Windows says about any window, for the per-event probe |
 //!
 //! This module is not part of the facade: [`crate::platform::window`], which is shared by every
 //! host, calls it. Nothing tests it automatically; it acts on real windows, and is checked on a
 //! real machine (see `docs/dev/windows-checkpoints.md`).
 
+use crate::sources::winprobe::WindowFacts;
 use std::ffi::c_void;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
+use windows::Win32::Foundation::RECT;
+use windows::Win32::Graphics::Dwm::DWMWA_CLOAKED;
+use windows::Win32::Graphics::Dwm::DWMWA_EXTENDED_FRAME_BOUNDS;
+use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+use windows::Win32::UI::WindowsAndMessaging::IsIconic;
+use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowDisplayAffinity;
 use windows::Win32::UI::WindowsAndMessaging::WDA_EXCLUDEFROMCAPTURE;
@@ -72,4 +81,64 @@ pub fn exclude_from_capture() -> usize {
             .is_ok()
         })
         .count()
+}
+
+/// Returns what Windows says about the window with handle `hwnd` right now: whether it exists, is
+/// visible, cloaked or minimized, and where it is. The rect is the visible frame
+/// (`DWMWA_EXTENDED_FRAME_BOUNDS`, or `GetWindowRect` if that cannot be read), which is how
+/// komorebi reads one, so the two can be compared.
+///
+/// This is always `Some`: a handle that names no window is a [`WindowFacts`] with `exists` false
+/// and nothing else read. `at_ns` and `komorebi_says` are left for the caller to fill in. It is
+/// reached through [`crate::platform::window::inspect`].
+#[must_use]
+pub fn inspect(hwnd: u32) -> Option<WindowFacts> {
+    let window = HWND(hwnd as usize as *mut c_void);
+    let mut facts = WindowFacts {
+        hwnd,
+        at_ns: 0,
+        exists: false,
+        visible: false,
+        cloaked: false,
+        minimized: false,
+        rect: None,
+        komorebi_says: None,
+    };
+
+    // SAFETY: queries about a handle that may be stale, which they report as a failure; every out
+    // pointer is valid for its call
+    unsafe {
+        if !IsWindow(Some(window)).as_bool() {
+            return Some(facts);
+        }
+
+        facts.exists = true;
+        facts.visible = IsWindowVisible(window).as_bool();
+        facts.minimized = IsIconic(window).as_bool();
+
+        // non-zero for a window cloaked by the shell (another virtual desktop), by its application,
+        // or by komorebi
+        let mut cloaked = 0_u32;
+        let _ = DwmGetWindowAttribute(
+            window,
+            DWMWA_CLOAKED,
+            (&raw mut cloaked).cast(),
+            size_of::<u32>() as u32,
+        );
+        facts.cloaked = cloaked != 0;
+
+        let mut frame = RECT::default();
+        let framed = DwmGetWindowAttribute(
+            window,
+            DWMWA_EXTENDED_FRAME_BOUNDS,
+            (&raw mut frame).cast(),
+            size_of::<RECT>() as u32,
+        )
+        .is_ok();
+        if framed || GetWindowRect(window, &raw mut frame).is_ok() {
+            facts.rect = Some([frame.left, frame.top, frame.right, frame.bottom]);
+        }
+    }
+
+    Some(facts)
 }

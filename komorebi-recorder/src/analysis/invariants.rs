@@ -46,6 +46,7 @@ use super::state::Place;
 use super::state::Rect;
 use super::state::Snapshot;
 use super::state::Window;
+use crate::sources::winprobe::WindowFacts;
 use schemars::JsonSchema;
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -130,6 +131,207 @@ fn about(mut found: Violation, monitor_id: u64, workspace: Option<&str>) -> Viol
 
 fn name(window: &Window) -> String {
     format!("{} \"{}\" (window {})", window.exe, window.title, window.id)
+}
+
+/// Whether komorebi's state says a window should be on screen: `Some(true)` for the window in front
+/// on a workspace that is showing, `Some(false)` for one that should be hidden (another workspace,
+/// a tab behind the front one, something else filling the workspace), `None` where the state does
+/// not say (a floating window).
+fn should_be_shown(snapshot: &Snapshot, location: &Location) -> Option<bool> {
+    if !location.workspace_visible {
+        return Some(false);
+    }
+
+    let workspace = snapshot
+        .monitors
+        .iter()
+        .find(|monitor| monitor.id == location.monitor_id)?
+        .workspaces
+        .iter()
+        .find(|workspace| workspace.name == location.workspace)?;
+
+    match location.place {
+        Place::Container { index, tab } => {
+            if workspace.monocle.is_some() || workspace.maximized.is_some() {
+                // one window fills the workspace and the tiled ones are put away
+                return Some(false);
+            }
+            Some(workspace.containers.get(index)?.focused == tab)
+        }
+        Place::Monocle { tab } => Some(workspace.monocle.as_ref()?.focused == tab),
+        Place::Maximized => Some(true),
+        Place::Floating { .. } => None,
+    }
+}
+
+/// Checks what Windows reported about one window against komorebi's state after the event about it.
+///
+/// Only komorebi for Windows has this to check: it hides a window by cloaking it where it is, so
+/// `State` cannot show whether a window really is hidden. `facts` is what the probe read just
+/// after the event (see `WindowFacts` in `crate::sources::winprobe`), `snapshot` the state
+/// komorebi sent with it, and `exe` the program the event named, used only to name a window
+/// komorebi does not have. The result is empty if:
+///
+/// - the window no longer exists (`facts.exists` is `false`), since a destroyed window is nobody's
+///   business;
+/// - komorebi is paused, since it is not managing windows;
+/// - `snapshot` is from komorebi for Mac, whose hidden windows are found by [`check`].
+///
+/// Otherwise the window, found in the state by its handle, is judged:
+///
+/// - `visible-window-hidden` (error): komorebi has the window in front on a workspace that is
+///   showing, and Windows has it cloaked, minimized or not visible;
+/// - `hidden-window-visible` (warn): komorebi has it put away (on a workspace that is not
+///   showing, behind the front tab of its container, or behind a monocle or maximized window), and
+///   Windows has it shown on a monitor;
+/// - `unmanaged-window` (info): komorebi does not have it at all, and Windows has it shown. It is
+///   not a fault in itself, since most dialogs and tooltips are rightly left alone, so it is
+///   information, with komorebi's own explanation when the probe asked for one. Only the first
+///   non-blank line of that explanation is quoted.
+///
+/// A window in a floating place is not judged either way, since the state does not say whether a
+/// floating window should be showing.
+///
+/// A window komorebi is mid-way through moving can be caught in between: like every violation this
+/// is evidence, and one that does not last is reported as the transition it probably was (see
+/// `overview`). The function does not fail or panic.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::flavor::Flavor;
+/// use komorebi_recorder::analysis::invariants::Severity;
+/// use komorebi_recorder::analysis::invariants::check_probed;
+/// use komorebi_recorder::analysis::state::Snapshot;
+/// use komorebi_recorder::sources::winprobe::WindowFacts;
+/// use komorebi_recorder::testkit::windows_state;
+/// use komorebi_recorder::testkit::windows_window;
+///
+/// // komorebi has Chrome in front on the workspace that is showing ...
+/// let state = windows_state(
+///     65_537,
+///     vec![vec![windows_window(131_072, "chrome.exe", Some([0, 0, 960, 1040]))]],
+/// );
+/// let snapshot = Snapshot::parse(Flavor::Windows, &state);
+///
+/// // ... and Windows says it is cloaked
+/// let facts = WindowFacts {
+///     hwnd: 131_072,
+///     at_ns: 0,
+///     exists: true,
+///     visible: true,
+///     cloaked: true,
+///     minimized: false,
+///     rect: Some([0, 0, 960, 1040]),
+///     komorebi_says: None,
+/// };
+/// let found = check_probed(&snapshot, &facts, Some("chrome.exe"));
+/// assert_eq!(found.len(), 1);
+/// assert_eq!(found[0].kind, "visible-window-hidden");
+/// assert_eq!(found[0].severity, Severity::Error);
+/// assert!(found[0].message.contains("cloaked"));
+///
+/// // a visible window komorebi does not have is information
+/// let stray = WindowFacts { hwnd: 999, cloaked: false, ..facts.clone() };
+/// let found = check_probed(&snapshot, &stray, Some("dialog.exe"));
+/// assert_eq!(found[0].kind, "unmanaged-window");
+/// assert_eq!(found[0].severity, Severity::Info);
+///
+/// // a state from komorebi for Mac is not judged by what Windows says
+/// let mac = Snapshot::parse(Flavor::Macos, &state);
+/// assert!(check_probed(&mac, &facts, None).is_empty());
+/// ```
+///
+/// Covered by the unit tests of `analysis::probed` and by
+/// `tests/windows_flavor.rs::a_window_komorebi_shows_that_windows_cloaked_is_a_finding_in_the_overview`.
+#[must_use]
+pub fn check_probed(snapshot: &Snapshot, facts: &WindowFacts, exe: Option<&str>) -> Vec<Violation> {
+    if !facts.exists || snapshot.paused || snapshot.hides_windows_by_position() {
+        return Vec::new();
+    }
+
+    let id = u64::from(facts.hwnd);
+    let named = |window: Option<&Window>| match (window, exe) {
+        (Some(window), _) => name(window),
+        (None, Some(exe)) => format!("{exe} window {id}"),
+        (None, None) => format!("window {id}"),
+    };
+
+    let found = snapshot
+        .windows()
+        .into_iter()
+        .find(|(_, window)| window.id == id);
+    let Some((location, window)) = found else {
+        if !facts.shown() {
+            return Vec::new();
+        }
+
+        let why = facts
+            .komorebi_says
+            .as_deref()
+            .and_then(|says| says.lines().map(str::trim).find(|line| !line.is_empty()))
+            .map_or_else(String::new, |line| format!("; komorebi says: {line}"));
+        return vec![violation(
+            "unmanaged-window",
+            Severity::Info,
+            format!(
+                "{} is on screen but komorebi does not manage it{why}",
+                named(None)
+            ),
+            vec![id],
+            None,
+        )];
+    };
+
+    match should_be_shown(snapshot, &location) {
+        Some(true) => facts
+            .hidden_how()
+            .map(|how| {
+                violation(
+                    "visible-window-hidden",
+                    Severity::Error,
+                    format!(
+                        "{} is in front on {}, which is showing, but Windows has it {how}",
+                        named(Some(window)),
+                        location.describe()
+                    ),
+                    vec![id],
+                    Some(&location),
+                )
+            })
+            .into_iter()
+            .collect(),
+        Some(false) if facts.shown() => {
+            let on_screen = facts.rect.is_none_or(|[left, top, right, bottom]| {
+                let rect = Rect {
+                    left: i64::from(left),
+                    top: i64::from(top),
+                    width: i64::from(right - left),
+                    height: i64::from(bottom - top),
+                };
+                snapshot
+                    .monitors
+                    .iter()
+                    .any(|monitor| monitor.size.overlap_area(&rect) > 0)
+            });
+            if !on_screen {
+                return Vec::new();
+            }
+
+            vec![violation(
+                "hidden-window-visible",
+                Severity::Warn,
+                format!(
+                    "{} is on {}, which is not showing its windows, but Windows has it on screen",
+                    named(Some(window)),
+                    location.describe()
+                ),
+                vec![id],
+                Some(&location),
+            )]
+        }
+        _ => Vec::new(),
+    }
 }
 
 /// Checks one state and returns every violation found, most serious first.

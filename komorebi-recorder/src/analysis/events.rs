@@ -22,6 +22,7 @@
 use super::flavor::Rules;
 use crate::session::Session;
 use crate::sources::komorebi_events::EventRow;
+use crate::sources::winprobe::WindowFacts;
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
 use schemars::JsonSchema;
@@ -177,6 +178,10 @@ pub struct EventRecord {
     /// Why the notification's JSON could not be parsed, if it could not. Such a record has
     /// [`Family::Unknown`] and the name `unreadable`.
     pub parse_error: Option<String>,
+    /// The facts Windows reported about the event's window just after it, when the recording was
+    /// made with `--probe-windows`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub probe: Option<WindowFacts>,
 }
 
 impl EventRecord {
@@ -234,6 +239,7 @@ impl EventRecord {
             state_id: row.state_id,
             info,
             parse_error: row.parse_error.clone(),
+            probe: row.probe.clone(),
         }
     }
 }

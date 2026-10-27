@@ -57,6 +57,7 @@ struct PendingEvent {
     video_s: f64,
     event: Value,
     state: Option<Value>,
+    probe: Option<crate::sources::winprobe::WindowFacts>,
 }
 
 /// A session under construction. Times are seconds of video time.
@@ -151,7 +152,18 @@ impl SessionBuilder {
             video_s,
             event,
             state,
+            probe: None,
         });
+        self
+    }
+
+    /// What Windows said about the window of the event added last, as a recording made with
+    /// `--probe-windows` stores it.
+    #[must_use]
+    pub fn probe(mut self, facts: crate::sources::winprobe::WindowFacts) -> Self {
+        if let Some(last) = self.events.last_mut() {
+            last.probe = Some(facts);
+        }
         self
     }
 
@@ -263,6 +275,7 @@ impl SessionBuilder {
                 state_id: (state_id > 0).then_some(state_id),
                 parse_error: None,
                 raw: None,
+                probe: pending.probe.clone(),
             };
             rows.push_str(&serde_json::to_string(&row).expect("row"));
             rows.push('\n');

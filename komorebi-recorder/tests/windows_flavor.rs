@@ -171,3 +171,113 @@ fn a_mac_session_does_not_get_that_warning() {
         "{warnings:?}"
     );
 }
+
+/// A recording made with `--probe-windows` of komorebi showing a window that Windows has cloaked.
+fn probed_session(name: &str) -> String {
+    use komorebi_recorder::sources::winprobe::WindowFacts;
+
+    let state = windows_state(
+        65_537,
+        vec![vec![windows_window(
+            131_072,
+            "chrome.exe",
+            Some([0, 0, 960, 1040]),
+        )]],
+    );
+    let cloaked = |at_ns| WindowFacts {
+        hwnd: 131_072,
+        at_ns,
+        exists: true,
+        visible: true,
+        cloaked: true,
+        minimized: false,
+        rect: Some([0, 0, 960, 1040]),
+        komorebi_says: Some("would manage: yes\n  matched: none".to_string()),
+    };
+    let focus = || {
+        json!({"type": "FocusChange", "content": ["SystemForeground",
+            windows_window(131_072, "chrome.exe", Some([0, 0, 960, 1040]))]})
+    };
+
+    let (session, _) = SessionBuilder::new(name)
+        .flavor(Flavor::Windows)
+        .event(2.0, focus(), Some(state.clone()))
+        .probe(cloaked(komorebi_recorder::testkit::mach_ns(2.01)))
+        .event(4.0, focus(), Some(state))
+        .probe(cloaked(komorebi_recorder::testkit::mach_ns(4.01)))
+        .build();
+    session.dir.display().to_string()
+}
+
+#[test]
+fn a_window_komorebi_shows_that_windows_cloaked_is_a_finding_in_the_overview() {
+    let dir = probed_session("windows-flavor-probed-overview");
+    let answer = run(&["overview", &dir, "--json"]);
+    let findings = answer["data"]["findings"].as_array().expect("findings");
+    let found = findings
+        .iter()
+        .find(|finding| finding["kind"] == "invariant:visible-window-hidden")
+        .unwrap_or_else(|| panic!("no such finding in {findings:#?}"));
+
+    assert_eq!(found["severity"], "error");
+    assert!(
+        found["summary"]
+            .as_str()
+            .is_some_and(|text| text.contains("cloaked")),
+        "{found}"
+    );
+    assert_eq!(found["window_ids"][0], 131_072);
+}
+
+#[test]
+fn a_trace_shows_what_windows_said_and_what_that_says_about_komorebis_state() {
+    let dir = probed_session("windows-flavor-probed-trace");
+    let trace = run(&["trace", &dir, "event:1", "--json"]);
+    let probe = &trace["data"]["window_probe"];
+    assert_eq!(probe["facts"]["cloaked"], true);
+    assert_eq!(probe["violations"][0]["kind"], "visible-window-hidden");
+
+    let text = Command::new(env!("CARGO_BIN_EXE_komorebi-recorder"))
+        .args(["trace", &dir, "event:1"])
+        .output()
+        .expect("run");
+    let text = String::from_utf8_lossy(&text.stdout);
+    assert!(
+        text.contains("what Windows said about window 131072"),
+        "{text}"
+    );
+    assert!(text.contains("cloaked true"), "{text}");
+    assert!(text.contains("komorebi says:"), "{text}");
+}
+
+#[test]
+fn a_recording_without_probes_says_nothing_about_them() {
+    let dir = session("windows-flavor-unprobed");
+    let trace = run(&["trace", &dir, "event:1", "--json"]);
+    assert!(trace["data"].get("window_probe").is_none(), "{trace}");
+}
+
+#[cfg(not(windows))]
+#[test]
+fn a_host_that_is_not_windows_refuses_to_probe_windows_before_it_records_anything() {
+    let out = std::env::temp_dir().join(format!("komorebi-probe-refused-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&out);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_komorebi-recorder"))
+        .args([
+            "record",
+            "--probe-windows",
+            "--no-video",
+            "--duration",
+            "1",
+            "--out",
+        ])
+        .arg(&out)
+        .output()
+        .expect("run");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("not Windows"), "{stderr}");
+    assert!(!out.exists(), "no session was started");
+}

@@ -165,6 +165,25 @@ pub struct TraceData {
     /// [`Analysis::trace`] always leaves it `None`, and the caller fills it in.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os_trace: Option<super::os_trace::OsTraceData>,
+    /// Windows' account of the event's window just after it, checked against komorebi's state:
+    /// only for a recording made with `--probe-windows`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_probe: Option<ProbeView>,
+}
+
+/// A window as Windows reported it, and the problems that makes in komorebi's state.
+///
+/// Only a session recorded with `record --probe-windows` has these, and only for events about a
+/// window. See [`check_probed`](super::invariants::check_probed) for what is compared.
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
+pub struct ProbeView {
+    /// Windows' account of the window (a `WindowFacts` from `crate::sources::winprobe`).
+    pub facts: crate::sources::winprobe::WindowFacts,
+    /// How long after the event it was read, in milliseconds: the longer, the less it shows. `0` if
+    /// it was read before the event was received.
+    pub read_after_ms: f64,
+    /// The problems the facts show in komorebi's state, if any: empty when they agree.
+    pub violations: Vec<Violation>,
 }
 
 fn spans_of(line: &Line) -> String {
@@ -450,6 +469,25 @@ impl Analysis {
             violations_resolved: resolved,
             notes,
             os_trace: None,
+            window_probe: self.window_probe(index),
+        })
+    }
+
+    /// What Windows said about event `index`'s window, if it was asked, checked against the state
+    /// komorebi reported with the event.
+    fn window_probe(&self, index: usize) -> Option<ProbeView> {
+        let event = self.events().get(index)?;
+        let facts = event.probe.clone()?;
+        let violations = event
+            .state_id
+            .and_then(|state_id| self.snapshot(state_id).ok())
+            .map(|snapshot| invariants::check_probed(&snapshot, &facts, event.info.exe.as_deref()))
+            .unwrap_or_default();
+
+        Some(ProbeView {
+            read_after_ms: facts.at_ns.saturating_sub(event.recv_mach_ns) as f64 / 1e6,
+            facts,
+            violations,
         })
     }
 

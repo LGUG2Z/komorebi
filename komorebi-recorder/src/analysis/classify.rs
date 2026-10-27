@@ -148,6 +148,7 @@ fn class_of(event: &EventRecord, rules: &dyn Rules) -> Classification {
 ///     state_id: Some(state_id),
 ///     info: rules.describe_event(&value),
 ///     parse_error: None,
+///     probe: None,
 /// };
 ///
 /// let moved = json!({
@@ -245,6 +246,7 @@ mod tests {
             state_id,
             info: Flavor::Macos.rules().describe_event(&value),
             parse_error: None,
+            probe: None,
         }
     }
 
