@@ -688,7 +688,15 @@ mod tests {
         assert!(text.contains("QueryPerformanceCounter"));
         assert!(!text.contains("unified log"), "{text}");
 
-        let mac = readme(Path::new("/tmp/s"), &self::tests::manifest());
+        // a Mac's, whichever host runs this test
+        let mut mac_manifest = self::tests::manifest();
+        mac_manifest.host = Some(Host {
+            os: "macos".to_string(),
+            arch: "aarch64".to_string(),
+            os_version: Some("26.0".to_string()),
+            clock: crate::platform::ClockKind::Mach,
+        });
+        let mac = readme(Path::new("/tmp/s"), &mac_manifest);
         assert!(mac.contains("macOS unified log"));
     }
 
@@ -785,7 +793,7 @@ mod tests {
     fn the_readme_embeds_the_session_path_and_every_query() {
         let text = readme(Path::new("/tmp/a b/session"), &manifest());
         assert!(
-            text.contains("'/tmp/a b/session'"),
+            text.contains(&shell_quote("/tmp/a b/session")),
             "paths with spaces are quoted"
         );
         for command in [

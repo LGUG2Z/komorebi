@@ -248,7 +248,9 @@ mod tests {
         let dir = temp("pidfile");
         let _lock = RecorderLock::acquire(&dir).expect("acquire");
 
-        // Windows would refuse to read a file that is locked, so the pid cannot live in it
+        // Windows would refuse to read a file that is locked, so the pid cannot live in it (and
+        // this test cannot read it there either)
+        #[cfg(unix)]
         assert_eq!(
             std::fs::read_to_string(dir.join(LOCK_FILE)).expect("lock file"),
             ""
@@ -261,6 +263,8 @@ mod tests {
         );
     }
 
+    // an older build only ever ran on a Mac, and Windows cannot read a pid out of a locked file
+    #[cfg(unix)]
     #[test]
     fn a_pid_written_into_the_lock_file_by_an_older_build_is_still_read() {
         let dir = temp("legacy");
