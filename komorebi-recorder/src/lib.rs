@@ -50,6 +50,7 @@
 //! | [`session`] | the session directory and its manifest |
 //! | [`capture`] | capturing the screen into segments of video |
 //! | [`power`] and [`system_state`] | sleep, wake, lock and display changes |
+//! | [`timeline`] and [`frames`] | the time-sorted index of a session and the frame times of its video |
 //!
 //! # What is not supported
 //!
@@ -65,6 +66,7 @@
 pub mod analysis;
 pub mod capture;
 pub mod clock;
+pub mod frames;
 pub mod incidents;
 pub mod komorebi_link;
 pub mod lock;
@@ -74,3 +76,4 @@ pub mod session;
 pub mod sources;
 pub mod system_state;
 pub mod timecode;
+pub mod timeline;

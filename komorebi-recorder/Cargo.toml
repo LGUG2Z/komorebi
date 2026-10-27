@@ -12,6 +12,7 @@ color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
 dirs = { workspace = true }
 parking_lot = { workspace = true }
+png = "0.18"
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

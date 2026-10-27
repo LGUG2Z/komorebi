@@ -77,6 +77,9 @@ only when they changed), and what happened to the recording itself (`recorder.js
 The OS trace is under `oslog/`, one file per stream.
 Each display's video is `video-<id>[-<n>].mp4` with a `frames-<id>[-<n>].csv` beside it holding every frame's timestamp,
 one segment to a file: a display that is unplugged and returns starts a new segment instead of extending the old one.
+`timeline.jsonl` is the only derived file: a time-sorted index of every record that points into the raw files by byte
+range. Anything that happens to the recorder leaves the raw files readable, and the index is rebuilt from them with
+`reindex`. The file formats are specified on the `session` and `timeline` modules.
 
 ## Recording
 
@@ -101,3 +104,4 @@ backend that docks and undocks without hardware.
 | A running recorder can be told from one that died | the OS: an exclusive lock on `recorder.lock`, held for as long as the recorder runs and dropped by the OS when the process ends however it ends |
 | A manifest from a newer build is not read | a runtime error when the manifest is read, covered by `rejects_manifests_from_the_future` |
 | A manifest is never half-written | write to a temporary file and rename |
+| The raw files are never rewritten | convention: the index only references them, and `reindex` rebuilds the index from them |
