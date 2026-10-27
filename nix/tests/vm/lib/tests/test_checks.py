@@ -28,6 +28,6 @@ def test_finish_raises_only_when_something_failed(capsys: pytest.CaptureFixture[
     assert "passed: 1 failed: 0" in capsys.readouterr().out
 
     checks.check("broken", False)
-    with pytest.raises(AssertionError, match="1 checks failed"):
+    with pytest.raises(AssertionError, match="^1 checks failed: broken$"):
         checks.finish()
     assert "passed: 1 failed: 1" in capsys.readouterr().out

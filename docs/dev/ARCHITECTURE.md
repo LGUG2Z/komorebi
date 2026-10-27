@@ -1655,6 +1655,28 @@ read and left out (a warning) and how many bindings are not realized as their ow
 the ones `kde::diff` says that plan would write. It reads no file the desktop has no part in, so
 `--configuration-only` keeps it.
 
+### The engine in the daemon
+
+[`komorebi/src/kwin/hotkeys.rs`](../../komorebi/src/kwin/hotkeys.rs) runs the engine against
+kglobalaccel, on a session bus connection and a thread of its own. The daemon reads the file
+it is given with `--keybindings` (or the first it finds in the config directory), plans it in
+`--keybindings-mode`, and hands the plan's engine keymap to `kwin::hotkeys::start`, unless the
+plan needs no engine. A failure to start is logged, and the window manager runs without keys.
+
+- **Calls**: each effect becomes calls on `/kglobalaccel` (`Registry`): an activation is
+  `setShortcutKeys(id, [[combo]], 6)`, preceded by `doRegister` the first time; a deactivation
+  is `setInactive`. The calls of one event are sent together, and only those for one action
+  wait for each other.
+- **Signals**: `globalShortcutPressed` and `globalShortcutReleased` of `/component/komorebi`
+  are the engine's presses and releases. `globalShortcutRepeated` is not listened to.
+- **Commands**: a `komorebic` command runs `komorebic` (the one next to the daemon) with its
+  words when it needs no shell, and anything else runs through `sh -c`, as processes the
+  daemon does not wait for.
+- **Start**: the component's actions that the keymap names are taken over, and released
+  unless the default mode wants them; the others are unregistered.
+- **Stop**: every key is released and every action unregistered, from
+  `KWinBackend::shutdown`, which every way the daemon stops goes through.
+
 ### What is guaranteed, and by what
 
 | Rule | Enforced by | Proof | Escape hatch |
@@ -1682,6 +1704,11 @@ the ones `kde::diff` says that plan would write. It reads no file the desktop ha
 | `komorebic check` says when the shortcut files are not the ones `hotkeys compile` would write | test | `shortcut_files_that_are_not_the_ones_of_the_plan_are_a_warning_that_says_how_many`, `shortcut_files_the_file_does_not_call_for_are_a_warning_until_compile_replaces_them` | none |
 | `--strict` writes nothing when a diagnostic is a warning or an error | test, through the binary | `strict_refuses_a_file_with_a_warning_and_writes_nothing` | none |
 | KWin runs a static shortcut's command on its key, from the system profile at the start of a session and from the user's directory after `--reload` | VM test | `vm-keys-static` | none |
+| An effect becomes the calls that carry it out, and an action is registered once | test | `Registry` doctest, `a_start_with_nothing_left_behind_registers_and_grabs_the_default_mode` | none |
+| A start takes over the keys a killed daemon left, releases those the default mode does not want, and unregisters the actions its keymap does not name | test, of the calls; VM test, against kglobalaccel | `a_start_takes_over_the_keys_of_a_killed_komorebi_and_drops_the_rest`, `vm-keys-engine` | none |
+| A stop of the daemon unregisters every action | framework path: `KWinBackend::shutdown` calls `kwin::hotkeys::stop`, and both ways to stop call it; VM test | `vm-keys-engine` (`komorebic stop`) | `SIGKILL` leaves the keys until the next start |
+| A press of a grabbed key runs its binding's command, `komorebic` without a shell where it needs none | test, of the process; VM test | `command` doctest, `a_press_runs_the_command_and_changes_no_key`, `vm-keys-engine` | none |
+| Holding a key runs its binding once | convention only: the transport listens to `globalShortcutPressed` and not to `globalShortcutRepeated` | none (measured in PLATFORM.md) | none |
 
 ## Where to look in the code
 
@@ -1870,6 +1897,10 @@ the ones `kde::diff` says that plan would write. It reads no file the desktop ha
   [`komorebic/tests/hotkeys.rs`](../../komorebic/tests/hotkeys.rs), what they write.
 - [`nix/tests/vm/suites/keys-static`](../../nix/tests/vm/suites/keys-static/test.py): static
   shortcuts run by a real KWin.
+- [`komorebi/src/kwin/hotkeys.rs`](../../komorebi/src/kwin/hotkeys.rs): the engine against
+  kglobalaccel, and
+  [`nix/tests/vm/suites/keys-engine`](../../nix/tests/vm/suites/keys-engine/test.py), keys
+  pressed in a real KWin with the daemon running.
 - [`komorebi-hotkeys/tests`](../../komorebi-hotkeys/tests): the corpus test and the comparison
   with `whkd-parser`.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;

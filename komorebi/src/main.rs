@@ -16,6 +16,13 @@
 //! of the monitors on threads of their own, and runs until it is stopped, with `SIGINT`,
 //! `SIGTERM` or a `Stop` message.
 //!
+//! With a key binding file (`--keybindings`, or the first of `skhdrc`, `whkdrc` and `sxhkdrc` in
+//! [`struct@HOME_DIR`]), the daemon also runs the engine of [`komorebi_hotkeys`]: it registers the
+//! keys of the bindings that are not static shortcuts with KWin's global shortcut daemon and runs
+//! their commands ([`komorebi::kwin::hotkeys`]). The bindings it takes are the engine's part of
+//! the file's plan in `--keybindings-mode`, the mode `komorebic hotkeys compile --mode` wrote the
+//! static shortcuts in.
+//!
 //! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
 //! follows.
 //!
@@ -40,6 +47,11 @@ use komorebi::process_event::listen_for_events;
 use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
+use komorebi_hotkeys::Format;
+use komorebi_hotkeys::ParseOptions;
+use komorebi_hotkeys::engine::EngineOptions;
+use komorebi_hotkeys::plan::PlanMode;
+use komorebi_hotkeys::plan::PlanOptions;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::net::Shutdown;
@@ -154,6 +166,52 @@ enum LogLevel {
     Trace,
 }
 
+/// [`Format`], for the command line
+#[derive(Clone, Copy, ValueEnum)]
+enum KeyFormat {
+    Skhd,
+    Whkd,
+    Sxhkd,
+}
+
+impl From<KeyFormat> for Format {
+    fn from(format: KeyFormat) -> Self {
+        match format {
+            KeyFormat::Skhd => Format::Skhd,
+            KeyFormat::Whkd => Format::Whkd,
+            KeyFormat::Sxhkd => Format::Sxhkd,
+        }
+    }
+}
+
+/// [`PlanMode`], for the command line
+#[derive(Clone, Copy, ValueEnum)]
+enum KeyPlanMode {
+    Auto,
+    Engine,
+    Static,
+}
+
+impl From<PlanMode> for KeyPlanMode {
+    fn from(mode: PlanMode) -> Self {
+        match mode {
+            PlanMode::Auto => KeyPlanMode::Auto,
+            PlanMode::Engine => KeyPlanMode::Engine,
+            PlanMode::Static => KeyPlanMode::Static,
+        }
+    }
+}
+
+impl From<KeyPlanMode> for PlanMode {
+    fn from(mode: KeyPlanMode) -> Self {
+        match mode {
+            KeyPlanMode::Auto => PlanMode::Auto,
+            KeyPlanMode::Engine => PlanMode::Engine,
+            KeyPlanMode::Static => PlanMode::Static,
+        }
+    }
+}
+
 /// A tiling window manager for KDE Plasma.
 #[derive(Parser)]
 #[clap(author, about, version = version::LONG_VERSION)]
@@ -169,11 +227,93 @@ struct Opts {
     /// socket interface. Windows and monitors are not real.
     #[clap(long, hide = true)]
     fake_backend: bool,
+    /// A key binding file (skhdrc, whkdrc or sxhkdrc) whose bindings komorebi registers with KDE
+    /// itself [default: the first of skhdrc, whkdrc and sxhkdrc in the komorebi config directory,
+    /// if there is one]
+    #[clap(long)]
+    keybindings: Option<PathBuf>,
+    /// The format of the key binding file [default: from the end of its name]
+    #[clap(long, value_enum)]
+    keybindings_format: Option<KeyFormat>,
+    /// Which bindings of the file komorebi registers: those that `komorebic hotkeys compile` in
+    /// the same mode does not write as static shortcuts
+    #[clap(long, value_enum, default_value_t = PlanMode::default().into())]
+    keybindings_mode: KeyPlanMode,
+}
+
+/// Reads the key binding file, and starts the engine for the bindings that are not static
+/// shortcuts. Does nothing when there is no file, or nothing in it for the engine. An engine that
+/// cannot start is logged, and the window manager runs without keys.
+///
+/// # Errors
+///
+/// The file cannot be read, or its format is neither given nor in its name.
+fn keybindings(opts: &Opts) -> eyre::Result<()> {
+    let file = match &opts.keybindings {
+        Some(file) => file.clone(),
+        None => {
+            let found = [Format::Skhd, Format::Whkd, Format::Sxhkd]
+                .iter()
+                .map(|format| HOME_DIR.join(format.file_name()))
+                .find(|path| path.is_file());
+            match found {
+                Some(file) => file,
+                None => return Ok(()),
+            }
+        }
+    };
+    let format = match opts.keybindings_format {
+        Some(format) => format.into(),
+        None => {
+            let name = file
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default();
+            [Format::Skhd, Format::Whkd, Format::Sxhkd]
+                .into_iter()
+                .find(|format| name.ends_with(format.file_name()))
+                .ok_or_else(|| {
+                    eyre::Report::msg(format!(
+                        "{} does not end with skhdrc, whkdrc or sxhkdrc: give its --keybindings-format",
+                        file.display()
+                    ))
+                })?
+        }
+    };
+
+    let text = std::fs::read_to_string(&file).map_err(|error| {
+        eyre::Report::msg(format!("could not read {}: {error}", file.display()))
+    })?;
+    let parsed = komorebi_hotkeys::parse(format, &text, &ParseOptions::default());
+    let plan = komorebi_hotkeys::plan::plan(
+        &parsed.keymap,
+        &PlanOptions {
+            mode: opts.keybindings_mode.into(),
+        },
+    );
+    let diagnostics = parsed.diagnostics.iter().chain(&plan.diagnostics);
+    for diagnostic in diagnostics.clone() {
+        tracing::debug!("{}: {diagnostic}", file.display());
+    }
+    let engine: usize = plan.engine.modes.iter().map(|m| m.bindings.len()).sum();
+    tracing::info!(
+        "read {}: {engine} bindings for the engine, {} static shortcuts, {} diagnostics \
+         (`komorebic hotkeys compile --dry-run` shows them)",
+        file.display(),
+        plan.static_files.len(),
+        diagnostics.count()
+    );
+    if plan.needs_engine()
+        && let Err(error) = komorebi::kwin::hotkeys::start(plan.engine, EngineOptions::default())
+    {
+        tracing::error!("the key bindings are not active: {error}");
+    }
+    Ok(())
 }
 
 fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
-    let (_guard, _color_guard) = setup(opts.log_level)?;
+    let (_guard, _color_guard) = setup(opts.log_level.clone())?;
 
     if !DATA_DIR.is_dir() {
         std::fs::create_dir_all(&*DATA_DIR)?;
@@ -190,7 +330,7 @@ fn main() -> eyre::Result<()> {
     #[cfg(feature = "deadlock_detection")]
     detect_deadlocks();
 
-    let static_config = opts.config.map_or_else(
+    let static_config = opts.config.clone().map_or_else(
         || {
             let komorebi_json = HOME_DIR.join("komorebi.json");
             if komorebi_json.is_file() {
@@ -248,6 +388,11 @@ fn main() -> eyre::Result<()> {
 
     listen_for_commands(wm.clone());
     listen_for_events(wm.clone());
+
+    // the keys need KWin's global shortcut daemon, and the in-memory desktop has none
+    if !opts.fake_backend {
+        keybindings(&opts)?;
+    }
 
     let (quit_sender, quit_receiver) = std::sync::mpsc::channel();
     ctrlc::set_handler(move || {

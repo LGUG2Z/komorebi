@@ -5,6 +5,7 @@ description = "A tiling window manager for KDE Plasma"
 edition = "2024"
 
 [dependencies]
+komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 komorebi-themes = { workspace = true }
 komorebi-layouts = { workspace = true }
 version = { path = "../version" }
@@ -26,7 +27,12 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_with = { version = "3", features = ["schemars_1"] }
 strum = { version = "0.28", features = ["derive"] }
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
+tokio = { version = "1", features = [
+  "macros",
+  "rt-multi-thread",
+  "sync",
+  "time",
+] }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }

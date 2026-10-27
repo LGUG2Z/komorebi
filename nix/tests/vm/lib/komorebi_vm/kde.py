@@ -356,6 +356,38 @@ class Kde:
         """Stops the daemon with `SIGTERM`, as a logout does, and waits for it to exit."""
         self.systemctl("stop", f"komorebi@{self.name}.service")
 
+    def spawn_komorebi(self, *args: str) -> None:
+        """Starts the daemon inside this session, in the background, with `args`.
+
+        This is for the session node's own Plasma session, with arguments of the test's own:
+        the daemon is a client of the session's KWin and bus, as one started from a terminal
+        there is. The module's unit runs a daemon there too, with its `execStart` as it is, so a
+        suite that spawns its own sets `services.komorebi.enable = false` in its node. The log
+        goes to the file [`Kde.komorebi_log`][] reads, emptied on every start.
+        """
+        log = f"{self.runtime}/komorebi-{self.name}.log"
+        self.spawn(shlex.join(["env", "NO_COLOR=1", "komorebi", *args]), log=log)
+
+    def kill_spawned_komorebi(self) -> None:
+        """Kills every daemon of the machine with `SIGKILL`, as a crash would, and waits for them
+        to be gone: the one [`Kde.spawn_komorebi`][] started, which is not a unit to kill."""
+        self.machine.execute("pkill -KILL -x komorebi")
+        if not self.wait_for(lambda: self.machine.execute("pgrep -x komorebi")[0] != 0):
+            raise AssertionError("komorebi is still running after SIGKILL")
+
+    def shortcut_actions(self, component: str = "komorebi") -> list[str]:
+        """The names of the actions `component` has in KDE's global shortcut daemon.
+
+        That is the empty list when the component has none, or there is no such component.
+        """
+        status, out = self.run(
+            "busctl --user --json=short call org.kde.kglobalaccel /kglobalaccel"
+            f" org.kde.KGlobalAccel allActionsForComponent as 4 {shlex.quote(component)} '' '' ''"
+        )
+        if status != 0:
+            return []
+        return sorted(action[1] for action in json.loads(out)["data"][0])
+
     def komorebi_running(self) -> bool:
         """Returns true if and only if the daemon of this session is running."""
         unit = f"komorebi@{self.name}.service"

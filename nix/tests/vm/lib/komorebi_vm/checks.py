@@ -14,6 +14,7 @@ class Checks:
     def __init__(self) -> None:
         self.passed = 0
         self.failed = 0
+        self.failures: list[str] = []
 
     def ok(self, description: str) -> None:
         """Records a check that passed."""
@@ -23,6 +24,7 @@ class Checks:
     def bad(self, description: str) -> None:
         """Records a check that failed."""
         self.failed += 1
+        self.failures.append(description)
         print(f"  FAIL {description}")
 
     def check(self, description: str, condition: bool | Callable[[], bool]) -> bool:
@@ -35,7 +37,11 @@ class Checks:
         return holds
 
     def finish(self) -> None:
-        """Prints `passed: N failed: M` and raises if any check failed."""
+        """Prints `passed: N failed: M` and raises if any check failed.
+
+        The error names the checks that failed, so that the last lines of a failed run, which
+        are all `nix build` shows, say which they were.
+        """
         print(f"passed: {self.passed} failed: {self.failed}")
         if self.failed:
-            raise AssertionError(f"{self.failed} checks failed")
+            raise AssertionError(f"{self.failed} checks failed: {'; '.join(self.failures)}")

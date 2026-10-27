@@ -785,3 +785,42 @@ def test_an_output_is_disabled_enabled_and_scaled_with_kscreen_doctor(
         "kscreen-doctor output.Virtual-0.scale.1.5",
         "kscreen-doctor output.Virtual-0.scale.1",
     ]
+
+
+def test_spawn_komorebi_runs_the_daemon_in_the_session_with_its_log_where_it_is_read(
+    machine: FakeMachine,
+) -> None:
+    Kde(machine, "session").spawn_komorebi("--keybindings", "/tmp/my skhdrc")
+
+    (command,) = machine.commands
+    assert "WAYLAND_DISPLAY=wayland-session" in command
+    assert inner(command) == (
+        "setsid nohup env NO_COLOR=1 komorebi --keybindings '/tmp/my skhdrc'"
+        " > /run/user/1000/komorebi-session.log 2>&1 < /dev/null &"
+    )
+
+
+def test_kill_spawned_komorebi_kills_and_waits_until_it_is_gone(machine: FakeMachine) -> None:
+    machine.reply("pgrep -x komorebi", status=1)
+
+    Kde(machine, "main").kill_spawned_komorebi()
+
+    assert machine.commands[:2] == ["pkill -KILL -x komorebi", "pgrep -x komorebi"]
+
+
+def test_shortcut_actions_are_the_action_names_of_the_component(machine: FakeMachine) -> None:
+    answer = {
+        "type": "aas",
+        "data": [
+            [
+                ["komorebi", "Alt+L", "komorebi", "Alt+L"],
+                ["komorebi", "Alt+H", "komorebi", "Alt+H"],
+            ]
+        ],
+    }
+    machine.reply("allActionsForComponent as 4 komorebi", output=json.dumps(answer))
+    assert Kde(machine, "main").shortcut_actions() == ["Alt+H", "Alt+L"]
+
+    machine.replies.clear()
+    machine.reply("allActionsForComponent", status=1)
+    assert Kde(machine, "main").shortcut_actions() == []

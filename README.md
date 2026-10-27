@@ -88,7 +88,8 @@ without a checkout of the toolchain.
   it handles (`notify_subscribers`), and is configured by a `komorebi.json` that
   it reads and reads again when it changes (`static_config`), and checks it, the
   key binding file, and the desktop it runs on, for mistakes without the daemon
-  (`check`).
+  (`check`). With a key binding file, it registers keys with KWin's global
+  shortcut daemon and runs their commands (`kwin::hotkeys`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
@@ -325,7 +326,9 @@ Key bindings are written in the format of skhd, whkd or sxhkd. `komorebi-hotkeys
 reads such a file into one model and sorts its bindings into static shortcuts,
 which KDE runs by itself from a `.desktop` file, and those that need komorebi
 to register the keys and decide what each press does. `komorebic hotkeys
-compile` writes the static shortcuts.
+compile` writes the static shortcuts, and the daemon runs the engine for the
+rest: it registers their keys with KWin's global shortcut daemon over the
+session bus and runs the command of each press.
 
 ## Documentation
 

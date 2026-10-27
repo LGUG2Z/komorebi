@@ -59,6 +59,31 @@ back of a stack, [stacking windows](stacking-windows.md), and the windows behind
 [monocle](monocle.md)), removes the desktop they were hidden on, asks KWin to unload its script,
 removes its socket and exits. Stopping the process with `SIGINT` or `SIGTERM` does the same.
 
+## Key bindings
+
+komorebi reads key bindings from a file in the format of skhd, whkd or sxhkd. The daemon
+looks for `skhdrc`, `whkdrc` or `sxhkdrc` in `~/.config/komorebi` (or in
+`$KOMOREBI_CONFIG_HOME`) and takes the first it finds; `--keybindings FILE` names another,
+with `--keybindings-format skhd|whkd|sxhkd` when its name does not end with one of those.
+The daemon registers the keys with KDE itself and runs the command of each press:
+
+```sh
+komorebic start -- --keybindings ~/dotfiles/skhdrc
+```
+
+KDE can also run a binding with no komorebi process, as a static shortcut that shows in System
+Settings: [`komorebic hotkeys compile`](../cli/hotkeys-compile.md) writes those, and
+`--mode auto` writes every binding that can be one. Give the daemon the same mode, so that it
+leaves those bindings to KDE:
+
+```sh
+komorebic hotkeys compile --mode auto
+komorebic start -- --keybindings-mode auto
+```
+
+A daemon that is killed leaves its keys swallowed until it is started again; `komorebic stop`
+gives them back.
+
 ## Asking komorebi what it is doing
 
 The daemon answers questions on its socket, and these commands print the answers:

@@ -196,20 +196,22 @@ an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a runnin
 #### What komorebi leaves behind
 
 When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it brings back
-the windows it hid, waits until the commands that do so have reached the bridge, removes the
-parking desktop, unloads the effects it loaded, puts back the values the keys it set in `kwinrc`
-had (`PerOutputVirtualDesktops`, the focus policy, and the keys of the effects), or removes a key
-the user had not set, and asks KWin to reload its configuration, asks KWin to unload the script,
-closes an empty connection to each subscriber, and removes the socket. The desktops it created for
-workspaces stay: they are the user's desktops from then on. A `StopIgnoreRestore` message stops it
-the same way, except that it does not bring the windows back: the parking desktop is removed all
-the same. The file `bridge.js` stays in the runtime
+the windows it hid, unregisters the keys of its engine, waits until the commands that do so have
+reached the bridge, removes the parking desktop, unloads the effects it loaded, puts back the
+values the keys it set in `kwinrc` had (`PerOutputVirtualDesktops`, the focus policy, and the keys
+of the effects), or removes a key the user had not set, and asks KWin to reload its configuration,
+asks KWin to unload the script, closes an empty connection to each subscriber, and removes the
+socket. The desktops it created for workspaces stay: they are the user's desktops from then on. A
+`StopIgnoreRestore` message stops it the same way, except that it does not bring the windows back:
+the parking desktop is removed all the same. The file `bridge.js` stays in the runtime
 directory, which is removed at logout. A daemon that is killed leaves the script running in
 KWin, reporting to nobody, the socket file in the runtime directory, per-output desktops
 on, and the parking desktop with the hidden windows on it, until the next start replaces the
 script and the socket, sends the windows on the parking desktop to the first workspace's desktop
 and removes the desktop, and its stop puts the setting back (the backup in the runtime
-directory keeps the user's value), or the session ends.
+directory keeps the user's value), or the session ends. It also leaves the keys of its engine
+grabbed: they are swallowed, and run nothing, until the next start takes them over and unregisters
+those its key bindings no longer have.
 
 ### A headless KWin
 
@@ -260,6 +262,9 @@ What komorebi calls:
 | `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
 | `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the properties `desktops` and `count`, `createDesktop(us)`, `setDesktopName(ss)`, `removeDesktop(s)` | when a workspace has no desktop, and at start; `createDesktop` also for the parking desktop, the first time a window is hidden, and `removeDesktop` for it when komorebi stops and for one a killed run left |
 | `org.kde.plasmashell` | `/PlasmaShell` | `org.kde.PlasmaShell` | `evaluateScript(s) -> s`, `wallpaper(u) -> a{sv}`, `setWallpaper(sa{sv}u)` | when a workspace with a wallpaper comes into view ([The Plasma shell](#the-plasma-shell)) |
+| `org.kde.kglobalaccel` | `/kglobalaccel` | `org.kde.KGlobalAccel` | `allActionsForComponent(as) -> aas` | when the engine starts |
+| `org.kde.kglobalaccel` | `/kglobalaccel` | `org.kde.KGlobalAccel` | `doRegister(as)`, `setShortcutKeys(as, a(ai), u) -> a(ai)`, `setInactive(as)`, `unRegister(as)` | when the engine grabs and lets go of keys, and when it starts and stops |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for `globalShortcutPressed` and `globalShortcutReleased` of `/component/komorebi` | when the engine starts |
 
 What komorebi listens to, for the machine sleeping and the screen being locked:
 
@@ -317,6 +322,34 @@ write such files. What follows was measured at time of writing (2026-10-27) on K
 - The VM test `vm-keys-static` presses the keys of shortcut files in the system profile, and of
   one written and handed over in the middle of the session.
 
+The engine registers its keys itself, in the component `komorebi`, with one action per combo
+named after the combo (`Alt+H`); an action's id is `["komorebi", "Alt+H", "komorebi",
+"Alt+H"]`. What was measured of that interface at time of writing (2026-10-27), on KWin
+6.8.1 in a virtual machine under HVF with 4 cores:
+
+- `setShortcutKeys(as id, a(ai) keys, u flags) -> a(ai)` takes a list of key sequences, each
+  a struct of one Qt key code per key of the sequence, and returns the keys it set. Flags 6
+  (`SetPresent | NoAutoloading`) grab the key at once, whatever kglobalaccel saved for the
+  action. A key that another action has is not set: the answer is not what was asked for, and
+  komorebi logs a warning.
+- A grabbed key does not reach the focused window, a bare key (`H`, `Escape`) included, and
+  each tap is a `globalShortcutPressed` and then a `globalShortcutReleased` signal
+  (`ssx`: component, action, timestamp) on `/component/komorebi`. The signal reached a client
+  2.5 ms after the key at the median (2.2 to 3.9 ms, 20 presses), also after another window
+  had taken the focus.
+- A key held for 1.2 s sent one pressed signal, 15 `globalShortcutRepeated` and one released
+  signal, in that order.
+- After `setInactive`, the key reaches the focused window and no signal is sent;
+  `setShortcutKeys` grabs it again. Sixty such calls, sent without waiting for the answers,
+  were all answered in 2.4 ms, and the state afterwards was right.
+- A client that is killed leaves its actions and its grabs: the key stays swallowed and its
+  signal is sent to nobody until `unRegister`.
+- A sequence of two keys (`[[Meta+A, B]]`) is accepted and stored, but never fires: the
+  second key reaches the focused window.
+- `getComponent` fails until the component has an action, so the engine does not ask for the
+  object of its component: it listens at the object's path, `/component/komorebi`, which a
+  signal is matched by, and a start with no key to grab is a start all the same.
+
 ## Files and directories
 
 | Path | What | Lifetime |
@@ -335,7 +368,7 @@ write such files. What follows was measured at time of writing (2026-10-27) on K
 | `$XDG_DATA_HOME/komorebi/komorebi.log.YYYY-MM-DD` | the daemon's log, with colors, which `komorebic log` follows | a file a day (the UTC date), never removed by komorebi |
 | `$XDG_DATA_HOME/komorebi/komorebi_plaintext.log.YYYY-MM-DD` | the same log without colors | as above |
 | `$XDG_DATA_HOME/kglobalaccel/komorebi-*.desktop` | the static shortcuts `komorebic hotkeys compile` and `komorebic export-kde-shortcuts` write, each with `X-Komorebi-Generated=true` | replaced at every write: the files with that key are removed, and no other |
-| `$KOMOREBI_CONFIG_HOME/{skhdrc,whkdrc,sxhkdrc}` | the key binding file `komorebic hotkeys compile` reads when it is given none (the first that exists), and the skhdrc of `export-kde-shortcuts` | the user's |
+| `$KOMOREBI_CONFIG_HOME/{skhdrc,whkdrc,sxhkdrc}` | the key binding file `komorebic hotkeys compile` and the daemon read when they are given none (the first that exists), and the skhdrc of `export-kde-shortcuts` | the user's; the daemon reads it once, at start |
 
 Without `XDG_RUNTIME_DIR` the bridge and the socket are in `komorebi` in the local data
 directory instead, with the logs (see [`XDG_DATA_HOME`](#xdg_data_home)).
@@ -380,8 +413,8 @@ The config home, where komorebi looks for `komorebi.json`: a directory, in which
 configuration` and the daemon look for the file. Without it the config home is
 `~/.config/komorebi`, whatever `XDG_CONFIG_HOME` is. When it is set and is not a directory, the
 daemon and `komorebic` panic when they first need the config home, and say so. Environment
-variables in it are expanded (`$HOME/komorebi`). `komorebic hotkeys compile` looks in it for the
-key binding file it is not given.
+variables in it are expanded (`$HOME/komorebi`). The daemon and `komorebic hotkeys compile` look
+in it for the key binding file they are not given.
 
 ### `XDG_RUNTIME_DIR`
 

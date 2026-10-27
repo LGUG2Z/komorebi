@@ -106,7 +106,9 @@ check also runs `ruff` and `ty` over it. The driver type checks every
 the run.
 
 - `Checks` counts checks and fails once, at the end, so that one failure does
-  not hide the ones after it. `finish()` prints `passed: N failed: M`.
+  not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
+  error names the checks that failed, which `nix build` shows in the last lines
+  of the run.
 - `Kde` is one KWin session. `Kde.headless(machine, name, size=, outputs=,
   scale=)` starts the units and waits for KWin to own its name on the private
   bus. `wid`, `rect`, `title` and `active` read windows through `kdotool`,
@@ -187,6 +189,11 @@ the run.
 - `Keys(machine).send("alt-shift-k")` presses a combo on the machine's
   keyboard, written as KDE writes it in lower case with `-` between the keys
   (`meta` and `super` are the left Super key).
+- `spawn_komorebi(*args)` starts a daemon of the test's own in the session
+  node's Plasma session, logging to the file `komorebi_log()` reads;
+  `kill_spawned_komorebi()` kills it with `SIGKILL`; `shortcut_actions()` lists the
+  actions komorebi has registered with kglobalaccel. A suite that spawns its own
+  daemon turns the module's unit off in its `node`.
 
 ## Pressing keys
 

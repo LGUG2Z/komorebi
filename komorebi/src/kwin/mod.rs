@@ -58,6 +58,9 @@
 //! when it stops, and one that an earlier run left (it was killed, or the session was torn down
 //! under it) is found in the first snapshot, its windows are sent home and it is removed.
 //!
+//! The engine of the key bindings reaches KWin's global shortcut daemon in [`hotkeys`], on a
+//! connection and a thread of its own.
+//!
 //! [`WorkspaceChange`]: crate::window_manager_event::WindowManagerEvent::WorkspaceChange
 //! [`WorkspaceMove`]: crate::window_manager_event::WindowManagerEvent::WorkspaceMove
 //!
@@ -78,6 +81,7 @@
 #![deny(missing_docs)]
 
 mod effects;
+pub mod hotkeys;
 mod kwinrc;
 pub mod power;
 pub mod state;
@@ -1081,6 +1085,9 @@ impl Backend for KWinBackend {
     }
 
     fn shutdown(&self) {
+        // the keys go with komorebi: kglobalaccel would otherwise keep them, swallowed
+        hotkeys::stop();
+
         // the window manager has already restored every window it hid. What is left is the parking
         // desktop, which KWin would otherwise keep in the user's configuration, and the script,
         // which KWin would otherwise keep running, reporting to nobody
