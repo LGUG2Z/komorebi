@@ -113,11 +113,12 @@ runs.
 |---|---|---|
 | `enabled` | `false`, required | Whether windows are animated going to their places: `true` or `false` for every kind of animation, or `{ "movement": true }` for the kinds it names |
 | `duration` | `250` | How long the animation lasts, in milliseconds, in the same two forms |
+| `style` | `Linear` | The easing curve, in the same two forms: a name such as `EaseOutExpo`, or a cubic Bézier as four numbers ([Animation](animation.md#easing)) |
 | `fps` | `60` | Accepted and not used: KWin animates at the refresh rate of the screen |
 
 [Animation](animation.md) explains what is animated. A file that has no `animation` leaves the
-settings as they are, and one that has it and leaves out `duration` leaves the duration as it is;
-`enabled` and `duration` given for every kind of animation take the settings of single kinds away.
+settings as they are, and one that has it and leaves out `duration` or `style` leaves that one as it
+is; a value given for every kind of animation takes the settings of single kinds away.
 
 ### Rules
 

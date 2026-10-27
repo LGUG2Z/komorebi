@@ -82,6 +82,13 @@ in
         fi
         echo "ok: the metadata says EnabledByDefault false"
 
+        # komorebi's patch: the curve is a setting (the stock effect names QEasingCurve.OutExpo too)
+        grep -q -F 'readConfig("Curve"' "$main" ||
+          fail "the script does not read a Curve setting: curve.patch is not in it"
+        grep -q -F '<entry name="Curve"' "$effect/contents/config/main.xml" ||
+          fail "the effect's settings have no Curve: curve.patch is not in it"
+        echo "ok: the effect reads a Curve setting"
+
         touch $out
       '';
 }

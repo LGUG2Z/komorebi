@@ -153,9 +153,11 @@ the run.
   reads the color of a pixel of a screenshot, and wants nothing else there.
 - `pixels` reads a screenshot: `pixels.pixel(image, x, y)` is the color of a
   pixel, `pixels.near(a, b)` compares two colors within a tolerance, since a
-  compositor blends the edge of what it draws, and `pixels.ring(image, frame,
+  compositor blends the edge of what it draws, `pixels.ring(image, frame,
   color)` names the sides of a window's frame that have no ring of `color` just
-  outside them, which is how a test sees a border.
+  outside them, which is how a test sees a border, and `pixels.leftmost(image,
+  y, color)` finds where a row first has a color, which is how a test sees how
+  far along a window is on its way.
 - `kwin_script(name, source, keep=)` runs a KWin script and returns the lines it
   reported: the script calls `report(...)`, which `print`s a line marked with
   `name` to KWin's log, and ends with `report("done")`. A script that is kept

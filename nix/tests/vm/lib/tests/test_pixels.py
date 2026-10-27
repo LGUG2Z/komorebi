@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw
 
 from komorebi_vm import Rect
-from komorebi_vm.pixels import near, pixel, ring
+from komorebi_vm.pixels import leftmost, near, pixel, ring
 
 BLUE = (66, 165, 245)
 GRAY = (128, 128, 128)
@@ -63,3 +63,12 @@ def test_a_thin_border_is_not_found_further_out_than_it_is() -> None:
 
     assert len(ring(image, frame, BLUE)) == 4
     assert ring(image, frame, BLUE, margin=2) == []
+
+
+def test_leftmost_is_where_a_row_first_has_the_color() -> None:
+    image = Image.new("RGB", (100, 10), (0, 0, 0))
+    ImageDraw.Draw(image).rectangle((30, 4, 60, 4), fill=BLUE)
+
+    assert leftmost(image, 4, BLUE) == 30
+    assert leftmost(image, 5, BLUE) is None
+    assert leftmost(image, 4, GRAY) is None

@@ -11,6 +11,7 @@ use komorebi::backend::fake::Command;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::with_backend;
 use komorebi::core::SocketMessage;
+use komorebi::core::animation::AnimationStyle;
 use komorebi::window_manager::WindowManager;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -40,29 +41,45 @@ fn the_animation_messages_set_the_animation_and_the_compositor_is_asked_for_it()
             })
             .expect("the compositor was asked for a look")
     };
-    let animated = |duration_ms| Some(AnimationLook { duration_ms });
+    let animated = |duration_ms, curve| Some(AnimationLook { duration_ms, curve });
     let movement = Some(AnimationPrefix::Movement);
 
     // nothing is animated until it is asked for, and then for the default time
     send(&mut wm, SocketMessage::BorderWidth(10));
     assert_eq!(animation(), None);
     send(&mut wm, SocketMessage::Animation(true, None));
-    assert_eq!(animation(), animated(250));
+    assert_eq!(animation(), animated(250, "Linear"));
 
     send(&mut wm, SocketMessage::AnimationDuration(120, None));
-    assert_eq!(animation(), animated(120));
+    assert_eq!(animation(), animated(120, "Linear"));
+
+    // the easing is a Qt curve: the style without its "Ease"
+    send(
+        &mut wm,
+        SocketMessage::AnimationStyle(AnimationStyle::EaseOutExpo, None),
+    );
+    assert_eq!(animation(), animated(120, "OutExpo"));
 
     // the settings of one kind of animation win over the global ones
     send(&mut wm, SocketMessage::Animation(false, movement));
     assert_eq!(animation(), None);
     send(&mut wm, SocketMessage::AnimationDuration(500, movement));
     assert_eq!(animation(), None);
+    send(
+        &mut wm,
+        SocketMessage::AnimationStyle(AnimationStyle::EaseInSine, movement),
+    );
     send(&mut wm, SocketMessage::Animation(true, movement));
-    assert_eq!(animation(), animated(500));
+    assert_eq!(animation(), animated(500, "InSine"));
 
     // and a global setting takes the ones of the kinds away
     send(&mut wm, SocketMessage::AnimationDuration(90, None));
-    assert_eq!(animation(), animated(90));
+    assert_eq!(animation(), animated(90, "InSine"));
+    send(
+        &mut wm,
+        SocketMessage::AnimationStyle(AnimationStyle::Linear, None),
+    );
+    assert_eq!(animation(), animated(90, "Linear"));
     send(&mut wm, SocketMessage::Animation(false, None));
     assert_eq!(animation(), None);
 

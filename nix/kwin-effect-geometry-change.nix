@@ -19,6 +19,10 @@ stdenvNoCC.mkDerivation {
     hash = "sha256-aJx3hDzIk/bQrrRvs/CPigJ0miTgqxd8OI9I6kuiXkk=";
   };
 
+  # `Curve`: any of Qt's easing curves by name, which is how komorebi's `animation.style` reaches the
+  # effect (it has one fixed curve, an ease out exponential, and no setting for it)
+  patches = [ ./kwin-effect-geometry-change/curve.patch ];
+
   dontBuild = true;
   installPhase = ''
     runHook preInstall

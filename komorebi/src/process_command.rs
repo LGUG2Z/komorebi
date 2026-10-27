@@ -183,10 +183,11 @@
 //!   ([`WindowKind`]), and every message, once handled, tells the backend the color of each
 //!   window's border ([`border_manager::update_colours`]).
 //! - **Animation** sets whether windows are animated going to their places, **AnimationDuration**
-//!   for how long, and **AnimationFps** the frame rate that is stored and has nothing to map to
-//!   (the compositor animates at the refresh rate of the screen); each is for every kind of
-//!   animation or, given an [`AnimationPrefix`](crate::animation::AnimationPrefix), for one. The
-//!   look asked of the backend after the message has the animation.
+//!   for how long, **AnimationStyle** the easing curve, and **AnimationFps** the frame rate that is
+//!   stored and has nothing to map to (the compositor animates at the refresh rate of the
+//!   screen); each is for every kind of animation or, given an
+//!   [`AnimationPrefix`](crate::animation::AnimationPrefix), for one. The look asked of the
+//!   backend after the message has the animation.
 //! - **Retile** tiles the focused workspace of every monitor again, without the resize
 //!   adjustments, and **RetileWithResizeDimensions** with them.
 //! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
@@ -213,6 +214,8 @@ use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::backend::backend;
 use crate::border_manager;
 use crate::core::ApplicationIdentifier;
@@ -2023,6 +2026,16 @@ impl WindowManager {
             SocketMessage::AnimationFps(fps) => {
                 ANIMATION_FPS.store(fps, Ordering::SeqCst);
             }
+            SocketMessage::AnimationStyle(style, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_STYLE_PER_ANIMATION.lock().insert(prefix, style);
+                }
+                None => {
+                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
+                    *animation_style = style;
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
+                }
+            },
         }
 
         self.update_known_window_ids();

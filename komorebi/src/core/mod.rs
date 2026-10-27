@@ -13,6 +13,7 @@
 //! previous container in the order of the workspace.
 
 use crate::animation::AnimationPrefix;
+use crate::core::animation::AnimationStyle;
 use crate::core::pathext::ResolvedPathBuf;
 use clap::ValueEnum;
 use color_eyre::eyre;
@@ -46,6 +47,7 @@ pub use komorebi_layouts::Sizing;
 pub use komorebi_layouts::validate_ratios;
 
 // Keep local modules that aren't in komorebi-layouts
+pub mod animation;
 pub mod asc;
 pub mod config_generation;
 pub mod pathext;
@@ -474,6 +476,7 @@ pub enum SocketMessage {
     Animation(bool, Option<AnimationPrefix>),
     AnimationDuration(u64, Option<AnimationPrefix>),
     AnimationFps(u64),
+    AnimationStyle(AnimationStyle, Option<AnimationPrefix>),
     #[serde(alias = "ActiveWindowBorder")]
     Border(bool),
     #[serde(alias = "ActiveWindowBorderColour")]

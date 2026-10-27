@@ -23,6 +23,18 @@ def near(a: Color, b: Color, tolerance: int = 12) -> bool:
     return all(abs(x - y) <= tolerance for x, y in zip(a, b, strict=True))
 
 
+def leftmost(image: Image.Image, y: int, color: Color, tolerance: int = 12) -> int | None:
+    """Returns the `x` of the leftmost pixel of row `y` that is near `color`, or `None`.
+
+    A window that moves across the screen has its left edge where this finds the first pixel of its
+    color, which is how a test sees how far along it is.
+    """
+    for x in range(image.width):
+        if near(pixel(image, x, y), color, tolerance):
+            return x
+    return None
+
+
 def ring(image: Image.Image, frame: Rect, color: Color, margin: int = 5) -> list[str]:
     """Returns what is wrong with the ring around a window: a line for each side that has none.
 

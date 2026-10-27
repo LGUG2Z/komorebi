@@ -1,6 +1,51 @@
-# schema-sha256: e53fa2caa5377453b0cb6e1302e8ef951904fd38a488df1ad75997cd6fb97ea1
+# schema-sha256: 775a2171f74c90914b3de3fd6eed52485bd52cc19c881c90c56f60c36b91611e
 { lib, ... }:
 let
+  animationStyle = (
+    lib.types.oneOf [
+      (lib.types.enum [
+        "Linear"
+        "EaseInSine"
+        "EaseOutSine"
+        "EaseInOutSine"
+        "EaseInQuad"
+        "EaseOutQuad"
+        "EaseInOutQuad"
+        "EaseInCubic"
+        "EaseOutCubic"
+        "EaseInOutCubic"
+        "EaseInQuart"
+        "EaseOutQuart"
+        "EaseInOutQuart"
+        "EaseInQuint"
+        "EaseOutQuint"
+        "EaseInOutQuint"
+        "EaseInExpo"
+        "EaseOutExpo"
+        "EaseInOutExpo"
+        "EaseInCirc"
+        "EaseOutCirc"
+        "EaseInOutCirc"
+        "EaseInBack"
+        "EaseOutBack"
+        "EaseInOutBack"
+        "EaseInElastic"
+        "EaseOutElastic"
+        "EaseInOutElastic"
+        "EaseInBounce"
+        "EaseOutBounce"
+        "EaseInOutBounce"
+      ])
+      (lib.types.submodule {
+        options = {
+          CubicBezier = lib.mkOption {
+            type = (lib.types.nullOr (lib.types.listOf lib.types.number));
+            default = null;
+          };
+        };
+      })
+    ]
+  );
   defaultLayout = (
     lib.types.enum [
       "BSP"
@@ -204,6 +249,24 @@ in
                     type = (lib.types.nullOr lib.types.int);
                     default = 60;
                     description = "Set the animation FPS";
+                  };
+                  style = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.submodule {
+                            options = {
+                              movement = lib.mkOption {
+                                type = animationStyle;
+                              };
+                            };
+                          })
+                          animationStyle
+                        ]
+                      )
+                    );
+                    default = "Linear";
+                    description = "Set the animation style";
                   };
                 };
               }

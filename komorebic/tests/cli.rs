@@ -531,6 +531,14 @@ fn the_animation_subcommands_send_what_they_are_given() {
         r#"{"type":"AnimationDuration","content":[500,"movement"]}"#,
     );
     sends(
+        &["animation-style", "--style", "ease-in-out-sine"],
+        r#"{"type":"AnimationStyle","content":["EaseInOutSine",null]}"#,
+    );
+    sends(
+        &["animation-style", "-a", "movement"],
+        r#"{"type":"AnimationStyle","content":["Linear","movement"]}"#,
+    );
+    sends(
         &["animation-fps", "30"],
         r#"{"type":"AnimationFps","content":30}"#,
     );
@@ -1055,6 +1063,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "adjust-workspace-padding.md",
             "animation-duration.md",
             "animation-fps.md",
+            "animation-style.md",
             "animation.md",
             "application-specific-configuration-schema.md",
             "border-colour.md",

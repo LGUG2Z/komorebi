@@ -69,7 +69,7 @@ grows with the code: each part of the daemon that is added has its place here.
   manager handles: the event or the message, and the state after it ([`Notification`]).
 - **Look**: how the compositor is asked to dress the windows, which it draws ([`Look`]):
   a border, with its width, its corner radius and two colors, and the animation of windows going
-  to their places, with its duration.
+  to their places, with its duration and its easing curve.
 - **Effect**: a plugin of the compositor that changes how windows are drawn. KDE Rounded Corners
   is the effect that draws the border, and Geometry Change the one that animates windows.
 - **Compositor**: the program that owns the screen and the windows. On KDE Plasma it is
@@ -775,8 +775,9 @@ and answers whether borders are being drawn. The reasons are in
 [`border_manager`] holds the settings of the border, as statics that the messages `Border`,
 `BorderWidth` and `BorderOffset` set: whether borders are on, their width, the offset, the radius
 of the corners and the two colors. [`animation`] holds the settings of the animation, which
-`Animation`, `AnimationDuration` and `AnimationFps` set: whether windows are animated and for how
-long, for every kind of animation or for one ([`AnimationPrefix`]; movement is the only kind). The
+`Animation`, `AnimationDuration`, `AnimationStyle` and `AnimationFps` set: whether windows are
+animated, for how long and with what easing, for every kind of animation or for one
+([`AnimationPrefix`]; movement is the only kind). The
 settings of one kind win over the global ones, and a global setting clears the ones of the kinds.
 The commands that change a stack turn the animation off while they run and put it back, as
 komorebi does on the other platforms; the file's `animation` key sets the same settings.
@@ -809,7 +810,10 @@ into the user's `kwinrc`, group `[Round-Corners]`, through [`Kwinrc`]; loads the
 look without a border unloads the effect, if komorebi loaded it, and puts the user's settings
 back. `shutdown` does the same. An effect KWin did not find when it started is reported once and
 komorebi goes on without it, with `apply_look` answering false. The animation is Geometry Change:
-its `Duration` is the look's, and cross-fading is off. KWin animates what is painted, so the
+its `Duration` and `Curve` are the look's, and cross-fading is off. The curve is a Qt easing
+curve, the name of the style without its "Ease" ([`AnimationStyle::qt_curve`]); the stock effect
+ignores `Curve` and eases out exponentially, and komorebi's build of it reads it. KWin animates
+what is painted, so the
 frame the table reads is the final one at once and nothing waits for an animation to end. The
 stock border effect has one color for
 the active window and one for the others; komorebi's build of it takes a color for each window,
@@ -1059,9 +1063,10 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | No outline is drawn inside a window, and a border is never thicker than the effect can draw | framework path: [`kwin::effects`](../../komorebi/src/kwin/effects.rs) sets every inner outline to 0 and clamps the width to 20 | `the_border_is_the_outer_outline_and_nothing_is_drawn_inside_the_window`, `a_border_thicker_than_the_effect_can_draw_is_the_thickest_it_can`, `vm-look` | none |
 | Every window has the border color of what it is to the layout, and a window whose kind changes has the new one at once | framework path: [`border_manager::update_colours`] is called after every event and every message, from [`border_manager::window_kinds`], and the backend sends the colors it did not send last time | `the_focused_window_has_the_focus_colour_and_the_others_do_not`, `a_locked_container_that_is_not_focused_is_marked`, `a_stack_has_its_own_colour_when_it_has_the_focus`, `a_monocled_window_has_the_monocle_colour`, `a_floating_window_has_the_floating_colour_while_it_has_the_focus`, `border_colours_are_a_command_only_when_they_change`, `vm-features` (section C) | the stock effect: two colors for every window |
 | With borders off no window has a color | framework path: [`border_manager::update_colours`] tells the backend an empty list when `BORDER_ENABLED` is false | `with_borders_off_no_window_has_a_colour` | none |
-| The settings of one kind of animation win over the global ones, and a global setting clears them | framework path: the arms of [`WindowManager::process_command`] for `Animation` and `AnimationDuration`, and [`animation::movement_animation`], which reads the kind's setting before the global one | `the_animation_messages_set_the_animation_and_the_compositor_is_asked_for_it` | none |
+| The settings of one kind of animation win over the global ones, and a global setting clears them | framework path: the arms of [`WindowManager::process_command`] for `Animation`, `AnimationDuration` and `AnimationStyle`, and [`animation::movement_animation`] and [`animation::movement_style`], which read the kind's setting before the global one | `the_animation_messages_set_the_animation_and_the_compositor_is_asked_for_it` | none |
 | A command that changes a stack is carried out with the animation off, and the animation is on again after it | framework path: the arms of [`WindowManager::process_command`] for the stack messages swap `ANIMATION_ENABLED_GLOBAL` for false and put the value back | `the_animation_is_on_again_after_a_command_that_changes_a_stack` | none |
-| The `animation` key of the file is the animation settings, and a file without it leaves them | framework path: `StaticConfig::apply_globals` sets them only when the key is there, and `duration` only when the key has one | `the_animation_key_of_the_file_is_the_animation_settings` | none |
+| The `animation` key of the file is the animation settings, and a file without it leaves them | framework path: `StaticConfig::apply_globals` sets them only when the key is there, and `duration` and `style` only when the key has one | `the_animation_key_of_the_file_is_the_animation_settings` | none |
+| Every style is a curve Qt has | test: [`AnimationStyle::qt_curve`] is a `match` of every style, and the test checks each against its name without the "Ease" | `every_style_is_a_curve_qt_has`, the doctest of `qt_curve`, `vm-features` (section D: two curves are in different places at the same moment) | a cubic Bézier is an ease out |
 | The effect komorebi loaded is unloaded, and the user's settings of it are put back, when komorebi stops using it or exits | framework path: the effect's state unloads what komorebi loaded, and [`Kwinrc`] puts the group back | `one_group_can_be_put_back_while_the_others_stay_changed`, `vm-look` | `SIGKILL`: the next run puts the settings back when it stops |
 | Queries never block on the compositor | convention only | none | the KWin backend's `cursor_pos` waits up to 250 ms |
 | Only the backend module reaches the compositor | convention only | none | none |
@@ -1186,7 +1191,9 @@ A window is shown, and ends up on a tile:
   [`komorebi-border-colours.patch`](../../nix/kde-rounded-corners/komorebi-border-colours.patch),
   which lets komorebi give each window a color;
   [`nix/kwin-effect-geometry-change.nix`](../../nix/kwin-effect-geometry-change.nix), the
-  effect that animates a window going to its place; and
+  effect that animates a window going to its place, with
+  [`curve.patch`](../../nix/kwin-effect-geometry-change/curve.patch), which makes its easing
+  curve a setting; and
   [`nix/tests/effects.nix`](../../nix/tests/effects.nix), the checks of the files each effect
   package installs.
 - [`komorebi/tests/borders.rs`](../../komorebi/tests/borders.rs) and
@@ -1287,6 +1294,8 @@ A window is shown, and ends up on a tile:
 [`BORDER_DRAWN`]: ../../komorebi/src/border_manager/mod.rs
 [`animation`]: ../../komorebi/src/animation/mod.rs
 [`animation::movement_animation`]: ../../komorebi/src/animation/mod.rs
+[`animation::movement_style`]: ../../komorebi/src/animation/mod.rs
+[`AnimationStyle::qt_curve`]: ../../komorebi/src/core/animation.rs
 [`AnimationPrefix`]: ../../komorebi/src/animation/prefix.rs
 [`Backend::set_border_colours`]: ../../komorebi/src/backend/mod.rs
 [`border_manager::window_kinds`]: ../../komorebi/src/border_manager/mod.rs

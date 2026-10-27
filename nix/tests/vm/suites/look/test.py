@@ -196,6 +196,9 @@ def point_in(frame: Rect) -> tuple[int, int]:
 print("== C. komorebi runs a 30 s animation")
 start_komorebi()
 kde.komorebic("animation-duration", "30000")
+# an ease out is at 97 % after half of its time, which the waits below rely on (the default style
+# is linear, which is at half)
+kde.komorebic("animation-style", "--style", "ease-out-expo")
 kde.komorebic("animation", "enable")
 checks.check(
     "the animation effect is loaded",

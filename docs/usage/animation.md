@@ -2,7 +2,8 @@
 
 komorebi can have a window slide to its new place when the layout changes, instead of jumping
 there. It does not animate anything itself: a KWin effect, Geometry Change, animates a window
-that a program or a script moves or resizes, and komorebi tells it how long the animation lasts.
+that a program or a script moves or resizes, and komorebi tells it how long the animation lasts
+and how it eases.
 Animation is off by default.
 
 ## Installing the effect
@@ -41,23 +42,43 @@ komorebic animation-duration 600 --animation-type movement
 [`komorebic animation-fps`](../cli/animation-fps.md) is accepted and does nothing: KWin animates
 at the refresh rate of the screen.
 
+## Easing
+
+[`komorebic animation-style`](../cli/animation-style.md) sets the curve a window follows to its
+place: `linear` by default, or one of the easings by name (`ease-out-expo`, `ease-in-out-sine`,
+`ease-out-bounce`, ...; `komorebic animation-style --help` lists them). They are Qt's easing
+curves, and a style is Qt's name for the curve with the "Ease" taken off (`EaseInOutSine` is
+`InOutSine`). Like the others, it takes `--animation-type movement`.
+
+```sh
+komorebic animation-style --style ease-out-expo
+komorebic animation-style --style ease-in-out-sine --animation-type movement
+```
+
+The stock Geometry Change always eases out exponentially. The build the flake installs also reads
+the curve, which is what lets a style other than that one take effect; with the stock effect every
+style looks like an ease out. A cubic Bézier, which only a configuration can name, is not one of
+Qt's curves and is drawn as an ease out too.
+
 ## In komorebi.json
 
 The `animation` key of [`komorebi.json`](configuration.md#animation) has the same settings:
-`enabled` and `duration`, each either one value for every kind of animation or a value for each
-kind (`{ "movement": true }`), and `fps`.
+`enabled`, `duration` and `style`, each either one value for every kind of animation or a value
+for each kind (`{ "movement": true }`), and `fps`.
 
 ```json
 {
   "animation": {
     "enabled": true,
-    "duration": 400
+    "duration": 400,
+    "style": "EaseOutExpo"
   }
 }
 ```
 
 The file sets them when the daemon starts and when the file changes. A file without the key leaves
-the settings as they are, and one with it that leaves out `duration` leaves the duration as it is.
+the settings as they are, and one with it that leaves out `duration` or `style` leaves that one as
+it is.
 
 ## What is animated
 

@@ -69,8 +69,9 @@
 //! - `border` sets whether the compositor draws a border around each window, `border-colour` the
 //!   color of the border of a kind of window, and `border-width` and `border-offset` the room the
 //!   layout leaves for it.
-//! - `animation`, `animation-duration` and `animation-fps` set whether windows are animated going
-//!   to their places, for how long, and the frame rate that is stored and ignored.
+//! - `animation`, `animation-duration` and `animation-style` set whether windows are animated going
+//!   to their places, for how long and with what easing, and `animation-fps` the frame rate that
+//!   is stored and ignored.
 //!
 //! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
 //! always in it, `session-float-rule` floats the focused window and every window like it until the
@@ -782,6 +783,16 @@ struct AnimationFps {
 }
 
 #[derive(Parser)]
+struct AnimationStyle {
+    /// Desired ease function for animation
+    #[clap(value_enum, short, long, default_value = "linear")]
+    style: komorebi_client::AnimationStyle,
+    /// Animation type to apply the style to. If not specified, sets global style
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
+}
+
+#[derive(Parser)]
 struct Docgen {
     /// Output directory for generated documentation files
     #[clap(short, long)]
@@ -1227,6 +1238,9 @@ enum SubCommand {
     /// Set the frames per second for movement animations
     #[clap(arg_required_else_help = true)]
     AnimationFps(AnimationFps),
+    /// Set the ease function for movement animations
+    #[clap(arg_required_else_help = true)]
+    AnimationStyle(AnimationStyle),
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -2065,6 +2079,12 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::AnimationFps(args) => {
             send_message(&SocketMessage::AnimationFps(args.fps))?;
+        }
+        SubCommand::AnimationStyle(args) => {
+            send_message(&SocketMessage::AnimationStyle(
+                args.style,
+                args.animation_type,
+            ))?;
         }
     }
 

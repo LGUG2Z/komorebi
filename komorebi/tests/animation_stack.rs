@@ -59,7 +59,13 @@ fn the_animation_is_on_again_after_a_command_that_changes_a_stack() {
     };
 
     send(&mut wm, SocketMessage::Animation(true, None));
-    assert_eq!(animation(), Some(AnimationLook { duration_ms: 250 }));
+    assert_eq!(
+        animation(),
+        Some(AnimationLook {
+            duration_ms: 250,
+            curve: "Linear",
+        })
+    );
 
     // every look the compositor is asked for while the command runs, as what it animates
     let looks = || {
@@ -71,7 +77,10 @@ fn the_animation_is_on_again_after_a_command_that_changes_a_stack() {
             })
             .collect::<Vec<_>>()
     };
-    let on = Some(AnimationLook { duration_ms: 250 });
+    let on = Some(AnimationLook {
+        duration_ms: 250,
+        curve: "Linear",
+    });
 
     for (message, asked) in [
         (SocketMessage::StackWindow(OperationDirection::Left), vec![]),

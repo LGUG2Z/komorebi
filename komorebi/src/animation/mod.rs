@@ -2,9 +2,13 @@
 //! `komorebi.json`).
 //!
 //! komorebi does not animate windows itself: KWin's Geometry Change effect animates a window going
-//! to its place. [`movement_animation`] is what the effect is told, in the
-//! [`Look`](crate::backend::Look) the border manager asks the backend for. The `fps` setting is
-//! stored and has nothing to map to: the compositor animates at the refresh rate of the screen.
+//! to its place. [`movement_animation`] and [`movement_style`] are what the effect is told, in the
+//! [`Look`](crate::backend::Look) the border manager asks the backend for. The stock effect has
+//! one curve, an exponential ease out; komorebi's build of it takes every style. The `fps`
+//! setting is stored and has nothing to map to: the compositor animates at the refresh rate of the
+//! screen.
+
+use crate::core::animation::AnimationStyle;
 
 use parking_lot::Mutex;
 pub use prefix::AnimationPrefix;
@@ -28,6 +32,7 @@ use serde::Serialize;
 /// ```json
 /// {
 ///     "enabled": true,
+///     "style": "EaseInSine",
 ///     "fps": 60,
 ///     "duration": 250
 /// }
@@ -38,6 +43,7 @@ use serde::Serialize;
 /// {
 ///     "movement": {
 ///         "enabled": true,
+///         "style": "EaseInSine",
 ///         "fps": 60,
 ///         "duration": 250
 ///     }
@@ -51,14 +57,22 @@ pub enum PerAnimationPrefixConfig<T> {
 }
 
 pub const DEFAULT_ANIMATION_ENABLED: bool = false;
+pub const DEFAULT_ANIMATION_STYLE: AnimationStyle = AnimationStyle::Linear;
 pub const DEFAULT_ANIMATION_DURATION: u64 = 250;
 pub const DEFAULT_ANIMATION_FPS: u64 = 60;
+
+pub static ANIMATION_STYLE_GLOBAL: LazyLock<Arc<Mutex<AnimationStyle>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(DEFAULT_ANIMATION_STYLE)));
 
 pub static ANIMATION_ENABLED_GLOBAL: LazyLock<Arc<AtomicBool>> =
     LazyLock::new(|| Arc::new(AtomicBool::new(DEFAULT_ANIMATION_ENABLED)));
 
 pub static ANIMATION_DURATION_GLOBAL: LazyLock<Arc<AtomicU64>> =
     LazyLock::new(|| Arc::new(AtomicU64::new(DEFAULT_ANIMATION_DURATION)));
+
+pub static ANIMATION_STYLE_PER_ANIMATION: LazyLock<
+    Arc<Mutex<HashMap<AnimationPrefix, AnimationStyle>>>,
+> = LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub static ANIMATION_ENABLED_PER_ANIMATION: LazyLock<Arc<Mutex<HashMap<AnimationPrefix, bool>>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
@@ -86,4 +100,13 @@ pub fn movement_animation() -> Option<u64> {
             .copied()
             .unwrap_or_else(|| ANIMATION_DURATION_GLOBAL.load(std::sync::atomic::Ordering::SeqCst))
     })
+}
+
+/// Returns the easing of window movement: the `movement` style, else the global one.
+pub fn movement_style() -> AnimationStyle {
+    ANIMATION_STYLE_PER_ANIMATION
+        .lock()
+        .get(&AnimationPrefix::Movement)
+        .copied()
+        .unwrap_or_else(|| *ANIMATION_STYLE_GLOBAL.lock())
 }

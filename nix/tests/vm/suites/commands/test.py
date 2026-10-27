@@ -333,6 +333,7 @@ border disable
 animation enable
 animation-duration 120
 animation-fps 30
+animation-style --style linear
 animation disable
 session-float-rule
 session-float-rules

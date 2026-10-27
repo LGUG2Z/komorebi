@@ -107,7 +107,8 @@ KWin:
 - `kwin-effect-geometry-change-komorebi`
   ([`nix/kwin-effect-geometry-change.nix`](nix/kwin-effect-geometry-change.nix)):
   Geometry Change 1.5, a scripted effect that animates a window that a program
-  or a script moves or resizes.
+  or a script moves or resizes, with a patch that makes its easing curve a
+  setting.
 
 Each one is a package for Linux and an attribute of `overlays.default`, built
 with the KWin of the nixpkgs the overlay is applied to.
@@ -257,8 +258,8 @@ window, so the layout leaves the room while the compositor says it draws one, an
 komorebi gives each window the border color of what it is to the layout: the focused
 window, the others, a locked container, a floating window. `border`, `border-colour`,
 `border-width` and `border-offset` set it. Windows going to their places are
-animated by another effect, Geometry Change, which `animation` and
-`animation-duration` turn on and set.
+animated by another effect, Geometry Change, which `animation`,
+`animation-duration` and `animation-style` turn on and set.
 
 ## Documentation
 

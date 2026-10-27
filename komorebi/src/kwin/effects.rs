@@ -17,9 +17,10 @@
 //! installed later cannot be loaded until the next login. An effect that is not installed is
 //! reported once in the log, and komorebi carries on without it.
 //!
-//! komorebi's build of the border effect (`nix/kde-rounded-corners.nix`) adds what the stock one
-//! lacks: a border color for each window, set over D-Bus with
-//! [`EffectsState::set_window_colours`].
+//! komorebi's builds of the two effects (`nix/kde-rounded-corners.nix`,
+//! `nix/kwin-effect-geometry-change.nix`) add what the stock ones lack: a border color for each
+//! window, set over D-Bus with [`EffectsState::set_window_colours`], and a choice of easing curve
+//! (the `Curve` setting).
 //!
 //! # What is guaranteed, and by what
 //!
@@ -137,11 +138,16 @@ pub fn border_settings(border: &BorderLook) -> Vec<(&'static str, String)> {
 /// the effect's default and costs a redraw of both; a window going to its place is a move and a
 /// resize, not a change of what it shows.
 ///
+/// `Curve` is not a setting of the stock effect, which always eases out exponentially. komorebi's
+/// build of it (`nix/kwin-effect-geometry-change.nix`) reads it, and the stock effect ignores the
+/// key.
+///
 /// Covered by `kwin::effects::tests::animation_is_a_duration_without_cross_fading`.
 pub fn animation_settings(animation: &AnimationLook) -> Vec<(&'static str, String)> {
     vec![
         ("Duration", animation.duration_ms.to_string()),
         ("CrossFade", "false".to_string()),
+        ("Curve", animation.curve.to_string()),
     ]
 }
 
@@ -446,11 +452,14 @@ mod tests {
 
     #[test]
     fn animation_is_a_duration_without_cross_fading() {
-        let s: std::collections::HashMap<_, _> =
-            animation_settings(&AnimationLook { duration_ms: 250 })
-                .into_iter()
-                .collect();
+        let s: std::collections::HashMap<_, _> = animation_settings(&AnimationLook {
+            duration_ms: 250,
+            curve: "InOutSine",
+        })
+        .into_iter()
+        .collect();
         assert_eq!(s["Duration"], "250");
         assert_eq!(s["CrossFade"], "false");
+        assert_eq!(s["Curve"], "InOutSine");
     }
 }

@@ -8,8 +8,10 @@
 use color_eyre::eyre;
 use komorebi::animation::ANIMATION_FPS;
 use komorebi::animation::movement_animation;
+use komorebi::animation::movement_style;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::with_backend;
+use komorebi::core::animation::AnimationStyle;
 use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
 use parking_lot::Mutex;
@@ -30,7 +32,7 @@ fn the_animation_key_of_the_file_is_the_animation_settings() {
 
     let path = write_config(
         "all",
-        r#"{ "animation": { "enabled": true, "duration": 120, "fps": 30 } }"#,
+        r#"{ "animation": { "enabled": true, "duration": 120, "style": "EaseOutExpo", "fps": 30 } }"#,
     );
     let (_sender, receiver) = crossbeam_channel::bounded(1);
     let socket = PathBuf::from(format!("/tmp/kmb-anim-config-{}.sock", std::process::id()));
@@ -48,17 +50,20 @@ fn the_animation_key_of_the_file_is_the_animation_settings() {
 
     // one value for every kind of animation
     assert_eq!(movement_animation(), Some(120));
+    assert_eq!(movement_style(), AnimationStyle::EaseOutExpo);
     assert_eq!(ANIMATION_FPS.load(Ordering::SeqCst), 30);
 
     // a value for the kinds a file names wins over the global ones, which a global value takes away
     let by_kind = write_config(
         "kind",
-        r#"{ "animation": { "enabled": { "movement": false }, "duration": { "movement": 500 } } }"#,
+        r#"{ "animation": { "enabled": { "movement": false }, "duration": { "movement": 500 },
+                            "style": { "movement": "EaseInOutSine" } } }"#,
     );
     with_backend(fake.clone(), || {
         StaticConfig::reload(&by_kind, &mut wm.lock()).unwrap();
     });
     assert_eq!(movement_animation(), None, "movement is off");
+    assert_eq!(movement_style(), AnimationStyle::EaseInOutSine);
     assert_eq!(
         ANIMATION_FPS.load(Ordering::SeqCst),
         60,
@@ -67,14 +72,19 @@ fn the_animation_key_of_the_file_is_the_animation_settings() {
 
     let on = write_config(
         "on",
-        r#"{ "animation": { "enabled": { "movement": true }, "duration": 90 } }"#,
+        r#"{ "animation": { "enabled": { "movement": true }, "duration": 90, "style": "Linear" } }"#,
     );
     with_backend(fake.clone(), || {
         StaticConfig::reload(&on, &mut wm.lock()).unwrap();
     });
     assert_eq!(movement_animation(), Some(90), "a global duration wins");
+    assert_eq!(
+        movement_style(),
+        AnimationStyle::Linear,
+        "and so does a global style"
+    );
 
-    // a file that leaves the key out, or the duration, leaves the settings as they are
+    // a file that leaves the key out, or the duration and the style, leaves the settings as they are
     let empty = write_config("empty", "{}");
     with_backend(fake.clone(), || {
         StaticConfig::reload(&empty, &mut wm.lock()).unwrap();
@@ -85,6 +95,7 @@ fn the_animation_key_of_the_file_is_the_animation_settings() {
         StaticConfig::reload(&no_duration, &mut wm.lock()).unwrap();
     });
     assert_eq!(movement_animation(), Some(90));
+    assert_eq!(movement_style(), AnimationStyle::Linear);
 
     // `enabled` is the one key the file has to give
     assert!(StaticConfig::read_raw(r#"{ "animation": { "duration": 100 } }"#).is_err());

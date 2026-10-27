@@ -329,6 +329,200 @@
     }
   },
   "$defs": {
+    "AnimationStyle": {
+      "description": "Mathematical function which describes the rate at which a value changes",
+      "oneOf": [
+        {
+          "description": "Linear",
+          "type": "string",
+          "const": "Linear"
+        },
+        {
+          "description": "Ease in sine",
+          "type": "string",
+          "const": "EaseInSine"
+        },
+        {
+          "description": "Ease out sine",
+          "type": "string",
+          "const": "EaseOutSine"
+        },
+        {
+          "description": "Ease in out sine",
+          "type": "string",
+          "const": "EaseInOutSine"
+        },
+        {
+          "description": "Ease in quad",
+          "type": "string",
+          "const": "EaseInQuad"
+        },
+        {
+          "description": "Ease out quad",
+          "type": "string",
+          "const": "EaseOutQuad"
+        },
+        {
+          "description": "Ease in out quad",
+          "type": "string",
+          "const": "EaseInOutQuad"
+        },
+        {
+          "description": "Ease in cubic",
+          "type": "string",
+          "const": "EaseInCubic"
+        },
+        {
+          "description": "Ease out cubic",
+          "type": "string",
+          "const": "EaseOutCubic"
+        },
+        {
+          "description": "Ease in out cubic",
+          "type": "string",
+          "const": "EaseInOutCubic"
+        },
+        {
+          "description": "Ease in quart",
+          "type": "string",
+          "const": "EaseInQuart"
+        },
+        {
+          "description": "Ease out quart",
+          "type": "string",
+          "const": "EaseOutQuart"
+        },
+        {
+          "description": "Ease in out quart",
+          "type": "string",
+          "const": "EaseInOutQuart"
+        },
+        {
+          "description": "Ease in quint",
+          "type": "string",
+          "const": "EaseInQuint"
+        },
+        {
+          "description": "Ease out quint",
+          "type": "string",
+          "const": "EaseOutQuint"
+        },
+        {
+          "description": "Ease in out quint",
+          "type": "string",
+          "const": "EaseInOutQuint"
+        },
+        {
+          "description": "Ease in expo",
+          "type": "string",
+          "const": "EaseInExpo"
+        },
+        {
+          "description": "Ease out expo",
+          "type": "string",
+          "const": "EaseOutExpo"
+        },
+        {
+          "description": "Ease in out expo",
+          "type": "string",
+          "const": "EaseInOutExpo"
+        },
+        {
+          "description": "Ease in circ",
+          "type": "string",
+          "const": "EaseInCirc"
+        },
+        {
+          "description": "Ease out circ",
+          "type": "string",
+          "const": "EaseOutCirc"
+        },
+        {
+          "description": "Ease in out circ",
+          "type": "string",
+          "const": "EaseInOutCirc"
+        },
+        {
+          "description": "Ease in back",
+          "type": "string",
+          "const": "EaseInBack"
+        },
+        {
+          "description": "Ease out back",
+          "type": "string",
+          "const": "EaseOutBack"
+        },
+        {
+          "description": "Ease in out back",
+          "type": "string",
+          "const": "EaseInOutBack"
+        },
+        {
+          "description": "Ease in elastic",
+          "type": "string",
+          "const": "EaseInElastic"
+        },
+        {
+          "description": "Ease out elastic",
+          "type": "string",
+          "const": "EaseOutElastic"
+        },
+        {
+          "description": "Ease in out elastic",
+          "type": "string",
+          "const": "EaseInOutElastic"
+        },
+        {
+          "description": "Ease in bounce",
+          "type": "string",
+          "const": "EaseInBounce"
+        },
+        {
+          "description": "Ease out bounce",
+          "type": "string",
+          "const": "EaseOutBounce"
+        },
+        {
+          "description": "Ease in out bounce",
+          "type": "string",
+          "const": "EaseInOutBounce"
+        },
+        {
+          "title": "CubicBezier",
+          "description": "Custom Cubic Bézier function",
+          "type": "object",
+          "properties": {
+            "CubicBezier": {
+              "type": "array",
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "CubicBezier"
+          ]
+        }
+      ]
+    },
     "AnimationsConfig": {
       "description": "Animation configuration",
       "type": "object",
@@ -359,6 +553,18 @@
           "format": "uint64",
           "default": 60,
           "minimum": 0
+        },
+        "style": {
+          "description": "Set the animation style",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PerAnimationPrefixConfig3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Linear"
         }
       },
       "required": [
@@ -881,7 +1087,7 @@
       "type": "string"
     },
     "PerAnimationPrefixConfig": {
-      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
       "anyOf": [
         {
           "description": "Animation configuration prefixed for a specific animation kind",
@@ -900,7 +1106,7 @@
       ]
     },
     "PerAnimationPrefixConfig2": {
-      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
       "anyOf": [
         {
           "description": "Animation configuration prefixed for a specific animation kind",
@@ -919,6 +1125,25 @@
           "type": "integer",
           "format": "uint64",
           "minimum": 0
+        }
+      ]
+    },
+    "PerAnimationPrefixConfig3": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
+      "anyOf": [
+        {
+          "description": "Animation configuration prefixed for a specific animation kind",
+          "type": "object",
+          "properties": {
+            "movement": {
+              "$ref": "#/$defs/AnimationStyle"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Animation configuration for all animation kinds",
+          "$ref": "#/$defs/AnimationStyle"
         }
       ]
     },

@@ -9,6 +9,7 @@
 #   C  border colors: every kind of window has its own: the focused window, the others, a locked
 #      container that does not have the focus, a stack and a monocled window that have it, and a
 #      floating window that has it
+#   D  animation curves: two curves put a window in different places at the same moment
 #
 # Every window is a `foot` of one color all over (`Kde.colored_window`), and a color is read at the
 # pixels just outside the frame of the window (`pixels.ring`). `komorebi/tests/maximize.rs` and
@@ -19,6 +20,8 @@ import time
 from komorebi_vm import Checks, Kde, pixels
 
 UNIT = "komorebi.service"
+# the daemon's log of the day, without colors, which every run of the unit adds to
+LOG = "/home/komorebi/.local/share/komorebi/komorebi_plaintext.log.*"
 ROUNDED_CORNERS = "kwin4_effect_shapecorners"
 
 BLUE = (0, 0, 255)
@@ -28,6 +31,7 @@ LOCKED = (158, 8, 8)
 STACK = (0, 165, 66)
 MONOCLE = (255, 51, 153)
 FLOATING = (245, 245, 165)
+RED = (255, 0, 0)
 
 start_all()
 machine.wait_for_unit("multi-user.target")
@@ -65,11 +69,30 @@ def windows() -> None:
     time.sleep(2)
 
 
-def ring_is(title: str, color: tuple[int, int, int]) -> bool:
-    """Returns true if and only if the window with this title has a ring of `color` just outside
-    its frame, in a screenshot taken now."""
+def ring_wrong(title: str, color: tuple[int, int, int]) -> list[str]:
+    """What is wrong with the ring of `color` just outside the frame of the window with this title,
+    in a screenshot taken now: a line for each side that has none."""
     wid = kde.wid(title)
-    return wid != "" and pixels.ring(kde.shot(f"ring-{title}"), kde.rect(wid), color) == []
+    if wid == "":
+        return [f"there is no window titled {title}"]
+    return pixels.ring(kde.shot(f"ring-{title}"), kde.rect(wid), color)
+
+
+def check_ring(description: str, title: str, color: tuple[int, int, int]) -> None:
+    """Waits for the window to have the ring, and says what is wrong when it does not."""
+    ok = kde.wait_for(lambda: ring_wrong(title, color) == [], timeout=15)
+    detail = ""
+    if not ok:
+        detail = f"\n       active: {active_title()!r}, komorebi's focus: {kde.focused_title()!r}"
+        detail += "".join(f"\n       {w}" for w in ring_wrong(title, color))
+        said = machine.execute(f"grep -h -i 'border effect\\|colour\\|effect' {LOG}")[1]
+        detail += "".join(f"\n       daemon: {line}" for line in said.splitlines()[-8:])
+    checks.check(description + detail, ok)
+
+
+def active_title() -> str:
+    wid = kde.active()
+    return kde.title(wid) if wid else ""
 
 
 def focus(title: str) -> None:
@@ -182,46 +205,74 @@ checks.check(
     )[0]
     == 0,
 )
-checks.check(
-    "the focused window has the focus color",
-    kde.wait_for(lambda: ring_is("blue", SINGLE), timeout=15),
-)
-checks.check("the others have the unfocused one", ring_is("green", UNFOCUSED))
+check_ring("the focused window has the focus color", "blue", SINGLE)
+check_ring("the others have the unfocused one", "green", UNFOCUSED)
 
 # a locked container that does not have the focus
 focus("red")
 kde.komorebic("toggle-lock")
 focus("blue")
-checks.check(
-    "a locked container that does not have the focus is marked",
-    kde.wait_for(lambda: ring_is("red", LOCKED), timeout=15),
-)
+check_ring("a locked container that does not have the focus is marked", "red", LOCKED)
 focus("red")
 kde.komorebic("toggle-lock")
 focus("blue")
 
 # a stack that has the focus: blue goes into the container on its left
 kde.komorebic("stack", "left")
-checks.check(
-    "a stack with the focus has the stack color",
-    kde.wait_for(lambda: ring_is("blue", STACK), timeout=15),
-)
+check_ring("a stack with the focus has the stack color", "blue", STACK)
 kde.komorebic("unstack")
 
 # a monocled window
 kde.komorebic("toggle-monocle")
-checks.check(
-    "a monocled window has the monocle color",
-    kde.wait_for(lambda: ring_is("blue", MONOCLE), timeout=15),
-)
+check_ring("a monocled window has the monocle color", "blue", MONOCLE)
 kde.komorebic("toggle-monocle")
 
 # a floating window that has the focus
 kde.komorebic("toggle-float")
-checks.check(
-    "a floating window with the focus has the floating color",
-    kde.wait_for(lambda: ring_is("blue", FLOATING), timeout=15),
-)
+check_ring("a floating window with the focus has the floating color", "blue", FLOATING)
 stop_komorebi()
+
+print("== D. animation curves")
+# A 30 s animation, looked at a few seconds in: how far along the move is red, as seen on the
+# screen (the frames are already where they are going; only the picture is on its way). An ease out
+# is far along by then and a linear one has hardly started. Red is given the focus first so that
+# nothing hides its left edge, and the answer is a percentage of the way, so it does not depend on
+# how long the screenshot took.
+
+
+def progress(style: str) -> int:
+    """How far along, in percent, red is a few seconds into a flip of the layout with `style`."""
+    start_komorebi()
+    kde.komorebic("animation-duration", "30000")
+    kde.komorebic("animation-style", "--style", style)
+    kde.komorebic("animation", "enable")
+    kde.colored_window("red", "ff0000")
+    time.sleep(1)
+    kde.colored_window("blue", "0000ff")
+    time.sleep(20 * SCALE)
+    focus("red")
+    time.sleep(2)
+    here = kde.rect(kde.wid("red"))
+    row = here.y + here.h // 2
+    from_x = pixels.leftmost(kde.shot(f"curve-before-{style}"), row, RED)
+    kde.komorebic("flip-layout", "horizontal")
+    kde.wait_for(lambda: kde.rect(kde.wid("red")) != here, timeout=10)
+    to = kde.rect(kde.wid("red"))
+    time.sleep(5 * SCALE)
+    now_x = pixels.leftmost(kde.shot(f"curve-{style}"), row, RED)
+    print(f"     {style}: red's left edge on the screen went from {from_x} to {now_x}; its frame")
+    print(f"     goes from {here.x} to {to.x}")
+    stop_komorebi()
+    if from_x is None or now_x is None or to.x == here.x:
+        return -1
+    return (now_x - from_x) * 100 // (to.x - here.x)
+
+
+linear = progress("linear")
+expo = progress("ease-out-expo")
+print(f"     a few seconds into a 30 s move, red is this far along: {linear}% with Linear,")
+print(f"     {expo}% with EaseOutExpo")
+checks.check("Linear is less than 60% of the way", 0 <= linear < 60)
+checks.check("EaseOutExpo is at least 20 points further along than Linear", expo >= linear + 20)
 
 checks.finish()

@@ -459,11 +459,12 @@ At time of writing (2026-10-27):
   virtual machine loads 11 effects instead of 29.
 - **Geometry Change animates what a program or a script asks for**: a move and a resize made
   through KWin's scripting API are animated, and by its source an interactive move or resize
-  is not. It eases out exponentially (`QEasingCurve.OutExpo`), so the movement is nearly
-  over after a third of its duration. Its settings are in the
+  is not. The stock effect always eases out exponentially (`QEasingCurve.OutExpo`), so the
+  movement is nearly over after a third of its duration. Its settings are in the
   `[Effect-kwin4_effect_geometry_change]` group of `kwinrc` (`Duration`, `CrossFade`,
-  `ExcludedWindowClasses`), and it reads them again on `reconfigureEffect`: a `Duration` of
-  4000 written while it ran was the length of the next animation.
+  `ExcludedWindowClasses`, and `Curve` with komorebi's patch), and it reads them again on
+  `reconfigureEffect`: a `Duration` of 4000 written while it ran was the length of the next
+  animation.
 - **The animation moves what is painted, not the window**: the frame KWin reports for the
   window (`frameGeometry`) is the final one from the start of the animation.
 
@@ -514,6 +515,12 @@ for KDE Rounded Corners, makes two changes:
   contents change or the window is resized, so a change of opacity alone would not show. The
   patched effect redirects the window again when its opacity changes.
 
+[`curve.patch`](../../nix/kwin-effect-geometry-change/curve.patch), for Geometry Change, adds
+a `Curve` setting to the effect's group: the name of any of Qt's easing curves (`OutExpo`,
+`InOutSine`, ...), read with the effect's other settings and used for every animation. An
+unknown or missing name is the stock effect's curve, `OutExpo`. The check asserts that the
+script reads `Curve` and that the effect's settings declare it.
+
 ### What komorebi writes for the animation
 
 Geometry Change reads its settings from the group `[Effect-kwin4_effect_geometry_change]` of
@@ -523,6 +530,7 @@ Geometry Change reads its settings from the group `[Effect-kwin4_effect_geometry
 |---|---|
 | `Duration` | the animation's duration, in milliseconds |
 | `CrossFade` | `false`: a window that changes size is not cross-faded |
+| `Curve` | the name of a Qt easing curve (`Linear`, `OutExpo`, `InOutSine`, ...): komorebi's build of the effect reads it, and the stock effect ignores it |
 
 komorebi then calls `reconfigureEffect`, and at time of writing (2026-10-27) the effect uses the
 new `Duration` for the next move: a `Duration` of 4000 written while it ran was the length of the

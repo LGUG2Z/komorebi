@@ -119,7 +119,10 @@ pub struct MonitorInfo {
 ///         focused: (66, 165, 245),
 ///         unfocused: (128, 128, 128),
 ///     }),
-///     animation: Some(AnimationLook { duration_ms: 250 }),
+///     animation: Some(AnimationLook {
+///         duration_ms: 250,
+///         curve: "InOutSine",
+///     }),
 /// };
 /// assert!(look.border.is_some() && look.animation.is_some());
 /// ```
@@ -136,6 +139,8 @@ pub struct Look {
 pub struct AnimationLook {
     /// How long the animation of a window takes, in milliseconds.
     pub duration_ms: u64,
+    /// The Qt easing curve of the animation, `QEasingCurve.<this>`.
+    pub curve: &'static str,
 }
 
 /// The outline around every window.

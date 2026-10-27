@@ -1,0 +1,61 @@
+curve.patch, for Geometry Change at revision 398491e
+(https://github.com/peterfajdiga/kwin4_effect_geometry_change), applied by
+nix/kwin-effect-geometry-change.nix. It adds a Curve setting: any of Qt's
+easing curves by name (OutExpo, InOutSine, ...), which is how komorebi sets
+the curve of its animations. An unknown or missing name is the effect's own
+curve, OutExpo.
+
+This patch is a derivative work of Geometry Change, which is distributed under
+the GNU General Public License version 3, and it is distributed under the same
+license.
+
+SPDX-License-Identifier: GPL-3.0-only
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, version 3.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+
+diff -ruN a/package/contents/code/main.js b/package/contents/code/main.js
+--- a/package/contents/code/main.js	2026-10-26 21:55:40
++++ b/package/contents/code/main.js	2026-10-26 21:55:40
+@@ -17,6 +17,12 @@
+         this.duration = animationTime(duration);
+         this.excludedWindowClasses = effect.readConfig("ExcludedWindowClasses", "krunner,yakuake").split(",");
+         this.crossFade = effect.readConfig("CrossFade", false);
++        // komorebi: any of Qt's easing curves by name ("OutExpo", "InOutSine", ...), which is how it
++        // says what its `animation.style` is; an unknown or missing name is the effect's own curve
++        this.curve = QEasingCurve[effect.readConfig("Curve", "OutExpo")];
++        if (this.curve === undefined) {
++            this.curve = QEasingCurve.OutExpo;
++        }
+     }
+ 
+     manage(window) {
+@@ -128,7 +134,7 @@
+         animate({
+             window: window,
+             duration: this.duration,
+-            curve: QEasingCurve.OutExpo,
++            curve: this.curve,
+             animations: animations,
+         });
+     }
+diff -ruN a/package/contents/config/main.xml b/package/contents/config/main.xml
+--- a/package/contents/config/main.xml	2026-10-26 22:29:29
++++ b/package/contents/config/main.xml	2026-10-26 22:29:29
+@@ -14,5 +14,8 @@
+         <entry name="CrossFade" type="Bool">
+             <default>false</default>
+         </entry>
++        <entry name="Curve" type="String">
++            <default>OutExpo</default>
++        </entry>
+     </group>
+ </kcfg>

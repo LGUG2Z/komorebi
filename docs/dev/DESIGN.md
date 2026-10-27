@@ -451,6 +451,15 @@ Because cross-fading the old contents of a window into the new while it changes 
 effect's default, and it costs a redraw of both. A window going to its place is a move and a
 resize, and what the window shows does not change.
 
+## Why are komorebi's animation styles Qt's easing curves?
+
+Because KWin animates with `QEasingCurve`, and a style is a curve KWin has when it is Qt's name
+without the "Ease": `EaseInOutSine` is `InOutSine`
+([`AnimationStyle::qt_curve`](../../komorebi/src/core/animation.rs)). A custom cubic Bézier is not
+one of Qt's curves, and is drawn as an ease out, the kind of curve a window moving to its place
+wants. The stock Geometry Change has one curve, an exponential ease out, so komorebi's build of
+it reads a `Curve` setting ([PLATFORM.md](PLATFORM.md#the-patches)).
+
 ## Why are the effects patched?
 
 Because the stock effects lack what komorebi needs of them. Each patch leaves the effect
@@ -459,6 +468,7 @@ working without komorebi, with the settings the stock effect has:
 | Effect | Patched for | Why |
 |---|---|---|
 | KDE Rounded Corners | a color for each window, set over D-Bus; drawing a window again when its opacity changes | komorebi colors a window by what it is to the layout (the focused window of each monitor, a stack, a monocle, a floating window, a locked container), and the stock effect has one color for the active window and one for the others. It also draws a window from a texture that has the window's opacity in it, made again only when the contents change or the window is resized, so a change of opacity alone would not show |
+| Geometry Change | a `Curve` setting, the name of one of Qt's easing curves | komorebi's `animation.style` is an easing curve by name, and its named styles are Qt's curves with "Ease" in front (`EaseInOutSine` is Qt's `InOutSine`); the stock effect has one fixed curve, an exponential ease out, and no setting for it |
 
 The patches are derivative works of the effects and are under the effects' license, the GNU
 General Public License version 3 ([PLATFORM.md](PLATFORM.md#the-patches)).

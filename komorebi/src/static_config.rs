@@ -42,6 +42,8 @@ use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::animation::DEFAULT_ANIMATION_FPS;
 use crate::animation::PerAnimationPrefixConfig;
 use crate::border_manager;
@@ -61,6 +63,7 @@ use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowHidingPosition;
 use crate::core::WindowManagementBehaviour;
+use crate::core::animation::AnimationStyle;
 use crate::core::asc::ApplicationSpecificConfiguration;
 use crate::core::asc::AscApplicationRulesOrSchema;
 use crate::core::config_generation::MatchingRule;
@@ -527,6 +530,10 @@ pub struct AnimationsConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = PerAnimationPrefixConfig::Global(250))))]
     pub duration: Option<PerAnimationPrefixConfig<u64>>,
+    /// Set the animation style
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = PerAnimationPrefixConfig::Global(AnimationStyle::Linear))))]
+    pub style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
     /// Set the animation FPS
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_ANIMATION_FPS)))]
@@ -703,6 +710,18 @@ impl StaticConfig {
                     ANIMATION_ENABLED_GLOBAL.store(*enabled, Ordering::SeqCst);
                     ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
                 }
+            }
+
+            match &animations.style {
+                Some(PerAnimationPrefixConfig::Prefix(style)) => {
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clone_from(style);
+                }
+                Some(PerAnimationPrefixConfig::Global(style)) => {
+                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
+                    *animation_style = *style;
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
+                }
+                None => {}
             }
 
             match &animations.duration {

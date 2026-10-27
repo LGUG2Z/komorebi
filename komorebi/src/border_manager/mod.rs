@@ -22,6 +22,7 @@ use crate::backend::BorderLook;
 use crate::backend::Look;
 use crate::backend::backend;
 use crate::core::WindowKind;
+use crate::core::animation::AnimationStyle;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
 use lazy_static::lazy_static;
@@ -230,21 +231,29 @@ pub static BORDER_DRAWN: AtomicBool = AtomicBool::new(false);
 ///
 /// The border is there when `enabled`, with its width and radius at least 0; the colors are as the
 /// statics store them, red, green and blue in one number. The animation is a duration in
-/// milliseconds, when there is one.
+/// milliseconds and a style, when there is one.
 ///
 /// ```rust
 /// use komorebi::border_manager::look;
 /// use komorebi::border_manager::pack;
+/// use komorebi::core::animation::AnimationStyle;
 ///
 /// let blue = pack(66, 165, 245);
 /// let grey = pack(128, 128, 128);
 ///
-/// let on = look(true, 8, -2, blue, grey, Some(250));
+/// let on = look(
+///     true,
+///     8,
+///     -2,
+///     blue,
+///     grey,
+///     Some((250, AnimationStyle::EaseInOutSine)),
+/// );
 /// let border = on.border.expect("the borders are on");
 /// assert_eq!((border.width, border.radius), (8, 0));
 /// assert_eq!(border.focused, (66, 165, 245));
 /// assert_eq!(border.unfocused, (128, 128, 128));
-/// assert_eq!(on.animation.expect("an animation").duration_ms, 250);
+/// assert_eq!(on.animation.expect("an animation").curve, "InOutSine");
 ///
 /// assert_eq!(look(false, 8, 10, blue, grey, None).border, None);
 /// ```
@@ -254,7 +263,7 @@ pub fn look(
     radius: i32,
     focused: u32,
     unfocused: u32,
-    animation: Option<u64>,
+    animation: Option<(u64, AnimationStyle)>,
 ) -> Look {
     Look {
         border: enabled.then(|| BorderLook {
@@ -263,7 +272,10 @@ pub fn look(
             focused: unpack(focused),
             unfocused: unpack(unfocused),
         }),
-        animation: animation.map(|duration_ms| AnimationLook { duration_ms }),
+        animation: animation.map(|(duration_ms, style)| AnimationLook {
+            duration_ms,
+            curve: style.qt_curve(),
+        }),
     }
 }
 
@@ -276,7 +288,8 @@ pub fn current_look() -> Look {
         BORDER_RADIUS.load(Ordering::SeqCst),
         FOCUSED.load(Ordering::SeqCst),
         UNFOCUSED.load(Ordering::SeqCst),
-        crate::animation::movement_animation(),
+        crate::animation::movement_animation()
+            .map(|duration| (duration, crate::animation::movement_style())),
     )
 }
 
@@ -327,9 +340,36 @@ mod tests {
 
     #[test]
     fn borders_off_and_animation_on_are_independent() {
-        let look = look(false, 10, 12, 0, 0, Some(250));
+        let look = look(
+            false,
+            10,
+            12,
+            0,
+            0,
+            Some((250, AnimationStyle::EaseOutCubic)),
+        );
         assert_eq!(look.border, None);
-        assert_eq!(look.animation, Some(AnimationLook { duration_ms: 250 }));
+        assert_eq!(
+            look.animation,
+            Some(AnimationLook {
+                duration_ms: 250,
+                curve: "OutCubic"
+            })
+        );
+    }
+
+    #[test]
+    fn every_style_is_a_curve_qt_has() {
+        // the names QEasingCurve has: komorebi's styles are those without the "Ease"
+        for style in <AnimationStyle as clap::ValueEnum>::value_variants() {
+            let name = format!("{style}");
+            let expected = name.strip_prefix("Ease").unwrap_or(&name);
+            assert_eq!(style.qt_curve(), expected, "{name}");
+        }
+        assert_eq!(
+            AnimationStyle::CubicBezier(0.1, 0.2, 0.3, 0.4).qt_curve(),
+            "OutCubic"
+        );
     }
 
     #[test]
