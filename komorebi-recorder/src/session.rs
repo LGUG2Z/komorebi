@@ -4,6 +4,7 @@
 //! the raw files, so streams stay separate and can be reconciled or re-indexed later.
 
 use crate::analysis::flavor::Flavor;
+use crate::capture::DisplayResult;
 use crate::clock::Anchor;
 use crate::clock::Timebase;
 use crate::platform::Host;
@@ -101,6 +102,20 @@ pub struct KomorebiInfo {
     pub log_dir: Option<String>,
 }
 
+/// A display's capture plus where its file sits relative to the session's video time.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayEntry {
+    #[serde(flatten)]
+    /// What capturing this segment produced.
+    pub result: DisplayResult,
+    /// Seconds between the session's video t=0 and this file's first frame (>= 0). A timestamp
+    /// `t` in session video time is at `t - offset_s` in this segment's file.
+    pub offset_s: f64,
+    /// Session video time at which this segment ended, once it has.
+    #[serde(default)]
+    pub end_s: Option<f64>,
+}
+
 /// The outcome of the self-test that checks the video against the clocks.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Calibration {
@@ -187,6 +202,8 @@ pub struct Manifest {
     pub video_t0_mach_ns: Option<u64>,
     /// When video capture was stopped on the mach clock.
     pub video_end_mach_ns: Option<u64>,
+    /// Every segment of every display's video, with its place in video time.
+    pub displays: Vec<DisplayEntry>,
     /// The byte ranges of komorebi's log that were recorded, which together make `komorebi.log`.
     pub log_segments: Vec<LogSegment>,
     /// The OS trace streams that were recorded, one per file under `oslog/`.
@@ -225,6 +242,7 @@ impl Manifest {
             stop: None,
             video_t0_mach_ns: None,
             video_end_mach_ns: None,
+            displays: Vec::new(),
             log_segments: Vec::new(),
             oslog: Vec::new(),
             apps: Vec::new(),
@@ -241,6 +259,67 @@ impl Manifest {
         self.host
             .clone()
             .unwrap_or_else(|| Host::legacy_macos(self.macos_version.clone()))
+    }
+
+    /// Install the display segments: every segment's offset from the session's video t=0 (the
+    /// earliest first frame of all of them) and the session-level video start and end.
+    pub fn apply_segments(&mut self, results: Vec<DisplayResult>) {
+        self.video_t0_mach_ns = results.iter().filter_map(|r| r.video_t0_mach_ns).min();
+        let all_ended =
+            !results.is_empty() && results.iter().all(|r| r.video_end_mach_ns.is_some());
+        self.video_end_mach_ns = if all_ended {
+            results.iter().filter_map(|r| r.video_end_mach_ns).max()
+        } else {
+            None
+        };
+
+        let t0 = self.video_t0_mach_ns;
+        self.displays = results
+            .into_iter()
+            .map(|result| {
+                let offset_s = match (result.video_t0_mach_ns, t0) {
+                    (Some(this), Some(first)) => this.saturating_sub(first) as f64 / 1e9,
+                    _ => 0.0,
+                };
+                let end_s = result.video_end_mach_ns.map(|end| self.video_seconds(end));
+                DisplayEntry {
+                    result,
+                    offset_s,
+                    end_s,
+                }
+            })
+            .collect();
+    }
+
+    /// The segment of `display` that has video at session video time `video_s`, if any. When a
+    /// display was unplugged or the machine slept there is a gap with no file to look in.
+    #[must_use]
+    pub fn segment_at(&self, display: u32, video_s: f64) -> Option<&DisplayEntry> {
+        // segment boundaries are sampled, not exact, so allow a frame either side
+        const SLACK_S: f64 = 0.05;
+        let (_, session_end) = self.video_span();
+
+        self.displays
+            .iter()
+            .filter(|entry| entry.result.display.id == display && entry.result.frames > 0)
+            .filter(|entry| {
+                video_s >= entry.offset_s - SLACK_S
+                    && video_s <= entry.end_s.unwrap_or(session_end) + SLACK_S
+            })
+            .max_by(|a, b| a.offset_s.total_cmp(&b.offset_s))
+    }
+
+    /// The distinct display ids that were recorded at any point.
+    #[must_use]
+    pub fn display_ids(&self) -> Vec<u32> {
+        let mut ids: Vec<u32> = self
+            .displays
+            .iter()
+            .map(|entry| entry.result.display.id)
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        ids
     }
 
     /// The master clock value that is `t = 0` in video time. Falls back to the recording start if
@@ -717,6 +796,109 @@ mod tests {
                 "{command}"
             );
         }
+    }
+
+    fn segment(display: u32, number: u32, t0: u64, end: Option<u64>) -> DisplayResult {
+        DisplayResult {
+            display: crate::capture::DisplayDescriptor {
+                id: display,
+                frame: [0.0, 0.0, 100.0, 100.0],
+                width_points: 100,
+                height_points: 100,
+                asleep: false,
+                scale: 1.0,
+            },
+            segment: number,
+            scale: 1.0,
+            width_px: 100,
+            height_px: 100,
+            codec: crate::capture::Codec::Hevc,
+            file: crate::capture::video_file_name(display, number),
+            frames_file: crate::capture::frames_file_name(display, number),
+            video_t0_mach_ns: Some(t0),
+            video_end_mach_ns: end,
+            end_reason: end.map(|_| crate::capture::EndReason::Stopped),
+            frames: 10,
+            dropped: 0,
+            idle_callbacks: 0,
+            latency: crate::capture::LatencyStats::default(),
+            error: None,
+        }
+    }
+
+    const S: u64 = 1_000_000_000;
+
+    /// Display 1 is recorded for 0-10s, unplugged, and back for 30-40s; display 2 for 2-40s.
+    fn docked_and_undocked() -> Manifest {
+        let mut manifest = manifest();
+        manifest.apply_segments(vec![
+            segment(1, 1, 100 * S, Some(110 * S)),
+            segment(2, 1, 102 * S, Some(140 * S)),
+            segment(1, 2, 130 * S, Some(140 * S)),
+        ]);
+        manifest.video_end_mach_ns = Some(140 * S);
+        manifest
+    }
+
+    #[test]
+    fn segments_are_placed_relative_to_the_first_frame_of_any_of_them() {
+        let manifest = docked_and_undocked();
+        assert_eq!(manifest.video_t0_mach_ns, Some(100 * S));
+
+        let by_file = |file: &str| {
+            manifest
+                .displays
+                .iter()
+                .find(|entry| entry.result.file == file)
+                .expect("segment")
+        };
+        assert!((by_file("video-1.mp4").offset_s - 0.0).abs() < 1e-9);
+        assert!((by_file("video-2.mp4").offset_s - 2.0).abs() < 1e-9);
+        assert!((by_file("video-1-2.mp4").offset_s - 30.0).abs() < 1e-9);
+        assert_eq!(by_file("video-1.mp4").end_s, Some(10.0));
+        assert_eq!(by_file("video-1-2.mp4").end_s, Some(40.0));
+        assert_eq!(manifest.display_ids(), vec![1, 2]);
+        assert_eq!(manifest.video_span(), (0.0, 40.0));
+    }
+
+    #[test]
+    fn the_right_segment_is_found_and_a_gap_has_none() {
+        let manifest = docked_and_undocked();
+
+        let at = |display: u32, t: f64| {
+            manifest
+                .segment_at(display, t)
+                .map(|entry| entry.result.file.as_str())
+        };
+
+        assert_eq!(at(1, 5.0), Some("video-1.mp4"));
+        assert_eq!(at(1, 35.0), Some("video-1-2.mp4"));
+        assert_eq!(
+            at(1, 20.0),
+            None,
+            "display 1 was unplugged between 10s and 30s"
+        );
+        assert_eq!(at(2, 20.0), Some("video-2.mp4"), "display 2 never stopped");
+        assert_eq!(at(2, 1.0), None, "display 2 had not started yet");
+        assert_eq!(at(9, 5.0), None, "no such display");
+
+        // a frame of slack at each boundary absorbs sampling error
+        assert_eq!(at(1, 10.03), Some("video-1.mp4"));
+        assert_eq!(at(1, 10.2), None);
+    }
+
+    #[test]
+    fn a_segment_still_being_recorded_extends_to_the_end_of_the_session() {
+        let mut manifest = manifest();
+        manifest.apply_segments(vec![segment(1, 1, 100 * S, None)]);
+        manifest.stop = Some(Moment {
+            mach_ns: 160 * S,
+            wall_us: 0,
+        });
+        manifest.video_end_mach_ns = Some(160 * S);
+
+        assert!(manifest.segment_at(1, 50.0).is_some());
+        assert!(manifest.segment_at(1, 59.9).is_some());
     }
 
     #[test]

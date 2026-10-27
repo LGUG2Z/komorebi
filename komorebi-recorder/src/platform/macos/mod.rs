@@ -15,6 +15,7 @@
 //! re-exports its submodules under the same names on every host.
 
 pub mod apps;
+pub mod capture;
 pub mod clock;
 pub mod process;
 pub mod shell;

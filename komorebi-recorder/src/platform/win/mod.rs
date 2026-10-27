@@ -22,7 +22,9 @@
 //! `docs/dev/windows-checkpoints.md`.
 
 pub mod apps;
+pub mod capture;
 pub mod clock;
+pub mod media;
 pub mod process;
 pub mod shell;
 pub mod trace;
@@ -33,4 +35,5 @@ pub mod trace;
 pub fn init() {
     // Without this Windows lies to us about sizes: a display scaled to 150 % reads as smaller than
     // it is, and komorebi's rects (which are physical pixels) would not match ours.
+    capture::become_per_monitor_dpi_aware();
 }

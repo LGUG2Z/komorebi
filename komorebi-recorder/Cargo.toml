@@ -17,7 +17,24 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+dispatch2 = "0.3"
 libc = "0.2"
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-av-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "objc2-core-media",
+  "AVAsset",
+  "AVAssetReader",
+  "AVAssetReaderOutput",
+  "AVAssetTrack",
+  "AVAssetWriter",
+  "AVAssetWriterInput",
+  "objc2-core-foundation",
+  "AVMediaFormat",
+  "AVVideoSettings",
+] }
 objc2-core-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "CFArray",
@@ -36,6 +53,37 @@ objc2-core-graphics = { version = "0.3", default-features = false, features = [
   "CGRemoteOperation",
   "CGSession",
   "CGWindow",
+] }
+objc2-core-media = { version = "0.3", default-features = false, features = [
+  "std",
+  "objc2-core-video",
+  "CMBase",
+  "CMSampleBuffer",
+  "CMSync",
+  "CMTime",
+  "CMTimeRange",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSArray",
+  "NSDictionary",
+  "NSEnumerator",
+  "NSError",
+  "NSObject",
+  "NSString",
+  "NSURL",
+  "NSValue",
+] }
+objc2-screen-capture-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "dispatch2",
+  "libc",
+  "objc2-core-foundation",
+  "objc2-core-graphics",
+  "objc2-core-media",
+  "SCShareableContent",
+  "SCStream",
 ] }
 
 [target.'cfg(windows)'.dependencies]

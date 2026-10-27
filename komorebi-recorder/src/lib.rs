@@ -48,6 +48,7 @@
 //! | [`lock`] | telling a running recorder from one that died |
 //! | [`sources`] | the sources that write raw files into the session |
 //! | [`session`] | the session directory and its manifest |
+//! | [`capture`] | capturing the screen into segments of video |
 //!
 //! # What is not supported
 //!
@@ -61,6 +62,7 @@
 //! [`platform`] for what each host provides.
 
 pub mod analysis;
+pub mod capture;
 pub mod clock;
 pub mod incidents;
 pub mod komorebi_link;

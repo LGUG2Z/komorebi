@@ -46,6 +46,21 @@ Video frame times and the OS trace are on the master clock already on both hosts
 `machTimestamp` on a Mac; Windows.Graphics.Capture on Windows). The field names ending in `_mach_ns` are spelled that way
 on every host: see [the architecture](ARCHITECTURE.md#the-master-clock).
 
+### Capturing the screen
+
+| | macOS | Windows |
+|---|---|---|
+| API | ScreenCaptureKit, through `objc2` bindings, and AVFoundation's `AVAssetWriter` | Windows.Graphics.Capture (Windows 10 version 1803 or later), and a Media Foundation MP4 sink |
+| permission | Screen Recording, granted to the terminal or app that launches the binary | none |
+| default codec | HEVC | H.264 |
+| other codec | H.264 (`--codec h264`) | HEVC is refused with an error: Media Foundation's MP4 sink does not write it |
+| what is captured | each display, excluding the recorder's own processes by name | each monitor whole, so the program's windows ask to be left out (see below) |
+| a still screen | a healthy stream still calls back about 30 times a second, so silence for four seconds means a stalled stream | Windows sends nothing while the picture does not change, so silence says nothing there |
+
+The video of a display is written as fragmented MP4 on both hosts, in segments, so that the part written before a crash
+can still be played. Because ScreenCaptureKit only emits frames when the screen changes, the macOS capture re-submits the
+last frame so that a static display still flushes fragments.
+
 ### The OS trace
 
 | | macOS | Windows |

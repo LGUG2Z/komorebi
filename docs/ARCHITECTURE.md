@@ -75,6 +75,14 @@ The files beside it are the raw records, and they are written as the data arrive
 (`komorebi.log`, the exact byte range recorded), its events (`events.jsonl`, with full `State` snapshots in `states/`
 only when they changed), and what happened to the recording itself (`recorder.jsonl`).
 The OS trace is under `oslog/`, one file per stream.
+Each display's video is `video-<id>[-<n>].mp4` with a `frames-<id>[-<n>].csv` beside it holding every frame's timestamp,
+one segment to a file: a display that is unplugged and returns starts a new segment instead of extending the old one.
+
+## Recording
+
+The recorder starts its sources in an order that makes the sources that are not video a superset of the video's span
+(the clock anchor, the OS trace streams, the subscription to komorebi and its first `State`, komorebi's log offset, and
+last the video), and stops them in the reverse order.
 
 ## Rules and the layer that enforces them
 

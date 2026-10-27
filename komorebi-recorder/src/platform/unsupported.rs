@@ -16,6 +16,93 @@ pub mod apps {
     }
 }
 
+/// Screen capture, which this host cannot do.
+pub mod capture {
+    use crate::capture::CaptureBackend;
+    use crate::capture::CaptureConfig;
+    use crate::capture::DisplayDescriptor;
+    use crate::capture::RunningCapture;
+    use color_eyre::eyre;
+    use std::path::Path;
+
+    fn unsupported<T>() -> eyre::Result<T> {
+        eyre::bail!(
+            "recording the screen is not supported on {}; investigating a session recorded \
+             elsewhere is",
+            std::env::consts::OS
+        )
+    }
+
+    /// Returns `false`: there is no screen to capture.
+    pub fn has_permission() -> bool {
+        false
+    }
+
+    /// Returns `false`: this host cannot capture the screen.
+    #[must_use]
+    pub fn supported() -> bool {
+        false
+    }
+
+    /// Fails: this host cannot capture the screen.
+    ///
+    /// # Errors
+    ///
+    /// Always returns an error that says recording is not supported here.
+    pub fn ensure_permission() -> eyre::Result<()> {
+        unsupported()
+    }
+
+    /// Fails: this host has no displays it can capture.
+    ///
+    /// # Errors
+    ///
+    /// Always returns an error that says recording is not supported here.
+    pub fn active_displays() -> eyre::Result<Vec<DisplayDescriptor>> {
+        unsupported()
+    }
+
+    /// Returns `0`: there is no main display.
+    #[must_use]
+    pub fn main_display_id() -> u32 {
+        0
+    }
+
+    /// Fails: this host has no main display.
+    ///
+    /// # Errors
+    ///
+    /// Always returns an error that says recording is not supported here.
+    pub fn main_display() -> eyre::Result<DisplayDescriptor> {
+        unsupported()
+    }
+
+    /// Returns `None`: this host has nothing to read a video's duration with.
+    #[must_use]
+    pub fn media_duration_s(_path: &Path) -> Option<f64> {
+        None
+    }
+
+    /// A capture backend that cannot capture.
+    pub struct Backend;
+
+    impl CaptureBackend for Backend {
+        fn active_displays(&self) -> eyre::Result<Vec<DisplayDescriptor>> {
+            active_displays()
+        }
+
+        fn start(
+            &self,
+            _display: &DisplayDescriptor,
+            _segment: u32,
+            _config: &CaptureConfig,
+            _dir: &Path,
+        ) -> eyre::Result<Box<dyn RunningCapture>> {
+            unsupported()
+        }
+    }
+}
+
 /// The master clock, which here is Rust's monotonic [`Instant`].
 pub mod clock {
     use crate::clock::Timebase;

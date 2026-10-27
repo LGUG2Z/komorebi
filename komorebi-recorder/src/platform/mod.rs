@@ -10,6 +10,7 @@
 //! | [`apps`] | which process owns a window id |
 //! | [`process`] | stopping a child process |
 //! | [`trace`] | streaming the OS trace into the session |
+//! | [`capture`] | can we capture, which displays exist, the real [`CaptureBackend`], a video's duration |
 //!
 //! A third host, `unsupported`, builds on anything else so that the investigation commands (which
 //! only read a session directory) still work on a Linux agent box; recording there says so.
@@ -28,6 +29,8 @@
 //! compiler enforces that for the host being built, and for no other: the Windows host is built
 //! from a Mac by `just check-windows` and by CI, and `unsupported` is built only on a third OS,
 //! where nothing in CI builds it.
+//!
+//! [`CaptureBackend`]: crate::capture::CaptureBackend
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -46,7 +49,10 @@ mod win;
 use win as imp;
 
 pub use imp::apps;
+pub use imp::capture;
 pub use imp::clock;
+#[cfg(windows)]
+pub use imp::media;
 pub use imp::process;
 pub use imp::shell;
 pub use imp::trace;
