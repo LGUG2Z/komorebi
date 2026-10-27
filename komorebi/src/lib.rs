@@ -12,6 +12,8 @@
 //! [`window_manager_event_listener`].
 //!
 //! On KDE Plasma the backend is [`kwin::KWinBackend`], which talks to a script it loads into KWin.
+//! The compositor also draws what the windows look like: [`border_manager`] asks the backend for
+//! the borders.
 //!
 //! The daemon also listens on a socket, `komorebi.sock` in [`struct@DATA_DIR`], for the messages
 //! in [`core::SocketMessage`]: [`process_command`] reads them and answers, with the window
@@ -54,6 +56,7 @@ use std::sync::atomic::AtomicI32;
 pub mod ring;
 
 pub mod backend;
+pub mod border_manager;
 pub mod container;
 pub mod core;
 pub mod desktop;

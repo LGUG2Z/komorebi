@@ -108,6 +108,7 @@ def test_session_attaches_to_the_users_bus_and_the_display_the_manager_reports(
 ) -> None:
     machine.reply("show-environment", output="PATH=/bin\nWAYLAND_DISPLAY=wayland-1\n")
     machine.reply("[k]splashqml", status=1)
+    machine.reply("panels().length", output='s "1\\n"\n')
 
     kde = Kde.session(machine, timeout=0)
 
@@ -121,6 +122,71 @@ def test_session_waits_for_the_splash_screen_to_go(machine: FakeMachine) -> None
 
     with pytest.raises(AssertionError, match="splash"):
         Kde.session(machine, timeout=0)
+
+
+def test_session_waits_for_the_panel_to_be_made(machine: FakeMachine) -> None:
+    machine.reply("show-environment", output="WAYLAND_DISPLAY=wayland-1\n")
+    machine.reply("[k]splashqml", status=1)
+    machine.reply("panels().length", output='s "0\\n"\n')
+
+    with pytest.raises(AssertionError, match="panel"):
+        Kde.session(machine, timeout=0)
+
+
+def test_the_panels_are_counted_from_the_shells_answer(machine: FakeMachine) -> None:
+    kde = Kde(machine, "main")
+    machine.reply("panels().length", output='s "2\\n"\n')
+    assert kde.panels() == 2
+
+    machine.replies.clear()
+    machine.reply("panels().length", status=1, output="Failed to call method\n")
+    assert kde.panels() == 0
+
+
+def a_state_with_a_work_area(area_bottom: int) -> str:
+    """What `komorebic state` prints for a monitor of 1280x800 with a work area this high."""
+    monitor = {
+        "size": {"left": 0, "top": 0, "right": 1280, "bottom": 800},
+        "work_area_size": {"left": 0, "top": 0, "right": 1280, "bottom": area_bottom},
+    }
+    return json.dumps({"monitors": {"elements": [monitor], "focused": 0}})
+
+
+def test_the_panel_has_room_when_the_work_area_is_less_than_the_monitor(
+    machine: FakeMachine,
+) -> None:
+    kde = Kde(machine, "main")
+
+    machine.reply("komorebic state", output=a_state_with_a_work_area(738))
+    assert kde.panel_has_room()
+    assert kde.wait_for_panel_room(timeout=0)
+
+
+def test_the_panel_has_no_room_while_the_work_area_is_the_whole_monitor(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("komorebic state", output=a_state_with_a_work_area(800))
+    kde = Kde(machine, "main", scale=0.0)
+
+    assert not kde.panel_has_room()
+    # the wait ends when the time is up, and says the room did not come
+    assert not kde.wait_for_panel_room(timeout=100)
+
+
+def test_a_daemon_that_does_not_answer_properly_has_no_panel_room_and_does_not_fail_the_test(
+    machine: FakeMachine,
+) -> None:
+    kde = Kde(machine, "main", scale=0.0)
+
+    # not running, or too busy to answer in its second: komorebic prints a line with nothing in it
+    machine.reply("komorebic state", status=1, output="")
+    assert not kde.panel_has_room()
+    machine.replies.clear()
+    machine.reply("komorebic state", output="\n")
+    assert not kde.panel_has_room()
+    machine.replies.clear()
+    machine.reply("komorebic state", output="{}")
+    assert not kde.panel_has_room()
 
 
 def test_session_fails_when_the_shell_never_starts(machine: FakeMachine) -> None:
@@ -547,6 +613,48 @@ def test_kwinrc_is_none_without_a_file(machine: FakeMachine) -> None:
     machine.reply("cat /home/komorebi/.config/kwinrc", status=1)
 
     assert Kde(machine, "main").kwinrc("Windows", "PerOutputVirtualDesktops") is None
+
+
+def test_kwinrc_group_is_every_key_of_the_group_and_nothing_of_the_others(
+    machine: FakeMachine,
+) -> None:
+    machine.reply(
+        "cat /home/komorebi/.config/kwinrc",
+        output="[Round-Corners]\nSize = 10\nOuterOutlineColor=1,2,3\n[Windows]\nSize=99\n",
+    )
+    kde = Kde(machine, "main")
+
+    assert kde.kwinrc_group("Round-Corners") == {"Size": "10", "OuterOutlineColor": "1,2,3"}
+    assert kde.kwinrc_group("Nowhere") == {}
+
+
+def test_kwinrc_group_is_empty_without_a_file(machine: FakeMachine) -> None:
+    machine.reply("cat /home/komorebi/.config/kwinrc", status=1)
+
+    assert Kde(machine, "main").kwinrc_group("Windows") == {}
+
+
+def test_an_effect_is_supported_or_loaded_when_kwin_says_true(machine: FakeMachine) -> None:
+    machine.reply("isEffectSupported s kwin4_effect_shapecorners", output="b true\n")
+    machine.reply("isEffectLoaded s kwin4_effect_shapecorners", output="b false\n")
+    kde = Kde(machine, "main")
+
+    assert kde.effect_supported("kwin4_effect_shapecorners")
+    assert not kde.effect_loaded("kwin4_effect_shapecorners")
+
+
+def test_an_effect_is_not_supported_when_the_question_fails(machine: FakeMachine) -> None:
+    machine.reply("isEffectSupported", status=1, output="Failed to call")
+
+    assert not Kde(machine, "main").effect_supported("kwin4_effect_shapecorners")
+
+
+def test_unload_effect_asks_kwin_over_the_session_bus(machine: FakeMachine) -> None:
+    Kde(machine, "main").unload_effect("kwin4_effect_shapecorners")
+
+    (command,) = machine.commands
+    assert "busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects unloadEffect s" in command
+    assert "kwin4_effect_shapecorners" in command
 
 
 def test_a_kwin_script_is_loaded_run_and_unloaded_and_its_reports_returned(

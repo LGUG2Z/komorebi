@@ -10,10 +10,10 @@
 //! The daemon starts from `komorebi.json`: the file `--config` names, or else the one in
 //! [`struct@HOME_DIR`] when there is one ([`komorebi::static_config`]), which it reloads whenever
 //! it changes. Without a file it runs on its defaults. It loads the monitors and the windows
-//! that are open, gives each monitor the configuration the file has for it, tiles them, listens for
-//! messages on `komorebi.sock` in [`struct@DATA_DIR`], handles the events the backend reports on
-//! a thread of their own, and runs until it is stopped, with `SIGINT`, `SIGTERM` or a `Stop`
-//! message.
+//! that are open, gives each monitor the configuration the file has for it, asks for the borders
+//! it draws ([`komorebi::border_manager`]), tiles the windows, listens for messages on
+//! `komorebi.sock` in [`struct@DATA_DIR`], handles the events the backend reports on a thread of
+//! their own, and runs until it is stopped, with `SIGINT`, `SIGTERM` or a `Stop` message.
 //!
 //! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
 //! follows.
@@ -31,6 +31,7 @@ use komorebi::HOME_DIR;
 use komorebi::LOG_DIR;
 use komorebi::backend;
 use komorebi::backend::fake::FakeBackend;
+use komorebi::border_manager;
 use komorebi::core::pathext::replace_env_in_path;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
@@ -226,6 +227,10 @@ fn main() -> eyre::Result<()> {
     // the configuration may have given monitors more workspaces than they started with (and named
     // them): the compositor needs a desktop for each
     wm.lock().sync_workspace_desktops();
+
+    // how windows are to look (borders) is handed to the compositor before the first layout, which
+    // leaves room for a border that is being drawn
+    border_manager::send_notification();
 
     wm.lock().retile_all(false)?;
 

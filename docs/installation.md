@@ -55,6 +55,10 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
 
 - It installs `komorebi` and `komorebic` in the system profile, so they are on every user's
   `PATH`.
+- It installs KDE Rounded Corners, the KWin effect that draws komorebi's borders, unless
+  `services.komorebi.effects.borders.enable` is `false`. KWin finds effects when it starts, so a
+  session that was running when you switched to the new configuration has the borders after the
+  next login.
 - It defines a systemd user unit, `komorebi.service`, for every user of the machine. Plasma's
   `plasma-workspace.target` starts it when a user logs in to a Plasma session, after
   `plasma-core.target`, which Plasma orders after KWin. The unit runs the daemon with the `PATH`
@@ -75,6 +79,8 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
 | `services.komorebi.config` | `null` | The configuration, as Nix: every key of `komorebi.json`, typed from the schema. The module writes it as a `komorebi.json`, checks that against the schema, and the unit passes it to komorebi as `--config`. Ignored if `configFile` is set. |
 | `services.komorebi.configFile` | `null` | A `komorebi.json` for the daemon, checked against the schema when the system is built. The unit passes it to komorebi as `--config`, so the daemon reads it and not the `komorebi.json` of `~/.config/komorebi`. The file is in the Nix store: komorebi reads a new one when it starts again. |
 | `services.komorebi.applicationSpecificConfiguration` | `enable = true`, `sources = [ ]` | Files of [application specific configuration](usage/application-specific-configuration.md) fetched from GitHub (`owner`, `repo`, `rev`, `path` and `hash` each), which become the `app_specific_configuration_path` of the configuration `config` makes. There are none by default. |
+| `services.komorebi.effects.borders.enable` | `true` | Installs the KWin effect that draws komorebi's borders. Whether borders are drawn is komorebi's own setting ([Borders](usage/borders.md)). KWin finds effects when it starts: log in again after the first switch. The module warns when `config` sets `border` to `true` and this is off. |
+| `services.komorebi.effects.borders.package` | `pkgs.kde-rounded-corners-komorebi` | The effect: KDE Rounded Corners 0.11.0, built against the KWin of the system and not loaded until komorebi asks. |
 | `services.komorebi.execStart` | read only | The command line the unit starts komorebi with, built from `package`, `logLevel` and `configFile` or `config`. A unit of your own that runs komorebi uses it to start komorebi the same way. |
 
 `config` takes the keys of `komorebi.json` ([Configuration](usage/configuration.md)) as Nix, and a
@@ -132,14 +138,15 @@ doing, and its log.
 ### The packages without the module
 
 The flake's packages are `komorebi`, `komorebic`, and `komorebi-full`, which has both and is the
-`default`. To install them without the unit, and start komorebi yourself:
+`default`, and `kde-rounded-corners-komorebi`, the effect that draws the borders. To install them without the unit, and start komorebi yourself:
 
 ```sh
 nix profile install github:LGUG2Z/komorebi-for-kde
 ```
 
 On a NixOS configuration, the overlay, `overlays.default`, provides `pkgs.komorebi`,
-`pkgs.komorebic` and `pkgs.komorebi-full` for `environment.systemPackages`.
+`pkgs.komorebic`, `pkgs.komorebi-full` and `pkgs.kde-rounded-corners-komorebi` for
+`environment.systemPackages`.
 
 ## Other distributions: from source
 

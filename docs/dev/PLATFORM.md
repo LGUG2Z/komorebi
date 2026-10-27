@@ -139,6 +139,10 @@ there. The desktop is not a workspace: komorebi counts the workspaces without it
 it is on the workspace it will come back to. It checks that KWin still lists the desktop before it
 sends another window there.
 
+When borders are on, it also asks KWin to load KDE Rounded Corners, the effect that draws them,
+after writing the effect's settings into `kwinrc`, and asks it to read them again
+([KWin effects](#kwin-effects)). An effect KWin did not find is reported once in the log.
+
 Every command of the window manager (move and resize, focus, raise, hide or restore, minimize,
 bring back, maximize, unmaximize or close a window, show a workspace on an output, put a window
 on a workspace) is queued for the bridge, which gets the queue as the answer to its held call and
@@ -165,8 +169,9 @@ an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a runnin
 
 When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it brings back
 the windows it hid, waits until the commands that do so have reached the bridge, removes the
-parking desktop, puts back the value `PerOutputVirtualDesktops` had in `kwinrc` (or removes the
-key, when the user had none) and asks KWin to reload its configuration, asks KWin to unload the
+parking desktop, unloads the border effect, if komorebi loaded it, puts back the values the keys it
+set in `kwinrc` had (`PerOutputVirtualDesktops`, and the keys of the border effect), or removes a
+key the user had not set, and asks KWin to reload its configuration, asks KWin to unload the
 script, closes an empty connection to each subscriber, and removes the socket. The desktops it
 created for workspaces stay: they are the user's desktops from then on. A `StopIgnoreRestore`
 message stops it the same way, except that it does not bring the windows back: the parking desktop
@@ -221,6 +226,7 @@ What komorebi calls:
 | `org.kde.KWin` | `/Scripting/Script<id>` | `org.kde.kwin.Script` | `run()` | after `loadScript` |
 | `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin leave the bus and come back |
 | `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
+| `org.kde.KWin` | `/Effects` | `org.kde.kwin.Effects` | `isEffectSupported(s)`, `isEffectLoaded(s)`, `loadEffect(s)`, `unloadEffect(s)`, `reconfigureEffect(s)`, with `kwin4_effect_shapecorners` | when the look changes (the border is turned on, off or changed), and at exit |
 | `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
 | `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the properties `desktops` and `count`, `createDesktop(us)`, `setDesktopName(ss)`, `removeDesktop(s)` | when a workspace has no desktop, and at start; `createDesktop` also for the parking desktop, the first time a window is hidden, and `removeDesktop` for it when komorebi stops and for one a killed run left |
 
@@ -235,6 +241,7 @@ since a read right after `createDesktop` has to see the new desktop.
 | `$KOMOREBI_CONFIG_HOME/komorebi.json` (`~/.config/komorebi/komorebi.json`) | komorebi's configuration, which komorebi never writes: read when the daemon starts, and again when it changes. `--config` names another file | the user's |
 | `$XDG_CONFIG_HOME/autostart/komorebi.desktop` (`~/.config/autostart/komorebi.desktop`) | the XDG autostart entry `komorebic enable-autostart` writes: `Exec=komorebi`, or `komorebi --config "FILE"`, and `X-KDE-autostart-after=plasma-workspace`, which a Plasma session starts komorebi from at login | the user's; `komorebic disable-autostart` removes it |
 | `$XDG_CONFIG_HOME/kwinrc` (`~/.config/kwinrc`) | KWin's configuration: komorebi sets `PerOutputVirtualDesktops=true` in `[Windows]`, changing that line or adding it and nothing else, and writes the file beside it first and renames it over it | put back as it was when the daemon stops |
+| `$XDG_CONFIG_HOME/kwinrc`, group `[Round-Corners]` | the settings of the border effect, written when borders are on ([KWin effects](#kwin-effects)) | put back, with the rest of `kwinrc`, when borders are turned off and when the daemon stops |
 | `$XDG_RUNTIME_DIR/komorebi/kwinrc-backup.json` | the value each key of `kwinrc` had before komorebi first changed it | removed when the values are put back; one a crash left behind is used by the next run |
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
 | `$XDG_RUNTIME_DIR/komorebi/komorebi.sock` | the command socket | bound once the daemon is connected to KWin, after a file left there is removed; removed when the daemon stops |
@@ -390,6 +397,69 @@ the batch moved, the client's answer included:
 
 The spikes measured the channel alone, with twenty windows in each batch, at 16, 19 and 20 ms
 ([DESIGN.md](DESIGN.md#why-do-commands-go-to-the-bridge-as-the-answer-to-a-held-call)).
+
+## KWin effects
+
+An effect is a plugin of KWin's compositor that changes how windows are drawn. The flake
+builds the effects komorebi drives as packages of their own, from source:
+
+| Package | Effect | Plugin id | Installed as |
+|---|---|---|---|
+| `kde-rounded-corners-komorebi` | [KDE Rounded Corners](https://github.com/matinlotfali/KDE-Rounded-Corners) 0.11.0, which draws an outline around each window | `kwin4_effect_shapecorners` | a C++ plugin, `lib/qt-6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so` |
+
+Each package is in the flake's `packages` for Linux and in `overlays.default`, which builds it
+with the `callPackage` of the nixpkgs it is applied to, so that it follows that nixpkgs' KWin.
+[`nix/tests/effects.nix`](../../nix/tests/effects.nix) has a check for each, which builds the
+package and inspects its files the way KWin finds them, without a session.
+
+At time of writing (2026-10-27):
+
+- **KWin finds effects only when it starts.** An effect installed while KWin runs cannot be
+  loaded (`isEffectSupported` is false and `loadEffect` returns false) until KWin starts
+  again, which in a session means logging out and back in.
+- **KWin loads every effect that is enabled by default when it starts**, with the settings
+  the effect has then. KDE Rounded Corners 0.11.0 is enabled by default in its
+  `metadata.json`, and at its defaults it draws a one pixel black outline inside every
+  window, over its title bar. The package builds it with `"EnabledByDefault": false`: KWin
+  starts without it (`loadedEffects` lists the built-in effects only), `isEffectSupported`
+  is true, and `loadEffect` with `kwin4_effect_shapecorners` on `org.kde.KWin`'s `/Effects`
+  loads it. The metadata is compiled into the plugin, which is where the check reads the
+  flag, with `qtplugininfo`.
+- **KDE Rounded Corners 0.10.0, the version in nixpkgs, draws the outline about 24 px too low
+  on KWin 6.8**: across the title bar at the top, the same distance below the frame at the
+  bottom, and in the right place at the sides. KWin 6.8 inverted the texture coordinates of
+  the offscreen window, and Breeze's shadow is deeper below a window than above it; the error
+  is the difference of the two. 0.11.0 is the release that handles it.
+- **KDE Rounded Corners links `libkwin.so.6`**, so it is built against the KWin that loads
+  it. With the package in a NixOS system's `environment.systemPackages`, KWin finds the
+  plugin in `/run/current-system/sw/lib/qt-6/plugins/kwin/effects/plugins/`, and the plugin
+  links the libkwin of the store path the running `kwin_wayland` comes from. The check
+  asserts the same for the `kdePackages.kwin` of the flake's nixpkgs: the first directory of
+  the plugin's `RUNPATH` that has `libkwin.so.6` is that KWin's `lib`.
+- **KDE Rounded Corners draws its outer outline in the window's shadow**: its shader stops
+  where the window's texture is transparent. A window without a shadow has no outer outline,
+  and the outline is at most 20 px thick.
+
+### What komorebi writes for the border
+
+KDE Rounded Corners reads its settings from the group `[Round-Corners]` of `kwinrc` (the names are
+those of the effect's `options.kcfg`). komorebi sets every outline, not only the one it uses:
+
+| Key | Value |
+|---|---|
+| `OuterOutlineThickness`, `InactiveOuterOutlineThickness` | the border's width, 0 to 20 |
+| `OuterOutlineColor`, `InactiveOuterOutlineColor` | `r,g,b`: the focused window's border, and every other window's |
+| `Size`, `InactiveCornerRadius` | the corner radius |
+| `OutlineThickness`, `InactiveOutlineThickness`, `SecondOutlineThickness`, `InactiveSecondOutlineThickness` | `0`: nothing inside the window |
+| `ActiveOuterOutlineAlpha`, `InactiveOuterOutlineAlpha` | `255` |
+| `ActiveOuterOutlineUseCustom`, `InactiveOuterOutlineUseCustom` | `true`, so that the colors are komorebi's |
+| `ActiveOuterOutlineUsePalette`, `InactiveOuterOutlineUsePalette`, `OuterOutlineIsGradient`, `InactiveOuterOutlineIsGradient` | `false` |
+
+komorebi then calls `reconfigureEffect` on `/Effects`: at time of writing (2026-10-27), KWin 6.8.1
+hands an effect the copy of `kwinrc` it read when it started, so the new values reach it only
+that way, also for an effect loaded a moment before. A screenshot of a session shows the border
+in the pixels just outside the frame the window has in KWin, on all four sides, in the focused
+and unfocused colors, and not inside the frame.
 
 ## Rendering in virtual machines and over RDP
 

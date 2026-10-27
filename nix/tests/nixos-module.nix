@@ -11,6 +11,8 @@
   module,
   # the flake's komorebi-full for a system, which the overlay has to provide
   komorebiFor,
+  # the flake's KDE Rounded Corners for a system, which the overlay has to provide as well
+  borderEffectFor,
 }:
 let
   inherit (pkgs) lib;
@@ -208,6 +210,54 @@ let
     }
   );
 
+  noBorderEffect = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      effects.borders.enable = false;
+    };
+  };
+
+  # borders asked for in the configuration, and the effect that draws them left out
+  borderWithoutEffect = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      config.border = true;
+      effects.borders.enable = false;
+    };
+  };
+
+  # the same, with the effect installed, and with borders turned off in the configuration
+  borderWithEffect = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      config.border = true;
+    };
+  };
+
+  noBorderWithoutEffect = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      config.border = false;
+      effects.borders.enable = false;
+    };
+  };
+
+  # a package that is not the overlay's: any package will do, since nothing is built
+  otherBorderEffect = eval (
+    { pkgs, ... }:
+    {
+      imports = [ plasma ];
+      services.komorebi = {
+        enable = true;
+        effects.borders.package = pkgs.hello;
+      };
+    }
+  );
+
   unknownLevel = eval {
     imports = [ plasma ];
     services.komorebi = {
@@ -280,6 +330,39 @@ let
       ok = lib.elem enabled.services.komorebi.package enabled.environment.systemPackages;
     }
     {
+      name = "the default border effect is the flake's KDE Rounded Corners, from the overlay";
+      ok = enabled.services.komorebi.effects.borders.package.outPath == (borderEffectFor system).outPath;
+    }
+    {
+      name = "the border effect is installed in the system profile";
+      ok = lib.elem enabled.services.komorebi.effects.borders.package enabled.environment.systemPackages;
+    }
+    {
+      name = "with the border effect off, komorebi is installed and the effect is not";
+      ok =
+        lib.elem noBorderEffect.services.komorebi.package noBorderEffect.environment.systemPackages
+        && !(lib.elem noBorderEffect.services.komorebi.effects.borders.package noBorderEffect.environment.systemPackages);
+    }
+    {
+      name = "another border effect is the one installed";
+      ok =
+        lib.elem otherBorderEffect.services.komorebi.effects.borders.package otherBorderEffect.environment.systemPackages
+        && !(lib.elem enabled.services.komorebi.effects.borders.package otherBorderEffect.environment.systemPackages);
+    }
+    {
+      name = "a configuration that draws borders, without the effect that draws them, is warned about";
+      ok = lib.any (lib.hasInfix "effects.borders.enable is false") borderWithoutEffect.warnings;
+      got = borderWithoutEffect.warnings;
+    }
+    {
+      name = "borders with the effect, and no borders without it, are not warned about";
+      ok =
+        !(lib.any (lib.hasInfix "effects.borders") borderWithEffect.warnings)
+        && !(lib.any (lib.hasInfix "effects.borders") noBorderWithoutEffect.warnings)
+        && !(lib.any (lib.hasInfix "effects.borders") noBorderEffect.warnings);
+      got = borderWithEffect.warnings ++ noBorderWithoutEffect.warnings ++ noBorderEffect.warnings;
+    }
+    {
       name = "disabled, every assertion holds";
       ok = failed disabled == [ ];
       got = failed disabled;
@@ -290,7 +373,9 @@ let
     }
     {
       name = "disabled, nothing is installed";
-      ok = !(lib.elem disabled.services.komorebi.package disabled.environment.systemPackages);
+      ok =
+        !(lib.elem disabled.services.komorebi.package disabled.environment.systemPackages)
+        && !(lib.elem disabled.services.komorebi.effects.borders.package disabled.environment.systemPackages);
     }
     {
       name = "without Plasma 6, an assertion fails and names the option to set";

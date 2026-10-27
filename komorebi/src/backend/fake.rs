@@ -28,6 +28,7 @@
 #![deny(missing_docs)]
 
 use super::Backend;
+use super::Look;
 use super::MonitorInfo;
 use super::WindowInfo;
 use crate::core::Rect;
@@ -64,6 +65,8 @@ pub enum Command {
     SwitchWorkspace(u32, usize),
     /// [`Backend::set_window_workspace`]: the window, and the workspace it was put on.
     SetWindowWorkspace(u32, usize),
+    /// [`Backend::apply_look`]: the look, when it is not the one applied before.
+    ApplyLook(Look),
 }
 
 #[derive(Default)]
@@ -87,6 +90,10 @@ struct State {
     window_ws: HashMap<u32, usize>,
     /// the desktop each monitor (by id) shows
     shown: HashMap<u32, usize>,
+    /// the look last applied, so that asking for it again is not a command
+    last_look: Option<Look>,
+    /// whether the compositor has an effect that draws borders
+    borders_drawn: bool,
 }
 
 impl State {
@@ -356,6 +363,13 @@ impl FakeBackend {
         state.shown.insert(monitor_id, idx);
     }
 
+    /// Says whether the compositor has an effect that draws borders. Without one, which is how a
+    /// fake starts, [`Backend::apply_look`] answers false however much of a border it is asked
+    /// for, as it does on a machine where the effect is not installed.
+    pub fn set_borders_drawn(&self, drawn: bool) {
+        self.state.lock().borders_drawn = drawn;
+    }
+
     /// Returns every command received so far, oldest first.
     pub fn commands(&self) -> Vec<Command> {
         self.state.lock().commands.clone()
@@ -553,6 +567,16 @@ impl Backend for FakeBackend {
             .iter()
             .map(|m| (m.id, state.shown.get(&m.id).copied().unwrap_or(0)))
             .collect()
+    }
+
+    fn apply_look(&self, look: &Look) -> eyre::Result<bool> {
+        let mut state = self.state.lock();
+        // like a real backend, remember what was applied and say nothing twice
+        if state.last_look.as_ref() != Some(look) {
+            state.commands.push(Command::ApplyLook(look.clone()));
+            state.last_look = Some(look.clone());
+        }
+        Ok(state.borders_drawn && look.border.is_some())
     }
 }
 
@@ -828,6 +852,37 @@ mod tests {
 
         assert!(fake.set_window_workspace(9, 1).is_err());
         assert_eq!(fake.workspace_of(9), None);
+    }
+
+    #[test]
+    fn a_look_is_a_command_once_and_says_whether_borders_are_drawn() -> eyre::Result<()> {
+        let fake = FakeBackend::new();
+        fake.set_borders_drawn(true);
+        let bordered = Look {
+            border: Some(crate::backend::BorderLook {
+                width: 10,
+                radius: 10,
+                focused: (1, 2, 3),
+                unfocused: (4, 5, 6),
+            }),
+        };
+
+        assert!(fake.apply_look(&bordered)?);
+        assert!(fake.apply_look(&bordered)?);
+        assert!(!fake.apply_look(&Look::default())?);
+
+        fake.set_borders_drawn(false);
+        assert!(!fake.apply_look(&bordered)?);
+
+        assert_eq!(
+            fake.commands(),
+            [
+                Command::ApplyLook(bordered.clone()),
+                Command::ApplyLook(Look::default()),
+                Command::ApplyLook(bordered)
+            ]
+        );
+        Ok(())
     }
 
     #[test]

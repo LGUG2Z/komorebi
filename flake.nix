@@ -256,12 +256,20 @@
               inherit (nixpkgs.lib) nixosSystem;
               module = self.nixosModules.default;
               komorebiFor = guestSystem: self.packages.${guestSystem}.komorebi-full;
+              borderEffectFor = guestSystem: self.packages.${guestSystem}.kde-rounded-corners-komorebi;
             };
           }
           # The VM tests need QEMU with KVM, so only Linux checks them. A Mac runs the same tests
           # through legacyPackages.<system>.vm, see docs/dev/vm-tests.md.
           // lib.optionalAttrs isLinux (
             lib.mapAttrs' (name: test: lib.nameValuePair "vm-${name}" test) vm.suites
+          )
+          # the KWin effects komorebi drives, installed and inspected without a session
+          // lib.optionalAttrs isLinux (
+            import ./nix/tests/effects.nix {
+              inherit pkgs;
+              inherit (config) packages;
+            }
           );
 
           legacyPackages = {
@@ -286,6 +294,7 @@
             inherit (build) komorebi komorebic;
             komorebi-full = build.fullBuild;
             default = build.fullBuild;
+            kde-rounded-corners-komorebi = pkgs.callPackage ./nix/kde-rounded-corners.nix { };
           };
 
           apps = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
@@ -350,6 +359,8 @@
           {
             inherit (build) komorebi komorebic;
             komorebi-full = build.fullBuild;
+            # with the consumer's KWin, so that the plugin links the libkwin it is loaded into
+            kde-rounded-corners-komorebi = final.callPackage ./nix/kde-rounded-corners.nix { };
           };
         overlays.komorebi = self.overlays.default;
 

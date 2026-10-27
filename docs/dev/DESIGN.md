@@ -372,3 +372,56 @@ what a Plasma session runs at login for a program that is not part of it, so
 ordered after `plasma-workspace` (`X-KDE-autostart-after`), as the module's unit is ordered after
 `plasma-core.target`: the daemon exits when KWin is not on the session bus. The entry and the
 unit do not go together, since the session bus gives its name to one komorebi.
+
+## Why is KDE Rounded Corners built from source, and not taken from nixpkgs?
+
+Because the version in nixpkgs draws its outline in the wrong place on KWin 6.8, the oldest
+KWin komorebi supports. At time of writing (2026-10-27, nixpkgs `d3b13ad`) nixpkgs has
+0.10.0, which puts the outline about 24 px too low, across the title bar. 0.11.0 is the
+release that handles the texture coordinates KWin 6.8 inverted, so
+[`nix/kde-rounded-corners.nix`](../../nix/kde-rounded-corners.nix) overrides the nixpkgs
+package with it ([PLATFORM.md](PLATFORM.md#kwin-effects)).
+
+## Why are the effects built disabled by default?
+
+So that they cannot load with their own defaults before komorebi configures them. KWin loads
+an effect that is enabled by default as soon as it starts, with the settings the effect has
+then, and KDE Rounded Corners at its defaults draws a one pixel black outline over the title
+bar of every window. Built with `EnabledByDefault` false, an effect is loaded only when
+something asks for it with `loadEffect`, which can come after its settings are written. That
+KWin then starts without the effect and loads it when asked was measured before the package
+was written ([PLATFORM.md](PLATFORM.md#kwin-effects)).
+
+## Why does the compositor draw the borders, and not komorebi?
+
+Because the compositor has the frames, the corners and the shadows of the windows, and komorebi
+has none of them. komorebi decides what the windows look like and describes it to the backend as a
+`Look` ([`Backend::apply_look`](../../komorebi/src/backend/mod.rs)); on KWin the effect KDE
+Rounded Corners draws it, and komorebi writes the effect's settings. The same code that decides the
+look then runs against the fake desktop, which records the look it was asked for.
+
+## Why is the border the outer outline of the effect?
+
+Because the effect's own defaults draw a black outline one pixel thick *inside* every window, over
+its title bar and contents, which is what an unconfigured install looks like. So komorebi sets
+every inner outline to 0 and uses the outer outline, which is drawn outside the window, in the gap
+the layout leaves between tiles. The effect draws the outer outline only in the shadow of the
+window (its shader stops where the window's texture is transparent), so it is at most 20 px thick,
+and a window that has no shadow has no border. komorebi does not take the title bar off a window
+to change that: removing it also removed the shadow, and the border with it, and Plasma 6.8 gives
+a window without a shadow one of its own ([PLATFORM.md](PLATFORM.md#kwin-effects)).
+
+## Why does the layout leave room for the border only while it is drawn?
+
+Because the border is outside the window: without room for it, it would fall on the window next
+to it. And because komorebi cannot know that a border is drawn. The effect may not be installed
+(KWin finds effects when it starts), or borders may be off, so the backend answers whether
+`apply_look` drew one, and the layout leaves room only after a yes. A compositor that draws no
+border takes none.
+
+## Why does komorebi ask the effect to read its settings again after it loads it?
+
+Because KWin keeps the copy of `kwinrc` it read when it started, and an effect reads its settings
+from that copy, also one loaded a moment ago. Writing the file and loading the effect leaves the
+effect with the settings the file had at the start of the session. `reconfigureEffect` makes it
+read them again, so komorebi calls it every time, after loading too.

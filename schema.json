@@ -15,6 +15,41 @@
         }
       ]
     },
+    "border": {
+      "description": "Display window borders",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": true
+    },
+    "border_offset": {
+      "description": "Offset of window borders",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 0
+    },
+    "border_radius": {
+      "description": "Radius of window borders",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 10
+    },
+    "border_width": {
+      "description": "Width of window borders",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 10
+    },
     "cross_boundary_behaviour": {
       "description": "Determine what happens when an action is called on a window at a monitor boundary",
       "anyOf": [

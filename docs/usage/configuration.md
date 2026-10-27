@@ -37,8 +37,9 @@ trailing commas.
 
 Reading the file again sets every setting of the daemon from it, and a key the file leaves out is
 the default of the setting: a `resize-delta` given with a command is gone when the file changes.
-Three things stay as they were when the file leaves them out: `default_workspace_padding`,
-`default_container_padding` and `display_index_preferences`. The rules add up, as
+These stay as they were when the file leaves them out: `default_workspace_padding`,
+`default_container_padding`, `display_index_preferences` and the four settings of the borders.
+The rules add up, as
 [Rules](#rules) says. A workspace the file lists gets its name, padding, offsets and rules from
 its entry, and its layout when the entry names one; a workspace the file does not list is left as
 it is.
@@ -90,6 +91,19 @@ how another platform draws or hides windows, are accepted: `titleless_applicatio
 [Padding and work area offsets](padding-and-offsets.md) explains how the three nest. A monitor
 (`container_padding`, `workspace_padding`, `work_area_offset`) and a workspace (the same three)
 can have values of their own, which come before the default.
+
+### Borders
+
+| Key | Default | What it does |
+|---|---|---|
+| `border` | `true` | Whether the compositor draws a border around each window (`active_window_border` is the same key under its old name) |
+| `border_width` | `10` | How thick the border is, in pixels (`active_window_border_width`) |
+| `border_offset` | `0` | How much more room than the width the layout leaves around each window (`active_window_border_offset`) |
+| `border_radius` | `10` | How round the corners of the border are, in pixels |
+
+[Borders](borders.md) explains what the compositor draws and what the layout leaves room for.
+`komorebic border`, `border-width` and `border-offset` change the first three while the daemon
+runs.
 
 ### Rules
 

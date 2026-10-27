@@ -325,6 +325,10 @@ mouse-follows-focus enable
 mouse-follows-focus disable
 toggle-mouse-follows-focus
 toggle-mouse-follows-focus
+border enable
+border-width 8
+border-offset 1
+border disable
 session-float-rule
 session-float-rules
 clear-session-float-rules
@@ -442,6 +446,7 @@ print("== 4. what komorebic only prints")
 for args in [
     "state",
     "global-state",
+    "visible-windows",
     "monitor-information",
     "data-directory",
     "configuration",

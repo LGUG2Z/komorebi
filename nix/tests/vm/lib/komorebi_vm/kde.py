@@ -1,6 +1,7 @@
 """A KWin session inside a test machine, and the tools to look at it."""
 
 import json
+import re
 import shlex
 import time
 from collections.abc import Callable
@@ -117,9 +118,12 @@ class Kde:
         """Attaches to the user's Plasma session once its desktop is up.
 
         The session is up when the shell is running, the user manager knows the
-        Wayland socket, and the splash screen has gone. The last condition is
-        the one a screenshot test depends on: a splash screen already has
-        thousands of colors on it. NixOS wraps its programs, so the processes
+        Wayland socket, the splash screen has gone, and the shell has made its
+        panel. The splash screen is the condition a screenshot test depends on:
+        it already has thousands of colors on it. The panel is the one a test of
+        where a window is depends on: it takes room from the windows, and
+        komorebi tiles the room that is left, if it starts after the panel.
+        NixOS wraps its programs, so the processes
         are found by their command lines (`pgrep -x` would see only the wrapper's
         name), with the first letter in brackets so that the pattern does not
         match the shell that runs `pgrep`.
@@ -145,7 +149,50 @@ class Kde:
         kde._wayland_display = display()
         if not kde.wait_for(lambda: kde.run("pgrep -f '[k]splashqml'")[0] != 0, timeout=timeout):
             raise AssertionError("the splash screen did not go away")
+        if not kde.wait_for(lambda: kde.panels() > 0, timeout=timeout):
+            raise AssertionError("the shell never made a panel")
         return kde
+
+    def panels(self) -> int:
+        """Returns how many panels the Plasma shell has made, or 0 when it does not answer.
+
+        A panel takes room from the windows: the work area komorebi tiles is the screen less the
+        panel. A test that reads where a tiled window ends has to wait for the panel, or komorebi
+        tiles the window under it, and the bottom of a border is hidden by the panel.
+        """
+        status, out = self.run(
+            "busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell"
+            " evaluateScript s 'print(panels().length)'"
+        )
+        found = re.search(r'^s "(\d+)', out.strip())
+        return int(found.group(1)) if status == 0 and found else 0
+
+    def panel_has_room(self) -> bool:
+        """Returns true if and only if the daemon's work area is not the whole of its first monitor.
+
+        That is the daemon having learned that the panel takes room from the windows. It is not
+        true when the daemon does not answer, or answers with something that is not its state.
+        """
+        try:
+            monitor = self.state()["monitors"]["elements"][0]
+        except (AssertionError, ValueError, KeyError, IndexError):
+            return False
+        return monitor["work_area_size"] != monitor["size"]
+
+    def wait_for_panel_room(self, timeout: float = 30) -> bool:
+        """Waits until the daemon has the panel's room, and says whether it has.
+
+        The shell makes its panel (`Kde.panels`), KWin takes room for it a while later, and the
+        daemon learns of that up to a second after, because the bridge looks at the work area once
+        a second. A daemon that tiles before then puts the windows under the panel and tiles them
+        again, and a test that reads where a window is, or what is round it, in between, reads
+        the wrong tile. The windows are opened after this.
+
+        It is a wait and not a check: a session may never take the room (a machine too slow to
+        lay the panel out, which TCG often is), so this ends after `timeout` seconds (times
+        `scale`) and the test goes on, whichever it was. The daemon has to be running.
+        """
+        return self.wait_for(self.panel_has_room, timeout=timeout)
 
     @property
     def runtime(self) -> str:
@@ -490,6 +537,41 @@ class Kde:
                     return value.strip()
         return None
 
+    def kwinrc_group(self, group: str) -> dict[str, str]:
+        """Every key of `[group]` of the user's `kwinrc` with its value, empty when there is none.
+
+        A suite that wants to know that komorebi put the user's settings back compares this before
+        and after.
+        """
+        status, text = self.machine.execute(f"cat /home/{self.user}/.config/kwinrc")
+        keys: dict[str, str] = {}
+        if status != 0:
+            return keys
+        current = None
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("[") and line.endswith("]"):
+                current = line[1:-1]
+            elif current == group and "=" in line:
+                name, value = line.split("=", 1)
+                keys[name.strip()] = value.strip()
+        return keys
+
+    def effect_supported(self, name: str) -> bool:
+        """Returns true if and only if KWin found the effect installed when it started."""
+        return self._effects("isEffectSupported", name)
+
+    def effect_loaded(self, name: str) -> bool:
+        """Returns true if and only if KWin has the effect loaded."""
+        return self._effects("isEffectLoaded", name)
+
+    def unload_effect(self, name: str) -> None:
+        """Asks KWin to unload the effect, whoever loaded it."""
+        self.sh(
+            "busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects unloadEffect s"
+            f" {shlex.quote(name)}"
+        )
+
     def kwin_script(self, name: str, source: str, *, keep: bool = False) -> list[str]:
         """Runs `source` as the KWin script `name` and returns the lines it reported.
 
@@ -529,6 +611,14 @@ class Kde:
     def outputs(self) -> int:
         """The number of outputs KWin has enabled."""
         return int(self.sh("kscreen-doctor -j | jq '[.outputs[] | select(.enabled)] | length'"))
+
+    def _effects(self, method: str, name: str) -> bool:
+        """Asks KWin's `/Effects` object a yes or no question about the effect `name`."""
+        status, out = self.run(
+            f"busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects {method} s"
+            f" {shlex.quote(name)}"
+        )
+        return status == 0 and out.strip() == "b true"
 
     def _workspace(self, workspace: int) -> dict[str, Any]:
         return self.state()["monitors"]["elements"][0]["workspaces"]["elements"][workspace]

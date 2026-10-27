@@ -477,6 +477,39 @@ fn global_state_and_session_float_rules_print_the_answer_of_the_daemon() {
 }
 
 #[test]
+fn the_border_subcommands_send_what_they_are_given() {
+    sends(&["border", "enable"], r#"{"type":"Border","content":true}"#);
+    sends(
+        &["border", "disable"],
+        r#"{"type":"Border","content":false}"#,
+    );
+    sends(
+        &["active-window-border", "enable"],
+        r#"{"type":"Border","content":true}"#,
+    );
+    sends(
+        &["border-width", "8"],
+        r#"{"type":"BorderWidth","content":8}"#,
+    );
+    sends(
+        &["border-offset", "2"],
+        r#"{"type":"BorderOffset","content":2}"#,
+    );
+}
+
+#[test]
+fn visible_windows_prints_the_answer_of_the_daemon() {
+    let runtime = Runtime::new();
+    let daemon = runtime.serve("{}");
+
+    let output = runtime.komorebic(&["visible-windows"]);
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(daemon.join().unwrap(), r#"{"type":"VisibleWindows"}"#);
+    assert_eq!(stdout(&output), "{}\n");
+}
+
+#[test]
 fn the_subcommands_about_the_focused_window_and_pausing_send_their_message() {
     sends(&["minimize"], r#"{"type":"Minimize"}"#);
     sends(&["close"], r#"{"type":"Close"}"#);
@@ -982,6 +1015,9 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "adjust-container-padding.md",
             "adjust-workspace-padding.md",
             "application-specific-configuration-schema.md",
+            "border-offset.md",
+            "border-width.md",
+            "border.md",
             "cancel-preselect.md",
             "change-layout.md",
             "clear-all-workspace-rules.md",
@@ -1112,6 +1148,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "unstack-all.md",
             "unstack.md",
             "unsubscribe-socket.md",
+            "visible-windows.md",
             "workspace-layout-rule.md",
             "workspace-layout.md",
             "workspace-name.md",

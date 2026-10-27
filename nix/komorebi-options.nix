@@ -1,4 +1,4 @@
-# schema-sha256: ca218a3bc93a1cc9466eca3ca51409ffb233df8af2cb56de31ee7b86133c8a0c
+# schema-sha256: 0f59fbd881e4247d5ffb1355b24b65f5f58302e74a8908b31837919445376113
 { lib, ... }:
 let
   defaultLayout = (
@@ -172,6 +172,26 @@ in
           );
           default = null;
           description = "Path to an applications.json, or a list of them, with rules for the applications that\nneed them: which windows to ignore, to manage and to float";
+        };
+        border = lib.mkOption {
+          type = (lib.types.nullOr lib.types.bool);
+          default = true;
+          description = "Display window borders";
+        };
+        border_offset = lib.mkOption {
+          type = (lib.types.nullOr lib.types.int);
+          default = 0;
+          description = "Offset of window borders";
+        };
+        border_radius = lib.mkOption {
+          type = (lib.types.nullOr lib.types.int);
+          default = 10;
+          description = "Radius of window borders";
+        };
+        border_width = lib.mkOption {
+          type = (lib.types.nullOr lib.types.int);
+          default = 10;
+          description = "Width of window borders";
         };
         cross_boundary_behaviour = lib.mkOption {
           type = (

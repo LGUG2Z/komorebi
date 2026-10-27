@@ -66,15 +66,19 @@
 //!   find by its name; `workspace-layout` and `workspace-tiling` set the layout and the tiling of
 //!   a workspace by its index, and `ensure-workspaces` and `ensure-named-workspaces` give a
 //!   monitor workspaces up to a number, or with names.
+//! - `border` sets whether the compositor draws a border around each window, and `border-width`
+//!   and `border-offset` the room the layout leaves for it.
 //!
 //! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
 //! always in it, `session-float-rule` floats the focused window and every window like it until the
 //! daemon stops, `session-float-rules` shows those rules and `clear-session-float-rules` removes
-//! them, and `global-state` shows the rules the daemon has. `initial-workspace-rule`,
-//! `initial-named-workspace-rule`, `workspace-rule` and `named-workspace-rule` send the windows of
-//! an application to a workspace, when they open or always, `clear-workspace-rules`,
-//! `clear-named-workspace-rules` and `clear-all-workspace-rules` take those rules away, and
-//! `enforce-workspace-rules` applies them to the windows that are open.
+//! them, and `global-state` shows the rules the daemon has. `visible-windows` shows the windows
+//! that can be seen on the workspace each monitor shows.
+//!
+//! `initial-workspace-rule`, `initial-named-workspace-rule`, `workspace-rule` and
+//! `named-workspace-rule` send the windows of an application to a workspace, when they open or
+//! always, `clear-workspace-rules`, `clear-named-workspace-rules` and `clear-all-workspace-rules`
+//! take those rules away, and `enforce-workspace-rules` applies them to the windows that are open.
 //!
 //! `workspace-layout-rule` and `named-workspace-layout-rule` make a workspace change layout once
 //! it has so many windows, and `clear-workspace-layout-rules` and
@@ -720,6 +724,24 @@ struct LayoutRatios {
 }
 
 #[derive(Parser)]
+struct Border {
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+}
+
+#[derive(Parser)]
+struct BorderWidth {
+    /// Desired width of the window border
+    width: i32,
+}
+
+#[derive(Parser)]
+struct BorderOffset {
+    /// Desired offset of the window border
+    offset: i32,
+}
+
+#[derive(Parser)]
 struct Docgen {
     /// Output directory for generated documentation files
     #[clap(short, long)]
@@ -762,6 +784,8 @@ enum SubCommand {
     State,
     /// Show a JSON representation of the current global state
     GlobalState,
+    /// Show a JSON representation of visible windows
+    VisibleWindows,
     /// Show information about connected monitors
     #[clap(alias = "monitor-info")]
     MonitorInformation,
@@ -1132,6 +1156,24 @@ enum SubCommand {
     ClearAllWorkspaceRules,
     /// Enforce all workspace rules, including initial workspace rules that have already been applied
     EnforceWorkspaceRules,
+    /// Enable or disable borders
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border")]
+    Border(Border),
+    /// Set the border width
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border-width")]
+    BorderWidth(BorderWidth),
+    /// Set the border offset
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border-offset")]
+    BorderOffset(BorderOffset),
+    // /// Set the border style
+    // #[clap(arg_required_else_help = true)]
+    // BorderStyle(BorderStyle),
+    // /// Set the border implementation
+    // #[clap(arg_required_else_help = true)]
+    // BorderImplementation(BorderImplementation),
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -1623,6 +1665,9 @@ fn main() -> eyre::Result<()> {
         SubCommand::Query(args) => {
             print_query(&SocketMessage::Query(args.state_query));
         }
+        SubCommand::VisibleWindows => {
+            print_query(&SocketMessage::VisibleWindows);
+        }
         SubCommand::MonitorInformation => {
             print_query(&SocketMessage::MonitorInformation);
         }
@@ -1935,6 +1980,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::LoadResize(args) => {
             send_message(&SocketMessage::Load(args.path))?;
+        }
+        SubCommand::Border(args) => {
+            send_message(&SocketMessage::Border(args.boolean_state.into()))?;
+        }
+        SubCommand::BorderWidth(args) => {
+            send_message(&SocketMessage::BorderWidth(args.width))?;
+        }
+        SubCommand::BorderOffset(args) => {
+            send_message(&SocketMessage::BorderOffset(args.offset))?;
         }
     }
 

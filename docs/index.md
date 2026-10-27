@@ -59,6 +59,7 @@ explains the files of rules for particular applications it can name.
 [Quickstart and autostart](usage/quickstart-and-autostart.md) explains how to write an example
 configuration, how to start komorebi with Plasma without the module, and how to replace the
 configuration of a running daemon.
+[Borders](usage/borders.md) explains how komorebi has KWin draw a border around each window.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.

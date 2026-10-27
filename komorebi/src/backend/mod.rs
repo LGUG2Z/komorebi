@@ -36,6 +36,14 @@
 //! ([`Backend::restore`]) when they are given the tile. A hidden window stays alive, stays on its
 //! workspace and is not minimized, so what the compositor reports about it is not taken for the
 //! user's doing (the window manager keeps a table of the windows it has hidden).
+//!
+//! # The look
+//!
+//! How windows look is asked of the compositor and drawn by it, since only the compositor has the
+//! frames, the corners and the shadows. The window manager describes a [`Look`] and the backend
+//! sees that it is drawn ([`Backend::apply_look`]); the window manager is told whether the
+//! compositor draws a border, because a border that is drawn takes room around each window, which
+//! the layout leaves.
 
 #![deny(missing_docs)]
 
@@ -88,6 +96,48 @@ pub struct MonitorInfo {
     pub work_area: Rect,
 }
 
+/// How the compositor is asked to dress the windows komorebi arranges.
+///
+/// komorebi decides what the windows look like and the compositor draws it, so this only
+/// describes. The default asks for nothing.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi::backend::BorderLook;
+/// use komorebi::backend::Look;
+///
+/// assert_eq!(Look::default().border, None);
+///
+/// let look = Look {
+///     border: Some(BorderLook {
+///         width: 10,
+///         radius: 12,
+///         focused: (66, 165, 245),
+///         unfocused: (128, 128, 128),
+///     }),
+/// };
+/// assert!(look.border.is_some());
+/// ```
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Look {
+    /// A colored outline outside every window, or none.
+    pub border: Option<BorderLook>,
+}
+
+/// The outline around every window.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BorderLook {
+    /// The thickness of the outline, outside the window, in pixels.
+    pub width: i32,
+    /// The radius of the window's corners, in pixels.
+    pub radius: i32,
+    /// The outline of the focused window, as red, green and blue.
+    pub focused: (u8, u8, u8),
+    /// The outline of every other window.
+    pub unfocused: (u8, u8, u8),
+}
+
 /// The desktop, as the window manager sees it.
 ///
 /// This is the **only** way the window manager reaches the compositor. Everything else in the crate
@@ -114,6 +164,8 @@ pub struct MonitorInfo {
 ///   comes back to.
 /// - A backend asked to show a workspace, or to put a window on one, that has no desktop yet makes
 ///   the desktops up to it first.
+/// - The look is a request: a backend that cannot draw what it is asked for says so in the answer
+///   of [`Backend::apply_look`] and the window manager goes on without it.
 ///
 /// The compiler enforces the first and last parts of the contract that it can see. A backend that
 /// leaves out a method does not compile:
@@ -297,6 +349,47 @@ pub trait Backend: Send + Sync + 'static {
 
     /// Returns the workspace each monitor shows, as `(monitor id, workspace index)`.
     fn current_workspaces(&self) -> Vec<(u32, usize)>;
+
+    // ---- look, which a backend that draws nothing need not say anything about --------------------
+
+    /// Asks the compositor to draw this look, and returns true if and only if window borders are
+    /// being drawn afterwards.
+    ///
+    /// A drawn border takes room around each window, which the layout has to leave, so the answer
+    /// is what the window manager reads to know that. A backend remembers the look it applied last
+    /// and does nothing when it is asked for the same again, so the window manager may call this as
+    /// often as it likes. The default draws nothing and answers false.
+    ///
+    /// # Errors
+    ///
+    /// When the compositor cannot be reached.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi::backend::Backend;
+    /// use komorebi::backend::BorderLook;
+    /// use komorebi::backend::Look;
+    /// use komorebi::backend::fake::FakeBackend;
+    ///
+    /// let fake = FakeBackend::with_one_monitor();
+    /// fake.set_borders_drawn(true);
+    /// let look = Look {
+    ///     border: Some(BorderLook {
+    ///         width: 10,
+    ///         radius: 10,
+    ///         focused: (66, 165, 245),
+    ///         unfocused: (128, 128, 128),
+    ///     }),
+    /// };
+    ///
+    /// assert!(fake.apply_look(&look)?);
+    /// assert!(!fake.apply_look(&Look::default())?);
+    /// # Ok::<(), color_eyre::eyre::Report>(())
+    /// ```
+    fn apply_look(&self, _look: &Look) -> eyre::Result<bool> {
+        Ok(false)
+    }
 
     // ---- provided ------------------------------------------------------------------------------
 

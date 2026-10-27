@@ -67,8 +67,10 @@ without a checkout of the toolchain.
   the vocabulary the window manager is written in (`core`), the `Backend` trait
   through which it reaches a compositor and the in-memory desktop the tests use
   (`backend`), the backend that reaches KWin through a script it runs and edits
-  the one setting of KWin's it needs in the user's `kwinrc` and the parking desktop
-  it hides the back of a stack and the windows behind a monocle on (`kwin`),
+  the settings of KWin's it needs in the user's `kwinrc`, the parking desktop it
+  hides the back of a stack and the windows behind a monocle on, and the borders
+  it has KWin draw (`kwin`), the border settings and the look they make
+  (`border_manager`),
   the model of what it tiles (`monitor`, `workspace`, `container`, `window`), the
   window manager that keeps the model (`window_manager`), loads it from the
   backend (`desktop`) and changes it when the compositor reports an event
@@ -92,6 +94,22 @@ The layouts, which turn a work area and a number of containers into a rectangle
 for each, are `komorebi-layouts` from [komorebi](https://github.com/LGUG2Z/komorebi),
 a git dependency at the revision `Cargo.toml` pins.
 
+## KWin effects
+
+The flake also builds the KWin effects komorebi drives, which are not part of
+KWin:
+
+- `kde-rounded-corners-komorebi`
+  ([`nix/kde-rounded-corners.nix`](nix/kde-rounded-corners.nix)): KDE Rounded
+  Corners 0.11.0, which draws an outline around each window, built so that KWin
+  does not load it until it is asked to.
+
+Each one is a package for Linux and an attribute of `overlays.default`, built
+with the KWin of the nixpkgs the overlay is applied to.
+[`nix/tests/effects.nix`](nix/tests/effects.nix) checks the files each package
+installs. [`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md#kwin-effects) has what
+they need from KWin.
+
 ## Checks
 
 `just check` runs the formatting check, clippy with warnings denied, the tests,
@@ -102,9 +120,10 @@ TOML and Nix formatting, the tests under `cargo nextest`, and
 `nixos-module-eval`, which evaluates the NixOS module in real NixOS systems, on
 Linux and on an Apple silicon Mac, `schema-fresh`, which compares the schemas and
 the options made from them with the Rust types, and `nix-options-validation`,
-which checks the example configuration, in Nix and in JSON, against the schema. On Linux it also boots every VM test, which
-needs KVM. A Mac runs the tests against the fake desktop, since KWin only exists
-on Linux. `nix fmt` formats every file the checks look at.
+which checks the example configuration, in Nix and in JSON, against the schema.
+On Linux it also builds the KWin effects and checks their files, and boots every
+VM test, which needs KVM. A Mac runs the tests against the fake desktop, since
+KWin only exists on Linux. `nix fmt` formats every file the checks look at.
 
 The VM tests boot NixOS with Plasma and run a real KWin, on machines configured
 with the NixOS module, so every one of them runs komorebi as the module installs
@@ -226,6 +245,12 @@ On NixOS, the module [`nix/nixos-module.nix`](nix/nixos-module.nix) runs the
 daemon as a systemd user unit that the Plasma session starts, and systemd
 starts it again if it fails.
 
+The borders are KWin's: komorebi asks the backend for a look, a border of a
+width, a radius and two colors, and the KWin backend has the KDE Rounded Corners
+effect draw it, which the module installs. A border takes room around each
+window, so the layout leaves the room while the compositor says it draws one.
+`border`, `border-width` and `border-offset` set it.
+
 ## Documentation
 
 The user guide starts at [`docs/index.md`](docs/index.md),
@@ -245,3 +270,8 @@ and [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work.
 
 komorebi for KDE is under the [Komorebi License](LICENSE.md). Contributions
 are accepted under the terms in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+The license lets others distribute the source code but not binaries, so there
+is no public binary cache for what the flake builds: komorebi and the KWin
+effects are built on each machine that installs them, with their dependencies
+from nixpkgs.

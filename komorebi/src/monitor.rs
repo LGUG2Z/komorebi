@@ -3,8 +3,8 @@
 //! A monitor has the bounds and the work area the backend reports for it
 //! ([`MonitorInfo`](crate::backend::MonitorInfo)), and shows one of its workspaces, the focused
 //! one. Before the focused workspace is tiled it is given the monitor's work area, the monitor's
-//! padding (or [`DEFAULT_CONTAINER_PADDING`] and [`DEFAULT_WORKSPACE_PADDING`]) and the work area
-//! offset ([`WorkspaceGlobals`]).
+//! padding (or [`DEFAULT_CONTAINER_PADDING`] and [`DEFAULT_WORKSPACE_PADDING`]), the work area
+//! offset and, while the compositor draws borders, the room they take ([`WorkspaceGlobals`]).
 //!
 //! Workspace `i` of a monitor is the compositor's virtual desktop `i` on that monitor. Showing
 //! another workspace ([`Monitor::load_focused_workspace`]) puts every window on the desktop of the
@@ -14,6 +14,9 @@
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::backend::backend;
+use crate::border_manager::BORDER_DRAWN;
+use crate::border_manager::BORDER_OFFSET;
+use crate::border_manager::BORDER_WIDTH;
 use crate::container::Container;
 use crate::core::DefaultLayout;
 use crate::core::FloatingLayerBehaviour;
@@ -183,6 +186,15 @@ impl Monitor {
         let workspace_padding = self
             .workspace_padding
             .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::Relaxed)));
+        // a border the compositor draws outside the window takes room that the window leaves
+        let (border_width, border_offset) = if BORDER_DRAWN.load(Ordering::SeqCst) {
+            (
+                BORDER_WIDTH.load(Ordering::SeqCst),
+                BORDER_OFFSET.load(Ordering::SeqCst),
+            )
+        } else {
+            (0, 0)
+        };
         let work_area = self.work_area_size;
         let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset;
@@ -193,6 +205,8 @@ impl Monitor {
             workspace.globals = WorkspaceGlobals {
                 container_padding,
                 workspace_padding,
+                border_width,
+                border_offset,
                 work_area,
                 work_area_offset,
                 window_based_work_area_offset,
@@ -452,6 +466,7 @@ impl Monitor {
         let workspace_padding = self
             .workspace_padding
             .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+        let (border_width, border_offset) = (0, 0);
         let work_area = self.work_area_size;
         let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset;
@@ -462,6 +477,8 @@ impl Monitor {
             workspace.globals = WorkspaceGlobals {
                 container_padding,
                 workspace_padding,
+                border_width,
+                border_offset,
                 work_area,
                 work_area_offset,
                 window_based_work_area_offset,

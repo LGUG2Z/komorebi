@@ -56,6 +56,7 @@ use crate::SUBSCRIPTION_SOCKETS;
 use crate::UNMANAGED_WINDOW_IDS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::backend::backend;
+use crate::border_manager;
 use crate::container::Container;
 use crate::core::Arrangement;
 use crate::core::Axis;
@@ -1937,7 +1938,8 @@ impl WindowManager {
     }
 
     /// Tiles the focused workspace of every monitor, without the resize adjustments of its
-    /// containers unless `preserve_resize_dimensions` is set
+    /// containers unless `preserve_resize_dimensions` is set, and asks the backend for the look
+    /// again ([`border_manager::destroy_all_borders`])
     #[tracing::instrument(skip(self))]
     pub fn retile_all(&mut self, preserve_resize_dimensions: bool) -> eyre::Result<()> {
         let offset = self.work_area_offset;
@@ -1963,6 +1965,8 @@ impl WindowManager {
 
             workspace.update()?;
         }
+
+        border_manager::destroy_all_borders()?;
 
         Ok(())
     }

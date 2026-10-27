@@ -48,7 +48,8 @@
 //! [`listen_for_events`], one at a time and in the order the backend raised them.
 //!
 //! Once an event about a managed window has been handled, every subscriber is sent a notification
-//! of it ([`notify_subscribers`]).
+//! of it ([`notify_subscribers`]), and the backend is asked for the look again
+//! ([`border_manager::send_notification`]), which it does nothing about unless a setting changed.
 //!
 //! [`Window::should_manage`]: crate::window::Window::should_manage
 //! [`Monitor::assign_windows_to_workspaces`]: crate::monitor::Monitor::assign_windows_to_workspaces
@@ -60,6 +61,7 @@ use crate::NotificationEvent;
 use crate::REGEX_IDENTIFIERS;
 use crate::UNMANAGED_WINDOW_IDS;
 use crate::backend::backend;
+use crate::border_manager;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::WindowContainerBehaviour;
@@ -506,6 +508,8 @@ impl WindowManager {
             },
             initial_state.has_been_modified(self.as_ref()),
         )?;
+
+        border_manager::send_notification();
 
         Ok(())
     }

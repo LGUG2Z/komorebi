@@ -1,5 +1,5 @@
-//! KWin's configuration file, `kwinrc`, for the setting komorebi changes: per-output virtual
-//! desktops.
+//! KWin's configuration file, `kwinrc`, for the few settings komorebi changes: per-output virtual
+//! desktops and the settings of the border effect.
 //!
 //! These are the user's settings, changed on their behalf, so [`Kwinrc::set`] records the value of
 //! every key the first time komorebi changes it, in a backup file, and [`Kwinrc::restore`] puts the
@@ -22,6 +22,7 @@
 //! | A key komorebi changed gets back the value it had before komorebi first changed it, and a key komorebi added is removed | [`Kwinrc::set`] records only the first value of a key; [`Kwinrc::restore`] | `kwin::kwinrc::tests::what_komorebi_changed_is_put_back_exactly_and_what_it_added_is_removed` |
 //! | A crash loses none of the recorded values | the backup file, read by the next run | `kwin::kwinrc::tests::a_backup_left_by_a_crash_keeps_the_values_from_before_the_first_run` |
 //! | Only the line of the key changes; the rest of the file is left as it was | [`ini_set`], [`ini_unset`] | `kwin::kwinrc::tests::a_key_is_set_in_place_added_to_its_group_or_given_a_group`, `kwin::kwinrc::tests::a_key_is_removed_from_its_own_group_only` |
+//! | One group can be put back while the others stay changed | [`Kwinrc::restore_group`] | `kwin::kwinrc::tests::one_group_can_be_put_back_while_the_others_stay_changed` |
 //! | KWin never reads a half-written file | [`Kwinrc`] writes a file beside `kwinrc` and renames it over it | no test |
 
 #![deny(missing_docs)]
@@ -152,6 +153,37 @@ impl Kwinrc {
 
         self.write_file(&text)?;
         std::fs::remove_file(&self.backup)?;
+        Ok(true)
+    }
+
+    /// Puts back what [`Kwinrc::set`] changed in one group, and returns true if and only if it
+    /// changed any key of the group.
+    ///
+    /// The other groups stay as komorebi changed them, and so does the backup of their values.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `kwinrc` or the backup cannot be written.
+    pub fn restore_group(&self, group: &str) -> io::Result<bool> {
+        let mut backup = self.read_backup();
+        let Some(keys) = backup.originals.remove(group) else {
+            return Ok(false);
+        };
+
+        let mut text = std::fs::read_to_string(&self.path).unwrap_or_default();
+        for (key, original) in &keys {
+            text = match original {
+                Some(value) => ini_set(&text, group, key, value),
+                None => ini_unset(&text, group, key),
+            };
+        }
+        self.write_file(&text)?;
+
+        if backup.originals.is_empty() {
+            let _ = std::fs::remove_file(&self.backup);
+        } else {
+            self.write_backup(&backup)?;
+        }
         Ok(true)
     }
 
@@ -420,6 +452,32 @@ mod tests {
 
         let back = std::fs::read_to_string(d.join("kwinrc")).unwrap();
         assert_eq!(ini_value(&back, "Windows", "K").as_deref(), Some("orig"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn one_group_can_be_put_back_while_the_others_stay_changed() {
+        let d = dir("group");
+        let rc = Kwinrc::new(d.join("kwinrc"), d.join("backup.json"));
+        std::fs::write(d.join("kwinrc"), "[Round-Corners]\nSize=8\n").unwrap();
+
+        rc.set("Round-Corners", &[("Size", "20".into())]).unwrap();
+        rc.set("Windows", &[("PerOutputVirtualDesktops", "true".into())])
+            .unwrap();
+
+        assert!(rc.restore_group("Round-Corners").unwrap());
+        let text = std::fs::read_to_string(d.join("kwinrc")).unwrap();
+        assert_eq!(
+            ini_value(&text, "Round-Corners", "Size").as_deref(),
+            Some("8")
+        );
+        assert!(rc.is_on("Windows", "PerOutputVirtualDesktops"));
+
+        // nothing of it left to put back, and the other group still can be
+        assert!(!rc.restore_group("Round-Corners").unwrap());
+        assert!(d.join("backup.json").exists());
+        assert!(rc.restore().unwrap());
+        assert!(!d.join("backup.json").exists());
         let _ = std::fs::remove_dir_all(&d);
     }
 }

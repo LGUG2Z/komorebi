@@ -37,6 +37,7 @@ use crate::LAYOUT_DEFAULTS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
 use crate::WORKSPACE_MATCHING_RULES;
+use crate::border_manager;
 use crate::core::Axis;
 use crate::core::CrossBoundaryBehaviour;
 use crate::core::DefaultLayout;
@@ -407,6 +408,32 @@ pub struct StaticConfig {
     /// need them: which windows to ignore, to manage and to float
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<AppSpecificConfigurationPath>,
+    /// Width of window borders
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "active_window_border_width")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_WIDTH)))]
+    pub border_width: Option<i32>,
+    /// Offset of window borders
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "active_window_border_offset")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_OFFSET)))]
+    pub border_offset: Option<i32>,
+    /// Radius of window borders
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_RADIUS)))]
+    pub border_radius: Option<i32>,
+    /// Display window borders
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "active_window_border")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_ENABLED)))]
+    pub border: Option<bool>,
+    // /// Active window border style (default: System)
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // #[serde(alias = "active_window_border_style")]
+    // pub border_style: Option<BorderStyle>,
+    // /// Active window border implementation (default: Komorebi)
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub border_implementation: Option<BorderImplementation>,
     /// Global default workspace padding
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_WORKSPACE_PADDING)))]
@@ -528,6 +555,7 @@ impl From<&WindowManager> for StaticConfig {
         }
 
         Self {
+            // invisible_borders: None,
             resize_delta: Option::from(value.resize_delta),
             window_container_behaviour: Option::from(
                 value.window_management_behaviour.current_behaviour,
@@ -558,6 +586,13 @@ impl From<&WindowManager> for StaticConfig {
             // minimum_window_width: Some(window::MINIMUM_WIDTH.load(Ordering::SeqCst)),
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
+            border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
+            border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
+            border_radius: Option::from(border_manager::BORDER_RADIUS.load(Ordering::SeqCst)),
+            border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
+            // border_style: Option::from(STYLE.load()),
+            // border_z_order: None,
+            // border_implementation: Option::from(IMPLEMENTATION.load()),
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
@@ -645,6 +680,47 @@ impl StaticConfig {
             LAYOUT_DEFAULTS.lock().clear();
         }
 
+        if let Some(border_width) = self.border_width {
+            border_manager::BORDER_WIDTH.store(border_width, Ordering::SeqCst);
+        }
+
+        if let Some(border_offset) = self.border_offset {
+            border_manager::BORDER_OFFSET.store(border_offset, Ordering::SeqCst);
+        }
+
+        if let Some(border_radius) = self.border_radius {
+            border_manager::BORDER_RADIUS.store(border_radius, Ordering::SeqCst);
+        }
+
+        if let Some(border_enabled) = self.border {
+            border_manager::BORDER_ENABLED.store(border_enabled, Ordering::SeqCst);
+        }
+
+        // STYLE.store(self.border_style.unwrap_or_default());
+        //
+        // if !*WINDOWS_11
+        //     && matches!(
+        //         self.border_implementation.unwrap_or_default(),
+        //         BorderImplementation::Windows
+        //     )
+        // {
+        //     tracing::error!(
+        //         "BorderImplementation::Windows is only supported on Windows 11 and above"
+        //     );
+        // } else {
+        //     IMPLEMENTATION.store(self.border_implementation.unwrap_or_default());
+        //     match IMPLEMENTATION.load() {
+        //         BorderImplementation::Komorebi => {
+        //             border_manager::destroy_all_borders()?;
+        //         }
+        //         BorderImplementation::Windows => {
+        //             // TODO: figure out how to call wm.remove_all_accents here
+        //         }
+        //     }
+        //
+        //     border_manager::send_notification(None);
+        // }
+        //
         let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
@@ -1039,6 +1115,10 @@ impl StaticConfig {
 
         wm.enforce_workspace_rules()?;
 
+        if value.border == Some(true) {
+            border_manager::BORDER_ENABLED.store(true, Ordering::SeqCst);
+        }
+
         Ok(())
     }
 
@@ -1153,6 +1233,10 @@ impl StaticConfig {
 
         wm.enforce_workspace_rules()?;
 
+        if let Some(border_enabled) = value.border {
+            border_manager::BORDER_ENABLED.store(border_enabled, Ordering::SeqCst);
+        }
+
         wm.window_management_behaviour.current_behaviour =
             value.window_container_behaviour.unwrap_or_default();
         wm.window_management_behaviour.float_override = value.float_override.unwrap_or_default();
@@ -1185,7 +1269,7 @@ impl StaticConfig {
             wm.update_focused_workspace_by_monitor_idx(i)?;
         }
 
-        // to apply the new layouts, padding and offsets
+        // to update the borders
         wm.retile_all(true)?;
 
         Ok(())

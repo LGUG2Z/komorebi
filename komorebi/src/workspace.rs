@@ -27,6 +27,7 @@ use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
+use crate::window::WindowDetails;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use serde::Deserialize;
@@ -182,10 +183,13 @@ pub enum WorkspaceWindowLocation {
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
 /// The work area a monitor gives the workspace it shows, the padding and the offset the
-/// workspace falls back to when it sets none of its own, and the monitor's window-based offset
+/// workspace falls back to when it sets none of its own, the monitor's window-based offset, and
+/// the room around each window that a border drawn by the compositor takes
 pub struct WorkspaceGlobals {
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
+    pub border_width: i32,
+    pub border_offset: i32,
     pub work_area: Rect,
     pub work_area_offset: Option<Rect>,
     pub window_based_work_area_offset: Option<Rect>,
@@ -1446,9 +1450,11 @@ impl Workspace {
     /// Containers that have no windows left are dropped first, except the one a preselection
     /// reserved, and so is a window that is in more than one container. A tile is clamped to the
     /// work area, so it cannot bleed onto a neighboring monitor, except in the scrolling layout,
-    /// whose strip runs past the edges of the work area. A window whose tile is out of view while
-    /// part of the window is in view is first centered in the work area. A workspace whose tiling
-    /// is off ([`Workspace::tile`] is false) moves no window.
+    /// whose strip runs past the edges of the work area. Each tile then gives up the room a border
+    /// drawn by the compositor takes on every side, the border's width and its offset
+    /// ([`WorkspaceGlobals`]; nothing when no border is drawn). A window whose tile is out of view
+    /// while part of the window is in view is first centered in the work area. A workspace whose
+    /// tiling is off ([`Workspace::tile`] is false) moves no window.
     ///
     /// While the workspace has a monocle container ([`Workspace::monocle_container`]), the window
     /// in front of it is put on the work area, less the container padding, and the other containers
@@ -1482,6 +1488,8 @@ impl Workspace {
             .workspace_padding
             .or(self.globals.workspace_padding)
             .unwrap_or_default();
+        let border_width = self.globals.border_width;
+        let border_offset = self.globals.border_offset;
         let work_area = self.globals.work_area;
         let mut rules_work_area_offset = None;
 
@@ -1571,6 +1579,8 @@ impl Workspace {
                 if let Some(container) = self.monocle_container.as_mut() {
                     if let Some(window) = container.focused_window_mut() {
                         adjusted_work_area.add_padding(container_padding);
+                        adjusted_work_area.add_padding(border_offset);
+                        adjusted_work_area.add_padding(border_width);
                         window.set_position(&adjusted_work_area)?;
                     };
                 } else if let Some(window) = self.maximized_window {
@@ -1636,6 +1646,9 @@ impl Workspace {
                                     layout.bottom = max_bottom_edge - layout.top;
                                 }
                             }
+
+                            layout.add_padding(border_offset);
+                            layout.add_padding(border_width);
 
                             for window in container.windows_mut() {
                                 let current_rect = window.rect().unwrap_or_default();
@@ -1708,6 +1721,40 @@ impl Workspace {
 
         for window in self.floating_windows() {
             vec.push(Some(window));
+        }
+
+        vec
+    }
+
+    /// What the compositor says about each window [`Workspace::visible_windows`] has, as
+    /// `komorebic visible-windows` shows it: the maximized window, the one at the top of the
+    /// monocle container, the one at the top of each container, and every floating window. A
+    /// container that has no window is left out.
+    pub fn visible_window_details(&self) -> Vec<WindowDetails> {
+        let mut vec: Vec<WindowDetails> = vec![];
+
+        if let Some(maximized) = &self.maximized_window {
+            let details = maximized.into();
+            vec.push(details);
+        }
+
+        if let Some(monocle) = &self.monocle_container
+            && let Some(focused) = monocle.focused_window()
+        {
+            let details = focused.into();
+            vec.push(details);
+        }
+
+        for container in self.containers() {
+            if let Some(focused) = container.focused_window() {
+                let details = focused.into();
+                vec.push(details);
+            }
+        }
+
+        for window in self.floating_windows() {
+            let details = window.into();
+            vec.push(details);
         }
 
         vec
@@ -2746,6 +2793,55 @@ mod tests {
             }
         }
         assert!(contains);
+    }
+
+    #[test]
+    fn test_visible_windows() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Create and add a default Container with 2 windows
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(100));
+            container.windows_mut().push_back(Window::from(200));
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            // visible_windows should return None and 100
+            let visible_windows = workspace.visible_windows();
+            assert_eq!(visible_windows.len(), 2);
+            assert!(visible_windows[0].is_none());
+            assert_eq!(visible_windows[1].unwrap().id, 100);
+        }
+
+        {
+            // Create and add a default Container with 1 window
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(300));
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            // visible_windows should return None, 100, and 300
+            let visible_windows = workspace.visible_windows();
+            assert_eq!(visible_windows.len(), 3);
+            assert!(visible_windows[0].is_none());
+            assert_eq!(visible_windows[1].unwrap().id, 100);
+            assert_eq!(visible_windows[2].unwrap().id, 300);
+        }
+
+        // Maximize window 200
+        workspace.maximized_window = Some(Window::from(200));
+
+        {
+            // visible_windows should return 200, 100, and 300
+            let visible_windows = workspace.visible_windows();
+            assert_eq!(visible_windows.len(), 3);
+            assert_eq!(visible_windows[0].unwrap().id, 200);
+            assert_eq!(visible_windows[1].unwrap().id, 100);
+            assert_eq!(visible_windows[2].unwrap().id, 300);
+        }
     }
 
     #[test]

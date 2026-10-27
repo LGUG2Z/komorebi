@@ -469,6 +469,14 @@ pub enum SocketMessage {
     // WatchConfiguration(bool),
     // CompleteConfiguration,
     // AltFocusHack(bool),
+    #[serde(alias = "ActiveWindowBorder")]
+    Border(bool),
+    // #[serde(alias = "ActiveWindowBorderStyle")]
+    // BorderStyle(BorderStyle),
+    BorderWidth(i32),
+    BorderOffset(i32),
+    // BorderImplementation(BorderImplementation),
+    // InvisibleBorders(Rect),
     WorkAreaOffset(Rect),
     MonitorWorkAreaOffset(usize, Rect),
     WorkspaceWorkAreaOffset(usize, usize, Rect),
@@ -494,6 +502,7 @@ pub enum SocketMessage {
     // IdentifyBorderOverflowApplication(ApplicationIdentifier, String),
     State,
     GlobalState,
+    VisibleWindows,
     MonitorInformation,
     Query(StateQuery),
     MouseFollowsFocus(bool),

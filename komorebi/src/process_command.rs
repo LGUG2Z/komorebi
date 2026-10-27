@@ -8,6 +8,8 @@
 //!
 //! - **State**: the window manager's [`State`], as JSON.
 //! - **MonitorInformation**: the id, the name and the bounds of each monitor, as JSON.
+//! - **VisibleWindows**: what the compositor says about each window that can be seen on the
+//!   workspace each monitor shows, by the id of the monitor, as JSON.
 //! - **Query**: one value as text, the answer to a [`StateQuery`].
 //! - **GlobalState**: the ignore and the manage rules and the data directory ([`GlobalState`]), as
 //!   JSON.
@@ -174,6 +176,10 @@
 //!   **CycleMoveWorkspaceToMonitor** and **SwapWorkspacesToMonitorNumber** move workspaces
 //!   between monitors. **DisplayIndexPreference** gives a monitor an index, and **EagerFocus**
 //!   focuses the first window of an executable on any workspace of any monitor.
+//! - **Border** sets whether the compositor draws a border around each window, and **BorderWidth**
+//!   and **BorderOffset** the room the layout leaves for it: each asks the backend for the look
+//!   again ([`border_manager::send_notification`]), as does every message once it has been
+//!   handled.
 //! - **Retile** tiles the focused workspace of every monitor again, without the resize
 //!   adjustments, and **RetileWithResizeDimensions** with them.
 //! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
@@ -196,6 +202,7 @@ use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::backend::backend;
+use crate::border_manager;
 use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
 use crate::core::Layout;
@@ -227,6 +234,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
 use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
@@ -235,6 +243,7 @@ use std::num::NonZeroUsize;
 use std::os::unix::net::UnixStream;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use version::build;
 
@@ -556,12 +565,14 @@ impl WindowManager {
             }
             SocketMessage::UnstackWindow => {
                 self.remove_window_from_container()?;
+                border_manager::destroy_all_borders()?;
             }
             SocketMessage::StackAll => {
                 self.stack_all()?;
             }
             SocketMessage::UnstackAll => {
                 self.unstack_all(true)?;
+                border_manager::destroy_all_borders()?;
             }
             SocketMessage::CycleStack(direction) => {
                 self.cycle_container_window_in_direction(direction)?;
@@ -1323,6 +1334,21 @@ impl WindowManager {
 
                 tracing::info!("replying to global state done");
             }
+            SocketMessage::VisibleWindows => {
+                let mut monitor_visible_windows = HashMap::new();
+
+                for monitor in self.monitors() {
+                    if let Some(ws) = monitor.focused_workspace() {
+                        monitor_visible_windows
+                            .insert(monitor.id, ws.visible_window_details().clone());
+                    }
+                }
+
+                let visible_windows_state = serde_json::to_string_pretty(&monitor_visible_windows)
+                    .unwrap_or_else(|error| error.to_string());
+
+                reply.write_all(visible_windows_state.as_bytes())?;
+            }
             SocketMessage::MonitorInformation => {
                 let mut monitors = vec![];
                 for monitor in self.monitors() {
@@ -1909,6 +1935,20 @@ impl WindowManager {
                     reply.write_all(schema.as_bytes())?;
                 }
             }
+            SocketMessage::Border(enable) => {
+                border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
+                if !enable {
+                    border_manager::destroy_all_borders()?;
+                }
+            }
+            SocketMessage::BorderWidth(width) => {
+                border_manager::BORDER_WIDTH.store(width, Ordering::SeqCst);
+                border_manager::destroy_all_borders()?;
+            }
+            SocketMessage::BorderOffset(offset) => {
+                border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
+                border_manager::destroy_all_borders()?;
+            }
         }
 
         self.update_known_window_ids();
@@ -1920,6 +1960,8 @@ impl WindowManager {
             },
             initial_state.has_been_modified(self.as_ref()),
         )?;
+
+        border_manager::send_notification();
 
         tracing::info!("processed command: {message}");
 

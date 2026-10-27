@@ -217,6 +217,29 @@ in
       };
     };
 
+    effects.borders = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Install the KWin effect that draws komorebi's borders, KDE Rounded Corners. This is
+          installation only: whether borders are drawn is komorebi's setting (`komorebic border`),
+          which asks KWin to load the effect when it is on. KWin finds effects when it starts, so
+          an effect installed by a switch to a new system is found after the next login.
+
+          Without the effect, komorebi draws no border and leaves no room for one.
+        '';
+      };
+
+      package = lib.mkPackageOption pkgs "kde-rounded-corners-komorebi" {
+        extraDescription = ''
+          It must have `lib/qt-6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so`, built
+          against the KWin of the system and not loaded by default. The default is KDE Rounded
+          Corners 0.11.0, which draws correctly on KWin 6.8.
+        '';
+      };
+    };
+
     internal.configAttrs = lib.mkOption {
       type = lib.types.nullOr lib.types.attrs;
       readOnly = true;
@@ -274,9 +297,21 @@ in
         ) "services.komorebi.config is ignored: services.komorebi.configFile is set."
         ++
           lib.optional (cfg.configFile != null && cfg.applicationSpecificConfiguration.sources != [ ])
-            "services.komorebi.applicationSpecificConfiguration is ignored: services.komorebi.configFile is set.";
+            "services.komorebi.applicationSpecificConfiguration is ignored: services.komorebi.configFile is set."
+        ++
+          lib.optional
+            (
+              cfg.configFile == null
+              && cfg.config != null
+              && (cfg.config.border or null) == true
+              && !cfg.effects.borders.enable
+            )
+            "services.komorebi.config sets border to true, but services.komorebi.effects.borders.enable is false: without the effect, komorebi draws no border.";
 
-      environment.systemPackages = [ cfg.package ];
+      environment.systemPackages = [
+        cfg.package
+      ]
+      ++ lib.optional cfg.effects.borders.enable cfg.effects.borders.package;
 
       # A user unit, so it runs for every user who logs in to Plasma. plasma-workspace.target is
       # the target of a Plasma session's services, and plasma-core.target, which it requires, is

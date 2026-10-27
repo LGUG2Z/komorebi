@@ -9,9 +9,9 @@ This page describes that trait, who implements and calls it, where each of its r
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
 how an event about a window becomes a tile, how workspaces are the compositor's desktops, how
 a stack hides its windows, how a message on the daemon's socket is answered, how subscribers
-are notified of both, what the orders a message gives do, how `komorebi.json` configures the
-daemon, and how the NixOS module runs the daemon. It grows with the code: each part of the
-daemon that is added has its place here.
+are notified of both, what the orders a message gives do, how the compositor is asked to draw the
+borders, how `komorebi.json` configures the daemon, and how the NixOS module runs the daemon. It
+grows with the code: each part of the daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -67,6 +67,10 @@ daemon that is added has its place here.
   asked the daemon, by the name of that socket, to send it notifications.
 - **Notification**: what a subscriber is sent after each event and each message the window
   manager handles: the event or the message, and the state after it ([`Notification`]).
+- **Look**: how the compositor is asked to dress the windows, which it draws ([`Look`]):
+  a border, with its width, its corner radius and two colors.
+- **Effect**: a plugin of the compositor that changes how windows are drawn. KDE Rounded Corners
+  is the effect that draws the border.
 - **Compositor**: the program that owns the screen and the windows. On KDE Plasma it is
   KWin.
 - **Backend**: the implementation of the [`Backend`](../../komorebi/src/backend/mod.rs)
@@ -650,9 +654,10 @@ file `--config` names, or else `komorebi.json` in [`HOME_DIR`] (`$KOMOREBI_CONFI
 has three steps, because the monitors are known only after the backend is asked:
 
 1. [`StaticConfig::preload`] reads the file, applies the settings that are process-wide (the
-   default paddings, [`LAYOUT_DEFAULTS`], the indices of the monitors, and the rules in
-   [`IGNORE_IDENTIFIERS`], [`MANAGE_IDENTIFIERS`] and [`FLOATING_APPLICATIONS`]) and makes the
-   [`WindowManager`], with the settings that are its own. It starts a watcher on the file.
+   default paddings, [`LAYOUT_DEFAULTS`], the indices of the monitors, the settings of the borders
+   in [`border_manager`], and the rules in [`IGNORE_IDENTIFIERS`], [`MANAGE_IDENTIFIERS`] and
+   [`FLOATING_APPLICATIONS`]) and makes the [`WindowManager`], with the settings that are its own.
+   It starts a watcher on the file.
 2. [`WindowManager::init`] loads the monitors and the windows from the backend, in the order the
    indices of the monitors give.
 3. [`StaticConfig::postload`] gives each monitor the entry of the file that is its own, and each
@@ -679,9 +684,11 @@ there and is not an applications.json is an error.
 Three kinds of key reach the model. A **setting** of the window manager is a field of it
 ([`WindowManager::resize_delta`] and the others). A **default** is a process-wide static that a
 monitor or a workspace falls back to when it has no value of its own: the paddings, the layout
-defaults. A **rule** is an entry of one of the process-wide lists. A workspace's own
-`layout_rules`, `work_area_offset_rules` and `window_container_behaviour_rules` are fields of the
-[`Workspace`], which [`Workspace::update`] reads each time it tiles.
+defaults. The settings of the borders are statics too, which the file sets and
+[`border_manager::current_look`] and the layout read. A **rule** is an entry of one of the
+process-wide lists. A workspace's own `layout_rules`, `work_area_offset_rules` and
+`window_container_behaviour_rules` are fields of the [`Workspace`], which [`Workspace::update`]
+reads each time it tiles.
 
 A workspace's `workspace_rules` and `initial_workspace_rules` are not fields of the window manager
 but entries of [`WORKSPACE_MATCHING_RULES`], which [`StaticConfig::postload`] and
@@ -754,15 +761,50 @@ goes the other way, for `GenerateStaticConfig`.
 | The configuration the daemon generates loads and says the same | test | `a_configuration_comes_out_again_as_the_settings_of_the_window_manager` | none |
 | The daemon reads the file it is given or the one in the config home, not both | startup order: `main.rs` takes `--config` before the config home | `the_daemon_follows_the_file_it_is_given_when_the_file_changes`, `the_daemon_reads_komorebi_json_from_the_config_home` | none |
 
+## The look
+
+komorebi decides what the windows look like and the compositor draws it, since only the
+compositor has the frames, the corners and the shadows. A border is the outer outline of a window,
+drawn outside it, in the gap the layout leaves between tiles. The window manager describes a
+[`Look`] and asks the backend for it ([`Backend::apply_look`]); the backend sees that it is drawn
+and answers whether borders are being drawn. The reasons are in
+[DESIGN.md](DESIGN.md#why-does-the-compositor-draw-the-borders-and-not-komorebi).
+
+[`border_manager`] holds the settings, as statics that the messages `Border`, `BorderWidth` and
+`BorderOffset` set: whether borders are on, their width, the offset, the radius of the corners and
+the two colors. [`border_manager::current_look`] makes the [`Look`] of them, and
+[`border_manager::send_notification`] asks the backend for it and keeps the answer in
+[`BORDER_DRAWN`]. It is called before the first layout, after every event and every message, and
+after every retile. A backend remembers the look it applied last and does nothing when it is asked
+for the same again, so nothing reaches KWin unless a setting changed.
+
+A drawn border takes room. While [`BORDER_DRAWN`] is set, [`Monitor::update_workspace_globals`]
+gives the workspace the width and the offset of the border, and [`Workspace::update`] takes both
+off every side of every tile, so the border falls in the gap and not on the window next to it.
+Without a border, because they are off or the compositor has no effect to draw one, the room is
+given back the next time the workspace is tiled.
+
+The KWin backend draws the border with the effect KDE Rounded Corners
+([`kwin::effects`](../../komorebi/src/kwin/effects.rs)). `apply_look` writes the effect's settings
+into the user's `kwinrc`, group `[Round-Corners]`, through [`Kwinrc`]; loads the effect with
+`loadEffect` unless it is loaded; and always asks it to read its settings again
+(`reconfigureEffect`), since KWin hands an effect the copy of `kwinrc` it read when it started. A
+look without a border unloads the effect, if komorebi loaded it, and puts the user's settings
+back. `shutdown` does the same. An effect KWin did not find when it started is reported once and
+komorebi goes on without it, with `apply_look` answering false.
+[PLATFORM.md](PLATFORM.md#kwin-effects) has the effect, its settings and what was measured.
+
 ## The NixOS module
 
 The flake exports one module under two names, `nixosModules.default` and
 `nixosModules.komorebi`: [`nixos-module.nix`] and the flake's overlay, which builds
 `komorebi-full` (both programs) with the flake's nixpkgs and Rust toolchain. Its options are
 `enable`, `package` (by default `pkgs.komorebi-full`, from the overlay), `logLevel`,
-`configFile`, `config`, `applicationSpecificConfiguration`, and `execStart`, which is read-only: the
-module sets it to `bin/komorebi` of the package with `--log-level`, and `--config` with a
-`komorebi.json` when `configFile` or `config` is set. `config` is typed from
+`configFile`, `config`, `applicationSpecificConfiguration`, `effects.borders.enable` and
+`effects.borders.package` (by default `pkgs.kde-rounded-corners-komorebi`, from the overlay), and
+`execStart`, which is read-only: the module sets it to `bin/komorebi` of the package with
+`--log-level`, and `--config` with a `komorebi.json` when `configFile` or `config` is set. `config`
+is typed from
 `nix/komorebi-options.nix`, the options `schemars-nixgen` makes from the schema of `komorebi.json`;
 the module writes it as JSON, with no null in it, and `configFile` and the written file both go
 through `check-jsonschema` against `schema.json` when the system is built (comment lines taken out
@@ -771,7 +813,8 @@ fetched from GitHub that become `app_specific_configuration_path`; the module ha
 `internal.configAttrs` is the configuration as the attribute set the options make, for the tests.
 With `services.komorebi.enable`, the module:
 
-- installs the package in the system profile;
+- installs the package in the system profile, and the effect that draws the borders unless
+  `effects.borders.enable` is off;
 - defines the user unit `komorebi.service`, which every user of the machine has. Plasma's
   `plasma-workspace.target` wants it, so a Plasma session starts it at login, and it is ordered
   after `plasma-core.target`, which Plasma orders after KWin's service, `plasma-kwin_wayland`;
@@ -794,6 +837,8 @@ module's unit.
 | A configuration with a layout or a value komorebi does not have does not build | evaluation error: `config` is typed from the schema; and `check-jsonschema` fails the build for a file that does not follow it | `nixos-module-eval` ("a layout komorebi does not have does not evaluate"), `nix-options-validation` | `configFile` with a file the schema accepts |
 | The sources of application specific configuration reach the daemon only while `applicationSpecificConfiguration.enable` is set | framework path: the module adds `app_specific_configuration_path` to the file it writes only when `enable` is set and there are sources | `nixos-module-eval` ("with applicationSpecificConfiguration.enable = false, the sources are left out of config", "with the sources turned off and no config, there is nothing to write") | none |
 | `komorebi` and `komorebic` are on every user's `PATH` | the module installs the package in the system profile | `nixos-module-eval`; every VM suite runs `komorebic` | none |
+| The border effect is installed with komorebi, and only by the module | the module installs `effects.borders.package` in the system profile when `effects.borders.enable` is set | `nixos-module-eval` ("the border effect is installed in the system profile", "with the border effect off, komorebi is installed and the effect is not"), `vm-look` | `effects.borders.enable = false` |
+| The border effect the module installs is built for the KWin of the system and is not loaded until komorebi asks | the package: `kde-rounded-corners-komorebi` links the `libkwin` of the nixpkgs' KWin and says `EnabledByDefault` false in its metadata | the `kde-rounded-corners-komorebi-install` check | `effects.borders.package` |
 | Every Plasma session starts komorebi, once KWin's service has started | systemd: the user unit is wanted by `plasma-workspace.target`, after `plasma-core.target` | `nixos-module-eval`, `vm-module` | `systemctl --user mask komorebi` |
 | A daemon that fails or is killed is started again | systemd: `Restart=on-failure` | `vm-module` (`SIGKILL`) | none |
 | A daemon that is told to stop stays stopped, and the unit is not failed | systemd: the exit statuses of `Stop` (0) and of `SIGTERM` (130) are successes | `vm-module` | none |
@@ -839,6 +884,10 @@ module's unit.
   [`bridge.js`](../../komorebi/src/kwin/bridge.js), the bridge.
 - [`static_config`](../../komorebi/src/static_config.rs): `komorebi.json`, [`StaticConfig`], and
   how it is loaded, reloaded and generated.
+- [`border_manager`](../../komorebi/src/border_manager/mod.rs): the border settings, and the
+  [`Look`] they make, which it asks the backend for.
+- [`kwin::effects`](../../komorebi/src/kwin/effects.rs): the KWin effect that draws the border,
+  its settings and the state komorebi keeps of it.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
   socket, and what the window manager does with each message.
 - [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with,
@@ -854,8 +903,9 @@ module's unit.
   `docs/cli`.
 - [`main.rs`](../../komorebi/src/main.rs): the daemon. It connects to KWin, or installs the
   fake with `--fake-backend`, makes the window manager from `komorebi.json` when there is one,
-  which binds the socket, loads the desktop, gives the monitors their configuration and tiles, starts the threads that listen on the socket and handle events, and
-  waits to be stopped.
+  which binds the socket, loads the desktop, gives the monitors their configuration, asks for the
+  borders and tiles, starts the threads that listen on the socket and handle events, and waits to
+  be stopped.
 - [`nixos-module.nix`]: the NixOS module, which installs komorebi and runs the daemon as a
   systemd user unit of every Plasma session.
 
@@ -888,6 +938,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
   `set_window_workspace` changes where it comes back to, not where it is hidden. Only the back of
   a stack and the containers behind a monocle are hidden: nothing is hidden to leave a
   workspace.
+- The look is a request (`apply_look`): a backend asks the compositor to draw it and answers
+  whether borders are being drawn, and one that draws nothing answers false, which is the default.
+  It does nothing when it is asked for the look it applied last.
 - `shutdown`, `is_window`, `window_rect` and `monitor_from_point` have defaults, written in
   terms of the queries. An implementor should not need to override them, except `shutdown`
   when it created something in the compositor that has to be given up.
@@ -973,6 +1026,10 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | What the backend sends is what the bridge carries out | tests: the commands of [`fixtures`] are what the backend's tests check it sends and what the bridge's tests answer it with, checking what KWin is asked to do for each | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a command for a window KWin no longer has is given back, and the rest are carried out` | none |
 | Everything the bridge sends over D-Bus is one string | type checker: [`kwin-api.d.ts`] gives `callDBus` one string argument | `tsc`, `every call goes to the daemon's names, with one JSON string` | none |
 | The bridge uses nothing a KWin script does not have | type checker: the library is ECMAScript 2016 alone, and KWin's API is what [`kwin-api.d.ts`] declares | `tsc` | a declaration KWin does not match: the VM tests run the bridge in KWin |
+| A border takes room around the windows only while the compositor draws it | framework path: [`border_manager::send_notification`] keeps the backend's answer in [`BORDER_DRAWN`], which [`Monitor::update_workspace_globals`] reads | `a_border_the_compositor_draws_takes_room_around_each_window_and_none_is_taken_without_one`, `a_look_is_a_command_once_and_says_whether_borders_are_drawn` | none |
+| The compositor is asked for the look after every event, every message and every retile, and only a changed look reaches it | framework path: [`WindowManager::process_event`], [`WindowManager::process_command`] and [`WindowManager::retile_all`] call [`border_manager::send_notification`], and a backend compares with the look it applied last | `the_border_messages_set_the_border_and_the_compositor_is_asked_for_it`, `a_look_is_a_command_once_and_says_whether_borders_are_drawn` | the same look applied twice by the KWin backend is not tested |
+| No outline is drawn inside a window, and a border is never thicker than the effect can draw | framework path: [`kwin::effects`](../../komorebi/src/kwin/effects.rs) sets every inner outline to 0 and clamps the width to 20 | `the_border_is_the_outer_outline_and_nothing_is_drawn_inside_the_window`, `a_border_thicker_than_the_effect_can_draw_is_the_thickest_it_can`, `vm-look` | none |
+| The effect komorebi loaded is unloaded, and the user's settings of it are put back, when komorebi stops using it or exits | framework path: the effect's state unloads what komorebi loaded, and [`Kwinrc`] puts the group back | `one_group_can_be_put_back_while_the_others_stay_changed`, `vm-look` | `SIGKILL`: the next run puts the settings back when it stops |
 | Queries never block on the compositor | convention only | none | the KWin backend's `cursor_pos` waits up to 250 ms |
 | Only the backend module reaches the compositor | convention only | none | none |
 
@@ -1091,6 +1148,15 @@ A window is shown, and ends up on a tile:
   stopped with `komorebic`.
 - [`nix/tests/vm/suites/kwin-restart`](../../nix/tests/vm/suites/kwin-restart/test.py): KWin
   restarting under the daemon.
+- [`nix/kde-rounded-corners.nix`](../../nix/kde-rounded-corners.nix): the build of the KWin
+  effect that draws an outline around each window, and
+  [`nix/tests/effects.nix`](../../nix/tests/effects.nix), the checks of the files each effect
+  package installs.
+- [`komorebi/tests/borders.rs`](../../komorebi/tests/borders.rs) and
+  [`komorebi/tests/border_commands.rs`](../../komorebi/tests/border_commands.rs): the room a drawn
+  border takes, and the messages that set the border, against the fake;
+  [`nix/tests/vm/suites/look`](../../nix/tests/vm/suites/look/test.py), the border in a real
+  Plasma session, read from the pixels of a screenshot.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
   driven end to end against the fake.
 - [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
@@ -1168,6 +1234,13 @@ A window is shown, and ends up on a tile:
 [`set_backend`]: ../../komorebi/src/backend/mod.rs
 [`backend`]: ../../komorebi/src/backend/mod.rs
 [`with_backend`]: ../../komorebi/src/backend/mod.rs
+[`Look`]: ../../komorebi/src/backend/mod.rs
+[`Backend::apply_look`]: ../../komorebi/src/backend/mod.rs
+[`border_manager`]: ../../komorebi/src/border_manager/mod.rs
+[`border_manager::current_look`]: ../../komorebi/src/border_manager/mod.rs
+[`border_manager::send_notification`]: ../../komorebi/src/border_manager/mod.rs
+[`BORDER_DRAWN`]: ../../komorebi/src/border_manager/mod.rs
+[`WindowManager::retile_all`]: ../../komorebi/src/window_manager.rs
 [`Ring`]: ../../komorebi/src/ring.rs
 [`Monitor`]: ../../komorebi/src/monitor.rs
 [`Workspace`]: ../../komorebi/src/workspace.rs

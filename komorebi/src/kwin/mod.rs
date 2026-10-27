@@ -52,16 +52,22 @@
 //! [`WorkspaceChange`]: crate::window_manager_event::WindowManagerEvent::WorkspaceChange
 //! [`WorkspaceMove`]: crate::window_manager_event::WindowManagerEvent::WorkspaceMove
 //!
+//! Borders are drawn by a KWin effect, KDE Rounded Corners, which the backend configures: it writes
+//! the effect's settings into the user's `kwinrc`, loads the effect, and takes the settings back
+//! out when komorebi exits ([`Backend::apply_look`]).
+//!
 //! `docs/dev/PLATFORM.md` has the D-Bus names, the files and the environment variables involved,
 //! and `docs/dev/DESIGN.md` the reasons for this design.
 
 #![deny(missing_docs)]
 
+mod effects;
 mod kwinrc;
 pub mod state;
 
 use crate::DATA_DIR;
 use crate::backend::Backend;
+use crate::backend::Look;
 use crate::backend::MonitorInfo;
 use crate::backend::WindowInfo;
 use crate::core::Rect;
@@ -129,6 +135,8 @@ struct Shared {
     connection: Mutex<Option<Connection>>,
     /// the user's `kwinrc`, for the settings komorebi changes and puts back
     kwinrc: Option<kwinrc::Kwinrc>,
+    /// what komorebi has told the border effect, and has to undo when it exits
+    effects: tokio::sync::Mutex<effects::EffectsState>,
 }
 
 impl Shared {
@@ -331,6 +339,7 @@ pub fn connect() -> eyre::Result<Arc<KWinBackend>> {
         alive: AtomicBool::new(true),
         connection: Mutex::new(None),
         kwinrc: kwinrc::Kwinrc::user(&DATA_DIR),
+        effects: tokio::sync::Mutex::new(effects::EffectsState::default()),
     });
 
     let (started_tx, started_rx) = std::sync::mpsc::channel::<eyre::Result<()>>();
@@ -877,6 +886,20 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
+    fn apply_look(&self, look: &Look) -> eyre::Result<bool> {
+        let shared = self.shared.clone();
+        let look = look.clone();
+
+        self.shared.block_on(async move {
+            let Some(kwinrc) = &shared.kwinrc else {
+                return Ok(false);
+            };
+            let connection = shared.connection().await?;
+            let mut effects = shared.effects.lock().await;
+            effects.apply(&connection, kwinrc, &look).await
+        })?
+    }
+
     fn shutdown(&self) {
         // the window manager has already restored every window it hid. What is left is the parking
         // desktop, which KWin would otherwise keep in the user's configuration, and the script,
@@ -900,10 +923,17 @@ impl Backend for KWinBackend {
                 tracing::warn!("could not remove the parking desktop: {error}");
             }
 
-            // every setting of KWin's that komorebi changed
+            // the effects komorebi loaded, and every setting of KWin's it changed
             if let Ok(connection) = shared.connection().await
                 && let Some(kwinrc) = &shared.kwinrc
             {
+                shared
+                    .effects
+                    .lock()
+                    .await
+                    .finish(&connection, kwinrc)
+                    .await;
+
                 match kwinrc.restore() {
                     Ok(true) => kwin_reconfigure(&connection).await,
                     Ok(false) => {}
@@ -961,6 +991,7 @@ mod tests {
             alive: AtomicBool::new(true),
             connection: Mutex::new(None),
             kwinrc: None,
+            effects: tokio::sync::Mutex::new(effects::EffectsState::default()),
         });
 
         (runtime, KWinBackend { shared })

@@ -43,12 +43,8 @@ const WINDOWS_ONLY: &[&str] = &[
 /// ignored until then. Each comment says which commit of the plan brings the feature, and takes
 /// the key off this list.
 const NOT_YET: &[&str] = &[
-    // borders drawn by the compositor (43)
-    "border",
+    // a color for each kind of window's border, whose type is komorebi-themes' (49)
     "border_colours",
-    "border_offset",
-    "border_radius",
-    "border_width",
     // animation (45)
     "animation",
     // transparency (47)

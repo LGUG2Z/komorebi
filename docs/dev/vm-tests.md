@@ -141,8 +141,18 @@ the run.
 - `desk(wid)` is the number of the desktop a window is on and `shown()` the one
   KWin shows, both counted from 1 as `kdotool` counts, `desktops()` how many
   desktops KWin has, `desktop_names()` their names in order (the parking desktop
-  of a stack is the one named `komorebi-park`), and `kwinrc(group, key)` a value
-  of the user's `kwinrc`.
+  of a stack is the one named `komorebi-park`), `kwinrc(group, key)` a value of
+  the user's `kwinrc`, and `kwinrc_group(group)` every key of a group, which a
+  test compares before and after komorebi to see that the user's settings are
+  put back.
+- `effect_supported(name)` and `effect_loaded(name)` ask KWin whether an effect is
+  installed (KWin found it when it started) and loaded, and `unload_effect(name)`
+  unloads one, whoever loaded it.
+- `pixels` reads a screenshot: `pixels.pixel(image, x, y)` is the color of a
+  pixel, `pixels.near(a, b)` compares two colors within a tolerance, since a
+  compositor blends the edge of what it draws, and `pixels.ring(image, frame,
+  color)` names the sides of a window's frame that have no ring of `color` just
+  outside them, which is how a test sees a border.
 - `kwin_script(name, source, keep=)` runs a KWin script and returns the lines it
   reported: the script calls `report(...)`, which `print`s a line marked with
   `name` to KWin's log, and ends with `report("done")`. A script that is kept
@@ -161,6 +171,13 @@ Two traps are worth knowing about before writing a screenshot test:
   on it, so "the screenshot is not blank" passes while Plasma is still
   starting. `Kde.session` waits for the splash process to exit, and a test
   should check a pixel it knows, such as the middle of a terminal.
+- The panel comes after the shell. A window tiled before the panel was made is
+  tiled under it, which hides the bottom of its border from a screenshot, and
+  nothing tiles it again. `Kde.session` waits until the shell has made a panel. KWin takes
+  the room for the panel a while after that, and a daemon learns of it up to a second later: a
+  test that opens windows right after the daemon starts waits with
+  `Kde.wait_for_panel_room` first. It is a wait and not a check, because a session that is too
+  slow may never take the room.
 - NixOS wraps programs, so a process's name is the wrapper's (`.plasmashell-wrapped`),
   and `pgrep -x plasmashell` never matches. Match the command line instead, with
   a bracket in the pattern (`pgrep -f '[p]lasmashell'`) so that the shell running
