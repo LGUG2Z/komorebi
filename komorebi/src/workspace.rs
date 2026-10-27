@@ -7,6 +7,7 @@ use std::io::Write;
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 
+use crate::AUTO_MAXIMIZE_SINGLE_WINDOW;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -64,6 +65,8 @@ pub struct Workspace {
     pub maximized_window: Option<Window>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub maximized_window_restore_idx: Option<usize>,
+    #[serde(skip)]
+    pub(crate) auto_maximized_window: Option<Window>,
     pub floating_windows: Ring<Window>,
     pub layout: Layout,
     pub layout_options: Option<LayoutOptions>,
@@ -132,6 +135,7 @@ impl Default for Workspace {
             monocle_container: None,
             maximized_window: None,
             maximized_window_restore_idx: None,
+            auto_maximized_window: None,
             monocle_container_restore_idx: None,
             floating_windows: Ring::default(),
             layout: Layout::Default(DefaultLayout::BSP),
@@ -601,6 +605,8 @@ impl Workspace {
         self.containers_mut()
             .retain(|c| c.is_preselect() || !c.windows().is_empty());
 
+        self.update_auto_maximize_single_window();
+
         let container_padding = self
             .container_padding
             .or(self.globals.container_padding)
@@ -694,6 +700,7 @@ impl Workspace {
         }
 
         let managed_maximized_window = self.maximized_window.is_some();
+        let auto_maximized_window = self.auto_maximized_window;
 
         if self.tile {
             if let Some(container) = &mut self.monocle_container {
@@ -770,9 +777,12 @@ impl Workspace {
                                     window.add_title_bar()?;
                                 }
 
-                                // If a window has been unmaximized via toggle-maximize, this block
-                                // will make sure that it is unmaximized via restore_window
-                                if window.is_maximized() && !managed_maximized_window {
+                                // Restore native maximization on retile except for windows
+                                // explicitly maximized by komorebi or auto-maximized as a singleton.
+                                if window.is_maximized()
+                                    && !managed_maximized_window
+                                    && auto_maximized_window != Some(*window)
+                                {
                                     WindowsApi::restore_window(window.hwnd);
                                 }
                             }
@@ -783,6 +793,10 @@ impl Workspace {
 
                 self.latest_layout = layouts;
             }
+        }
+
+        if let Some(window) = self.auto_maximized_window {
+            window.maximize();
         }
 
         // Always make sure that the length of the resize dimensions vec is the same as the
@@ -966,6 +980,57 @@ impl Workspace {
             && self.maximized_window.is_none()
             && self.monocle_container.is_none()
             && self.floating_windows().is_empty()
+    }
+
+    fn window_count(&self) -> usize {
+        self.containers()
+            .iter()
+            .map(|container| container.windows().len())
+            .sum::<usize>()
+            + self
+                .monocle_container
+                .as_ref()
+                .map_or(0, |container| container.windows().len())
+            + self.maximized_window.map_or(0, |_| 1)
+            + self.floating_windows().len()
+    }
+
+    fn update_auto_maximize_single_window(&mut self) {
+        let window_count = self.window_count();
+        let enabled = AUTO_MAXIMIZE_SINGLE_WINDOW.load(Ordering::SeqCst) && self.tile;
+        let only_window = if window_count == 1 {
+            self.single_window()
+        } else {
+            None
+        };
+
+        if let Some(window) = self.auto_maximized_window
+            && (!enabled || only_window != Some(window))
+        {
+            window.unmaximize();
+            self.auto_maximized_window = None;
+        }
+
+        if enabled && self.maximized_window.is_none() && self.auto_maximized_window.is_none() {
+            self.auto_maximized_window = only_window;
+        }
+    }
+
+    fn single_window(&self) -> Option<Window> {
+        self.maximized_window
+            .or_else(|| {
+                self.monocle_container
+                    .as_ref()
+                    .and_then(|container| container.focused_window().copied())
+            })
+            .or_else(|| {
+                self.containers()
+                    .iter()
+                    .flat_map(|container| container.windows().iter())
+                    .next()
+                    .copied()
+            })
+            .or_else(|| self.floating_windows().iter().next().copied())
     }
 
     pub fn contains_window(&self, hwnd: isize) -> bool {
@@ -2053,6 +2118,21 @@ mod tests {
             ws.containers()[3].id.to_string(),
             state.get(&3).unwrap().to_string()
         );
+    }
+
+    #[test]
+    fn window_count_includes_stacked_floating_and_maximized_windows() {
+        let mut workspace = Workspace::default();
+        workspace.new_container_for_window(Window::from(1));
+        workspace
+            .focused_container_mut()
+            .unwrap()
+            .windows_mut()
+            .push_back(Window::from(2));
+        workspace.floating_windows_mut().push_back(Window::from(3));
+        workspace.maximized_window = Some(Window::from(4));
+
+        assert_eq!(workspace.window_count(), 4);
     }
 
     #[test]

@@ -253,6 +253,7 @@ pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
+pub static AUTO_MAXIMIZE_SINGLE_WINDOW: AtomicBool = AtomicBool::new(false);
 
 pub static SLOW_APPLICATION_COMPENSATION_TIME: AtomicU64 = AtomicU64::new(20);
 

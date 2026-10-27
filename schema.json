@@ -26,6 +26,14 @@
         }
       ]
     },
+    "auto_maximize_single_window": {
+      "description": "Automatically maximize the only window on a tiled workspace",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": false
+    },
     "bar_configurations": {
       "description": "Komorebi status bar configuration files for multiple instances on different monitors",
       "type": [
