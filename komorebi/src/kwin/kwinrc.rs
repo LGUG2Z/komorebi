@@ -1,5 +1,5 @@
 //! KWin's configuration file, `kwinrc`, for the few settings komorebi changes: per-output virtual
-//! desktops and the settings of the border effect.
+//! desktops and the settings of the border and animation effects.
 //!
 //! These are the user's settings, changed on their behalf, so [`Kwinrc::set`] records the value of
 //! every key the first time komorebi changes it, in a backup file, and [`Kwinrc::restore`] puts the

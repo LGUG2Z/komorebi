@@ -95,12 +95,14 @@ License version 3, and is under the same license. A patch starts with a header
 that describes the change and carries the license notice; `patch` skips the
 text before the first `diff` line. To change a patch, make the change in the
 effect's source at the version the package pins, and write the whole diff again
-with `diff -ruN a b` below the header. The check of the package (in
-[`nix/tests/effects.nix`](nix/tests/effects.nix)) builds it and checks the
-files it installs, the patch included:
+with `diff -ruN a b` below the header. The check of each package, named after
+it (in [`nix/tests/effects.nix`](nix/tests/effects.nix)), builds the package
+and checks the files it installs, and for a patched package that the patch is
+in them:
 
 ```sh
 nix build .#checks.x86_64-linux.kde-rounded-corners-komorebi-install
+nix build .#checks.x86_64-linux.kwin-effect-geometry-change-komorebi-install
 ```
 
 ## Continuous integration

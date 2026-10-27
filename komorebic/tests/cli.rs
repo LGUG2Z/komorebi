@@ -513,6 +513,30 @@ fn the_border_subcommands_send_what_they_are_given() {
 }
 
 #[test]
+fn the_animation_subcommands_send_what_they_are_given() {
+    sends(
+        &["animation", "enable"],
+        r#"{"type":"Animation","content":[true,null]}"#,
+    );
+    sends(
+        &["animation", "disable", "--animation-type", "movement"],
+        r#"{"type":"Animation","content":[false,"movement"]}"#,
+    );
+    sends(
+        &["animation-duration", "120"],
+        r#"{"type":"AnimationDuration","content":[120,null]}"#,
+    );
+    sends(
+        &["animation-duration", "500", "-a", "movement"],
+        r#"{"type":"AnimationDuration","content":[500,"movement"]}"#,
+    );
+    sends(
+        &["animation-fps", "30"],
+        r#"{"type":"AnimationFps","content":30}"#,
+    );
+}
+
+#[test]
 fn visible_windows_prints_the_answer_of_the_daemon() {
     let runtime = Runtime::new();
     let daemon = runtime.serve("{}");
@@ -1029,6 +1053,9 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
         [
             "adjust-container-padding.md",
             "adjust-workspace-padding.md",
+            "animation-duration.md",
+            "animation-fps.md",
+            "animation.md",
             "application-specific-configuration-schema.md",
             "border-colour.md",
             "border-offset.md",

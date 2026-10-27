@@ -903,6 +903,7 @@ mod tests {
                 focused: (1, 2, 3),
                 unfocused: (4, 5, 6),
             }),
+            animation: None,
         };
 
         assert!(fake.apply_look(&bordered)?);

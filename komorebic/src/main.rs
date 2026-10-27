@@ -69,6 +69,8 @@
 //! - `border` sets whether the compositor draws a border around each window, `border-colour` the
 //!   color of the border of a kind of window, and `border-width` and `border-offset` the room the
 //!   layout leaves for it.
+//! - `animation`, `animation-duration` and `animation-fps` set whether windows are animated going
+//!   to their places, for how long, and the frame rate that is stored and ignored.
 //!
 //! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
 //! always in it, `session-float-rule` floats the focused window and every window like it until the
@@ -756,6 +758,30 @@ struct BorderOffset {
 }
 
 #[derive(Parser)]
+struct Animation {
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+    /// Animation type to apply the state to. If not specified, sets global state
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
+}
+
+#[derive(Parser)]
+struct AnimationDuration {
+    /// Desired animation durations in ms
+    duration: u64,
+    /// Animation type to apply the duration to. If not specified, sets global duration
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
+}
+
+#[derive(Parser)]
+struct AnimationFps {
+    /// Desired animation frames per second
+    fps: u64,
+}
+
+#[derive(Parser)]
 struct Docgen {
     /// Output directory for generated documentation files
     #[clap(short, long)]
@@ -1192,6 +1218,15 @@ enum SubCommand {
     // /// Set the border implementation
     // #[clap(arg_required_else_help = true)]
     // BorderImplementation(BorderImplementation),
+    /// Enable or disable movement animations
+    #[clap(arg_required_else_help = true)]
+    Animation(Animation),
+    /// Set the duration for movement animations in ms
+    #[clap(arg_required_else_help = true)]
+    AnimationDuration(AnimationDuration),
+    /// Set the frames per second for movement animations
+    #[clap(arg_required_else_help = true)]
+    AnimationFps(AnimationFps),
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -2015,6 +2050,21 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::BorderOffset(args) => {
             send_message(&SocketMessage::BorderOffset(args.offset))?;
+        }
+        SubCommand::Animation(args) => {
+            send_message(&SocketMessage::Animation(
+                args.boolean_state.into(),
+                args.animation_type,
+            ))?;
+        }
+        SubCommand::AnimationDuration(args) => {
+            send_message(&SocketMessage::AnimationDuration(
+                args.duration,
+                args.animation_type,
+            ))?;
+        }
+        SubCommand::AnimationFps(args) => {
+            send_message(&SocketMessage::AnimationFps(args.fps))?;
         }
     }
 

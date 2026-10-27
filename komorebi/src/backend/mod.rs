@@ -105,10 +105,12 @@ pub struct MonitorInfo {
 /// # Example
 ///
 /// ```rust
+/// use komorebi::backend::AnimationLook;
 /// use komorebi::backend::BorderLook;
 /// use komorebi::backend::Look;
 ///
 /// assert_eq!(Look::default().border, None);
+/// assert_eq!(Look::default().animation, None);
 ///
 /// let look = Look {
 ///     border: Some(BorderLook {
@@ -117,13 +119,23 @@ pub struct MonitorInfo {
 ///         focused: (66, 165, 245),
 ///         unfocused: (128, 128, 128),
 ///     }),
+///     animation: Some(AnimationLook { duration_ms: 250 }),
 /// };
-/// assert!(look.border.is_some());
+/// assert!(look.border.is_some() && look.animation.is_some());
 /// ```
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Look {
     /// A colored outline outside every window, or none.
     pub border: Option<BorderLook>,
+    /// Animate windows going to their new places, or not.
+    pub animation: Option<AnimationLook>,
+}
+
+/// How windows are animated going to their places.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AnimationLook {
+    /// How long the animation of a window takes, in milliseconds.
+    pub duration_ms: u64,
 }
 
 /// The outline around every window.
@@ -354,7 +366,8 @@ pub trait Backend: Send + Sync + 'static {
     // ---- look, which a backend that draws nothing need not say anything about --------------------
 
     /// Asks the compositor to draw this look, and returns true if and only if window borders are
-    /// being drawn afterwards.
+    /// being drawn afterwards. An animation is asked for the same way, and whether it is drawn is
+    /// not answered.
     ///
     /// A drawn border takes room around each window, which the layout has to leave, so the answer
     /// is what the window manager reads to know that. A backend remembers the look it applied last
@@ -382,6 +395,7 @@ pub trait Backend: Send + Sync + 'static {
     ///         focused: (66, 165, 245),
     ///         unfocused: (128, 128, 128),
     ///     }),
+    ///     animation: None,
     /// };
     ///
     /// assert!(fake.apply_look(&look)?);

@@ -4,6 +4,17 @@
   "description": "The `komorebi.json` static configuration file reference for komorebi for KDE Plasma",
   "type": "object",
   "properties": {
+    "animation": {
+      "description": "Animations configuration options",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnimationsConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "app_specific_configuration_path": {
       "description": "Path to an applications.json, or a list of them, with rules for the applications that\nneed them: which windows to ignore, to manage and to float",
       "anyOf": [
@@ -318,6 +329,42 @@
     }
   },
   "$defs": {
+    "AnimationsConfig": {
+      "description": "Animation configuration",
+      "type": "object",
+      "properties": {
+        "duration": {
+          "description": "Set the animation duration in ms",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PerAnimationPrefixConfig2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 250
+        },
+        "enabled": {
+          "description": "Enable or disable animations",
+          "$ref": "#/$defs/PerAnimationPrefixConfig",
+          "default": false
+        },
+        "fps": {
+          "description": "Set the animation FPS",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "enabled"
+      ]
+    },
     "AppSpecificConfigurationPath": {
       "description": "Path(s) to application-specific configuration file(s)",
       "anyOf": [
@@ -832,6 +879,48 @@
     "PathBuf": {
       "description": "A file system path. Environment variables like $VAR are automatically resolved.",
       "type": "string"
+    },
+    "PerAnimationPrefixConfig": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
+      "anyOf": [
+        {
+          "description": "Animation configuration prefixed for a specific animation kind",
+          "type": "object",
+          "properties": {
+            "movement": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Animation configuration for all animation kinds",
+          "type": "boolean"
+        }
+      ]
+    },
+    "PerAnimationPrefixConfig2": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
+      "anyOf": [
+        {
+          "description": "Animation configuration prefixed for a specific animation kind",
+          "type": "object",
+          "properties": {
+            "movement": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Animation configuration for all animation kinds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      ]
     },
     "Placement": {
       "description": "Placement behavior for floating windows",

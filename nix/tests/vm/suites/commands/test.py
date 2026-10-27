@@ -330,6 +330,10 @@ border-width 8
 border-offset 1
 border-colour --window-kind single 10 20 30
 border disable
+animation enable
+animation-duration 120
+animation-fps 30
+animation disable
 session-float-rule
 session-float-rules
 clear-session-float-rules

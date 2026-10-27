@@ -1,20 +1,25 @@
-//! The KWin effect that draws komorebi's borders.
+//! The two KWin effects that draw komorebi's borders and animate its windows.
 //!
-//! komorebi draws no border itself. A compositor effect does, and this module configures it:
-//! **KDE Rounded Corners** ([`ROUNDED_CORNERS`]) draws the border, its outer outline, outside the
-//! window, in the gap komorebi leaves between tiles. [`border_settings`] has the settings.
+//! komorebi draws no border and animates nothing itself. Two compositor effects do, and this
+//! module configures them:
 //!
-//! [`EffectsState::apply`] writes the effect's settings into `kwinrc` through [`Kwinrc`], loads the
+//! - **KDE Rounded Corners** ([`ROUNDED_CORNERS`]) draws the border: its outer outline, outside the
+//!   window, in the gap komorebi leaves between tiles. [`border_settings`] has the settings.
+//! - **Geometry Change** ([`GEOMETRY_CHANGE`]) animates a window going to its place.
+//!   [`animation_settings`] has the settings.
+//!
+//! [`EffectsState::apply`] writes an effect's settings into `kwinrc` through [`Kwinrc`], loads the
 //! effect if it is not loaded, and tells it to read its settings again. It always does the last
 //! step: KWin keeps the copy of `kwinrc` it read when it started, and an effect reads its settings
 //! from that copy until it is told to reconfigure, even one loaded a moment ago.
 //!
-//! The effect does not come with KWin, and KWin discovers effects only when it starts: an effect
+//! Neither effect comes with KWin, and KWin discovers effects only when it starts: an effect
 //! installed later cannot be loaded until the next login. An effect that is not installed is
 //! reported once in the log, and komorebi carries on without it.
 //!
-//! komorebi's build of the effect (`nix/kde-rounded-corners.nix`) adds what the stock one lacks: a
-//! border color for each window, set over D-Bus with [`EffectsState::set_window_colours`].
+//! komorebi's build of the border effect (`nix/kde-rounded-corners.nix`) adds what the stock one
+//! lacks: a border color for each window, set over D-Bus with
+//! [`EffectsState::set_window_colours`].
 //!
 //! # What is guaranteed, and by what
 //!
@@ -33,6 +38,7 @@
 #![deny(missing_docs)]
 
 use super::kwinrc::Kwinrc;
+use crate::backend::AnimationLook;
 use crate::backend::BorderLook;
 use crate::backend::Look;
 use color_eyre::eyre;
@@ -41,9 +47,13 @@ use zbus::proxy::Proxy;
 
 /// The plugin id of KDE Rounded Corners, the effect that draws the border.
 pub const ROUNDED_CORNERS: &str = "kwin4_effect_shapecorners";
+/// The plugin id of Geometry Change, the effect that animates windows.
+pub const GEOMETRY_CHANGE: &str = "kwin4_effect_geometry_change";
 
 /// The `kwinrc` group KDE Rounded Corners reads, as its `options.kcfg` names it.
 const ROUNDED_CORNERS_GROUP: &str = "Round-Corners";
+/// The `kwinrc` group Geometry Change reads.
+const GEOMETRY_CHANGE_GROUP: &str = "Effect-kwin4_effect_geometry_change";
 
 /// The D-Bus object path at which komorebi's build of the border effect takes a color for each
 /// window, on KWin's bus name.
@@ -58,8 +68,8 @@ const COLOURS_INTERFACE: &str = "org.komorebi.BorderColours1";
 /// screenshots of a KWin 6.8.1 session, at time of writing (2026-10-27).
 const MAX_OUTLINE: i32 = 20;
 
-/// The state komorebi keeps of the effect: the look it last applied, and what it has to undo when
-/// it exits.
+/// The state komorebi keeps of the two effects: the look it last applied, and what it has to undo
+/// when it exits.
 ///
 /// The KWin backend keeps one for the life of the connection to KWin. The default is the state of
 /// a komorebi that has told the effects nothing.
@@ -121,6 +131,20 @@ pub fn border_settings(border: &BorderLook) -> Vec<(&'static str, String)> {
     ]
 }
 
+/// Returns the settings of Geometry Change, as `kwinrc` keys and values, for this animation.
+///
+/// Cross-fading is turned off. Cross-fading the old contents into the new while a window resizes is
+/// the effect's default and costs a redraw of both; a window going to its place is a move and a
+/// resize, not a change of what it shows.
+///
+/// Covered by `kwin::effects::tests::animation_is_a_duration_without_cross_fading`.
+pub fn animation_settings(animation: &AnimationLook) -> Vec<(&'static str, String)> {
+    vec![
+        ("Duration", animation.duration_ms.to_string()),
+        ("CrossFade", "false".to_string()),
+    ]
+}
+
 /// Returns a proxy for KWin's `/Effects` object, which loads, unloads and reconfigures effects.
 async fn effects(connection: &Connection) -> eyre::Result<Proxy<'static>> {
     Ok(Proxy::new(
@@ -150,17 +174,17 @@ async fn loaded(proxy: &Proxy<'_>, name: &str) -> bool {
 }
 
 impl EffectsState {
-    /// Brings the effect in line with `look`, and returns true if and only if borders are being
+    /// Brings the effects in line with `look`, and returns true if and only if borders are being
     /// drawn afterwards.
     ///
-    /// A look with no border stops the use of the effect (see [`EffectsState::disable`]); one with a
-    /// border writes the effect's settings and has it running (see [`EffectsState::enable`]). The
-    /// same look as the last one does nothing.
+    /// A part of the look that is `None` stops the use of its effect (see
+    /// [`EffectsState::disable`]); a part that is set writes the effect's settings and has it
+    /// running (see [`EffectsState::enable`]). The same look as the last one does nothing.
     ///
     /// # Errors
     ///
     /// Returns an error if and only if there is no proxy for KWin's `/Effects` object. Everything
-    /// that goes wrong with the effect (not installed, settings not written, not loaded) is logged,
+    /// that goes wrong with one effect (not installed, settings not written, not loaded) is logged,
     /// and the function still returns whether borders are drawn.
     pub async fn apply(
         &mut self,
@@ -191,6 +215,23 @@ impl EffectsState {
                 false
             }
         };
+
+        match &look.animation {
+            Some(animation) => {
+                self.enable(
+                    &proxy,
+                    kwinrc,
+                    GEOMETRY_CHANGE,
+                    GEOMETRY_CHANGE_GROUP,
+                    &animation_settings(animation),
+                )
+                .await;
+            }
+            None => {
+                self.disable(&proxy, kwinrc, GEOMETRY_CHANGE, GEOMETRY_CHANGE_GROUP)
+                    .await;
+            }
+        }
 
         self.last = Some(look.clone());
         Ok(self.drawn)
@@ -321,8 +362,8 @@ impl EffectsState {
         }
     }
 
-    /// Undoes what komorebi did to the effect, when it exits: unloads it if komorebi loaded it, and
-    /// puts back the user's settings.
+    /// Undoes what komorebi did to the effects, when it exits: unloads the effects it loaded, and
+    /// puts back the user's settings of both.
     ///
     /// An effect the user had loaded keeps running, with the settings it had. Nothing is done when
     /// there is no proxy for KWin's `/Effects` object.
@@ -336,12 +377,13 @@ impl EffectsState {
         }
 
         // an effect the user had running keeps running, with the settings it had
-        if kwinrc.restore_group(ROUNDED_CORNERS_GROUP).unwrap_or(false)
-            && loaded(&proxy, ROUNDED_CORNERS).await
-        {
-            let _ = proxy
-                .call_method("reconfigureEffect", &(ROUNDED_CORNERS,))
-                .await;
+        for (effect, group) in [
+            (ROUNDED_CORNERS, ROUNDED_CORNERS_GROUP),
+            (GEOMETRY_CHANGE, GEOMETRY_CHANGE_GROUP),
+        ] {
+            if kwinrc.restore_group(group).unwrap_or(false) && loaded(&proxy, effect).await {
+                let _ = proxy.call_method("reconfigureEffect", &(effect,)).await;
+            }
         }
     }
 }
@@ -400,5 +442,15 @@ mod tests {
             unfocused: (0, 0, 0),
         });
         assert_eq!(s["OuterOutlineThickness"], "0");
+    }
+
+    #[test]
+    fn animation_is_a_duration_without_cross_fading() {
+        let s: std::collections::HashMap<_, _> =
+            animation_settings(&AnimationLook { duration_ms: 250 })
+                .into_iter()
+                .collect();
+        assert_eq!(s["Duration"], "250");
+        assert_eq!(s["CrossFade"], "false");
     }
 }

@@ -13,6 +13,8 @@
   komorebiFor,
   # the flake's KDE Rounded Corners for a system, which the overlay has to provide as well
   borderEffectFor,
+  # the flake's Geometry Change for a system, likewise
+  animationEffectFor,
 }:
 let
   inherit (pkgs) lib;
@@ -246,6 +248,14 @@ let
     };
   };
 
+  noAnimationEffect = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      effects.animation.enable = false;
+    };
+  };
+
   # a package that is not the overlay's: any package will do, since nothing is built
   otherBorderEffect = eval (
     { pkgs, ... }:
@@ -350,6 +360,21 @@ let
         && !(lib.elem enabled.services.komorebi.effects.borders.package otherBorderEffect.environment.systemPackages);
     }
     {
+      name = "the default animation effect is the flake's Geometry Change, from the overlay";
+      ok =
+        enabled.services.komorebi.effects.animation.package.outPath == (animationEffectFor system).outPath;
+    }
+    {
+      name = "the animation effect is installed in the system profile";
+      ok = lib.elem enabled.services.komorebi.effects.animation.package enabled.environment.systemPackages;
+    }
+    {
+      name = "with the animation effect off, the border effect is installed and the animation effect is not";
+      ok =
+        lib.elem noAnimationEffect.services.komorebi.effects.borders.package noAnimationEffect.environment.systemPackages
+        && !(lib.elem noAnimationEffect.services.komorebi.effects.animation.package noAnimationEffect.environment.systemPackages);
+    }
+    {
       name = "a configuration that draws borders, without the effect that draws them, is warned about";
       ok = lib.any (lib.hasInfix "effects.borders.enable is false") borderWithoutEffect.warnings;
       got = borderWithoutEffect.warnings;
@@ -375,7 +400,8 @@ let
       name = "disabled, nothing is installed";
       ok =
         !(lib.elem disabled.services.komorebi.package disabled.environment.systemPackages)
-        && !(lib.elem disabled.services.komorebi.effects.borders.package disabled.environment.systemPackages);
+        && !(lib.elem disabled.services.komorebi.effects.borders.package disabled.environment.systemPackages)
+        && !(lib.elem disabled.services.komorebi.effects.animation.package disabled.environment.systemPackages);
     }
     {
       name = "without Plasma 6, an assertion fails and names the option to set";

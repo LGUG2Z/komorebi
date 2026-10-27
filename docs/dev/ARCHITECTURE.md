@@ -68,9 +68,10 @@ grows with the code: each part of the daemon that is added has its place here.
 - **Notification**: what a subscriber is sent after each event and each message the window
   manager handles: the event or the message, and the state after it ([`Notification`]).
 - **Look**: how the compositor is asked to dress the windows, which it draws ([`Look`]):
-  a border, with its width, its corner radius and two colors.
+  a border, with its width, its corner radius and two colors, and the animation of windows going
+  to their places, with its duration.
 - **Effect**: a plugin of the compositor that changes how windows are drawn. KDE Rounded Corners
-  is the effect that draws the border.
+  is the effect that draws the border, and Geometry Change the one that animates windows.
 - **Compositor**: the program that owns the screen and the windows. On KDE Plasma it is
   KWin.
 - **Backend**: the implementation of the [`Backend`](../../komorebi/src/backend/mod.rs)
@@ -765,14 +766,21 @@ goes the other way, for `GenerateStaticConfig`.
 
 komorebi decides what the windows look like and the compositor draws it, since only the
 compositor has the frames, the corners and the shadows. A border is the outer outline of a window,
-drawn outside it, in the gap the layout leaves between tiles. The window manager describes a
+drawn outside it, in the gap the layout leaves between tiles, and an animation is a window
+sliding to its new place instead of jumping there. The window manager describes a
 [`Look`] and asks the backend for it ([`Backend::apply_look`]); the backend sees that it is drawn
 and answers whether borders are being drawn. The reasons are in
 [DESIGN.md](DESIGN.md#why-does-the-compositor-draw-the-borders-and-not-komorebi).
 
-[`border_manager`] holds the settings, as statics that the messages `Border`, `BorderWidth` and
-`BorderOffset` set: whether borders are on, their width, the offset, the radius of the corners and
-the two colors. [`border_manager::current_look`] makes the [`Look`] of them, and
+[`border_manager`] holds the settings of the border, as statics that the messages `Border`,
+`BorderWidth` and `BorderOffset` set: whether borders are on, their width, the offset, the radius
+of the corners and the two colors. [`animation`] holds the settings of the animation, which
+`Animation`, `AnimationDuration` and `AnimationFps` set: whether windows are animated and for how
+long, for every kind of animation or for one ([`AnimationPrefix`]; movement is the only kind). The
+settings of one kind win over the global ones, and a global setting clears the ones of the kinds.
+The commands that change a stack turn the animation off while they run and put it back, as
+komorebi does on the other platforms; the file's `animation` key sets the same settings.
+[`border_manager::current_look`] makes the [`Look`] of them all, and
 [`border_manager::send_notification`] asks the backend for it and keeps the answer in
 [`BORDER_DRAWN`]. It is called before the first layout, after every event and every message, and
 after every retile. A backend remembers the look it applied last and does nothing when it is asked
@@ -800,7 +808,10 @@ into the user's `kwinrc`, group `[Round-Corners]`, through [`Kwinrc`]; loads the
 (`reconfigureEffect`), since KWin hands an effect the copy of `kwinrc` it read when it started. A
 look without a border unloads the effect, if komorebi loaded it, and puts the user's settings
 back. `shutdown` does the same. An effect KWin did not find when it started is reported once and
-komorebi goes on without it, with `apply_look` answering false. The stock effect has one color for
+komorebi goes on without it, with `apply_look` answering false. The animation is Geometry Change:
+its `Duration` is the look's, and cross-fading is off. KWin animates what is painted, so the
+frame the table reads is the final one at once and nothing waits for an animation to end. The
+stock border effect has one color for
 the active window and one for the others; komorebi's build of it takes a color for each window,
 over D-Bus, by the UUID KWin knows the window by. `set_border_colours` answers false, and logs it
 once, when the effect is the stock one: every border is then the focused or the unfocused color of
@@ -814,10 +825,11 @@ The flake exports one module under two names, `nixosModules.default` and
 `komorebi-full` (both programs) with the flake's nixpkgs and Rust toolchain. Its options are
 `enable`, `package` (by default `pkgs.komorebi-full`, from the overlay), `logLevel`,
 `configFile`, `config`, `applicationSpecificConfiguration`, `effects.borders.enable` and
-`effects.borders.package` (by default `pkgs.kde-rounded-corners-komorebi`, from the overlay), and
-`execStart`, which is read-only: the module sets it to `bin/komorebi` of the package with
-`--log-level`, and `--config` with a `komorebi.json` when `configFile` or `config` is set. `config`
-is typed from
+`effects.borders.package` (by default `pkgs.kde-rounded-corners-komorebi`, from the overlay),
+`effects.animation.enable` and `effects.animation.package`
+(`pkgs.kwin-effect-geometry-change-komorebi`), and `execStart`, which is read-only: the module
+sets it to `bin/komorebi` of the package with `--log-level`, and `--config` with a
+`komorebi.json` when `configFile` or `config` is set. `config` is typed from
 `nix/komorebi-options.nix`, the options `schemars-nixgen` makes from the schema of `komorebi.json`;
 the module writes it as JSON, with no null in it, and `configFile` and the written file both go
 through `check-jsonschema` against `schema.json` when the system is built (comment lines taken out
@@ -827,7 +839,8 @@ fetched from GitHub that become `app_specific_configuration_path`; the module ha
 With `services.komorebi.enable`, the module:
 
 - installs the package in the system profile, and the effect that draws the borders unless
-  `effects.borders.enable` is off;
+  `effects.borders.enable` is off and the one that animates windows unless
+  `effects.animation.enable` is off;
 - defines the user unit `komorebi.service`, which every user of the machine has. Plasma's
   `plasma-workspace.target` wants it, so a Plasma session starts it at login, and it is ordered
   after `plasma-core.target`, which Plasma orders after KWin's service, `plasma-kwin_wayland`;
@@ -852,6 +865,7 @@ module's unit.
 | `komorebi` and `komorebic` are on every user's `PATH` | the module installs the package in the system profile | `nixos-module-eval`; every VM suite runs `komorebic` | none |
 | The border effect is installed with komorebi, and only by the module | the module installs `effects.borders.package` in the system profile when `effects.borders.enable` is set | `nixos-module-eval` ("the border effect is installed in the system profile", "with the border effect off, komorebi is installed and the effect is not"), `vm-look` | `effects.borders.enable = false` |
 | The border effect the module installs is built for the KWin of the system and is not loaded until komorebi asks | the package: `kde-rounded-corners-komorebi` links the `libkwin` of the nixpkgs' KWin and says `EnabledByDefault` false in its metadata | the `kde-rounded-corners-komorebi-install` check | `effects.borders.package` |
+| The animation effect is installed with komorebi, and not loaded until komorebi asks | the module installs `effects.animation.package` when `effects.animation.enable` is set, and the package's metadata says `EnabledByDefault` false | `nixos-module-eval` ("the animation effect is installed in the system profile", "with the animation effect off, ..."), the `kwin-effect-geometry-change-komorebi-install` check, `vm-look` | `effects.animation.enable = false` |
 | Every Plasma session starts komorebi, once KWin's service has started | systemd: the user unit is wanted by `plasma-workspace.target`, after `plasma-core.target` | `nixos-module-eval`, `vm-module` | `systemctl --user mask komorebi` |
 | A daemon that fails or is killed is started again | systemd: `Restart=on-failure` | `vm-module` (`SIGKILL`) | none |
 | A daemon that is told to stop stays stopped, and the unit is not failed | systemd: the exit statuses of `Stop` (0) and of `SIGTERM` (130) are successes | `vm-module` | none |
@@ -899,6 +913,7 @@ module's unit.
   how it is loaded, reloaded and generated.
 - [`border_manager`](../../komorebi/src/border_manager/mod.rs): the border settings, and the
   [`Look`] they make, which it asks the backend for.
+- [`animation`](../../komorebi/src/animation/mod.rs): the animation settings, which the look has.
 - [`kwin::effects`](../../komorebi/src/kwin/effects.rs): the KWin effect that draws the border,
   its settings and the state komorebi keeps of it.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
@@ -1044,6 +1059,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | No outline is drawn inside a window, and a border is never thicker than the effect can draw | framework path: [`kwin::effects`](../../komorebi/src/kwin/effects.rs) sets every inner outline to 0 and clamps the width to 20 | `the_border_is_the_outer_outline_and_nothing_is_drawn_inside_the_window`, `a_border_thicker_than_the_effect_can_draw_is_the_thickest_it_can`, `vm-look` | none |
 | Every window has the border color of what it is to the layout, and a window whose kind changes has the new one at once | framework path: [`border_manager::update_colours`] is called after every event and every message, from [`border_manager::window_kinds`], and the backend sends the colors it did not send last time | `the_focused_window_has_the_focus_colour_and_the_others_do_not`, `a_locked_container_that_is_not_focused_is_marked`, `a_stack_has_its_own_colour_when_it_has_the_focus`, `a_monocled_window_has_the_monocle_colour`, `a_floating_window_has_the_floating_colour_while_it_has_the_focus`, `border_colours_are_a_command_only_when_they_change`, `vm-features` (section C) | the stock effect: two colors for every window |
 | With borders off no window has a color | framework path: [`border_manager::update_colours`] tells the backend an empty list when `BORDER_ENABLED` is false | `with_borders_off_no_window_has_a_colour` | none |
+| The settings of one kind of animation win over the global ones, and a global setting clears them | framework path: the arms of [`WindowManager::process_command`] for `Animation` and `AnimationDuration`, and [`animation::movement_animation`], which reads the kind's setting before the global one | `the_animation_messages_set_the_animation_and_the_compositor_is_asked_for_it` | none |
+| A command that changes a stack is carried out with the animation off, and the animation is on again after it | framework path: the arms of [`WindowManager::process_command`] for the stack messages swap `ANIMATION_ENABLED_GLOBAL` for false and put the value back | `the_animation_is_on_again_after_a_command_that_changes_a_stack` | none |
+| The `animation` key of the file is the animation settings, and a file without it leaves them | framework path: `StaticConfig::apply_globals` sets them only when the key is there, and `duration` only when the key has one | `the_animation_key_of_the_file_is_the_animation_settings` | none |
 | The effect komorebi loaded is unloaded, and the user's settings of it are put back, when komorebi stops using it or exits | framework path: the effect's state unloads what komorebi loaded, and [`Kwinrc`] puts the group back | `one_group_can_be_put_back_while_the_others_stay_changed`, `vm-look` | `SIGKILL`: the next run puts the settings back when it stops |
 | Queries never block on the compositor | convention only | none | the KWin backend's `cursor_pos` waits up to 250 ms |
 | Only the backend module reaches the compositor | convention only | none | none |
@@ -1166,13 +1184,18 @@ A window is shown, and ends up on a tile:
 - [`nix/kde-rounded-corners.nix`](../../nix/kde-rounded-corners.nix): the build of the KWin
   effect that draws an outline around each window, with
   [`komorebi-border-colours.patch`](../../nix/kde-rounded-corners/komorebi-border-colours.patch),
-  which lets komorebi give each window a color; and
+  which lets komorebi give each window a color;
+  [`nix/kwin-effect-geometry-change.nix`](../../nix/kwin-effect-geometry-change.nix), the
+  effect that animates a window going to its place; and
   [`nix/tests/effects.nix`](../../nix/tests/effects.nix), the checks of the files each effect
   package installs.
 - [`komorebi/tests/borders.rs`](../../komorebi/tests/borders.rs) and
   [`komorebi/tests/border_commands.rs`](../../komorebi/tests/border_commands.rs): the room a drawn
   border takes, and the messages that set the border, against the fake;
-  [`komorebi/tests/border_colours.rs`](../../komorebi/tests/border_colours.rs) and
+  [`komorebi/tests/animation.rs`](../../komorebi/tests/animation.rs), the messages that set the
+  animation, [`komorebi/tests/animation_config.rs`](../../komorebi/tests/animation_config.rs), its
+  key of the file, and [`komorebi/tests/animation_stack.rs`](../../komorebi/tests/animation_stack.rs),
+  the stack commands that turn it off; [`komorebi/tests/border_colours.rs`](../../komorebi/tests/border_colours.rs) and
   [`komorebi/tests/borders_off.rs`](../../komorebi/tests/borders_off.rs), the color of each
   window's border, and none with borders off;
   [`nix/tests/vm/suites/look`](../../nix/tests/vm/suites/look/test.py), the border in a real
@@ -1262,6 +1285,9 @@ A window is shown, and ends up on a tile:
 [`border_manager::current_look`]: ../../komorebi/src/border_manager/mod.rs
 [`border_manager::send_notification`]: ../../komorebi/src/border_manager/mod.rs
 [`BORDER_DRAWN`]: ../../komorebi/src/border_manager/mod.rs
+[`animation`]: ../../komorebi/src/animation/mod.rs
+[`animation::movement_animation`]: ../../komorebi/src/animation/mod.rs
+[`AnimationPrefix`]: ../../komorebi/src/animation/prefix.rs
 [`Backend::set_border_colours`]: ../../komorebi/src/backend/mod.rs
 [`border_manager::window_kinds`]: ../../komorebi/src/border_manager/mod.rs
 [`border_manager::update_colours`]: ../../komorebi/src/border_manager/mod.rs

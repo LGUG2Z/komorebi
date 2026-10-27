@@ -48,6 +48,10 @@
 
   environment.systemPackages = [ pkgs.kdePackages.konsole ];
 
+  # KWin loads no effect that animates under software rendering, which is all a guest has, unless
+  # it is told to: with this it loads Geometry Change, which komorebi asks it to load
+  environment.sessionVariables.KWIN_EFFECTS_FORCE_ANIMATIONS = "1";
+
   # Nothing adds a display device here (see komorebi.vm.renderNode above). The test driver gives
   # every aarch64 guest a virtio-gpu, and an x86_64 guest has the default VGA; screenshots are taken
   # of that one, and a second device would be a second head that KWin draws on and the screenshot

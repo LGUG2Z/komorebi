@@ -6,8 +6,9 @@
 //!
 //! - [`send_notification`] asks the backend for the [`Look`] of the settings in force
 //!   ([`current_look`]): the border's width, radius and two colors, one for the focused window and
-//!   one for the others. The backend answers whether the borders are drawn, which is kept in
-//!   [`BORDER_DRAWN`]: a drawn border takes room around each window, which the layout leaves.
+//!   one for the others, and the animation of windows going to their places. The backend answers
+//!   whether the borders are drawn, which is kept in [`BORDER_DRAWN`]: a drawn border takes room
+//!   around each window, which the layout leaves.
 //! - [`update_colours`] tells the backend the color of each window's border, by what the window
 //!   is to the layout ([`window_kinds`]). Only komorebi's build of the effect takes them; the
 //!   stock one draws the look's two colors, one for the active window and one for the others.
@@ -16,6 +17,7 @@
 //! the `border*` keys of `komorebi.json` ([`crate::static_config::StaticConfig`]) give their
 //! first values.
 
+use crate::backend::AnimationLook;
 use crate::backend::BorderLook;
 use crate::backend::Look;
 use crate::backend::backend;
@@ -227,7 +229,8 @@ pub static BORDER_DRAWN: AtomicBool = AtomicBool::new(false);
 /// Returns the [`Look`] of these settings.
 ///
 /// The border is there when `enabled`, with its width and radius at least 0; the colors are as the
-/// statics store them, red, green and blue in one number.
+/// statics store them, red, green and blue in one number. The animation is a duration in
+/// milliseconds, when there is one.
 ///
 /// ```rust
 /// use komorebi::border_manager::look;
@@ -236,15 +239,23 @@ pub static BORDER_DRAWN: AtomicBool = AtomicBool::new(false);
 /// let blue = pack(66, 165, 245);
 /// let grey = pack(128, 128, 128);
 ///
-/// let on = look(true, 8, -2, blue, grey);
+/// let on = look(true, 8, -2, blue, grey, Some(250));
 /// let border = on.border.expect("the borders are on");
 /// assert_eq!((border.width, border.radius), (8, 0));
 /// assert_eq!(border.focused, (66, 165, 245));
 /// assert_eq!(border.unfocused, (128, 128, 128));
+/// assert_eq!(on.animation.expect("an animation").duration_ms, 250);
 ///
-/// assert_eq!(look(false, 8, 10, blue, grey).border, None);
+/// assert_eq!(look(false, 8, 10, blue, grey, None).border, None);
 /// ```
-pub fn look(enabled: bool, width: i32, radius: i32, focused: u32, unfocused: u32) -> Look {
+pub fn look(
+    enabled: bool,
+    width: i32,
+    radius: i32,
+    focused: u32,
+    unfocused: u32,
+    animation: Option<u64>,
+) -> Look {
     Look {
         border: enabled.then(|| BorderLook {
             width: width.max(0),
@@ -252,10 +263,12 @@ pub fn look(enabled: bool, width: i32, radius: i32, focused: u32, unfocused: u32
             focused: unpack(focused),
             unfocused: unpack(unfocused),
         }),
+        animation: animation.map(|duration_ms| AnimationLook { duration_ms }),
     }
 }
 
-/// Returns the [`Look`] of the settings in force: the border statics of this module.
+/// Returns the [`Look`] of the settings in force: the border statics of this module, and the
+/// movement animation of [`crate::animation`].
 pub fn current_look() -> Look {
     look(
         BORDER_ENABLED.load(Ordering::SeqCst),
@@ -263,6 +276,7 @@ pub fn current_look() -> Look {
         BORDER_RADIUS.load(Ordering::SeqCst),
         FOCUSED.load(Ordering::SeqCst),
         UNFOCUSED.load(Ordering::SeqCst),
+        crate::animation::movement_animation(),
     )
 }
 
@@ -302,12 +316,20 @@ mod tests {
         let blue = pack(66, 165, 245);
         let grey = pack(128, 128, 128);
 
-        let look = look(true, 10, 12, blue, grey);
+        let look = look(true, 10, 12, blue, grey, None);
         let border = look.border.unwrap();
 
         assert_eq!(border.focused, (66, 165, 245));
         assert_eq!(border.unfocused, (128, 128, 128));
         assert_eq!((border.width, border.radius), (10, 12));
+        assert_eq!(look.animation, None);
+    }
+
+    #[test]
+    fn borders_off_and_animation_on_are_independent() {
+        let look = look(false, 10, 12, 0, 0, Some(250));
+        assert_eq!(look.border, None);
+        assert_eq!(look.animation, Some(AnimationLook { duration_ms: 250 }));
     }
 
     #[test]
@@ -334,7 +356,7 @@ mod tests {
 
     #[test]
     fn a_negative_width_or_radius_is_none() {
-        let look = look(true, -4, -1, 0, 0);
+        let look = look(true, -4, -1, 0, 0, None);
         let border = look.border.unwrap();
         assert_eq!((border.width, border.radius), (0, 0));
     }

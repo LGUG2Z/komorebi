@@ -141,7 +141,8 @@ sends another window there.
 
 When borders are on, it also asks KWin to load KDE Rounded Corners, the effect that draws them,
 after writing the effect's settings into `kwinrc`, and asks it to read them again
-([KWin effects](#kwin-effects)). An effect KWin did not find is reported once in the log.
+([KWin effects](#kwin-effects)). It does the same with Geometry Change, the effect that animates
+windows, when animation is on. An effect KWin did not find is reported once in the log.
 
 Every command of the window manager (move and resize, focus, raise, hide or restore, minimize,
 bring back, maximize, unmaximize or close a window, show a workspace on an output, put a window
@@ -169,13 +170,13 @@ an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a runnin
 
 When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it brings back
 the windows it hid, waits until the commands that do so have reached the bridge, removes the
-parking desktop, unloads the border effect, if komorebi loaded it, puts back the values the keys it
-set in `kwinrc` had (`PerOutputVirtualDesktops`, and the keys of the border effect), or removes a
-key the user had not set, and asks KWin to reload its configuration, asks KWin to unload the
-script, closes an empty connection to each subscriber, and removes the socket. The desktops it
-created for workspaces stay: they are the user's desktops from then on. A `StopIgnoreRestore`
-message stops it the same way, except that it does not bring the windows back: the parking desktop
-is removed all the same. The file `bridge.js` stays in the runtime
+parking desktop, unloads the effects it loaded, puts back the values the keys it set in `kwinrc`
+had (`PerOutputVirtualDesktops`, and the keys of the effects), or removes a key the user had not
+set, and asks KWin to reload its configuration, asks KWin to unload the script, closes an empty
+connection to each subscriber, and removes the socket. The desktops it created for workspaces
+stay: they are the user's desktops from then on. A `StopIgnoreRestore` message stops it the same
+way, except that it does not bring the windows back: the parking desktop is removed all the same.
+The file `bridge.js` stays in the runtime
 directory, which is removed at logout. A daemon that is killed leaves the script running in
 KWin, reporting to nobody, the socket file in the runtime directory, per-output desktops
 on, and the parking desktop with the hidden windows on it, until the next start replaces the
@@ -226,7 +227,7 @@ What komorebi calls:
 | `org.kde.KWin` | `/Scripting/Script<id>` | `org.kde.kwin.Script` | `run()` | after `loadScript` |
 | `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin leave the bus and come back |
 | `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
-| `org.kde.KWin` | `/Effects` | `org.kde.kwin.Effects` | `isEffectSupported(s)`, `isEffectLoaded(s)`, `loadEffect(s)`, `unloadEffect(s)`, `reconfigureEffect(s)`, with `kwin4_effect_shapecorners` | when the look changes (the border is turned on, off or changed), and at exit |
+| `org.kde.KWin` | `/Effects` | `org.kde.kwin.Effects` | `isEffectSupported(s)`, `isEffectLoaded(s)`, `loadEffect(s)`, `unloadEffect(s)`, `reconfigureEffect(s)`, with `kwin4_effect_shapecorners` and `kwin4_effect_geometry_change` | when the look changes (the border is turned on, off or changed), and at exit |
 | `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.komorebi.BorderColours1` | `SetColours(asau)`: the UUID of each window and its color, `0xRRGGBB` | when the color of a window's border changes; the object is komorebi's build of the border effect ([The patches](#the-patches)) |
 | `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
 | `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the properties `desktops` and `count`, `createDesktop(us)`, `setDesktopName(ss)`, `removeDesktop(s)` | when a workspace has no desktop, and at start; `createDesktop` also for the parking desktop, the first time a window is hidden, and `removeDesktop` for it when komorebi stops and for one a killed run left |
@@ -243,6 +244,7 @@ since a read right after `createDesktop` has to see the new desktop.
 | `$XDG_CONFIG_HOME/autostart/komorebi.desktop` (`~/.config/autostart/komorebi.desktop`) | the XDG autostart entry `komorebic enable-autostart` writes: `Exec=komorebi`, or `komorebi --config "FILE"`, and `X-KDE-autostart-after=plasma-workspace`, which a Plasma session starts komorebi from at login | the user's; `komorebic disable-autostart` removes it |
 | `$XDG_CONFIG_HOME/kwinrc` (`~/.config/kwinrc`) | KWin's configuration: komorebi sets `PerOutputVirtualDesktops=true` in `[Windows]`, changing that line or adding it and nothing else, and writes the file beside it first and renames it over it | put back as it was when the daemon stops |
 | `$XDG_CONFIG_HOME/kwinrc`, group `[Round-Corners]` | the settings of the border effect, written when borders are on ([KWin effects](#kwin-effects)) | put back, with the rest of `kwinrc`, when borders are turned off and when the daemon stops |
+| `$XDG_CONFIG_HOME/kwinrc`, group `[Effect-kwin4_effect_geometry_change]` | the settings of the animation effect, written when animation is on | put back as above, when animation is turned off and when the daemon stops |
 | `$XDG_RUNTIME_DIR/komorebi/kwinrc-backup.json` | the value each key of `kwinrc` had before komorebi first changed it | removed when the values are put back; one a crash left behind is used by the next run |
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
 | `$XDG_RUNTIME_DIR/komorebi/komorebi.sock` | the command socket | bound once the daemon is connected to KWin, after a file left there is removed; removed when the daemon stops |
@@ -292,6 +294,14 @@ The logs are written to `$XDG_DATA_HOME/komorebi` (`~/.local/share/komorebi` if
 `XDG_DATA_HOME` is not set), which the daemon makes before anything else: a home it cannot
 write to stops it at once. When `XDG_RUNTIME_DIR` is not set, the bridge and the socket go
 there too.
+
+### `KWIN_EFFECTS_FORCE_ANIMATIONS`
+
+KWin's own variable, read by KWin and not by komorebi. With software rendering, which is all a
+virtual machine has, KWin loads no effect that animates, Geometry Change included, unless it is
+`1` in KWin's environment: at time of writing (2026-10-27) a guest loaded 11 effects without it and
+29 with. The VM nodes set it ([Rendering](#rendering-in-virtual-machines-and-over-rdp)); a machine
+with a GPU needs nothing.
 
 ### `RUST_LOG`
 
@@ -408,6 +418,7 @@ patches (see [The patches](#the-patches)):
 | Package | Effect | Plugin id | Installed as |
 |---|---|---|---|
 | `kde-rounded-corners-komorebi` | [KDE Rounded Corners](https://github.com/matinlotfali/KDE-Rounded-Corners) 0.11.0, which draws an outline around each window | `kwin4_effect_shapecorners` | a C++ plugin, `lib/qt-6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so` |
+| `kwin-effect-geometry-change-komorebi` | [Geometry Change](https://github.com/peterfajdiga/kwin4_effect_geometry_change) 1.5 (revision `398491e`), which animates a window that a program or a script moves or resizes | `kwin4_effect_geometry_change` | a scripted effect, `share/kwin/effects/kwin4_effect_geometry_change/` |
 
 Each package is in the flake's `packages` for Linux and in `overlays.default`, which builds it
 with the `callPackage` of the nixpkgs it is applied to, so that it follows that nixpkgs' KWin.
@@ -441,6 +452,20 @@ At time of writing (2026-10-27):
 - **KDE Rounded Corners draws its outer outline in the window's shadow**: its shader stops
   where the window's texture is transparent. A window without a shadow has no outer outline,
   and the outline is at most 20 px thick.
+- **Geometry Change ships disabled by default**: its `metadata.json` has
+  `"EnabledByDefault": false`, which the check asserts. It loads on `loadEffect`, and under
+  software rendering only with `KWIN_EFFECTS_FORCE_ANIMATIONS=1` in KWin's environment (see
+  [Rendering](#rendering-in-virtual-machines-and-over-rdp)): without it, a session in a
+  virtual machine loads 11 effects instead of 29.
+- **Geometry Change animates what a program or a script asks for**: a move and a resize made
+  through KWin's scripting API are animated, and by its source an interactive move or resize
+  is not. It eases out exponentially (`QEasingCurve.OutExpo`), so the movement is nearly
+  over after a third of its duration. Its settings are in the
+  `[Effect-kwin4_effect_geometry_change]` group of `kwinrc` (`Duration`, `CrossFade`,
+  `ExcludedWindowClasses`), and it reads them again on `reconfigureEffect`: a `Duration` of
+  4000 written while it ran was the length of the next animation.
+- **The animation moves what is painted, not the window**: the frame KWin reports for the
+  window (`frameGeometry`) is the final one from the start of the animation.
 
 ### What komorebi writes for the border
 
@@ -467,7 +492,7 @@ and unfocused colors, and not inside the frame.
 
 Each patch is a derivative work of the effect it changes, and is under the same license, the
 GNU General Public License version 3; its header states the license and describes the
-change. The check of each package asserts that its patch is in the build.
+change. The check of a patched package asserts that the patch is in the build.
 
 [`komorebi-border-colours.patch`](../../nix/kde-rounded-corners/komorebi-border-colours.patch),
 for KDE Rounded Corners, makes two changes:
@@ -488,6 +513,23 @@ for KDE Rounded Corners, makes two changes:
   texture that has the window's opacity in it, and makes the texture again only when the
   contents change or the window is resized, so a change of opacity alone would not show. The
   patched effect redirects the window again when its opacity changes.
+
+### What komorebi writes for the animation
+
+Geometry Change reads its settings from the group `[Effect-kwin4_effect_geometry_change]` of
+`kwinrc`:
+
+| Key | Value |
+|---|---|
+| `Duration` | the animation's duration, in milliseconds |
+| `CrossFade` | `false`: a window that changes size is not cross-faded |
+
+komorebi then calls `reconfigureEffect`, and at time of writing (2026-10-27) the effect uses the
+new `Duration` for the next move: a `Duration` of 4000 written while it ran was the length of the
+next animation. An animation cannot be seen in a screenshot of a short one: the screenshot takes
+seconds, and the effect eases out exponentially, nearly over after a third of its duration. A
+screenshot of a session a few seconds into a 30 s animation shows a window that has not got to its
+place, and the same move with animation off is there at once.
 
 ## Rendering in virtual machines and over RDP
 

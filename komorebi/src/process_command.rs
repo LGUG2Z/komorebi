@@ -182,6 +182,11 @@
 //!   handled. **BorderColour** sets the color of the border of one kind of window
 //!   ([`WindowKind`]), and every message, once handled, tells the backend the color of each
 //!   window's border ([`border_manager::update_colours`]).
+//! - **Animation** sets whether windows are animated going to their places, **AnimationDuration**
+//!   for how long, and **AnimationFps** the frame rate that is stored and has nothing to map to
+//!   (the compositor animates at the refresh rate of the screen); each is for every kind of
+//!   animation or, given an [`AnimationPrefix`](crate::animation::AnimationPrefix), for one. The
+//!   look asked of the backend after the message has the animation.
 //! - **Retile** tiles the focused workspace of every monitor again, without the resize
 //!   adjustments, and **RetileWithResizeDimensions** with them.
 //! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
@@ -203,6 +208,11 @@ use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_FPS;
 use crate::backend::backend;
 use crate::border_manager;
 use crate::core::ApplicationIdentifier;
@@ -564,24 +574,36 @@ impl WindowManager {
                 self.move_container_in_cycle_direction(direction)?;
             }
             SocketMessage::StackWindow(direction) => {
+                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
                 self.add_window_to_container(direction)?;
+                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::UnstackWindow => {
+                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
                 self.remove_window_from_container()?;
                 border_manager::destroy_all_borders()?;
+                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::StackAll => {
+                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
                 self.stack_all()?;
+                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::UnstackAll => {
+                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
                 self.unstack_all(true)?;
                 border_manager::destroy_all_borders()?;
+                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::CycleStack(direction) => {
+                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
                 self.cycle_container_window_in_direction(direction)?;
+                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::CycleStackIndex(direction) => {
+                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
                 self.cycle_container_window_index_in_direction(direction)?;
+                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::FocusStackWindow(idx) => {
                 // In case you are using this command on a bar on a monitor
@@ -591,7 +613,9 @@ impl WindowManager {
                 if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
                     self.focus_monitor(monitor_idx)?;
                 }
+                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
                 self.focus_container_window(idx)?;
+                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::CycleFocusMonitor(direction) => {
                 let monitor_idx = direction.next_idx(
@@ -1973,6 +1997,31 @@ impl WindowManager {
             SocketMessage::BorderOffset(offset) => {
                 border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
                 border_manager::destroy_all_borders()?;
+            }
+            SocketMessage::Animation(enable, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_ENABLED_PER_ANIMATION
+                        .lock()
+                        .insert(prefix, enable);
+                }
+                None => {
+                    ANIMATION_ENABLED_GLOBAL.store(enable, Ordering::SeqCst);
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+                }
+            },
+            SocketMessage::AnimationDuration(duration, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_DURATION_PER_ANIMATION
+                        .lock()
+                        .insert(prefix, duration);
+                }
+                None => {
+                    ANIMATION_DURATION_GLOBAL.store(duration, Ordering::SeqCst);
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
+                }
+            },
+            SocketMessage::AnimationFps(fps) => {
+                ANIMATION_FPS.store(fps, Ordering::SeqCst);
             }
         }
 

@@ -38,8 +38,8 @@ trailing commas.
 Reading the file again sets every setting of the daemon from it, and a key the file leaves out is
 the default of the setting: a `resize-delta` given with a command is gone when the file changes.
 These stay as they were when the file leaves them out: `default_workspace_padding`,
-`default_container_padding`, `display_index_preferences` and the four settings of the borders.
-The rules add up, as
+`default_container_padding`, `display_index_preferences`, the four settings of the borders and the
+animation, when the file has no `animation`. The rules add up, as
 [Rules](#rules) says. A workspace the file lists gets its name, padding, offsets and rules from
 its entry, and its layout when the entry names one; a workspace the file does not list is left as
 it is.
@@ -104,6 +104,20 @@ can have values of their own, which come before the default.
 [Borders](borders.md) explains what the compositor draws and what the layout leaves room for.
 `komorebic border`, `border-width` and `border-offset` change the first three while the daemon
 runs.
+
+### Animation
+
+`animation` is an object with these keys:
+
+| Key | Default | What it does |
+|---|---|---|
+| `enabled` | `false`, required | Whether windows are animated going to their places: `true` or `false` for every kind of animation, or `{ "movement": true }` for the kinds it names |
+| `duration` | `250` | How long the animation lasts, in milliseconds, in the same two forms |
+| `fps` | `60` | Accepted and not used: KWin animates at the refresh rate of the screen |
+
+[Animation](animation.md) explains what is animated. A file that has no `animation` leaves the
+settings as they are, and one that has it and leaves out `duration` leaves the duration as it is;
+`enabled` and `duration` given for every kind of animation take the settings of single kinds away.
 
 ### Rules
 

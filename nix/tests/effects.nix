@@ -4,6 +4,12 @@
 { pkgs, packages }:
 let
   inherit (pkgs.kdePackages) kwin qttools;
+  fail = ''
+    fail() {
+      echo "FAIL: $*" >&2
+      exit 1
+    }
+  '';
 in
 {
   kde-rounded-corners-komorebi-install =
@@ -17,10 +23,7 @@ in
         ];
       }
       ''
-        fail() {
-          echo "FAIL: $*" >&2
-          exit 1
-        }
+        ${fail}
         plugin=${packages.kde-rounded-corners-komorebi}/lib/qt-6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so
 
         [ -f "$plugin" ] || fail "no plugin at $plugin"
@@ -54,6 +57,30 @@ in
         grep -q -a -F org.komorebi.BorderColours1 "$plugin" ||
           fail "the plugin has no org.komorebi.BorderColours1: komorebi-border-colours.patch is not in it"
         echo "ok: the plugin has org.komorebi.BorderColours1"
+
+        touch $out
+      '';
+
+  kwin-effect-geometry-change-komorebi-install =
+    pkgs.runCommand "kwin-effect-geometry-change-komorebi-install" { nativeBuildInputs = [ pkgs.jq ]; }
+      ''
+        ${fail}
+        # KWin finds scripted effects by their metadata.json, in a directory of share/kwin/effects
+        effect=${packages.kwin-effect-geometry-change-komorebi}/share/kwin/effects/kwin4_effect_geometry_change
+
+        [ -f "$effect/metadata.json" ] || fail "no metadata.json in $effect"
+        jq -e '.KPlugin.Id == "kwin4_effect_geometry_change"' "$effect/metadata.json" > /dev/null ||
+          fail "the metadata does not name the effect kwin4_effect_geometry_change"
+        main=$effect/contents/$(jq -r '."X-Plasma-MainScript"' "$effect/metadata.json")
+        [ -f "$main" ] || fail "no main script at $main"
+        echo "ok: the effect is where KWin looks for scripted effects, with its script"
+
+        # upstream's choice, which komorebi relies on: asserted so that an update cannot change it
+        if ! jq -e '.KPlugin.EnabledByDefault == false' "$effect/metadata.json" > /dev/null; then
+          cat "$effect/metadata.json"
+          fail "the metadata does not say EnabledByDefault false"
+        fi
+        echo "ok: the metadata says EnabledByDefault false"
 
         touch $out
       '';

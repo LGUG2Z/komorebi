@@ -37,6 +37,13 @@ use crate::LAYOUT_DEFAULTS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
 use crate::WORKSPACE_MATCHING_RULES;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_FPS;
+use crate::animation::DEFAULT_ANIMATION_FPS;
+use crate::animation::PerAnimationPrefixConfig;
 use crate::border_manager;
 use crate::core::Axis;
 use crate::core::CrossBoundaryBehaviour;
@@ -498,12 +505,32 @@ pub struct StaticConfig {
     // /// Stackbar configuration options
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub stackbar: Option<StackbarConfig>,
+    /// Animations configuration options
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub animation: Option<AnimationsConfig>,
     /// Aspect ratio to resize with when toggling floating mode for a window
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_window_aspect_ratio: Option<AspectRatio>,
     // /// Which Windows API behaviour to use when manipulating windows (default: Sync)
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub window_handling_behaviour: Option<WindowHandlingBehaviour>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Animation configuration
+pub struct AnimationsConfig {
+    /// Enable or disable animations
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = PerAnimationPrefixConfig::Global(false))))]
+    pub enabled: PerAnimationPrefixConfig<bool>,
+    /// Set the animation duration in ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = PerAnimationPrefixConfig::Global(250))))]
+    pub duration: Option<PerAnimationPrefixConfig<u64>>,
+    /// Set the animation FPS
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_ANIMATION_FPS)))]
+    pub fps: Option<u64>,
 }
 
 // #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -622,6 +649,7 @@ impl From<&WindowManager> for StaticConfig {
             // monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.read().clone()),
             // stackbar: None,
+            animation: None,
             // slow_application_compensation_time: Option::from(
             //     SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
             // ),
@@ -665,6 +693,34 @@ impl StaticConfig {
         // if let Some(width) = self.minimum_window_width {
         //     window::MINIMUM_WIDTH.store(width, Ordering::SeqCst);
         // }
+
+        if let Some(animations) = &self.animation {
+            match &animations.enabled {
+                PerAnimationPrefixConfig::Prefix(enabled) => {
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clone_from(enabled);
+                }
+                PerAnimationPrefixConfig::Global(enabled) => {
+                    ANIMATION_ENABLED_GLOBAL.store(*enabled, Ordering::SeqCst);
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+                }
+            }
+
+            match &animations.duration {
+                Some(PerAnimationPrefixConfig::Prefix(duration)) => {
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clone_from(duration);
+                }
+                Some(PerAnimationPrefixConfig::Global(duration)) => {
+                    ANIMATION_DURATION_GLOBAL.store(*duration, Ordering::SeqCst);
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
+                }
+                None => {}
+            }
+
+            ANIMATION_FPS.store(
+                animations.fps.unwrap_or(DEFAULT_ANIMATION_FPS),
+                Ordering::SeqCst,
+            );
+        }
 
         if let Some(container) = self.default_container_padding {
             DEFAULT_CONTAINER_PADDING.store(container, Ordering::SeqCst);

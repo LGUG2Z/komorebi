@@ -57,6 +57,7 @@ pub use komorebi::DATA_DIR;
 pub use komorebi::LOG_DIR;
 pub use komorebi::Notification;
 pub use komorebi::NotificationEvent;
+pub use komorebi::animation::AnimationPrefix;
 pub use komorebi::container::Container;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::Axis;

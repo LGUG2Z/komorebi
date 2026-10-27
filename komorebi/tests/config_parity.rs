@@ -45,8 +45,6 @@ const WINDOWS_ONLY: &[&str] = &[
 const NOT_YET: &[&str] = &[
     // a color for each kind of window's border, whose type is komorebi-themes' (49)
     "border_colours",
-    // animation (45)
-    "animation",
     // transparency (47)
     "transparency",
     "transparency_alpha",

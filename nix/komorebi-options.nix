@@ -1,4 +1,4 @@
-# schema-sha256: 0f59fbd881e4247d5ffb1355b24b65f5f58302e74a8908b31837919445376113
+# schema-sha256: e53fa2caa5377453b0cb6e1302e8ef951904fd38a488df1ad75997cd6fb97ea1
 { lib, ... }:
 let
   defaultLayout = (
@@ -161,6 +161,57 @@ in
   options.komorebi = lib.mkOption {
     type = lib.types.submodule {
       options = {
+        animation = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.submodule {
+                options = {
+                  duration = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.submodule {
+                            options = {
+                              movement = lib.mkOption {
+                                type = lib.types.int;
+                              };
+                            };
+                          })
+                          lib.types.int
+                        ]
+                      )
+                    );
+                    default = 250;
+                    description = "Set the animation duration in ms";
+                  };
+                  enabled = lib.mkOption {
+                    type = (
+                      lib.types.oneOf [
+                        (lib.types.submodule {
+                          options = {
+                            movement = lib.mkOption {
+                              type = lib.types.bool;
+                            };
+                          };
+                        })
+                        lib.types.bool
+                      ]
+                    );
+                    default = false;
+                    description = "Enable or disable animations";
+                  };
+                  fps = lib.mkOption {
+                    type = (lib.types.nullOr lib.types.int);
+                    default = 60;
+                    description = "Set the animation FPS";
+                  };
+                };
+              }
+            )
+          );
+          default = null;
+          description = "Animations configuration options";
+        };
         app_specific_configuration_path = lib.mkOption {
           type = (
             lib.types.nullOr (

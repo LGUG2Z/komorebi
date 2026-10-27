@@ -1,11 +1,15 @@
-# The border, in a real Plasma session whose machine has the border effect installed (the module
-# does that): komorebi writes the effect's settings, loads it, and on exit puts everything back.
+# The border and the animation, in a real Plasma session whose machine has the effects installed
+# (the module does that): komorebi writes the effects' settings, loads them, and on exit puts
+# everything back.
 #
-# What is checked is what is on the screen, not what komorebi wrote: the screenshot is read at the
-# pixels just outside each window's frame. The runs of komorebi:
+# What is checked is what is on the screen, not what komorebi wrote: a screenshot is read at the
+# pixels just outside each window's frame (the border) and at the place a window is going to (the
+# animation). The runs of komorebi:
 #
 #   A  the borders, as they are by default: the ring is outside the frame on all four sides
 #   B  the commands that change them: the effect follows, and takes the border away and back
+#   C  a 30 s animation: a window flipped to the other side is not there yet moments later
+#   D  no animation, the control: the same flip is there at once
 #
 # Every window is a `foot` of one color all over (`Kde.colored_window`).
 import time
@@ -17,8 +21,11 @@ UNIT = "komorebi.service"
 LOG = "/home/komorebi/.local/share/komorebi/komorebi_plaintext.log.*"
 ROUNDED_CORNERS = "kwin4_effect_shapecorners"
 GROUP = "Round-Corners"
+GEOMETRY_CHANGE = "kwin4_effect_geometry_change"
+ANIMATION_GROUP = "Effect-kwin4_effect_geometry_change"
 FOCUSED = (66, 165, 245)
 UNFOCUSED = (128, 128, 128)
+RED = (255, 0, 0)
 
 start_all()
 machine.wait_for_unit("multi-user.target")
@@ -60,17 +67,24 @@ print("== the effect is installed, and not loaded by anyone")
 # the session started the module's unit when it logged in: this test starts its own runs
 stop_komorebi()
 checks.check("KDE Rounded Corners is installed", kde.effect_supported(ROUNDED_CORNERS))
+checks.check("Geometry Change is installed", kde.effect_supported(GEOMETRY_CHANGE))
 checks.check(
-    "and KWin does not load it by itself (it is built disabled by default)",
-    not kde.effect_loaded(ROUNDED_CORNERS),
+    "and KWin does not load either by itself (they are built disabled by default)",
+    not kde.effect_loaded(ROUNDED_CORNERS) and not kde.effect_loaded(GEOMETRY_CHANGE),
 )
 before = kde.kwinrc_group(GROUP)
+before_animation = kde.kwinrc_group(ANIMATION_GROUP)
 
 
 def put_back() -> None:
     checks.check("komorebi exited", not running())
     checks.check("the border effect is unloaded again", not kde.effect_loaded(ROUNDED_CORNERS))
+    checks.check("the animation effect is unloaded again", not kde.effect_loaded(GEOMETRY_CHANGE))
     checks.check(f"kwinrc [{GROUP}] is as it was", kde.kwinrc_group(GROUP) == before)
+    checks.check(
+        f"kwinrc [{ANIMATION_GROUP}] is as it was",
+        kde.kwinrc_group(ANIMATION_GROUP) == before_animation,
+    )
 
 
 print("== A. komorebi starts, with the borders it has by default")
@@ -156,6 +170,67 @@ checks.check(
     kde.wait_for(grew, timeout=10),
 )
 
+stop_komorebi()
+put_back()
+
+
+def flip_of_red() -> tuple[Rect, Rect]:
+    """Flips the layout, and returns the frame red had and the one komorebi gave it."""
+    kde.colored_window("red", "ff0000")
+    time.sleep(1)
+    kde.colored_window("blue", "0000ff")
+    kde.wait_for(lambda: kde.managed() == 2, timeout=30)
+    # well past the half of it, where an ease out is at 97 %: the windows have got where they go
+    time.sleep(16 * SCALE)
+    before_flip = kde.rect(kde.wid("red"))
+    kde.komorebic("flip-layout", "horizontal")
+    kde.wait_for(lambda: kde.rect(kde.wid("red")) != before_flip, timeout=10)
+    return before_flip, kde.rect(kde.wid("red"))
+
+
+def point_in(frame: Rect) -> tuple[int, int]:
+    """A point inside the frame, far from where red came from, which is on its left."""
+    return frame.x + frame.w - 60, frame.y + frame.h // 2
+
+
+print("== C. komorebi runs a 30 s animation")
+start_komorebi()
+kde.komorebic("animation-duration", "30000")
+kde.komorebic("animation", "enable")
+checks.check(
+    "the animation effect is loaded",
+    kde.wait_for(lambda: kde.effect_loaded(GEOMETRY_CHANGE), timeout=10),
+)
+animation = kde.kwinrc_group(ANIMATION_GROUP)
+checks.check(
+    "it lasts what it was asked to, without cross-fading",
+    animation.get("Duration") == "30000" and animation.get("CrossFade") == "false",
+)
+was, now = flip_of_red()
+print(f"     red: {was} -> {now}")
+checks.check("komorebi moved the window", was != now)
+x, y = point_in(now)
+soon = pixels.pixel(kde.shot("soon"), x, y)
+checks.check(
+    f"a moment after the flip red has not got to its new place ({soon})",
+    not pixels.near(soon, RED),
+)
+time.sleep(16 * SCALE)
+later = pixels.pixel(kde.shot("later"), x, y)
+checks.check(f"and 16 s later it has ({later})", pixels.near(later, RED))
+stop_komorebi()
+put_back()
+
+print("== D. without an animation, the control, the same flip is there at once")
+start_komorebi()
+checks.check("the animation effect is not loaded", not kde.effect_loaded(GEOMETRY_CHANGE))
+was, now = flip_of_red()
+x, y = point_in(now)
+at_once = pixels.pixel(kde.shot("control"), x, y)
+checks.check(
+    f"red is at its new place when the screenshot is taken ({at_once})",
+    pixels.near(at_once, RED),
+)
 stop_komorebi()
 put_back()
 

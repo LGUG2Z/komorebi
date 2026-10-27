@@ -390,7 +390,8 @@ then, and KDE Rounded Corners at its defaults draws a one pixel black outline ov
 bar of every window. Built with `EnabledByDefault` false, an effect is loaded only when
 something asks for it with `loadEffect`, which can come after its settings are written. That
 KWin then starts without the effect and loads it when asked was measured before the package
-was written ([PLATFORM.md](PLATFORM.md#kwin-effects)).
+was written ([PLATFORM.md](PLATFORM.md#kwin-effects)). Geometry Change ships disabled by
+default, and its check asserts it, so that an update of the effect cannot change it unseen.
 
 ## Why does the compositor draw the borders, and not komorebi?
 
@@ -433,6 +434,22 @@ a stack, a monocle, a floating window, a locked container), and the stock effect
 active window" and "the others". komorebi's build of KDE Rounded Corners takes a color for each
 window over D-Bus, through KWin's name ([PLATFORM.md](PLATFORM.md#the-patches)). Without that
 build every kind falls back to the two colors of the look, and komorebi says so once in its log.
+
+## Why does komorebi animate nothing itself?
+
+Because the compositor draws the windows: an animation komorebi made would be a series of frames
+asked of KWin, each a command, where the Geometry Change effect animates what is painted, in the
+compositor, at the refresh rate of the screen. komorebi tells the effect how long an animation
+lasts ([`border_manager::current_look`](../../komorebi/src/border_manager/mod.rs)). That is why
+`animation-fps` is accepted and does nothing, and why the frame KWin reports for a window is the
+final one from the start of the animation: the effect moves what is painted and not the window
+([PLATFORM.md](PLATFORM.md#kwin-effects)).
+
+## Why is cross-fading off?
+
+Because cross-fading the old contents of a window into the new while it changes size is the
+effect's default, and it costs a redraw of both. A window going to its place is a move and a
+resize, and what the window shows does not change.
 
 ## Why are the effects patched?
 

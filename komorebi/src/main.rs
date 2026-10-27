@@ -228,8 +228,8 @@ fn main() -> eyre::Result<()> {
     // them): the compositor needs a desktop for each
     wm.lock().sync_workspace_desktops();
 
-    // how windows are to look (borders) is handed to the compositor before the first layout, which
-    // leaves room for a border that is being drawn
+    // how windows are to look (borders, animation) is handed to the compositor before the first
+    // layout, which leaves room for a border that is being drawn
     border_manager::send_notification();
 
     wm.lock().retile_all(false)?;

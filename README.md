@@ -69,8 +69,8 @@ without a checkout of the toolchain.
   (`backend`), the backend that reaches KWin through a script it runs and edits
   the settings of KWin's it needs in the user's `kwinrc`, the parking desktop it
   hides the back of a stack and the windows behind a monocle on, and the borders
-  it has KWin draw (`kwin`), the border settings and the look they make
-  (`border_manager`),
+  and animations it has KWin draw (`kwin`), the border and animation settings and
+  the look they make (`border_manager`, `animation`),
   the model of what it tiles (`monitor`, `workspace`, `container`, `window`), the
   window manager that keeps the model (`window_manager`), loads it from the
   backend (`desktop`) and changes it when the compositor reports an event
@@ -104,6 +104,10 @@ KWin:
   Corners 0.11.0, which draws an outline around each window, built so that KWin
   does not load it until it is asked to, and with a patch that lets komorebi
   give each window a color of its own.
+- `kwin-effect-geometry-change-komorebi`
+  ([`nix/kwin-effect-geometry-change.nix`](nix/kwin-effect-geometry-change.nix)):
+  Geometry Change 1.5, a scripted effect that animates a window that a program
+  or a script moves or resizes.
 
 Each one is a package for Linux and an attribute of `overlays.default`, built
 with the KWin of the nixpkgs the overlay is applied to.
@@ -252,7 +256,9 @@ effect draw it, which the module installs. A border takes room around each
 window, so the layout leaves the room while the compositor says it draws one, and
 komorebi gives each window the border color of what it is to the layout: the focused
 window, the others, a locked container, a floating window. `border`, `border-colour`,
-`border-width` and `border-offset` set it.
+`border-width` and `border-offset` set it. Windows going to their places are
+animated by another effect, Geometry Change, which `animation` and
+`animation-duration` turn on and set.
 
 ## Documentation
 

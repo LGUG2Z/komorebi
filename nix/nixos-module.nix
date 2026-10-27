@@ -240,6 +240,29 @@ in
       };
     };
 
+    effects.animation = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Install the KWin effect that animates komorebi's windows going to their places, Geometry
+          Change. This is installation only: whether windows are animated is komorebi's setting
+          (`komorebic animation`), which asks KWin to load the effect when it is on. KWin finds
+          effects when it starts, so an effect installed by a switch to a new system is found
+          after the next login.
+
+          Without the effect, windows jump to their places.
+        '';
+      };
+
+      package = lib.mkPackageOption pkgs "kwin-effect-geometry-change-komorebi" {
+        extraDescription = ''
+          It must have `share/kwin/effects/kwin4_effect_geometry_change`, a scripted effect that
+          is not loaded by default.
+        '';
+      };
+    };
+
     internal.configAttrs = lib.mkOption {
       type = lib.types.nullOr lib.types.attrs;
       readOnly = true;
@@ -311,7 +334,8 @@ in
       environment.systemPackages = [
         cfg.package
       ]
-      ++ lib.optional cfg.effects.borders.enable cfg.effects.borders.package;
+      ++ lib.optional cfg.effects.borders.enable cfg.effects.borders.package
+      ++ lib.optional cfg.effects.animation.enable cfg.effects.animation.package;
 
       # A user unit, so it runs for every user who logs in to Plasma. plasma-workspace.target is
       # the target of a Plasma session's services, and plasma-core.target, which it requires, is

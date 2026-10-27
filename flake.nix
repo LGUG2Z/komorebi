@@ -257,6 +257,7 @@
               module = self.nixosModules.default;
               komorebiFor = guestSystem: self.packages.${guestSystem}.komorebi-full;
               borderEffectFor = guestSystem: self.packages.${guestSystem}.kde-rounded-corners-komorebi;
+              animationEffectFor = guestSystem: self.packages.${guestSystem}.kwin-effect-geometry-change-komorebi;
             };
           }
           # The VM tests need QEMU with KVM, so only Linux checks them. A Mac runs the same tests
@@ -295,6 +296,7 @@
             komorebi-full = build.fullBuild;
             default = build.fullBuild;
             kde-rounded-corners-komorebi = pkgs.callPackage ./nix/kde-rounded-corners.nix { };
+            kwin-effect-geometry-change-komorebi = pkgs.callPackage ./nix/kwin-effect-geometry-change.nix { };
           };
 
           apps = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
@@ -361,6 +363,7 @@
             komorebi-full = build.fullBuild;
             # with the consumer's KWin, so that the plugin links the libkwin it is loaded into
             kde-rounded-corners-komorebi = final.callPackage ./nix/kde-rounded-corners.nix { };
+            kwin-effect-geometry-change-komorebi = final.callPackage ./nix/kwin-effect-geometry-change.nix { };
           };
         overlays.komorebi = self.overlays.default;
 

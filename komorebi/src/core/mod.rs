@@ -12,6 +12,7 @@
 //! [`OperationDirection`] is a side of the focused tile, and a [`CycleDirection`] the next or the
 //! previous container in the order of the workspace.
 
+use crate::animation::AnimationPrefix;
 use crate::core::pathext::ResolvedPathBuf;
 use clap::ValueEnum;
 use color_eyre::eyre;
@@ -470,6 +471,9 @@ pub enum SocketMessage {
     // WatchConfiguration(bool),
     // CompleteConfiguration,
     // AltFocusHack(bool),
+    Animation(bool, Option<AnimationPrefix>),
+    AnimationDuration(u64, Option<AnimationPrefix>),
+    AnimationFps(u64),
     #[serde(alias = "ActiveWindowBorder")]
     Border(bool),
     #[serde(alias = "ActiveWindowBorderColour")]
