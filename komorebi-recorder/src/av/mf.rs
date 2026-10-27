@@ -34,14 +34,13 @@ use windows::Win32::Media::MediaFoundation::IMF2DBuffer;
 use windows::Win32::Media::MediaFoundation::IMFAttributes;
 use windows::Win32::Media::MediaFoundation::IMFSample;
 use windows::Win32::Media::MediaFoundation::IMFSourceReader;
-use windows::Win32::Media::MediaFoundation::MF_MT_DEFAULT_STRIDE;
 use windows::Win32::Media::MediaFoundation::MF_MT_FRAME_SIZE;
 use windows::Win32::Media::MediaFoundation::MF_MT_INTERLACE_MODE;
 use windows::Win32::Media::MediaFoundation::MF_MT_MAJOR_TYPE;
 use windows::Win32::Media::MediaFoundation::MF_MT_SUBTYPE;
 use windows::Win32::Media::MediaFoundation::MF_PD_DURATION;
 use windows::Win32::Media::MediaFoundation::MF_SOURCE_READER_ALL_STREAMS;
-use windows::Win32::Media::MediaFoundation::MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING;
+use windows::Win32::Media::MediaFoundation::MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING;
 use windows::Win32::Media::MediaFoundation::MF_SOURCE_READER_FIRST_VIDEO_STREAM;
 use windows::Win32::Media::MediaFoundation::MF_SOURCE_READER_MEDIASOURCE;
 use windows::Win32::Media::MediaFoundation::MF_SOURCE_READERF_ENDOFSTREAM;
@@ -82,8 +81,9 @@ fn open_reader(path: &Path) -> eyre::Result<IMFSourceReader> {
         MFCreateAttributes(&raw mut attributes, 1)?;
         let attributes =
             attributes.ok_or_else(|| eyre::Report::msg("no Media Foundation attributes"))?;
-        // the video processor converts the decoded picture to the format asked for and resizes it
-        attributes.SetUINT32(&MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1)?;
+        // the (advanced) video processor converts the decoded picture to the format asked for and
+        // resizes it: the plain one only converts, and refuses a size that is not the video's
+        attributes.SetUINT32(&MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING, 1)?;
 
         let reader = MFCreateSourceReaderFromURL(PCWSTR(wide.as_ptr()), &attributes)
             .wrap_err_with(|| format!("Windows cannot open {} as a video", path.display()))?;
@@ -205,9 +205,8 @@ impl Asset {
             wanted.SetGUID(&MF_MT_SUBTYPE, &MFVideoFormat_RGB32)?;
             wanted.SetUINT32(&MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive.0 as u32)?;
             wanted.SetUINT64(&MF_MT_FRAME_SIZE, pack(width, height))?;
-            // a positive stride is a top-down picture; Media Foundation's default for RGB is the
-            // other way up
-            wanted.SetUINT32(&MF_MT_DEFAULT_STRIDE, width * 4)?;
+            // no stride is asked for: Windows rejects a media type with one for RGB32 (0xC00D36B4).
+            // `frame_of` reads the pitch the buffer reports, negative for a bottom-up picture
 
             if let Err(error) = reader.SetCurrentMediaType(VIDEO, None, &wanted) {
                 if self.hevc {
