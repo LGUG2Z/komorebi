@@ -338,7 +338,9 @@ pub struct SubscribeOptions {
 pub enum SocketMessage {
     // Window / Container Commands
     FocusWindow(OperationDirection),
+    MoveWindow(OperationDirection),
     CycleFocusWindow(CycleDirection),
+    CycleMoveWindow(CycleDirection),
     Stop,
     Retile,
     State,

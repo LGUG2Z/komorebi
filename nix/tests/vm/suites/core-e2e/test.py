@@ -3,8 +3,9 @@
 # the daemon asked for it (`komorebi/tests/wm_events.rs` checks the window manager's side against
 # the fake), that the daemon and KWin agree on which window has the focus, that `komorebic` reaches
 # the daemon of a session and reads its state, that `komorebic focus` and `cycle-focus` move KWin's
-# focus (`komorebi/tests/focus.rs` checks which window they pick), and that `komorebic stop` gives
-# KWin back what the daemon set up in it. A window manager that agrees with itself proves nothing, so what the daemon
+# focus (`komorebi/tests/focus.rs` checks which window they pick), that `komorebic move` and
+# `cycle-move` swap windows between their tiles (`komorebi/tests/moving.rs`), and that
+# `komorebic stop` gives KWin back what the daemon set up in it. A window manager that agrees with itself proves nothing, so what the daemon
 # believes is read from its debug log and from `komorebic state`, and what KWin has through kdotool.
 import json
 
@@ -67,6 +68,12 @@ def state_agrees() -> bool:
     """The window komorebi's state has focused is the one KWin has."""
     active = kde.active()
     return active != "" and kde.title(active) == kde.focused_title()
+
+
+def at(title: str) -> tuple[int, int]:
+    """Where KWin has the window: foot rounds its size to its cells, but not its position."""
+    r = kde.rect(kde.wid(title))
+    return (r.x, r.y)
 
 
 def report(titles: list[str]) -> None:
@@ -134,7 +141,29 @@ checks.check(
 )
 checks.check("moving the focus moved no window", all(where_asked(t) for t in titles))
 
-print("== 5. minimize and restore")
+print("== 5. the windows move on komorebic's commands")
+left, top_right = at("win1"), at("win2")
+kde.komorebic("move", "right")
+checks.check(
+    "after 'move right' win1 and win2 have swapped tiles",
+    kde.wait_for(lambda: at("win1") == top_right and at("win2") == left, timeout=20),
+)
+checks.check(
+    "... every window is where the daemon asked for it",
+    kde.wait_for(lambda: all(where_asked(t) for t in titles), timeout=20),
+)
+checks.check(
+    "... and win1 keeps the focus",
+    kde.wait_for(lambda: kde.title(kde.active()) == "win1" and state_agrees()),
+)
+kde.komorebic("cycle-move", "previous")
+checks.check(
+    "'cycle-move previous' puts win1 and win2 back",
+    kde.wait_for(lambda: at("win1") == left and at("win2") == top_right, timeout=20),
+)
+report(titles)
+
+print("== 6. minimize and restore")
 kde.minimize(kde.wid("win2"))
 two = ["win1", "win3"]
 checks.check(
@@ -161,7 +190,7 @@ checks.check(
 )
 report(titles)
 
-print("== 6. close")
+print("== 7. close")
 kde.close(kde.wid("win3"))
 checks.check("KWin closed win3", kde.wait_for(lambda: kde.wid("win3") == "", timeout=10))
 checks.check(
@@ -178,7 +207,7 @@ report(["win1", "win2"])
 checks.check("komorebi manages the two that are left", kde.wait_for(lambda: kde.managed() == 2))
 checks.check("KWin carried out every command", "the bridge could not do" not in daemon_log())
 
-print("== 7. KWin restarts under the daemon")
+print("== 8. KWin restarts under the daemon")
 kde.restart_kwin()
 checks.check(
     "the daemon loaded its script into the new KWin",
@@ -199,7 +228,7 @@ checks.check(
 )
 report(["afterwards"])
 
-print("== 8. komorebic stop")
+print("== 9. komorebic stop")
 kde.komorebic("stop")
 checks.check("the daemon exited", kde.wait_for(lambda: not kde.komorebi_running()))
 checks.check("its socket is gone", kde.run(f"test -e {kde.runtime}/komorebi/komorebi.sock")[0] != 0)

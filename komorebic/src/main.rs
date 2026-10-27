@@ -7,6 +7,7 @@
 //!
 //! `focus` and `cycle-focus` give the focus to another window of the focused workspace, and
 //! `mouse-follows-focus` and `toggle-mouse-follows-focus` set whether the pointer goes with it.
+//! `move` and `cycle-move` move the focused window to another tile.
 //!
 //! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
@@ -70,7 +71,9 @@ macro_rules! gen_enum_subcommand_args {
 
 gen_enum_subcommand_args! {
     Focus: OperationDirection,
+    Move: OperationDirection,
     CycleFocus: CycleDirection,
+    CycleMove: CycleDirection,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
 }
@@ -159,9 +162,15 @@ enum SubCommand {
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
+    /// Move the focused window in the specified direction
+    #[clap(arg_required_else_help = true)]
+    Move(Move),
     /// Change focus to the window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleFocus(CycleFocus),
+    /// Move the focused window in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMove(CycleMove),
     /// Force the retiling of all managed windows
     Retile,
     /// Enable or disable mouse follows focus on all workspaces
@@ -289,8 +298,14 @@ fn main() -> eyre::Result<()> {
         SubCommand::Focus(args) => {
             send_message(&SocketMessage::FocusWindow(args.operation_direction))?;
         }
+        SubCommand::Move(args) => {
+            send_message(&SocketMessage::MoveWindow(args.operation_direction))?;
+        }
         SubCommand::CycleFocus(args) => {
             send_message(&SocketMessage::CycleFocusWindow(args.cycle_direction))?;
+        }
+        SubCommand::CycleMove(args) => {
+            send_message(&SocketMessage::CycleMoveWindow(args.cycle_direction))?;
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;

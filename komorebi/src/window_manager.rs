@@ -9,7 +9,9 @@
 //! It also owns the daemon's command socket, which [`listen_for_commands`] reads
 //! ([`WindowManager::process_command`]), carries out the orders that come in on it, such as
 //! moving the focus ([`WindowManager::focus_container_in_direction`],
-//! [`WindowManager::focus_container_in_cycle_direction`]), and stops the daemon when it is asked
+//! [`WindowManager::focus_container_in_cycle_direction`]) and moving the focused container
+//! ([`WindowManager::move_container_in_direction`],
+//! [`WindowManager::move_container_in_cycle_direction`]), and stops the daemon when it is asked
 //! to ([`WindowManager::stop`]).
 //!
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
@@ -156,6 +158,44 @@ impl WindowManager {
         {
             focused_window.focus(mouse_follows_focus)?;
         }
+
+        Ok(())
+    }
+
+    /// Swaps the focused container with the one whose tile is on the `direction` side of it, so
+    /// that the focused window takes that tile, and tiles the workspace again
+    ///
+    /// The container keeps the focus, and the pointer follows it if
+    /// [`WindowManager::mouse_follows_focus`] is set. A lock stays with its index: a container
+    /// that is swapped onto the index of a locked one is locked in its place
+    /// ([`Workspace::swap_containers`]).
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or no container on that side of the focused one.
+    /// - The workspace cannot be tiled, or the backend refuses to focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        let workspace = self.focused_workspace()?;
+
+        tracing::info!("moving container");
+
+        let origin_container_idx = workspace.focused_container_idx();
+        let target_container_idx = workspace.new_idx_for_direction(direction);
+
+        match target_container_idx {
+            None => bail!("there is no container in this direction"),
+            Some(new_idx) => {
+                let workspace = self.focused_workspace_mut()?;
+                workspace.swap_containers(origin_container_idx, new_idx);
+                workspace.focus_container(new_idx);
+            }
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)?;
 
         Ok(())
     }
@@ -332,6 +372,35 @@ impl WindowManager {
         self.focused_window_mut()?.focus(mouse_follows_focus)?;
 
         Ok(())
+    }
+
+    /// Swaps the focused container with the next (or the previous) one of the focused
+    /// workspace, wrapping around at the ends, and tiles the workspace again
+    ///
+    /// The container keeps the focus, and the pointer follows it if
+    /// [`WindowManager::mouse_follows_focus`] is set.
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or it has no containers.
+    /// - The workspace cannot be tiled, or the backend refuses to focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+
+        tracing::info!("moving container");
+
+        let current_idx = workspace.focused_container_idx();
+        let new_idx = workspace
+            .new_idx_for_cycle_direction(direction)
+            .ok_or_eyre("this is not a valid direction from the current position")?;
+
+        workspace.swap_containers(current_idx, new_idx);
+        workspace.focus_container(new_idx);
+        self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
     pub fn update_known_window_ids(&mut self) {

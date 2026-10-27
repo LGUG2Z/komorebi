@@ -178,6 +178,19 @@ fn focus_and_cycle_focus_send_the_direction_they_are_given() {
 }
 
 #[test]
+fn move_and_cycle_move_send_the_direction_they_are_given() {
+    sends(
+        &["move", "right"],
+        r#"{"type":"MoveWindow","content":"Right"}"#,
+    );
+    sends(&["move", "up"], r#"{"type":"MoveWindow","content":"Up"}"#);
+    sends(
+        &["cycle-move", "previous"],
+        r#"{"type":"CycleMoveWindow","content":"Previous"}"#,
+    );
+}
+
+#[test]
 fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
     sends(
         &["mouse-follows-focus", "enable"],
@@ -234,11 +247,13 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
         [
             "completions.md",
             "cycle-focus.md",
+            "cycle-move.md",
             "data-directory.md",
             "focus.md",
             "log.md",
             "monitor-information.md",
             "mouse-follows-focus.md",
+            "move.md",
             "query.md",
             "retile.md",
             "start.md",

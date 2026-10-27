@@ -27,7 +27,7 @@ its place here.
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
   the focus, minimized or restored ([`WindowManagerEvent`]).
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
-  (focus a window, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
+  (focus a window, move it, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
 - **Direction**: where an order goes from the focused container: a side of its tile
   ([`OperationDirection`]), or the next or the previous container of the workspace
   ([`CycleDirection`]).
@@ -254,6 +254,14 @@ container in that direction, the message fails and changes nothing. Whether the 
 the focus is [`WindowManager::mouse_follows_focus`], which `MouseFollowsFocus` and
 `ToggleMouseFollowsFocus` set.
 
+`MoveWindow` and `CycleMoveWindow` swap the focused container with the container in that
+direction ([`WindowManager::move_container_in_direction`],
+[`WindowManager::move_container_in_cycle_direction`]), and tile the workspace again: the window
+that moved takes the other's tile, keeps the focus, and the pointer follows it. The swap goes
+through `LockableSequence`, so a lock stays with its index: the container swapped onto a locked
+index is locked in its place. When there is no container in that direction, the message fails
+and nothing moves.
+
 ## The NixOS module
 
 The flake exports one module under two names, `nixosModules.default` and
@@ -304,7 +312,7 @@ module's unit.
   changes its containers.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
-  window out, move the focus).
+  window out, move the focus, move the focused container).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -386,6 +394,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | Messages are handled one at a time, and in order on one connection | framework path: [`read_commands_uds`] reads a connection line by line and handles each message with the window manager locked | `the_messages_on_one_connection_are_handled_in_order` | none |
 | A socket left behind by a daemon that did not stop cleanly does not keep the next one from starting | framework path: [`WindowManager::new`] removes the file before it binds | `a_socket_file_left_behind_is_replaced` | none |
 | A daemon that is told to stop leaves no socket behind | framework path: [`WindowManager::stop`] removes it before it exits | `the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to` | `SIGKILL` |
+| A container moved onto a locked index is locked in its place, and the lock leaves the container that moved away | framework path: [`Workspace::swap_containers`] swaps through `LockableSequence`, which keeps the lock with the index | `test_swap_respecting_locks_various_cases`, `a_lock_stays_with_its_index_when_a_window_is_moved_onto_it` | `containers_mut()` is the `VecDeque` itself |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
@@ -494,8 +503,9 @@ A window is shown, and ends up on a tile:
   driven end to end against the fake.
 - [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
   from its start to a `Stop`.
-- [`komorebi/tests/focus.rs`](../../komorebi/tests/focus.rs): the focus commands against the
-  fake.
+- [`komorebi/tests/focus.rs`](../../komorebi/tests/focus.rs) and
+  [`komorebi/tests/moving.rs`](../../komorebi/tests/moving.rs): the focus and move commands
+  against the fake.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),
@@ -524,6 +534,9 @@ A window is shown, and ends up on a tile:
 [`WindowManager::focus_container_in_direction`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::focus_container_in_cycle_direction`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::mouse_follows_focus`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::move_container_in_direction`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::move_container_in_cycle_direction`]: ../../komorebi/src/window_manager.rs
+[`Workspace::swap_containers`]: ../../komorebi/src/workspace.rs
 [`Workspace::new_idx_for_direction`]: ../../komorebi/src/workspace.rs
 [`Workspace::new_idx_for_cycle_direction`]: ../../komorebi/src/workspace.rs
 [`OperationDirection`]: ../../komorebi/src/core/mod.rs

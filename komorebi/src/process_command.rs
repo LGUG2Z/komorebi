@@ -16,6 +16,10 @@
 //!   focused one, or to the next or the previous one in the workspace
 //!   ([`WindowManager::focus_container_in_direction`],
 //!   [`WindowManager::focus_container_in_cycle_direction`]).
+//! - **MoveWindow** and **CycleMoveWindow** swap the focused container with the one on one side
+//!   of it, or with the next or the previous one, and tile the workspace again
+//!   ([`WindowManager::move_container_in_direction`],
+//!   [`WindowManager::move_container_in_cycle_direction`]).
 //! - **MouseFollowsFocus** and **ToggleMouseFollowsFocus** set whether the pointer is moved to
 //!   the window that is given the focus.
 //! - **Retile** tiles the focused workspace of every monitor again.
@@ -107,6 +111,9 @@ impl WindowManager {
     /// - The focus cannot be moved, for one of the reasons
     ///   [`WindowManager::focus_container_in_direction`] and
     ///   [`WindowManager::focus_container_in_cycle_direction`] give.
+    /// - The focused container cannot be moved, for one of the reasons
+    ///   [`WindowManager::move_container_in_direction`] and
+    ///   [`WindowManager::move_container_in_cycle_direction`] give.
     /// - The window manager fails to retile, for one of the reasons
     ///   [`WindowManager::retile_all`] gives.
     /// - The answer cannot be written to `reply`.
@@ -128,8 +135,14 @@ impl WindowManager {
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
             }
+            SocketMessage::MoveWindow(direction) => {
+                self.move_container_in_direction(direction)?;
+            }
             SocketMessage::CycleFocusWindow(direction) => {
                 self.focus_container_in_cycle_direction(direction)?;
+            }
+            SocketMessage::CycleMoveWindow(direction) => {
+                self.move_container_in_cycle_direction(direction)?;
             }
             SocketMessage::Retile => self.retile_all()?,
             SocketMessage::State => {
