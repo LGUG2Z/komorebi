@@ -47,6 +47,21 @@ impl Lockable for Container {
 }
 
 impl Container {
+    /// Returns the empty container that holds the place a preselection reserved
+    /// ([`Workspace::preselect_container_idx`](crate::workspace::Workspace::preselect_container_idx))
+    pub fn preselect() -> Self {
+        Self {
+            id: "PRESELECT".to_string(),
+            locked: false,
+            windows: Default::default(),
+        }
+    }
+
+    /// Returns true if and only if this is the container of a preselection
+    pub fn is_preselect(&self) -> bool {
+        self.id == "PRESELECT"
+    }
+
     pub fn contains_window(&self, window_id: u32) -> bool {
         for window in self.windows() {
             if window.id == window_id {

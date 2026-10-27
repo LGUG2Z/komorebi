@@ -191,6 +191,32 @@ fn move_and_cycle_move_send_the_direction_they_are_given() {
 }
 
 #[test]
+fn the_layout_subcommands_send_the_layout_axis_or_direction_they_are_given() {
+    sends(
+        &["change-layout", "vertical-stack"],
+        r#"{"type":"ChangeLayout","content":"VerticalStack"}"#,
+    );
+    sends(
+        &["change-layout", "bsp"],
+        r#"{"type":"ChangeLayout","content":"BSP"}"#,
+    );
+    sends(
+        &["cycle-layout", "next"],
+        r#"{"type":"CycleLayout","content":"Next"}"#,
+    );
+    sends(
+        &["flip-layout", "horizontal-and-vertical"],
+        r#"{"type":"FlipLayout","content":"HorizontalAndVertical"}"#,
+    );
+    sends(&["toggle-tiling"], r#"{"type":"ToggleTiling"}"#);
+    sends(
+        &["preselect-direction", "up"],
+        r#"{"type":"PreselectDirection","content":"Up"}"#,
+    );
+    sends(&["cancel-preselect"], r#"{"type":"CancelPreselect"}"#);
+}
+
+#[test]
 fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
     sends(
         &["mouse-follows-focus", "enable"],
@@ -245,15 +271,20 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
     assert_eq!(
         pages,
         [
+            "cancel-preselect.md",
+            "change-layout.md",
             "completions.md",
             "cycle-focus.md",
+            "cycle-layout.md",
             "cycle-move.md",
             "data-directory.md",
+            "flip-layout.md",
             "focus.md",
             "log.md",
             "monitor-information.md",
             "mouse-follows-focus.md",
             "move.md",
+            "preselect-direction.md",
             "query.md",
             "retile.md",
             "start.md",
@@ -261,6 +292,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "stop.md",
             "subscribe-socket.md",
             "toggle-mouse-follows-focus.md",
+            "toggle-tiling.md",
             "unsubscribe-socket.md",
         ]
     );

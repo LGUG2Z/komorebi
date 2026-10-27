@@ -339,8 +339,18 @@ pub enum SocketMessage {
     // Window / Container Commands
     FocusWindow(OperationDirection),
     MoveWindow(OperationDirection),
+    PreselectDirection(OperationDirection),
+    CancelPreselect,
     CycleFocusWindow(CycleDirection),
     CycleMoveWindow(CycleDirection),
+    // Current Workspace Commands
+    ChangeLayout(DefaultLayout),
+    CycleLayout(CycleDirection),
+    // ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    FlipLayout(Axis),
+    // Monitor and Workspace Commands
+    // MonitorIndexPreference(usize, i32, i32, i32, i32),
+    ToggleTiling,
     Stop,
     Retile,
     State,

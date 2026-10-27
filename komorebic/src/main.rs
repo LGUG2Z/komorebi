@@ -7,7 +7,10 @@
 //!
 //! `focus` and `cycle-focus` give the focus to another window of the focused workspace, and
 //! `mouse-follows-focus` and `toggle-mouse-follows-focus` set whether the pointer goes with it.
-//! `move` and `cycle-move` move the focused window to another tile.
+//! `move` and `cycle-move` move the focused window to another tile. `change-layout`,
+//! `cycle-layout` and `flip-layout` change the layout of the focused workspace, `toggle-tiling`
+//! turns its tiling off and on, and `preselect-direction` and `cancel-preselect` reserve the
+//! place of the next window and give it up.
 //!
 //! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
@@ -24,7 +27,9 @@ use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
+use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
+use komorebi_client::DefaultLayout;
 use komorebi_client::OperationDirection;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
@@ -72,8 +77,13 @@ macro_rules! gen_enum_subcommand_args {
 gen_enum_subcommand_args! {
     Focus: OperationDirection,
     Move: OperationDirection,
+    PreselectDirection: OperationDirection,
     CycleFocus: CycleDirection,
     CycleMove: CycleDirection,
+    FlipLayout: Axis,
+    ChangeLayout: DefaultLayout,
+    CycleLayout: CycleDirection,
+    // WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
 }
@@ -165,14 +175,34 @@ enum SubCommand {
     /// Move the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Move(Move),
+    /// Preselect the specified direction for the next window to be spawned on supported layouts
+    #[clap(arg_required_else_help = true)]
+    PreselectDirection(PreselectDirection),
+    /// Cancel a workspace preselect set by the preselect-direction command, if one exists
+    CancelPreselect,
     /// Change focus to the window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleFocus(CycleFocus),
     /// Move the focused window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMove(CycleMove),
+    /// Set the layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    ChangeLayout(ChangeLayout),
+    /// Cycle between available layouts
+    #[clap(arg_required_else_help = true)]
+    CycleLayout(CycleLayout),
+    // /// Load a custom layout from file for the focused workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // LoadCustomLayout(LoadCustomLayout),
+    /// Flip the layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FlipLayout(FlipLayout),
     /// Force the retiling of all managed windows
     Retile,
+    /// Toggle window tiling on the focused workspace
+    ToggleTiling,
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -301,14 +331,32 @@ fn main() -> eyre::Result<()> {
         SubCommand::Move(args) => {
             send_message(&SocketMessage::MoveWindow(args.operation_direction))?;
         }
+        SubCommand::PreselectDirection(args) => {
+            send_message(&SocketMessage::PreselectDirection(args.operation_direction))?;
+        }
+        SubCommand::CancelPreselect => {
+            send_message(&SocketMessage::CancelPreselect)?;
+        }
         SubCommand::CycleFocus(args) => {
             send_message(&SocketMessage::CycleFocusWindow(args.cycle_direction))?;
         }
         SubCommand::CycleMove(args) => {
             send_message(&SocketMessage::CycleMoveWindow(args.cycle_direction))?;
         }
+        SubCommand::ChangeLayout(args) => {
+            send_message(&SocketMessage::ChangeLayout(args.default_layout))?;
+        }
+        SubCommand::CycleLayout(args) => {
+            send_message(&SocketMessage::CycleLayout(args.cycle_direction))?;
+        }
+        SubCommand::FlipLayout(args) => {
+            send_message(&SocketMessage::FlipLayout(args.axis))?;
+        }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
+        }
+        SubCommand::ToggleTiling => {
+            send_message(&SocketMessage::ToggleTiling)?;
         }
         SubCommand::State => {
             print_query(&SocketMessage::State);

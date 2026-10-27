@@ -21,7 +21,10 @@ use crate::LibraryError;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::backend::backend;
 use crate::container::Container;
+use crate::core::Axis;
 use crate::core::CycleDirection;
+use crate::core::DefaultLayout;
+use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::desktop;
@@ -117,6 +120,59 @@ impl WindowManager {
         // the windows that were open already are in containers now; an event about one of them
         // (the first thing to happen may be that it closes) has to find it
         self.update_known_window_ids();
+        Ok(())
+    }
+
+    /// Reserves the place on the `direction` side of the focused container for the next window
+    /// that opens on the focused workspace ([`Workspace::preselect_container_idx`])
+    ///
+    /// The grid layout has no preselection: there, and where there is no container on that side,
+    /// nothing is reserved.
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace.
+    #[tracing::instrument(skip(self))]
+    pub fn preselect_container_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        let focused_idx = workspace.focused_container_idx();
+
+        if matches!(workspace.layout, Layout::Default(DefaultLayout::Grid)) {
+            tracing::warn!("preselection is not supported on the grid layout");
+            return Ok(());
+        }
+
+        tracing::info!("preselecting container");
+
+        let new_idx = workspace.new_idx_for_direction(direction);
+
+        match new_idx {
+            Some(new_idx) => {
+                let adjusted_idx = match direction {
+                    OperationDirection::Left | OperationDirection::Up => {
+                        if focused_idx.abs_diff(new_idx) == 1 {
+                            new_idx + 1
+                        } else {
+                            new_idx
+                        }
+                    }
+
+                    _ => new_idx,
+                };
+
+                workspace.preselect_container_idx(adjusted_idx);
+            }
+
+            None => {
+                tracing::debug!(
+                    "this is not a valid preselection direction from the current position"
+                )
+            }
+        }
+
         Ok(())
     }
 
@@ -221,6 +277,21 @@ impl WindowManager {
         }
 
         Ok(())
+    }
+
+    /// Gives the focused workspace the layout `layout` and tiles it again
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or it cannot be tiled.
+    #[tracing::instrument(skip(self))]
+    pub fn change_workspace_layout_default(&mut self, layout: DefaultLayout) -> eyre::Result<()> {
+        tracing::info!("changing layout");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        workspace.layout = Layout::Default(layout);
+        self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
     pub fn focused_workspace_idx(&self) -> eyre::Result<usize> {
@@ -342,6 +413,99 @@ impl WindowManager {
         }
 
         Ok(())
+    }
+
+    /// Mirrors the layout of the focused workspace along `layout_flip`, on top of the way it is
+    /// mirrored already, and tiles the workspace again
+    ///
+    /// Flipping along an axis the layout is already flipped along undoes that flip, so flipping
+    /// twice along the same axis puts the layout back.
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or it cannot be tiled.
+    #[tracing::instrument(skip(self))]
+    pub fn flip_layout(&mut self, layout_flip: Axis) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+
+        tracing::info!("flipping layout");
+
+        #[allow(clippy::match_same_arms)]
+        match workspace.layout_flip {
+            None => {
+                workspace.layout_flip = Option::from(layout_flip);
+            }
+            Some(current_layout_flip) => {
+                match current_layout_flip {
+                    Axis::Horizontal => match layout_flip {
+                        Axis::Horizontal => workspace.layout_flip = None,
+                        Axis::Vertical => {
+                            workspace.layout_flip = Option::from(Axis::HorizontalAndVertical)
+                        }
+                        Axis::HorizontalAndVertical => {
+                            workspace.layout_flip = Option::from(Axis::HorizontalAndVertical)
+                        }
+                    },
+                    Axis::Vertical => match layout_flip {
+                        Axis::Horizontal => {
+                            workspace.layout_flip = Option::from(Axis::HorizontalAndVertical)
+                        }
+                        Axis::Vertical => workspace.layout_flip = None,
+                        Axis::HorizontalAndVertical => {
+                            workspace.layout_flip = Option::from(Axis::HorizontalAndVertical)
+                        }
+                    },
+                    Axis::HorizontalAndVertical => match layout_flip {
+                        Axis::Horizontal => workspace.layout_flip = Option::from(Axis::Vertical),
+                        Axis::Vertical => workspace.layout_flip = Option::from(Axis::Horizontal),
+                        Axis::HorizontalAndVertical => workspace.layout_flip = None,
+                    },
+                };
+            }
+        }
+
+        self.update_focused_workspace(false, false)
+    }
+
+    /// Gives the focused workspace the next (or the previous) layout, in the order of
+    /// [`DefaultLayout`], and tiles it again
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or it cannot be tiled.
+    #[tracing::instrument(skip(self))]
+    pub fn cycle_layout(&mut self, direction: CycleDirection) -> eyre::Result<()> {
+        tracing::info!("cycling layout");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        match workspace.layout {
+            Layout::Default(current) => {
+                let new_layout = match direction {
+                    CycleDirection::Previous => current.cycle_previous(),
+                    CycleDirection::Next => current.cycle_next(),
+                };
+
+                tracing::info!("next layout: {new_layout}");
+                workspace.layout = Layout::Default(new_layout);
+            }
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus, false)
+    }
+
+    /// Turns the tiling of the focused workspace off, or back on and tiles it again
+    ///
+    /// While its tiling is off, the workspace keeps its containers and moves no window.
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or it cannot be tiled.
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_tiling(&mut self) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        workspace.tile = !workspace.tile;
+        self.update_focused_workspace(false, false)
     }
 
     /// Gives the focus to the window of the next (or the previous) container of the focused
@@ -522,6 +686,43 @@ mod tests {
         wm.focus_container_in_cycle_direction(CycleDirection::Previous)
             .ok();
         assert_eq!(wm.focused_container_idx().unwrap(), 0);
+    }
+
+    #[test]
+    fn test_toggle_tiling() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            let workspace = m.focused_workspace_mut().unwrap();
+
+            // Tiling state should be true
+            assert!(workspace.tile);
+
+            // Add monitor to workspace
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Tiling state should be false
+            wm.toggle_tiling().unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(!workspace.tile);
+        }
+
+        {
+            // Tiling state should be true
+            wm.toggle_tiling().unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(workspace.tile);
+        }
     }
 
     #[test]

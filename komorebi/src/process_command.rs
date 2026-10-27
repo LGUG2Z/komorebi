@@ -20,6 +20,13 @@
 //!   of it, or with the next or the previous one, and tile the workspace again
 //!   ([`WindowManager::move_container_in_direction`],
 //!   [`WindowManager::move_container_in_cycle_direction`]).
+//! - **ChangeLayout**, **CycleLayout** and **FlipLayout** give the focused workspace another
+//!   layout, or mirror it, and **ToggleTiling** turns its tiling off and on
+//!   ([`WindowManager::change_workspace_layout_default`], [`WindowManager::cycle_layout`],
+//!   [`WindowManager::flip_layout`], [`WindowManager::toggle_tiling`]).
+//! - **PreselectDirection** reserves the place on one side of the focused container for the next
+//!   window ([`WindowManager::preselect_container_in_direction`]), unless a place is reserved
+//!   already, and **CancelPreselect** gives the reserved place up.
 //! - **MouseFollowsFocus** and **ToggleMouseFollowsFocus** set whether the pointer is moved to
 //!   the window that is given the focus.
 //! - **Retile** tiles the focused workspace of every monitor again.
@@ -114,6 +121,8 @@ impl WindowManager {
     /// - The focused container cannot be moved, for one of the reasons
     ///   [`WindowManager::move_container_in_direction`] and
     ///   [`WindowManager::move_container_in_cycle_direction`] give.
+    /// - There is no focused workspace to change the layout or the tiling of, or to preselect a
+    ///   place in, or it cannot be tiled again.
     /// - The window manager fails to retile, for one of the reasons
     ///   [`WindowManager::retile_all`] gives.
     /// - The answer cannot be written to `reply`.
@@ -135,6 +144,28 @@ impl WindowManager {
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
             }
+            SocketMessage::PreselectDirection(direction) => {
+                let focused_workspace = self.focused_workspace()?;
+                let mut update = false;
+
+                if focused_workspace.preselected_container_idx.is_some() {
+                    tracing::warn!(
+                        "ignoring command as this workspace already has a direction preselect set"
+                    );
+                } else {
+                    self.preselect_container_in_direction(direction)?;
+                    update = true;
+                }
+
+                if update {
+                    self.focused_workspace_mut()?.update()?;
+                }
+            }
+            SocketMessage::CancelPreselect => {
+                let focused_workspace = self.focused_workspace_mut()?;
+                focused_workspace.cancel_preselect();
+                focused_workspace.update()?;
+            }
             SocketMessage::MoveWindow(direction) => {
                 self.move_container_in_direction(direction)?;
             }
@@ -144,7 +175,13 @@ impl WindowManager {
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
             }
+            SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
+            SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
+            SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::Retile => self.retile_all()?,
+            SocketMessage::ToggleTiling => {
+                self.toggle_tiling()?;
+            }
             SocketMessage::State => {
                 let state = match serde_json::to_string_pretty(&State::from(&*self)) {
                     Ok(state) => state,

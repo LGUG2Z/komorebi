@@ -6,6 +6,7 @@
 //! falls back to come from the monitor it is on ([`WorkspaceGlobals`]).
 
 use crate::container::Container;
+use crate::core::Axis;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
@@ -26,10 +27,14 @@ use std::num::NonZeroUsize;
 pub struct Workspace {
     pub containers: Ring<Container>,
     pub layout: Layout,
+    pub layout_flip: Option<Axis>,
     pub workspace_padding: Option<i32>,
     pub container_padding: Option<i32>,
+    pub tile: bool,
     #[serde(skip)]
     pub globals: WorkspaceGlobals,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preselected_container_idx: Option<usize>,
 }
 
 impl_ring_elements!(Workspace, Container);
@@ -41,7 +46,10 @@ impl Default for Workspace {
             workspace_padding: None,
             container_padding: None,
             layout: Layout::Default(DefaultLayout::BSP),
+            layout_flip: None,
             globals: Default::default(),
+            tile: true,
+            preselected_container_idx: None,
         }
     }
 }
@@ -69,6 +77,22 @@ impl Workspace {
         self.focus_container(j);
     }
 
+    /// Reserves the index `insertion_idx` for the next window: an empty container is inserted
+    /// there, which the layout gives a tile, and [`Workspace::new_container_for_window`] puts the
+    /// next window in it
+    pub fn preselect_container_idx(&mut self, insertion_idx: usize) {
+        self.preselected_container_idx = Some(insertion_idx);
+        self.insert_container_at_idx(insertion_idx, Container::preselect());
+    }
+
+    /// Removes the container a preselection reserved, if there is one
+    pub fn cancel_preselect(&mut self) {
+        if let Some(idx) = self.preselected_container_idx {
+            self.containers_mut().remove_respecting_locks(idx);
+            self.preselected_container_idx = None;
+        }
+    }
+
     /// Returns the index of the container whose tile is on the `direction` side of the focused
     /// one in the workspace's layout, or `None` when there is none on that side
     pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
@@ -76,7 +100,7 @@ impl Workspace {
 
         direction.destination(
             self.layout.as_boxed_direction().as_ref(),
-            None,
+            self.layout_flip,
             self.focused_container_idx(),
             len,
             None,
@@ -124,10 +148,16 @@ impl Workspace {
         Ok(())
     }
 
-    /// Puts the window in a container of its own, after the focused container (at the start of an
-    /// empty workspace), and focuses that container
+    /// Puts the window in a container of its own, and focuses that container: in the container a
+    /// preselection reserved, if there is one, and otherwise after the focused container (at the
+    /// start of an empty workspace)
     pub fn new_container_for_window(&mut self, window: &Window) -> eyre::Result<()> {
-        let next_idx = if self.containers().is_empty() {
+        let next_idx = if let Some(idx) = self.preselected_container_idx {
+            let next = idx;
+            self.preselected_container_idx = None;
+            self.remove_container_by_idx(next);
+            next
+        } else if self.containers().is_empty() {
             0
         } else {
             self.focused_container_idx() + 1
@@ -291,14 +321,16 @@ impl Workspace {
     /// Tiles the workspace: asks the layout for a tile per container in the work area, less the
     /// offset and the workspace padding, and puts every window of each container on its tile.
     ///
-    /// Containers that have no windows left are dropped first, and so is a window that is in more
-    /// than one container. A tile is clamped to the work area, so it cannot bleed onto a
-    /// neighboring monitor.
+    /// Containers that have no windows left are dropped first, except the one a preselection
+    /// reserved, and so is a window that is in more than one container. A tile is clamped to the
+    /// work area, so it cannot bleed onto a neighboring monitor. A workspace whose tiling is off
+    /// ([`Workspace::tile`] is false) moves no window.
     pub fn update(&mut self) -> eyre::Result<()> {
         // make sure we are never holding on to empty containers
         self.prune_duplicate_windows()?;
         let focused_container_idx = self.focused_container_idx();
-        self.containers_mut().retain(|c| !c.windows().is_empty());
+        self.containers_mut()
+            .retain(|c| c.is_preselect() || !c.windows().is_empty());
 
         // make sure we are never focused on a no longer existent final empty container
         if focused_container_idx >= self.containers().len() {
@@ -331,63 +363,66 @@ impl Workspace {
 
         adjusted_work_area.add_padding(workspace_padding);
 
-        // the backend batches the commands this produces and sends them together
-        let result = (|| -> eyre::Result<()> {
-            if !self.containers().is_empty() {
-                let mut layouts = self.layout.as_boxed_arrangement().calculate(
-                    &adjusted_work_area,
-                    NonZeroUsize::new(self.containers().len()).ok_or_eyre(
-                        "there must be at least one container to calculate a workspace layout",
-                    )?,
-                    Some(container_padding),
-                    None,
-                    &[],
-                    self.focused_container_idx(),
-                    None,
-                    &[],
-                );
+        if self.tile {
+            // the backend batches the commands this produces and sends them together
+            let result = (|| -> eyre::Result<()> {
+                if !self.containers().is_empty() {
+                    let mut layouts = self.layout.as_boxed_arrangement().calculate(
+                        &adjusted_work_area,
+                        NonZeroUsize::new(self.containers().len()).ok_or_eyre(
+                            "there must be at least one container to calculate a workspace layout",
+                        )?,
+                        Some(container_padding),
+                        self.layout_flip,
+                        &[],
+                        self.focused_container_idx(),
+                        None,
+                        &[],
+                    );
 
-                let containers = self.containers_mut();
+                    let containers = self.containers_mut();
 
-                for (i, container) in containers.iter_mut().enumerate() {
-                    if let Some(layout) = layouts.get_mut(i) {
-                        // Every tile is clamped to the work area so it cannot bleed onto an
-                        // adjacent monitor.
+                    for (i, container) in containers.iter_mut().enumerate() {
+                        if let Some(layout) = layouts.get_mut(i) {
+                            // Every tile is clamped to the work area so it cannot bleed onto an
+                            // adjacent monitor.
 
-                        // horizontal
-                        if layout.left < adjusted_work_area.left {
-                            layout.right -= adjusted_work_area.left - layout.left;
-                            layout.left = adjusted_work_area.left;
-                        }
-                        let max_right_edge = adjusted_work_area.left + adjusted_work_area.right;
-                        let current_right_edge = layout.left + layout.right;
-                        if current_right_edge > max_right_edge {
-                            layout.right = max_right_edge - layout.left;
-                        }
+                            // horizontal
+                            if layout.left < adjusted_work_area.left {
+                                layout.right -= adjusted_work_area.left - layout.left;
+                                layout.left = adjusted_work_area.left;
+                            }
+                            let max_right_edge = adjusted_work_area.left + adjusted_work_area.right;
+                            let current_right_edge = layout.left + layout.right;
+                            if current_right_edge > max_right_edge {
+                                layout.right = max_right_edge - layout.left;
+                            }
 
-                        // vertical
-                        if layout.top < adjusted_work_area.top {
-                            layout.bottom -= adjusted_work_area.top - layout.top;
-                            layout.top = adjusted_work_area.top;
-                        }
-                        let max_bottom_edge = adjusted_work_area.top + adjusted_work_area.bottom;
-                        let current_bottom_edge = layout.top + layout.bottom;
-                        if current_bottom_edge > max_bottom_edge {
-                            layout.bottom = max_bottom_edge - layout.top;
-                        }
+                            // vertical
+                            if layout.top < adjusted_work_area.top {
+                                layout.bottom -= adjusted_work_area.top - layout.top;
+                                layout.top = adjusted_work_area.top;
+                            }
+                            let max_bottom_edge =
+                                adjusted_work_area.top + adjusted_work_area.bottom;
+                            let current_bottom_edge = layout.top + layout.bottom;
+                            if current_bottom_edge > max_bottom_edge {
+                                layout.bottom = max_bottom_edge - layout.top;
+                            }
 
-                        for window in container.windows_mut() {
-                            if let Err(error) = window.set_position(layout) {
-                                tracing::warn!("failed to set window position: {error}")
+                            for window in container.windows_mut() {
+                                if let Err(error) = window.set_position(layout) {
+                                    tracing::warn!("failed to set window position: {error}")
+                                }
                             }
                         }
                     }
                 }
-            }
-            Ok(())
-        })();
+                Ok(())
+            })();
 
-        result?;
+            result?;
+        }
 
         Ok(())
     }

@@ -27,7 +27,7 @@ its place here.
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
   the focus, minimized or restored ([`WindowManagerEvent`]).
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
-  (focus a window, move it, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
+  (focus a window, move it, change the layout, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
 - **Direction**: where an order goes from the focused container: a side of its tile
   ([`OperationDirection`]), or the next or the previous container of the workspace
   ([`CycleDirection`]).
@@ -262,6 +262,22 @@ through `LockableSequence`, so a lock stays with its index: the container swappe
 index is locked in its place. When there is no container in that direction, the message fails
 and nothing moves.
 
+`ChangeLayout` and `CycleLayout` set the focused workspace's [`Layout`], and `FlipLayout`
+mirrors it along an axis, on top of the flip it has ([`Workspace::layout_flip`]); each tiles
+the workspace again ([`WindowManager::change_workspace_layout_default`],
+[`WindowManager::cycle_layout`], [`WindowManager::flip_layout`]). A flip mirrors the tiles,
+not the order of the containers, and a direction is flipped with them, so `focus left` on a
+flipped layout goes to the tile on the left. `ToggleTiling` turns the workspace's tiling off
+and on ([`Workspace::tile`]): with it off, [`Workspace::update`] moves no window, the workspace
+still takes the windows that open into containers, and they are tiled when it is turned on.
+
+`PreselectDirection` reserves the index on one side of the focused container for the next
+window ([`WindowManager::preselect_container_in_direction`]). The workspace inserts an empty
+container there ([`Container::preselect`]), which [`Workspace::update`] keeps and the layout
+gives a tile, and [`Workspace::new_container_for_window`] puts the next window in it.
+`CancelPreselect` removes it. A workspace reserves one place at a time, and the grid layout
+none.
+
 ## The NixOS module
 
 The flake exports one module under two names, `nixosModules.default` and
@@ -312,7 +328,7 @@ module's unit.
   changes its containers.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
-  window out, move the focus, move the focused container).
+  window out, move the focus, move the focused container, change the layout).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -395,6 +411,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A socket left behind by a daemon that did not stop cleanly does not keep the next one from starting | framework path: [`WindowManager::new`] removes the file before it binds | `a_socket_file_left_behind_is_replaced` | none |
 | A daemon that is told to stop leaves no socket behind | framework path: [`WindowManager::stop`] removes it before it exits | `the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to` | `SIGKILL` |
 | A container moved onto a locked index is locked in its place, and the lock leaves the container that moved away | framework path: [`Workspace::swap_containers`] swaps through `LockableSequence`, which keeps the lock with the index | `test_swap_respecting_locks_various_cases`, `a_lock_stays_with_its_index_when_a_window_is_moved_onto_it` | `containers_mut()` is the `VecDeque` itself |
+| A workspace whose tiling is off moves no window | framework path: [`Workspace::update`] returns before the layout when [`Workspace::tile`] is false | `with_tiling_off_no_window_is_moved_until_it_is_back_on` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
@@ -503,9 +520,12 @@ A window is shown, and ends up on a tile:
   driven end to end against the fake.
 - [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
   from its start to a `Stop`.
-- [`komorebi/tests/focus.rs`](../../komorebi/tests/focus.rs) and
-  [`komorebi/tests/moving.rs`](../../komorebi/tests/moving.rs): the focus and move commands
-  against the fake.
+- [`komorebi/tests/focus.rs`](../../komorebi/tests/focus.rs),
+  [`komorebi/tests/moving.rs`](../../komorebi/tests/moving.rs) and
+  [`komorebi/tests/layouts.rs`](../../komorebi/tests/layouts.rs): the focus, move and layout
+  commands against the fake.
+- [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
+  and every `komorebic` command, against a real KWin with two outputs.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),
@@ -537,6 +557,14 @@ A window is shown, and ends up on a tile:
 [`WindowManager::move_container_in_direction`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::move_container_in_cycle_direction`]: ../../komorebi/src/window_manager.rs
 [`Workspace::swap_containers`]: ../../komorebi/src/workspace.rs
+[`Workspace::layout_flip`]: ../../komorebi/src/workspace.rs
+[`Workspace::tile`]: ../../komorebi/src/workspace.rs
+[`Layout`]: ../../komorebi/src/core/mod.rs
+[`Container::preselect`]: ../../komorebi/src/container.rs
+[`WindowManager::change_workspace_layout_default`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::cycle_layout`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::flip_layout`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::preselect_container_in_direction`]: ../../komorebi/src/window_manager.rs
 [`Workspace::new_idx_for_direction`]: ../../komorebi/src/workspace.rs
 [`Workspace::new_idx_for_cycle_direction`]: ../../komorebi/src/workspace.rs
 [`OperationDirection`]: ../../komorebi/src/core/mod.rs

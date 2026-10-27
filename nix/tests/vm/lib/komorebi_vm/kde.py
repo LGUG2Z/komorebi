@@ -288,6 +288,15 @@ class Kde:
         containers = self._workspace(workspace)["containers"]["elements"]
         return sum(len(container["windows"]["elements"]) for container in containers)
 
+    def managed_all(self) -> int:
+        """The number of windows the daemon has, in the containers of every workspace it has."""
+        return sum(
+            len(container["windows"]["elements"])
+            for monitor in self.state()["monitors"]["elements"]
+            for workspace in monitor["workspaces"]["elements"]
+            for container in workspace["containers"]["elements"]
+        )
+
     def monitor_bridge(self, path: str) -> None:
         """Starts recording the bridge's traffic on the session bus to `path`, in the background.
 

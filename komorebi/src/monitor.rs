@@ -212,10 +212,15 @@ impl Monitor {
         }
     }
 
-    /// The layout of the focused workspace, if the monitor has one
+    /// The layout of the focused workspace, if the monitor has one and its tiling is on
     pub fn focused_workspace_layout(&self) -> Option<Layout> {
-        self.focused_workspace()
-            .map(|workspace| workspace.layout.clone())
+        self.focused_workspace().and_then(|workspace| {
+            if workspace.tile {
+                Some(workspace.layout.clone())
+            } else {
+                None
+            }
+        })
     }
 }
 

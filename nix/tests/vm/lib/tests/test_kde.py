@@ -381,6 +381,22 @@ def test_managed_counts_the_windows_of_every_container_of_the_workspace(
     assert kde.managed(1) == 1
 
 
+def test_managed_all_counts_the_windows_of_every_workspace_of_every_monitor(
+    machine: FakeMachine,
+) -> None:
+    first = {"id": 1, "workspaces": {"elements": [workspace(container("a", "b"))], "focused": 0}}
+    second = {
+        "id": 2,
+        "workspaces": {"elements": [workspace(container("c")), workspace()], "focused": 0},
+    }
+    machine.reply(
+        "komorebic state",
+        output=json.dumps({"monitors": {"elements": [first, second], "focused": 0}}),
+    )
+
+    assert Kde(machine, "main").managed_all() == 3
+
+
 def test_managed_is_zero_for_a_workspace_without_containers(machine: FakeMachine) -> None:
     machine.reply("komorebic state", output=a_state(workspace()))
 
