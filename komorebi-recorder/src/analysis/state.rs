@@ -206,6 +206,10 @@ pub struct Window {
     /// The program: an application name on a Mac, an executable file name on Windows. Empty if the
     /// state has none, and komorebi's error text for a window it could not read.
     pub exe: String,
+    /// The window's class, which komorebi for Windows reads from the window (`Chrome_WidgetWin_1`).
+    /// Empty on a Mac, which has none, and when the state has none or komorebi could not read the
+    /// window (its error text is not a class).
+    pub class: String,
     /// Where the window really was when the state was serialized (a live read from the OS, not
     /// komorebi's bookkeeping). `None` if the state has no rect for it, or if komorebi could not read
     /// the window ([`Rules::window_is_unreadable`]), so that a rect of zeros is not mistaken for a
@@ -443,6 +447,11 @@ fn window(rules: &dyn Rules, value: &Value) -> Option<Window> {
         id,
         title: text(details, "title"),
         exe: text(details, "exe"),
+        class: if unreadable {
+            String::new()
+        } else {
+            text(details, "class")
+        },
         rect: value
             .get("rect")
             .and_then(Rect::from_value)
