@@ -17,6 +17,10 @@ use komorebi_hotkeys::Run;
 use komorebi_hotkeys::Severity;
 use komorebi_hotkeys::Span;
 use komorebi_hotkeys::Then;
+use komorebi_hotkeys::kde::desktop_files;
+use komorebi_hotkeys::plan::PlanMode;
+use komorebi_hotkeys::plan::PlanOptions;
+use komorebi_hotkeys::plan::plan;
 use std::path::PathBuf;
 
 /// Every case, and the formats it is written in.
@@ -340,5 +344,45 @@ fn the_files_of_a_case_read_into_the_same_keymap() {
                 pair[0].0, pair[1].0
             );
         }
+    }
+}
+
+#[test]
+fn the_sample_plans_into_the_same_shortcut_files_in_every_format() {
+    let mut planned = Vec::new();
+    for extension in ["skhdrc", "whkdrc", "sxhkdrc"] {
+        let parsed = parse(extension, &read("sample", extension)).unwrap();
+        let plan = plan(
+            &parsed.keymap,
+            &PlanOptions {
+                mode: PlanMode::Auto,
+            },
+        );
+        assert!(!plan.needs_engine(), "{extension}");
+        assert!(
+            plan.diagnostics.is_empty(),
+            "{extension}: {:#?}",
+            plan.diagnostics
+        );
+
+        let files = desktop_files(&plan.static_files);
+        assert_eq!(files.len(), 50, "{extension}");
+        // everything but the comment, which quotes the file
+        let files: Vec<(String, Vec<String>)> = files
+            .into_iter()
+            .map(|file| {
+                let lines = file
+                    .content
+                    .lines()
+                    .filter(|line| !line.starts_with("Comment="))
+                    .map(str::to_string)
+                    .collect();
+                (file.name, lines)
+            })
+            .collect();
+        planned.push((extension, files));
+    }
+    for pair in planned.windows(2) {
+        assert_eq!(pair[0].1, pair[1].1, "{} and {}", pair[0].0, pair[1].0);
     }
 }

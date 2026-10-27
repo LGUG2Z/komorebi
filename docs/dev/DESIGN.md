@@ -722,3 +722,27 @@ recorded; this entry needs one.
 What is not plain syntax is expanded while the file is read: sxhkd's braces become one binding
 per alternative, and skhd's `.define` templates and application groups are replaced where
 they are used, so the model has only expanded bindings in it.
+
+## Why are some bindings shortcut files, and the others the engine's?
+
+A KDE global shortcut can be a `.desktop` file that KDE reads by itself. Such a static
+shortcut is robust: it shows in System Settings, where it can be changed, and it survives a
+komorebi process that has died. But it is one combo that runs one command: it cannot be in a
+mode, wait for the second key of a chord, fire on release, or do something else in each
+application. So a binding is a static shortcut when it is in the default mode, a single combo,
+unscoped and a press binding, and the file declares no modes; everything else goes through
+the engine, in which komorebi registers the keys itself and decides what each press does. A
+blacklist and a pause binding apply to every binding, so a file with either is the engine's
+too.
+
+## Why does the engine handle every binding by default?
+
+The plan was to make static shortcuts the default and to switch the default if a static
+shortcut turned out to be slow to start its command. It did: on KWin 6.8.1 (in a virtual
+machine, on 2026-10-27) a static shortcut ran its command 165 to 436 ms after the key, 233 ms
+at the median, while the engine was told of the key 3 ms after it. So the default is
+`PlanMode::Engine`, and `PlanMode::Auto` and `PlanMode::Static` stay selectable.
+
+The cost is the robustness of static shortcuts: the engine works only while komorebi runs,
+and a komorebi process that was killed leaves its keys registered and dead until they are
+released.

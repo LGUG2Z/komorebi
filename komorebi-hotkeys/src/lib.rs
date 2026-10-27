@@ -1,4 +1,4 @@
-//! One model for the key bindings of skhd, whkd and sxhkd files, with the keys as KDE stores them.
+//! Reads the key binding files of skhd, whkd and sxhkd, and plans them as KDE global shortcuts.
 //!
 //! skhd (macOS), whkd (Windows) and sxhkd (X11) are hotkey daemons: each reads a file of key
 //! bindings and runs a command when a combination of keys is pressed. komorebi users keep their
@@ -91,10 +91,40 @@
 //! assert_eq!(diagnostic.span.line, 2);
 //! assert_eq!(&text[diagnostic.span.start..diagnostic.span.end], "lalt");
 //! ```
+//!
+//! # Planning: static shortcuts and the engine
+//!
+//! KDE can run a command on a key by itself, from a `.desktop` file: a static shortcut, which
+//! [`kde`] writes. It works with no komorebi process and shows in System Settings, but it can only
+//! be one combo, pressed, the same in every application. Everything else (modes, chord chains,
+//! release bindings, per-application bindings, a blacklist, a pause binding) needs komorebi to
+//! register the keys and decide what each press does: the engine. [`plan::plan`] sorts a keymap's
+//! bindings into the two, by [`plan::PlanMode`]; by default the engine handles all of them.
+//!
+//! ```rust
+//! use komorebi_hotkeys::{Format, ParseOptions, parse};
+//! use komorebi_hotkeys::kde::desktop_files;
+//! use komorebi_hotkeys::plan::{PlanMode, PlanOptions, plan};
+//!
+//! let parsed = parse(Format::Whkd, "alt + h : komorebic focus left\n", &ParseOptions::default());
+//! let plan = plan(&parsed.keymap, &PlanOptions { mode: PlanMode::Auto });
+//! let files = desktop_files(&plan.static_files);
+//! assert_eq!(files[0].name, "komorebi-focus-left.desktop");
+//! assert!(files[0].content.contains("\nX-KDE-Shortcuts=Alt+H\n"));
+//! assert!(!plan.needs_engine());
+//! ```
+//!
+//! # Diagnostics
+//!
+//! The diagnostics of reading and of planning say everything that is not realized the way the
+//! file's own daemon does it. A front end with a strict option fails when any of them is a
+//! warning or an error; notes never matter for that.
 
 #![deny(missing_docs)]
 
 mod ir;
+pub mod kde;
+pub mod plan;
 pub mod qt;
 pub mod skhd;
 pub mod sxhkd;

@@ -1585,6 +1585,13 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   its severity (error, warning, note) and how faithfully the construct is realized (exactly,
   approximated, not at all).
 - **Parsed**: a file, read: the keymap and the diagnostics.
+- **Static shortcut**: a binding KDE realizes from a `.desktop` file, with no komorebi process:
+  one combo, pressed, the same in every application, in a file without modes, blacklist or pause
+  binding.
+- **Engine**: the part of komorebi that registers keys with KDE and decides what each press does,
+  for everything a static shortcut cannot be.
+- **Plan**: the bindings of a keymap sorted into static shortcuts and the engine's keymap, with
+  notes on why each binding goes where it goes.
 
 ### The parts
 
@@ -1604,6 +1611,13 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   a chain that stays open (`a : b`) is a mode named after its prefix, entered by the prefix and
   left by Escape.
 - [`parse`](../../komorebi-hotkeys/src/lib.rs) picks the reader by format.
+- [`plan`](../../komorebi-hotkeys/src/plan.rs): sorts a keymap into static shortcuts and the
+  engine's keymap, by mode: `Auto` (static where it can be), `Engine` (the default: everything
+  through the engine) or `Static` (no engine; what needs it is left out with a warning).
+- [`kde`](../../komorebi-hotkeys/src/kde.rs): writes static shortcuts as `.desktop` files for
+  kglobalacceld (`X-KDE-Shortcuts`, `X-KDE-GlobalAccel-CommandShortcut`, an `Exec` line quoted as
+  the desktop entry specification requires), and replaces the files it wrote before, and no
+  other.
 - [`text`](../../komorebi-hotkeys/src/text.rs): what the readers share: line numbers, comments,
   continued lines and the diagnostics' wording.
 - [`tests/fixtures`](../../komorebi-hotkeys/tests/fixtures): the corpus, `<case>.skhdrc`,
@@ -1620,6 +1634,10 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 | Text that is left out has a diagnostic that points at it | test | `what_cannot_be_read_is_reported_and_left_out`, `reading_goes_on_after_an_error`, `diagnostics_point_at_the_text_they_are_about` | none |
 | A fixture reads, without errors, into the keymap of its case | test | `every_file_reads_without_errors_into_the_keymap_of_its_case` | none |
 | The files of a case read into the same keymap, apart from where each binding was written | test | `the_files_of_a_case_read_into_the_same_keymap` | none |
+| A static shortcut is a single combo, pressed, the same in every application, in the default mode of a file with no modes, blacklist or pause binding | test | `a_plain_binding_is_static_and_the_rest_goes_through_the_engine`, `modes_a_blacklist_or_a_pause_binding_send_every_binding_through_the_engine` | `PlanMode::Engine` sends every binding through the engine |
+| A rewrite of the shortcut files removes only the files it generated | test | `rewriting_replaces_our_files_and_nothing_else` | none |
+| An `Exec` line runs the command as written (quoting, `%%`) | test | `exec_lines_are_quoted_for_the_desktop_entry_spec` | none |
+| The sample configuration plans into the same 50 shortcut files from each format | test | `the_sample_plans_into_the_same_shortcut_files_in_every_format` | none |
 | The whkd reader reads a whkdrc as whkd does | test, on the files it is given | `every_whkdrc_of_the_corpus_reads_as_whkd_reads_it`, `the_example_of_whkds_readme_reads_as_whkd_reads_it` | none |
 
 ## Where to look in the code
@@ -1800,7 +1818,9 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   [`komorebi-hotkeys/src/qt.rs`](../../komorebi-hotkeys/src/qt.rs) the keys, and one module per
   format, [`skhd.rs`](../../komorebi-hotkeys/src/skhd.rs),
   [`whkd.rs`](../../komorebi-hotkeys/src/whkd.rs) and
-  [`sxhkd.rs`](../../komorebi-hotkeys/src/sxhkd.rs).
+  [`sxhkd.rs`](../../komorebi-hotkeys/src/sxhkd.rs);
+  [`plan.rs`](../../komorebi-hotkeys/src/plan.rs) and [`kde.rs`](../../komorebi-hotkeys/src/kde.rs)
+  for the shortcuts.
 - [`komorebi-hotkeys/tests`](../../komorebi-hotkeys/tests): the corpus test and the comparison
   with `whkd-parser`.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
