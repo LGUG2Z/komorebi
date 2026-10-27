@@ -31,6 +31,7 @@ use crate::core::Rect;
 use crate::core::Sizing;
 use crate::core::WindowManagementBehaviour;
 use crate::desktop;
+use crate::lockable_sequence::Lockable;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window::Window;
@@ -857,6 +858,24 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
+    /// Locks the focused container of the focused workspace at its index, or unlocks it
+    ///
+    /// A locked container stays at its index while containers are inserted, removed and swapped
+    /// around it. Nothing is retiled.
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace.
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_lock(&mut self) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        if let Some(container) = workspace.focused_container_mut() {
+            // Toggle the locked flag
+            container.set_locked(!container.locked());
+        }
+        Ok(())
+    }
+
     /// Turns the tiling of the focused workspace off, or back on and tiles it again
     ///
     /// While its tiling is off, the workspace keeps its containers and moves no window.
@@ -1209,6 +1228,57 @@ mod tests {
         assert!(wm.focused_workspace()?.is_empty());
         assert_eq!(wm.minimized_windows.get(&631), Some(&Window::from(631)));
         Ok(())
+    }
+
+    #[test]
+    fn test_toggle_lock() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Add monitor with default workspace to
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            let workspace = m.focused_workspace_mut().unwrap();
+
+            // Create containers to add to the workspace
+            for _ in 0..3 {
+                let container = Container::default();
+                workspace.add_container_to_back(container);
+            }
+
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Ensure container 2 is not locked
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.focused_container_idx(), 2);
+            assert!(!workspace.focused_container().unwrap().locked);
+        }
+
+        // Toggle lock on focused container
+        wm.toggle_lock().unwrap();
+
+        {
+            // Ensure container 2 is locked
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(workspace.focused_container().unwrap().locked);
+        }
+
+        // Toggle lock on focused container
+        wm.toggle_lock().unwrap();
+
+        {
+            // Ensure container 2 is not locked
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(!workspace.focused_container().unwrap().locked);
+        }
     }
 
     #[test]

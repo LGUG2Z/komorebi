@@ -302,6 +302,11 @@ any other, so its events find it, and [`Workspace::update`] leaves it where it i
 floated window goes is [`WindowManagementBehaviour::toggle_float_placement`]: by default it
 stays where it is.
 
+`ToggleLock` locks the focused container, or unlocks it ([`WindowManager::toggle_lock`]), and
+`LockMonitorWorkspaceContainer` and `UnlockMonitorWorkspaceContainer` do the same for a
+container given by its indices. A lock changes nothing until containers are inserted, removed or
+swapped around it, which the workspace does through `LockableSequence`.
+
 `ResizeWindowEdge` and `ResizeWindowAxis` resize the focused container
 ([`WindowManager::resize_window`]). A resize is an adjustment of the container's tile, kept in
 [`Workspace::resize_dimensions`], one per container, which the layout applies when it calculates
@@ -370,7 +375,7 @@ module's unit.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
-  promote the focused container, float a window).
+  promote the focused container, float a window, lock a container).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -434,7 +439,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | The window manager asks for a backend that was never installed | runtime error: [`backend`] panics, naming [`set_backend`] and [`with_backend`] | `# Panics` on [`backend`] | none |
 | A test's backend does not outlive the test | framework path: [`with_backend`] restores the previous one on drop | `with_backend_puts_the_previous_backend_back_when_the_closure_panics` | none |
 | A command about a missing window is an error, not a panic | test | `a_command_about_a_window_nobody_opened_is_an_error` and `a_command_about_a_closed_window_is_an_error` against the fake, `a_command_about_a_window_the_table_does_not_know_is_an_error_and_sends_nothing` against the KWin backend | none |
-| A locked container keeps its index | framework path: a [`Workspace`] inserts, removes and swaps its containers through `LockableSequence` | `test_locked_containers_with_new_window` and `test_locked_containers_remove_window` | `containers_mut()` is the `VecDeque` itself |
+| A locked container keeps its index | framework path: a [`Workspace`] inserts, removes and swaps its containers through `LockableSequence` | `test_locked_containers_with_new_window`, `test_locked_containers_remove_window`, `a_window_that_opens_does_not_push_a_locked_container_from_its_index` | `containers_mut()` is the `VecDeque` itself |
 | A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone` | none |
 | A destroyed window leaves whichever workspace has it | framework path: the destroy is looked up in the index of managed windows, which is rebuilt at startup and before and after every event | `a_window_that_was_open_before_komorebi_started_is_removed_when_it_closes` | none |
 | The daemon does not start without KWin, unless it is told to run against the fake | startup check: [`connect`] fails, and the daemon exits with the error, code 1 | `without_a_session_bus_komorebi_exits_with_an_error_naming_it` | `--fake-backend` |
@@ -572,7 +577,8 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/scrolling.rs`](../../komorebi/tests/scrolling.rs), the layout options and the
   scrolling layout; [`komorebi/tests/resize.rs`](../../komorebi/tests/resize.rs), resizing;
   [`komorebi/tests/promote.rs`](../../komorebi/tests/promote.rs), promoting;
-  [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating.
+  [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating;
+  [`komorebi/tests/lock.rs`](../../komorebi/tests/lock.rs), locking.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
@@ -613,6 +619,7 @@ A window is shown, and ends up on a tile:
 [`Workspace::resize_dimensions`]: ../../komorebi/src/workspace.rs
 [`WindowManager::resize_window`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_float`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::toggle_lock`]: ../../komorebi/src/window_manager.rs
 [`WindowManagementBehaviour::toggle_float_placement`]: ../../komorebi/src/core/mod.rs
 [`WindowManager::promote_container_to_front`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::promote_container_swap`]: ../../komorebi/src/window_manager.rs

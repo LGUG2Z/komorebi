@@ -16,7 +16,8 @@
 //!   next window and give it up.
 //! - `promote`, `promote-swap`, `promote-focus` and `promote-window` bring a window to the largest
 //!   tile, or the focus to it.
-//! - `toggle-float` takes the focused window out of the layout, or puts it back.
+//! - `toggle-float` takes the focused window out of the layout, or puts it back, and
+//!   `toggle-lock` locks the focused container at its index, or unlocks it.
 //! - `resize-edge` and `resize-axis` resize the focused window by the `resize-delta`, and
 //!   `quick-save-resize`, `quick-load-resize`, `save-resize` and `load-resize` save the sizes of
 //!   the tiles of the focused workspace and load them back.
@@ -307,6 +308,8 @@ enum SubCommand {
     ToggleTiling,
     /// Toggle floating mode for the focused window
     ToggleFloat,
+    /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
+    ToggleLock,
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -482,6 +485,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ToggleTiling => {
             send_message(&SocketMessage::ToggleTiling)?;
+        }
+        SubCommand::ToggleLock => {
+            send_message(&SocketMessage::ToggleLock)?;
         }
         SubCommand::State => {
             print_query(&SocketMessage::State);

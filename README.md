@@ -140,8 +140,8 @@ another layout, `layout-ratios` and `scrolling-layout-columns` tune it,
 `toggle-tiling` stops it moving windows and starts it again,
 `preselect-direction` reserves a tile for the next window, `resize-edge` and
 `resize-axis` move the edges of the focused tile, `promote` brings the
-focused window to the largest tile, and `toggle-float` takes it out of the
-layout. The scrolling layout
+focused window to the largest tile, `toggle-float` takes it out of the
+layout, and `toggle-lock` keeps its container at its place. The scrolling layout
 is a strip of columns that runs past the edges of the monitor and scrolls to
 the window that has the focus.
 

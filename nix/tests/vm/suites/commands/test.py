@@ -184,6 +184,8 @@ preselect-direction left
 cancel-preselect
 toggle-float
 toggle-float
+toggle-lock
+toggle-lock
 toggle-tiling
 toggle-tiling
 mouse-follows-focus enable

@@ -37,6 +37,10 @@
 //!   already, and **CancelPreselect** gives the reserved place up.
 //! - **MouseFollowsFocus** and **ToggleMouseFollowsFocus** set whether the pointer is moved to
 //!   the window that is given the focus.
+//! - **ToggleLock** locks the focused container at its index, or unlocks it
+//!   ([`WindowManager::toggle_lock`]), and **LockMonitorWorkspaceContainer** and
+//!   **UnlockMonitorWorkspaceContainer** do the same for a container given by the index of its
+//!   monitor, its workspace and itself.
 //! - **ToggleFloat** takes the focused window out of the layout into the floating windows of the
 //!   workspace, which komorebi does not move, or puts a floating window back
 //!   ([`WindowManager::toggle_float`]).
@@ -147,6 +151,8 @@ impl WindowManager {
     ///   [`WindowManager::move_container_in_cycle_direction`] give.
     /// - There is no focused workspace to change the layout or the tiling of, to preselect a
     ///   place in, or to resize or promote a container of, or it cannot be tiled again.
+    /// - The monitor or the workspace of `LockMonitorWorkspaceContainer` or
+    ///   `UnlockMonitorWorkspaceContainer` is not there (a container that is not there is ignored).
     /// - The focused window cannot be floated or put back, for one of the reasons
     ///   [`WindowManager::toggle_float`] gives.
     /// - The file of `QuickSave` or `Save` cannot be written, or the file of `QuickLoad` or
@@ -274,11 +280,50 @@ impl WindowManager {
 
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::LockMonitorWorkspaceContainer(
+                monitor_idx,
+                workspace_idx,
+                container_idx,
+            ) => {
+                let monitor = self
+                    .monitors_mut()
+                    .get_mut(monitor_idx)
+                    .ok_or_eyre("no monitor at the given index")?;
+
+                let workspace = monitor
+                    .workspaces_mut()
+                    .get_mut(workspace_idx)
+                    .ok_or_eyre("no workspace at the given index")?;
+
+                if let Some(container) = workspace.containers_mut().get_mut(container_idx) {
+                    container.locked = true;
+                }
+            }
+            SocketMessage::UnlockMonitorWorkspaceContainer(
+                monitor_idx,
+                workspace_idx,
+                container_idx,
+            ) => {
+                let monitor = self
+                    .monitors_mut()
+                    .get_mut(monitor_idx)
+                    .ok_or_eyre("no monitor at the given index")?;
+
+                let workspace = monitor
+                    .workspaces_mut()
+                    .get_mut(workspace_idx)
+                    .ok_or_eyre("no workspace at the given index")?;
+
+                if let Some(container) = workspace.containers_mut().get_mut(container_idx) {
+                    container.locked = false;
+                }
+            }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
+            SocketMessage::ToggleLock => self.toggle_lock()?,
             SocketMessage::ToggleTiling => {
                 self.toggle_tiling()?;
             }

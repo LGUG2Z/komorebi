@@ -55,6 +55,22 @@ komorebic promote-window left
 [`komorebic promote-focus`](../cli/promote-focus.md) gives the focus to the window on the first
 tile and moves nothing.
 
+## Locking a window in its place
+
+[`komorebic toggle-lock`](../cli/toggle-lock.md) locks the focused window's container at its
+place in the order of the workspace, and unlocks it again. Windows that open, close or move
+around a locked container leave it where it is: a new window that would go in its place goes
+after it. A window moved onto the place of a locked one with `move`, `cycle-move` or
+`promote-swap` is locked there instead, since the lock belongs to the place.
+
+```sh
+komorebic toggle-lock
+```
+
+The `LockMonitorWorkspaceContainer` and `UnlockMonitorWorkspaceContainer` messages lock and
+unlock a container by the index of its monitor, its workspace and itself, for a program such as
+a status bar. They have no subcommand.
+
 ## The pointer
 
 The pointer follows the window that moved, unless

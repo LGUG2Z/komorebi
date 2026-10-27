@@ -352,6 +352,9 @@ pub enum SocketMessage {
     PromoteSwap,
     PromoteFocus,
     PromoteWindow(OperationDirection),
+    LockMonitorWorkspaceContainer(usize, usize, usize),
+    UnlockMonitorWorkspaceContainer(usize, usize, usize),
+    ToggleLock,
     ToggleFloat,
     // Current Workspace Commands
     ChangeLayout(DefaultLayout),
