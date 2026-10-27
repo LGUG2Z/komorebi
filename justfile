@@ -45,11 +45,15 @@ install:
 build:
     cargo build --package komorebi-recorder --locked --release
 
+# the recorder opens the viewer as komorebi-recorder-gui, a separate executable beside it, which `cargo run` of
+# the recorder alone would not rebuild: build both
 run target:
+    cargo build --bins --locked
     cargo run --bin {{ target }} --locked
 
 # record a bug repro: screen + komorebi log/events + OS trace, then query it with `komorebi-recorder at`
 record *args:
+    cargo build --bins --locked
     cargo run --bin komorebi-recorder --locked -- {{ args }}
 
 # cross-compile komorebi-recorder.exe and komorebi-recorder-gui.exe into ./result-windows
