@@ -1,0 +1,21 @@
+[package]
+name = "komorebic"
+version.workspace = true
+description = "The command-line interface for Komorebi, a tiling window manager for KDE Plasma"
+edition = "2024"
+
+[dependencies]
+komorebi-client = { path = "../komorebi-client", default-features = false }
+version = { path = "../version" }
+
+clap = { workspace = true }
+clap_complete = "4"
+chrono = { workspace = true }
+color-eyre = { workspace = true }
+fs-tail = "0.1"
+pastey = { workspace = true }
+sysinfo = { workspace = true }
+
+[features]
+default = ["schemars"]
+schemars = ["komorebi-client/default"]

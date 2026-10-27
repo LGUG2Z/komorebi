@@ -94,6 +94,7 @@
             fullBuild
             ;
           komorebi = extractBinary "komorebi";
+          komorebic = extractBinary "komorebic";
         };
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
@@ -122,8 +123,8 @@
           pkgs = mkPkgs system;
           build = mkKomorebiPackages { inherit pkgs; };
           isLinux = pkgs.stdenv.hostPlatform.isLinux;
-          # the daemon each guest runs, built for the guest's system
-          komorebiFor = guestSystem: self.packages.${guestSystem}.komorebi;
+          # the daemon and komorebic each guest runs, built for the guest's system
+          komorebiFor = guestSystem: self.packages.${guestSystem}.komorebi-full;
           # a Mac runs the guests under HVF, which is slower than KVM
           vm = import ./nix/tests/vm {
             hostPkgs = pkgs;
@@ -236,7 +237,7 @@
           };
 
           packages = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-            inherit (build) komorebi;
+            inherit (build) komorebi komorebic;
             komorebi-full = build.fullBuild;
             default = build.fullBuild;
           };
@@ -246,6 +247,11 @@
               type = "app";
               program = "${build.komorebi}/bin/komorebi";
               meta.description = "The komorebi daemon";
+            };
+            komorebic = {
+              type = "app";
+              program = "${build.komorebic}/bin/komorebic";
+              meta.description = "The command line interface of komorebi";
             };
             default = config.apps.komorebi;
           };
@@ -290,7 +296,10 @@
 
       flake = {
         overlays.default = final: _: {
-          inherit ((mkKomorebiPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; })) komorebi;
+          inherit ((mkKomorebiPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; }))
+            komorebi
+            komorebic
+            ;
         };
         overlays.komorebi = self.overlays.default;
       };

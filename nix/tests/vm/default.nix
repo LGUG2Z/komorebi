@@ -3,9 +3,9 @@
 # the flake. See docs/dev/vm-tests.md.
 #
 # `hostPkgs` is the pkgs of the machine that runs QEMU; the guests are always Linux. `komorebiFor`
-# returns the komorebi package of a system, and the guests get the one of their own. `scale` says
-# how much slower than KVM that machine is (1 for KVM, 1.5 for HVF on a Mac, 8 for TCG), and every
-# wait in the suites is multiplied by it.
+# returns the package of `komorebi` and `komorebic` for a system, and the guests get the one of
+# their own. `scale` says how much slower than KVM that machine is (1 for KVM, 1.5 for HVF on a
+# Mac, 8 for TCG), and every wait in the suites is multiplied by it.
 {
   hostPkgs,
   komorebiFor,

@@ -1,3 +1,4 @@
+import json
 import shlex
 
 import pytest
@@ -265,3 +266,144 @@ def test_restart_kwin_reports_the_journal_when_kwin_does_not_come_back(
 
     with pytest.raises(AssertionError, match="the socket is taken"):
         Kde(machine, "main", scale=0.01).restart_kwin()
+
+
+def test_komorebic_runs_inside_the_session_and_returns_what_it_printed(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("komorebic query", output="2\n")
+
+    assert Kde(machine, "main").komorebic("query", "focused-workspace-index") == "2\n"
+    (command,) = machine.commands
+    assert inner(command) == "komorebic query focused-workspace-index"
+    assert "WAYLAND_DISPLAY=wayland-main" in command
+    assert "XDG_RUNTIME_DIR=/run/user/1000" in command
+
+
+def test_komorebic_fails_the_test_when_no_daemon_answers(machine: FakeMachine) -> None:
+    machine.reply("komorebic", status=1, output="")
+
+    with pytest.raises(AssertionError, match="komorebic state"):
+        Kde(machine, "main").komorebic("state")
+
+
+def test_a_daemon_that_says_nothing_is_asked_again(
+    machine: FakeMachine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    kde = Kde(machine, "main", scale=0.0)
+    answers = iter(["\n", "\n", a_state(workspace())])
+
+    def execute(command: str, /) -> tuple[int, str]:
+        machine.commands.append(command)
+        return 0, next(answers)
+
+    monkeypatch.setattr(machine, "execute", execute)
+
+    assert kde.state()["monitors"]["focused"] == 0
+    assert len(machine.commands) == 3
+
+
+def test_a_daemon_that_always_says_nothing_fails_the_test_after_the_attempts(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("komorebic state", output="\n")
+
+    with pytest.raises(AssertionError, match="did not answer"):
+        Kde(machine, "main", scale=0.0).state(attempts=3)
+    assert len(machine.commands) == 3
+
+
+def test_a_komorebic_that_gives_up_waiting_is_asked_again(
+    machine: FakeMachine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `komorebic` waits a second for the daemon and panics (exit status 101) when it is not enough
+    answers = iter([(101, "thread 'main' panicked"), (0, a_state(workspace()))])
+
+    def execute(command: str, /) -> tuple[int, str]:
+        machine.commands.append(command)
+        return next(answers)
+
+    monkeypatch.setattr(machine, "execute", execute)
+
+    assert Kde(machine, "main", scale=0.0).state()["monitors"]["focused"] == 0
+    assert len(machine.commands) == 2
+
+
+def test_an_answer_that_is_not_json_fails_at_once(machine: FakeMachine) -> None:
+    machine.reply("komorebic state", output="panic: Resource temporarily unavailable\n")
+
+    with pytest.raises(ValueError):
+        Kde(machine, "main", scale=0.0).state()
+    assert len(machine.commands) == 1
+
+
+def window(title: str) -> dict[str, object]:
+    return {"id": 1, "details": {"title": title, "exe": "foot", "class": "foot", "path": ""}}
+
+
+def container(*titles: str, focused: int = 0) -> dict[str, object]:
+    return {
+        "id": "c",
+        "locked": False,
+        "windows": {"elements": [window(t) for t in titles], "focused": focused},
+    }
+
+
+def workspace(*containers: dict[str, object], focused: int = 0) -> dict[str, object]:
+    return {"containers": {"elements": list(containers), "focused": focused}}
+
+
+def a_state(*workspaces: dict[str, object]) -> str:
+    """What `komorebic state` prints for one monitor with these workspaces."""
+    monitor = {"id": 1, "workspaces": {"elements": list(workspaces), "focused": 0}}
+    return json.dumps({"monitors": {"elements": [monitor], "focused": 0}})
+
+
+def test_the_state_is_what_komorebic_state_prints(machine: FakeMachine) -> None:
+    machine.reply("komorebic state", output=a_state(workspace()))
+
+    state = Kde(machine, "main").state()
+
+    assert state["monitors"]["elements"][0]["workspaces"]["focused"] == 0
+    assert [inner(command) for command in machine.commands] == ["komorebic state"]
+
+
+def test_managed_counts_the_windows_of_every_container_of_the_workspace(
+    machine: FakeMachine,
+) -> None:
+    machine.reply(
+        "komorebic state",
+        output=a_state(workspace(container("a", "b"), container("c")), workspace(container("d"))),
+    )
+    kde = Kde(machine, "main")
+
+    assert kde.managed() == 3
+    assert kde.managed(1) == 1
+
+
+def test_managed_is_zero_for_a_workspace_without_containers(machine: FakeMachine) -> None:
+    machine.reply("komorebic state", output=a_state(workspace()))
+
+    assert Kde(machine, "main").managed() == 0
+
+
+def test_focused_title_is_the_focused_window_of_the_focused_container(
+    machine: FakeMachine,
+) -> None:
+    machine.reply(
+        "komorebic state",
+        output=a_state(
+            workspace(container("a"), container("b", "c", focused=1), focused=1),
+            workspace(container("d")),
+        ),
+    )
+    kde = Kde(machine, "main")
+
+    assert kde.focused_title() == "c"
+    assert kde.focused_title(1) == "d"
+
+
+def test_focused_title_is_empty_for_a_workspace_without_containers(machine: FakeMachine) -> None:
+    machine.reply("komorebic state", output=a_state(workspace()))
+
+    assert Kde(machine, "main").focused_title() == ""

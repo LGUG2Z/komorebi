@@ -1,9 +1,11 @@
 """A KWin session inside a test machine, and the tools to look at it."""
 
+import json
 import shlex
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from PIL import Image
 
@@ -237,6 +239,53 @@ class Kde:
         """The daemon's log since it was last started, or the empty string before that."""
         return self.machine.execute(f"cat {self.runtime}/komorebi-{self.name}.log")[1]
 
+    def komorebic(self, *args: str) -> str:
+        """Runs `komorebic` with `args` inside the session and returns what it printed.
+
+        It fails the test unless `komorebic` succeeds, as it does when no daemon answers.
+        `komorebic` finds the daemon's socket in the user's runtime directory, which every session
+        of the user shares, so one daemon at a time can answer it.
+        """
+        return self.sh(shlex.join(["komorebic", *args]))
+
+    def state(self, attempts: int = 10) -> dict[str, Any]:
+        """The daemon's state, as `komorebic state` prints it.
+
+        The daemon answers a query when it can take hold of the window manager within a second,
+        and answers nothing when it cannot, which is what a daemon busy with a window that has
+        just opened does on a machine that is loaded or slow: `komorebic` then prints an empty
+        line and succeeds. It also gives the daemon a second to answer, and fails when that is not
+        enough. The query is asked again, a second (times `scale`) after an empty answer or a
+        failure, up to `attempts` times, and fails the test if the daemon does not answer every
+        time. An answer that is not JSON and not empty fails at once.
+        """
+        for attempt in range(attempts):
+            status, out = self.run(shlex.join(["komorebic", "state"]))
+            if status == 0 and out.strip():
+                return json.loads(out)
+            if attempt + 1 < attempts:
+                time.sleep(self.scale)
+        raise AssertionError(
+            f"the daemon did not answer `komorebic state`, {attempts} times: {status} {out!r}"
+        )
+
+    def focused_title(self, workspace: int = 0) -> str:
+        """The title of the window the daemon has focused on a workspace of the first monitor.
+
+        That is the focused window of the workspace's focused container, as the daemon's state
+        has it, or the empty string when the workspace has no container.
+        """
+        containers = self._workspace(workspace)["containers"]
+        if not containers["elements"]:
+            return ""
+        windows = containers["elements"][containers["focused"]]["windows"]
+        return windows["elements"][windows["focused"]]["details"]["title"]
+
+    def managed(self, workspace: int = 0) -> int:
+        """The number of windows the daemon has on a workspace of the first monitor."""
+        containers = self._workspace(workspace)["containers"]["elements"]
+        return sum(len(container["windows"]["elements"]) for container in containers)
+
     def monitor_bridge(self, path: str) -> None:
         """Starts recording the bridge's traffic on the session bus to `path`, in the background.
 
@@ -336,6 +385,9 @@ class Kde:
     def outputs(self) -> int:
         """The number of outputs KWin has enabled."""
         return int(self.sh("kscreen-doctor -j | jq '[.outputs[] | select(.enabled)] | length'"))
+
+    def _workspace(self, workspace: int) -> dict[str, Any]:
+        return self.state()["monitors"]["elements"][0]["workspaces"]["elements"][workspace]
 
     def _wrap(self, command: str, session: bool = True) -> str:
         env = self.env if session else f"XDG_RUNTIME_DIR={shlex.quote(self.runtime)}"

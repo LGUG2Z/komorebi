@@ -58,6 +58,12 @@ lazy_static! {
                 .expect("there is no local data directory")
                 .join("komorebi")
         });
+    /// Where the logs live: persistent, unlike [`struct@DATA_DIR`]. The daemon writes a file a day
+    /// here, `komorebi.log.YYYY-MM-DD`, and the same without colors in
+    /// `komorebi_plaintext.log.YYYY-MM-DD`.
+    pub static ref LOG_DIR: PathBuf = dirs::data_local_dir()
+        .expect("there is no local data directory")
+        .join("komorebi");
 }
 
 /// The padding, in pixels, between the edge of a monitor's work area and the tiles of its

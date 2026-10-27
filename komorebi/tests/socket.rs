@@ -56,7 +56,10 @@ fn the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to() {
     let mut daemon = Daemon(
         Command::new(env!("CARGO_BIN_EXE_komorebi"))
             .arg("--fake-backend")
+            // the logs go to the home directory, which may not be writable (the nix sandbox)
             .env("XDG_RUNTIME_DIR", &runtime)
+            .env("HOME", &runtime)
+            .env_remove("XDG_DATA_HOME")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()

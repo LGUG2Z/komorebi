@@ -43,5 +43,10 @@ vm-all:
         just vm "$name"
     done
 
+# write the help of every komorebic subcommand to docs/cli, one page each
+docgen:
+    rm -f docs/cli/*.md
+    cargo run --package komorebic --locked -- docgen --output docs/cli
+
 run target *args:
     cargo run --bin {{ target }} --locked -- {{ args }}

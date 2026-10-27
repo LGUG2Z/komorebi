@@ -164,3 +164,10 @@ an action is the job of another program, which runs a command that writes a mess
 socket. This is the architecture that bspwm made popular on Linux and yabai on macOS, and
 the one komorebi has on Windows and on macOS
 ([the design notes of komorebi for Mac](https://github.com/LGUG2Z/komorebi-for-mac/blob/master/docs/design.md)).
+
+## Why is `komorebic` a separate program?
+
+Because the daemon takes no input but its socket. `komorebic` turns a command line into one
+message on the socket and, for a question, prints the answer. A key binding, a script and a
+person at a terminal all drive komorebi the same way, by running `komorebic` (the design
+notes of komorebi for Mac, linked above).

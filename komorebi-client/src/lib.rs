@@ -50,6 +50,7 @@
 //! way the daemon does, over an in-memory desktop.
 
 pub use komorebi::DATA_DIR;
+pub use komorebi::LOG_DIR;
 pub use komorebi::container::Container;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::Axis;

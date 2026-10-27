@@ -223,6 +223,10 @@ status 0. `SIGINT` and `SIGTERM` do the same from `main.rs`, with the exit statu
 - [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with.
 - [`komorebi-client`](../../komorebi-client/src/lib.rs): a library that writes messages on
   the socket and reads the answers, for programs that talk to the daemon.
+- [`komorebic`](../../komorebic/src/main.rs): the command line. A subcommand that asks
+  something of the daemon is one message, sent with `komorebi-client`; `start` runs the
+  daemon, `log` follows its log file in [`LOG_DIR`], and the hidden `docgen` writes
+  `docs/cli`.
 - [`main.rs`](../../komorebi/src/main.rs): the daemon. It connects to KWin, or installs the
   fake with `--fake-backend`, makes the window manager, which binds the socket, loads and
   tiles the desktop, starts the threads that listen on the socket and handle events, and
@@ -325,10 +329,10 @@ A window is shown, and ends up on a tile:
 
 ## One message, end to end
 
-A client asks for the state of the window manager:
+`komorebic state` asks for the state of the window manager:
 
-1. [`send_query`] connects to `komorebi.sock` in [`DATA_DIR`], writes
-   `{"type":"State"}`, and shuts down its side of the connection for writing.
+1. `komorebic` calls [`send_query`], which connects to `komorebi.sock` in [`DATA_DIR`],
+   writes `{"type":"State"}`, and shuts down its side of the connection for writing.
 2. The thread that [`listen_for_commands`] started accepts the connection and starts a
    thread for it, which calls [`read_commands_uds`].
 3. `read_commands_uds` reads the line, parses it into [`SocketMessage`]`::State`, and locks
@@ -339,7 +343,7 @@ A client asks for the state of the window manager:
 5. The state is written to the connection as pretty-printed JSON, and the index of managed
    windows is rebuilt, as after every message.
 6. There are no more lines, so `read_commands_uds` returns and the connection is closed.
-   `send_query` has read to the end, and returns the JSON.
+   `send_query` has read to the end, and returns the JSON, which `komorebic` prints.
 
 ## Where to look in the code
 
@@ -358,6 +362,8 @@ A client asks for the state of the window manager:
   each message does, and the tests that send messages through a real socket.
 - [`komorebi-client/src/lib.rs`](../../komorebi-client/src/lib.rs): the client side of the
   socket.
+- [`komorebic/src/main.rs`](../../komorebic/src/main.rs): the subcommands, and
+  [`komorebic/tests/cli.rs`](../../komorebic/tests/cli.rs), what each writes on the socket.
 - [`komorebi/src/kwin/mod.rs`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus
   service and the held call.
 - [`komorebi/src/kwin/state.rs`](../../komorebi/src/kwin/state.rs): the table, with the
@@ -369,7 +375,7 @@ A client asks for the state of the window manager:
 - [`nix/tests/vm/suites/kwin-events`](../../nix/tests/vm/suites/kwin-events/test.py): the
   events of a real KWin, through the daemon.
 - [`nix/tests/vm/suites/core-e2e`](../../nix/tests/vm/suites/core-e2e/test.py): the daemon
-  tiling a real KWin, checked against what KWin has.
+  tiling a real KWin, checked against what KWin has, and read and stopped with `komorebic`.
 - [`nix/tests/vm/suites/kwin-restart`](../../nix/tests/vm/suites/kwin-restart/test.py): KWin
   restarting under the daemon.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
@@ -411,6 +417,7 @@ A client asks for the state of the window manager:
 [`bridge.test.js`]: ../../komorebi/src/kwin/bridge.test.js
 [`fixtures`]: ../../komorebi/src/kwin/fixtures
 [`DATA_DIR`]: ../../komorebi/src/lib.rs
+[`LOG_DIR`]: ../../komorebi/src/lib.rs
 [`SocketMessage`]: ../../komorebi/src/core/mod.rs
 [`StateQuery`]: ../../komorebi/src/core/mod.rs
 [`State`]: ../../komorebi/src/state.rs

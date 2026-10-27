@@ -10,11 +10,15 @@
 //! messages on `komorebi.sock` in [`struct@DATA_DIR`], handles the events the backend reports on
 //! a thread of their own, and runs until it is stopped, with `SIGINT`, `SIGTERM` or a `Stop`
 //! message.
+//!
+//! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
+//! follows.
 
 use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use komorebi::DATA_DIR;
+use komorebi::LOG_DIR;
 use komorebi::backend;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::process_command::listen_for_commands;
@@ -24,9 +28,11 @@ use komorebi::window_manager_event_listener;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::sync::Arc;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
 
-fn setup(log_level: LogLevel) -> eyre::Result<()> {
+fn setup(log_level: LogLevel) -> eyre::Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
         unsafe {
             std::env::set_var("RUST_LIB_BACKTRACE", "1");
@@ -50,10 +56,26 @@ fn setup(log_level: LogLevel) -> eyre::Result<()> {
         }
     }
 
+    std::fs::create_dir_all(&*LOG_DIR)?;
+    let appender = tracing_appender::rolling::daily(&*LOG_DIR, "komorebi_plaintext.log");
+    let color_appender = tracing_appender::rolling::daily(&*LOG_DIR, "komorebi.log");
+    let (non_blocking, guard) = tracing_appender::non_blocking(appender);
+    let (color_non_blocking, color_guard) = tracing_appender::non_blocking(color_appender);
+
     tracing::subscriber::set_global_default(
         tracing_subscriber::fmt::Subscriber::builder()
             .with_env_filter(EnvFilter::from_default_env())
-            .finish(),
+            .finish()
+            .with(
+                tracing_subscriber::fmt::Layer::default()
+                    .with_writer(non_blocking)
+                    .with_ansi(false),
+            )
+            .with(
+                tracing_subscriber::fmt::Layer::default()
+                    .with_writer(color_non_blocking)
+                    .with_ansi(true),
+            ),
     )?;
 
     // https://github.com/tokio-rs/tracing/blob/master/examples/examples/panic_hook.rs
@@ -75,7 +97,7 @@ fn setup(log_level: LogLevel) -> eyre::Result<()> {
         );
     }));
 
-    Ok(())
+    Ok((guard, color_guard))
 }
 
 #[cfg(feature = "deadlock_detection")]
@@ -129,7 +151,7 @@ struct Opts {
 
 fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
-    setup(opts.log_level)?;
+    let (_guard, _color_guard) = setup(opts.log_level)?;
 
     if !DATA_DIR.is_dir() {
         std::fs::create_dir_all(&*DATA_DIR)?;

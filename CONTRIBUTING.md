@@ -87,7 +87,8 @@ the flake and `github` for workflows. Every line of a message, the header
 included, is at most 80 columns, and the body says why the change is made.
 
 Documentation lands in the commit that changes the behavior it describes, not
-in a later one.
+in a later one. A change to a `komorebic` subcommand regenerates its page in
+[`docs/cli`](docs/cli) with `just docgen`.
 
 ## Zero-Clause BSD
 

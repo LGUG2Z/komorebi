@@ -2,7 +2,8 @@
 # own user units, once for every session a test starts, each with its own private session bus and
 # Wayland socket (`session-bus@NAME`, `kwin-virtual@NAME`). A virtual KWin has no real output, so it
 # cannot draw: pixel and pointer tests use the session node instead. `komorebi@NAME` runs the daemon
-# in a session; `komorebi` is the package, which the test framework passes in.
+# in a session; `komorebi` is the package of the daemon and `komorebic`, which the test framework
+# passes in.
 {
   config,
   lib,

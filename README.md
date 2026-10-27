@@ -28,7 +28,21 @@ While it runs, the daemon takes messages on a Unix socket, `komorebi.sock` in
 `$XDG_RUNTIME_DIR/komorebi` (the local data directory when there is no runtime
 directory): a message can ask for the state of the window manager, ask which
 monitor, workspace or container has the focus, retile every monitor, or stop
-the daemon. [`komorebi-client`](komorebi-client) writes them.
+the daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
+the command line, is how a person sends them. `komorebic start` runs the
+`komorebi` on the `PATH`, and passes it what follows a `--`. In a Plasma
+session:
+
+```sh
+cargo build --locked
+export PATH="$PWD/target/debug:$PATH"
+komorebic start
+komorebic state
+komorebic stop
+```
+
+`komorebic start -- --fake-backend` tries the daemon and `komorebic` without a
+compositor, against the in-memory desktop.
 
 `nix develop` provides the Rust toolchain that [`rust-toolchain.toml`](rust-toolchain.toml)
 selects, a nightly `rustfmt`, and the tools `just check` and the flake's checks
@@ -52,6 +66,9 @@ without a checkout of the toolchain.
   (`state`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon and reads its answers, and re-exports the types they are made of.
+- [`komorebic`](komorebic): the command line. A subcommand that asks something
+  of the daemon is one message on its socket; `start`, `log`, `data-directory`,
+  `completions` and the hidden `docgen` work without the daemon.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -103,6 +120,9 @@ locked. A message that asks a question is answered on the same connection.
 
 ## Documentation
 
+The user guide starts at [`docs/index.md`](docs/index.md), and
+[`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
+`just docgen` writes from the subcommands' help.
 `cargo doc --workspace --no-deps --open` builds the API documentation.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) says how to work on the code.
 [`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md) describes the model,

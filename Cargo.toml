@@ -1,7 +1,7 @@
 [workspace]
 
 resolver = "2"
-members = ["komorebi", "komorebi-client", "version"]
+members = ["komorebi", "komorebi-client", "komorebic", "version"]
 
 [workspace.package]
 version = "0.1.0"
@@ -13,6 +13,7 @@ komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "f08aa555
   "schemars",
 ] }
 
+chrono = "0.4"
 clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = "0.6"
 crossbeam-channel = "0.5"
@@ -23,7 +24,9 @@ schemars = "1.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_lenient", version = "0.2" }
 shadow-rs = "1"
+sysinfo = "0.38"
 tracing = "0.1"
+tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [workspace.metadata.crane]

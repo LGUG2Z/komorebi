@@ -144,9 +144,11 @@ What komorebi calls:
 |---|---|---|
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
 | `$XDG_RUNTIME_DIR/komorebi/komorebi.sock` | the command socket | bound once the daemon is connected to KWin, after a file left there is removed; removed when the daemon stops |
+| `$XDG_DATA_HOME/komorebi/komorebi.log.YYYY-MM-DD` | the daemon's log, with colors, which `komorebic log` follows | a file a day (the UTC date), never removed by komorebi |
+| `$XDG_DATA_HOME/komorebi/komorebi_plaintext.log.YYYY-MM-DD` | the same log without colors | as above |
 
-Without `XDG_RUNTIME_DIR` the directory is `komorebi` in the local data directory instead
-(see [`XDG_DATA_HOME`](#xdg_data_home)).
+Without `XDG_RUNTIME_DIR` the bridge and the socket are in `komorebi` in the local data
+directory instead, with the logs (see [`XDG_DATA_HOME`](#xdg_data_home)).
 
 ## Environment variables
 
@@ -163,8 +165,10 @@ the `komorebi` directory in it, and binds its command socket there.
 
 ### `XDG_DATA_HOME`
 
-Read only when `XDG_RUNTIME_DIR` is not set: the bridge and the socket then go to
-`$XDG_DATA_HOME/komorebi` (`~/.local/share/komorebi` if `XDG_DATA_HOME` is not set either).
+The logs are written to `$XDG_DATA_HOME/komorebi` (`~/.local/share/komorebi` if
+`XDG_DATA_HOME` is not set), which the daemon makes before anything else: a home it cannot
+write to stops it at once. When `XDG_RUNTIME_DIR` is not set, the bridge and the socket go
+there too.
 
 ### `RUST_LOG`
 
@@ -178,8 +182,9 @@ Whether an error carries a backtrace. komorebi sets it to `1` when it is not set
 
 ### `NO_COLOR`
 
-When set to anything but the empty string, the log has no ANSI colors, which is what a log
-written to a file wants. The VM tests set it.
+When set to anything but the empty string, the log the daemon prints on its standard output
+has no ANSI colors, which is what standard output redirected to a file wants. The VM tests
+set it. The log files are not affected: one has colors and the other none.
 
 ## The bridge's environment
 

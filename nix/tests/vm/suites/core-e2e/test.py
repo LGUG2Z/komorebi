@@ -1,9 +1,12 @@
 # komorebi tiles a real KWin. What only a real KWin can tell: that the commands the daemon queues
 # reach KWin through the held call and that KWin carries them out, so that each window is where
 # the daemon asked for it (`komorebi/tests/wm_events.rs` checks the window manager's side against
-# the fake), and that the daemon and KWin agree on which window has the focus. A window manager
-# that agrees with itself proves nothing, so what the daemon believes is read from its debug log
-# and what KWin has through kdotool.
+# the fake), that the daemon and KWin agree on which window has the focus, that `komorebic` reaches
+# the daemon of a session and reads its state, and that `komorebic stop` gives KWin back what the
+# daemon set up in it. A window manager that agrees with itself proves nothing, so what the daemon
+# believes is read from its debug log and from `komorebic state`, and what KWin has through kdotool.
+import json
+
 from komorebi_vm import Checks, Kde, Rect, daemon
 
 W, H = 1920, 1080
@@ -53,6 +56,18 @@ def focus_agrees() -> bool:
     return daemon.window_ids(log).get(kde.title(active)) == focus_changes[-1]
 
 
+def answering() -> bool:
+    """`komorebic monitor-information` is answered, with the session's one output."""
+    status, out = kde.run("komorebic monitor-information")
+    return status == 0 and json.loads(out)[0]["size"]["right"] == W
+
+
+def state_agrees() -> bool:
+    """The window komorebi's state has focused is the one KWin has."""
+    active = kde.active()
+    return active != "" and kde.title(active) == kde.focused_title()
+
+
 def report(titles: list[str]) -> None:
     for title in titles:
         print(f"     {title}: asked {asked(title)}, has {kde.rect(kde.wid(title))}")
@@ -65,6 +80,7 @@ checks.check(
     kde.wait_for(lambda: "loaded the KWin bridge script" in daemon_log(), timeout=30),
 )
 checks.check("KWin runs the script", kde.script_loaded())
+checks.check("the daemon is up and answering komorebic", kde.wait_for(answering, timeout=30))
 
 print("== 2. three windows are tiled")
 titles = ["win1", "win2", "win3"]
@@ -83,11 +99,14 @@ checks.check("win1 and win3 do not overlap", not rects[0].overlaps(rects[2]))
 checks.check("win2 and win3 do not overlap", not rects[1].overlaps(rects[2]))
 checks.check("the windows share the screen: none is full width", all(r.w < W - 20 for r in rects))
 checks.check("KWin and the daemon agree on the focused window", kde.wait_for(focus_agrees))
+checks.check("komorebi manages the three windows", kde.wait_for(lambda: kde.managed() == 3))
+checks.check("komorebi's state focuses the window KWin does", kde.wait_for(state_agrees))
 
 print("== 3. the focus moves by hand")
 kde.activate(kde.wid("win1"))
 checks.check("KWin focused win1", kde.wait_for(lambda: kde.title(kde.active()) == "win1"))
 checks.check("... and the daemon followed", kde.wait_for(focus_agrees))
+checks.check("... and its state says so", kde.wait_for(state_agrees))
 
 print("== 4. minimize and restore")
 kde.minimize(kde.wid("win2"))
@@ -130,13 +149,36 @@ checks.check(
     ),
 )
 report(["win1", "win2"])
+checks.check("komorebi manages the two that are left", kde.wait_for(lambda: kde.managed() == 2))
 checks.check("KWin carried out every command", "the bridge could not do" not in daemon_log())
 
-print("== 6. stop")
-kde.stop_komorebi()
-checks.check("the daemon exited", not kde.komorebi_running())
+print("== 6. KWin restarts under the daemon")
+kde.restart_kwin()
+checks.check(
+    "the daemon loaded its script into the new KWin",
+    kde.wait_for(lambda: daemon_log().count("loaded the KWin bridge script") == 2, timeout=30),
+)
+checks.check(
+    "komorebi let go of the windows of the old KWin", kde.wait_for(lambda: kde.managed() == 0)
+)
+kde.spawn("foot -T afterwards sleep 3000")
+kde.wait_for(lambda: kde.wid("afterwards") != "", timeout=30)
+checks.check("a window opened in the new KWin is managed", kde.wait_for(lambda: kde.managed() == 1))
+checks.check(
+    "... and tiled on its own",
+    kde.wait_for(
+        lambda: where_asked("afterwards") and kde.rect(kde.wid("afterwards")).w > W - 100,
+        timeout=20,
+    ),
+)
+report(["afterwards"])
+
+print("== 7. komorebic stop")
+kde.komorebic("stop")
+checks.check("the daemon exited", kde.wait_for(lambda: not kde.komorebi_running()))
+checks.check("its socket is gone", kde.run(f"test -e {kde.runtime}/komorebi/komorebi.sock")[0] != 0)
 checks.check("the script is no longer in KWin", kde.wait_for(lambda: not kde.script_loaded()))
-checks.check("the windows stay", kde.wid("win1") != "" and kde.wid("win2") != "")
+checks.check("the window stays", kde.wid("afterwards") != "")
 
 kde.stop()
 checks.finish()

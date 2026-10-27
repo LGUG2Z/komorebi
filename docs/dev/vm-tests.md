@@ -54,8 +54,8 @@ own Wayland socket), so a test can run several sessions side by side and none
 touches another. A virtual KWin has no real output, so it cannot draw: it can
 place windows and answer questions about them, but it cannot take a screenshot.
 A third unit, `komorebi@NAME`, runs the daemon in a session, built from the
-commit under test and installed on the node; it is not bound to KWin's unit, so
-a test can restart KWin under a running daemon.
+commit under test and installed on the node with `komorebic`; it is not bound to
+KWin's unit, so a test can restart KWin under a running daemon.
 
 KWin wants a DRM render node, which needs a GPU. The test driver gives every aarch64 guest one
 `virtio-gpu-pci`; on x86_64 the node adds it, unless `komorebi.vm.renderNode` is false.
@@ -105,6 +105,11 @@ the run.
   started, and `script_loaded()` asks KWin whether it runs the bridge.
   `restart_kwin()` stops the session's KWin and starts a new one on the same
   bus, as when the compositor of a running session crashes, and waits for it.
+- `komorebic(*args)` runs `komorebic` in the session and returns what it
+  printed, failing the test if it fails. `state()` is the daemon's state as
+  `komorebic state` prints it, `managed(workspace)` the number of windows the
+  daemon has on a workspace of the first monitor, and `focused_title(workspace)`
+  the title of the window it has focused there.
 - `daemon` reads the daemon's view of the desktop from that log, started with
   `--log-level debug`: `daemon.events(log)` lists the window events it handled,
   in order, `daemon.window_ids(log)` maps a window's title to the daemon's id

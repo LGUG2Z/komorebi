@@ -12,10 +12,11 @@ use std::time::Duration;
 /// A bus that is not there, so that a test never reaches the KWin of the session it runs in
 const NO_BUS: &str = "unix:path=/nonexistent/komorebi-test.bus";
 
-/// A runtime directory of the test's own, made empty: komorebi makes its data directory, and
-/// binds its socket there with `--fake-backend`, before anything else, so the user's runtime
-/// directory is kept out of it, and it is writable where the user's home is not (the nix
-/// sandbox). /tmp: short enough for a unix socket path on macOS.
+/// A runtime directory of the test's own, made empty, which is also its home: komorebi makes
+/// its log directory in the home and its data directory in the runtime directory, and binds its
+/// socket there with `--fake-backend`, before anything else, so the user's are kept out of it,
+/// and it is writable where the user's home is not (the nix sandbox). /tmp: short enough for a
+/// unix socket path on macOS.
 fn runtime(test: &str) -> String {
     let runtime = format!("/tmp/komorebi-no-kwin-{test}-{}", std::process::id());
     let _ = std::fs::remove_dir_all(&runtime);
@@ -29,6 +30,8 @@ fn without_a_session_bus_komorebi_exits_with_an_error_naming_it() {
     let output = Command::new(env!("CARGO_BIN_EXE_komorebi"))
         .env("DBUS_SESSION_BUS_ADDRESS", NO_BUS)
         .env("XDG_RUNTIME_DIR", &runtime)
+        .env("HOME", &runtime)
+        .env_remove("XDG_DATA_HOME")
         .output()
         .expect("komorebi runs");
     let _ = std::fs::remove_dir_all(&runtime);
@@ -53,6 +56,8 @@ fn without_kwin_komorebi_leaves_the_socket_it_finds_alone() {
     let output = Command::new(env!("CARGO_BIN_EXE_komorebi"))
         .env("DBUS_SESSION_BUS_ADDRESS", NO_BUS)
         .env("XDG_RUNTIME_DIR", &runtime)
+        .env("HOME", &runtime)
+        .env_remove("XDG_DATA_HOME")
         .output()
         .expect("komorebi runs");
 
@@ -71,6 +76,8 @@ fn with_the_fake_backend_komorebi_runs_without_a_session_bus() {
         .args(["--fake-backend", "--log-level", "error"])
         .env("DBUS_SESSION_BUS_ADDRESS", NO_BUS)
         .env("XDG_RUNTIME_DIR", &runtime)
+        .env("HOME", &runtime)
+        .env_remove("XDG_DATA_HOME")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
