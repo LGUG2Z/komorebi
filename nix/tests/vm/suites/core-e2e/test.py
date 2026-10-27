@@ -74,7 +74,7 @@ def report(titles: list[str]) -> None:
 
 
 print("== 1. start")
-kde.start_komorebi("--log-level", "debug")
+kde.start_komorebi()
 checks.check(
     "the daemon loaded its script into KWin",
     kde.wait_for(lambda: "loaded the KWin bridge script" in daemon_log(), timeout=30),

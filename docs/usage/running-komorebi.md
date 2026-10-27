@@ -6,15 +6,21 @@ doing, and reading its log.
 
 ## Getting the two programs
 
-On Linux, the flake's default package has both: in a checkout of the repository,
-`nix build` leaves them in `result/bin`, and `nix profile install .` puts them on your
-`PATH`. Without nix, build them with the Rust toolchain that `rust-toolchain.toml`
-selects:
+[Installing komorebi](../installation.md) covers NixOS, where the flake's module installs both
+and starts the daemon with every Plasma session, and building them from source. In a checkout of
+the repository, on Linux, `nix build` leaves them in `result/bin`, and `nix profile install .`
+puts them on your `PATH`. Without nix, build them with the Rust toolchain that
+`rust-toolchain.toml` selects:
 
 ```sh
 cargo build --release --locked
 export PATH="$PWD/target/release:$PATH"
 ```
+
+With the NixOS module, the daemon is the user unit `komorebi.service`, which starts when you log
+in to Plasma. `systemctl --user start komorebi` starts it again after a `komorebic stop`, and
+`journalctl --user -u komorebi` shows what it wrote. Everything else on this page applies to it
+as it is.
 
 ## Starting and stopping
 

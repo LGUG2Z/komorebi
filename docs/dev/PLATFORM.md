@@ -59,6 +59,12 @@ The same questions, for each place the daemon can be started:
 Through the session bus. When the daemon is started from the session (a terminal, an
 autostart entry, a user unit of the session), the bus is already in its environment.
 
+On NixOS, the module's user unit, `komorebi.service`, is wanted by `plasma-workspace.target`
+and ordered after `plasma-core.target`, which Plasma orders after KWin's service,
+`plasma-kwin_wayland.service`: the session starts the daemon once KWin's service has started
+([installation.md](../installation.md)). The unit's `PATH` is `/run/wrappers/bin`,
+`/etc/profiles/per-user/<user>/bin` and `/run/current-system/sw/bin`.
+
 #### What komorebi does
 
 It connects to the session bus as `org.komorebi.Bridge`, writes the bridge to

@@ -83,7 +83,7 @@ def restart(old: list[str], loaded: int) -> None:
 
 
 print("== 1. three windows are tiled")
-kde.start_komorebi("--log-level", "debug")
+kde.start_komorebi()
 checks.check(
     "the daemon loaded its script into KWin", kde.wait_for(lambda: loads() == 1, timeout=30)
 )

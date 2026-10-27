@@ -123,12 +123,12 @@
           pkgs = mkPkgs system;
           build = mkKomorebiPackages { inherit pkgs; };
           isLinux = pkgs.stdenv.hostPlatform.isLinux;
-          # the daemon and komorebic each guest runs, built for the guest's system
-          komorebiFor = guestSystem: self.packages.${guestSystem}.komorebi-full;
+          # the guests install komorebi through the module, as a NixOS user does
+          komorebiModule = self.nixosModules.default;
           # a Mac runs the guests under HVF, which is slower than KVM
           vm = import ./nix/tests/vm {
             hostPkgs = pkgs;
-            inherit komorebiFor;
+            inherit komorebiModule;
             scale = if isLinux then 1 else 1.5;
           };
           nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
@@ -211,6 +211,15 @@
                 '';
 
             vm-lib = vm.lib;
+
+            # The NixOS module in real NixOS systems, evaluated and never built, so a Mac checks it
+            # too. A VM suite, `vm-module`, runs it.
+            nixos-module-eval = import ./nix/tests/nixos-module.nix {
+              inherit pkgs;
+              inherit (nixpkgs.lib) nixosSystem;
+              module = self.nixosModules.default;
+              komorebiFor = guestSystem: self.packages.${guestSystem}.komorebi-full;
+            };
           }
           # The VM tests need QEMU with KVM, so only Linux checks them. A Mac runs the same tests
           # through legacyPackages.<system>.vm, see docs/dev/vm-tests.md.
@@ -231,7 +240,7 @@
             vmTcg =
               (import ./nix/tests/vm {
                 hostPkgs = pkgs;
-                inherit komorebiFor;
+                inherit komorebiModule;
                 scale = 8;
               }).suites;
           };
@@ -295,13 +304,24 @@
         };
 
       flake = {
-        overlays.default = final: _: {
-          inherit ((mkKomorebiPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; }))
-            komorebi
-            komorebic
-            ;
-        };
+        overlays.default =
+          final: _:
+          let
+            build = mkKomorebiPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; };
+          in
+          {
+            inherit (build) komorebi komorebic;
+            komorebi-full = build.fullBuild;
+          };
         overlays.komorebi = self.overlays.default;
+
+        # `services.komorebi`, with the overlay that provides its package, so that a NixOS
+        # configuration needs this flake as an input and one module line (docs/installation.md)
+        nixosModules.default = {
+          imports = [ ./nix/nixos-module.nix ];
+          nixpkgs.overlays = [ self.overlays.default ];
+        };
+        nixosModules.komorebi = self.nixosModules.default;
       };
     };
 }

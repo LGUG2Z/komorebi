@@ -2,20 +2,18 @@
 # (Linux) and `legacyPackages.<system>.vm.<name>` (everywhere), so a new suite needs no edit to
 # the flake. See docs/dev/vm-tests.md.
 #
-# `hostPkgs` is the pkgs of the machine that runs QEMU; the guests are always Linux. `komorebiFor`
-# returns the package of `komorebi` and `komorebic` for a system, and the guests get the one of
-# their own. `scale` says how much slower than KVM that machine is (1 for KVM, 1.5 for HVF on a
-# Mac, 8 for TCG), and every wait in the suites is multiplied by it.
+# `hostPkgs` is the pkgs of the machine that runs QEMU; the guests are always Linux.
+# `komorebiModule` is the flake's NixOS module, `services.komorebi`, which every node imports: its
+# overlay builds `komorebi` and `komorebic` for the guest's system. `scale` says how much slower
+# than KVM that machine is (1 for KVM, 1.5 for HVF on a Mac, 8 for TCG), and every wait in the
+# suites is multiplied by it.
 {
   hostPkgs,
-  komorebiFor,
+  komorebiModule,
   scale ? 1,
 }:
 let
   inherit (hostPkgs) lib;
-
-  # a Linux guest of the host's architecture, which is what the test driver boots
-  guestSystem = "${hostPkgs.stdenv.hostPlatform.parsed.cpu.name}-linux";
 
   # the library the suites import, built for the python of the test driver
   komorebiVm =
@@ -80,8 +78,10 @@ let
       globalTimeout = builtins.ceil (suite.timeoutMinutes * 60 * scale);
       passthru.tier = suite.tier;
 
-      # the nodes take the daemon as an argument, `komorebi`
-      node.specialArgs.komorebi = komorebiFor guestSystem;
+      # the nodes import the module, `komorebiModule`, which adds its overlay to nixpkgs: the test
+      # framework's pkgs, which cannot be changed, would refuse it
+      node.specialArgs = { inherit komorebiModule; };
+      node.pkgsReadOnly = false;
 
       nodes.machine = {
         # a suite's `node`, if it has one, adds to the node of its kind

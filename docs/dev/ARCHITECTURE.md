@@ -8,8 +8,8 @@ tested, without one.
 This page describes that trait, who implements and calls it, where each of its rules is
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
 how an event about a window becomes a tile, how a message on the daemon's socket is
-answered, and how subscribers are notified of both. It grows with the code: each part of the
-daemon that is added has its place here.
+answered, how subscribers are notified of both, and how the NixOS module runs the daemon. It
+grows with the code: each part of the daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -45,6 +45,9 @@ daemon that is added has its place here.
   keep up to date and the queries are answered from.
 - **Held call**: the `Poll` call the bridge always has open, which the daemon answers when it
   has commands for the bridge, or after 10 seconds with none.
+- **Module**: `services.komorebi`, the NixOS module ([`nixos-module.nix`]), which installs
+  komorebi and runs the daemon in every Plasma session as the systemd user unit
+  `komorebi.service`.
 
 ## Design
 
@@ -227,6 +230,41 @@ channel of [`window_manager_event_listener`], and past 20 the backend drops them
 When the daemon stops ([`WindowManager::stop`], or `SIGINT` and `SIGTERM` in `main.rs`), it
 connects to each subscriber and shuts the connection down without writing anything.
 
+## The NixOS module
+
+The flake exports one module under two names, `nixosModules.default` and
+`nixosModules.komorebi`: [`nixos-module.nix`] and the flake's overlay, which builds
+`komorebi-full` (both programs) with the flake's nixpkgs and Rust toolchain. Its options are
+`enable`, `package` (by default `pkgs.komorebi-full`, from the overlay), `logLevel`, and
+`execStart`, which is read-only: the module sets it to `bin/komorebi` of the package with
+`--log-level`. With `services.komorebi.enable`, the module:
+
+- installs the package in the system profile;
+- defines the user unit `komorebi.service`, which every user of the machine has. Plasma's
+  `plasma-workspace.target` wants it, so a Plasma session starts it at login, and it is ordered
+  after `plasma-core.target`, which Plasma orders after KWin's service, `plasma-kwin_wayland`;
+- runs `execStart` in it, with `Restart=on-failure`, the exit status of a `SIGTERM` (130)
+  counted as success, and a `PATH` of `/run/wrappers/bin`, `/etc/profiles/per-user/%u/bin` and
+  `/run/current-system/sw/bin` instead of the store paths NixOS gives a unit;
+- asserts that Plasma 6 is enabled.
+
+The VM tests run on machines built with it ([vm-tests.md](vm-tests.md)). Their headless node
+runs the daemon in test sessions, with a template unit, `komorebi@NAME`, that runs the module's
+`execStart` on the session's private bus. The session node logs in to Plasma, which starts the
+module's unit.
+
+| Rule | Enforced by | Proof | Escape hatch |
+|---|---|---|---|
+| komorebi is enabled only on a machine with Plasma 6 | evaluation error: an assertion of the module | `nixos-module-eval` ("without Plasma 6, an assertion fails") | none |
+| The log level is one the daemon accepts | evaluation error: `logLevel` is an enum of the daemon's `--log-level` values | `nixos-module-eval` ("a log level the daemon does not have does not evaluate") | none |
+| The unit runs `execStart`, and nothing but the module sets it | evaluation error: the option is read-only | `nixos-module-eval` ("execStart cannot be set", "the unit runs execStart") | a unit of your own |
+| `komorebi` and `komorebic` are on every user's `PATH` | the module installs the package in the system profile | `nixos-module-eval`; every VM suite runs `komorebic` | none |
+| Every Plasma session starts komorebi, once KWin's service has started | systemd: the user unit is wanted by `plasma-workspace.target`, after `plasma-core.target` | `nixos-module-eval`, `vm-module` | `systemctl --user mask komorebi` |
+| A daemon that fails or is killed is started again | systemd: `Restart=on-failure` | `vm-module` (`SIGKILL`) | none |
+| A daemon that is told to stop stays stopped, and the unit is not failed | systemd: the exit statuses of `Stop` (0) and of `SIGTERM` (130) are successes | `vm-module` | none |
+| The daemon has the `PATH` of a terminal in the session | the unit's environment, with NixOS's default `PATH` turned off | `nixos-module-eval`, `vm-module` | none |
+| The VM suites run komorebi as the module installs it | framework path: the test nodes import the module, and `komorebi@NAME` runs its `execStart` | every VM suite | a suite's `node` can set `services.komorebi.enable = false` (`vm-render-smoke` does) |
+
 ## The parts
 
 - [`backend`](../../komorebi/src/backend/mod.rs): the trait, the two data types, and the
@@ -271,6 +309,8 @@ connects to each subscriber and shuts the connection down without writing anythi
   fake with `--fake-backend`, makes the window manager, which binds the socket, loads and
   tiles the desktop, starts the threads that listen on the socket and handle events, and
   waits to be stopped.
+- [`nixos-module.nix`]: the NixOS module, which installs komorebi and runs the daemon as a
+  systemd user unit of every Plasma session.
 
 The handle is a process-wide singleton so that a window can be a small `Copy` value
 that carries only its id, and ask the backend for what it needs. A test replaces it for
@@ -429,7 +469,12 @@ A window is shown, and ends up on a tile:
   driven end to end against the fake.
 - [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
   from its start to a `Stop`.
+- [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
+  [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
+  real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),
+  a Plasma session in which the module's unit runs the daemon.
 
+[`nixos-module.nix`]: ../../nix/nixos-module.nix
 [`Backend`]: ../../komorebi/src/backend/mod.rs
 [`WindowInfo`]: ../../komorebi/src/backend/mod.rs
 [`MonitorInfo`]: ../../komorebi/src/backend/mod.rs

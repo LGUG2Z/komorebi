@@ -28,8 +28,10 @@ key bindings  -------->  komorebic  <------>  komorebi
 
 ## Getting started
 
-[Running komorebi](usage/running-komorebi.md) explains how to get the two programs, start and
-stop the daemon, ask it what it is doing and read its log.
+[Installing komorebi](installation.md) explains how to install the two programs: on NixOS with
+the flake's module, which also starts komorebi with every Plasma session, and from source
+anywhere else. [Running komorebi](usage/running-komorebi.md) explains how to start and stop the
+daemon, ask it what it is doing and read its log.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.

@@ -139,10 +139,10 @@ def test_shot_returns_the_screenshot_as_rgb(machine: FakeMachine) -> None:
 
 
 def test_start_komorebi_writes_the_arguments_and_starts_the_unit(machine: FakeMachine) -> None:
-    Kde(machine, "main").start_komorebi("--log-level", "debug")
+    Kde(machine, "main").start_komorebi("--fake-backend")
 
     scripts = [inner(command) for command in machine.commands if " sh -c " in command]
-    assert "echo KOMOREBI_ARGS='--log-level debug' > /run/user/1000/komorebi-main.env" in scripts
+    assert "echo KOMOREBI_ARGS=--fake-backend > /run/user/1000/komorebi-main.env" in scripts
     assert "systemctl --user start komorebi@main.service" in scripts
 
 

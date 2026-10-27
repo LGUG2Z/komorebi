@@ -182,3 +182,31 @@ and komorebi for Mac sends the same notifications to Unix sockets, which is also
 ([its README](https://github.com/LGUG2Z/komorebi-for-mac#window-manager-event-subscriptions)).
 A subscriber here is a Unix socket, as on macOS. The named pipes that komorebi on Windows
 sends notifications to are not ported, since the socket subscribers do the same.
+
+## Why does the flake have a NixOS module?
+
+So that komorebi runs on NixOS with one flake input and one module line. The module installs
+komorebi and starts it with every Plasma session, and it adds the flake's overlay to nixpkgs
+itself, so a configuration needs nothing else to find the package. Its options follow those of
+the nix-darwin module of komorebi for Mac: `enable`, `package` and `logLevel`.
+
+## Why does komorebi run as a systemd user unit?
+
+Because a user unit covers every user: it is defined once for the machine and runs for each
+user who logs in. It is wanted by `plasma-workspace.target`, so it runs in Plasma sessions and
+nowhere else, and it is ordered after `plasma-core.target`, which Plasma orders after KWin's
+service: the daemon exits when KWin is not on the session bus. systemd starts a daemon that fails
+again.
+
+## Why is there no binary cache?
+
+The Komorebi license does not allow third parties to redistribute binaries. There is no public
+binary cache for komorebi, and every installation builds it from source.
+
+## Why do the VM tests run on machines built with the module?
+
+So that the tests exercise the module. Every VM suite boots a machine that imports
+`nixosModules.default` and installs komorebi through it. The headless node runs the daemon with
+the module's read-only `execStart`, and the session node runs the module's unit itself. A change
+to the module that breaks how komorebi is installed or started fails the VM suites, and not only
+`nixos-module-eval`.

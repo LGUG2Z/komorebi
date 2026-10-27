@@ -1,10 +1,10 @@
 """What the komorebi daemon logs about the events it handles.
 
 A test reads the daemon's view of the desktop from its log
-([`Kde.komorebi_log`](komorebi_vm.kde.Kde.komorebi_log)), started with
-`--log-level debug`: every event it handles is an info line, every focus
-change KWin reports names the window by the daemon's id and its title, and
-every frame the daemon asks KWin for is a debug line.
+([`Kde.komorebi_log`](komorebi_vm.kde.Kde.komorebi_log)), at the debug level
+the test nodes set (`services.komorebi.logLevel`): every event it handles is an
+info line, every focus change KWin reports names the window by the daemon's id
+and its title, and every frame the daemon asks KWin for is a debug line.
 """
 
 import re

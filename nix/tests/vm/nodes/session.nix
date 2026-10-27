@@ -1,5 +1,8 @@
 # A real Plasma Wayland session that logs in by itself, on a machine that can draw. Everything the
-# headless node has is here too, so a test can still start a virtual KWin next to it.
+# headless node has is here too, so a test can still start a virtual KWin next to it. The module's
+# unit, `komorebi.service`, starts komorebi in the session when the user logs in, as on a user's
+# machine; a suite that wants the session without it sets `services.komorebi.enable = false` in
+# its `node`.
 #
 # The choice of login manager is made here and nowhere else. nixpkgs' own `plasma6` test uses
 # plasma-login-manager, so that is what this node follows; sddm with a Wayland greeter is the other

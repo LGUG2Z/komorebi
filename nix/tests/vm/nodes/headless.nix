@@ -1,22 +1,34 @@
 # A machine with Plasma installed and no login: `kwin_wayland --virtual` runs as the test user's
 # own user units, once for every session a test starts, each with its own private session bus and
 # Wayland socket (`session-bus@NAME`, `kwin-virtual@NAME`). A virtual KWin has no real output, so it
-# cannot draw: pixel and pointer tests use the session node instead. `komorebi@NAME` runs the daemon
-# in a session; `komorebi` is the package of the daemon and `komorebic`, which the test framework
-# passes in.
+# cannot draw: pixel and pointer tests use the session node instead.
+#
+# komorebi comes from the NixOS module, `komorebiModule`, which the test framework passes in: the
+# node imports it and enables `services.komorebi` as a user's machine does, which installs
+# `komorebi` and `komorebic`. The module's unit starts with a Plasma session, and this node has
+# none; `komorebi@NAME` runs the module's `execStart` in a test session instead.
 {
   config,
   lib,
   pkgs,
-  komorebi,
+  komorebiModule,
   ...
 }:
 {
-  imports = [ ./options.nix ];
+  imports = [
+    ./options.nix
+    komorebiModule
+  ];
 
   # KWin, its plugins and the environment a session expects
   services.desktopManager.plasma6.enable = true;
   hardware.graphics.enable = true;
+
+  # A suite can change either in its `node`. The tests read the daemon's debug log.
+  services.komorebi = {
+    enable = lib.mkDefault true;
+    logLevel = lib.mkDefault "debug";
+  };
 
   users.users.komorebi = {
     isNormalUser = true;
@@ -40,7 +52,6 @@
     kdotool
     kdePackages.libkscreen
     kdePackages.qttools
-    komorebi
   ];
 
   systemd.user.services = {
@@ -70,7 +81,8 @@
       };
     };
 
-    # Not bound to KWin's unit: a test restarts KWin under a running daemon
+    # The module's unit, moved to the test session's bus and Wayland socket. Not bound to KWin's
+    # unit: a test restarts KWin under a running daemon.
     "komorebi@" = {
       description = "komorebi in the test session %i";
       requires = [ "session-bus@%i.service" ];
@@ -86,10 +98,11 @@
         NO_COLOR = "1";
       };
       serviceConfig = {
-        # the library writes KOMOREBI_ARGS (the log level) before it starts the unit
+        # the library writes KOMOREBI_ARGS (what follows the module's command line) before it
+        # starts the unit
         EnvironmentFile = "-%t/komorebi-%i.env";
         # a log file per run, emptied on every start, which the library reads
-        ExecStart = "${pkgs.runtimeShell} -c 'exec ${komorebi}/bin/komorebi $${KOMOREBI_ARGS} > %t/komorebi-%i.log 2>&1'";
+        ExecStart = "${pkgs.runtimeShell} -c 'exec ${config.services.komorebi.execStart} $${KOMOREBI_ARGS} > %t/komorebi-%i.log 2>&1'";
         # what komorebi exits with when it is told to stop
         SuccessExitStatus = 130;
       };

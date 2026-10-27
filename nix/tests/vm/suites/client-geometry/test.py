@@ -32,7 +32,7 @@ machine.wait_for_unit("user@1000.service")
 checks = Checks()
 kde = Kde.headless(machine, "main", size=(W, H), xwayland=True, scale=SCALE)
 kde.as_user("mkdir -p /tmp/firefox-profile")
-kde.start_komorebi("--log-level", "debug")
+kde.start_komorebi()
 checks.check(
     "the daemon loaded its script into KWin",
     kde.wait_for(lambda: "loaded the KWin bridge script" in kde.komorebi_log(), timeout=30),

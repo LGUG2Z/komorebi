@@ -59,6 +59,19 @@ The messages between the bridge and the daemon are in
 both sides read. A change to a message changes the fixture, the bridge and the
 daemon in the same commit.
 
+## The NixOS module
+
+[`nix/nixos-module.nix`](nix/nixos-module.nix) is `services.komorebi`, which the
+flake exports as `nixosModules.default` with its overlay. A change to it comes
+with a scenario in [`nix/tests/nixos-module.nix`](nix/tests/nixos-module.nix),
+the `nixos-module-eval` check: each scenario is a real NixOS system that is
+evaluated and never built, and its checks read the assertions, the unit and
+the options it evaluates to. It runs on a Mac too, with `nix build
+.#checks.aarch64-darwin.nixos-module-eval`. A change to what the unit does in a
+session also changes the VM suite `module`, which logs in to Plasma on a machine
+with the module and checks the daemon the unit runs. Every other VM suite runs
+on machines built with the module too.
+
 ## VM tests
 
 A change that needs a real KWin to be checked comes with a VM test, next to

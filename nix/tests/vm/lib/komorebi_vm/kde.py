@@ -218,8 +218,10 @@ class Kde:
     def start_komorebi(self, *args: str) -> None:
         """Starts the daemon in this session, with `args`, as the user unit `komorebi@NAME`.
 
-        The unit runs the `komorebi` the node has, against this session's bus and KWin, and
-        writes its log to a file that [`Kde.komorebi_log`][] reads, emptied on every start.
+        The unit runs the NixOS module's `execStart` with `args` after it, against this
+        session's bus and KWin, and writes its log to a file that [`Kde.komorebi_log`][] reads,
+        emptied on every start. `execStart` already has `--log-level`, from the node's
+        `services.komorebi.logLevel` (debug), and `komorebi` refuses a second one.
         """
         words = shlex.quote(" ".join(args))
         self.as_user(f"echo KOMOREBI_ARGS={words} > {self.runtime}/komorebi-{self.name}.env")

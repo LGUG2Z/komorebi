@@ -6,6 +6,15 @@ A tiling window manager for KDE Plasma on Wayland, in the family of
 decides where each window goes, and KWin, the window manager of Plasma, does the
 moving and the drawing.
 
+## Installing it
+
+On NixOS, the flake's module, `services.komorebi`, installs `komorebi` and
+`komorebic` and starts komorebi with every Plasma session: one flake input,
+one module line and `services.komorebi.enable = true`. Elsewhere, both are
+built from source. [`docs/installation.md`](docs/installation.md) has both
+ways. There are no prebuilt binaries: the Komorebi license does not allow third
+parties to redistribute them.
+
 ## Running it locally
 
 ```sh
@@ -83,14 +92,16 @@ a git dependency at the revision `Cargo.toml` pins.
 rustdoc with warnings denied, and the type check and tests of the bridge (no
 package.json: `tsc` and `node` come from the dev shell), inside `nix develop`.
 `nix flake check` runs the same checks as derivations, plus `cargo deny`, the
-TOML and Nix formatting, and the tests under `cargo nextest`, on Linux and on an
-Apple silicon Mac. On Linux it also boots every VM test, which needs KVM. A Mac
-runs the tests against the fake desktop, since KWin only exists on Linux.
-`nix fmt` formats every file the checks look at.
+TOML and Nix formatting, the tests under `cargo nextest`, and
+`nixos-module-eval`, which evaluates the NixOS module in real NixOS systems, on
+Linux and on an Apple silicon Mac. On Linux it also boots every VM test, which
+needs KVM. A Mac runs the tests against the fake desktop, since KWin only exists
+on Linux. `nix fmt` formats every file the checks look at.
 
-The VM tests boot NixOS with Plasma and run a real KWin. `just vm NAME` runs
-one; [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) has the details, including
-how to run them on a Mac.
+The VM tests boot NixOS with Plasma and run a real KWin, on machines configured
+with the NixOS module, so every one of them runs komorebi as the module installs
+it. `just vm NAME` runs one; [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) has
+the details, including how to run them on a Mac.
 
 ## How it fits together
 
@@ -125,10 +136,15 @@ listens on a socket of its own, and after each event and each message, the
 daemon connects to it and writes the event or the message with the state of
 the window manager.
 
+On NixOS, the module [`nix/nixos-module.nix`](nix/nixos-module.nix) runs the
+daemon as a systemd user unit that the Plasma session starts, and systemd
+starts it again if it fails.
+
 ## Documentation
 
-The user guide starts at [`docs/index.md`](docs/index.md), and
-[`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
+The user guide starts at [`docs/index.md`](docs/index.md),
+[`docs/installation.md`](docs/installation.md) says how to install komorebi,
+and [`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
 `just docgen` writes from the subcommands' help.
 `cargo doc --workspace --no-deps --open` builds the API documentation.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) says how to work on the code.
