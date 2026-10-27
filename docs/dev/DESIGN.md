@@ -708,3 +708,15 @@ derives for the enum is an object with a `Placement` or an `Index` key, which th
 `JsonSchema` impl of [`PlacementTarget`](../../komorebi/src/core/mod.rs) calls "not what
 `Serialize` and `Deserialize` read and write". The schema `schema.json` has says a name, a number,
 or text that is a number, which is also what the module's typed `config` takes.
+
+## Why are the key binding files read by parsers written for komorebi?
+
+All three formats, skhd's, whkd's and sxhkd's, are read by parsers written by hand in
+`komorebi-hotkeys`. For whkd there is a Rust parser, `whkd-parser`, under the same license
+as komorebi, but it requires a `.shell pwsh|powershell|cmd` line, panics in `Shell::from` on
+any other shell, and its per-application bindings match Windows process names. For skhd and
+sxhkd the reason is not recorded; this entry needs one.
+
+What is not plain syntax is expanded while the file is read: skhd's `.define` templates and
+application groups are replaced where they are used, so the model has only expanded bindings
+in it.

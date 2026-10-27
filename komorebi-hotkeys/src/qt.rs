@@ -51,6 +51,16 @@ use std::fmt;
 use std::ops::BitOr;
 use std::ops::BitOrAssign;
 
+/// A keyboard layout: which key is at each position, and which symbol Shift gives each key.
+///
+/// The US layout is the only one.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Layout {
+    /// The US layout.
+    #[default]
+    Us,
+}
+
 /// A set of modifiers, as the flags Qt or's into a key code.
 ///
 /// The four modifiers are the ones KDE knows. Side-specific modifiers (left Alt, right Alt) do

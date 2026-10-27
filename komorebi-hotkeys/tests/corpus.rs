@@ -2,8 +2,20 @@
 //!
 //! Each case is a file per format in `tests/fixtures`, `<case>.skhdrc`, `<case>.whkdrc` and
 //! `<case>.sxhkdrc`, for the formats that can express the case. The files of a case mean the same
-//! keymap, and start with the same comment, which says what the case is about.
+//! keymap, and start with the same comment, which says what the case is about. [`EXPECTED`] is
+//! that keymap, written out by [`render`].
 
+use komorebi_hotkeys::App;
+use komorebi_hotkeys::Body;
+use komorebi_hotkeys::DEFAULT_MODE;
+use komorebi_hotkeys::Edge;
+use komorebi_hotkeys::Keymap;
+use komorebi_hotkeys::ParseOptions;
+use komorebi_hotkeys::Parsed;
+use komorebi_hotkeys::Run;
+use komorebi_hotkeys::Severity;
+use komorebi_hotkeys::Then;
+use komorebi_hotkeys::skhd;
 use std::path::PathBuf;
 
 /// Every case, and the formats it is written in.
@@ -22,6 +34,169 @@ const CASES: &[(&str, &[&str])] = &[
     ("chords", &["sxhkdrc"]),
     ("release", &["sxhkdrc"]),
 ];
+
+/// The keymap of each case, as [`render`] writes it.
+const EXPECTED: &[(&str, &str)] = &[
+    (
+        "plain",
+        "Alt+H: komorebic focus left
+Alt+J: komorebic focus down
+Alt+K: komorebic focus up
+Alt+L: komorebic focus right
+Alt+Q: komorebic close",
+    ),
+    (
+        "modifiers",
+        "Meta+Return: konsole
+Ctrl+Alt+Left: komorebic stack left
+Alt+Shift+H: komorebic move left
+Ctrl+Shift+Right: komorebic resize-edge right increase
+Alt+!: komorebic move-to-workspace 0
+Ctrl+Alt+(: komorebic move-to-workspace 8
+Meta+Ctrl+Alt+Shift+A: komorebic retile
+Ctrl+Alt+Shift+M: komorebic toggle-monocle",
+    ),
+    (
+        "keycodes",
+        "Alt+[: komorebic cycle-stack previous
+Alt+]: komorebic cycle-stack next
+Alt+;: komorebic unstack
+Alt+=: komorebic resize-axis horizontal increase
+Alt+-: komorebic resize-axis horizontal decrease
+Alt+{: komorebic cycle-focus previous",
+    ),
+    (
+        "comments",
+        "Alt+H: komorebic focus left
+Alt+X: komorebic flip-layout horizontal",
+    ),
+    (
+        "braces",
+        "Alt+H: komorebic focus left
+Alt+J: komorebic focus down
+Alt+K: komorebic focus up
+Alt+L: komorebic focus right
+Alt+1: komorebic focus-workspace 0
+Alt+2: komorebic focus-workspace 1
+Alt+3: komorebic focus-workspace 2
+Alt+!: komorebic move-to-workspace 0
+Alt+@: komorebic move-to-workspace 1
+Alt+#: komorebic move-to-workspace 2",
+    ),
+    (
+        "scopes",
+        "Alt+N: firefox: komorebic focus-workspace 1 | kitty: ignore | *: komorebic focus-workspace 0
+Alt+H: komorebic focus left",
+    ),
+    (
+        "define",
+        "Alt+B: firefox: komorebic toggle-monocle | chromium: komorebic toggle-monocle | *: ignore
+Alt+H: komorebic focus left
+Alt+L: komorebic focus right",
+    ),
+    (
+        "blacklist",
+        "blacklist: steam, dota2
+Alt+H: komorebic focus left",
+    ),
+    (
+        "modes",
+        "Alt+R: mode resize
+Alt+Q: komorebic close
+mode resize, captures, on enter: notify-send resize
+[resize] H: komorebic resize-edge left increase
+[resize] L: komorebic resize-edge right increase
+[resize] Esc: mode default
+[resize] Alt+Q: komorebic close",
+    ),
+    (
+        "pause",
+        "pause Alt+Shift+P: komorebic toggle-pause
+Alt+H: komorebic focus left",
+    ),
+    (
+        "chords",
+        "Alt+W, H: komorebic move left
+Alt+W, L: komorebic move right
+Alt+R: mode Alt+R
+mode Alt+R
+[Alt+R] H: komorebic resize-edge left increase
+[Alt+R] L: komorebic resize-edge right increase
+[Alt+R] Esc: mode default",
+    ),
+    ("release", "release Alt+Space: komorebic toggle-float"),
+];
+
+/// Writes a keymap out, one line per binding, mode, blacklist and pause binding. Where each binding
+/// was written, and the defines, are left out.
+fn render(keymap: &Keymap) -> String {
+    let run = |run: &Run| match run {
+        Run::Command(command) => command.clone(),
+        Run::Mode(mode) => format!("mode {mode}"),
+    };
+    let mut lines = Vec::new();
+    if !keymap.blacklist.is_empty() {
+        lines.push(format!("blacklist: {}", keymap.blacklist.join(", ")));
+    }
+    if let Some(pause) = &keymap.pause {
+        lines.push(format!(
+            "pause {}: {}",
+            pause.combo,
+            pause.hook.as_deref().unwrap_or("nothing")
+        ));
+    }
+    for mode in &keymap.modes {
+        let prefix = if mode.name == DEFAULT_MODE {
+            String::new()
+        } else {
+            let mut header = format!("mode {}", mode.name);
+            if mode.capture {
+                header.push_str(", captures");
+            }
+            if let Some(command) = &mode.on_enter {
+                header.push_str(&format!(", on enter: {command}"));
+            }
+            lines.push(header);
+            format!("[{}] ", mode.name)
+        };
+        for binding in &mode.bindings {
+            let chord: Vec<String> = binding.chord.iter().map(ToString::to_string).collect();
+            let edge = match binding.edge {
+                Edge::Press => "",
+                Edge::Release => "release ",
+            };
+            let body = match &binding.body {
+                Body::Run(action) => run(action),
+                Body::Scoped(scopes) => scopes
+                    .iter()
+                    .map(|scope| {
+                        let app = match &scope.app {
+                            App::Named(name) => name.as_str(),
+                            App::Other => "*",
+                        };
+                        let then = match &scope.then {
+                            Then::Run(action) => run(action),
+                            Then::Ignore => "ignore".to_string(),
+                        };
+                        format!("{app}: {then}")
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" | "),
+            };
+            lines.push(format!("{prefix}{edge}{}: {body}", chord.join(", ")));
+        }
+    }
+    lines.join("\n")
+}
+
+/// Reads a fixture in the format its extension names.
+fn parse(extension: &str, text: &str) -> Option<Parsed> {
+    let options = ParseOptions::default();
+    match extension {
+        "skhdrc" => Some(skhd::parse(text, &options)),
+        _ => None,
+    }
+}
 
 fn fixtures() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
@@ -61,5 +236,62 @@ fn the_files_of_a_case_say_what_it_is_about_in_the_same_words() {
             first_lines.iter().all(|line| *line == first_lines[0]),
             "{case}: {first_lines:?}"
         );
+    }
+}
+
+#[test]
+fn every_file_reads_without_errors_into_the_keymap_of_its_case() {
+    for (case, extensions) in CASES {
+        for extension in *extensions {
+            let Some(parsed) = parse(extension, &read(case, extension)) else {
+                continue;
+            };
+            let errors: Vec<String> = parsed
+                .diagnostics
+                .iter()
+                .filter(|d| d.severity == Severity::Error)
+                .map(ToString::to_string)
+                .collect();
+            assert!(errors.is_empty(), "{case}.{extension}: {errors:#?}");
+
+            if let Some((_, expected)) = EXPECTED.iter().find(|(c, _)| c == case) {
+                assert_eq!(render(&parsed.keymap), *expected, "{case}.{extension}");
+            }
+        }
+    }
+}
+
+#[test]
+fn every_case_but_the_sample_has_an_expected_keymap() {
+    for (case, _) in CASES {
+        let expected = EXPECTED.iter().any(|(c, _)| c == case);
+        assert_eq!(expected, *case != "sample", "{case}");
+    }
+}
+
+#[test]
+fn the_sample_reads_completely() {
+    for extension in ["skhdrc"] {
+        let parsed = parse(extension, &read("sample", extension)).unwrap();
+        assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+        let bindings = &parsed.keymap.modes[0].bindings;
+        assert_eq!(bindings.len(), 50);
+
+        let rendered = render(&parsed.keymap);
+        for line in [
+            "Alt+L: komorebic focus right",
+            "Alt+{: komorebic cycle-focus previous",
+            "Alt+[: komorebic cycle-stack previous",
+            "Alt+(: komorebic move-to-workspace 8",
+            "Alt+=: komorebic resize-axis horizontal increase",
+        ] {
+            assert!(rendered.lines().any(|l| l == line), "{extension}: {line}");
+        }
+
+        // no two bindings share a key
+        let mut keys: Vec<_> = bindings.iter().map(|b| b.chord.clone()).collect();
+        keys.sort();
+        keys.dedup();
+        assert_eq!(keys.len(), bindings.len());
     }
 }

@@ -40,11 +40,38 @@
 //!
 //! Key names are read as on a US keyboard layout; [the `qt` module](qt#a-us-layout-only) says
 //! what that means for other layouts.
+//!
+//! # Reading a file
+//!
+//! Each format has a module with a `parse` function, which reads the text of a file into a
+//! [`Parsed`]: the [`Keymap`] and the [diagnostics](Diagnostic) about the file. Reading never
+//! fails. What is not valid syntax is skipped with an error, and what is valid but cannot be
+//! realized on KDE, or only differently, is reported with a warning that says so. Each module
+//! lists what it reads and what it does not.
+//!
+//! - [`skhd`]: an skhdrc, with modes, per-application bindings, `.blacklist` and skhd.zig's
+//!   `.define`.
+//!
+//! ```rust
+//! use komorebi_hotkeys::{ParseOptions, Severity, skhd};
+//!
+//! let parsed = skhd::parse(
+//!     "alt - h : komorebic focus left\nlalt - l : komorebic focus right\n",
+//!     &ParseOptions::default(),
+//! );
+//! let bindings = &parsed.keymap.modes[0].bindings;
+//! assert_eq!(bindings[1].chord[0].to_string(), "Alt+L");
+//! // KDE has no left Alt, so the binding is on either Alt, and the reader says so
+//! assert_eq!(parsed.diagnostics[0].severity, Severity::Warning);
+//! assert_eq!(parsed.diagnostics[0].span.line, 2);
+//! ```
 
 #![deny(missing_docs)]
 
 mod ir;
 pub mod qt;
+pub mod skhd;
+mod text;
 
 pub use ir::App;
 pub use ir::Binding;
@@ -63,6 +90,25 @@ pub use ir::Severity;
 pub use ir::Span;
 pub use ir::Support;
 pub use ir::Then;
+
+/// Options for reading a file.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ParseOptions {
+    /// The keyboard layout to read positional key names with: skhd's macOS keycodes and whkd's
+    /// `oem_*` keys, and the [shifted symbol rule](qt#the-shifted-symbol-rule).
+    ///
+    /// The default for this is [`Layout::Us`](qt::Layout::Us), the only layout.
+    pub layout: qt::Layout,
+}
+
+/// A file, read: its keymap, and what the reader has to say about it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Parsed {
+    /// The bindings that could be read.
+    pub keymap: Keymap,
+    /// The diagnostics, in the order of the text they are about.
+    pub diagnostics: Vec<Diagnostic>,
+}
 
 /// The file formats this crate reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

@@ -1584,6 +1584,7 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 - **Diagnostic**: something about a file its user should know: its span (byte offsets and line),
   its severity (error, warning, note) and how faithfully the construct is realized (exactly,
   approximated, not at all).
+- **Parsed**: a file, read: the keymap and the diagnostics.
 
 ### The parts
 
@@ -1592,6 +1593,11 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   `Combo`, which applies the shifted symbol rule: KWin matches the character a key press
   produced, so Alt+Shift+1 is registered as Alt+!.
 - [`ir`](../../komorebi-hotkeys/src/ir.rs): the model.
+- [`skhd`](../../komorebi-hotkeys/src/skhd.rs): reads an skhdrc. A mode may be used before it
+  is declared, so each binding waits for the end of the file to be put in its modes. skhd.zig's
+  `.define` templates and application groups are expanded where they are used.
+- [`text`](../../komorebi-hotkeys/src/text.rs): what the readers share: line numbers, comments,
+  continued lines and the diagnostics' wording.
 - [`tests/fixtures`](../../komorebi-hotkeys/tests/fixtures): the corpus, `<case>.skhdrc`,
   `<case>.whkdrc` and `<case>.sxhkdrc`, each case in every format that can express it.
 
@@ -1602,7 +1608,9 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 | A combo is in the form KWin matches (the shifted symbol rule is applied) | type system: `Combo`'s fields are private, and `Combo::new` applies the rule | `compile_fail,E0451` on `Combo`; `shift_on_a_symbol_key_is_the_symbol_it_types` | none |
 | A key has the same code whichever vocabulary names it | test | `the_three_vocabularies_name_the_same_keys` | none |
 | Positional key names (macOS keycodes, `oem_*`) are read as on a US layout | convention only | none | none |
-| The files of a corpus case mean the same keymap | convention only | `the_files_of_a_case_say_what_it_is_about_in_the_same_words` checks only that they start with the same comment | none |
+| Reading a file returns a keymap, whatever the text | type system: a reader returns `Parsed`, not a `Result` | none | none |
+| Text that is left out has a diagnostic that points at it | test | `what_cannot_be_read_is_reported_and_left_out`, `reading_goes_on_after_an_error`, `diagnostics_point_at_the_text_they_are_about` | none |
+| A fixture reads, without errors, into the keymap of its case | test, for the skhdrc files; convention only for the others | `every_file_reads_without_errors_into_the_keymap_of_its_case` | none |
 
 ## Where to look in the code
 
@@ -1778,8 +1786,9 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   [`nix/tests/vm/suites/kwin-contract`](../../nix/tests/vm/suites/kwin-contract/test.py), the
   behavior of KWin's per-output virtual desktops komorebi relies on, with two outputs and no
   komorebi.
-- [`komorebi-hotkeys/src/lib.rs`](../../komorebi-hotkeys/src/lib.rs): the key binding model, and
-  [`komorebi-hotkeys/src/qt.rs`](../../komorebi-hotkeys/src/qt.rs) the keys.
+- [`komorebi-hotkeys/src/lib.rs`](../../komorebi-hotkeys/src/lib.rs): the key binding model,
+  [`komorebi-hotkeys/src/qt.rs`](../../komorebi-hotkeys/src/qt.rs) the keys, and one module per
+  format, [`skhd.rs`](../../komorebi-hotkeys/src/skhd.rs).
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),

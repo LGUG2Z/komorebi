@@ -91,9 +91,9 @@ without a checkout of the toolchain.
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
-- [`komorebi-hotkeys`](komorebi-hotkeys): the key bindings of skhd, whkd and
-  sxhkd files in one model, with the keys as KDE stores them. It does not depend
-  on the daemon. Its tests read the files in
+- [`komorebi-hotkeys`](komorebi-hotkeys): reads the key binding file of skhd
+  into a model that also has room for whkd's and sxhkd's, with the keys as KDE
+  stores them. It does not depend on the daemon. Its tests read the files in
   [`komorebi-hotkeys/tests/fixtures`](komorebi-hotkeys/tests/fixtures), where
   each case is written in every format that can express it.
 - [`komorebic`](komorebic): the command line. A subcommand that asks something
