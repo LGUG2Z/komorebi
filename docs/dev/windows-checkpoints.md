@@ -179,6 +179,7 @@ Status: can be run once W1 shows capture works.
 1. Start komorebi, then open the viewer on a Windows session: `komorebi-recorder-gui.exe view
    C:\temp\w2`. It should open floating (not tiled into your layout) and be usable: moving, resizing,
    minimizing and closing it. If komorebi tiles it, say so.
+   Its taskbar button and Alt+Tab entry should show the watermelon icon.
 2. Ask komorebi what it thinks of it. Set `KOMOREBI_RECORDER_PROBE_WINDOW=1` before starting the
    viewer (or the recorder window), wait a few seconds, and send back
    `%TEMP%\komorebi-recorder-window-probe.txt`.
@@ -204,6 +205,7 @@ warn on the first run.
 
    That it runs proves the `PATH` entry. `Program Files\komorebi-recorder\bin` should hold `komorebi-recorder.exe` and
    `komorebi-recorder-gui.exe`.
+   In Explorer both executables should show the watermelon icon, and so should the entry in Apps & features.
 
 2. Install a second build over it, such as the next nightly. It should upgrade in place: one entry in Apps & features,
    not two.

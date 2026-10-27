@@ -112,6 +112,10 @@
 
     <Property Id='ARPHELPLINK' Value='https://github.com/LGUG2Z/komorebi-recorder' />
 
+    <!-- the icon of the entry in Apps & features; the executables carry the same one -->
+    <Icon Id='watermelon.ico' SourceFile='komorebi-recorder\assets\watermelon.ico' />
+    <Property Id='ARPPRODUCTICON' Value='watermelon.ico' />
+
     <UI>
       <UIRef Id='WixUI_FeatureTree' />
     </UI>

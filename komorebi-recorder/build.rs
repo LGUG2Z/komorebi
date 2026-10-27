@@ -20,6 +20,9 @@
 //! `KOMOREBI_WINDOWS_COMMIT` for a build outside a checkout (nix).
 //!
 //! If a source is not there the catalog is empty and says so.
+//!
+//! The script also gives the Windows executables their icon, which Explorer reads from a resource in the file: see
+//! [`embed_icon`].
 
 use proc_macro2::TokenStream;
 use proc_macro2::TokenTree;
@@ -482,10 +485,32 @@ fn index(flavor: &Flavor) -> String {
     out
 }
 
+/// Compiles the icon into the executables when the target is Windows. The windows set their own icon while they run
+/// (`src/icon.rs`), which is not what Explorer shows for the file, and the command-line build has no window at all.
+///
+/// A Windows host compiles `assets/watermelon.rc` with `rc.exe`, and any other host with `llvm-rc`, as the Windows
+/// build in `flake.nix` does. `llvm-rc` reads a copy of the file from the build directory, so the icon is found by
+/// naming `assets` as an include directory and not by its place next to the `.rc`.
+fn embed_icon() {
+    println!("cargo:rerun-if-changed=assets/watermelon.rc");
+    println!("cargo:rerun-if-changed=assets/watermelon.ico");
+
+    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|target| target == "windows") {
+        embed_resource::compile(
+            "assets/watermelon.rc",
+            embed_resource::ParamsIncludeDirs(&["assets"]),
+        )
+        .manifest_required()
+        .expect("compile the icon resource");
+    }
+}
+
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR"));
 
     println!("cargo:rerun-if-changed=build.rs");
+
+    embed_icon();
 
     let out: String = FLAVORS.iter().map(index).collect();
 

@@ -55,6 +55,7 @@
 //! | [`annotations`] | the bug regions, notes and findings written into a session |
 //! | [`recovery`] | rebuilding a session whose recorder died |
 //! | [`cli`] | the command line |
+//! | [`icon`] | the icon of the windows |
 //! | [`app`] | the recorder window |
 //! | [`av`] and [`selftest`] | decoding the recorded video and checking it against the clocks |
 //! | [`doctor`] | what a recording leans on, and probes that measure it |
@@ -82,6 +83,7 @@ pub mod cli;
 pub mod clock;
 pub mod doctor;
 pub mod frames;
+pub mod icon;
 pub mod incidents;
 pub mod komorebi_link;
 pub mod lock;

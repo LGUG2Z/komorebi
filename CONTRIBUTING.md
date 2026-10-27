@@ -47,8 +47,8 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ## Development environment
 
 The project is built with Nix. `nix develop` (or direnv, whose `.envrc` is `use flake`) provides the
-Rust toolchain with nightly `rustfmt`, `cargo-deny`, `cargo-nextest`, `ffmpeg`, `jq`, `just` and
-`ripgrep`, and sets `KOMOREBI_MAC_SRC` and `KOMOREBI_WINDOWS_SRC` (with `_COMMIT`) to the komorebi
+Rust toolchain with nightly `rustfmt`, `cargo-deny`, `cargo-nextest`, `ffmpeg`, `jq`, `just`,
+`resvg` and `ripgrep`, and sets `KOMOREBI_MAC_SRC` and `KOMOREBI_WINDOWS_SRC` (with `_COMMIT`) to the komorebi
 sources pinned in `flake.lock`. The tests that read komorebi's source need them, so run `cargo` inside
 the shell.
 
@@ -57,6 +57,9 @@ The Windows code is type-checked from a Mac with `nix develop .#windows`, whose 
 `windows` job in CI.
 On a Windows machine, the steps in [docs/dev/windows-checkpoints.md](docs/dev/windows-checkpoints.md)
 say what to run and what to look for.
+
+The icon is `komorebi-recorder/assets/watermelon.svg`. After changing it, run `just icon` to render the PNG that
+the windows set and the ICO that Windows embeds, and commit the three together.
 
 ## Checks
 

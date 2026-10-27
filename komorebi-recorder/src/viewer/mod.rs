@@ -113,6 +113,7 @@ pub fn run(session: Option<PathBuf>) -> eyre::Result<()> {
             // no title: komorebi leaves untitled windows alone, so opening the viewer does not
             // move the layout of the machine whose behavior is being investigated
             .with_title("")
+            .with_icon(crate::icon::window_icon())
             .with_title_shown(false)
             .with_titlebar_shown(false)
             .with_fullsize_content_view(true)

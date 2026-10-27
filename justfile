@@ -56,6 +56,10 @@ record *args:
 build-windows:
     nix build .#komorebi-recorder-windows --out-link result-windows
 
+# render the icon: komorebi-recorder/assets/watermelon.svg into the PNG the windows set and the ICO Windows embeds
+icon:
+    python3 komorebi-recorder/assets/generate.py
+
 deps:
     cargo update
     just depgen

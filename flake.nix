@@ -58,7 +58,9 @@
             || (pkgs.lib.hasSuffix "/komorebi-recorder/src/guide.md" path)
             || (pkgs.lib.hasInfix "/komorebi-recorder/tests/fixtures/" path)
             # the installer, which `tests/packaging.rs` checks
-            || (pkgs.lib.hasInfix "/wix/" path);
+            || (pkgs.lib.hasInfix "/wix/" path)
+            # the icon, which `src/icon.rs` embeds and `build.rs` compiles into the Windows executables
+            || (pkgs.lib.hasInfix "/komorebi-recorder/assets/" path);
         };
 
       mkPackages =
@@ -299,6 +301,8 @@
               pkgs.jq
               pkgs.just
               pkgs.ripgrep
+              # `just icon` renders the watermelon
+              pkgs.resvg
             ];
           };
 

@@ -138,3 +138,29 @@ fn the_license_the_installer_shows_is_there_and_is_the_projects() {
         "main.wxs does not refer to wix\\License.rtf"
     );
 }
+
+#[test]
+fn the_installer_shows_the_icon_the_executables_carry() {
+    let text = installer();
+
+    let id = attribute(&text, "Icon", "Id");
+    let source = attribute(&text, "Icon", "SourceFile");
+    assert!(
+        text.contains(&format!("<Property Id='ARPPRODUCTICON' Value='{id}'")),
+        "Apps & features is not told to show the icon {id}"
+    );
+    assert!(
+        repository().join(source.replace('\\', "/")).is_file(),
+        "wix/main.wxs takes its icon from {source}, which is not there"
+    );
+
+    // the resource build.rs compiles into the executables names the same file
+    let resource =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/watermelon.rc"))
+            .expect("assets/watermelon.rc");
+    let icon = source.rsplit('\\').next().expect("a file name");
+    assert!(
+        resource.contains(&format!("\"{icon}\"")),
+        "the executables carry an icon other than the installer's {icon}: {resource}"
+    );
+}

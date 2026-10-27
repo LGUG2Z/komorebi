@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>A slice of watermelon</title>
+  <defs>
+    <linearGradient id="flesh" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff6f7d"/>
+      <stop offset="1" stop-color="#ea3a52"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(239.1 193.8) rotate(-30) scale(1.054)">
+    <path d="M-236 0 A236 236 0 0 0 236 0 Z" fill="#2a7a3d" stroke="#2a7a3d" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M-212 0 A212 212 0 0 0 212 0 Z" fill="#9bd36b"/>
+    <path d="M-194 0 A194 194 0 0 0 194 0 Z" fill="#f3f8dc"/>
+    <path d="M-182 0 A182 182 0 0 0 182 0 Z" fill="url(#flesh)"/>
+    <g transform="translate(56.7 44.3) rotate(-52.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(22.2 68.5) rotate(-18.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(-22.2 68.5) rotate(18.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(-56.7 44.3) rotate(52.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(124.0 45.1) rotate(-70.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(91.7 95.0) rotate(-44.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(40.8 125.5) rotate(-18.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(-18.4 130.7) rotate(8.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(-73.8 109.4) rotate(34.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+    <g transform="translate(-114.3 66.0) rotate(60.0)"><path d="M0 -21 C13 -7 13 15 0 21 C-13 15 -13 -7 0 -21 Z" fill="#2b1d1d"/><ellipse cx="-4.5" cy="-1" rx="2.6" ry="7" fill="#ffffff" opacity=".28"/></g>
+  </g>
+</svg>

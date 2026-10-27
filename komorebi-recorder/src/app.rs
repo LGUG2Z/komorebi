@@ -170,6 +170,7 @@ pub fn run(args: RecordArgs) -> eyre::Result<()> {
         viewport: egui::ViewportBuilder::default()
             // no title: komorebi leaves untitled windows alone
             .with_title("")
+            .with_icon(crate::icon::window_icon())
             .with_decorations(false)
             .with_inner_size([420.0, 380.0])
             .with_min_inner_size([360.0, 260.0])
