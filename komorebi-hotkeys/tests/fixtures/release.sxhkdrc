@@ -1,0 +1,3 @@
+# a binding that runs when the key is released
+alt + @space
+    komorebic toggle-float

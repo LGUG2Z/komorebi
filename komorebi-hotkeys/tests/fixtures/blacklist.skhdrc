@@ -1,0 +1,7 @@
+# no binding is active while steam or dota2 has the focus
+.blacklist [
+    "steam"
+    "dota2"
+]
+
+alt - h : komorebic focus left

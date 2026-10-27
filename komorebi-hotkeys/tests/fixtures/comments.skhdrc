@@ -1,0 +1,6 @@
+# comments, trailing comments and a command continued on the next line
+
+# a comment on a line of its own
+alt - h : komorebic focus left # a trailing comment is not part of the command
+alt - x : komorebic \
+    flip-layout horizontal

@@ -1,0 +1,11 @@
+# every modifier, and Shift on a key that types a symbol
+.shell pwsh
+
+win + return : konsole
+ctrl + alt + left : komorebic stack left
+alt + shift + h : komorebic move left
+ctrl + shift + right : komorebic resize-edge right increase
+alt + shift + 1 : komorebic move-to-workspace 0
+ctrl + alt + shift + 9 : komorebic move-to-workspace 8
+win + ctrl + alt + shift + a : komorebic retile
+ctrl + alt + shift + m : komorebic toggle-monocle

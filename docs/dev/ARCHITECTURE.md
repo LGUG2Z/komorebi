@@ -1564,6 +1564,46 @@ A window is shown, and ends up on a tile:
 6. There are no more lines, so `read_commands_uds` returns and the connection is closed.
    `send_query` has read to the end, and returns the JSON, which `komorebic` prints.
 
+## Key bindings
+
+[`komorebi-hotkeys`](../../komorebi-hotkeys/src/lib.rs) is a crate of its own, which does not
+depend on the daemon. Its model is the content of a key binding file of any of three hotkey
+daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
+
+### The model
+
+- **Keymap**: one file: its modes, the applications in which no binding is active (a
+  blacklist), a binding that turns the others off and on (a pause binding), and the names the
+  file defined.
+- **Mode**: bindings that are active together. A keymap starts in the mode `default`.
+- **Binding**: a chord (one or more combos, pressed one after the other), whether it fires on
+  press or on release, and a body: an action (run a command, or switch to a mode), or an action
+  per application (scopes).
+- **Combo**: a key and its modifiers, as the integer KDE stores (a Qt key code with the modifier
+  flags or'ed in) and the portable text a `.desktop` file writes (`Alt+H`).
+- **Diagnostic**: something about a file its user should know: its span (byte offsets and line),
+  its severity (error, warning, note) and how faithfully the construct is realized (exactly,
+  approximated, not at all).
+
+### The parts
+
+- [`qt`](../../komorebi-hotkeys/src/qt.rs): key names to Qt key codes, in the vocabulary of each
+  format (skhd's literals and macOS keycodes, whkd's virtual key names, sxhkd's X keysyms), and
+  `Combo`, which applies the shifted symbol rule: KWin matches the character a key press
+  produced, so Alt+Shift+1 is registered as Alt+!.
+- [`ir`](../../komorebi-hotkeys/src/ir.rs): the model.
+- [`tests/fixtures`](../../komorebi-hotkeys/tests/fixtures): the corpus, `<case>.skhdrc`,
+  `<case>.whkdrc` and `<case>.sxhkdrc`, each case in every format that can express it.
+
+### What is guaranteed, and by what
+
+| Rule | Enforced by | Proof | Escape hatch |
+|---|---|---|---|
+| A combo is in the form KWin matches (the shifted symbol rule is applied) | type system: `Combo`'s fields are private, and `Combo::new` applies the rule | `compile_fail,E0451` on `Combo`; `shift_on_a_symbol_key_is_the_symbol_it_types` | none |
+| A key has the same code whichever vocabulary names it | test | `the_three_vocabularies_name_the_same_keys` | none |
+| Positional key names (macOS keycodes, `oem_*`) are read as on a US layout | convention only | none | none |
+| The files of a corpus case mean the same keymap | convention only | `the_files_of_a_case_say_what_it_is_about_in_the_same_words` checks only that they start with the same comment | none |
+
 ## Where to look in the code
 
 - [`komorebi/src/backend/mod.rs`](../../komorebi/src/backend/mod.rs): the trait.
@@ -1738,6 +1778,8 @@ A window is shown, and ends up on a tile:
   [`nix/tests/vm/suites/kwin-contract`](../../nix/tests/vm/suites/kwin-contract/test.py), the
   behavior of KWin's per-output virtual desktops komorebi relies on, with two outputs and no
   komorebi.
+- [`komorebi-hotkeys/src/lib.rs`](../../komorebi-hotkeys/src/lib.rs): the key binding model, and
+  [`komorebi-hotkeys/src/qt.rs`](../../komorebi-hotkeys/src/qt.rs) the keys.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),

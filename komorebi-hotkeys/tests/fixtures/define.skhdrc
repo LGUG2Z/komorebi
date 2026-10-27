@@ -1,0 +1,10 @@
+# a group of applications and a command template, both from .define
+.define browsers ["firefox", "chromium"]
+.define focus : komorebic focus {{1}}
+
+alt - b [
+    @browsers : komorebic toggle-monocle
+    *         ~
+]
+alt - h : @focus("left")
+alt - l : @focus("right")

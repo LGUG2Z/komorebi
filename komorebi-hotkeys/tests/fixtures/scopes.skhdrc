@@ -1,0 +1,7 @@
+# one key, a different command in each application; kitty gets the key itself
+alt - n [
+    "firefox" : komorebic focus-workspace 1
+    "kitty"   ~
+    *         : komorebic focus-workspace 0
+]
+alt - h : komorebic focus left

@@ -54,7 +54,9 @@
               # with the example file
               || (pkgs.lib.hasSuffix "docs/example-configurations.md" path)
               # the example a test loads, to see that the docs show one that works
-              || (pkgs.lib.hasSuffix "docs/usage/wallpapers.md" path);
+              || (pkgs.lib.hasSuffix "docs/usage/wallpapers.md" path)
+              # the key binding files the komorebi-hotkeys tests read
+              || (pkgs.lib.hasInfix "/komorebi-hotkeys/tests/fixtures/" path);
           };
 
           commonArgs = {

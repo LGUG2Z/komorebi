@@ -2498,6 +2498,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-hotkeys"
+version = "0.1.0"
+
+[[package]]
 name = "komorebi-layouts"
 version = "0.1.42"
 source = "git+https://github.com/LGUG2Z/komorebi?rev=f08aa55511d77ca56ab0e789efabeb0a237a463e#f08aa55511d77ca56ab0e789efabeb0a237a463e"
