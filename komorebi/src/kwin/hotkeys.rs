@@ -26,6 +26,16 @@
 //! for ([`command`]): `komorebic` with the words of a `komorebic` command, when they need no shell,
 //! and `sh -c` with anything else.
 //!
+//! # Modes
+//!
+//! A mode is the engine's alone: entering one is a set of deactivations (the keys of the mode
+//! left, which reach the focused window again) and activations (the keys of the mode entered),
+//! carried out like any others, and the command the mode runs when it is entered. The daemon
+//! logs the mode it is in after each change (`key bindings: the mode is now resize`). The keys
+//! of a mode, a bare `H` or `Escape` among them, are swallowed only while the mode is the one
+//! the engine is in. A start puts the engine in the default mode, whatever mode an earlier
+//! komorebi was in.
+//!
 //! # Start and stop
 //!
 //! kglobalaccel keeps an action, and the grab of its key, until it is unregistered: a komorebi
@@ -523,6 +533,7 @@ async fn serve(
     let _ = started.send(Ok(()));
 
     loop {
+        let mode = engine.mode().to_string();
         let effects = tokio::select! {
             Some(signal) = pressed.next() => {
                 let (component, action, _): (String, String, i64) = signal.body().deserialize()?;
@@ -555,6 +566,9 @@ async fn serve(
             else => return Ok(()),
         };
 
+        if engine.mode() != mode {
+            tracing::info!("key bindings: the mode is now {}", engine.mode());
+        }
         for effect in &effects {
             spawn(effect);
         }
@@ -626,6 +640,49 @@ mod tests {
                 Call::Grab(h),
                 Call::Register(l),
                 Call::Grab(l)
+            ]
+        );
+    }
+
+    #[test]
+    fn entering_a_mode_lets_the_keys_of_the_other_go_and_grabs_its_own() {
+        let keymap = keymap(
+            ":: resize : notify-send resize\nalt - r ; resize\nalt - h : echo h\n\
+             resize < h : echo resize\nresize < escape ; default\n",
+        );
+        let known = combos(&keymap);
+        let mut engine = Engine::new(keymap, EngineOptions::default());
+        let mut registry = Registry::default();
+        registry.startup(&[], &known, &engine.start());
+        let now = Instant::now();
+
+        let effects = engine.on_pressed(known["Alt+R"], now);
+
+        assert_eq!(engine.mode(), "resize");
+        assert_eq!(effects[0], Effect::Shell("notify-send resize".into()));
+        let (h, escape) = (known["H"], known["Esc"]);
+        assert_eq!(
+            registry.calls(&effects),
+            [
+                Call::Release(known["Alt+H"]),
+                Call::Release(known["Alt+R"]),
+                Call::Register(h),
+                Call::Grab(h),
+                Call::Register(escape),
+                Call::Grab(escape),
+            ]
+        );
+
+        // back in the default mode: registered once, so only grabbed again
+        let effects = engine.on_pressed(escape, now);
+        assert_eq!(engine.mode(), "default");
+        assert_eq!(
+            registry.calls(&effects),
+            [
+                Call::Release(h),
+                Call::Release(escape),
+                Call::Grab(known["Alt+H"]),
+                Call::Grab(known["Alt+R"]),
             ]
         );
     }

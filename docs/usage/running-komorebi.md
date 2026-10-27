@@ -81,6 +81,10 @@ komorebic hotkeys compile --mode auto
 komorebic start -- --keybindings-mode auto
 ```
 
+The daemon realizes the modes of an skhdrc (and the chains of an sxhkdrc that stay open)
+itself: while a mode is active, only its keys are taken, and every other key reaches the
+window as usual. The log says which mode the daemon is in after each change.
+
 A daemon that is killed leaves its keys swallowed until it is started again; `komorebic stop`
 gives them back.
 

@@ -78,4 +78,47 @@ checks.check(
     not kde.wait_for(lambda: ran("keys-engine-alt-j"), timeout=3),
 )
 
+# modes: entering one grabs its keys, a bare H among them, and lets the others go to the window
+kde.spawn("stdbuf -oL wev", log="/tmp/wev.log")
+if not kde.wait_for(lambda: kde.wid_by_class("wev") != "", timeout=30):
+    raise AssertionError("wev did not open")
+kde.activate(kde.wid_by_class("wev"))
+
+
+def typed(key: str) -> int:
+    """How many presses of `key` reached wev."""
+    # wev prints a sym line after the press and after the release of a key
+    presses = f"grep -A1 'state: 1 (pressed)' /tmp/wev.log | grep -cE 'sym: {key} +\\('"
+    out = machine.execute(presses)[1].strip()
+    return int(out or "0")
+
+
+def reaches_wev(key: str, presses: int) -> bool:
+    return kde.wait_for(lambda: typed(key) >= presses, timeout=5)
+
+
+start(
+    ":: resize : touch /tmp/keys-modes-entered\n"
+    "alt - r ; resize\n"
+    "resize < h : touch /tmp/keys-modes-h\n"
+    "resize < escape ; default\n"
+)
+keys.send("h")
+checks.check("in the default mode H reaches the focused window", reaches_wev("h", 1))
+checks.check("Alt+R enters the mode and runs its command", press("alt-r", "keys-modes-entered"))
+checks.check(
+    "the daemon logs the mode it is in",
+    kde.wait_for(lambda: "the mode is now resize" in kde.komorebi_log()),
+)
+checks.check("in the mode H runs its binding", press("h", "keys-modes-h"))
+checks.check("and does not reach the window", typed("h") == 1)
+keys.send("esc")
+checks.check(
+    "Escape goes back to the default mode",
+    kde.wait_for(lambda: "the mode is now default" in kde.komorebi_log()),
+)
+keys.send("h")
+checks.check("back in the default mode H reaches the window again", reaches_wev("h", 2))
+kde.komorebic("stop")
+
 checks.finish()

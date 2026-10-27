@@ -1672,8 +1672,11 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 - **Commands**: a `komorebic` command runs `komorebic` (the one next to the daemon) with its
   words when it needs no shell, and anything else runs through `sh -c`, as processes the
   daemon does not wait for.
+- **Modes**: a mode switch is the engine's deactivations and activations, carried out like
+  any others; the daemon logs the mode after each change.
 - **Start**: the component's actions that the keymap names are taken over, and released
-  unless the default mode wants them; the others are unregistered.
+  unless the default mode wants them; the others are unregistered. The engine starts in the
+  default mode.
 - **Stop**: every key is released and every action unregistered, from
   `KWinBackend::shutdown`, which every way the daemon stops goes through.
 
@@ -1693,7 +1696,7 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 | An `Exec` line runs the command as written (quoting, `%%`) | test | `exec_lines_are_quoted_for_the_desktop_entry_spec` | none |
 | The sample configuration plans into the same 50 shortcut files from each format | test | `the_sample_plans_into_the_same_shortcut_files_in_every_format` | none |
 | After every event, the active set is the one the engine wants for its state, and each effect changes it (no combo is activated twice) | framework path: every event handler that changes the state ends in the one reconcile step, which diffs two sets | `a_chain_activates_its_next_keys_until_it_ends`, `a_mode_has_its_own_keys` | none |
-| A key the engine does not want reaches the application | convention only: kglobalacceld must be told with `setInactive`, by the daemon | none | none |
+| A key the engine does not want reaches the application | framework path: the daemon turns every deactivation into `setInactive` (`Registry::calls`); VM test | `entering_a_mode_lets_the_keys_of_the_other_go_and_grabs_its_own`, `vm-keys-engine` (a bare H in a mode and out of it, seen by `wev`) | none |
 | A scoped key is active only for an application a scope gives an action | test | `a_scoped_key_is_active_only_where_it_does_something` | none |
 | Stopping the engine gives every key back | test, of the effects; carrying them out is the daemon's | `start_activates_the_default_mode_and_stop_gives_everything_back` | none |
 | The engine does no I/O and reads no clock | convention only | none | none |
@@ -1708,6 +1711,7 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 | A start takes over the keys a killed daemon left, releases those the default mode does not want, and unregisters the actions its keymap does not name | test, of the calls; VM test, against kglobalaccel | `a_start_takes_over_the_keys_of_a_killed_komorebi_and_drops_the_rest`, `vm-keys-engine` | none |
 | A stop of the daemon unregisters every action | framework path: `KWinBackend::shutdown` calls `kwin::hotkeys::stop`, and both ways to stop call it; VM test | `vm-keys-engine` (`komorebic stop`) | `SIGKILL` leaves the keys until the next start |
 | A press of a grabbed key runs its binding's command, `komorebic` without a shell where it needs none | test, of the process; VM test | `command` doctest, `a_press_runs_the_command_and_changes_no_key`, `vm-keys-engine` | none |
+| Entering a mode lets go of the keys of the mode it leaves and grabs its own, a bare key among them | test, of the calls; VM test | `entering_a_mode_lets_the_keys_of_the_other_go_and_grabs_its_own`, `vm-keys-engine` | none |
 | Holding a key runs its binding once | convention only: the transport listens to `globalShortcutPressed` and not to `globalShortcutRepeated` | none (measured in PLATFORM.md) | none |
 
 ## Where to look in the code
