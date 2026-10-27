@@ -5,6 +5,7 @@
 //! command is run through [`execute`], which turns its outcome into the process's exit status.
 //! `--json` on a command also decides how a failure is reported (see [`Command::wants_json`]).
 
+mod doctor;
 mod record;
 
 use crate::session::Session;
@@ -12,8 +13,10 @@ use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 use color_eyre::eyre;
+use serde::Serialize;
 use std::path::PathBuf;
 
+pub use doctor::DoctorArgs;
 pub use record::RecordArgs;
 
 /// The command line of `komorebi-recorder`.
@@ -44,6 +47,8 @@ pub enum Command {
     Record(RecordArgs),
     /// List the displays that can be recorded
     Displays,
+    /// What this machine can do for a recording, and probes that measure what one leans on
+    Doctor(DoctorArgs),
     /// Rebuild a session's timeline from its raw files, recovering it first if the recorder died
     Reindex(ReindexArgs),
     /// Check the video-to-clock alignment against a rendered on-screen clock
@@ -74,12 +79,20 @@ pub struct SelftestArgs {
     pub out: Option<PathBuf>,
 }
 
+/// Print `value` as pretty JSON.
+pub(crate) fn print_json(value: &impl Serialize) -> eyre::Result<()> {
+    println!("{}", serde_json::to_string_pretty(value)?);
+    Ok(())
+}
+
 impl Command {
     /// Whether this command was asked for JSON, which also decides how a failure is reported.
     #[must_use]
     pub fn wants_json(&self) -> bool {
-        let _ = self;
-        false
+        match self {
+            Self::Doctor(args) => args.json,
+            _ => false,
+        }
     }
 }
 
@@ -116,6 +129,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Gui(args) => crate::app::run(args),
         Command::Record(args) => record::record(&args),
         Command::Displays => record::displays(),
+        Command::Doctor(args) => doctor::doctor(&args),
         Command::Reindex(args) => reindex(&args),
         Command::Selftest(args) => crate::selftest::run(&args),
         Command::SelftestClock => crate::selftest::run_clock(),

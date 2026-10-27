@@ -32,6 +32,7 @@ Three things are worth knowing before reading a session:
   changed would stop older sessions being readable by newer builds and the reverse.
 - The master clock is not the wall clock. On macOS it pauses while the machine sleeps, so video time skips a sleep
   instead of showing a hole. Whether the performance counter counts a suspend on Windows is measured, not assumed.
+  (`doctor --probe clock` measures it.)
 - A timestamp is a plain `u64` of nanoseconds. Nothing in the type system says which clock it is on: that is held by
   convention, and by the tests that place records at known times.
 

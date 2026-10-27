@@ -57,6 +57,7 @@
 //! | [`cli`] | the command line |
 //! | [`app`] | the recorder window |
 //! | [`av`] and [`selftest`] | decoding the recorded video and checking it against the clocks |
+//! | [`doctor`] | what a recording leans on, and probes that measure it |
 //!
 //! # What is not supported
 //!
@@ -76,6 +77,7 @@ pub mod av;
 pub mod capture;
 pub mod cli;
 pub mod clock;
+pub mod doctor;
 pub mod frames;
 pub mod incidents;
 pub mod komorebi_link;

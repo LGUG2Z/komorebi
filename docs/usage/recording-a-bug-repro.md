@@ -44,7 +44,8 @@ directory; a session recorded on one OS can be investigated on the other. What d
 
 Start komorebi with `komorebi.exe --log-level debug` before recording a bug. (`RUST_LOG=debug` also
 prints every dependency's log; `RUST_LOG=komorebi=debug` does not.)
-`komorebi-recorder record --no-video` records without the screen.
+`komorebi-recorder doctor` says what the machine can do, and `komorebi-recorder record --no-video` records without the
+screen.
 The recorder window keeps itself out of the video (Windows 10 version 2004 or later).
 
 ## Before you record
@@ -99,6 +100,19 @@ what happened to the recording environment, all on the same clock. Use it on a m
 display (or no Screen Recording permission), or when what is on the screen must not be recorded. It asks the system
 nothing about displays. A session made this way has no video, so video time `00:00.000` is the moment the recording
 started, and there is nothing for `frames` to show.
+
+### Checking your setup
+
+```
+komorebi-recorder doctor          # what this machine can do for a recording
+komorebi-recorder doctor --json   # the same, for a bug report
+```
+
+`doctor` says which komorebi is running (binary, version and commit, log level, whether it answers a state query and
+where its log is), whether the screen can be captured and played back, whether `ffmpeg` is there, the displays and
+their scale, and the host clock. Anything wrong is listed at the end in plain words. `doctor --probe clock|capture|decode`
+measures one thing instead; `--probe clock` shows what the clock does while the machine sleeps (put it to sleep while it
+runs).
 
 ## Docking, sleep and lock
 
