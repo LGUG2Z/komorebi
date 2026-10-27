@@ -33,10 +33,15 @@ and the tests under `cargo nextest`, on Linux and on an Apple silicon Mac. A Mac
 runs the tests against the fake desktop, since KWin only exists on Linux.
 `nix fmt` formats every file the checks look at.
 
+The VM tests boot NixOS with Plasma and run a real KWin. `just vm NAME` runs
+one; [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) has the details, including
+how to run them on a Mac.
+
 ## Documentation
 
 `cargo doc --workspace --no-deps --open` builds the API documentation.
-[`CONTRIBUTING.md`](CONTRIBUTING.md) says how to work on the code.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) says how to work on the code, and
+[`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work.
 
 ## License
 

@@ -42,6 +42,13 @@ warnings denied. `just fmt` formats the Rust sources, and `nix fmt` every file
 type the repository has. `nix flake check` is what CI runs; it builds the same
 checks, plus `cargo deny`, as derivations.
 
+## VM tests
+
+A change that needs a real KWin to be checked comes with a VM test, next to
+the Rust test that covers the same behavior against the fake desktop.
+[`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) says how they are laid out, how
+to run one (`just vm NAME`) and how to add one.
+
 ## Continuous integration
 
 [`ci.yaml`](.github/workflows/ci.yaml) runs on every pull request and on every

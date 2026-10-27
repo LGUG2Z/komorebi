@@ -112,6 +112,12 @@
         let
           pkgs = mkPkgs system;
           build = mkKomorebiPackages { inherit pkgs; };
+          isLinux = pkgs.stdenv.hostPlatform.isLinux;
+          # a Mac runs the guests under HVF, which is slower than KVM
+          vm = import ./nix/tests/vm {
+            hostPkgs = pkgs;
+            scale = if isLinux then 1 else 1.5;
+          };
           nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
           nightlyToolchain = pkgs.rust-bin.nightly.latest.default;
           rustToolchainWithNightlyRustfmt = pkgs.symlinkJoin {
@@ -169,6 +175,30 @@
             komorebi-workspace-nextest = build.craneLib.cargoNextest (
               build.individualCrateArgs // { doCheck = true; }
             );
+
+            vm-lib = vm.lib;
+          }
+          # The VM tests need QEMU with KVM, so only Linux checks them. A Mac runs the same tests
+          # through legacyPackages.<system>.vm, see docs/dev/vm-tests.md.
+          // lib.optionalAttrs isLinux (
+            lib.mapAttrs' (name: test: lib.nameValuePair "vm-${name}" test) vm.suites
+          );
+
+          legacyPackages = {
+            # every suite, as a test with a `driver`, on every system
+            vm = vm.suites;
+            # the suites of each tier, for the CI matrix
+            vmTiers = vm.tiers;
+            # the guests of every suite, to build on a Linux builder when the host is a Mac
+            vmGuests = vm.guests;
+          }
+          // lib.optionalAttrs isLinux {
+            # the same suites on a machine with no KVM, which is slow but works anywhere
+            vmTcg =
+              (import ./nix/tests/vm {
+                hostPkgs = pkgs;
+                scale = 8;
+              }).suites;
           };
 
           packages = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
@@ -202,6 +232,11 @@
               pkgs.jq
               pkgs.just
               pkgs.ripgrep
+
+              # the VM test library
+              pkgs.ruff
+              pkgs.ty
+              (pkgs.python3.withPackages (ps: [ ps.pytest ]))
             ];
           };
 

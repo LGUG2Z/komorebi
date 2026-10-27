@@ -17,5 +17,25 @@ lint:
     test -z "$(rg 'dbg!' --type rust .)" || (echo "dbg! macro not allowed"; false)
     test -z "$(rg 'println!' --type rust ./komorebi/src)" || (echo "println! macro not allowed"; false)
 
+# one VM test, on this machine: `just vm kwin`. Linux boots the guest under KVM through the
+# flake check; a Mac builds the guest on a builder and runs the driver (see docs/dev/vm-tests.md)
+vm name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(uname)" = Darwin ]; then
+        scripts/vm-mac {{ name }}
+    else
+        nix build -L .#checks.{{ arch() }}-linux.vm-{{ name }}
+    fi
+
+# every VM test, in the order of the flake
+vm-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    system=$(nix eval --raw --impure --expr builtins.currentSystem)
+    for name in $(nix eval --json ".#legacyPackages.$system.vm" --apply builtins.attrNames | jq -r '.[]'); do
+        just vm "$name"
+    done
+
 run target *args:
     cargo run --bin {{ target }} --locked -- {{ args }}

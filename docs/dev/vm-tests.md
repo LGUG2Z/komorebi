@@ -1,0 +1,116 @@
+# VM tests
+
+The unit tests run against a fake desktop. They cannot say whether KWin does
+what the daemon asks of it, so a second kind of test boots a NixOS virtual
+machine with Plasma in it, starts a real KWin, and drives it. This page says how
+they are laid out, how to run them, and how to add one.
+
+## What runs where
+
+| Where | How | Accelerator |
+|---|---|---|
+| CI, `x86_64-linux` | `nix build -L .#checks.x86_64-linux.vm-NAME` | KVM |
+| A Linux machine with KVM | `just vm NAME` | KVM |
+| A Mac | `just vm NAME`, which runs `scripts/vm-mac` | HVF |
+| A Linux machine with no KVM | `nix build -L .#legacyPackages.SYSTEM.vmTcg.NAME` | TCG |
+
+TCG is software emulation. It is slow enough that only short suites are worth
+running that way, and the library's `scale` argument (below) is 8 for it.
+
+Each suite is a directory under
+[`nix/tests/vm/suites`](../../nix/tests/vm/suites). The generator in
+[`nix/tests/vm/default.nix`](../../nix/tests/vm/default.nix) lists that
+directory, so a new suite is a new directory and nothing else: it appears as
+`checks.<system>.vm-NAME` on Linux and as `legacyPackages.<system>.vm.NAME`
+everywhere. `legacyPackages.<system>.vmTiers` lists the names of each tier as
+JSON, which is what CI reads.
+
+A suite has two files:
+
+- `default.nix` sets `tier` (`"fast"` or `"slow"`), `kind` (the node it runs on)
+  and `timeoutMinutes`.
+- `test.py` is the test, a Python script for the NixOS test driver. It is
+  prefixed with `SCALE = <number>`, how many times slower than KVM the machine
+  is.
+
+## Nodes
+
+`kind` picks a file under
+[`nix/tests/vm/nodes`](../../nix/tests/vm/nodes).
+
+`headless` is a machine with Plasma installed and no login. Each KWin a test
+starts is a pair of user units of the test user, `session-bus@NAME` (a private
+D-Bus session bus) and `kwin-virtual@NAME` (`kwin_wayland --virtual` with its
+own Wayland socket), so a test can run several sessions side by side and none
+touches another. A virtual KWin has no real output, so it cannot draw: it can
+place windows and answer questions about them, but it cannot take a screenshot.
+
+KWin wants a DRM render node, which needs a GPU. The test driver gives every aarch64 guest one
+`virtio-gpu-pci`; on x86_64 the node adds it, unless `komorebi.vm.renderNode` is false.
+
+## The library
+
+Suites import from `komorebi_vm`, in
+[`nix/tests/vm/lib`](../../nix/tests/vm/lib). It does not depend on the test
+driver. It depends on the small `Machine` protocol, and its unit tests pass a
+fake machine, so the `vm-lib` check tests it without booting anything. The
+check also runs `ruff` and `ty` over it. The driver type checks every
+`test.py` with `ty` and `ruff` too, so a typo in a suite fails the build, not
+the run.
+
+- `Checks` counts checks and fails once, at the end, so that one failure does
+  not hide the ones after it. `finish()` prints `passed: N failed: M`.
+- `Kde` is one KWin session. `Kde.headless(machine, name, size=, outputs=,
+  scale=)` starts the units and waits for KWin to own its name on the private
+  bus. `wid`, `rect`, `title` and `active` read windows through `kdotool`,
+  `outputs` counts the enabled outputs through `kscreen-doctor`, `spawn` starts
+  a client, and `wait_for(predicate, timeout)` polls, with the timeout
+  multiplied by `scale`.
+
+Poll for what the test needs with `wait_for`. A fixed sleep is too long on
+KVM and too short on TCG.
+
+## Running a test on a Mac
+
+QEMU has to run on the Mac to use HVF, and the guest is Linux, so the guest's
+closure is built on a Linux builder and the driver runs on the Mac. The nix
+sandbox on macOS cannot give QEMU the hypervisor, so `scripts/vm-mac` runs the
+driver directly instead of building the check.
+
+```sh
+export KOMOREBI_BUILDER=ssh-ng://builder@localhost
+export NIX_SSHOPTS="-p 31022 -i $HOME/.ssh/builder_ed25519 -o IdentitiesOnly=yes"
+just vm kwin
+```
+
+`KOMOREBI_BUILDER` is the store URL of an `aarch64-linux` builder you can
+reach. `nix run nixpkgs#darwin.linux-builder` starts one, with one core and 3 GB
+of memory by default; a Plasma guest needs more than that (6 cores and 10 GB
+worked, at time of writing, 2026-10-27), and the builder's 20 GB disk holds one
+Plasma system closure of about 10 GB, so run `nix-collect-garbage` on it
+between builds of different guests.
+
+The script prints where the artifacts (screenshots, logs) are, under
+`.vm/out/NAME`.
+
+## Writing a test
+
+1. Create `nix/tests/vm/suites/NAME/default.nix` and `test.py`. Start from
+   [`suites/kwin`](../../nix/tests/vm/suites/kwin).
+2. Pick the tier. `fast` suites are the pull request gate and should take
+   minutes. `slow` suites run on `master` and every night.
+3. Run it: `just vm NAME`.
+4. If the test covers behavior the daemon has, write the Rust test that covers
+   the same behavior against the fake desktop in the same commit, and say in
+   the VM test's first comment what only a real KWin can tell.
+
+Add `git add -N` for new files first: a flake only sees files git knows about.
+
+## Looking inside a failed run
+
+`nix build -L` prints the guest's console. Run the driver by hand, as
+`scripts/vm-mac` does, to keep the screenshots. For an interactive session
+build `driverInteractive` instead of `driver`, run it, and call `start_all()`
+and `machine.shell_interact()` at its prompt. In the guest, KWin's own log is
+`journalctl --user -u kwin-virtual@NAME` as the test user, and a KWin script's
+`print()` goes to the same journal.

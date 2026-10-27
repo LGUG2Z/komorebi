@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "komorebi-vm"
+version = "0.1.0"
+description = "Helpers for the NixOS VM tests of komorebi for KDE"
+requires-python = ">=3.12"
+
+[tool.setuptools]
+packages = ["komorebi_vm"]
+
+[tool.setuptools.package-data]
+komorebi_vm = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
