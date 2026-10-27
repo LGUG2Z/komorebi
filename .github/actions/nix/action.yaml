@@ -42,10 +42,11 @@ runs:
 
     # The key is flake.lock, so a job that builds against another nixpkgs (the canary) turns the
     # cache off: what it restored would be of no use to it, and what it saved would replace the
-    # store of the jobs that do use this lock.
+    # store of the jobs that do use this lock. The architecture is part of the key, because the
+    # x86_64 and arm64 runners build different store paths.
     - if: inputs.cache == 'true'
       uses: nix-community/cache-nix-action@v7
       with:
-        primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/Cargo.lock') }}
-        restore-prefixes-first-match: nix-${{ runner.os }}-
+        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', '**/Cargo.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
         gc-max-store-size-linux: 8G

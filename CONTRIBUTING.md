@@ -173,6 +173,35 @@ run `nix flake update nixpkgs` in a checkout and build the check the issue
 names (`just vm NAME` for a VM suite). The fix goes in a commit of its own;
 nixpkgs is not pinned back.
 
+## Releases
+
+A release is a tag. Set `version` under `[workspace.package]` in
+[`Cargo.toml`](Cargo.toml) to the new version, commit it, and push the tag
+`vVERSION` on that commit. For every run, the `build` job of `ci.yaml` builds
+`komorebi` and `komorebic` with nix on an x86_64 and an arm64 runner, and keeps
+them as an artifact of the run for 14 days. On a tag, once `lint`, `vm-fast` and
+`build` have passed, the `publish` job makes the GitHub release of that tag
+with:
+
+- `komorebi-VERSION-x86_64-unknown-linux-gnu.zip` and
+  `komorebi-VERSION-aarch64-unknown-linux-gnu.zip`, each with the two binaries;
+- `checksums.txt`, the SHA-256 sum of every other file of the release;
+- `schema.json`, the schema of `komorebi.json`, when the repository has one;
+- release notes that [kokai](https://github.com/Joxit/kokai) writes from the
+  commit messages since the previous version tag.
+
+The scheduled run on `master` every week, and a run of the workflow started by
+hand on `master`, replace the `nightly` prerelease the same way: `nightly`
+takes the place of the version in the file names, and the notes list the
+commits since the last version tag. The arm64 job may fail without failing the
+run; the release then has no arm64 zip.
+
+nix builds a binary that loads glibc from the nix store, so the build job
+points each binary at the system's dynamic loader, at the standard path for its
+architecture, with no library path, and runs it on the Ubuntu runner to check
+that it starts. A release binary therefore uses the glibc of the system it runs
+on.
+
 ## Commits
 
 Commit messages follow the

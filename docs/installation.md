@@ -5,11 +5,13 @@ command line that controls it. The daemon runs in a KDE Plasma Wayland session w
 newer ([PLATFORM.md](dev/PLATFORM.md) has what it needs from the session).
 
 On NixOS, the repository's flake has a module that installs both programs and starts komorebi
-with every Plasma session. On any other distribution, build them from source.
+with every Plasma session. On any other distribution, build them from source, or take the
+binaries of a release ([Binaries](../README.md#binaries) says which and what they need).
 
-There is no binary cache and there are no prebuilt binaries: the Komorebi license does not allow
-third parties to redistribute binaries, so every installation builds komorebi from source. On
-NixOS, Nix does that for you, the first time you switch to a configuration that has it.
+There is no binary cache: the Komorebi license does not allow third parties to redistribute
+binaries, so the flake builds komorebi from source on each machine that installs it. On NixOS,
+Nix does that for you, the first time you switch to a configuration that has it. The releases of
+this repository are the only binaries.
 
 ## NixOS
 

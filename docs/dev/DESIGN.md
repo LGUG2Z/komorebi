@@ -203,7 +203,9 @@ again.
 ## Why is there no binary cache?
 
 The Komorebi license does not allow third parties to redistribute binaries. There is no public
-binary cache for komorebi, and every installation builds it from source.
+binary cache for komorebi, so the flake builds it from source on each machine that installs it.
+The releases of this repository are the only binaries
+([why](#why-are-binaries-published-only-by-this-repository)).
 
 ## Why do the VM tests run on machines built with the module?
 
@@ -829,3 +831,14 @@ builders: those boot a virtual machine as part of the build, so they need a buil
 a Linux builder that is itself a virtual machine on the Mac, as `darwin.linux-builder` is, has no
 nested KVM. `nixos-install` is a plain program, in a guest that runs at the speed of the Mac's own
 virtualization.
+
+## Why are binaries published only by this repository?
+
+The Komorebi License allows anyone to distribute the source code, with changes, but not
+binaries built from it. So the releases of this repository, which CI builds, are the only
+binaries, and the flake has no public binary cache: nix builds komorebi from source.
+
+The release binaries are built by nix like every other output of the flake, then pointed at
+the system's dynamic loader with no library path. As nix builds it, a binary loads glibc from
+the store paths of the nixpkgs revision it was built with, which a machine without that
+revision in its store does not have.

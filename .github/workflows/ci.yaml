@@ -206,3 +206,119 @@ jobs:
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
               --body-file "$RUNNER_TEMP/canary.md"
           fi
+
+  # komorebi and komorebic for each architecture, kept for 14 days, and what the publish job
+  # releases. nix points a binary at the dynamic loader and the libraries of its store, which only a
+  # machine with those store paths has, so each binary is pointed at the system's loader instead,
+  # at the path every glibc system has it, and run on this Ubuntu runner to show that it works.
+  # The arm64 job may fail without failing the run.
+  build:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runs-on: ubuntu-24.04
+            loader: /lib64/ld-linux-x86-64.so.2
+            optional: false
+          - target: aarch64-unknown-linux-gnu
+            runs-on: ubuntu-24.04-arm
+            loader: /lib/ld-linux-aarch64.so.1
+            optional: true
+    runs-on: ${{ matrix.runs-on }}
+    continue-on-error: ${{ matrix.optional }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+      - name: Build komorebi and komorebic
+        env:
+          LOADER: ${{ matrix.loader }}
+        run: |
+          mkdir bin
+          for name in komorebi komorebic; do
+            cp "$(nix build -L --no-link --print-out-paths ".#$name")/bin/$name" bin/
+          done
+          chmod u+w bin/*
+          nix run --inputs-from . nixpkgs#patchelf -- --set-interpreter "$LOADER" --remove-rpath bin/*
+          echo "the newest glibc symbol version they need:" \
+            "$(objdump -T bin/* | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -n 1)"
+          bin/komorebi --version
+          bin/komorebic --version
+      - uses: actions/upload-artifact@v7
+        with:
+          name: komorebi-${{ matrix.target }}-${{ github.sha }}
+          path: bin/
+          retention-days: 14
+
+  # A push of a `v*` tag makes a release of what the build job made, and a scheduled or manual run
+  # on master replaces the rolling `nightly` prerelease, once the lint and the fast VM tier have
+  # passed. The release notes are the commit messages since the previous version tag, by kokai.
+  publish:
+    needs: [lint, vm-fast, build]
+    if: >-
+      github.repository == 'LGUG2Z/komorebi-for-kde' && (startsWith(github.ref, 'refs/tags/v') ||
+      (github.ref == 'refs/heads/master' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Decide what is published
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "TAG=$GITHUB_REF_NAME" >>"$GITHUB_ENV"
+            echo "VERSION=${GITHUB_REF_NAME#v}" >>"$GITHUB_ENV"
+          else
+            echo "TAG=nightly" >>"$GITHUB_ENV"
+            echo "VERSION=nightly" >>"$GITHUB_ENV"
+          fi
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: komorebi-*-${{ github.sha }}
+          path: artifacts
+      - name: Package
+        run: |
+          mkdir dist
+          for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
+            build="artifacts/komorebi-$target-$GITHUB_SHA"
+            if [ ! -d "$build" ]; then
+              echo "::warning::there is no build for $target, so it is not published"
+              continue
+            fi
+            # an artifact does not keep the executable bit
+            chmod +x "$build/komorebi" "$build/komorebic"
+            zip -j "dist/komorebi-$VERSION-$target.zip" "$build/komorebi" "$build/komorebic"
+          done
+      - name: Add the schema of komorebi.json
+        if: hashFiles('schema.json') != ''
+        run: cp schema.json dist/
+      - name: Write the checksums
+        working-directory: dist
+        run: sha256sum -- * >checksums.txt
+      - name: Write the release notes
+        run: |
+          cargo install --locked kokai@0.3.1
+          # kokai lists the commits between the tag before the one it is given and that one. The
+          # nightly tag of the last run moves to this commit, so that the range starts at the
+          # last version.
+          if [ "$TAG" = nightly ]; then git tag --force nightly; fi
+          kokai release --no-emoji --add-links github:commits,issues --ref "$TAG" \
+            >"$RUNNER_TEMP/release-notes.md"
+      - name: Publish
+        run: |
+          if [ "$TAG" = nightly ]; then
+            gh release delete nightly --cleanup-tag --yes || true
+            gh release create nightly --target "$GITHUB_SHA" --prerelease \
+              --title "komorebi for KDE nightly ($GITHUB_SHA)" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" dist/*
+          else
+            gh release create "$TAG" --verify-tag --title "komorebi for KDE $TAG" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" dist/*
+          fi

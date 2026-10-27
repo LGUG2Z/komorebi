@@ -11,9 +11,10 @@ moving and the drawing.
 On NixOS, the flake's module, `services.komorebi`, installs `komorebi` and
 `komorebic` and starts komorebi with every Plasma session: one flake input,
 one module line and `services.komorebi.enable = true`. Elsewhere, both are
-built from source. [`docs/installation.md`](docs/installation.md) has both
-ways. There are no prebuilt binaries: the Komorebi license does not allow third
-parties to redistribute them.
+built from source, or taken from a release of this repository
+([Binaries](#binaries)). [`docs/installation.md`](docs/installation.md) has the
+module and the build from source. The Komorebi license does not allow anyone
+else to redistribute binaries.
 
 ## Running it locally
 
@@ -61,6 +62,23 @@ selects, a nightly `rustfmt`, and the tools `just check` and the flake's checks
 use. With [direnv](https://direnv.net), the [`.envrc`](.envrc) does it on
 `cd`. On Linux, `nix run .#komorebi -- --version` builds and runs the daemon
 without a checkout of the toolchain.
+
+## Binaries
+
+The [releases](https://github.com/LGUG2Z/komorebi-for-kde/releases) of this
+repository have `komorebi` and `komorebic` for x86_64 and aarch64 Linux, one zip
+per architecture, with a `checksums.txt` of SHA-256 sums. The `nightly`
+prerelease is built from `master` every week. CI builds the binaries;
+[`CONTRIBUTING.md`](CONTRIBUTING.md#releases) says how. They use the glibc of
+the system they run on, which has to be 2.39 or newer at time of writing
+(2026-10-27). NixOS cannot run them without
+[nix-ld](https://github.com/nix-community/nix-ld); on NixOS, build komorebi
+from this flake instead.
+
+The [Komorebi License](LICENSE.md) allows anyone to distribute the source code,
+but not binaries built from it. The releases of this repository are the only
+binaries, and there is no public binary cache for the flake: nix builds
+komorebi from source.
 
 ## Crates
 
