@@ -56,6 +56,7 @@
 //! | [`recovery`] | rebuilding a session whose recorder died |
 //! | [`cli`] | the command line |
 //! | [`app`] | the recorder window |
+//! | [`av`] and [`selftest`] | decoding the recorded video and checking it against the clocks |
 //!
 //! # What is not supported
 //!
@@ -71,6 +72,7 @@
 pub mod analysis;
 pub mod annotations;
 pub mod app;
+pub mod av;
 pub mod capture;
 pub mod cli;
 pub mod clock;
@@ -82,6 +84,7 @@ pub mod platform;
 pub mod power;
 pub mod recorder;
 pub mod recovery;
+pub mod selftest;
 pub mod session;
 pub mod sources;
 pub mod system_state;

@@ -46,6 +46,11 @@ pub enum Command {
     Displays,
     /// Rebuild a session's timeline from its raw files, recovering it first if the recorder died
     Reindex(ReindexArgs),
+    /// Check the video-to-clock alignment against a rendered on-screen clock
+    Selftest(SelftestArgs),
+    /// The clock window used by `selftest` (internal)
+    #[command(hide = true)]
+    SelftestClock,
 }
 
 /// The arguments of `reindex`.
@@ -53,6 +58,20 @@ pub enum Command {
 pub struct ReindexArgs {
     /// Session directory
     pub session: PathBuf,
+}
+
+/// The arguments of `selftest`.
+#[derive(Args, Debug)]
+pub struct SelftestArgs {
+    /// Seconds to record
+    #[arg(long, default_value_t = 5.0)]
+    pub seconds: f64,
+    /// Largest allowed disagreement between the video and the clocks, in milliseconds
+    #[arg(long, default_value_t = 100.0)]
+    pub tolerance_ms: f64,
+    /// Session directory for the self-test recording
+    #[arg(long)]
+    pub out: Option<PathBuf>,
 }
 
 impl Command {
@@ -98,6 +117,8 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Record(args) => record::record(&args),
         Command::Displays => record::displays(),
         Command::Reindex(args) => reindex(&args),
+        Command::Selftest(args) => crate::selftest::run(&args),
+        Command::SelftestClock => crate::selftest::run_clock(),
     }
 }
 

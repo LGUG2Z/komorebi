@@ -102,6 +102,12 @@ the locked file.
 
 The wire protocol is the same on both. The recorder's own binary does not depend on either komorebi's crates.
 
+### Decoding the recorded video
+
+macOS decodes with AVFoundation's `AVAssetReader`, Windows with Media Foundation's Source Reader, and the `unsupported`
+host with nothing: it says so when asked to open a file. Both real hosts are asked for BGRA frames at a chosen size, so
+that a contact sheet never decodes more pixels than it shows.
+
 ### The program's own windows
 
 The recorder window and the viewer must not be in the video they are recording, and komorebi must not tile them.

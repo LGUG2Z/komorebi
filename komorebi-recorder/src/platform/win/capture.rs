@@ -214,12 +214,12 @@ pub fn main_display() -> eyre::Result<DisplayDescriptor> {
 /// timer and can lag behind (or run ahead of) what actually reached the video. A file whose
 /// duration it cannot read (some truncated ones), or that is not longer than zero, is `None`, and
 /// recovery says it could not tell. On macOS the duration comes from `AVFoundation`.
-///
-/// Media Foundation's reader is not part of the build yet, so this is always `None`.
 #[must_use]
 pub fn media_duration_s(path: &Path) -> Option<f64> {
-    let _ = path;
-    None
+    crate::av::Asset::open(path)
+        .ok()
+        .map(|asset| asset.duration_s())
+        .filter(|seconds| *seconds > 0.0)
 }
 
 /// The [`CaptureBackend`](crate::capture::CaptureBackend) of this host: Windows.Graphics.Capture.

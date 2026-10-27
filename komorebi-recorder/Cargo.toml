@@ -68,6 +68,14 @@ objc2-core-media = { version = "0.3", default-features = false, features = [
   "CMTime",
   "CMTimeRange",
 ] }
+objc2-core-video = { version = "0.3", default-features = false, features = [
+  "std",
+  "CVBase",
+  "CVBuffer",
+  "CVImageBuffer",
+  "CVPixelBuffer",
+  "CVReturn",
+] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "NSArray",

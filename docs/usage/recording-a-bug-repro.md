@@ -54,6 +54,8 @@ The recorder window keeps itself out of the video (Windows 10 version 2004 or la
 - **komorebi's log level.** The recorder never changes komorebi's log level or lifecycle; it only warns. For a useful
   repro, start komorebi with `komorebi --log-level trace` (or `RUST_LOG=komorebi=trace`) first. At the default `info`
   level most of what the window manager _decided_ is not in the log.
+- **`ffmpeg`** is only needed for `frames` and `selftest`. It is never used to capture. The `nix develop` shell provides
+  it; otherwise `brew install ffmpeg`.
 
 The recorder window is borderless and untitled on purpose: komorebi does not manage windows without a title, so opening
 it does not move your layout around while you are trying to reproduce a layout bug. It is also excluded from the video, as is any other `komorebi-recorder` process.
@@ -166,6 +168,9 @@ anchors sampled every 5 seconds during the recording and at every sleep, so cloc
 - subscriber events are stamped when the recorder receives them. komorebi sends the notification _after_ it has handled
   the event, so the stamp is when the handler **finished**; the `processing event` line in `komorebi.log` is when it
   began.
+
+`komorebi-recorder selftest` checks this on your machine: it records a rendered on-screen clock and compares the clock
+visible in the video with the time the session predicts. The result is stored in `session.json` under `calibration`.
 
 ## Things to know
 
