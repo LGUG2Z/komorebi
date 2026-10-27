@@ -59,6 +59,7 @@
 //! | [`av`] and [`selftest`] | decoding the recorded video and checking it against the clocks |
 //! | [`doctor`] | what a recording leans on, and probes that measure it |
 //! | [`report`] | answers as text for a terminal |
+//! | [`playback`] | a clock that runs forwards or backwards, and the decoding that follows it |
 //!
 //! # What is not supported
 //!
@@ -84,6 +85,7 @@ pub mod incidents;
 pub mod komorebi_link;
 pub mod lock;
 pub mod platform;
+pub mod playback;
 pub mod power;
 pub mod recorder;
 pub mod recovery;
