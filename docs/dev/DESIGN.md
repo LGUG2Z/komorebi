@@ -12,7 +12,9 @@ komorebi has a Windows implementation, the original, and a macOS one. The Window
 the reference. I used it as the reference for what to adapt, and I prefer what KDE and
 Wayland do natively over a workaround that the other two platforms need. The events the
 window manager reacts to follow the Windows ones (a window is shown, destroyed, focused,
-minimized, moved, resized), and a window is a small `Copy` handle, as there.
+minimized, moved, resized), and a window is a small `Copy` handle, as there. The model the
+window manager tiles is the one both platforms have: monitors, each with workspaces, each
+with containers, each with windows.
 
 ## Why is everything the window manager needs behind one trait?
 

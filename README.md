@@ -24,7 +24,8 @@ without a checkout of the toolchain.
 - [`komorebi`](komorebi): the daemon, and the library behind it. The library has
   the vocabulary the window manager is written in (`core`), the `Backend` trait
   through which it reaches a compositor and the in-memory desktop the tests use
-  (`backend`), the `Ring` that holds monitors, workspaces and containers, and the
+  (`backend`), the model of what it tiles (`monitor`, `workspace`, `container`,
+  `window`), the `Ring` that holds monitors, workspaces and containers, and the
   lists in which some elements are locked in place.
 - [`version`](version): the version string every binary reports.
 
@@ -53,6 +54,11 @@ there. Everything it needs from the compositor is behind one trait, `Backend`,
 so the window manager logic runs against a real compositor and against an
 in-memory fake desktop alike. [`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md)
 describes the trait and where each of its rules is enforced.
+
+The window manager models the desktop as monitors, each with a ring of
+workspaces, each with a ring of containers, each with a ring of windows. A
+workspace's layout gives each of its containers a tile of the monitor's work
+area, and every window of a container is moved onto its tile.
 
 ## Documentation
 

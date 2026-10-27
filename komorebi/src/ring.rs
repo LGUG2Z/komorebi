@@ -1,7 +1,8 @@
 //! [`Ring`], a list of elements with one of them focused.
 //!
 //! Monitors, workspaces and containers each keep their children in a ring, so that "the focused
-//! one" is the same thing everywhere.
+//! one" is the same thing everywhere, and `impl_ring_elements!` gives each of them the same
+//! accessors for it.
 
 use std::collections::VecDeque;
 
@@ -75,9 +76,73 @@ impl<T> Ring<T> {
     }
 }
 
+/// Gives a type that keeps its children in a [`Ring`] the accessors every such type has.
+///
+/// `impl_ring_elements!(Workspace, Container)` reads the field `containers: Ring<Container>` and
+/// gives `Workspace` the methods `containers()`, `containers_mut()`, `focused_container()`,
+/// `focused_container_idx()` and `focused_container_mut()`. The field is named after the element
+/// type in lower case with an `s` appended, and the methods after the field, so that "the focused
+/// container" is spelled the same way on every type that has one.
+macro_rules! impl_ring_elements {
+    ($name:ty, $element:ident) => {
+        pastey::paste! {
+            impl $name {
+                pub const fn [<$element:lower s>](&self) -> &std::collections::VecDeque<$element> {
+                    self.[<$element:lower s>].elements()
+                }
+
+                pub fn [<$element:lower s_mut>](&mut self) -> &mut std::collections::VecDeque<$element> {
+                    self.[<$element:lower s>].elements_mut()
+                }
+
+                #[allow(dead_code)]
+                pub fn [<focused_ $element:lower>](&self) -> Option<&$element> {
+                    self.[<$element:lower s>].focused()
+                }
+
+                pub const fn [<focused_ $element:lower _idx>](&self) -> usize {
+                    self.[<$element:lower s>].focused_idx()
+                }
+
+                pub fn [<focused_ $element:lower _mut>](&mut self) -> Option<&mut $element> {
+                    self.[<$element:lower s>].focused_mut()
+                }
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Debug, PartialEq)]
+    struct Book(&'static str);
+
+    struct Shelf {
+        books: Ring<Book>,
+    }
+
+    impl_ring_elements!(Shelf, Book);
+
+    #[test]
+    fn impl_ring_elements_names_the_accessors_after_the_element() {
+        let mut shelf = Shelf {
+            books: Ring::default(),
+        };
+        shelf.books_mut().extend([Book("a"), Book("b")]);
+        shelf.books.focus(1);
+
+        assert_eq!(shelf.books().len(), 2);
+        assert_eq!(shelf.focused_book(), Some(&Book("b")));
+        assert_eq!(shelf.focused_book_idx(), 1);
+
+        if let Some(book) = shelf.focused_book_mut() {
+            *book = Book("c");
+        }
+
+        assert_eq!(shelf.books()[1], Book("c"));
+    }
 
     #[test]
     fn an_empty_ring_focuses_nothing() {

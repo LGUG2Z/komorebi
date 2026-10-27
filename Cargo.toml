@@ -15,6 +15,7 @@ komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "f08aa555
 
 clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = "0.6"
+pastey = "0.2"
 schemars = "1.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_lenient", version = "0.2" }

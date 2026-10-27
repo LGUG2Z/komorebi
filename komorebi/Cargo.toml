@@ -10,11 +10,14 @@ version = { path = "../version" }
 
 clap = { workspace = true }
 color-eyre = { workspace = true }
+nanoid = "0.4"
 parking_lot = "0.12"
+pastey = { workspace = true }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_with = { version = "3", features = ["schemars_1"] }
 strum = { version = "0.28", features = ["derive"] }
+tracing = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
