@@ -14,9 +14,9 @@
 //! # The host axis
 //!
 //! This is the *host* axis: what the recorder is running on.
-//! Which komorebi produced a session is a separate axis, the *flavor*: a session recorded on
-//! Windows can be investigated on a Mac, and the [`Host`] a session was recorded on is part of its
-//! manifest.
+//! Which komorebi produced a session is a separate axis (see [`crate::analysis::flavor`]): a
+//! session recorded on Windows can be investigated on a Mac, and the [`Host`] a session was
+//! recorded on is part of its manifest.
 //!
 //! # Adding a function
 //!

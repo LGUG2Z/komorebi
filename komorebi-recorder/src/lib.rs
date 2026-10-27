@@ -13,8 +13,8 @@
 //!
 //! Two things vary independently. The _host_ is the OS the recorder runs on, and everything that differs by it is behind
 //! [`platform`]. The _flavor_ is the komorebi being recorded, komorebi for Mac or komorebi for Windows, and everything
-//! that differs by it is behind a trait in the analysis. A session records both, so a session recorded on one host can
-//! be read on the other.
+//! that differs by it is behind a trait in [`analysis::flavor`]. A session records both, so a session recorded on one
+//! host can be read on the other.
 //!
 //! Every record in a session is stamped on one monotonic clock, the _master clock_ ([`clock`]). Video frames and the OS
 //! trace are already on it; komorebi's log lines carry wall-clock time and are mapped onto it with paired readings of
@@ -42,6 +42,7 @@
 //! | [`timecode`] | parsing and printing video timecodes |
 //! | [`clock`] | the master clock, anchors and the map between the wall clock and the master clock |
 //! | [`platform`] | everything that differs by host, behind one facade |
+//! | [`analysis`] | understanding a session without a window, starting with the komorebi flavors |
 //!
 //! # What is not supported
 //!
@@ -54,6 +55,7 @@
 //! The Windows host is type-checked and cross-built from a Mac and built on Windows in CI, and has never been run. See
 //! [`platform`] for what each host provides.
 
+pub mod analysis;
 pub mod clock;
 pub mod platform;
 pub mod timecode;
