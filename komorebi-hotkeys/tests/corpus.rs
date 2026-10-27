@@ -17,6 +17,9 @@ use komorebi_hotkeys::Run;
 use komorebi_hotkeys::Severity;
 use komorebi_hotkeys::Span;
 use komorebi_hotkeys::Then;
+use komorebi_hotkeys::engine::Effect;
+use komorebi_hotkeys::engine::Engine;
+use komorebi_hotkeys::engine::EngineOptions;
 use komorebi_hotkeys::kde::desktop_files;
 use komorebi_hotkeys::plan::PlanMode;
 use komorebi_hotkeys::plan::PlanOptions;
@@ -384,5 +387,28 @@ fn the_sample_plans_into_the_same_shortcut_files_in_every_format() {
     }
     for pair in planned.windows(2) {
         assert_eq!(pair[0].1, pair[1].1, "{} and {}", pair[0].0, pair[1].0);
+    }
+}
+
+#[test]
+fn the_files_of_a_case_start_the_same_engine() {
+    for (case, extensions) in CASES {
+        let started: Vec<(&str, Vec<Effect>)> = extensions
+            .iter()
+            .map(|extension| {
+                let parsed = parse(extension, &read(case, extension)).unwrap();
+                let plan = plan(&parsed.keymap, &PlanOptions::default());
+                let mut engine = Engine::new(plan.engine, EngineOptions::default());
+                (*extension, engine.start())
+            })
+            .collect();
+        assert!(!started[0].1.is_empty(), "{case}");
+        for pair in started.windows(2) {
+            assert_eq!(
+                pair[0].1, pair[1].1,
+                "{case}: {} and {}",
+                pair[0].0, pair[1].0
+            );
+        }
     }
 }

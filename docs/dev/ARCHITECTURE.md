@@ -1592,6 +1592,10 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   for everything a static shortcut cannot be.
 - **Plan**: the bindings of a keymap sorted into static shortcuts and the engine's keymap, with
   notes on why each binding goes where it goes.
+- **Active set**: the combos the engine holds: KDE swallows an active combo and reports its
+  presses, and lets every other key reach the focused application.
+- **Effect**: what the caller of the engine does after an event: activate or deactivate a combo,
+  or run a command.
 
 ### The parts
 
@@ -1614,6 +1618,12 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 - [`plan`](../../komorebi-hotkeys/src/plan.rs): sorts a keymap into static shortcuts and the
   engine's keymap, by mode: `Auto` (static where it can be), `Engine` (the default: everything
   through the engine) or `Static` (no engine; what needs it is left out with a warning).
+- [`engine`](../../komorebi-hotkeys/src/engine.rs): the engine, a state machine with no I/O and
+  no clock. Its inputs are a press or a release of an active combo, a change of focus, and the
+  time; after each it computes the active set it wants from the mode, the chord chain being
+  typed, the focused application and whether it is paused, and returns the commands to run and
+  the difference with the active set as effects. The daemon carries them out with kglobalacceld
+  (`setShortcutKeys`, `setInactive`) and feeds it kglobalacceld's signals.
 - [`kde`](../../komorebi-hotkeys/src/kde.rs): writes static shortcuts as `.desktop` files for
   kglobalacceld (`X-KDE-Shortcuts`, `X-KDE-GlobalAccel-CommandShortcut`, an `Exec` line quoted as
   the desktop entry specification requires), and replaces the files it wrote before, and no
@@ -1638,6 +1648,11 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 | A rewrite of the shortcut files removes only the files it generated | test | `rewriting_replaces_our_files_and_nothing_else` | none |
 | An `Exec` line runs the command as written (quoting, `%%`) | test | `exec_lines_are_quoted_for_the_desktop_entry_spec` | none |
 | The sample configuration plans into the same 50 shortcut files from each format | test | `the_sample_plans_into_the_same_shortcut_files_in_every_format` | none |
+| After every event, the active set is the one the engine wants for its state, and each effect changes it (no combo is activated twice) | framework path: every event handler that changes the state ends in the one reconcile step, which diffs two sets | `a_chain_activates_its_next_keys_until_it_ends`, `a_mode_has_its_own_keys` | none |
+| A key the engine does not want reaches the application | convention only: kglobalacceld must be told with `setInactive`, by the daemon | none | none |
+| A scoped key is active only for an application a scope gives an action | test | `a_scoped_key_is_active_only_where_it_does_something` | none |
+| Stopping the engine gives every key back | test, of the effects; carrying them out is the daemon's | `start_activates_the_default_mode_and_stop_gives_everything_back` | none |
+| The engine does no I/O and reads no clock | convention only | none | none |
 | The whkd reader reads a whkdrc as whkd does | test, on the files it is given | `every_whkdrc_of_the_corpus_reads_as_whkd_reads_it`, `the_example_of_whkds_readme_reads_as_whkd_reads_it` | none |
 
 ## Where to look in the code
@@ -1820,7 +1835,7 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   [`whkd.rs`](../../komorebi-hotkeys/src/whkd.rs) and
   [`sxhkd.rs`](../../komorebi-hotkeys/src/sxhkd.rs);
   [`plan.rs`](../../komorebi-hotkeys/src/plan.rs) and [`kde.rs`](../../komorebi-hotkeys/src/kde.rs)
-  for the shortcuts.
+  for the shortcuts, [`engine.rs`](../../komorebi-hotkeys/src/engine.rs) for the engine.
 - [`komorebi-hotkeys/tests`](../../komorebi-hotkeys/tests): the corpus test and the comparison
   with `whkd-parser`.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;

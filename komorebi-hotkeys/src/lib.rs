@@ -114,14 +114,32 @@
 //! assert!(!plan.needs_engine());
 //! ```
 //!
-//! # Diagnostics
+//! [`engine::Engine`] realizes the rest: it is a state machine, with no I/O, that takes key presses,
+//! focus changes and the time, and returns the keys to grab and give back and the commands to run.
 //!
-//! The diagnostics of reading and of planning say everything that is not realized the way the
-//! file's own daemon does it. A front end with a strict option fails when any of them is a
-//! warning or an error; notes never matter for that.
+//! # What is emulated, and what is not
+//!
+//! Everything the three formats bind keys with is realized, by a static shortcut or by the
+//! engine, except what follows. A diagnostic reports each case where the file has it.
+//!
+//! - **Approximated** ([`Support::Approximated`]): side-specific modifiers (`lalt`, `rwin`...)
+//!   are the modifier itself, since KDE does not tell the sides apart. A capturing mode (skhd's
+//!   `@`) lets the keys it has no binding for reach the application. skhd's `->` and sxhkd's `~`
+//!   do not pass the key on to the application. A key that is not the next of an sxhkd chain
+//!   does not end the chain: only Escape and the chord timeout do. A release binding (sxhkd's
+//!   `@`) fires when any key of its combo is released first. `.shell` is not followed: commands
+//!   run through `sh -c`.
+//! - **Unsupported** ([`Support::Unsupported`]): skhd's `fn` modifier, `.load`, `.alias`, key
+//!   forwarding and key sequences; mouse buttons; keypad keys; the X modifiers KDE has no
+//!   equivalent for (`hyper`, `meta`, `mode_switch`, `lock`, `mod2`, `mod3`, `mod5`, `any`).
+//!
+//! The diagnostics of reading and of planning together say everything that is not realized the
+//! way the file's own daemon does it. A front end with a strict option fails when any of them is
+//! a warning or an error; notes never matter for that.
 
 #![deny(missing_docs)]
 
+pub mod engine;
 mod ir;
 pub mod kde;
 pub mod plan;

@@ -92,9 +92,10 @@ without a checkout of the toolchain.
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
 - [`komorebi-hotkeys`](komorebi-hotkeys): reads the key binding files of skhd,
-  whkd and sxhkd into one model, with the keys as KDE stores them, and plans
-  each binding as a KDE shortcut file or as a key komorebi registers itself. It
-  does not depend on the daemon. Its tests read the files in
+  whkd and sxhkd into one model, with the keys as KDE stores them, plans each
+  binding as a KDE shortcut file or as a key komorebi registers itself, and has
+  the engine that decides, with no I/O of its own, which keys komorebi holds
+  and what each press does. It does not depend on the daemon. Its tests read the files in
   [`komorebi-hotkeys/tests/fixtures`](komorebi-hotkeys/tests/fixtures), where
   each case is written in every format that can express it.
 - [`komorebic`](komorebic): the command line. A subcommand that asks something

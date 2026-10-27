@@ -746,3 +746,26 @@ at the median, while the engine was told of the key 3 ms after it. So the defaul
 The cost is the robustness of static shortcuts: the engine works only while komorebi runs,
 and a komorebi process that was killed leaves its keys registered and dead until they are
 released.
+
+## Why does the engine grab and give back keys, instead of using KDE's own key sequences?
+
+Because KDE's do not work for this, as measured on KWin 6.8.1 (2026-10-27). kglobalacceld
+accepts a sequence of keys for one action (`Meta+A, B`), but the action never fired: the
+second key reached the focused application instead. What does work is grabbing and giving
+back single combos: a combo registered with `setShortcutKeys` is swallowed and reported,
+also a bare key with no modifier, and after `setInactive` the same key reaches the
+application again. Sixty such calls, sent without waiting for the answers, were all answered
+in 2.4 ms.
+
+So the engine realizes everything with one set of active combos. A chord chain is a combo
+that, when pressed, makes only the combos that can come next (and Escape) active, until one
+is pressed or the chord timeout passes. A mode is a different set. A per-application binding
+is in the set only while the focused application has an action for it, so that elsewhere
+the key reaches the application. After every event the engine computes the set it wants and
+returns the difference.
+
+A held key sends one pressed signal, then repeated ones, then one released signal. The
+engine acts on the pressed signal only, so holding a key runs its binding once.
+
+The engine itself does no I/O: it returns what to do, and the daemon does it. This entry
+needs the reason for that split.
