@@ -19,6 +19,7 @@ that only read a session directory work on a Linux agent box; recording there sa
 Nothing that touches a real Windows desktop has been seen running: the Windows host was written from the Windows API
 documentation and komorebi for Windows' source, and every claim below about Windows says what the code does, not what
 was observed.
+[windows-checkpoints.md](dev/windows-checkpoints.md) lists the checks that turn each into an observation.
 
 ## Vocabulary
 

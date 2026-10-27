@@ -55,6 +55,8 @@ the shell.
 The Windows code is type-checked from a Mac with `nix develop .#windows`, whose target is
 `x86_64-pc-windows-msvc`. Nothing there runs it: a change to a `cfg(windows)` line is first run by the
 `windows` job in CI.
+On a Windows machine, the steps in [docs/dev/windows-checkpoints.md](docs/dev/windows-checkpoints.md)
+say what to run and what to look for.
 
 ## Checks
 
