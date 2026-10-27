@@ -321,6 +321,82 @@ let
     };
   };
 
+  keybindings =
+    settings:
+    eval {
+      imports = [ plasma ];
+      services.komorebi = {
+        enable = true;
+        keybindings = settings;
+      };
+    };
+
+  withText = keybindings {
+    format = "skhd";
+    text = "alt - h : komorebic focus left\n";
+    mode = "auto";
+    chordTimeout = 1500;
+    appAliases.terminal = [
+      "foot"
+      "konsole"
+    ];
+  };
+
+  withFile = keybindings {
+    format = "sxhkd";
+    file = ../../komorebi-hotkeys/tests/fixtures/plain.sxhkdrc;
+  };
+
+  textAndFile = keybindings {
+    format = "skhd";
+    text = "alt - h : komorebic focus left\n";
+    file = ../../komorebi-hotkeys/tests/fixtures/plain.skhdrc;
+  };
+
+  # the typed `config` and the key bindings are two parts of one command line
+  withConfigAndKeybindings = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      config.default_workspace_padding = 20;
+      keybindings = {
+        format = "skhd";
+        text = "alt - h : komorebic focus left\n";
+      };
+    };
+  };
+
+  withoutFormat = keybindings { text = "alt - h : komorebic focus left\n"; };
+
+  withLoad = keybindings {
+    format = "skhd";
+    text = ".load \"/home/me/.config/skhd/more\"\nalt - h : komorebic focus left\n";
+  };
+
+  # a file with a line komorebic cannot read, which the build only reports unless `strict` is set.
+  # Evaluation does not read the bindings the way komorebic does (it looks for skhd's .load and no
+  # more), so what `strict` changes is the build of the compiled key bindings: its script is what
+  # these checks read, and the build that fails is not run here.
+  unreadableLine = "alt - h : komorebic focus left\nalt - nosuchkey : komorebic focus up\n";
+
+  withStrict = keybindings {
+    format = "skhd";
+    text = unreadableLine;
+    strict = true;
+  };
+
+  withoutStrict = keybindings {
+    format = "skhd";
+    text = unreadableLine;
+  };
+
+  # the package that compiles the key bindings, and the script that builds it
+  compiled =
+    config: lib.findFirst (p: p.name == "komorebi-keybindings") null config.environment.systemPackages;
+  compileScript = config: (compiled config).buildCommand;
+
+  installed = config: map (p: p.name) config.environment.systemPackages;
+
   failed = config: map (a: a.message) (lib.filter (a: !a.assertion) config.assertions);
   unit = config: config.systemd.user.services.komorebi;
   evaluates = value: (builtins.tryEval value).success;
@@ -577,6 +653,102 @@ let
     {
       name = "execStart cannot be set";
       ok = !(evaluates execStartSet.services.komorebi.execStart);
+    }
+    {
+      name = "without key bindings, nothing is compiled";
+      ok = !(lib.elem "komorebi-keybindings" (installed enabled));
+      got = installed enabled;
+    }
+    {
+      name = "key bindings as text: every assertion holds";
+      ok = failed withText == [ ];
+      got = failed withText;
+    }
+    {
+      name = "key bindings as text reach execStart, with the mode, the chord timeout and the aliases";
+      # a regular expression cannot refer to a store path, so both lose their context
+      ok =
+        builtins.match (
+          lib.escapeRegex (
+            builtins.unsafeDiscardStringContext "${withText.services.komorebi.package}/bin/komorebi"
+          )
+          + " --log-level info"
+          + " --keybindings /nix/store/[a-z0-9]+-komorebi-skhdrc --keybindings-format skhd"
+          + " --keybindings-mode auto --chord-timeout 1500 --app-alias 'terminal=foot,konsole'"
+        ) (builtins.unsafeDiscardStringContext withText.services.komorebi.execStart) != null;
+      got = withText.services.komorebi.execStart;
+    }
+    {
+      name = "the compiled key bindings are installed in the system profile";
+      ok = lib.elem "komorebi-keybindings" (installed withText);
+      got = installed withText;
+    }
+    {
+      name = "key bindings from a file reach execStart, in the default mode, engine";
+      ok = lib.hasInfix "-plain.sxhkdrc --keybindings-format sxhkd --keybindings-mode engine --chord-timeout 3000" withFile.services.komorebi.execStart;
+      got = withFile.services.komorebi.execStart;
+    }
+    {
+      name = "a typed config and key bindings reach execStart together: the checked file, then the keys";
+      ok =
+        failed withConfigAndKeybindings == [ ]
+        &&
+          builtins.match (
+            ".* --log-level info --config /nix/store/[a-z0-9]+-validated-komorebi.json"
+            + " --keybindings /nix/store/[a-z0-9]+-komorebi-skhdrc --keybindings-format skhd"
+            + " --keybindings-mode engine --chord-timeout 3000"
+          ) (builtins.unsafeDiscardStringContext withConfigAndKeybindings.services.komorebi.execStart) != null
+        && withConfigAndKeybindings.services.komorebi.internal.configAttrs.default_workspace_padding == 20;
+      got = withConfigAndKeybindings.services.komorebi.execStart;
+    }
+    {
+      name = "text and file together: an assertion fails";
+      ok = lib.any (lib.hasInfix "exactly one of text and file") (failed textAndFile);
+      got = failed textAndFile;
+    }
+    {
+      name = "key bindings without a format: an assertion fails";
+      ok = lib.any (lib.hasInfix "needs a format") (failed withoutFormat);
+      got = failed withoutFormat;
+    }
+    {
+      name = "skhd's .load: an assertion fails";
+      ok = lib.any (lib.hasInfix ".load is not supported") (failed withLoad);
+      got = failed withLoad;
+    }
+    {
+      name = "with strict, the build of the key bindings runs komorebic hotkeys compile --strict, and fails when it does";
+      ok =
+        failed withStrict == [ ]
+        && lib.hasInfix "hotkeys compile" (compileScript withStrict)
+        && lib.hasInfix "--strict" (compileScript withStrict)
+        && lib.hasInfix "exit 1" (compileScript withStrict);
+      got = compileScript withStrict;
+    }
+    {
+      name = "without strict, a line komorebic cannot read is a warning in the build log: no --strict";
+      ok =
+        failed withoutStrict == [ ]
+        && lib.hasInfix "hotkeys compile" (compileScript withoutStrict)
+        && !(lib.hasInfix "--strict" (compileScript withoutStrict))
+        && lib.hasInfix "cat $out/diagnostics.txt >&2" (compileScript withoutStrict);
+      got = compileScript withoutStrict;
+    }
+    {
+      name = "strict is for the build: the daemon is started with the same command line either way";
+      ok = withStrict.services.komorebi.execStart == withoutStrict.services.komorebi.execStart;
+      got = withStrict.services.komorebi.execStart;
+    }
+    {
+      name = "a layout other than us does not evaluate";
+      ok =
+        !(evaluates
+          (keybindings {
+            format = "skhd";
+            text = "";
+            layout = "de";
+          }).services.komorebi.keybindings.layout
+        );
     }
   ];
 

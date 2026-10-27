@@ -854,6 +854,10 @@ fn quickstart_writes_the_example_files_and_asks_before_it_overwrites_one() {
         std::fs::read_to_string(home.join("applications.json")).unwrap(),
         include_str!("../applications.json")
     );
+    assert_eq!(
+        std::fs::read_to_string(home.join("skhdrc")).unwrap(),
+        include_str!("../../docs/skhdrc.sample")
+    );
     assert!(stdout(&output).contains("The following example files were written"));
     assert!(stdout(&output).contains("komorebic start"));
 
@@ -869,6 +873,11 @@ fn quickstart_writes_the_example_files_and_asks_before_it_overwrites_one() {
     assert_eq!(
         std::fs::read_to_string(home.join("applications.json")).unwrap(),
         include_str!("../applications.json")
+    );
+    // the third question has no answer, which is not a yes
+    assert_eq!(
+        std::fs::read_to_string(home.join("skhdrc")).unwrap(),
+        include_str!("../../docs/skhdrc.sample")
     );
     assert!(stdout(&output).contains("Skipping"));
 }

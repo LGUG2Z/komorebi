@@ -41,6 +41,7 @@ const CASES: &[(&str, &[&str])] = &[
     ("pause", &["whkdrc"]),
     ("chords", &["sxhkdrc"]),
     ("release", &["sxhkdrc"]),
+    ("vm", &["skhdrc", "whkdrc", "sxhkdrc"]),
 ];
 
 /// The keymap of each case, as [`render`] writes it.
@@ -133,6 +134,11 @@ mode Alt+R
 [Alt+R] Esc: mode default",
     ),
     ("release", "release Alt+Space: komorebic toggle-float"),
+    (
+        "vm",
+        "Alt+J: touch /tmp/keys-corpus-alt-j
+Alt+,: touch /tmp/keys-corpus-alt-comma",
+    ),
 ];
 
 /// Writes a keymap out, one line per binding, mode, blacklist and pause binding. Where each binding

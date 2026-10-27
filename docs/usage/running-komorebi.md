@@ -61,6 +61,9 @@ removes its socket and exits. Stopping the process with `SIGINT` or `SIGTERM` do
 
 ## Key bindings
 
+[Key bindings](keybindings.md) is the guide to key bindings, and to the NixOS module's
+options for them; this section is a summary for a daemon started by hand.
+
 komorebi reads key bindings from a file in the format of skhd, whkd or sxhkd. The daemon
 looks for `skhdrc`, `whkdrc` or `sxhkdrc` in `~/.config/komorebi` (or in
 `$KOMOREBI_CONFIG_HOME`) and takes the first it finds; `--keybindings FILE` names another,

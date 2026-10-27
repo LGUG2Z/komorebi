@@ -929,8 +929,9 @@ reads as a [`StaticConfig`], pauses the old window manager and brings back the w
 ([`StaticConfig::preload`], [`WindowManager::init`], [`StaticConfig::reload`]) over the same command
 socket, and puts it where the old one was, so the daemon starts over from the file, with the
 windows the backend has, all of them in view, and a watcher on the new file. A file that does not read is logged and the old window manager stays.
-`komorebic quickstart` writes the example file of the docs and `komorebic/applications.json` into
-the config home, compiled into the binary, and asks before it writes over a file;
+`komorebic quickstart` writes the example file of the docs, `komorebic/applications.json` and the
+sample `skhdrc` of the docs into the config home, compiled into the binary, and asks before it
+writes over a file;
 `komorebic enable-autostart` writes the XDG autostart entry that has Plasma start the daemon at login.
 
 The same types describe the file as a JSON Schema, which `schemars` derives: `komorebic
@@ -1176,9 +1177,11 @@ The flake exports one module under two names, `nixosModules.default` and
 `configFile`, `config`, `applicationSpecificConfiguration`, `effects.borders.enable` and
 `effects.borders.package` (by default `pkgs.kde-rounded-corners-komorebi`, from the overlay),
 `effects.animation.enable` and `effects.animation.package`
-(`pkgs.kwin-effect-geometry-change-komorebi`), and `execStart`, which is read-only: the module
-sets it to `bin/komorebi` of the package with `--log-level`, and `--config` with a
-`komorebi.json` when `configFile` or `config` is set. `config` is typed from
+(`pkgs.kwin-effect-geometry-change-komorebi`), `keybindings` (`format`, `text` or `file`, `mode`,
+`chordTimeout`, `layout`, `strict`, `appAliases`), and `execStart`, which is read-only: the module
+sets it to `bin/komorebi` of the package with `--log-level`, `--config` with a `komorebi.json`
+when `configFile` or `config` is set, and `--keybindings` and the options of the engine when there
+are key bindings. `config` is typed from
 `nix/komorebi-options.nix`, the options `schemars-nixgen` makes from the schema of `komorebi.json`;
 the module writes it as JSON, with no null in it, and `configFile` and the written file both go
 through `check-jsonschema` against `schema.json` when the system is built (comment lines taken out
@@ -1198,7 +1201,14 @@ With `services.komorebi.enable`, the module:
   `/run/current-system/sw/bin` instead of the store paths NixOS gives a unit;
 - runs `komorebic hotkeys release` after the daemon has stopped (`ExecStopPost`), which
   unregisters the keys a daemon that was killed left in kglobalaccel;
-- asserts that Plasma 6 is enabled.
+- asserts that Plasma 6 is enabled;
+- with key bindings, asserts that exactly one of `text` and `file` is set, that `format` is,
+  and that an skhdrc has no `.load`; runs `komorebic hotkeys compile` on them at build time in
+  the package `komorebi-keybindings` (`--strict` with `strict`), whose
+  `share/kglobalaccel/*.desktop` (the static shortcuts) it installs in the system profile, with
+  the diagnostics in its `diagnostics.txt` and in the build log; and passes the file (a store
+  path), its format and mode, the chord timeout and the aliases to the daemon in `execStart`,
+  so that the daemon plans the file as the build did and runs the rest.
 
 The VM tests run on machines built with it ([vm-tests.md](vm-tests.md)). Their headless node
 runs the daemon in test sessions, with a template unit, `komorebi@NAME`, that runs the module's
@@ -1222,6 +1232,10 @@ module's unit.
 | The keys of a daemon that was killed are given back | systemd: `ExecStopPost` runs `komorebic hotkeys release` | `nixos-module-eval` ("the unit releases the keys of the daemon when it stops"), `vm-restart-survival` | none |
 | A daemon that is told to stop stays stopped, and the unit is not failed | systemd: the exit statuses of `Stop` (0) and of `SIGTERM` (130) are successes | `vm-module` | none |
 | The daemon has the `PATH` of a terminal in the session | the unit's environment, with NixOS's default `PATH` turned off | `nixos-module-eval`, `vm-module` | none |
+| The static shortcuts the module installs and the bindings its daemon runs are one plan of one file | framework path: the build and `execStart` get the same store file, format and mode, and `plan` is deterministic | `nixos-module-eval` (the key binding scenarios), `vm-keys-skhd`, `vm-keys-whkd`, `vm-keys-sxhkd` | none |
+| Key bindings have one source, a format, and no skhd `.load` | evaluation error: assertions of the module | `nixos-module-eval` ("text and file together", "without a format", "skhd's .load") | none |
+| `strict` fails the build on a warning or an error | `komorebic hotkeys compile --strict` exits non-zero before it writes anything, and the module's build of the key bindings passes `--strict` only when `strict` is set and fails when `komorebic` does | `strict_refuses_a_file_with_a_warning_and_writes_nothing`, `nixos-module-eval` ("with strict, the build of the key bindings runs komorebic hotkeys compile --strict", "without strict ... no --strict") | none |
+| What `hotkeys compile` prints for every file of the corpus is what was reviewed | test: a diff against `nix/tests/keybindings.expected` | `keybindings-fixtures` | writing the file again |
 | The VM suites run komorebi as the module installs it | framework path: the test nodes import the module, and `komorebi@NAME` runs its `execStart` | every VM suite | a suite's `node` can set `services.komorebi.enable = false` (`vm-render-smoke` does) |
 
 ## The parts
@@ -1940,6 +1954,9 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   the keys when the daemon and KWin go away.
 - [`komorebi-hotkeys/tests`](../../komorebi-hotkeys/tests): the corpus test and the comparison
   with `whkd-parser`.
+- [`nix/tests/keybindings.nix`](../../nix/tests/keybindings.nix): `keybindings-fixtures`, and
+  [`nix/tests/vm/keys-corpus.py`](../../nix/tests/vm/keys-corpus.py), the corpus case `vm`
+  pressed in the three formats on a machine the module configured.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),

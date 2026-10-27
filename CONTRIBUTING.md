@@ -80,6 +80,12 @@ say regenerates them in the same commit, and the check `schema-fresh` fails when
 it does not. The first line of the options file is the hash of the schema it was
 made from, which is how the check tells without running `schemars-nixgen`.
 
+A change to what `komorebic hotkeys compile` prints for a key binding file shows
+in `keybindings-fixtures`, which compares its output for every file of the
+fixture corpus with `nix/tests/keybindings.expected`: write the file again with
+the loop in `nix/tests/keybindings.nix`, and read the difference before
+committing it.
+
 ## VM tests
 
 A change that needs a real KWin to be checked comes with a VM test, next to

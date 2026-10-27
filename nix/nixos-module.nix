@@ -88,6 +88,42 @@ let
       }
     else
       null;
+
+  kb = cfg.keybindings;
+
+  # key bindings are configured when any of the three is set; the assertions say what is missing
+  keybindingsSet = kb.format != null || kb.text != null || kb.file != null;
+  # the file the daemon reads, named after its format so that it reads as one
+  keybindingsFile =
+    if kb.file != null then kb.file else pkgs.writeText "komorebi-${toString kb.format}rc" kb.text;
+
+  # `komorebic hotkeys compile`: the static shortcuts of the file, in share/kglobalaccel, where KWin
+  # finds them in the system profile, and what komorebic had to say about the file
+  compiled = pkgs.runCommand "komorebi-keybindings" { } ''
+    mkdir -p $out/share/kglobalaccel
+    if ! ${lib.getExe' cfg.package "komorebic"} hotkeys compile \
+        --format ${toString kb.format} --mode ${kb.mode} ${lib.optionalString kb.strict "--strict"} \
+        ${keybindingsFile} --output $out/share/kglobalaccel 2> $out/diagnostics.txt; then
+      cat $out/diagnostics.txt >&2
+      exit 1
+    fi
+    cat $out/diagnostics.txt >&2
+  '';
+
+  keybindingsArgs = [
+    "--keybindings"
+    "${keybindingsFile}"
+    "--keybindings-format"
+    (toString kb.format)
+    "--keybindings-mode"
+    kb.mode
+    "--chord-timeout"
+    (toString kb.chordTimeout)
+  ]
+  ++ lib.concatMap (name: [
+    "--app-alias"
+    (lib.escapeShellArg "${name}=${lib.concatStringsSep "," kb.appAliases.${name}}")
+  ]) (lib.attrNames kb.appAliases);
 in
 {
   options.services.komorebi = {
@@ -279,11 +315,110 @@ in
       readOnly = true;
       description = ''
         The command line the unit starts komorebi with: `bin/komorebi` of `package`, with
-        `logLevel`, and with `--config` and the checked `komorebi.json` when `configFile` or
-        `config` is set. The module sets it, and setting it anywhere else is an error. A unit of your own that runs komorebi somewhere
-        else, as the VM tests do in their headless sessions, starts it with this, the way the
-        module does.
+        `logLevel`, with `--config` and the checked `komorebi.json` when `configFile` or `config` is
+        set, and with the key bindings when there are some. The module sets it, and setting it
+        anywhere else is an error. A unit of your own that runs komorebi somewhere else, as the VM
+        tests do in their headless sessions, starts it with this, the way the module does.
       '';
+    };
+
+    keybindings = {
+      format = lib.mkOption {
+        type = lib.types.nullOr (
+          lib.types.enum [
+            "skhd"
+            "whkd"
+            "sxhkd"
+          ]
+        );
+        default = null;
+        example = "skhd";
+        description = ''
+          The format of the key bindings: that of skhd's skhdrc, whkd's whkdrc or sxhkd's sxhkdrc.
+          Required with `text` or `file`.
+        '';
+      };
+
+      text = lib.mkOption {
+        type = lib.types.nullOr lib.types.lines;
+        default = null;
+        example = ''
+          alt - h : komorebic focus left
+          alt - l : komorebic focus right
+        '';
+        description = ''
+          The key bindings, written in `format`. Set this or `file`, not both. skhd's `.load`,
+          which reads another file, is refused: the file would not be in the store.
+        '';
+      };
+
+      file = lib.mkOption {
+        type = lib.types.nullOr lib.types.path;
+        default = null;
+        example = lib.literalExpression "./skhdrc";
+        description = "A file of key bindings, written in `format`. Set this or `text`, not both.";
+      };
+
+      mode = lib.mkOption {
+        type = lib.types.enum [
+          "auto"
+          "engine"
+          "static"
+        ];
+        default = "engine";
+        description = ''
+          Which bindings KDE runs by itself, as static shortcuts that the module installs in the
+          system profile, and which the daemon registers and runs (the engine). `engine`: every
+          binding is the engine's. `auto`: every binding that can be a static shortcut is one (one
+          combo, pressed, the same in every application, in a file with no modes, blacklist or
+          pause binding), and the engine runs the others. `static`: only static shortcuts; what
+          needs the engine is left out, with a warning. A static shortcut works with no komorebi
+          running and shows in System Settings, but takes about 0.2 s to run its command; the
+          engine takes a few milliseconds.
+        '';
+      };
+
+      chordTimeout = lib.mkOption {
+        type = lib.types.ints.positive;
+        default = 3000;
+        description = "How long, in milliseconds, the engine waits for the next key of a chord chain.";
+      };
+
+      layout = lib.mkOption {
+        type = lib.types.enum [ "us" ];
+        default = "us";
+        description = ''
+          The keyboard layout positional key names are read with: skhd's macOS keycodes (`0x21`)
+          and whkd's `oem_*` keys, and the symbol a shifted key types. `us` is the only one.
+        '';
+      };
+
+      strict = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Fail the build when something in the key bindings is not realized the way the file's own
+          hotkey daemon realizes it: a diagnostic of `komorebic hotkeys compile` that is a warning
+          or an error. The diagnostics are in the build log and in `diagnostics.txt` of the
+          `komorebi-keybindings` package either way.
+        '';
+      };
+
+      appAliases = lib.mkOption {
+        type = lib.types.attrsOf (lib.types.listOf lib.types.str);
+        default = { };
+        example = {
+          firefox = [
+            "firefox-esr"
+            "librewolf"
+          ];
+        };
+        description = ''
+          Other names of an application, for the bindings that are for one application: an skhdrc
+          or a whkdrc names applications as macOS or Windows does, and KDE knows them by their
+          executable, app id or desktop entry.
+        '';
+      };
     };
   };
 
@@ -299,6 +434,7 @@ in
           "--config"
           "${komorebiConfigFile}"
         ]
+        ++ lib.optionals keybindingsSet keybindingsArgs
       );
       services.komorebi.internal.configAttrs = configAttrs;
     }
@@ -310,6 +446,33 @@ in
           message = ''
             services.komorebi needs Plasma 6: komorebi runs in a Plasma Wayland session, and the
             session starts it. Set services.desktopManager.plasma6.enable = true.
+          '';
+        }
+        {
+          assertion = keybindingsSet -> (kb.text != null) != (kb.file != null);
+          message = ''
+            services.komorebi.keybindings needs exactly one of text and file: the key bindings
+            themselves, or the file they are in.
+          '';
+        }
+        {
+          assertion = keybindingsSet -> kb.format != null;
+          message = ''
+            services.komorebi.keybindings needs a format: "skhd", "whkd" or "sxhkd".
+          '';
+        }
+        {
+          assertion =
+            !(
+              keybindingsSet
+              && kb.format == "skhd"
+              && lib.any (line: lib.hasPrefix ".load" (lib.trim line)) (
+                lib.splitString "\n" (if kb.text != null then kb.text else builtins.readFile kb.file)
+              )
+            );
+          message = ''
+            services.komorebi.keybindings: skhd's .load is not supported. It reads another file,
+            which would not be in the store; put its bindings in this one.
           '';
         }
       ];
@@ -335,7 +498,8 @@ in
         cfg.package
       ]
       ++ lib.optional cfg.effects.borders.enable cfg.effects.borders.package
-      ++ lib.optional cfg.effects.animation.enable cfg.effects.animation.package;
+      ++ lib.optional cfg.effects.animation.enable cfg.effects.animation.package
+      ++ lib.optional keybindingsSet compiled;
 
       # A user unit, so it runs for every user who logs in to Plasma. plasma-workspace.target is
       # the target of a Plasma session's services, and plasma-core.target, which it requires, is

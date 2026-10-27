@@ -87,7 +87,16 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
 | `services.komorebi.effects.borders.package` | `pkgs.kde-rounded-corners-komorebi` | The effect: KDE Rounded Corners 0.11.0, built against the KWin of the system and not loaded until komorebi asks. |
 | `services.komorebi.effects.animation.enable` | `true` | Installs the KWin effect that animates komorebi's windows going to their places. Whether windows are animated is komorebi's own setting ([Animation](usage/animation.md)). KWin finds effects when it starts: log in again after the first switch. |
 | `services.komorebi.effects.animation.package` | `pkgs.kwin-effect-geometry-change-komorebi` | The effect: Geometry Change, a scripted effect that is not loaded until komorebi asks. |
-| `services.komorebi.execStart` | read only | The command line the unit starts komorebi with, built from `package`, `logLevel` and `configFile` or `config`. A unit of your own that runs komorebi uses it to start komorebi the same way. |
+| `services.komorebi.execStart` | read only | The command line the unit starts komorebi with, built from `package`, `logLevel`, `configFile` or `config`, and `keybindings`. A unit of your own that runs komorebi uses it to start komorebi the same way. |
+| `services.komorebi.keybindings.format` | `null` | `"skhd"`, `"whkd"` or `"sxhkd"`: the format of the key bindings. Required with `text` or `file`. |
+| `services.komorebi.keybindings.text`, `.file` | `null` | The key bindings, or the file they are in: exactly one of the two. |
+| `services.komorebi.keybindings.mode` | `"engine"` | Which bindings are static shortcuts, installed in the system profile, and which the daemon runs: `"engine"`, `"auto"` or `"static"`. |
+| `services.komorebi.keybindings.chordTimeout` | `3000` | How long, in milliseconds, the daemon waits for the next key of a chord chain. |
+| `services.komorebi.keybindings.layout` | `"us"` | The keyboard layout of positional key names; `"us"` is the only one. |
+| `services.komorebi.keybindings.strict` | `false` | Fail the build when something in the key bindings is not realized as its own hotkey daemon realizes it. |
+| `services.komorebi.keybindings.appAliases` | `{ }` | Other names of an application, for the bindings that are for one application. |
+
+[Key bindings](usage/keybindings.md) explains the key binding options.
 
 `config` takes the keys of `komorebi.json` ([Configuration](usage/configuration.md)) as Nix, and a
 value of the wrong kind, or a layout that does not exist, is an error when the configuration is

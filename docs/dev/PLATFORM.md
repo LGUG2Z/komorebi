@@ -372,6 +372,7 @@ named after the combo (`Alt+H`); an action's id is `["komorebi", "Alt+H", "komor
 | `$XDG_CACHE_HOME/komorebi` (`~/.cache/komorebi`) | the palettes made from wallpapers, a file for each picture and variant, `NAME-HASH.base16.VARIANT.json` | never removed by komorebi; made again when the picture's path, size or time of last change differ |
 | `$XDG_DATA_HOME/komorebi/komorebi.log.YYYY-MM-DD` | the daemon's log, with colors, which `komorebic log` follows | a file a day (the UTC date), never removed by komorebi |
 | `$XDG_DATA_HOME/komorebi/komorebi_plaintext.log.YYYY-MM-DD` | the same log without colors | as above |
+| `/run/current-system/sw/share/kglobalaccel/komorebi-*.desktop` | on NixOS, the static shortcuts of `services.komorebi.keybindings`, which the module compiles at build time into the package `komorebi-keybindings` | the system's: KWin reads them when the session starts |
 | `$XDG_DATA_HOME/kglobalaccel/komorebi-*.desktop` | the static shortcuts `komorebic hotkeys compile` and `komorebic export-kde-shortcuts` write, each with `X-Komorebi-Generated=true` | replaced at every write: the files with that key are removed, and no other |
 | `$KOMOREBI_CONFIG_HOME/{skhdrc,whkdrc,sxhkdrc}` | the key binding file `komorebic hotkeys compile` and the daemon read when they are given none (the first that exists), and the skhdrc of `export-kde-shortcuts` | the user's; the daemon reads it once, at start |
 

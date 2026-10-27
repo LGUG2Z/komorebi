@@ -748,7 +748,8 @@ and a komorebi process that was killed leaves its keys registered and dead until
 released.
 
 Which of the two is the default is still open for a decision. `PlanMode::default()` is the
-one place it is set, and `komorebic hotkeys compile` takes its default from there.
+one place it is set, and `komorebic hotkeys compile` and the daemon's `--keybindings-mode`
+take their default from there; the NixOS module's `keybindings.mode` repeats it, `"engine"`.
 
 ## Why does the engine grab and give back keys, instead of using KDE's own key sequences?
 

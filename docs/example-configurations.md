@@ -5,6 +5,11 @@ starting out easier, the repository has an example configuration,
 [`docs/komorebi.example.json`](komorebi.example.json), which is kept working: a test loads it with
 every change.
 
+Besides `komorebi.json`, komorebi for KDE is configured by the NixOS module, which installs it and
+starts it with every Plasma session ([Installing komorebi](installation.md)), and by a key binding
+file in the format of skhd, whkd or sxhkd ([Key bindings](usage/keybindings.md)); examples of both
+are further down.
+
 ## komorebi.json
 
 The example sets some defaults and gives the first monitor eight workspaces, each with a
@@ -73,8 +78,9 @@ different layout. This page has the file as it is:
 }
 ```
 
-`komorebic quickstart` writes it, and the `applications.json` below, where the daemon looks for
-them ([Quickstart and autostart](usage/quickstart-and-autostart.md)). Or put it there yourself,
+`komorebic quickstart` writes it, the `applications.json` below and an `skhdrc` of
+[sample key bindings](#key-bindings), where the daemon looks for them
+([Quickstart and autostart](usage/quickstart-and-autostart.md)). Or put it there yourself,
 `~/.config/komorebi/komorebi.json`, or give it to the daemon with `komorebic start --config`. [Configuration](usage/configuration.md) explains every key and
 where the daemon looks. The settings of a monitor with more than one entry in `monitors`, and of
 each workspace, are there too.
@@ -195,4 +201,59 @@ The `grid` layout does not support resizing windows tiles.
 |     |     |   |   |   |   |   |   |   |   |   |   |   |   |
 +-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
   4 windows       5 windows       6 windows       7 windows
+```
+
+## A NixOS configuration
+
+The module and the sample key bindings of the repository, with every binding a static shortcut
+can be made one, and the engine for the rest:
+
+```nix
+{
+  services.desktopManager.plasma6.enable = true;
+
+  services.komorebi = {
+    enable = true;
+    keybindings = {
+      format = "skhd";
+      file = ./skhdrc;
+      mode = "auto";
+      # the names an skhdrc gives applications are those of macOS
+      appAliases."Google Chrome" = [ "google-chrome" ];
+    };
+  };
+}
+```
+
+The key bindings can also be written in the configuration itself:
+
+```nix
+{
+  services.komorebi.keybindings = {
+    format = "sxhkd";
+    text = ''
+      alt + {h,j,k,l}
+          komorebic focus {left,down,up,right}
+      alt + shift + {h,j,k,l}
+          komorebic move {left,down,up,right}
+    '';
+  };
+}
+```
+
+## Key bindings
+
+[`skhdrc.sample`](skhdrc.sample), [`whkdrc.sample`](whkdrc.sample) and
+[`sxhkdrc.sample`](sxhkdrc.sample) bind the same keys to the same `komorebic` commands in the
+three formats: focusing, moving, stacking and resizing windows, the layouts, and the
+workspaces. Each is a starting point for a file of your own, in the format you know. Their
+bindings are all plain ones, so with `mode = "auto"` every one of them is a static shortcut,
+and with the default mode, `engine`, the daemon runs every one.
+
+Copy one to `~/.config/komorebi`, where the daemon and `komorebic hotkeys compile` look for a
+key binding file when they are given none, to use it without NixOS:
+
+```sh
+mkdir -p ~/.config/komorebi
+cp docs/skhdrc.sample ~/.config/komorebi/skhdrc
 ```

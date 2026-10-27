@@ -18,8 +18,10 @@ files for `komorebi`, but these will always remain opt-in and off-by-default.
 
 _komorebi_ only responds to the events KWin reports about windows and to the messages it
 receives on a dedicated socket. _komorebic_ is a CLI that writes messages on _komorebi_'s
-socket. _komorebi_ doesn't handle any keyboard or mouse inputs: a program that binds keys,
-such as the custom shortcuts in Plasma's System Settings, runs _komorebic_ commands.
+socket. _komorebi_ doesn't read the keyboard or the mouse: a key runs a _komorebic_ command,
+as a global shortcut of KDE. komorebi makes those shortcuts from a key binding file in the
+format of skhd, whkd or sxhkd ([Key bindings](usage/keybindings.md)); the custom shortcuts of
+Plasma's System Settings work too.
 
 ```text
                PROCESS                SOCKET
@@ -32,6 +34,9 @@ key bindings  -------->  komorebic  <------>  komorebi
 the flake's module, which also starts komorebi with every Plasma session, and from source
 anywhere else. [Running komorebi](usage/running-komorebi.md) explains how to start and stop the
 daemon, ask it what it is doing and read its log.
+[Key bindings](usage/keybindings.md) explains how to bind keys to `komorebic` commands with
+an skhdrc, a whkdrc or an sxhkdrc, and [Example configurations](example-configurations.md) has
+a NixOS configuration and sample key bindings in the three formats.
 [Focusing windows](usage/focusing-windows.md) explains how to give the focus to another window,
 [Moving windows](usage/moving-windows.md) how to move a window to another tile,
 [Stacking windows](usage/stacking-windows.md) how to put windows on one tile, have the others wait

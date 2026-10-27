@@ -98,8 +98,8 @@
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
 //! event and each message it handles.
 //!
-//! The others work without the daemon: `quickstart` writes an example `komorebi.json` and
-//! `applications.json` in the config home, `enable-autostart` and `disable-autostart` write and
+//! The others work without the daemon: `quickstart` writes an example `komorebi.json`,
+//! `applications.json` and `skhdrc` in the config home, `enable-autostart` and `disable-autostart` write and
 //! remove the entry that has Plasma start komorebi at login, `start` runs `komorebi` in the
 //! background, with the `komorebi.json` it is given with `--config`, `check` reads the
 //! `komorebi.json` the daemon would and the key binding file, looks at the desktop, and reports
@@ -1432,6 +1432,7 @@ fn main() -> eyre::Result<()> {
             let komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
             let komorebi_path = HOME_DIR.join("komorebi.json");
             let applications_path = HOME_DIR.join("applications.json");
+            let skhdrc_path = HOME_DIR.join("skhdrc");
 
             let mut written_files = Vec::new();
 
@@ -1439,6 +1440,9 @@ fn main() -> eyre::Result<()> {
 
             let applications_json = include_str!("../applications.json");
             write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
+
+            let skhdrc = include_str!("../../docs/skhdrc.sample");
+            write_file_with_prompt(&skhdrc_path, skhdrc, &mut written_files)?;
             if written_files.is_empty() {
                 println!("\nNo files were written.")
             } else {

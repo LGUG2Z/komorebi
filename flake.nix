@@ -55,6 +55,8 @@
               || (pkgs.lib.hasSuffix "docs/example-configurations.md" path)
               # the example a test loads, to see that the docs show one that works
               || (pkgs.lib.hasSuffix "docs/usage/wallpapers.md" path)
+              # the sample key bindings that `komorebic quickstart` includes
+              || (pkgs.lib.hasSuffix "docs/skhdrc.sample" path)
               # the key binding files the komorebi-hotkeys tests read
               || (pkgs.lib.hasInfix "/komorebi-hotkeys/tests/fixtures/" path);
           };
@@ -252,6 +254,13 @@
 
             # the options the module is typed with, evaluated against the example configuration
             nix-options-validation = import ./nix/tests/default.nix { inherit pkgs; };
+
+            # every file of the key binding corpus through `komorebic hotkeys compile`, as the
+            # module runs it
+            keybindings-fixtures = import ./nix/tests/keybindings.nix {
+              inherit pkgs;
+              komorebic = build.fullBuild;
+            };
 
             # The NixOS module in real NixOS systems, evaluated and never built, so a Mac checks it
             # too. A VM suite, `vm-module`, runs it.

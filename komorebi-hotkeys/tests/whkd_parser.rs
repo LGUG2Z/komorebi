@@ -96,7 +96,7 @@ fn every_whkdrc_of_the_corpus_reads_as_whkd_reads_it() {
             compared += 1;
         }
     }
-    assert_eq!(compared, 9);
+    assert_eq!(compared, 10);
 }
 
 #[test]

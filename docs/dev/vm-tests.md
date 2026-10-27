@@ -41,7 +41,10 @@ A suite has two files:
   `services.komorebi`).
 - `test.py` is the test, a Python script for the NixOS test driver. It is
   prefixed with `SCALE = <number>`, how many times slower than KVM the machine
-  is.
+  is. Suites that run the same test on different nodes set `script` to a file
+  they share instead, relative to their directory: `vm-keys-skhd`,
+  `vm-keys-whkd` and `vm-keys-sxhkd` run `../../keys-corpus.py`, each with the
+  key bindings of its format in its `node`.
 
 ## Nodes
 

@@ -143,13 +143,15 @@ The test of the signals for sleep and lock starts private D-Bus buses with
 `dbus-daemon`, which the dev shell has, and does nothing where there is none.
 `nix flake check` runs the same checks as derivations, plus `cargo deny`, the
 TOML and Nix formatting, the tests under `cargo nextest`, and
-`nixos-module-eval`, which evaluates the NixOS module in real NixOS systems, on
-Linux and on an Apple silicon Mac, `schema-fresh`, which compares the schemas and
+`nixos-module-eval`, which evaluates the NixOS module in real NixOS systems,
+`keybindings-fixtures`, which runs every key binding file of the fixture corpus
+through `komorebic hotkeys compile` and compares what it prints with
+`nix/tests/keybindings.expected`, `schema-fresh`, which compares the schemas and
 the options made from them with the Rust types, and `nix-options-validation`,
-which checks the example configuration, in Nix and in JSON, against the schema.
-On Linux it also builds the KWin effects and checks their files, and boots every
-VM test, which needs KVM. A Mac runs the tests against the fake desktop, since
-KWin only exists on Linux. `nix fmt` formats every file the checks look at.
+which checks the example configuration, in Nix and in JSON, against the schema,
+all on Linux and on an Apple silicon Mac. On Linux it also builds the KWin effects and checks
+their files, and boots every VM test, which needs KVM. A Mac runs the tests against the fake
+desktop, since KWin only exists on Linux. `nix fmt` formats every file the checks look at.
 
 The VM tests boot NixOS with Plasma and run a real KWin, on machines configured
 with the NixOS module, so every one of them runs komorebi as the module installs
@@ -283,8 +285,8 @@ can be in files of their own, which `app_specific_configuration_path` names.
 workspace change layout with the number of windows it has, as the file's
 `layout_rules` do, and `generate-static-config` prints the settings the daemon
 has as a `komorebi.json`, and `replace-configuration` makes the daemon start over from
-another file. `quickstart` writes an example configuration, and `enable-autostart` an
-autostart entry that has Plasma start komorebi at login. The Rust types that read the file describe it as a JSON Schema
+another file. `quickstart` writes an example configuration and sample key bindings, and
+`enable-autostart` an autostart entry that has Plasma start komorebi at login. The Rust types that read the file describe it as a JSON Schema
 (`schema.json`, written by `just jsonschema` and printed by `static-config-schema`), and the
 module's `config` option is typed from that schema (`nix/komorebi-options.nix`, written by
 `just nixgen`), so a configuration written in Nix is checked when it is evaluated.
@@ -328,7 +330,9 @@ which KDE runs by itself from a `.desktop` file, and those that need komorebi
 to register the keys and decide what each press does. `komorebic hotkeys
 compile` writes the static shortcuts, and the daemon runs the engine for the
 rest: it registers their keys with KWin's global shortcut daemon over the
-session bus and runs the command of each press.
+session bus and runs the command of each press. On NixOS, the module's
+`keybindings` options do both: the static shortcuts go into the system profile,
+and the unit starts the daemon with the file.
 
 ## Documentation
 
@@ -336,6 +340,7 @@ The user guide starts at [`docs/index.md`](docs/index.md),
 [`docs/installation.md`](docs/installation.md) says how to install komorebi,
 [`docs/usage/configuration.md`](docs/usage/configuration.md) explains `komorebi.json`,
 [`docs/example-configurations.md`](docs/example-configurations.md) has an example of it,
+[`docs/usage/keybindings.md`](docs/usage/keybindings.md) how to give komorebi key bindings,
 and [`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
 `just docgen` writes from the subcommands' help.
 `cargo doc --workspace --no-deps --open` builds the API documentation.
