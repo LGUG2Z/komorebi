@@ -17,8 +17,6 @@ use komorebi_hotkeys::Run;
 use komorebi_hotkeys::Severity;
 use komorebi_hotkeys::Span;
 use komorebi_hotkeys::Then;
-use komorebi_hotkeys::skhd;
-use komorebi_hotkeys::whkd;
 use std::path::PathBuf;
 
 /// Every case, and the formats it is written in.
@@ -194,12 +192,17 @@ fn render(keymap: &Keymap) -> String {
 
 /// Reads a fixture in the format its extension names.
 fn parse(extension: &str, text: &str) -> Option<Parsed> {
-    let options = ParseOptions::default();
-    match extension {
-        "skhdrc" => Some(skhd::parse(text, &options)),
-        "whkdrc" => Some(whkd::parse(text, &options)),
-        _ => None,
-    }
+    let format = match extension {
+        "skhdrc" => Format::Skhd,
+        "whkdrc" => Format::Whkd,
+        "sxhkdrc" => Format::Sxhkd,
+        _ => return None,
+    };
+    Some(komorebi_hotkeys::parse(
+        format,
+        text,
+        &ParseOptions::default(),
+    ))
 }
 
 /// The keymap with everything that says where it was written taken out: the format, the spans,
@@ -292,7 +295,7 @@ fn every_case_but_the_sample_has_an_expected_keymap() {
 
 #[test]
 fn the_sample_reads_completely() {
-    for extension in ["skhdrc", "whkdrc"] {
+    for extension in ["skhdrc", "whkdrc", "sxhkdrc"] {
         let parsed = parse(extension, &read("sample", extension)).unwrap();
         let lossy: Vec<_> = parsed
             .diagnostics

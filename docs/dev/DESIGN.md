@@ -719,6 +719,6 @@ komorebi, so it stays usable as a dev-dependency: a test reads every whkdrc of t
 corpus with both parsers and compares the bindings. For skhd and sxhkd the reason is not
 recorded; this entry needs one.
 
-What is not plain syntax is expanded while the file is read: skhd's `.define` templates and
-application groups are replaced where they are used, so the model has only expanded bindings
-in it.
+What is not plain syntax is expanded while the file is read: sxhkd's braces become one binding
+per alternative, and skhd's `.define` templates and application groups are replaced where
+they are used, so the model has only expanded bindings in it.

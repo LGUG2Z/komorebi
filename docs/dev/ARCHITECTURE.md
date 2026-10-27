@@ -1599,6 +1599,11 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 - [`whkd`](../../komorebi-hotkeys/src/whkd.rs): reads a whkdrc, in any order of its sections,
   where whkd requires one. `tests/whkd_parser.rs` compares it with whkd's own parser,
   `whkd-parser` (a dev-dependency), on every whkdrc of the corpus.
+- [`sxhkd`](../../komorebi-hotkeys/src/sxhkd.rs): reads an sxhkdrc. Braces are expanded first,
+  into one binding per alternative. A chord chain (`a ; b`) is one binding with several combos;
+  a chain that stays open (`a : b`) is a mode named after its prefix, entered by the prefix and
+  left by Escape.
+- [`parse`](../../komorebi-hotkeys/src/lib.rs) picks the reader by format.
 - [`text`](../../komorebi-hotkeys/src/text.rs): what the readers share: line numbers, comments,
   continued lines and the diagnostics' wording.
 - [`tests/fixtures`](../../komorebi-hotkeys/tests/fixtures): the corpus, `<case>.skhdrc`,
@@ -1613,8 +1618,8 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 | Positional key names (macOS keycodes, `oem_*`) are read as on a US layout | convention only | none | none |
 | Reading a file returns a keymap, whatever the text | type system: a reader returns `Parsed`, not a `Result` | none | none |
 | Text that is left out has a diagnostic that points at it | test | `what_cannot_be_read_is_reported_and_left_out`, `reading_goes_on_after_an_error`, `diagnostics_point_at_the_text_they_are_about` | none |
-| A fixture reads, without errors, into the keymap of its case | test, for the skhdrc and whkdrc files; convention only for the others | `every_file_reads_without_errors_into_the_keymap_of_its_case` | none |
-| The files of a case read into the same keymap, apart from where each binding was written | test, for the skhdrc and whkdrc files | `the_files_of_a_case_read_into_the_same_keymap` | none |
+| A fixture reads, without errors, into the keymap of its case | test | `every_file_reads_without_errors_into_the_keymap_of_its_case` | none |
+| The files of a case read into the same keymap, apart from where each binding was written | test | `the_files_of_a_case_read_into_the_same_keymap` | none |
 | The whkd reader reads a whkdrc as whkd does | test, on the files it is given | `every_whkdrc_of_the_corpus_reads_as_whkd_reads_it`, `the_example_of_whkds_readme_reads_as_whkd_reads_it` | none |
 
 ## Where to look in the code
@@ -1793,8 +1798,11 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
   komorebi.
 - [`komorebi-hotkeys/src/lib.rs`](../../komorebi-hotkeys/src/lib.rs): the key binding model,
   [`komorebi-hotkeys/src/qt.rs`](../../komorebi-hotkeys/src/qt.rs) the keys, and one module per
-  format, [`skhd.rs`](../../komorebi-hotkeys/src/skhd.rs) and
-  [`whkd.rs`](../../komorebi-hotkeys/src/whkd.rs).
+  format, [`skhd.rs`](../../komorebi-hotkeys/src/skhd.rs),
+  [`whkd.rs`](../../komorebi-hotkeys/src/whkd.rs) and
+  [`sxhkd.rs`](../../komorebi-hotkeys/src/sxhkd.rs).
+- [`komorebi-hotkeys/tests`](../../komorebi-hotkeys/tests): the corpus test and the comparison
+  with `whkd-parser`.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),

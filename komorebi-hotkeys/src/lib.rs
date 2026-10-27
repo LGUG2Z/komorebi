@@ -43,28 +43,53 @@
 //!
 //! # Reading a file
 //!
-//! Each format has a module with a `parse` function, which reads the text of a file into a
-//! [`Parsed`]: the [`Keymap`] and the [diagnostics](Diagnostic) about the file. Reading never
-//! fails. What is not valid syntax is skipped with an error, and what is valid but cannot be
-//! realized on KDE, or only differently, is reported with a warning that says so. Each module
-//! lists what it reads and what it does not.
+//! [`parse`] reads the text of a file in one of the three [formats](Format) into a [`Parsed`]:
+//! the [`Keymap`] and the [diagnostics](Diagnostic) about the file. Reading never fails. What is
+//! not valid syntax is skipped with an error, and what is valid but cannot be realized on KDE,
+//! or only differently, is reported with a warning that says so. Each format has a module that
+//! documents what it reads and what it does not:
 //!
 //! - [`skhd`]: an skhdrc, with modes, per-application bindings, `.blacklist` and skhd.zig's
 //!   `.define`.
 //! - [`whkd`]: a whkdrc, with per-application bindings and `.pause`.
+//! - [`sxhkd`]: an sxhkdrc, with brace expansion, chord chains and release bindings.
+//!
+//! The same binding in each format reads into the same keymap, apart from where it was written:
 //!
 //! ```rust
-//! use komorebi_hotkeys::{ParseOptions, Severity, skhd};
+//! use komorebi_hotkeys::{Format, ParseOptions, parse};
 //!
-//! let parsed = skhd::parse(
-//!     "alt - h : komorebic focus left\nlalt - l : komorebic focus right\n",
-//!     &ParseOptions::default(),
+//! let options = ParseOptions::default();
+//! let skhd = parse(Format::Skhd, "alt + shift - 0x21 : komorebic cycle-focus previous\n", &options);
+//! let whkd = parse(Format::Whkd, "alt + shift + oem_4 : komorebic cycle-focus previous\n", &options);
+//! let sxhkd = parse(
+//!     Format::Sxhkd,
+//!     "alt + shift + bracketleft\n    komorebic cycle-focus previous\n",
+//!     &options,
 //! );
-//! let bindings = &parsed.keymap.modes[0].bindings;
-//! assert_eq!(bindings[1].chord[0].to_string(), "Alt+L");
+//!
+//! let binding = |parsed: &komorebi_hotkeys::Parsed| {
+//!     let binding = &parsed.keymap.modes[0].bindings[0];
+//!     (binding.chord.clone(), binding.body.clone())
+//! };
+//! assert_eq!(binding(&skhd), binding(&whkd));
+//! assert_eq!(binding(&whkd), binding(&sxhkd));
+//! assert_eq!(skhd.keymap.modes[0].bindings[0].chord[0].to_string(), "Alt+{");
+//! ```
+//!
+//! A diagnostic points at the text it is about:
+//!
+//! ```rust
+//! use komorebi_hotkeys::{Format, ParseOptions, Severity, parse};
+//!
+//! let text = "alt - h : komorebic focus left\nlalt - l : komorebic focus right\n";
+//! let parsed = parse(Format::Skhd, text, &ParseOptions::default());
+//! assert_eq!(parsed.keymap.modes[0].bindings[1].chord[0].to_string(), "Alt+L");
 //! // KDE has no left Alt, so the binding is on either Alt, and the reader says so
-//! assert_eq!(parsed.diagnostics[0].severity, Severity::Warning);
-//! assert_eq!(parsed.diagnostics[0].span.line, 2);
+//! let diagnostic = &parsed.diagnostics[0];
+//! assert_eq!(diagnostic.severity, Severity::Warning);
+//! assert_eq!(diagnostic.span.line, 2);
+//! assert_eq!(&text[diagnostic.span.start..diagnostic.span.end], "lalt");
 //! ```
 
 #![deny(missing_docs)]
@@ -72,6 +97,7 @@
 mod ir;
 pub mod qt;
 pub mod skhd;
+pub mod sxhkd;
 mod text;
 pub mod whkd;
 
@@ -92,6 +118,28 @@ pub use ir::Severity;
 pub use ir::Span;
 pub use ir::Support;
 pub use ir::Then;
+
+/// Reads the text of a file in a format.
+///
+/// This is [`skhd::parse`], [`whkd::parse`] or [`sxhkd::parse`], by `format`. Reading never fails:
+/// what cannot be read is left out, with a [`Diagnostic`] that says why.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_hotkeys::{Format, ParseOptions, parse};
+///
+/// let parsed = parse(Format::Whkd, ".shell pwsh\nalt + h : komorebic focus left\n", &ParseOptions::default());
+/// assert_eq!(parsed.keymap.format, Format::Whkd);
+/// assert_eq!(parsed.keymap.modes[0].bindings[0].chord[0].to_string(), "Alt+H");
+/// ```
+pub fn parse(format: Format, text: &str, options: &ParseOptions) -> Parsed {
+    match format {
+        Format::Skhd => skhd::parse(text, options),
+        Format::Whkd => whkd::parse(text, options),
+        Format::Sxhkd => sxhkd::parse(text, options),
+    }
+}
 
 /// Options for reading a file.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
