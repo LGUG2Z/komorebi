@@ -796,3 +796,34 @@ At time of writing (2026-10-27):
 - KRDP 6.8.1, Plasma's RDP server, does not start without a TLS certificate and key, although
   its `--help` says it generates one; it logs the error and keeps running with nothing
   listening. `xrdp` is not an option, since there is no X11 session to start.
+
+### RDP into the session
+
+The session guests to develop in ([utm.md](utm.md)) run KRDP as a user unit of the session,
+[`nix/dev/krdp.nix`](../../nix/dev/krdp.nix): `krdpserver --plasma`, which asks KWin for the
+screen and for input through its own Wayland protocols (KRDP's desktop file lists
+`zkde_screencast_unstable_v1` and `org_kde_kwin_fake_input`), so no portal asks the user first. The
+unit makes a self-signed certificate, and logs in the session's user with a password the user
+writes to a file; without the file it does not start. At time of writing (2026-10-27), with KWin
+and KRDP 6.8.1 and FreeRDP 3.32.2:
+
+- KRDP sends the screen as H.264 only, encoded with x264 in software when there is no VAAPI device
+  (Constrained Baseline, level 6.0), and every frame is encoded on the guest's CPUs.
+- FreeRDP decodes H.264 with OpenH264 when it is built with it, as nixpkgs builds it, and OpenH264
+  decodes nothing of KRDP's video: it reports a bitstream error on the first frame
+  (`DecodeFrame2 state: 0x0004`) and no picture after it, and the client's window stays black.
+  FreeRDP built without OpenH264 decodes with FFmpeg, and shows the desktop: the guests install that
+  build.
+- The VM suite `rdp` checks, in the session node under KVM: that the unit does not start before it
+  has a password and listens on port 3389 once it has one (a listener in the guest, which `ss`
+  sees: QEMU's port forwarding accepts a connection whether or not anything listens behind it);
+  that FreeRDP's client is let in with the password and not with another (`/auth-only`); and that
+  the picture the client gets, on an X server of its own, is the display: thousands of colors,
+  within 16 of 255 on average of a screenshot taken right after it (6.7 and 6.6 in two runs, 2.9
+  seconds after the client started).
+- Keys over RDP are not verified end to end. KRDP injects them into KWin through
+  `org_kde_kwin_fake_input`, which, read from the sources, puts them through the input pipeline
+  of KWin that KDE's global shortcuts are part of. No test sends one: aardwolf, a client that can
+  script keys, fails NTLM against KRDP, FreeRDP's client cannot script keys, and a client inside
+  the session would send each key back to itself. Whether a key pressed in an RDP client reaches a
+  global shortcut is therefore not known; no check from a real client has been recorded.

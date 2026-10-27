@@ -114,6 +114,11 @@ the pointer from inside the guest, and KWin takes it as a tablet.
 On aarch64 under HVF, at time of writing (2026-10-27), the session has the
 Wayland socket after 11 to 19 seconds and a painted desktop after 35 seconds.
 
+A suite's `node` can import a module of the repository: `rdp` imports
+[`nix/dev/krdp.nix`](../../nix/dev/krdp.nix), the RDP server of the Plasma
+guests to develop in, so that the suite checks the unit those guests run. The
+guests themselves, which stay up for a person to use, are in [utm.md](utm.md).
+
 ## The library
 
 Suites import from `komorebi_vm`, in

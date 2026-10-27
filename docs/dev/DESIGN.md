@@ -809,3 +809,19 @@ every suite has passed against, and the module warns above it.
 `services.komorebi.kwin.untestedIsError` turns the warning into an error. The two versions are
 written down in that one file, which the module imports and anything else can read with `nix
 eval`.
+
+## Why is there a guest for UTM?
+
+Because the QEMU in nixpkgs cannot give a guest a GPU on a Mac. Its `virtio-gpu` is 2D only, so
+KWin composites on the guest's CPUs with llvmpipe, and KRDP encodes every frame on the same CPUs,
+which is slow to use (it was not benchmarked). That QEMU cannot be rebuilt with GL from nixpkgs on
+a Mac: virglrenderer and libepoxy build on `aarch64-darwin`, and ANGLE does not. krunkit 1.2.1
+accepts a `virtio-gpu` device and then ignores it. UTM's QEMU has `virtio-gpu-gl`, which renders
+the guest's OpenGL on the Mac's GPU through VirGL and shows the guest in a window of its own, with
+no RDP in between.
+
+The disk is made with `nixos-install` from a running guest, and not with nixpkgs' disk image
+builders: those boot a virtual machine as part of the build, so they need a builder with KVM, and
+a Linux builder that is itself a virtual machine on the Mac, as `darwin.linux-builder` is, has no
+nested KVM. `nixos-install` is a plain program, in a guest that runs at the speed of the Mac's own
+virtualization.

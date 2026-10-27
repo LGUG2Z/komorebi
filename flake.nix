@@ -272,6 +272,31 @@
               borderEffectFor = guestSystem: self.packages.${guestSystem}.kde-rounded-corners-komorebi;
               animationEffectFor = guestSystem: self.packages.${guestSystem}.kwin-effect-geometry-change-komorebi;
             };
+
+            # The Plasma guests to develop against, evaluated and never built, so that every system
+            # sees an option that nixpkgs renamed or an assertion that fails. The QEMU guests are
+            # systems in a VM (`vmVariant`), with a runner for the Mac; UTM's is a system of its own.
+            plasma-guests-eval =
+              let
+                guests = self.nixosConfigurations;
+                qemuGuest = name: {
+                  ${name} = guests.${name}.config.virtualisation.vmVariant.system.build.toplevel;
+                  "${name}, its runner" = guests.${name}.config.system.build.vm;
+                };
+                builds =
+                  qemuGuest "plasma-vm"
+                  // qemuGuest "plasma-vm-session"
+                  // {
+                    plasma-utm = guests.plasma-utm.config.system.build.toplevel;
+                  };
+                lines = lib.mapAttrsToList (
+                  name: drv: "${name}: ${builtins.unsafeDiscardStringContext drv.drvPath}"
+                ) builds;
+              in
+              pkgs.runCommand "plasma-guests-eval" { } ''
+                ${lib.concatMapStringsSep "\n" (line: "echo ${lib.escapeShellArg line}") lines}
+                touch $out
+              '';
           }
           # The VM tests need QEMU with KVM, so only Linux checks them. A Mac runs the same tests
           # through legacyPackages.<system>.vm, see docs/dev/vm-tests.md.
@@ -390,6 +415,30 @@
           nixpkgs.overlays = [ self.overlays.default ];
         };
         nixosModules.komorebi = self.nixosModules.default;
+
+        # Plasma guests to develop against, for an Apple silicon Mac (docs/dev/utm.md): QEMU runs
+        # the first two under HVF, and UTM boots the third from a disk image
+        nixosConfigurations =
+          let
+            mkPlasmaGuest =
+              modules:
+              nixpkgs.lib.nixosSystem {
+                specialArgs.hostPkgs = nixpkgs.legacyPackages.aarch64-darwin;
+                modules = [
+                  self.nixosModules.default
+                  { nixpkgs.hostPlatform = "aarch64-linux"; }
+                ]
+                ++ modules;
+              };
+          in
+          {
+            plasma-vm = mkPlasmaGuest [ ./nix/dev/plasma-vm.nix ];
+            plasma-vm-session = mkPlasmaGuest [
+              ./nix/dev/plasma-vm.nix
+              { komorebi.plasmaVm.session = true; }
+            ];
+            plasma-utm = mkPlasmaGuest [ ./nix/dev/plasma-utm.nix ];
+          };
       };
     };
 }

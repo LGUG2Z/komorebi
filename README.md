@@ -159,6 +159,12 @@ with the NixOS module, so every one of them runs komorebi as the module installs
 it. `just vm NAME` runs one; [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) has
 the details, including how to run them on a Mac.
 
+To try komorebi by hand in a real Plasma session, the flake has Plasma guests
+to develop in, for an Apple silicon Mac: two that QEMU runs, one with a session
+that can be reached over RDP, and a disk image for UTM, which renders on the
+Mac's GPU. [`docs/dev/utm.md`](docs/dev/utm.md) says how to build and run them;
+`plasma-guests-eval` evaluates them on every system.
+
 ## How it fits together
 
 The daemon decides where every window goes and asks the compositor to put it
@@ -349,7 +355,8 @@ and [`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
 [`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md) describes the model,
 [`docs/dev/DESIGN.md`](docs/dev/DESIGN.md) says why it is built that way,
 [`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md) what it needs from KDE Plasma,
-and [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work.
+[`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work, and
+[`docs/dev/utm.md`](docs/dev/utm.md) how to develop in a Plasma guest.
 
 ## License
 

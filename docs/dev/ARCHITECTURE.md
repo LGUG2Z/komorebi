@@ -1216,7 +1216,8 @@ With `services.komorebi.enable`, the module:
 The VM tests run on machines built with it ([vm-tests.md](vm-tests.md)). Their headless node
 runs the daemon in test sessions, with a template unit, `komorebi@NAME`, that runs the module's
 `execStart` on the session's private bus. The session node logs in to Plasma, which starts the
-module's unit.
+module's unit. The Plasma guests to develop in ([utm.md](utm.md)) install komorebi with the module
+too.
 
 | Rule | Enforced by | Proof | Escape hatch |
 |---|---|---|---|
