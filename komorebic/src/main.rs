@@ -9,8 +9,9 @@
 //! `mouse-follows-focus` and `toggle-mouse-follows-focus` set whether the pointer goes with it.
 //! `move` and `cycle-move` move the focused window to another tile. `change-layout`,
 //! `cycle-layout` and `flip-layout` change the layout of the focused workspace, `toggle-tiling`
-//! turns its tiling off and on, and `preselect-direction` and `cancel-preselect` reserve the
-//! place of the next window and give it up.
+//! turns its tiling off and on, `scrolling-layout-columns` and `layout-ratios` tune the layouts,
+//! and `preselect-direction` and `cancel-preselect` reserve the place of the next window and give
+//! it up.
 //!
 //! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
@@ -38,6 +39,7 @@ use komorebi_client::send_query;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::Write;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -110,6 +112,22 @@ struct Start {
 
 #[derive(Parser)]
 struct Stop {}
+
+#[derive(Parser)]
+struct ScrollingLayoutColumns {
+    /// Desired number of visible columns
+    count: NonZeroUsize,
+}
+
+#[derive(Parser)]
+struct LayoutRatios {
+    /// Column width ratios (space-separated values between 0.1 and 0.9)
+    #[clap(short, long, num_args = 1..)]
+    columns: Option<Vec<f32>>,
+    /// Row height ratios (space-separated values between 0.1 and 0.9)
+    #[clap(short, long, num_args = 1..)]
+    rows: Option<Vec<f32>>,
+}
 
 #[derive(Parser)]
 struct Docgen {
@@ -192,6 +210,11 @@ enum SubCommand {
     /// Cycle between available layouts
     #[clap(arg_required_else_help = true)]
     CycleLayout(CycleLayout),
+    /// Set the number of visible columns for the Scrolling layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    ScrollingLayoutColumns(ScrollingLayoutColumns),
+    /// Set the layout column and row ratios for the focused workspace
+    LayoutRatios(LayoutRatios),
     // /// Load a custom layout from file for the focused workspace
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
@@ -366,6 +389,18 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::MonitorInformation => {
             print_query(&SocketMessage::MonitorInformation);
+        }
+        SubCommand::ScrollingLayoutColumns(args) => {
+            send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
+        }
+        SubCommand::LayoutRatios(args) => {
+            if args.columns.is_none() && args.rows.is_none() {
+                println!(
+                    "No ratios provided, nothing to change. Use --columns or --rows to specify ratios."
+                );
+            } else {
+                send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
+            }
         }
         SubCommand::ToggleMouseFollowsFocus => {
             send_message(&SocketMessage::ToggleMouseFollowsFocus)?;

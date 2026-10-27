@@ -86,6 +86,18 @@ var seq = 0;
 /** @type {Record<string, KWinWindow>} */
 var known = {};
 
+// Where the daemon last asked a window to be, for a moment after it asked. KWin honors a plain
+// move to anywhere, but when a window is *resized* it keeps 100px of it on an output, so a window
+// that komorebi puts off screen (the scrolling layout does) and resizes in the same breath, or
+// whose client rounds the size (a terminal snapping to its cells), is pulled back onto the screen
+// once the client has committed the new size. By then asking again for the position is a plain
+// move. (The first geometry change, to the requested rect, comes before the client has answered,
+// so a match does not end the watch; only the clock does.)
+/** @type {Record<string, { x: number, y: number, tries: number, until: number }>} */
+var want = {};
+var WANT_RETRIES = 3;
+var WANT_MS = 1000;
+
 /**
  * @template {BridgeEvent["type"]} T
  * @param {T} type
@@ -210,6 +222,29 @@ function findWindow(id) {
     return null;
 }
 
+// A window has moved or been resized; if it is not where komorebi asked, ask again for the
+// position alone (see `want`). A few tries at most, so a window that cannot go where it was asked
+// (a fullscreen one, say) is left alone rather than chased.
+/**
+ * @param {KWinWindow} w
+ * @param {string} id
+ */
+function settle(w, id) {
+    var t = want[id];
+    if (!t || w.move || w.resize) {
+        return;
+    }
+    if (Date.now() > t.until || t.tries >= WANT_RETRIES) {
+        delete want[id];
+        return;
+    }
+    var g = w.frameGeometry;
+    if (Math.round(g.x) !== t.x || Math.round(g.y) !== t.y) {
+        t.tries++;
+        w.frameGeometry = { x: t.x, y: t.y, width: g.width, height: g.height };
+    }
+}
+
 // ---- hooks ---------------------------------------------------------------------------------
 
 /**
@@ -227,6 +262,7 @@ function track(w, announce) {
     }
     w.frameGeometryChanged.connect(function (old) {
         emit("geometry", { id: id, geo: rect(w.frameGeometry) });
+        settle(w, id);
     });
     w.minimizedChanged.connect(function () {
         emit("minimized", { id: id, v: !!w.minimized });
@@ -239,6 +275,7 @@ workspace.windowAdded.connect(function (w) {
 workspace.windowRemoved.connect(function (w) {
     var id = wid(w);
     delete known[id];
+    delete want[id];
     emit("removed", { id: id });
 });
 /** @type {string | null} */
@@ -292,6 +329,7 @@ function applyOne(c) {
     switch (c.op) {
         case "geo":
             // a plain object converts to QRectF; there is no `Qt` global in kwin scripts
+            want[c.id] = { x: c.x, y: c.y, tries: 0, until: Date.now() + WANT_MS };
             w.frameGeometry = { x: c.x, y: c.y, width: c.w, height: c.h };
             break;
         case "min":

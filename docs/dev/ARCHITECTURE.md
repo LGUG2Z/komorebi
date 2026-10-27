@@ -271,6 +271,20 @@ flipped layout goes to the tile on the left. `ToggleTiling` turns the workspace'
 and on ([`Workspace::tile`]): with it off, [`Workspace::update`] moves no window, the workspace
 still takes the windows that open into containers, and they are tiled when it is turned on.
 
+`LayoutRatios` and `ScrollingLayoutColumns` set the focused workspace's [`LayoutOptions`]
+([`Workspace::layout_options`]): the share of the work area its first columns and rows take, and
+the number of columns of the scrolling layout in view. The layout calculates the tiles from
+them, and from the tiles it calculated last ([`Workspace::latest_layout`]), which the scrolling
+layout scrolls from.
+
+The scrolling layout is a strip of columns that runs past the edges of the work area. Its tiles
+are the only ones [`Workspace::update`] does not clamp to the work area, so the windows of the
+columns out of view are off the screen; a window whose tile is out of view while part of it is
+in view is centered in the work area first. A `FocusChange` tiles a scrolling workspace after the
+focused container has changed, which scrolls the strip to it. KWin keeps part of a window it
+resizes on an output, so the bridge asks again for the position of a window KWin pulled back
+within a second of the command, three times at most ([`bridge.js`]'s `settle`).
+
 `PreselectDirection` reserves the index on one side of the focused container for the next
 window ([`WindowManager::preselect_container_in_direction`]). The workspace inserts an empty
 container there ([`Container::preselect`]), which [`Workspace::update`] keeps and the layout
@@ -411,6 +425,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A socket left behind by a daemon that did not stop cleanly does not keep the next one from starting | framework path: [`WindowManager::new`] removes the file before it binds | `a_socket_file_left_behind_is_replaced` | none |
 | A daemon that is told to stop leaves no socket behind | framework path: [`WindowManager::stop`] removes it before it exits | `the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to` | `SIGKILL` |
 | A container moved onto a locked index is locked in its place, and the lock leaves the container that moved away | framework path: [`Workspace::swap_containers`] swaps through `LockableSequence`, which keeps the lock with the index | `test_swap_respecting_locks_various_cases`, `a_lock_stays_with_its_index_when_a_window_is_moved_onto_it` | `containers_mut()` is the `VecDeque` itself |
+| A window komorebi puts off the screen stays there | framework path: the bridge asks again for the position of a window KWin pulled back after a `geo` command, for a second, three times at most | `a window KWin pulls back from where it was asked to be is asked for the position again`, `a window that cannot go where it was asked is asked again three times at most`, `vm-scrolling` | a window that cannot go where it was asked is left where KWin put it |
 | A workspace whose tiling is off moves no window | framework path: [`Workspace::update`] returns before the layout when [`Workspace::tile`] is false | `with_tiling_off_no_window_is_moved_until_it_is_back_on` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
@@ -523,7 +538,12 @@ A window is shown, and ends up on a tile:
 - [`komorebi/tests/focus.rs`](../../komorebi/tests/focus.rs),
   [`komorebi/tests/moving.rs`](../../komorebi/tests/moving.rs) and
   [`komorebi/tests/layouts.rs`](../../komorebi/tests/layouts.rs): the focus, move and layout
-  commands against the fake.
+  commands against the fake;
+  [`komorebi/tests/layout_options.rs`](../../komorebi/tests/layout_options.rs) and
+  [`komorebi/tests/scrolling.rs`](../../komorebi/tests/scrolling.rs), the layout options and the
+  scrolling layout.
+- [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
+  strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
@@ -558,6 +578,9 @@ A window is shown, and ends up on a tile:
 [`WindowManager::move_container_in_cycle_direction`]: ../../komorebi/src/window_manager.rs
 [`Workspace::swap_containers`]: ../../komorebi/src/workspace.rs
 [`Workspace::layout_flip`]: ../../komorebi/src/workspace.rs
+[`Workspace::layout_options`]: ../../komorebi/src/workspace.rs
+[`Workspace::latest_layout`]: ../../komorebi/src/workspace.rs
+[`LayoutOptions`]: ../../komorebi/src/core/mod.rs
 [`Workspace::tile`]: ../../komorebi/src/workspace.rs
 [`Layout`]: ../../komorebi/src/core/mod.rs
 [`Container::preselect`]: ../../komorebi/src/container.rs

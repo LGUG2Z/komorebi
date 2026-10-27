@@ -136,8 +136,11 @@ and `cycle-focus` give the focus to the container on one side of the focused
 one in the layout, or to the next one in the workspace's order, and `move` and
 `cycle-move` swap the focused container with that one and tile the workspace
 again. `change-layout`, `cycle-layout` and `flip-layout` tile the workspace in
-another layout, `toggle-tiling` stops it moving windows and starts it again,
-and `preselect-direction` reserves a tile for the next window.
+another layout, `layout-ratios` and `scrolling-layout-columns` tune it,
+`toggle-tiling` stops it moving windows and starts it again, and
+`preselect-direction` reserves a tile for the next window. The scrolling layout
+is a strip of columns that runs past the edges of the monitor and scrolls to
+the window that has the focus.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

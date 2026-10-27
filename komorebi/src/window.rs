@@ -191,6 +191,28 @@ impl Window {
         backend().unminimize(self.id)
     }
 
+    /// Moves the window to the middle of `work_area`, keeping its size
+    ///
+    /// # Errors
+    ///
+    /// The backend does not know the window, or refuses to move it.
+    pub fn center(&mut self, work_area: &Rect) -> eyre::Result<()> {
+        let (target_width, target_height) = {
+            let current_rect = self.rect()?;
+            (current_rect.right, current_rect.bottom)
+        };
+
+        let x = work_area.left + ((work_area.right - target_width) / 2);
+        let y = work_area.top + ((work_area.bottom - target_height) / 2);
+
+        self.set_position(&Rect {
+            left: x,
+            top: y,
+            right: target_width,
+            bottom: target_height,
+        })
+    }
+
     /// Whether the window is one komorebi should tile: a window that is still alive and that the
     /// compositor considers a normal application window, as opposed to a dialog, a splash screen,
     /// a utility window or a dock ([`WindowInfo::normal`](crate::backend::WindowInfo::normal)).

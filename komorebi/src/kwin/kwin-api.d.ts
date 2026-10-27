@@ -78,6 +78,10 @@ interface KWinWindow {
     /** Set to a plain `{x, y, width, height}`: a script has no `Qt` global to make a `QRectF`. */
     frameGeometry: QRectF;
     readonly minSize: QSizeF;
+    /** True while the user moves the window with the pointer. */
+    readonly move: boolean;
+    /** True while the user resizes the window with the pointer. */
+    readonly resize: boolean;
     readonly desktops: VirtualDesktop[];
     readonly frameGeometryChanged: Signal<[oldGeometry: QRectF]>;
     readonly minimizedChanged: Signal;

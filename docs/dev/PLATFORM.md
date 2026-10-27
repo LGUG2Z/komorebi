@@ -239,6 +239,16 @@ asked for. komorebi does not ask again when a client keeps to a size of its own:
 manager reads the frame the window has from the table, and a window larger than its tile
 covers part of its neighbor's.
 
+KWin moves a window anywhere it is asked to, off the screen too, but when it *resizes* a window
+it keeps 100 pixels of it on an output, and it does that once the client has drawn at the new
+size. A window that is moved off the screen and resized at once, as the scrolling layout does
+with the columns out of view, is pulled back onto the screen a moment later; so is one whose
+client rounds the size, as `foot` does. The bridge therefore remembers the position it was asked
+for, for a second, and when the window's frame changes to another position in that time, asks
+for the position again, which is a plain move. It tries three times at most, so a window that
+cannot go where it was asked is left alone. The VM test `vm-scrolling` checks that the columns
+out of view stay where komorebi put them.
+
 ## How long a retile takes
 
 Measured by the VM test `vm-latency` at time of writing (2026-10-27), in a headless KWin 6.8.1

@@ -10,6 +10,7 @@ use crate::core::Axis;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::lockable_sequence::LockableSequence;
@@ -27,9 +28,11 @@ use std::num::NonZeroUsize;
 pub struct Workspace {
     pub containers: Ring<Container>,
     pub layout: Layout,
+    pub layout_options: Option<LayoutOptions>,
     pub layout_flip: Option<Axis>,
     pub workspace_padding: Option<i32>,
     pub container_padding: Option<i32>,
+    pub latest_layout: Vec<Rect>,
     pub tile: bool,
     #[serde(skip)]
     pub globals: WorkspaceGlobals,
@@ -46,7 +49,9 @@ impl Default for Workspace {
             workspace_padding: None,
             container_padding: None,
             layout: Layout::Default(DefaultLayout::BSP),
+            latest_layout: vec![],
             layout_flip: None,
+            layout_options: None,
             globals: Default::default(),
             tile: true,
             preselected_container_idx: None,
@@ -62,6 +67,29 @@ pub struct WorkspaceGlobals {
     pub workspace_padding: Option<i32>,
     pub work_area: Rect,
     pub work_area_offset: Option<Rect>,
+}
+
+/// `komorebi_layouts::Rect::percentage_within_horizontal_bounds`, which that crate compiles only
+/// with its `darwin` feature
+trait HorizontalBounds {
+    /// Returns how much of `other`'s width is within this rectangle's left and right edges, in
+    /// percent
+    fn percentage_within_horizontal_bounds(&self, other: &Rect) -> f64;
+}
+
+impl HorizontalBounds for Rect {
+    fn percentage_within_horizontal_bounds(&self, other: &Rect) -> f64 {
+        let overlap_left = self.left.max(other.left);
+        let overlap_right = (self.left + self.right).min(other.left + other.right);
+
+        let overlap_width = overlap_right - overlap_left;
+
+        if overlap_width <= 0 {
+            0.0
+        } else {
+            (overlap_width as f64) / (other.right as f64) * 100.0
+        }
+    }
 }
 
 impl Workspace {
@@ -103,7 +131,7 @@ impl Workspace {
             self.layout_flip,
             self.focused_container_idx(),
             len,
-            None,
+            self.layout_options,
         )
     }
 
@@ -323,8 +351,13 @@ impl Workspace {
     ///
     /// Containers that have no windows left are dropped first, except the one a preselection
     /// reserved, and so is a window that is in more than one container. A tile is clamped to the
-    /// work area, so it cannot bleed onto a neighboring monitor. A workspace whose tiling is off
-    /// ([`Workspace::tile`] is false) moves no window.
+    /// work area, so it cannot bleed onto a neighboring monitor, except in the scrolling layout,
+    /// whose strip runs past the edges of the work area. A window whose tile is out of view while
+    /// part of the window is in view is first centered in the work area. A workspace whose tiling
+    /// is off ([`Workspace::tile`] is false) moves no window.
+    ///
+    /// The tiles are kept in [`Workspace::latest_layout`], which the scrolling layout scrolls
+    /// from.
     pub fn update(&mut self) -> eyre::Result<()> {
         // make sure we are never holding on to empty containers
         self.prune_duplicate_windows()?;
@@ -376,47 +409,68 @@ impl Workspace {
                         self.layout_flip,
                         &[],
                         self.focused_container_idx(),
-                        None,
-                        &[],
+                        self.layout_options,
+                        &self.latest_layout,
                     );
+
+                    let is_scrolling =
+                        matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
 
                     let containers = self.containers_mut();
 
                     for (i, container) in containers.iter_mut().enumerate() {
                         if let Some(layout) = layouts.get_mut(i) {
-                            // Every tile is clamped to the work area so it cannot bleed onto an
-                            // adjacent monitor.
+                            // The scrolling layout is a strip that is meant to run past the edges of
+                            // the work area, with the windows outside the viewport sitting off screen
+                            // (KWin does not constrain where a window is put). Everything else is
+                            // clamped to the work area so it cannot bleed onto an adjacent monitor.
+                            if !is_scrolling {
+                                // horizontal
+                                if layout.left < adjusted_work_area.left {
+                                    layout.right -= adjusted_work_area.left - layout.left;
+                                    layout.left = adjusted_work_area.left;
+                                }
+                                let max_right_edge =
+                                    adjusted_work_area.left + adjusted_work_area.right;
+                                let current_right_edge = layout.left + layout.right;
+                                if current_right_edge > max_right_edge {
+                                    layout.right = max_right_edge - layout.left;
+                                }
 
-                            // horizontal
-                            if layout.left < adjusted_work_area.left {
-                                layout.right -= adjusted_work_area.left - layout.left;
-                                layout.left = adjusted_work_area.left;
-                            }
-                            let max_right_edge = adjusted_work_area.left + adjusted_work_area.right;
-                            let current_right_edge = layout.left + layout.right;
-                            if current_right_edge > max_right_edge {
-                                layout.right = max_right_edge - layout.left;
-                            }
-
-                            // vertical
-                            if layout.top < adjusted_work_area.top {
-                                layout.bottom -= adjusted_work_area.top - layout.top;
-                                layout.top = adjusted_work_area.top;
-                            }
-                            let max_bottom_edge =
-                                adjusted_work_area.top + adjusted_work_area.bottom;
-                            let current_bottom_edge = layout.top + layout.bottom;
-                            if current_bottom_edge > max_bottom_edge {
-                                layout.bottom = max_bottom_edge - layout.top;
+                                // vertical
+                                if layout.top < adjusted_work_area.top {
+                                    layout.bottom -= adjusted_work_area.top - layout.top;
+                                    layout.top = adjusted_work_area.top;
+                                }
+                                let max_bottom_edge =
+                                    adjusted_work_area.top + adjusted_work_area.bottom;
+                                let current_bottom_edge = layout.top + layout.bottom;
+                                if current_bottom_edge > max_bottom_edge {
+                                    layout.bottom = max_bottom_edge - layout.top;
+                                }
                             }
 
                             for window in container.windows_mut() {
-                                if let Err(error) = window.set_position(layout) {
+                                let current_rect = window.rect().unwrap_or_default();
+                                let current_percentage =
+                                    work_area.percentage_within_horizontal_bounds(&current_rect);
+                                let proposed_percentage =
+                                    work_area.percentage_within_horizontal_bounds(layout);
+
+                                let percentage_override = proposed_percentage == 0.0
+                                    && current_percentage > 0.1
+                                    && current_percentage < 100.0;
+
+                                if percentage_override {
+                                    window.center(&work_area)?;
+                                } else if let Err(error) = window.set_position(layout) {
                                     tracing::warn!("failed to set window position: {error}")
                                 }
                             }
                         }
                     }
+
+                    self.latest_layout = layouts;
                 }
                 Ok(())
             })();

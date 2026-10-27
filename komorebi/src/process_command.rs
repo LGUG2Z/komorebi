@@ -24,6 +24,9 @@
 //!   layout, or mirror it, and **ToggleTiling** turns its tiling off and on
 //!   ([`WindowManager::change_workspace_layout_default`], [`WindowManager::cycle_layout`],
 //!   [`WindowManager::flip_layout`], [`WindowManager::toggle_tiling`]).
+//! - **ScrollingLayoutColumns** sets how many columns the scrolling layout shows on the focused
+//!   workspace, and **LayoutRatios** the share of the work area its first columns and rows take,
+//!   and both tile the workspace again.
 //! - **PreselectDirection** reserves the place on one side of the focused container for the next
 //!   window ([`WindowManager::preselect_container_in_direction`]), unless a place is reserved
 //!   already, and **CancelPreselect** gives the reserved place up.
@@ -43,6 +46,8 @@ use crate::NotificationEvent;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::core::Layout;
+use crate::core::LayoutOptions;
+use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::monitor::MonitorInformation;
@@ -247,6 +252,54 @@ impl WindowManager {
                 };
 
                 reply.write_all(response.as_bytes())?;
+            }
+            SocketMessage::ScrollingLayoutColumns(count) => {
+                let focused_workspace = self.focused_workspace_mut()?;
+
+                let options = match focused_workspace.layout_options {
+                    Some(mut opts) => {
+                        if let Some(scrolling) = &mut opts.scrolling {
+                            scrolling.columns = count.into();
+                        }
+
+                        opts
+                    }
+                    None => LayoutOptions {
+                        scrolling: Some(ScrollingLayoutOptions {
+                            columns: count.into(),
+                            center_focused_column: Default::default(),
+                        }),
+                        grid: None,
+                        column_ratios: None,
+                        row_ratios: None,
+                    },
+                };
+
+                focused_workspace.layout_options = Some(options);
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::LayoutRatios(ref columns, ref rows) => {
+                use crate::core::validate_ratios;
+
+                let focused_workspace = self.focused_workspace_mut()?;
+
+                let mut options = focused_workspace.layout_options.unwrap_or(LayoutOptions {
+                    scrolling: None,
+                    grid: None,
+                    column_ratios: None,
+                    row_ratios: None,
+                });
+
+                if let Some(cols) = columns {
+                    options.column_ratios = Some(validate_ratios(cols));
+                }
+
+                if let Some(rws) = rows {
+                    options.row_ratios = Some(validate_ratios(rws));
+                }
+
+                focused_workspace.layout_options = Some(options);
+                self.update_focused_workspace(false, false)?;
             }
             SocketMessage::MouseFollowsFocus(enable) => {
                 self.mouse_follows_focus = enable;

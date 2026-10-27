@@ -58,8 +58,15 @@ function geometry(x, y, width, height) {
 
 // A window. `id` becomes its `internalId`, which is a QUuid in KWin: an object, not a string.
 // Setting `minimized` or `frameGeometry` raises the signal KWin raises, and `closeWindow` closes it
-// once it is in a KWin.
-function window({ id, minimized = false, frameGeometry = geometry(0, 0, 100, 100), ...rest }) {
+// once it is in a KWin. `place` is where KWin puts the window when it is asked for a frame: where
+// it was asked, unless a test says otherwise.
+function window({
+    id,
+    minimized = false,
+    frameGeometry = geometry(0, 0, 100, 100),
+    place = (g) => g,
+    ...rest
+}) {
     const w = {
         internalId: { toString: () => id },
         pid: 0,
@@ -74,6 +81,8 @@ function window({ id, minimized = false, frameGeometry = geometry(0, 0, 100, 100
         fullScreen: false,
         maximizeMode: 0,
         minSize: { width: 0, height: 0 },
+        move: false,
+        resize: false,
         desktops: [],
         frameGeometryChanged: new Signal(),
         minimizedChanged: new Signal(),
@@ -93,7 +102,7 @@ function window({ id, minimized = false, frameGeometry = geometry(0, 0, 100, 100
             get: () => state.frameGeometry,
             set: (g) => {
                 const old = state.frameGeometry;
-                state.frameGeometry = geometry(g.x, g.y, g.width, g.height);
+                state.frameGeometry = place(geometry(g.x, g.y, g.width, g.height));
                 w.frameGeometryChanged.emit(old);
             },
         },
@@ -457,4 +466,62 @@ test("a command KWin throws on is printed and given back as failed", () => {
 
     assert.match(k.printed[0], /^komorebi bridge: Error: the window is being destroyed in /);
     assert.deepStrictEqual(k.events().at(-1), { type: "failed", batch: 5, cmds: [close], seq: 2 });
+});
+
+// KWin keeps 100 pixels of a window that it resizes on an output
+function keepOnScreen(g) {
+    return geometry(Math.max(g.x, 100 - g.width), g.y, g.width, g.height);
+}
+
+test("a window KWin pulls back from where it was asked to be is asked for the position again", () => {
+    let pulled = false;
+    const w = window({
+        id: "{w}",
+        // the first time only, as when the client commits a new size
+        place: (g) => (pulled ? g : ((pulled = true), keepOnScreen(g))),
+    });
+    const k = kwin({ windows: [w] });
+
+    k.answer([{ batch: 1, cmds: [{ op: "geo", id: "{w}", x: -900, y: 0, w: 800, h: 600 }] }]);
+
+    assert.deepStrictEqual(w.frameGeometry, geometry(-900, 0, 800, 600));
+    assert.deepStrictEqual(
+        k.events().slice(1).map((e) => e.geo),
+        [
+            { x: -700, y: 0, w: 800, h: 600 },
+            { x: -900, y: 0, w: 800, h: 600 },
+        ],
+    );
+});
+
+test("a window that cannot go where it was asked is asked again three times at most", () => {
+    let frames = 0;
+    const w = window({ id: "{w}", place: (g) => (frames++, keepOnScreen(g)) });
+    const k = kwin({ windows: [w] });
+
+    k.answer([{ batch: 1, cmds: [{ op: "geo", id: "{w}", x: -900, y: 0, w: 800, h: 600 }] }]);
+
+    assert.equal(frames, 4, "the command and three tries");
+    assert.deepStrictEqual(w.frameGeometry, geometry(-700, 0, 800, 600));
+});
+
+test("a window is asked for its position again for a second after the command, and no longer", () => {
+    const w = window({ id: "{w}" });
+    const k = kwin({ windows: [w] });
+    k.answer([{ batch: 1, cmds: [{ op: "geo", id: "{w}", x: -900, y: 0, w: 800, h: 600 }] }]);
+
+    k.clock.now += 1001;
+    w.frameGeometry = geometry(-700, 0, 800, 600);
+
+    assert.deepStrictEqual(w.frameGeometry, geometry(-700, 0, 800, 600));
+});
+
+test("a window the user is moving or resizing is not asked for its position again", () => {
+    const w = window({ id: "{w}", move: true });
+    const k = kwin({ windows: [w] });
+    k.answer([{ batch: 1, cmds: [{ op: "geo", id: "{w}", x: -900, y: 0, w: 800, h: 600 }] }]);
+
+    w.frameGeometry = geometry(-700, 0, 800, 600);
+
+    assert.deepStrictEqual(w.frameGeometry, geometry(-700, 0, 800, 600));
 });

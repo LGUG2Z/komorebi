@@ -217,6 +217,44 @@ fn the_layout_subcommands_send_the_layout_axis_or_direction_they_are_given() {
 }
 
 #[test]
+fn scrolling_layout_columns_and_layout_ratios_send_what_they_are_given() {
+    sends(
+        &["scrolling-layout-columns", "3"],
+        r#"{"type":"ScrollingLayoutColumns","content":3}"#,
+    );
+    sends(
+        &["layout-ratios", "--columns", "0.6", "0.25", "--rows", "0.5"],
+        r#"{"type":"LayoutRatios","content":[[0.6,0.25],[0.5]]}"#,
+    );
+    sends(
+        &["layout-ratios", "--rows", "0.3"],
+        r#"{"type":"LayoutRatios","content":[null,[0.3]]}"#,
+    );
+}
+
+#[test]
+fn layout_ratios_without_ratios_sends_nothing_and_says_so() {
+    let runtime = Runtime::new();
+
+    let output = runtime.komorebic(&["layout-ratios"]);
+
+    assert!(output.status.success(), "{output:?}");
+    assert!(
+        stdout(&output).starts_with("No ratios provided"),
+        "{output:?}"
+    );
+}
+
+#[test]
+fn scrolling_layout_columns_refuses_zero() {
+    let runtime = Runtime::new();
+
+    let output = runtime.komorebic(&["scrolling-layout-columns", "0"]);
+
+    assert!(!output.status.success(), "{output:?}");
+}
+
+#[test]
 fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
     sends(
         &["mouse-follows-focus", "enable"],
@@ -280,6 +318,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "data-directory.md",
             "flip-layout.md",
             "focus.md",
+            "layout-ratios.md",
             "log.md",
             "monitor-information.md",
             "mouse-follows-focus.md",
@@ -287,6 +326,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "preselect-direction.md",
             "query.md",
             "retile.md",
+            "scrolling-layout-columns.md",
             "start.md",
             "state.md",
             "stop.md",

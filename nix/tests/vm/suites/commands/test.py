@@ -164,7 +164,9 @@ flip-layout horizontal-and-vertical
 flip-layout horizontal-and-vertical
 cycle-layout next
 cycle-layout previous
+layout-ratios --columns 0.6 0.4
 change-layout columns
+scrolling-layout-columns 2
 change-layout bsp
 preselect-direction left
 cancel-preselect

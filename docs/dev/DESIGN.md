@@ -210,3 +210,16 @@ So that the tests exercise the module. Every VM suite boots a machine that impor
 the module's read-only `execStart`, and the session node runs the module's unit itself. A change
 to the module that breaks how komorebi is installed or started fails the VM suites, and not only
 `nixos-module-eval`.
+
+## Why does the bridge ask KWin twice for the position of a window?
+
+KWin moves a window anywhere it is asked to, but when it resizes a window it keeps 100 pixels of
+it on an output, and it does so once the client has drawn at the new size, which is after the
+bridge has set the frame. The scrolling layout moves the windows of the columns out of view off
+the screen and resizes them in the same command, and a terminal that rounds its size to its
+cells is resized again by its client, so KWin pulls both back onto the screen. By then, setting
+the position alone is a plain move, which KWin honors. The bridge remembers where it was asked
+to put a window for a second, and sets the position again when the window's frame changes to
+another one in that time ([PLATFORM.md](PLATFORM.md#how-clients-answer-a-frame)). Three tries
+at most keep it from chasing a window that cannot go where it was asked, such as a fullscreen
+one.

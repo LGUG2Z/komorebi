@@ -16,6 +16,7 @@ use clap::ValueEnum;
 use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
+use std::num::NonZeroUsize;
 use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
@@ -346,6 +347,8 @@ pub enum SocketMessage {
     // Current Workspace Commands
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
+    ScrollingLayoutColumns(NonZeroUsize),
+    LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
     // ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
     // Monitor and Workspace Commands

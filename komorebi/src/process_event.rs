@@ -8,7 +8,8 @@
 //! - **Destroy**: the window is taken out of whichever workspace has it, and if that is the one in
 //!   front it is tiled again.
 //! - **FocusChange**: the workspace is tiled again and the container of the window that has the
-//!   focus becomes the focused container.
+//!   focus becomes the focused container. In the scrolling layout the workspace is tiled after
+//!   that instead, so that the strip scrolls to the window that has the focus.
 //! - **Minimize**: a window the user minimized leaves its workspace and the rest are tiled
 //!   again; **Restore** brings it back in a container of its own.
 //!
@@ -23,6 +24,8 @@
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::backend::backend;
+use crate::core::DefaultLayout;
+use crate::core::Layout;
 use crate::notify_subscribers;
 use crate::state::State;
 use crate::window_manager::WindowManager;
@@ -118,7 +121,11 @@ impl WindowManager {
 
                 // don't want to trigger the full workspace updates when there are no managed
                 // containers
-                if !self.focused_workspace()?.containers().is_empty() {
+                if !matches!(
+                    self.focused_workspace()?.layout,
+                    Layout::Default(DefaultLayout::Scrolling)
+                ) && !self.focused_workspace()?.containers().is_empty()
+                {
                     self.update_focused_workspace(self.mouse_follows_focus, false)?;
                 }
 
@@ -129,6 +136,14 @@ impl WindowManager {
 
                 if is_on_current_workspace {
                     workspace.focus_container_by_window(window_id)?;
+                }
+
+                if matches!(
+                    self.focused_workspace()?.layout,
+                    Layout::Default(DefaultLayout::Scrolling)
+                ) && !self.focused_workspace()?.containers().is_empty()
+                {
+                    self.update_focused_workspace(self.mouse_follows_focus, false)?;
                 }
             }
             WindowManagerEvent::Show(_, _) => {

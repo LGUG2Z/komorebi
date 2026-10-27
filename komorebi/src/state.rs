@@ -80,9 +80,11 @@ impl From<&WindowManager> for State {
                         .map(|workspace| Workspace {
                             containers: workspace.containers.clone(),
                             layout: workspace.layout.clone(),
+                            layout_options: workspace.layout_options,
                             layout_flip: workspace.layout_flip,
                             workspace_padding: workspace.workspace_padding,
                             container_padding: workspace.container_padding,
+                            latest_layout: workspace.latest_layout.clone(),
                             tile: workspace.tile,
                             globals: workspace.globals,
                             preselected_container_idx: None,

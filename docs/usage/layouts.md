@@ -39,6 +39,42 @@ right main vertical stack.
 [`komorebic query focused-workspace-layout`](../cli/query.md) prints the layout of the focused
 workspace.
 
+## Ratios
+
+[`komorebic layout-ratios`](../cli/layout-ratios.md) sets the share of the work area the first
+columns (`--columns`) and the first rows (`--rows`) of the focused workspace's layout take, as
+fractions: `--columns 0.6` gives the first column 60% of the width, and the columns after it
+share the rest.
+
+```sh
+komorebic layout-ratios --columns 0.6
+komorebic layout-ratios --columns 0.5 0.3 --rows 0.7
+```
+
+Each takes five ratios at most, each kept between 0.1 and 0.9, and the ratios after the one that
+would make them add up to 1 are dropped, so that there is always room for another column or row.
+The ratios stay with the workspace when its layout changes. Without `--columns` or `--rows`,
+`layout-ratios` changes nothing.
+
+## The scrolling layout
+
+The scrolling layout puts every container in a column of its own, the columns side by side in a
+strip that runs past the edges of the monitor. The windows of the columns out of view are off
+the screen, and KWin leaves them there. When a window of the workspace gets the focus, the strip
+scrolls so that its column is in view, so `komorebic focus left` and `focus right` walk along
+it.
+
+[`komorebic scrolling-layout-columns`](../cli/scrolling-layout-columns.md) sets how many columns
+are in view at once on the focused workspace:
+
+```sh
+komorebic change-layout scrolling
+komorebic scrolling-layout-columns 2
+```
+
+Off the screen to the right of one monitor is on the next monitor over, if there is one, so the
+columns out of view can show on it.
+
 ## Flipping the layout
 
 [`komorebic flip-layout`](../cli/flip-layout.md) mirrors the tiles of the focused workspace:
