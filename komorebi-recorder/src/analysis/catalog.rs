@@ -830,6 +830,7 @@ mod tests {
 
     #[test]
     fn the_catalog_was_built_from_komorebis_source() {
+        crate::skip_without_komorebi_mac_source!();
         assert!(
             mac().files_scanned() > 20,
             "only {} files were indexed",
@@ -845,6 +846,7 @@ mod tests {
 
     #[test]
     fn the_handler_header_is_found_at_its_line() {
+        crate::skip_without_komorebi_mac_source!();
         let found = find(
             "komorebi::process_event",
             Level::Info,
@@ -903,6 +905,7 @@ mod tests {
 
     #[test]
     fn a_statement_that_is_all_placeholders_is_generic() {
+        crate::skip_without_komorebi_mac_source!();
         // `tracing::error!("{}", error)` in the process_event listener
         let found = find(
             "komorebi::process_event",
@@ -928,6 +931,7 @@ mod tests {
 
     #[test]
     fn every_statement_of_the_real_log_sample_is_found_in_the_source() {
+        crate::skip_without_komorebi_mac_source!();
         let sample = include_str!("../../tests/fixtures/komorebi_plaintext_sample.log");
         let lines = crate::analysis::logparse::parse(sample.as_bytes());
         let structured: Vec<_> = lines.iter().filter(|line| !line.continuation).collect();
@@ -985,6 +989,7 @@ mod tests {
 
     #[test]
     fn the_same_commit_is_the_same_source() {
+        crate::skip_without_komorebi_mac_source!();
         let skew = skew_between(
             &[version("abc1234def")],
             Some("abc1234def"),
@@ -1009,6 +1014,7 @@ mod tests {
 
     #[test]
     fn a_commit_the_repository_does_not_have_is_unknown() {
+        crate::skip_without_komorebi_mac_source!();
         let skew = skew_between(
             &[version("0000000000000000000000000000000000000000")],
             commit(),
@@ -1090,6 +1096,7 @@ mod tests {
     /// what was indexed and this fails, rather than `code` silently missing lines.
     #[test]
     fn every_log_statement_in_komorebis_source_is_indexed() {
+        crate::skip_without_komorebi_mac_source!();
         let root = crate::testkit::komorebi_mac_src().join("komorebi/src");
         let mut files = Vec::new();
         rust_files(&root, &mut files);

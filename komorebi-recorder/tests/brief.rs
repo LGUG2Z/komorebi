@@ -107,6 +107,7 @@ fn session(name: &str, mark_bug: bool) -> String {
 
 #[test]
 fn the_brief_leads_with_the_users_words_and_points_at_the_event_that_broke_it() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let dir = session("brief-bug", true);
 
     let answer = json(&["brief", &dir, "--json"]);

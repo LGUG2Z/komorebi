@@ -675,6 +675,33 @@ pub fn komorebi_mac_src() -> PathBuf {
         })
 }
 
+/// Whether the tests that read komorebi for Mac's source can run: `KOMOREBI_MAC_SRC` names a
+/// checkout, and this build indexed it (an empty catalog means it was built without one).
+///
+/// A machine that has neither (Windows, or a Mac outside `nix develop`) has nothing for those
+/// tests to check, which is not a failure: they use [`skip_without_komorebi_mac_source`] to say so
+/// and stop, as the tests that need `ffmpeg` do.
+#[must_use]
+pub fn komorebi_mac_source_available() -> bool {
+    std::env::var_os("KOMOREBI_MAC_SRC").is_some_and(|path| !path.is_empty())
+        && !crate::analysis::catalog::of(crate::analysis::flavor::Flavor::Macos).is_empty()
+}
+
+/// Ends the test that uses it, saying why, on a machine that has no komorebi for Mac source to
+/// read (see [`komorebi_mac_source_available`]). Use it first in a test that needs the source.
+#[macro_export]
+macro_rules! skip_without_komorebi_mac_source {
+    () => {
+        if !$crate::testkit::komorebi_mac_source_available() {
+            eprintln!(
+                "skipped: KOMOREBI_MAC_SRC is not set, or this build was made without it \
+                 (`nix develop` sets it)"
+            );
+            return;
+        }
+    };
+}
+
 /// Whether `ffmpeg` is there to make test videos with.
 #[must_use]
 pub fn ffmpeg_available() -> bool {

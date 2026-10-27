@@ -46,6 +46,7 @@ fn session(name: &str, commit: Option<&str>) -> String {
 
 #[test]
 fn a_log_line_is_traced_to_the_statement_that_wrote_it() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let recorded = catalog::of(Flavor::Macos).commit().unwrap_or("unknown");
     let dir = session("code-line", Some(recorded));
 
@@ -91,6 +92,7 @@ fn a_log_line_is_traced_to_the_statement_that_wrote_it() {
 
 #[test]
 fn an_event_is_explained_by_everything_its_handler_logged() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let recorded = catalog::of(Flavor::Macos).commit().unwrap_or("unknown");
     let dir = session("code-event", Some(recorded));
 
@@ -106,6 +108,7 @@ fn an_event_is_explained_by_everything_its_handler_logged() {
 
 #[test]
 fn a_commit_that_cannot_be_compared_is_a_warning_on_every_answer() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let dir = session(
         "code-skew",
         Some("0000000000000000000000000000000000000000"),
@@ -145,6 +148,7 @@ fn git(args: &[&str]) -> Option<String> {
 /// as if the commits were the same.
 #[test]
 fn only_the_files_that_changed_since_the_recorded_commit_are_doubted() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let Some(history) = git(&["log", "-2", "--format=%H", "--", "komorebi/src"]) else {
         return;
     };
@@ -200,6 +204,7 @@ fn a_session_that_did_not_record_the_version_says_it_is_unknown() {
 
 #[test]
 fn a_line_no_statement_writes_is_said_so_and_a_bad_reference_is_not_found() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let dir = session("code-missing", None);
 
     let none = json(&["code", &dir, "log:4", "--json"]);
@@ -225,6 +230,7 @@ fn a_line_no_statement_writes_is_said_so_and_a_bad_reference_is_not_found() {
 
 #[test]
 fn statements_can_be_searched_by_their_text() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let dir = session("code-grep", None);
 
     let answer = json(&["code", &dir, "--grep", "reaping window", "--json"]);

@@ -93,6 +93,7 @@ fn session(name: &str) -> String {
 
 #[test]
 fn a_change_with_no_event_of_its_own_is_blamed_on_the_reaper_by_its_log_line() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let dir = session("trace-reaper");
 
     let answer = json(&["trace", &dir, "event:2", "--json"]);
@@ -141,6 +142,7 @@ fn a_change_with_no_event_of_its_own_is_blamed_on_the_reaper_by_its_log_line() {
 
 #[test]
 fn the_text_trace_reads_top_to_bottom() {
+    komorebi_recorder::skip_without_komorebi_mac_source!();
     let dir = session("trace-text");
 
     let text = text(&["trace", &dir, "2"]);
