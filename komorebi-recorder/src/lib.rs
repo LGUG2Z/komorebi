@@ -58,6 +58,7 @@
 //! | [`app`] | the recorder window |
 //! | [`av`] and [`selftest`] | decoding the recorded video and checking it against the clocks |
 //! | [`doctor`] | what a recording leans on, and probes that measure it |
+//! | [`report`] | answers as text for a terminal |
 //!
 //! # What is not supported
 //!
@@ -86,6 +87,7 @@ pub mod platform;
 pub mod power;
 pub mod recorder;
 pub mod recovery;
+pub mod report;
 pub mod selftest;
 pub mod session;
 pub mod sources;

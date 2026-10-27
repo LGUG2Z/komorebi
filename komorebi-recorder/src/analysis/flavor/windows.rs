@@ -35,6 +35,8 @@ use crate::analysis::events::EventInfo;
 use crate::analysis::events::EventRecord;
 use crate::analysis::events::Family;
 use crate::analysis::logparse::Line;
+use crate::analysis::state::Monitor;
+use crate::analysis::state::Rect;
 use serde_json::Value;
 
 /// The [`Rules`] of komorebi for Windows: what its events, `State`, log and modules say.
@@ -241,6 +243,11 @@ impl Rules for WindowsRules {
     }
 
     fn hides_windows_by_position(&self) -> bool {
+        false
+    }
+
+    fn is_hidden_position(&self, _rect: &Rect, _monitor: &Monitor) -> bool {
+        // a cloaked window is exactly where it was; nothing in the state says it is hidden
         false
     }
 

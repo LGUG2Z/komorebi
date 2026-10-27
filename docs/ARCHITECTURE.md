@@ -93,6 +93,12 @@ reactions: a display that is gone has its video finalized at once, one that retu
 stream is started afresh after a wake. The capture backend is a trait, so that these policies are tested with a scripted
 backend that docks and undocks without hardware.
 
+## Investigating
+
+Reading a session never needs a window: `analysis` answers each question as a plain serializable value, and the command
+line and the viewer present the same answers. Every command takes `--json`, which prints an envelope with the data, its
+schema, warnings, whether it was truncated and a cursor, and failures exit with a code that says what kind they were.
+
 ## Rules and the layer that enforces them
 
 | Rule | Enforced by |

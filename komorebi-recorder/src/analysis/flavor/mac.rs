@@ -34,6 +34,8 @@ use crate::analysis::events::EventInfo;
 use crate::analysis::events::EventRecord;
 use crate::analysis::events::Family;
 use crate::analysis::logparse::Line;
+use crate::analysis::state::Monitor;
+use crate::analysis::state::Rect;
 use serde_json::Value;
 
 /// The [`Rules`] of komorebi for Mac: what its events, `State`, log and modules say.
@@ -210,6 +212,20 @@ impl Rules for MacRules {
                 (Class::Lock, "the screen locked or the space changed")
             }
             _ => (Class::Other, "not a known kind of event"),
+        }
+    }
+
+    /// Whether `rect` is where komorebi parks a window it has hidden on `monitor`: with a
+    /// one-point sliver still inside the display, so the window stays "on screen" to macOS. The
+    /// vertical position is not checked, because macOS pulls a window up to keep its title bar
+    /// reachable.
+    fn is_hidden_position(&self, rect: &Rect, monitor: &Monitor) -> bool {
+        let tolerance = 2;
+        let bottom_right = monitor.hiding_position == "BottomRight";
+        if bottom_right {
+            (rect.left - (monitor.size.left + monitor.size.width - 1)).abs() <= tolerance
+        } else {
+            (rect.right_edge() - (monitor.size.left + 1)).abs() <= tolerance
         }
     }
 

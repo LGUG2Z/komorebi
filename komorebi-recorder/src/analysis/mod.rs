@@ -8,10 +8,13 @@
 
 pub mod blocks;
 pub mod classify;
+pub mod diff;
 pub mod envelope;
 pub mod events;
 pub mod flavor;
 pub mod guard;
 pub mod ids;
 pub mod logparse;
+pub mod lookup;
+pub mod state;
 pub mod timespec;

@@ -136,6 +136,14 @@ recorder is built so that **nothing already captured is put at risk by any of it
   process. komorebi not running when recording starts is not an error either.
 
 All of this is recorded in `recorder.jsonl`.
+It is shown as the `recorder` source, right next to the log lines and trace around it:
+
+```
+komorebi-recorder at <session> 12.5 --source recorder
+```
+
+`summary` marks a second in which something changed with `recorder=N`, `locate` says which segment of each display covers
+a moment (and which displays had no video then), and `frames` extracts from the right segment.
 
 ### If the recorder dies
 
@@ -150,6 +158,35 @@ komorebi-recorder reindex <session>
 This closes the segments that were still open (using the video files themselves to decide how much survived), rebuilds
 the timeline, and marks the session `recovered`. The queries tell you to do this if you point them at an unfinished
 session.
+
+## Asking questions of a session
+
+Times are video timecodes: `12.5`, `00:12.500` or `1:02:03`. Video `00:00.000` is the first captured frame.
+
+```
+# everything within +-1s of 12.5s, grouped by source
+komorebi-recorder at <session> 12.5
+
+# one app's OS trace only, or one source
+komorebi-recorder at <session> 12.5 --app Ghostty
+komorebi-recorder at <session> 12.5 --source events
+
+# a span, and a per-second digest of the whole recording
+komorebi-recorder range <session> 10 15
+komorebi-recorder summary <session>
+
+# reverse: where in the video was this?
+komorebi-recorder locate <session> --log-line 120
+komorebi-recorder locate <session> --event-seq 7
+komorebi-recorder locate <session> --utc 2026-10-26T19:43:35.062613Z
+
+# look at the exact frame
+komorebi-recorder frames <session> 12.5 14.0
+```
+
+Add `--json` to any query for machine-readable output, which is also what makes a session easy to hand to an LLM: the
+generated `README.md` in every session directory explains each file and contains these commands with the session path
+filled in.
 
 ## The session directory
 

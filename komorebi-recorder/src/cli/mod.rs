@@ -6,8 +6,11 @@
 //! `--json` on a command also decides how a failure is reported (see [`Command::wants_json`]).
 
 mod doctor;
+mod query;
 mod record;
 
+use crate::analysis::envelope::unusable;
+use crate::analysis::envelope::with_hint;
 use crate::session::Session;
 use clap::Args;
 use clap::Parser;
@@ -17,6 +20,12 @@ use serde::Serialize;
 use std::path::PathBuf;
 
 pub use doctor::DoctorArgs;
+pub use query::AtArgs;
+pub use query::FilterArgs;
+pub use query::FramesArgs;
+pub use query::LocateArgs;
+pub use query::RangeArgs;
+pub use query::SummaryArgs;
 pub use record::RecordArgs;
 
 /// The command line of `komorebi-recorder`.
@@ -49,6 +58,16 @@ pub enum Command {
     Displays,
     /// What this machine can do for a recording, and probes that measure what one leans on
     Doctor(DoctorArgs),
+    /// Everything recorded around a video timecode: komorebi log, events and OS trace
+    At(AtArgs),
+    /// Everything recorded between two video timecodes
+    Range(RangeArgs),
+    /// A per-bucket digest of the whole recording
+    Summary(SummaryArgs),
+    /// Reverse lookup: a UTC time, log line or event number to a video timecode
+    Locate(LocateArgs),
+    /// Extract PNG frames at video timecodes (needs ffmpeg)
+    Frames(FramesArgs),
     /// Rebuild a session's timeline from its raw files, recovering it first if the recorder died
     Reindex(ReindexArgs),
     /// Check the video-to-clock alignment against a rendered on-screen clock
@@ -85,11 +104,20 @@ pub(crate) fn print_json(value: &impl Serialize) -> eyre::Result<()> {
     Ok(())
 }
 
+pub(crate) fn limit(value: usize) -> Option<usize> {
+    (value != 0).then_some(value)
+}
+
 impl Command {
     /// Whether this command was asked for JSON, which also decides how a failure is reported.
     #[must_use]
     pub fn wants_json(&self) -> bool {
         match self {
+            Self::At(args) => args.filter.json,
+            Self::Range(args) => args.filter.json,
+            Self::Summary(args) => args.json,
+            Self::Locate(args) => args.json,
+            Self::Frames(args) => args.json,
             Self::Doctor(args) => args.json,
             _ => false,
         }
@@ -130,6 +158,11 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Record(args) => record::record(&args),
         Command::Displays => record::displays(),
         Command::Doctor(args) => doctor::doctor(&args),
+        Command::At(args) => query::at(&args),
+        Command::Range(args) => query::range(&args),
+        Command::Summary(args) => query::summary(&args),
+        Command::Locate(args) => query::locate(&args),
+        Command::Frames(args) => query::frames_command(&args),
         Command::Reindex(args) => reindex(&args),
         Command::Selftest(args) => crate::selftest::run(&args),
         Command::SelftestClock => crate::selftest::run_clock(),
@@ -155,6 +188,28 @@ pub fn main() -> eyre::Result<std::process::ExitCode> {
         opts.command
             .unwrap_or_else(|| Command::Gui(RecordArgs::default())),
     ))
+}
+
+pub(crate) fn load(session: &std::path::Path) -> eyre::Result<(Session, crate::session::Manifest)> {
+    let session = Session::open(session)?;
+    let manifest = session.manifest()?;
+
+    if manifest.status == crate::session::STATUS_RECORDING {
+        let dir = session.dir.display();
+        return Err(match crate::lock::recorder(&session.dir) {
+            crate::lock::Recorder::Running(_) => unusable(format!(
+                "{dir} is still being recorded; stop the recording first"
+            )),
+            crate::lock::Recorder::NotRunning | crate::lock::Recorder::Unknown => with_hint(
+                unusable(format!(
+                    "{dir} was left unfinished: its recorder was killed or crashed"
+                )),
+                format!("recover it with `komorebi-recorder reindex {dir}`"),
+            ),
+        });
+    }
+
+    Ok((session, manifest))
 }
 
 fn reindex(args: &ReindexArgs) -> eyre::Result<()> {

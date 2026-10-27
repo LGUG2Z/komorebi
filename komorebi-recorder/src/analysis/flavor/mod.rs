@@ -40,6 +40,7 @@
 //! | [`window_id`](Rules::window_id) | the id a window has in `State` | `Snapshot::parse` | `id` | `hwnd` |
 //! | [`window_is_unreadable`](Rules::window_is_unreadable) | whether komorebi failed to read a window | `Snapshot::parse` | the default: never | the title starts with `could not get window` |
 //! | [`hides_windows_by_position`](Rules::hides_windows_by_position) | whether a window's position shows that it is hidden | `Snapshot::hides_windows_by_position` | yes: parked at a corner | no: cloaked where it is |
+//! | [`is_hidden_position`](Rules::is_hidden_position) | whether a rect is where a hidden window is parked | `Snapshot::is_hidden_position` | a one-point sliver inside the display | never |
 //! | [`block_header`](Rules::block_header) | whether a log line starts a handler's block | `blocks::build` | the `processing event:` and `processing command:` lines | the first line of a `process_event{...}` or `process_command{...}` span whose fields differ from the open block's |
 //! | [`is_block_end`](Rules::is_block_end) | whether a log line ends a handler's block | `blocks::build` | `processed command: ...`, for commands only | `processed: ...` for events, `processed` for commands |
 //! | [`slow_handler_cause`](Rules::slow_handler_cause) | what a slow handler was probably doing | the `overview` and `trace` answers | accessibility calls | Win32 calls |
@@ -78,6 +79,10 @@
 //!    that komorebi made up ended a real drag.
 //! 1. `blocks::build` walks the log: `block_header` for every line, and
 //!    `is_block_end` for every line inside an open block.
+//! 1. `Snapshot::parse` reads each `State`, asking [`window_id`](Rules::window_id) and
+//!    [`window_is_unreadable`](Rules::window_is_unreadable) for every window. The snapshot keeps
+//!    its flavor for [`hides_windows_by_position`](Rules::hides_windows_by_position) and
+//!    `is_hidden_position`.
 //!
 //! [`MacRules`]: mac::MacRules
 //! [`WindowsRules`]: windows::WindowsRules
@@ -94,6 +99,8 @@ use super::classify::Class;
 use super::events::EventInfo;
 use super::events::EventRecord;
 use super::logparse::Line;
+use super::state::Monitor;
+use super::state::Rect;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -340,6 +347,7 @@ pub struct BlockHeader {
 /// # use komorebi_recorder::analysis::flavor::mac::MacRules;
 /// # use komorebi_recorder::analysis::flavor::{BlockHeader, Flavor, Rules};
 /// # use komorebi_recorder::analysis::logparse::Line;
+/// # use komorebi_recorder::analysis::state::{Monitor, Rect};
 /// # use serde_json::Value;
 /// struct Unchecked;
 ///
@@ -352,6 +360,9 @@ pub struct BlockHeader {
 ///     fn is_geometry_event(&self, name: &str) -> bool { MacRules.is_geometry_event(name) }
 ///     fn classify_window_manager(&self, event: &EventRecord) -> (Class, &'static str) {
 ///         MacRules.classify_window_manager(event)
+///     }
+///     fn is_hidden_position(&self, rect: &Rect, monitor: &Monitor) -> bool {
+///         MacRules.is_hidden_position(rect, monitor)
 ///     }
 ///     fn block_header(&self, line: &Line, open: Option<&Block>) -> Option<BlockHeader> {
 ///         MacRules.block_header(line, open)
@@ -382,6 +393,7 @@ pub struct BlockHeader {
 /// # use komorebi_recorder::analysis::flavor::mac::MacRules;
 /// # use komorebi_recorder::analysis::flavor::{BlockHeader, Flavor, Rules};
 /// # use komorebi_recorder::analysis::logparse::Line;
+/// # use komorebi_recorder::analysis::state::{Monitor, Rect};
 /// # use serde_json::Value;
 /// struct Unchecked;
 ///
@@ -394,6 +406,9 @@ pub struct BlockHeader {
 ///     fn is_geometry_event(&self, name: &str) -> bool { MacRules.is_geometry_event(name) }
 ///     fn classify_window_manager(&self, event: &EventRecord) -> (Class, &'static str) {
 ///         MacRules.classify_window_manager(event)
+///     }
+///     fn is_hidden_position(&self, rect: &Rect, monitor: &Monitor) -> bool {
+///         MacRules.is_hidden_position(rect, monitor)
 ///     }
 ///     fn block_header(&self, line: &Line, open: Option<&Block>) -> Option<BlockHeader> {
 ///         MacRules.block_header(line, open)
@@ -514,6 +529,14 @@ pub trait Rules: Sync {
     /// [`classify`](super::classify::classify) turns a drag that changed nothing, soon after
     /// komorebi acted, into an echo itself.
     fn classify_window_manager(&self, event: &EventRecord) -> (Class, &'static str);
+
+    /// Returns whether `rect` is where komorebi parks a window it has hidden on `monitor`.
+    ///
+    /// `rect` is the window's rect as the `State` has it and `monitor` is the monitor the window is
+    /// on. komorebi for Mac parks a hidden window with a one-point sliver still inside the
+    /// display and the rules compare the horizontal position only, within 2 points. komorebi for
+    /// Windows does not park windows, so its answer is always `false`.
+    fn is_hidden_position(&self, rect: &Rect, monitor: &Monitor) -> bool;
 
     /// Returns the header of the handler's block that `line` starts, or `None` if `line` does not
     /// start one.
