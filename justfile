@@ -1,7 +1,7 @@
 export RUST_BACKTRACE := "full"
 
-# everything CI checks, in order
-check: fmt-check clippy test doc deny
+# everything CI checks, in order; run it inside `nix develop` (direnv does)
+check: fmt-check clippy check-windows test doc deny
 
 # nightly rustfmt, which the devShell provides, and the macros this project does not allow
 fmt-check:
@@ -20,6 +20,9 @@ fix:
 clippy:
     cargo clippy --workspace --all-targets --locked -- -D warnings
 
+# type-check every `cfg(windows)` line, tests included, from a Mac (the Windows devShell targets x86_64-pc-windows-msvc)
+check-windows:
+    nix develop .#windows --command cargo clippy --workspace --all-targets --locked -- -D warnings
 
 # lib, integration and doc tests; the ones that read komorebi's source need KOMOREBI_MAC_SRC, which `nix develop` sets
 test:
@@ -28,6 +31,7 @@ test:
 # rustdoc with its warnings as errors, for both hosts: links in `cfg(windows)` docs are only checked on Windows
 doc:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
+    nix develop .#windows --command env RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
 
 deny:
     cargo deny check
@@ -48,6 +52,9 @@ run target:
 record *args:
     cargo run --bin komorebi-recorder --locked -- {{ args }}
 
+# cross-compile komorebi-recorder.exe and komorebi-recorder-gui.exe into ./result-windows
+build-windows:
+    nix build .#komorebi-recorder-windows --out-link result-windows
 
 deps:
     cargo update

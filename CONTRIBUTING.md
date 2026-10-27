@@ -46,12 +46,26 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ## Development environment
 
-The project builds with the stable Rust toolchain, and is formatted with nightly `rustfmt` (`cargo +nightly fmt`).
+The project is built with Nix. `nix develop` (or direnv, whose `.envrc` is `use flake`) provides the
+Rust toolchain with nightly `rustfmt`, `cargo-deny`, `cargo-nextest`, `ffmpeg`, `jq`, `just` and
+`ripgrep`, and sets `KOMOREBI_MAC_SRC` and `KOMOREBI_WINDOWS_SRC` (with `_COMMIT`) to the komorebi
+sources pinned in `flake.lock`. The tests that read komorebi's source need them, so run `cargo` inside
+the shell.
+
+The Windows code is type-checked from a Mac with `nix develop .#windows`, whose target is
+`x86_64-pc-windows-msvc`. Nothing there runs it: a change to a `cfg(windows)` line is first run by the
+`windows` job in CI.
 
 ## Checks
 
-Before pushing, run `just check`, which runs formatting, clippy, the tests, rustdoc with its warnings as errors and
-`cargo deny`. `just --list` shows the other recipes.
+Before pushing, run
+
+```sh
+just check
+```
+
+which runs formatting, clippy and the tests for macOS, clippy for Windows, rustdoc with its warnings as
+errors for both hosts, and `cargo deny`. `just --list` shows the other recipes.
 
 ## Commits
 

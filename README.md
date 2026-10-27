@@ -13,11 +13,16 @@ There are no releases yet: build it from source, below.
 
 ### From source
 
-With a stable Rust toolchain, in a checkout:
+The repository is a Nix flake. In a checkout:
 
 ```sh
+nix develop                  # the toolchain and the pinned komorebi sources
 cargo install --path komorebi-recorder --locked
 ```
+
+`nix build` makes the macOS binary in `./result/bin`, and `nix build .#komorebi-recorder-windows` cross-compiles
+`komorebi-recorder.exe` and, with it, `komorebi-recorder-gui.exe` from a Mac. `nix run github:LGUG2Z/komorebi-recorder`
+runs the latest commit without a checkout.
 
 ## How it fits together
 
@@ -33,7 +38,8 @@ rewritten after they are written.
 
 ## Checks
 
-`just check` runs formatting, clippy, the tests, rustdoc with its warnings as errors, and `cargo deny`.
+`just check` runs formatting, clippy and the tests for macOS, clippy for Windows (the Windows code is type-checked
+from a Mac, not run), rustdoc with its warnings as errors for both hosts, and `cargo deny`. It needs `nix develop`.
 CI runs the same checks, builds both platforms and, for Windows, the installer.
 
 ## Documentation
