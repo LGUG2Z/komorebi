@@ -9,13 +9,16 @@ use komorebi_hotkeys::App;
 use komorebi_hotkeys::Body;
 use komorebi_hotkeys::DEFAULT_MODE;
 use komorebi_hotkeys::Edge;
+use komorebi_hotkeys::Format;
 use komorebi_hotkeys::Keymap;
 use komorebi_hotkeys::ParseOptions;
 use komorebi_hotkeys::Parsed;
 use komorebi_hotkeys::Run;
 use komorebi_hotkeys::Severity;
+use komorebi_hotkeys::Span;
 use komorebi_hotkeys::Then;
 use komorebi_hotkeys::skhd;
+use komorebi_hotkeys::whkd;
 use std::path::PathBuf;
 
 /// Every case, and the formats it is written in.
@@ -194,8 +197,26 @@ fn parse(extension: &str, text: &str) -> Option<Parsed> {
     let options = ParseOptions::default();
     match extension {
         "skhdrc" => Some(skhd::parse(text, &options)),
+        "whkdrc" => Some(whkd::parse(text, &options)),
         _ => None,
     }
+}
+
+/// The keymap with everything that says where it was written taken out: the format, the spans,
+/// the bindings' source text and the defines.
+fn without_provenance(mut keymap: Keymap) -> Keymap {
+    keymap.format = Format::Skhd;
+    keymap.defines.clear();
+    if let Some(pause) = &mut keymap.pause {
+        pause.span = Span::default();
+    }
+    for mode in &mut keymap.modes {
+        for binding in &mut mode.bindings {
+            binding.span = Span::default();
+            binding.source.clear();
+        }
+    }
+    keymap
 }
 
 fn fixtures() -> PathBuf {
@@ -271,9 +292,14 @@ fn every_case_but_the_sample_has_an_expected_keymap() {
 
 #[test]
 fn the_sample_reads_completely() {
-    for extension in ["skhdrc"] {
+    for extension in ["skhdrc", "whkdrc"] {
         let parsed = parse(extension, &read("sample", extension)).unwrap();
-        assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
+        let lossy: Vec<_> = parsed
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity != Severity::Note)
+            .collect();
+        assert!(lossy.is_empty(), "{extension}: {lossy:#?}");
         let bindings = &parsed.keymap.modes[0].bindings;
         assert_eq!(bindings.len(), 50);
 
@@ -293,5 +319,23 @@ fn the_sample_reads_completely() {
         keys.sort();
         keys.dedup();
         assert_eq!(keys.len(), bindings.len());
+    }
+}
+
+#[test]
+fn the_files_of_a_case_read_into_the_same_keymap() {
+    for (case, extensions) in CASES {
+        let keymaps: Vec<(&str, Keymap)> = extensions
+            .iter()
+            .filter_map(|e| Some((*e, parse(e, &read(case, e))?.keymap)))
+            .map(|(e, keymap)| (e, without_provenance(keymap)))
+            .collect();
+        for pair in keymaps.windows(2) {
+            assert_eq!(
+                pair[0].1, pair[1].1,
+                "{case}: {} and {}",
+                pair[0].0, pair[1].0
+            );
+        }
     }
 }

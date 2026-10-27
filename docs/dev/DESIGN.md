@@ -712,10 +712,12 @@ or text that is a number, which is also what the module's typed `config` takes.
 ## Why are the key binding files read by parsers written for komorebi?
 
 All three formats, skhd's, whkd's and sxhkd's, are read by parsers written by hand in
-`komorebi-hotkeys`. For whkd there is a Rust parser, `whkd-parser`, under the same license
-as komorebi, but it requires a `.shell pwsh|powershell|cmd` line, panics in `Shell::from` on
-any other shell, and its per-application bindings match Windows process names. For skhd and
-sxhkd the reason is not recorded; this entry needs one.
+`komorebi-hotkeys`. For whkd there is a Rust parser, `whkd-parser`, but it requires a
+`.shell pwsh|powershell|cmd` line, panics in `Shell::from` on any other shell, and its
+per-application bindings match Windows process names. It is under the same license as
+komorebi, so it stays usable as a dev-dependency: a test reads every whkdrc of the fixture
+corpus with both parsers and compares the bindings. For skhd and sxhkd the reason is not
+recorded; this entry needs one.
 
 What is not plain syntax is expanded while the file is read: skhd's `.define` templates and
 application groups are replaced where they are used, so the model has only expanded bindings

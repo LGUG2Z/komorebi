@@ -51,6 +51,7 @@
 //!
 //! - [`skhd`]: an skhdrc, with modes, per-application bindings, `.blacklist` and skhd.zig's
 //!   `.define`.
+//! - [`whkd`]: a whkdrc, with per-application bindings and `.pause`.
 //!
 //! ```rust
 //! use komorebi_hotkeys::{ParseOptions, Severity, skhd};
@@ -72,6 +73,7 @@ mod ir;
 pub mod qt;
 pub mod skhd;
 mod text;
+pub mod whkd;
 
 pub use ir::App;
 pub use ir::Binding;
