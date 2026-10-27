@@ -47,6 +47,27 @@ pub mod clock {
     }
 }
 
+/// The OS trace, which this host does not have.
+pub mod trace {
+    use crate::sources::wintrace::TraceStream;
+    use std::sync::Arc;
+
+    /// Never constructed on this host.
+    pub struct Taps;
+
+    /// Returns no taps and the reason: this host has no OS trace.
+    #[must_use]
+    pub fn start(
+        _system: Arc<TraceStream>,
+        _event_log: Arc<TraceStream>,
+    ) -> (Option<Taps>, Vec<String>) {
+        (
+            None,
+            vec!["winevents: this host has no OS trace".to_string()],
+        )
+    }
+}
+
 /// Starting and stopping child processes, with nothing host-specific to do.
 pub mod process {
     use std::process::Child;

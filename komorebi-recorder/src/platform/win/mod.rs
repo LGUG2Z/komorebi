@@ -25,6 +25,7 @@ pub mod apps;
 pub mod clock;
 pub mod process;
 pub mod shell;
+pub mod trace;
 
 /// Does what Windows needs once, first thing in `main`: makes the process per-monitor DPI aware
 /// ([`capture::become_per_monitor_dpi_aware`]), so that every size and position it reads is in

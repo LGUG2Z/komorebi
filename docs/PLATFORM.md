@@ -46,6 +46,17 @@ Video frame times and the OS trace are on the master clock already on both hosts
 `machTimestamp` on a Mac; Windows.Graphics.Capture on Windows). The field names ending in `_mach_ns` are spelled that way
 on every host: see [the architecture](ARCHITECTURE.md#the-master-clock).
 
+### The OS trace
+
+| | macOS | Windows |
+|---|---|---|
+| source | the unified log, through `log stream --style ndjson` child processes | WinEvents for every top-level window, through a hook, and the System Event Log |
+| files | `oslog/komorebi.ndjson`, `oslog/system.ndjson` and one `oslog/apps/<exe>-<pid>.ndjson` per managed application | `oslog/system.ndjson` (the WinEvents, repeats folded) and `oslog/eventlog.ndjson` (warnings, errors and the display, power and GPU providers) |
+| permissions | none: no `sudo` and no change to SIP | none |
+| redaction | `<private>` values stay redacted | not applicable |
+
+A host with no OS trace says so in the recording instead of failing to start streams that do not exist.
+
 ### Locking a session
 
 A recording holds an exclusive lock on `recorder.lock` in its session for as long as it runs, and writes its process id

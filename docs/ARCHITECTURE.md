@@ -74,6 +74,7 @@ build is refused with an error that says so, rather than read wrongly.
 The files beside it are the raw records, and they are written as the data arrives and never rewritten: komorebi's log
 (`komorebi.log`, the exact byte range recorded), its events (`events.jsonl`, with full `State` snapshots in `states/`
 only when they changed), and what happened to the recording itself (`recorder.jsonl`).
+The OS trace is under `oslog/`, one file per stream.
 
 ## Rules and the layer that enforces them
 

@@ -9,6 +9,7 @@
 //! | [`shell`] | the OS version, and (for the recorder window) showing a folder and asking for one |
 //! | [`apps`] | which process owns a window id |
 //! | [`process`] | stopping a child process |
+//! | [`trace`] | streaming the OS trace into the session |
 //!
 //! A third host, `unsupported`, builds on anything else so that the investigation commands (which
 //! only read a session directory) still work on a Linux agent box; recording there says so.
@@ -48,6 +49,14 @@ pub use imp::apps;
 pub use imp::clock;
 pub use imp::process;
 pub use imp::shell;
+pub use imp::trace;
+
+/// Whether this host has an OS trace to record alongside komorebi's own output.
+///
+/// That is the unified log on macOS, and the `WinEvents` komorebi hears and the Event Log on
+/// Windows. A recording made on a host with none says so rather than failing to start streams that
+/// do not exist.
+pub const HAS_OS_TRACE: bool = cfg!(any(target_os = "macos", windows));
 
 /// Things the OS wants done once, first thing in `main`: on Windows, becoming DPI aware so that
 /// sizes and positions are in physical pixels. Nothing on other hosts.

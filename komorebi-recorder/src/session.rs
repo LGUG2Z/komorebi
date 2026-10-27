@@ -12,6 +12,7 @@ use crate::sources::komorebi_log::DetectedLevel;
 use crate::sources::komorebi_log::LogSegment;
 use crate::sources::komorebi_version::KomorebiVersion;
 use crate::sources::managed_apps::AppRecord;
+use crate::sources::oslog::StreamInfo;
 use chrono::DateTime;
 use chrono::Utc;
 use color_eyre::eyre;
@@ -188,6 +189,8 @@ pub struct Manifest {
     pub video_end_mach_ns: Option<u64>,
     /// The byte ranges of komorebi's log that were recorded, which together make `komorebi.log`.
     pub log_segments: Vec<LogSegment>,
+    /// The OS trace streams that were recorded, one per file under `oslog/`.
+    pub oslog: Vec<StreamInfo>,
     /// The applications that own windows komorebi manages, which each get an OS trace stream of their own on a Mac.
     pub apps: Vec<AppRecord>,
     /// What was recorded of komorebi's subscriber events.
@@ -223,6 +226,7 @@ impl Manifest {
             video_t0_mach_ns: None,
             video_end_mach_ns: None,
             log_segments: Vec::new(),
+            oslog: Vec::new(),
             apps: Vec::new(),
             events: EventSummary::default(),
             sync_quality: "host-clock".to_string(),

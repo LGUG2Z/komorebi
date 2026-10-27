@@ -18,6 +18,7 @@ pub mod apps;
 pub mod clock;
 pub mod process;
 pub mod shell;
+pub mod trace;
 
 /// Does nothing: a Mac needs nothing done once at the start of `main`. (Windows makes the process
 /// DPI aware.)
