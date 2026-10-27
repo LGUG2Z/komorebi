@@ -23,8 +23,8 @@
   };
 
   virtualisation = {
-    memorySize = 3072;
-    cores = 2;
+    memorySize = lib.mkDefault 3072;
+    cores = lib.mkDefault 2;
     # KWin wants a DRM render node, which needs a GPU. The test driver adds one on aarch64 only.
     qemu.options = lib.optionals (config.komorebi.vm.renderNode && pkgs.stdenv.hostPlatform.isx86_64) [
       "-device virtio-gpu-pci"

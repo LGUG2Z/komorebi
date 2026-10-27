@@ -30,3 +30,7 @@ class Machine(Protocol):
     def fail(self, *commands: str) -> str:
         """Runs each command and fails the test if it exits with status 0."""
         ...
+
+    def screenshot(self, filename: str, /) -> None:
+        """Saves a PNG of the machine's display as `filename` in `out_dir`."""
+        ...

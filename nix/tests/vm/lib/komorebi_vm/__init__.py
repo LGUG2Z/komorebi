@@ -4,7 +4,7 @@ A suite imports what it needs from here:
 
 * [`Checks`](komorebi_vm.checks.Checks) counts checks and fails at the end.
 * [`Kde`](komorebi_vm.kde.Kde) is a KWin session inside a test machine, with
-  the tools to look at it (`kdotool`, `busctl`, `kscreen-doctor`).
+  the tools to look at it (`kdotool`, `busctl`, `kscreen-doctor`, screenshots).
 
 The library depends on the small [`Machine`](komorebi_vm.machine.Machine)
 protocol, not on the test driver, so `nix/tests/vm/lib/tests` can run it

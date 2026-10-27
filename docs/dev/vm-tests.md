@@ -48,6 +48,21 @@ place windows and answer questions about them, but it cannot take a screenshot.
 KWin wants a DRM render node, which needs a GPU. The test driver gives every aarch64 guest one
 `virtio-gpu-pci`; on x86_64 the node adds it, unless `komorebi.vm.renderNode` is false.
 
+`session` is the headless node plus a login: plasma-login-manager logs the test
+user in by itself, as in nixpkgs' own `plasma6` test, and Plasma draws on the
+machine's display device. It is the node for anything that needs pixels. The
+choice of login manager is made in
+[`nodes/session.nix`](../../nix/tests/vm/nodes/session.nix) and nowhere else;
+the file says how to switch to sddm, the other one that has been seen to work.
+Its display is 1280x800, because screenshots are taken of the machine's one
+display device: the `virtio-gpu-pci` that the test driver adds to every aarch64
+guest, and the default VGA of an x86_64 one. The node sets
+`komorebi.vm.renderNode` to false, so that an x86_64 guest does not get a second
+device: KWin would draw on it, and the screenshot would show the other one.
+
+On aarch64 under HVF, at time of writing (2026-10-27), the session has the
+Wayland socket after 11 to 19 seconds and a painted desktop after 35 seconds.
+
 ## The library
 
 Suites import from `komorebi_vm`, in
@@ -66,9 +81,23 @@ the run.
   `outputs` counts the enabled outputs through `kscreen-doctor`, `spawn` starts
   a client, and `wait_for(predicate, timeout)` polls, with the timeout
   multiplied by `scale`.
+- `Kde.session(machine, scale=)` attaches to the session node's own Plasma
+  session once its desktop is up, and `shot(name)` returns a screenshot as a
+  Pillow image, keeping `NAME.png` in the output directory.
 
 Poll for what the test needs with `wait_for`. A fixed sleep is too long on
 KVM and too short on TCG.
+
+Two traps are worth knowing about before writing a screenshot test:
+
+- A splash screen is not a blank screen. KSplash has more than a thousand colors
+  on it, so "the screenshot is not blank" passes while Plasma is still
+  starting. `Kde.session` waits for the splash process to exit, and a test
+  should check a pixel it knows, such as the middle of a terminal.
+- NixOS wraps programs, so a process's name is the wrapper's (`.plasmashell-wrapped`),
+  and `pgrep -x plasmashell` never matches. Match the command line instead, with
+  a bracket in the pattern (`pgrep -f '[p]lasmashell'`) so that the shell running
+  `pgrep` does not match itself.
 
 ## Running a test on a Mac
 
@@ -108,7 +137,7 @@ Add `git add -N` for new files first: a flake only sees files git knows about.
 
 ## Looking inside a failed run
 
-`nix build -L` prints the guest's console. Run the driver by hand, as
+`nix build -L` prints the guest's console, and a session test keeps its screenshots. Run the driver by hand, as
 `scripts/vm-mac` does, to keep the screenshots. For an interactive session
 build `driverInteractive` instead of `driver`, run it, and call `start_all()`
 and `machine.shell_interact()` at its prompt. In the guest, KWin's own log is

@@ -100,3 +100,38 @@ def test_active_is_the_last_line(machine: FakeMachine) -> None:
     machine.replies.clear()
     machine.reply("getactivewindow", output="")
     assert Kde(machine, "main").active() == ""
+
+
+def test_session_attaches_to_the_users_bus_and_the_display_the_manager_reports(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("show-environment", output="PATH=/bin\nWAYLAND_DISPLAY=wayland-1\n")
+    machine.reply("[k]splashqml", status=1)
+
+    kde = Kde.session(machine, timeout=0)
+
+    assert "WAYLAND_DISPLAY=wayland-1" in kde.env
+    assert "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus" in kde.env
+
+
+def test_session_waits_for_the_splash_screen_to_go(machine: FakeMachine) -> None:
+    machine.reply("show-environment", output="WAYLAND_DISPLAY=wayland-1\n")
+    machine.reply("[k]splashqml", status=0)
+
+    with pytest.raises(AssertionError, match="splash"):
+        Kde.session(machine, timeout=0)
+
+
+def test_session_fails_when_the_shell_never_starts(machine: FakeMachine) -> None:
+    machine.reply("[p]lasmashell", status=1)
+
+    with pytest.raises(AssertionError, match="plasmashell"):
+        Kde.session(machine, timeout=0)
+
+
+def test_shot_returns_the_screenshot_as_rgb(machine: FakeMachine) -> None:
+    image = Kde(machine, "main").shot("desktop")
+
+    assert image.size == (4, 4)
+    assert image.getpixel((0, 0)) == (10, 20, 30)
+    assert (machine.out_dir / "desktop.png").exists()

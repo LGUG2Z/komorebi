@@ -4,14 +4,15 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 
 class FakeMachine:
     """Answers `execute` with the first matching reply, and records every command."""
 
-    out_dir = Path("/tmp")
+    def __init__(self, out_dir: Path) -> None:
+        self.out_dir = out_dir
 
-    def __init__(self) -> None:
         self.commands: list[str] = []
         self.replies: list[tuple[Callable[[str], bool], tuple[int, str]]] = []
 
@@ -25,6 +26,9 @@ class FakeMachine:
             if matches(command):
                 return answer
         return 0, ""
+
+    def screenshot(self, filename: str, /) -> None:
+        Image.new("RGB", (4, 4), (10, 20, 30)).save(self.out_dir / f"{filename}.png")
 
     def succeed(self, *commands: str) -> str:
         output = ""
@@ -42,5 +46,5 @@ class FakeMachine:
 
 
 @pytest.fixture
-def machine() -> FakeMachine:
-    return FakeMachine()
+def machine(tmp_path: Path) -> FakeMachine:
+    return FakeMachine(tmp_path)

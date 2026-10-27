@@ -5,6 +5,8 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from PIL import Image
+
 from komorebi_vm.machine import Machine
 
 
@@ -35,6 +37,10 @@ class Kde:
     side under different names and none touches another. Every command is run
     as the test user, with the environment of the named session.
 
+    A session node has one more: the user's own Plasma session, which
+    [`Kde.session`][] attaches to. Its bus is `$XDG_RUNTIME_DIR/bus` and its
+    Wayland socket is whatever the user manager says it is.
+
     `scale` multiplies every wait: 1 under KVM, more where the machine is
     slower (HVF on a Mac, TCG anywhere).
     """
@@ -47,12 +53,16 @@ class Kde:
         user: str = "komorebi",
         uid: int = 1000,
         scale: float = 1.0,
+        bus: str | None = None,
+        wayland_display: str | None = None,
     ) -> None:
         self.machine = machine
         self.name = name
         self.user = user
         self.uid = uid
         self.scale = scale
+        self._bus = bus
+        self._wayland_display = wayland_display
 
     @classmethod
     def headless(
@@ -78,6 +88,49 @@ class Kde:
             raise AssertionError(f"KWin did not come up:\n{log}")
         return kde
 
+    @classmethod
+    def session(
+        cls,
+        machine: Machine,
+        *,
+        user: str = "komorebi",
+        uid: int = 1000,
+        scale: float = 1.0,
+        timeout: float = 300,
+    ) -> "Kde":
+        """Attaches to the user's Plasma session once its desktop is up.
+
+        The session is up when the shell is running, the user manager knows the
+        Wayland socket, and the splash screen has gone. The last condition is
+        the one a screenshot test depends on: a splash screen already has
+        thousands of colors on it. NixOS wraps its programs, so the processes
+        are found by their command lines (`pgrep -x` would see only the wrapper's
+        name), with the first letter in brackets so that the pattern does not
+        match the shell that runs `pgrep`.
+        """
+        kde = cls(machine, "session", user=user, uid=uid, scale=scale)
+        kde._bus = f"unix:path={kde.runtime}/bus"
+        if not kde.wait_for(lambda: kde.run("pgrep -f '[p]lasmashell'")[0] == 0, timeout=timeout):
+            raise AssertionError("plasmashell did not start")
+
+        def display() -> str:
+            out = kde.as_user("systemctl --user show-environment")
+            return next(
+                (
+                    line.split("=", 1)[1]
+                    for line in out.splitlines()
+                    if line.startswith("WAYLAND_DISPLAY=")
+                ),
+                "",
+            )
+
+        if not kde.wait_for(lambda: display() != "", timeout=timeout):
+            raise AssertionError("the user manager never learned the Wayland display")
+        kde._wayland_display = display()
+        if not kde.wait_for(lambda: kde.run("pgrep -f '[k]splashqml'")[0] != 0, timeout=timeout):
+            raise AssertionError("the splash screen did not go away")
+        return kde
+
     @property
     def runtime(self) -> str:
         """The test user's runtime directory."""
@@ -88,8 +141,9 @@ class Kde:
         """The `VAR=value` words that put a command inside this session."""
         pairs = {
             "XDG_RUNTIME_DIR": self.runtime,
-            "DBUS_SESSION_BUS_ADDRESS": f"unix:path={self.runtime}/session-{self.name}.bus",
-            "WAYLAND_DISPLAY": f"wayland-{self.name}",
+            "DBUS_SESSION_BUS_ADDRESS": self._bus
+            or f"unix:path={self.runtime}/session-{self.name}.bus",
+            "WAYLAND_DISPLAY": self._wayland_display or f"wayland-{self.name}",
             "KDE_SESSION_VERSION": "6",
             "XDG_CURRENT_DESKTOP": "KDE",
             "XDG_SESSION_TYPE": "wayland",
@@ -173,6 +227,14 @@ class Kde:
         """The id of the window KWin has focused, or the empty string."""
         lines = self.run("kdotool getactivewindow")[1].strip().splitlines()
         return lines[-1] if lines else ""
+
+    def shot(self, name: str) -> Image.Image:
+        """Takes a screenshot of the machine's display and returns it, as RGB.
+
+        The file is also kept as `NAME.png` in the test's output directory.
+        """
+        self.machine.screenshot(name)
+        return Image.open(self.machine.out_dir / f"{name}.png").convert("RGB")
 
     def outputs(self) -> int:
         """The number of outputs KWin has enabled."""

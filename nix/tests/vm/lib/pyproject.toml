@@ -7,6 +7,7 @@ name = "komorebi-vm"
 version = "0.1.0"
 description = "Helpers for the NixOS VM tests of komorebi for KDE"
 requires-python = ">=3.12"
+dependencies = ["pillow"]
 
 [tool.setuptools]
 packages = ["komorebi_vm"]

@@ -24,6 +24,7 @@ let
         fileset = ./lib;
       };
       build-system = [ ps.setuptools ];
+      dependencies = [ ps.pillow ];
       doCheck = false;
     };
 
