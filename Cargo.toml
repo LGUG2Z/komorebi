@@ -1,0 +1,14 @@
+[workspace]
+
+resolver = "2"
+members = ["komorebi", "version"]
+
+[workspace.package]
+version = "0.1.0"
+
+[workspace.dependencies]
+clap = { version = "4", features = ["derive", "wrap_help"] }
+shadow-rs = "1"
+
+[workspace.metadata.crane]
+name = "komorebi-workspace"

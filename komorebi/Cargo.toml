@@ -1,0 +1,10 @@
+[package]
+name = "komorebi"
+version.workspace = true
+description = "A tiling window manager for KDE Plasma"
+edition = "2024"
+
+[dependencies]
+version = { path = "../version" }
+
+clap = { workspace = true }
