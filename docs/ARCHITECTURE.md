@@ -1,0 +1,51 @@
+# Architecture
+
+`komorebi-recorder` connects three things that do not know about each other: komorebi, which says what it is doing in
+a log and in events on a socket; the operating system, which says what it is doing in its own trace and shows it on a
+screen; and the person or agent who has to work out why they disagreed. It records all of them on one clock into a
+session directory, and reads that directory back.
+
+Two things about it vary independently, and everything below is arranged so that neither leaks into the other.
+
+| axis | what varies | where the variation lives | what a session records |
+|---|---|---|---|
+| host | the OS the recorder runs on: macOS or Windows (a third `unsupported` host builds anywhere) | [`platform`](../komorebi-recorder/src/platform/mod.rs), selected by `cfg` | `host` in the manifest |
+
+## The master clock
+
+Everything in a session is stamped on one clock: the host's monotonic clock, in nanoseconds. That is
+`mach_absolute_time` on macOS and `QueryPerformanceCounter` on Windows. Video frames and the OS trace are already on it.
+komorebi's log lines carry UTC wall-clock time, so they are mapped onto it: the recorder samples a paired reading of
+both clocks (an `Anchor`) at the start, every few seconds and at every sleep, and a `ClockMap` interpolates between
+them. A `JumpDetector` notices sleep and clock steps by comparing how far each clock moved between two observations,
+and the anchors on either side of the jump are what make the mapping right on both sides of it.
+
+Three things are worth knowing before reading a session:
+
+- The field names ending in `_mach_ns` keep their historical spelling. They hold master-clock nanoseconds on whichever
+  host recorded the session; the manifest's `host.clock` says which clock that was (`mach`, `qpc` or `std`). A name that
+  changed would stop older sessions being readable by newer builds and the reverse.
+- The master clock is not the wall clock. On macOS it pauses while the machine sleeps, so video time skips a sleep
+  instead of showing a hole. Whether the performance counter counts a suspend on Windows is measured, not assumed.
+- A timestamp is a plain `u64` of nanoseconds. Nothing in the type system says which clock it is on: that is held by
+  convention, and by the tests that place records at known times.
+
+## The platform facade
+
+The rest of the crate never names a system API. [`platform`](../komorebi-recorder/src/platform/mod.rs) is a facade of
+small modules (`clock`, `shell` and, as the recorder grows, `capture`, `power`, `session`, `trace`, `process`, `apps`
+and `window`), and `cfg` selects the directory behind it: `platform/macos/`, `platform/win/` or `platform/unsupported.rs`.
+Each host provides the same names with the same signatures. A missing or mismatched function is a compile error on the
+host being built, and on no other, so the Windows host is built from a Mac by `just check-windows` and by CI, and
+`unsupported` (which exists so that the commands that only read a session directory work on a Linux agent box) is built
+only on a third OS.
+
+Where one host has no analogue of something, the facade function exists on both and one answers "nothing": `trace::start`
+on the `unsupported` host returns no taps and a line saying so, and `power::start` returns no watcher.
+
+## Rules and the layer that enforces them
+
+| Rule | Enforced by |
+|---|---|
+| Every host provides the same functions with the same signatures | the compiler, for the host being built; `just check-windows` and CI build the Windows host from a Mac; nothing builds `unsupported` |
+| A timestamp in a session is on the master clock | convention, and the tests that place records at known times: the type is a plain `u64` |

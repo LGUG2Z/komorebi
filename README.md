@@ -41,6 +41,8 @@ Two things vary independently: the _host_ the recorder runs on (macOS or Windows
 records (komorebi for Mac or komorebi for Windows). A session records both, so one recorded on Windows can be
 investigated on a Mac. Every record in a session is stamped on one monotonic clock, and the files in it are never
 rewritten after they are written.
+[Architecture](docs/ARCHITECTURE.md) explains the model and which layer enforces each rule;
+[Platform](docs/PLATFORM.md) answers the same questions for each host.
 
 ## Crates
 
