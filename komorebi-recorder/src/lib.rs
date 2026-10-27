@@ -49,6 +49,7 @@
 //! | [`sources`] | the sources that write raw files into the session |
 //! | [`session`] | the session directory and its manifest |
 //! | [`capture`] | capturing the screen into segments of video |
+//! | [`power`] and [`system_state`] | sleep, wake, lock and display changes |
 //!
 //! # What is not supported
 //!
@@ -68,6 +69,8 @@ pub mod incidents;
 pub mod komorebi_link;
 pub mod lock;
 pub mod platform;
+pub mod power;
 pub mod session;
 pub mod sources;
+pub mod system_state;
 pub mod timecode;

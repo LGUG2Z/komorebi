@@ -25,7 +25,9 @@ pub mod apps;
 pub mod capture;
 pub mod clock;
 pub mod media;
+pub mod power;
 pub mod process;
+pub mod session;
 pub mod shell;
 pub mod trace;
 

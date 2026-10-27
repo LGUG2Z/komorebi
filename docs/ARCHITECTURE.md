@@ -83,6 +83,11 @@ one segment to a file: a display that is unplugged and returns starts a new segm
 The recorder starts its sources in an order that makes the sources that are not video a superset of the video's span
 (the clock anchor, the OS trace streams, the subscription to komorebi and its first `State`, komorebi's log offset, and
 last the video), and stops them in the reverse order.
+While it runs, the machine is docked, undocked, put to sleep, woken with the lid opened and locked, and none of that may
+lose what was already captured. A tracker turns what the OS says (or, on a Mac, what the two clocks disagree about) into
+reactions: a display that is gone has its video finalized at once, one that returns starts a new segment, and every
+stream is started afresh after a wake. The capture backend is a trait, so that these policies are tested with a scripted
+backend that docks and undocks without hardware.
 
 ## Rules and the layer that enforces them
 

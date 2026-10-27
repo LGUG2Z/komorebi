@@ -46,6 +46,18 @@ Video frame times and the OS trace are on the master clock already on both hosts
 `machTimestamp` on a Mac; Windows.Graphics.Capture on Windows). The field names ending in `_mach_ns` are spelled that way
 on every host: see [the architecture](ARCHITECTURE.md#the-master-clock).
 
+### Noticing sleep, wake, lock and display changes
+
+| | macOS | Windows |
+|---|---|---|
+| a sleep | found afterwards: the master clock pauses while the wall clock does not, which the recording loop sees by comparing the two many times a second | heard as it happens, from a hidden window on a thread of its own that receives suspend and resume; the lid, the displays' power state and session lock are registered for |
+| the screen locked | polled: CoreGraphics' session dictionary | polled: being refused the input desktop means a lock screen or a UAC prompt, and the screen cannot be captured then either way |
+| displays added, removed, resized | polled: `CGGetActiveDisplayList` and `CGDisplayIsAsleep`, which are cheap and need no permission | polled, and heard as a display-change message |
+
+Windows is told when the lock happens as well as polling for it. What is done about each of these, on both hosts, is the
+same: a display that is gone has its video finalized at once, a display that returns starts a new segment, and every
+stream is started afresh after a wake instead of trusting the old one.
+
 ### Capturing the screen
 
 | | macOS | Windows |

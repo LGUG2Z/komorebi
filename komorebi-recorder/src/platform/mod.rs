@@ -11,6 +11,8 @@
 //! | [`process`] | stopping a child process |
 //! | [`trace`] | streaming the OS trace into the session |
 //! | [`capture`] | can we capture, which displays exist, the real [`CaptureBackend`], a video's duration |
+//! | [`power`] | hearing about sleep, wake, lock and display changes as they happen |
+//! | [`session`] | is the screen locked, is this user's session in front |
 //!
 //! A third host, `unsupported`, builds on anything else so that the investigation commands (which
 //! only read a session directory) still work on a Linux agent box; recording there says so.
@@ -53,7 +55,9 @@ pub use imp::capture;
 pub use imp::clock;
 #[cfg(windows)]
 pub use imp::media;
+pub use imp::power;
 pub use imp::process;
+pub use imp::session;
 pub use imp::shell;
 pub use imp::trace;
 

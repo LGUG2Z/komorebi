@@ -134,6 +134,31 @@ pub mod clock {
     }
 }
 
+/// Power events, which this host cannot hear.
+pub mod power {
+    use crate::power::PowerEvent;
+
+    /// Never constructed on this host.
+    pub struct Watcher;
+
+    impl Watcher {
+        /// Returns nothing: there is no power watcher.
+        #[must_use]
+        pub fn drain(&self) -> Vec<PowerEvent> {
+            Vec::new()
+        }
+    }
+
+    /// Returns no watcher: this host has nothing to listen to.
+    ///
+    /// # Errors
+    ///
+    /// Never returns an error.
+    pub fn start() -> color_eyre::eyre::Result<Option<Watcher>> {
+        Ok(None)
+    }
+}
+
 /// The OS trace, which this host does not have.
 pub mod trace {
     use crate::sources::wintrace::TraceStream;
@@ -175,6 +200,17 @@ pub mod process {
     #[must_use]
     pub fn was_terminated(_status: &ExitStatus) -> bool {
         false
+    }
+}
+
+/// Whether the session is locked, which this host cannot tell.
+pub mod session {
+    use crate::system_state::SessionState;
+
+    /// Returns the default state: unlocked and on the console.
+    #[must_use]
+    pub fn read() -> SessionState {
+        SessionState::default()
     }
 }
 
