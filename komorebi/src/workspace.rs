@@ -6,8 +6,10 @@
 //! falls back to come from the monitor it is on ([`WorkspaceGlobals`]).
 
 use crate::container::Container;
+use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
@@ -65,6 +67,29 @@ impl Workspace {
     pub fn swap_containers(&mut self, i: usize, j: usize) {
         self.containers.elements_mut().swap_respecting_locks(i, j);
         self.focus_container(j);
+    }
+
+    /// Returns the index of the container whose tile is on the `direction` side of the focused
+    /// one in the workspace's layout, or `None` when there is none on that side
+    pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
+        let len = NonZeroUsize::new(self.containers().len())?;
+
+        direction.destination(
+            self.layout.as_boxed_direction().as_ref(),
+            None,
+            self.focused_container_idx(),
+            len,
+            None,
+        )
+    }
+
+    /// Returns the index of the container after (or before) the focused one, wrapping around at
+    /// the ends, or `None` when the workspace has no containers
+    pub fn new_idx_for_cycle_direction(&self, direction: CycleDirection) -> Option<usize> {
+        Option::from(direction.next_idx(
+            self.focused_container_idx(),
+            NonZeroUsize::new(self.containers().len())?,
+        ))
     }
 
     pub fn container_idx_for_window(&self, window_id: u32) -> Option<usize> {

@@ -10,10 +10,18 @@
 //! - **MonitorInformation**: the id, the name and the bounds of each monitor, as JSON.
 //! - **Query**: one value as text, the answer to a [`StateQuery`].
 //!
-//! The others answer nothing: **Retile** tiles the focused workspace of every monitor again,
-//! **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name of
-//! its socket in the data directory, **RemoveSubscriberSocket** removes one, and **Stop** stops the
-//! daemon ([`WindowManager::stop`]).
+//! The others answer nothing:
+//!
+//! - **FocusWindow** and **CycleFocusWindow** give the focus to the container on one side of the
+//!   focused one, or to the next or the previous one in the workspace
+//!   ([`WindowManager::focus_container_in_direction`],
+//!   [`WindowManager::focus_container_in_cycle_direction`]).
+//! - **MouseFollowsFocus** and **ToggleMouseFollowsFocus** set whether the pointer is moved to
+//!   the window that is given the focus.
+//! - **Retile** tiles the focused workspace of every monitor again.
+//! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
+//!   of its socket in the data directory, and **RemoveSubscriberSocket** removes one.
+//! - **Stop** stops the daemon ([`WindowManager::stop`]).
 //!
 //! Once a message has been handled, every subscriber is sent a notification of it
 //! ([`notify_subscribers`]).
@@ -96,6 +104,9 @@ impl WindowManager {
     /// # Errors
     ///
     /// - A query about the focused monitor, workspace or container when there is none.
+    /// - The focus cannot be moved, for one of the reasons
+    ///   [`WindowManager::focus_container_in_direction`] and
+    ///   [`WindowManager::focus_container_in_cycle_direction`] give.
     /// - The window manager fails to retile, for one of the reasons
     ///   [`WindowManager::retile_all`] gives.
     /// - The answer cannot be written to `reply`.
@@ -114,6 +125,12 @@ impl WindowManager {
         let initial_state = State::from(self.as_ref());
 
         match message {
+            SocketMessage::FocusWindow(direction) => {
+                self.focus_container_in_direction(direction)?;
+            }
+            SocketMessage::CycleFocusWindow(direction) => {
+                self.focus_container_in_cycle_direction(direction)?;
+            }
             SocketMessage::Retile => self.retile_all()?,
             SocketMessage::State => {
                 let state = match serde_json::to_string_pretty(&State::from(&*self)) {
@@ -180,6 +197,12 @@ impl WindowManager {
                 };
 
                 reply.write_all(response.as_bytes())?;
+            }
+            SocketMessage::MouseFollowsFocus(enable) => {
+                self.mouse_follows_focus = enable;
+            }
+            SocketMessage::ToggleMouseFollowsFocus => {
+                self.mouse_follows_focus = !self.mouse_follows_focus;
             }
             SocketMessage::AddSubscriberSocket(ref socket) => {
                 let mut sockets = SUBSCRIPTION_SOCKETS.lock();

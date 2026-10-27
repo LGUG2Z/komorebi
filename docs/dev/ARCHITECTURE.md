@@ -8,8 +8,9 @@ tested, without one.
 This page describes that trait, who implements and calls it, where each of its rules is
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
 how an event about a window becomes a tile, how a message on the daemon's socket is
-answered, how subscribers are notified of both, and how the NixOS module runs the daemon. It
-grows with the code: each part of the daemon that is added has its place here.
+answered, how subscribers are notified of both, what the orders a message gives do, and how the
+NixOS module runs the daemon. It grows with the code: each part of the daemon that is added has
+its place here.
 
 ## Vocabulary
 
@@ -26,7 +27,10 @@ grows with the code: each part of the daemon that is added has its place here.
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
   the focus, minimized or restored ([`WindowManagerEvent`]).
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
-  (retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
+  (focus a window, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
+- **Direction**: where an order goes from the focused container: a side of its tile
+  ([`OperationDirection`]), or the next or the previous container of the workspace
+  ([`CycleDirection`]).
 - **State**: the window manager's monitors, workspaces, containers and windows, and its
   settings, as the daemon answers a `State` message with them ([`State`]).
 - **Subscriber**: a program that listens on a socket of its own in [`DATA_DIR`] and has
@@ -230,6 +234,26 @@ channel of [`window_manager_event_listener`], and past 20 the backend drops them
 When the daemon stops ([`WindowManager::stop`], or `SIGINT` and `SIGTERM` in `main.rs`), it
 connects to each subscriber and shuts the connection down without writing anything.
 
+## Commands
+
+A message that gives an order is a call to a method of the [`WindowManager`] from
+[`WindowManager::process_command`]. An order that goes somewhere takes one of two kinds of
+direction, both from `komorebi-layouts`:
+
+- An [`OperationDirection`] (left, right, up, down) is a side of the focused container's tile.
+  The workspace asks its layout which container is on that side
+  ([`Workspace::new_idx_for_direction`]). A layout answers from the index of the focused
+  container and the number of containers, not from where the windows are.
+- A [`CycleDirection`] (next, previous) follows the order of the workspace's containers, and
+  wraps around at both ends ([`Workspace::new_idx_for_cycle_direction`]).
+
+`FocusWindow` and `CycleFocusWindow` focus another container of the focused workspace and give
+its window the focus with the backend's `focus` ([`WindowManager::focus_container_in_direction`],
+[`WindowManager::focus_container_in_cycle_direction`]). They retile nothing. When there is no
+container in that direction, the message fails and changes nothing. Whether the pointer follows
+the focus is [`WindowManager::mouse_follows_focus`], which `MouseFollowsFocus` and
+`ToggleMouseFollowsFocus` set.
+
 ## The NixOS module
 
 The flake exports one module under two names, `nixosModules.default` and
@@ -280,7 +304,7 @@ module's unit.
   changes its containers.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
-  window out).
+  window out, move the focus).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -362,6 +386,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | Messages are handled one at a time, and in order on one connection | framework path: [`read_commands_uds`] reads a connection line by line and handles each message with the window manager locked | `the_messages_on_one_connection_are_handled_in_order` | none |
 | A socket left behind by a daemon that did not stop cleanly does not keep the next one from starting | framework path: [`WindowManager::new`] removes the file before it binds | `a_socket_file_left_behind_is_replaced` | none |
 | A daemon that is told to stop leaves no socket behind | framework path: [`WindowManager::stop`] removes it before it exits | `the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to` | `SIGKILL` |
+| Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
 | What the bridge sends is what the table reads | type checker: the JSDoc types of the messages in [`bridge.js`]; tests: the events of [`fixtures`] are what the bridge's tests check it sends and what the table's tests feed it | `what the bridge sends for a session is what the daemon's tests read`, `the_bridges_events_for_a_session_are_the_window_events_komorebi_expects` | none |
@@ -469,6 +494,8 @@ A window is shown, and ends up on a tile:
   driven end to end against the fake.
 - [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
   from its start to a `Stop`.
+- [`komorebi/tests/focus.rs`](../../komorebi/tests/focus.rs): the focus commands against the
+  fake.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),
@@ -494,6 +521,13 @@ A window is shown, and ends up on a tile:
 [`WindowManager`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::process_event`]: ../../komorebi/src/process_event.rs
 [`WindowManager::update_focused_workspace`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::focus_container_in_direction`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::focus_container_in_cycle_direction`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::mouse_follows_focus`]: ../../komorebi/src/window_manager.rs
+[`Workspace::new_idx_for_direction`]: ../../komorebi/src/workspace.rs
+[`Workspace::new_idx_for_cycle_direction`]: ../../komorebi/src/workspace.rs
+[`OperationDirection`]: ../../komorebi/src/core/mod.rs
+[`CycleDirection`]: ../../komorebi/src/core/mod.rs
 [`WindowManagerEvent`]: ../../komorebi/src/window_manager_event.rs
 [`window_manager_event_listener`]: ../../komorebi/src/window_manager_event_listener.rs
 [`listen_for_events`]: ../../komorebi/src/process_event.rs

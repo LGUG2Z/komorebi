@@ -58,6 +58,31 @@ pub struct Monitor {
     pub workspace_padding: Option<i32>,
 }
 
+/// Returns a monitor with one empty workspace, the way [`Monitor::new`] makes one, from owned
+/// names
+pub fn new(
+    id: u32,
+    size: Rect,
+    work_area_size: Rect,
+    device: String,
+    serial_number_id: String,
+) -> Monitor {
+    let mut workspaces = Ring::default();
+    workspaces.elements_mut().push_back(Workspace::default());
+
+    Monitor {
+        id,
+        device,
+        serial_number_id,
+        size,
+        work_area_size,
+        work_area_offset: None,
+        workspaces,
+        container_padding: None,
+        workspace_padding: None,
+    }
+}
+
 impl Monitor {
     #[allow(clippy::field_reassign_with_default)]
     pub fn new(

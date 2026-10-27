@@ -8,7 +8,9 @@
 //!
 //! [`SocketMessage`] is every message the daemon takes on its socket, [`StateQuery`] every
 //! question [`SocketMessage::Query`] can ask, and [`SubscribeOptions`] what a subscriber can ask
-//! of its notifications.
+//! of its notifications. A message that goes somewhere takes the directions of the layouts: an
+//! [`OperationDirection`] is a side of the focused tile, and a [`CycleDirection`] the next or the
+//! previous container in the order of the workspace.
 
 use clap::ValueEnum;
 use color_eyre::eyre;
@@ -334,11 +336,18 @@ pub struct SubscribeOptions {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
 pub enum SocketMessage {
+    // Window / Container Commands
+    FocusWindow(OperationDirection),
+    CycleFocusWindow(CycleDirection),
     Stop,
     Retile,
     State,
     MonitorInformation,
     Query(StateQuery),
+    MouseFollowsFocus(bool),
+    ToggleMouseFollowsFocus,
+    // RemoveTitleBar(ApplicationIdentifier, String),
+    // ToggleTitleBars,
     AddSubscriberSocket(String),
     AddSubscriberSocketWithOptions(String, SubscribeOptions),
     RemoveSubscriberSocket(String),

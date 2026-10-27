@@ -7,8 +7,10 @@
 //! again ([`WindowManager::update_focused_workspace`]).
 //!
 //! It also owns the daemon's command socket, which [`listen_for_commands`] reads
-//! ([`WindowManager::process_command`]), and stops the daemon when it is asked to
-//! ([`WindowManager::stop`]).
+//! ([`WindowManager::process_command`]), carries out the orders that come in on it, such as
+//! moving the focus ([`WindowManager::focus_container_in_direction`],
+//! [`WindowManager::focus_container_in_cycle_direction`]), and stops the daemon when it is asked
+//! to ([`WindowManager::stop`]).
 //!
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
@@ -17,6 +19,8 @@ use crate::LibraryError;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::backend::backend;
 use crate::container::Container;
+use crate::core::CycleDirection;
+use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::desktop;
 use crate::monitor::Monitor;
@@ -26,6 +30,7 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::Workspace;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use color_eyre::eyre::bail;
 use crossbeam_channel::Receiver;
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -40,6 +45,7 @@ pub struct WindowManager {
     /// The socket the daemon takes messages on, `komorebi.sock` in [`struct@DATA_DIR`] unless
     /// [`WindowManager::new`] was given another path
     pub command_listener: UnixListener,
+    /// Whether the pointer is moved to the window that is given the focus, which is the default
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
     /// The events the backend has reported and the window manager has yet to handle, from
@@ -109,6 +115,48 @@ impl WindowManager {
         // the windows that were open already are in containers now; an event about one of them
         // (the first thing to happen may be that it closes) has to find it
         self.update_known_window_ids();
+        Ok(())
+    }
+
+    /// Gives the focus to the window of the container whose tile is on the `direction` side of
+    /// the focused one, and the pointer follows it if [`WindowManager::mouse_follows_focus`] is
+    /// set
+    ///
+    /// Nothing is retiled: the focus moves, the windows stay where they are.
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or no container on that side of the focused one.
+    /// - The backend refuses to focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn focus_container_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let workspace = self.focused_workspace()?;
+
+        tracing::info!("focusing container");
+
+        let new_idx = workspace.new_idx_for_direction(direction);
+
+        // if there is no container in that direction for this workspace
+        match new_idx {
+            None => bail!("there is no container in this direction"),
+            Some(idx) => {
+                let workspace = self.focused_workspace_mut()?;
+                workspace.focus_container(idx);
+            }
+        }
+
+        let ws = self.focused_workspace_mut()?;
+        if !ws.is_empty()
+            && let Ok(focused_window) = self.focused_window()
+        {
+            focused_window.focus(mouse_follows_focus)?;
+        }
+
         Ok(())
     }
 
@@ -256,6 +304,36 @@ impl WindowManager {
         Ok(())
     }
 
+    /// Gives the focus to the window of the next (or the previous) container of the focused
+    /// workspace, wrapping around at the ends, and the pointer follows it if
+    /// [`WindowManager::mouse_follows_focus`] is set
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or it has no containers.
+    /// - The backend refuses to focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn focus_container_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        tracing::info!("focusing container");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let new_idx = workspace
+            .new_idx_for_cycle_direction(direction)
+            .ok_or_eyre("this is not a valid direction from the current position")?;
+
+        workspace.focus_container(new_idx);
+
+        self.focused_window_mut()?.focus(mouse_follows_focus)?;
+
+        Ok(())
+    }
+
     pub fn update_known_window_ids(&mut self) {
         tracing::trace!("updating list of known window_ids");
         let mut known_window_ids = HashMap::new();
@@ -281,6 +359,7 @@ mod tests {
     use super::*;
     use crate::backend::fake::FakeBackend;
     use crate::backend::with_backend;
+    use crate::monitor;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
     use std::path::PathBuf;
@@ -326,6 +405,54 @@ mod tests {
     #[test]
     fn test_create_window_manager() {
         let (_wm, _test_context) = setup_window_manager();
+    }
+
+    #[test]
+    fn test_focus_container_in_cycle_direction() {
+        let (mut wm, _test_context) = setup_window_manager();
+
+        // Create a monitor
+        let mut m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDeviceID".to_string(),
+        );
+
+        let workspace = m.focused_workspace_mut().unwrap();
+
+        for i in 0..4 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            workspace.add_container_to_back(container);
+        }
+        assert_eq!(workspace.containers().len(), 4);
+
+        workspace.focus_container(0);
+
+        // add the monitor to the window manager
+        wm.monitors_mut().push_back(m);
+
+        // container focus should be on the second container
+        wm.focus_container_in_cycle_direction(CycleDirection::Next)
+            .ok();
+        assert_eq!(wm.focused_container_idx().unwrap(), 1);
+
+        // container focus should be on the third container
+        wm.focus_container_in_cycle_direction(CycleDirection::Next)
+            .ok();
+        assert_eq!(wm.focused_container_idx().unwrap(), 2);
+
+        // container focus should be on the second container
+        wm.focus_container_in_cycle_direction(CycleDirection::Previous)
+            .ok();
+        assert_eq!(wm.focused_container_idx().unwrap(), 1);
+
+        // container focus should be on the first container
+        wm.focus_container_in_cycle_direction(CycleDirection::Previous)
+            .ok();
+        assert_eq!(wm.focused_container_idx().unwrap(), 0);
     }
 
     #[test]

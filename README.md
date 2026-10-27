@@ -36,8 +36,8 @@ with one monitor and no windows instead.
 While it runs, the daemon takes messages on a Unix socket, `komorebi.sock` in
 `$XDG_RUNTIME_DIR/komorebi` (the local data directory when there is no runtime
 directory): a message can ask for the state of the window manager, ask which
-monitor, workspace or container has the focus, retile every monitor, or stop
-the daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
+monitor, workspace or container has the focus, give the focus to another
+window, retile every monitor, or stop the daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
 the command line, is how a person sends them. `komorebic start` runs the
 `komorebi` on the `PATH`, and passes it what follows a `--`. In a Plasma
 session:
@@ -129,7 +129,10 @@ tiles the workspace in front again.
 
 Everything else reaches the daemon as a message on its socket: one JSON
 `SocketMessage` per line, handled one at a time with the window manager
-locked. A message that asks a question is answered on the same connection.
+locked. A message that asks a question is answered on the same connection. A
+message that gives an order changes the model the way an event does: `focus`
+and `cycle-focus` give the focus to the container on one side of the focused
+one in the layout, or to the next one in the workspace's order.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

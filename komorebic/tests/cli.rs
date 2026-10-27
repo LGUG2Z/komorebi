@@ -144,6 +144,55 @@ fn subscribe_socket_and_unsubscribe_socket_send_the_name_they_are_given() {
     }
 }
 
+/// Runs `komorebic` with `args` against a daemon that answers nothing, and checks that it wrote
+/// `message` on the socket, printed nothing and exited with status 0
+fn sends(args: &[&str], message: &str) {
+    let runtime = Runtime::new();
+    let daemon = runtime.serve("");
+
+    let output = runtime.komorebic(args);
+
+    assert!(output.status.success(), "{args:?}: {output:?}");
+    assert_eq!(daemon.join().unwrap(), message, "{args:?}");
+    assert_eq!(stdout(&output), "", "{args:?}");
+}
+
+#[test]
+fn focus_and_cycle_focus_send_the_direction_they_are_given() {
+    sends(
+        &["focus", "left"],
+        r#"{"type":"FocusWindow","content":"Left"}"#,
+    );
+    sends(
+        &["focus", "down"],
+        r#"{"type":"FocusWindow","content":"Down"}"#,
+    );
+    sends(
+        &["cycle-focus", "next"],
+        r#"{"type":"CycleFocusWindow","content":"Next"}"#,
+    );
+    sends(
+        &["cycle-focus", "previous"],
+        r#"{"type":"CycleFocusWindow","content":"Previous"}"#,
+    );
+}
+
+#[test]
+fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
+    sends(
+        &["mouse-follows-focus", "enable"],
+        r#"{"type":"MouseFollowsFocus","content":true}"#,
+    );
+    sends(
+        &["mouse-follows-focus", "disable"],
+        r#"{"type":"MouseFollowsFocus","content":false}"#,
+    );
+    sends(
+        &["toggle-mouse-follows-focus"],
+        r#"{"type":"ToggleMouseFollowsFocus"}"#,
+    );
+}
+
 #[test]
 fn without_a_daemon_a_question_fails() {
     let runtime = Runtime::new();
@@ -184,15 +233,19 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
         pages,
         [
             "completions.md",
+            "cycle-focus.md",
             "data-directory.md",
+            "focus.md",
             "log.md",
             "monitor-information.md",
+            "mouse-follows-focus.md",
             "query.md",
             "retile.md",
             "start.md",
             "state.md",
             "stop.md",
             "subscribe-socket.md",
+            "toggle-mouse-follows-focus.md",
             "unsubscribe-socket.md",
         ]
     );

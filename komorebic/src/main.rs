@@ -5,6 +5,9 @@
 //! is written and the answer is printed. The messages are [`komorebi_client::SocketMessage`]s,
 //! sent with [`komorebi_client::send_message`] and [`komorebi_client::send_query`].
 //!
+//! `focus` and `cycle-focus` give the focus to another window of the focused workspace, and
+//! `mouse-follows-focus` and `toggle-mouse-follows-focus` set whether the pointer goes with it.
+//!
 //! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
 //! event and each message it handles.
@@ -17,8 +20,11 @@
 use chrono::Utc;
 use clap::CommandFactory;
 use clap::Parser;
+use clap::ValueEnum;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
+use komorebi_client::CycleDirection;
+use komorebi_client::OperationDirection;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
 use komorebi_client::send_message;
@@ -31,6 +37,21 @@ use std::process::Command;
 use std::process::Stdio;
 use std::time::Duration;
 use sysinfo::ProcessesToUpdate;
+
+#[derive(Copy, Clone, ValueEnum)]
+enum BooleanState {
+    Enable,
+    Disable,
+}
+
+impl From<BooleanState> for bool {
+    fn from(b: BooleanState) -> Self {
+        match b {
+            BooleanState::Enable => true,
+            BooleanState::Disable => false,
+        }
+    }
+}
 
 macro_rules! gen_enum_subcommand_args {
     // SubCommand Pattern: Enum Type
@@ -48,6 +69,9 @@ macro_rules! gen_enum_subcommand_args {
 }
 
 gen_enum_subcommand_args! {
+    Focus: OperationDirection,
+    CycleFocus: CycleDirection,
+    MouseFollowsFocus: BooleanState,
     Query: StateQuery,
 }
 
@@ -132,8 +156,19 @@ enum SubCommand {
     // UnsubscribePipe(UnsubscribePipe),
     /// Tail komorebi's process logs (cancel with Ctrl-C)
     Log,
+    /// Change focus to the window in the specified direction
+    #[clap(arg_required_else_help = true)]
+    Focus(Focus),
+    /// Change focus to the window in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleFocus(CycleFocus),
     /// Force the retiling of all managed windows
     Retile,
+    /// Enable or disable mouse follows focus on all workspaces
+    #[clap(arg_required_else_help = true)]
+    MouseFollowsFocus(MouseFollowsFocus),
+    /// Toggle mouse follows focus on all workspaces
+    ToggleMouseFollowsFocus,
 }
 
 fn print_query(message: &SocketMessage) {
@@ -251,6 +286,12 @@ fn main() -> eyre::Result<()> {
                 println!("{line}");
             }
         }
+        SubCommand::Focus(args) => {
+            send_message(&SocketMessage::FocusWindow(args.operation_direction))?;
+        }
+        SubCommand::CycleFocus(args) => {
+            send_message(&SocketMessage::CycleFocusWindow(args.cycle_direction))?;
+        }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
         }
@@ -262,6 +303,12 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::MonitorInformation => {
             print_query(&SocketMessage::MonitorInformation);
+        }
+        SubCommand::ToggleMouseFollowsFocus => {
+            send_message(&SocketMessage::ToggleMouseFollowsFocus)?;
+        }
+        SubCommand::MouseFollowsFocus(args) => {
+            send_message(&SocketMessage::MouseFollowsFocus(args.boolean_state.into()))?;
         }
         SubCommand::SubscribeSocket(args) => {
             send_message(&SocketMessage::AddSubscriberSocket(args.socket))?;
