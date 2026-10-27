@@ -38,6 +38,8 @@ pub struct Opts {
 /// What `komorebi-recorder` was asked to do.
 #[derive(Subcommand)]
 pub enum Command {
+    /// Open the recorder window with Record / Stop buttons (the default)
+    Gui(RecordArgs),
     /// Record without a window; Ctrl-C (or --duration) stops and finalizes the session
     Record(RecordArgs),
     /// List the displays that can be recorded
@@ -92,6 +94,7 @@ pub fn execute(command: Command) -> std::process::ExitCode {
 /// Returns whatever error the command fails with; [`execute`] turns it into an exit status.
 pub fn run(command: Command) -> eyre::Result<()> {
     match command {
+        Command::Gui(args) => crate::app::run(args),
         Command::Record(args) => record::record(&args),
         Command::Displays => record::displays(),
         Command::Reindex(args) => reindex(&args),
@@ -100,7 +103,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
 
 /// What both binaries (`komorebi-recorder` and, on Windows, the no-console
 /// `komorebi-recorder-gui`) do: read the command line and run it.
-/// No command prints the usage.
+/// No command opens the recorder window.
 ///
 /// # Errors
 ///
@@ -113,13 +116,10 @@ pub fn main() -> eyre::Result<std::process::ExitCode> {
     crate::platform::init();
 
     let opts = Opts::parse();
-    let Some(command) = opts.command else {
-        use clap::CommandFactory;
-
-        Opts::command().print_help()?;
-        return Ok(std::process::ExitCode::from(2));
-    };
-    Ok(execute(command))
+    Ok(execute(
+        opts.command
+            .unwrap_or_else(|| Command::Gui(RecordArgs::default())),
+    ))
 }
 
 fn reindex(args: &ReindexArgs) -> eyre::Result<()> {

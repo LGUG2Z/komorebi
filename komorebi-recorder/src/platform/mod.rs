@@ -13,6 +13,7 @@
 //! | [`capture`] | can we capture, which displays exist, the real [`CaptureBackend`], a video's duration |
 //! | [`power`] | hearing about sleep, wake, lock and display changes as they happen |
 //! | [`session`] | is the screen locked, is this user's session in front |
+//! | [`window`] | what the program's own windows do about being recorded and being tiled |
 //!
 //! A third host, `unsupported`, builds on anything else so that the investigation commands (which
 //! only read a session directory) still work on a Linux agent box; recording there says so.
@@ -60,6 +61,7 @@ pub use imp::process;
 pub use imp::session;
 pub use imp::shell;
 pub use imp::trace;
+pub mod window;
 
 /// Whether this host has an OS trace to record alongside komorebi's own output.
 ///

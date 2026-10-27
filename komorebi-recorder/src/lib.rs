@@ -55,6 +55,7 @@
 //! | [`annotations`] | the bug regions, notes and findings written into a session |
 //! | [`recovery`] | rebuilding a session whose recorder died |
 //! | [`cli`] | the command line |
+//! | [`app`] | the recorder window |
 //!
 //! # What is not supported
 //!
@@ -69,6 +70,7 @@
 
 pub mod analysis;
 pub mod annotations;
+pub mod app;
 pub mod capture;
 pub mod cli;
 pub mod clock;

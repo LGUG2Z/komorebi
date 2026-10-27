@@ -102,6 +102,16 @@ the locked file.
 
 The wire protocol is the same on both. The recorder's own binary does not depend on either komorebi's crates.
 
+### The program's own windows
+
+The recorder window and the viewer must not be in the video they are recording, and komorebi must not tile them.
+
+| | macOS | Windows |
+|---|---|---|
+| left out of the video | by name: every process called `komorebi-recorder` is excluded from the capture | each window asks to be left out of captures with `WDA_EXCLUDEFROMCAPTURE` (Windows 10 version 2004 and later) |
+| left alone by komorebi | the windows have no title, which komorebi does not manage | the same, and `KOMOREBI_RECORDER_PROBE_WINDOW=1` makes a window ask komorebi whether it would manage it and write the answer to `komorebi-recorder-window-probe.txt` in the temp directory |
+| executables | `komorebi-recorder` | `komorebi-recorder.exe` (console: run commands with this one) and `komorebi-recorder-gui.exe` (no console window) |
+
 ## Degraded modes
 
 - `record --no-video` records everything but the screen, on the same clock. It asks the system nothing about displays and

@@ -13,6 +13,7 @@ crossbeam-channel = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
 dunce = { workspace = true }
+eframe = { workspace = true }
 parking_lot = { workspace = true }
 png = "0.18"
 schemars = { workspace = true }

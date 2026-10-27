@@ -88,6 +88,9 @@
             <Component Id='binary0' Guid='*'>
               <File Id='exe0' Name='komorebi-recorder.exe' DiskId='1' Source='$(var.CargoTargetBinDir)\komorebi-recorder.exe' KeyPath='yes' />
             </Component>
+            <Component Id='binary1' Guid='*'>
+              <File Id='exe1' Name='komorebi-recorder-gui.exe' DiskId='1' Source='$(var.CargoTargetBinDir)\komorebi-recorder-gui.exe' KeyPath='yes' />
+            </Component>
           </Directory>
         </Directory>
       </Directory>
@@ -97,6 +100,8 @@
       <ComponentRef Id='License' />
 
       <ComponentRef Id='binary0' />
+
+      <ComponentRef Id='binary1' />
 
       <Feature Id='Environment' Title='PATH Environment Variable' Description='Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location.' Level='1' Absent='allow'>
         <ComponentRef Id='Path' />

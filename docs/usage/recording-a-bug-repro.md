@@ -6,6 +6,7 @@ was the OS doing, at 00:12.5 in the video?" and the other way around.
 
 ```
 komorebi-recorder record --duration 30  # record without a window
+komorebi-recorder                       # or open the Record / Stop window
 ```
 
 It is built for the situations where komorebi bugs actually show up: laptops that get docked and undocked, woken with the
@@ -44,6 +45,7 @@ directory; a session recorded on one OS can be investigated on the other. What d
 Start komorebi with `komorebi.exe --log-level debug` before recording a bug. (`RUST_LOG=debug` also
 prints every dependency's log; `RUST_LOG=komorebi=debug` does not.)
 `komorebi-recorder record --no-video` records without the screen.
+The recorder window keeps itself out of the video (Windows 10 version 2004 or later).
 
 ## Before you record
 
@@ -53,11 +55,17 @@ prints every dependency's log; `RUST_LOG=komorebi=debug` does not.)
   repro, start komorebi with `komorebi --log-level trace` (or `RUST_LOG=komorebi=trace`) first. At the default `info`
   level most of what the window manager _decided_ is not in the log.
 
+The recorder window is borderless and untitled on purpose: komorebi does not manage windows without a title, so opening
+it does not move your layout around while you are trying to reproduce a layout bug. It is also excluded from the video, as is any other `komorebi-recorder` process.
+
 ## Recording
 
 Press **Record**, reproduce the problem, press **Stop**. The window shows live counters, recent events (a display being
 unplugged, a wake) and any warnings. The session is written to
 `~/Library/Application Support/komorebi/recordings/<UTC timestamp>/` unless you pass `--out`.
+
+With every display ticked, the recorder follows _all_ displays, including ones connected while it is recording. Untick a
+display to record only the others.
 
 Headless recording is the same thing without the window; Ctrl-C, `SIGTERM` or `--duration` stops and finalizes it:
 

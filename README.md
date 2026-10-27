@@ -42,6 +42,8 @@ komorebi-recorder displays                       # which displays can be recorde
 komorebi-recorder record --duration 30 --out ./repro
 ```
 
+Run `komorebi-recorder` with no command for a small window with Record and Stop buttons instead.
+
 On macOS the terminal needs the Screen Recording permission, as `komorebi` does. For a useful recording, start komorebi
 with `--log-level trace` first: the recorder never changes komorebi's log level, it only warns. A session made with
 `--no-video` has everything but the screen. [Recording a bug repro](docs/usage/recording-a-bug-repro.md) has the rest:
