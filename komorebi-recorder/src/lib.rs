@@ -77,6 +77,7 @@
 pub mod analysis;
 pub mod annotations;
 pub mod app;
+pub mod asc;
 pub mod av;
 pub mod capture;
 pub mod cli;
