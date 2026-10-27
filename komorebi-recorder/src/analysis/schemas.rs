@@ -16,11 +16,13 @@ use super::answers::DiffData;
 use super::answers::EventsData;
 use super::answers::StateData;
 use super::brief::BriefData;
+use super::changes::ChangesData;
 use super::code::CodeData;
 use super::envelope::Envelope;
 use super::history::HistoryData;
 use super::overview::OverviewData;
 use super::search::SearchData;
+use super::sheet::SheetData;
 use super::trace::TraceData;
 use schemars::schema_for;
 use serde_json::Value;
@@ -91,6 +93,16 @@ pub const ALL: &[Entry] = &[
         name: "search/1",
         about: "`search`: where a word appears in the recording",
         schema: of::<SearchData>,
+    },
+    Entry {
+        name: "changes/1",
+        about: "`changes`: when and where the picture changed on each display",
+        schema: of::<ChangesData>,
+    },
+    Entry {
+        name: "sheet/1",
+        about: "`sheet`: a contact sheet image and where each frame is on it",
+        schema: of::<SheetData>,
     },
     Entry {
         name: "annotation/1",

@@ -11,6 +11,7 @@ mod doctor;
 mod investigate;
 mod query;
 mod record;
+mod video;
 
 use crate::analysis::envelope::unusable;
 use crate::analysis::envelope::with_hint;
@@ -43,6 +44,8 @@ pub use query::LocateArgs;
 pub use query::RangeArgs;
 pub use query::SummaryArgs;
 pub use record::RecordArgs;
+pub use video::ChangesArgs;
+pub use video::SheetArgs;
 
 /// The command line of `komorebi-recorder`.
 #[derive(Parser)]
@@ -105,6 +108,10 @@ pub enum Command {
     Window(WindowArgs),
     /// One event end to end: what its handler logged, what changed, and who changed it
     Trace(TraceArgs),
+    /// When and where on each display the picture changed
+    Changes(ChangesArgs),
+    /// A contact sheet image of frames, with the times, events and bug region marked
+    Sheet(SheetArgs),
     /// Which line of komorebi's source wrote a line of its log, with the code around it
     Code(CodeArgs),
     /// Add, edit or delete a session's bug regions, notes and an agent's findings
@@ -171,6 +178,8 @@ impl Command {
             Self::Code(args) => args.json,
             Self::Trace(args) => args.json,
             Self::Window(args) => args.json,
+            Self::Changes(args) => args.json,
+            Self::Sheet(args) => args.json,
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
             Self::Doctor(args) => args.json,
@@ -229,6 +238,8 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Code(args) => investigate::code(&args),
         Command::Trace(args) => investigate::trace(&args),
         Command::Window(args) => investigate::window(&args),
+        Command::Changes(args) => video::changes(&args),
+        Command::Sheet(args) => video::sheet(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
         Command::Reindex(args) => reindex(&args),

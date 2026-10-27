@@ -45,6 +45,8 @@ and `event:12.end` when it finished.
 | `window ID\|TEXT` | One window's life: when it appeared, moved, was parked off screen, was really somewhere else, and which event did each |
 | `code event:N`, `code log:N` | The line of komorebi's source that wrote a log line, with the code around it |
 | `search TEXT` | Where a word appears: komorebi's log, events, incidents, annotations (and `--oslog` for the macOS trace) |
+| `changes` | When and where on each display the picture changed, and which events fall inside |
+| `sheet` | A contact sheet image of frames with times, events and the bug region marked |
 | `annotate`, `annotations` | Add, change and list bug regions, notes and findings |
 
 ### Who changed it

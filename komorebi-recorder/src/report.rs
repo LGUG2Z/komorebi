@@ -31,6 +31,7 @@ use crate::analysis::answers::EventsData;
 use crate::analysis::answers::StateData;
 use crate::analysis::brief::BriefData;
 use crate::analysis::brief::RegionBrief;
+use crate::analysis::changes::ChangesData;
 use crate::analysis::code::CodeData;
 use crate::analysis::history::HistoryData;
 use crate::analysis::invariants::Severity;
@@ -38,6 +39,7 @@ use crate::analysis::invariants::Violation;
 use crate::analysis::overview::Finding;
 use crate::analysis::overview::OverviewData;
 use crate::analysis::search::SearchData;
+use crate::analysis::sheet::SheetData;
 use crate::analysis::state::Container;
 use crate::analysis::state::Window;
 use crate::analysis::trace::TraceData;
@@ -1549,6 +1551,147 @@ pub fn search_text(data: &SearchData) -> String {
             hit.source,
             hit.reference,
             hit.text.lines().next().unwrap_or("")
+        );
+    }
+    out
+}
+
+/// Renders the answer to `changes`: how many frames were compared, then a line for each stretch of
+/// change, and the stretches in which a display had no video.
+///
+/// A stretch of change has its display, times and length, the most of the screen that changed
+/// between two frames, the box around what changed as percentages of the screen, and the events
+/// received during it.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::changes::{ChangeSpan, ChangesData, Gap};
+/// use komorebi_recorder::report::changes_text;
+///
+/// let data = ChangesData {
+///     from_video_s: 0.0,
+///     to_video_s: 4.0,
+///     displays: vec![1],
+///     frames_examined: 120,
+///     spans: vec![ChangeSpan {
+///         display: 1,
+///         start_video_s: 1.0,
+///         end_video_s: 1.5,
+///         frames: 15,
+///         peak_share: 0.25,
+///         bbox: [0.5, 0.0, 0.5, 1.0],
+///         bbox_points: None,
+///         events: vec![3],
+///     }],
+///     gaps: vec![Gap { display: 1, from_video_s: 3.0, to_video_s: 4.0 }],
+/// };
+///
+/// let text = changes_text(&data);
+/// assert!(text.starts_with("120 frames compared on display(s) 1 from 00:00.000 to 00:04.000: 1 stretch(es) of change\n"));
+/// assert!(text.contains("up to 25.0% of the screen"));
+/// assert!(text.ends_with("display 1 has no video from 00:03.000 to 00:04.000\n"));
+/// ```
+#[must_use]
+pub fn changes_text(data: &ChangesData) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{} frames compared on display(s) {} from {} to {}: {} stretch(es) of change",
+        data.frames_examined,
+        data.displays
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", "),
+        timecode::format(data.from_video_s),
+        timecode::format(data.to_video_s),
+        data.spans.len()
+    );
+    for span in &data.spans {
+        let events = if span.events.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "  events {}",
+                span.events
+                    .iter()
+                    .map(|seq| format!("#{seq}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        };
+        let _ = writeln!(
+            out,
+            "display {}  {} - {} ({:.2} s, {} frames)  up to {:.1}% of the screen  box {:.0}%,{:.0}% {:.0}%x{:.0}%{events}",
+            span.display,
+            timecode::format(span.start_video_s),
+            timecode::format(span.end_video_s),
+            span.end_video_s - span.start_video_s,
+            span.frames,
+            span.peak_share * 100.0,
+            span.bbox[0] * 100.0,
+            span.bbox[1] * 100.0,
+            span.bbox[2] * 100.0,
+            span.bbox[3] * 100.0,
+        );
+    }
+    for gap in &data.gaps {
+        let _ = writeln!(
+            out,
+            "display {} has no video from {} to {}",
+            gap.display,
+            timecode::format(gap.from_video_s),
+            timecode::format(gap.to_video_s)
+        );
+    }
+    out
+}
+
+/// Renders the answer to `sheet`: where the image was written, its size and how many frames it
+/// has, then a line for each moment that had no frame and why.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::sheet::{SheetData, Skipped};
+/// use komorebi_recorder::report::sheet_text;
+///
+/// let data = SheetData {
+///     path: "sheets/00-01.000-00-09.000.png".to_string(),
+///     width: 1450,
+///     height: 560,
+///     frames: Vec::new(),
+///     skipped: vec![Skipped {
+///         display: 2,
+///         video_s: 0.5,
+///         reason: "the display had no video then".to_string(),
+///     }],
+/// };
+///
+/// assert_eq!(
+///     sheet_text(&data),
+///     "sheets/00-01.000-00-09.000.png  (1450x560, 0 frames)\nno frame: display 2 at 00:00.500: the display had no video then\n",
+/// );
+/// ```
+#[must_use]
+pub fn sheet_text(data: &SheetData) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{}  ({}x{}, {} frames)",
+        data.path,
+        data.width,
+        data.height,
+        data.frames.len()
+    );
+    for skipped in &data.skipped {
+        let _ = writeln!(
+            out,
+            "no frame: display {} at {}: {}",
+            skipped.display,
+            timecode::format(skipped.video_s),
+            skipped.reason
         );
     }
     out

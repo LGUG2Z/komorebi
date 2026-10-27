@@ -6,6 +6,7 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
+ab_glyph = "0.2"
 chrono = { workspace = true }
 clap = { workspace = true }
 color-eyre = { workspace = true }
@@ -14,6 +15,7 @@ ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
 dunce = { workspace = true }
 eframe = { workspace = true }
+epaint_default_fonts = "0.33"
 parking_lot = { workspace = true }
 png = "0.18"
 regex = "1"
