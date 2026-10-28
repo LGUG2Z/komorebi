@@ -170,8 +170,9 @@ area, and every window of a container is moved onto its tile. At startup the
 window manager loads the monitors and the windows that are open from the
 backend and tiles them; after that it changes the model when the compositor
 reports that a window was shown, closed, focused, minimized or restored, and
-tiles the workspace in front again. A window open at startup goes to the
-workspace whose desktop it is on.
+tiles the workspace in front again. A window the user drags with the pointer
+onto the tile of another swaps places with it. A window open at startup goes to
+the workspace whose desktop it is on.
 
 A container with more than one window is a stack: the layout gives it one tile,
 and the window in front is in sight. The others are hidden, which on KWin means

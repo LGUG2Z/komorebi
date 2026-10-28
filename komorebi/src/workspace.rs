@@ -1711,6 +1711,26 @@ impl Workspace {
         Ok(())
     }
 
+    /// Returns the index of the container whose tile has the pointer in it, or `None` when the
+    /// pointer is on no tile, or the backend cannot say where it is
+    ///
+    /// The tiles are those the layout last calculated ([`Workspace::latest_layout`]).
+    pub fn container_idx_from_current_point(&self) -> Option<usize> {
+        let mut idx = None;
+
+        let point = backend().cursor_pos()?;
+
+        for (i, _container) in self.containers().iter().enumerate() {
+            if let Some(rect) = self.latest_layout.get(i)
+                && rect.contains_point(point)
+            {
+                idx = Option::from(i);
+            }
+        }
+
+        idx
+    }
+
     /// The container that has the window, if one of this workspace's does
     pub fn container_for_window(&self, window_id: u32) -> Option<&Container> {
         self.containers()

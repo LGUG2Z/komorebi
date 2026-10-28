@@ -33,7 +33,7 @@ the flake's module, which also starts komorebi with every Plasma session, and fr
 anywhere else. [Running komorebi](usage/running-komorebi.md) explains how to start and stop the
 daemon, ask it what it is doing and read its log.
 [Focusing windows](usage/focusing-windows.md) explains how to give the focus to another window,
-[Moving windows](usage/moving-windows.md) how to move the focused window to another tile,
+[Moving windows](usage/moving-windows.md) how to move a window to another tile,
 [Stacking windows](usage/stacking-windows.md) how to put windows on one tile, have the others wait
 out of sight and bring one of them to the front,
 [Layouts](usage/layouts.md) how to change the arrangement of the tiles,

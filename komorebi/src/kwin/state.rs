@@ -85,12 +85,22 @@ pub const PARK_DESKTOP_NAME: &str = "komorebi-park";
 /// can be logged and serialized
 const TOMBSTONE: Duration = Duration::from_secs(60);
 
+/// A drag of a window by the user with the pointer, which KWin calls an interactive move or
+/// resize
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Drag {
+    Move,
+    Resize,
+}
+
 struct Entry {
     uuid: String,
     info: WindowInfo,
     /// What KWin says: a normal window, as opposed to a dialog, splash, panel, popup...
     kwin_normal: bool,
     desktops: Vec<String>,
+    /// The drag the user is in the middle of, if any
+    drag: Option<Drag>,
     /// komorebi put it on the parking desktop
     parked: bool,
     /// The desktop the window was on when it was parked
@@ -584,6 +594,7 @@ impl Table {
             info,
             kwin_normal: w["normal"].as_bool().unwrap_or(false),
             desktops: strings(&w["desktops"]),
+            drag: None,
             parked: false,
             home: None,
             closed_at: None,
@@ -642,6 +653,10 @@ impl Table {
     ///   table had it on, this is a [`WindowManagerEvent::WorkspaceMove`]; komorebi's own move
     ///   ([`Table::window_workspace_commands`]) is on it already, and raises nothing, and neither
     ///   does a window on the parking desktop.
+    /// - `move_resize_started`, `move_resize_finished`: the user took hold of a window with the
+    ///   pointer (`geo` is its frame then) and let go of it (`geo` is its frame, `cursor` where the
+    ///   pointer is). For a move, they are a [`WindowManagerEvent::MoveStart`] and a
+    ///   [`WindowManagerEvent::MoveEnd`]; a resize raises no event.
     /// - `current_desktops`: the desktop each output shows. An output that shows another desktop
     ///   than the table had it showing is a [`WindowManagerEvent::WorkspaceChange`]; komorebi's own
     ///   switch ([`Table::switch_commands`]) raises nothing. An output that shows the parking
@@ -670,6 +685,8 @@ impl Table {
                 vec![]
             }
             Some("desktops") => self.on_desktops(event),
+            Some("move_resize_started") => self.on_drag_started(event),
+            Some("move_resize_finished") => self.on_drag_finished(event),
             Some("current_desktops") => self.on_current_desktops(event),
             Some("desktop_list") => {
                 self.desktops = desktop_list(&event["desktops"]);
@@ -925,6 +942,72 @@ impl Table {
                 ))]
             }
             _ => vec![],
+        }
+    }
+
+    fn on_drag_started(&mut self, event: &Value) -> Vec<Output> {
+        let Some(id) = self.id_of(event) else {
+            return vec![];
+        };
+
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return vec![];
+        };
+
+        entry.info.rect = rect(&event["geo"]);
+
+        let kind = if event["resize"].as_bool().unwrap_or(false) {
+            Drag::Resize
+        } else {
+            Drag::Move
+        };
+        entry.drag = Some(kind);
+
+        if !entry.info.normal {
+            return vec![];
+        }
+
+        let window = Window::from(id);
+        match kind {
+            Drag::Move => vec![Output::Event(WindowManagerEvent::MoveStart(
+                kwin(KWinNotification::InteractiveMoveStarted),
+                window,
+            ))],
+            // the window manager is not told of a resize: the window keeps the size the user gave
+            // it until the workspace is tiled again
+            Drag::Resize => vec![],
+        }
+    }
+
+    fn on_drag_finished(&mut self, event: &Value) -> Vec<Output> {
+        if let (Some(x), Some(y)) = (event["cursor"]["x"].as_i64(), event["cursor"]["y"].as_i64()) {
+            self.cursor = Some((x as i32, y as i32));
+        }
+
+        let Some(id) = self.id_of(event) else {
+            return vec![];
+        };
+
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return vec![];
+        };
+
+        entry.info.rect = rect(&event["geo"]);
+        let Some(kind) = entry.drag.take() else {
+            return vec![];
+        };
+
+        if !entry.info.normal {
+            return vec![];
+        }
+
+        let window = Window::from(id);
+        match kind {
+            Drag::Move => vec![Output::Event(WindowManagerEvent::MoveEnd(
+                kwin(KWinNotification::InteractiveMoveFinished),
+                window,
+            ))],
+            Drag::Resize => vec![],
         }
     }
 
@@ -1190,6 +1273,10 @@ mod tests {
                 "desktop_list -> ",
                 "desktops -> WorkspaceMove 1 to 0",
                 "current_desktops -> WorkspaceChange to 0",
+                // the user drags the editor
+                "move_resize_started -> MoveStart 1",
+                "geometry -> ",
+                "move_resize_finished -> MoveEnd 1",
             ]
         );
 
@@ -1201,7 +1288,7 @@ mod tests {
         assert_eq!(t.window(3).map(|w| w.alive), Some(false));
         assert_eq!(t.window(2).unwrap().rect.bottom, 532, "the geometry event");
         assert_eq!(t.foreground(), Some(1));
-        assert_eq!(t.cursor(), Some((1200, 701)));
+        assert_eq!(t.cursor(), Some((1500, 600)), "where the drag ended");
         assert_eq!(t.workspace_count(), 3);
         assert_eq!(t.window_workspace(1), Some(0));
         assert_eq!(t.current_workspaces(), [(t.monitors()[0].id, 0)]);
@@ -1420,6 +1507,48 @@ mod tests {
 
         assert_eq!(events(&out), vec!["TitleUpdate 1"]);
         assert_eq!(t.window(1).unwrap().title, "renamed");
+    }
+
+    #[test]
+    fn a_drag_is_reported_as_a_move_or_a_resize_from_start_to_end() {
+        let mut t = table(vec![win("a", &["d1"]), win("b", &["d1"])]);
+        let now = Instant::now();
+        let geo = json!({"x":0,"y":0,"w":100,"h":100});
+
+        let started = t.handle(&json!({ "type": "move_resize_started", "id": "a", "move": true, "resize": false, "geo": geo }), now);
+        let finished = t.handle(&json!({ "type": "move_resize_finished", "id": "a", "geo": geo, "cursor": {"x": 50, "y": 60} }), now);
+        assert_eq!(events(&started), vec!["MoveStart 1"]);
+        assert_eq!(events(&finished), vec!["MoveEnd 1"]);
+        assert_eq!(
+            t.cursor(),
+            Some((50, 60)),
+            "the cursor at the end of the drag is kept"
+        );
+    }
+
+    #[test]
+    fn a_move_is_where_the_frame_is() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
+        let start = json!({"x":10,"y":10,"w":100,"h":100});
+
+        t.handle(&json!({ "type": "move_resize_started", "id": "a", "move": true, "resize": false, "geo": start }), now);
+        t.handle(
+            &json!({ "type": "move_resize_finished", "id": "a",
+                "geo": {"x":50,"y":60,"w":100,"h":100},
+                "requested": {"x":999,"y":999,"w":100,"h":100},
+                "cursor": {"x": 1, "y": 1} }),
+            now,
+        );
+
+        assert_eq!(t.window(1).unwrap().rect.left, 50);
+    }
+
+    #[test]
+    fn a_finish_without_a_start_is_ignored() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let out = t.handle(&json!({ "type": "move_resize_finished", "id": "a", "geo": {"x":0,"y":0,"w":1,"h":1}, "cursor": {"x":0,"y":0} }), Instant::now());
+        assert!(events(&out).is_empty());
     }
 
     #[test]

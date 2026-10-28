@@ -532,3 +532,13 @@ working without komorebi, with the settings the stock effect has:
 
 The patches are derivative works of the effects and are under the effects' license, the GNU
 General Public License version 3 ([PLATFORM.md](PLATFORM.md#the-patches)).
+
+## Why does the end of a drag carry the position of the pointer?
+
+A window dragged onto another tile swaps places with the window there, and one dragged onto
+another monitor goes to that monitor. The window manager finds the tile and the monitor by
+asking the backend where the pointer is. Only the bridge can read the pointer, so the KWin
+backend asks it through the held call, and returns the last position the table has when no
+answer comes within 250 ms. The end of a drag is the moment the window manager asks, and the
+event that reports it brings the position of the pointer with it, so the last position the
+table has is the one that counts.

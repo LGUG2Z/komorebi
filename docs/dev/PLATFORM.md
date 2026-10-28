@@ -123,8 +123,9 @@ It connects to the session bus as `org.komorebi.Bridge`, writes the bridge to
 `$XDG_RUNTIME_DIR/komorebi/bridge.js`, and asks KWin to load it under the name
 `komorebi-bridge`, replacing a script of that name left by an earlier run. The script reports
 the windows and outputs it finds, and from then on every window that opens, closes, takes the
-focus, is minimized or brought back, moves or changes size. The daemon waits up to 10 seconds
-for the first report and does not start without it.
+focus, is minimized or brought back, moves or changes size, and the start and the end of every
+drag of a window by the user. The daemon waits up to 10 seconds for the first report and does
+not start without it.
 
 Before it loads the script, it turns on KWin's per-output virtual desktops in the user's
 `kwinrc` (`[Windows] PerOutputVirtualDesktops=true`), unless they are on, and asks KWin to
@@ -368,6 +369,11 @@ TypeScript are needed only for those checks: in the session the bridge needs KWi
 - A script's `print()` goes to KWin's log, which shows it only when the `kwin_scripting`
   logging category is enabled (`QT_LOGGING_RULES="kwin_scripting.debug=true"`, as the VM
   tests do).
+- A drag of a window by the user is `interactiveMoveResizeStarted` on the window, then a
+  `frameGeometryChanged` for every frame the pointer moves it by, then
+  `interactiveMoveResizeFinished`. While it goes on, the window's `move` or `resize` is true,
+  which tells the two kinds apart. A drag injected as pointer input in a KWin 6.8 session gave
+  the start, 25 geometry changes and the finish.
 
 ## How clients answer a frame
 

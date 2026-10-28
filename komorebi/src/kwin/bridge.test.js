@@ -95,6 +95,8 @@ function window({
         minimizedChanged: new Signal(),
         captionChanged: new Signal(),
         desktopsChanged: new Signal(),
+        interactiveMoveResizeStarted: new Signal(),
+        interactiveMoveResizeFinished: new Signal(),
         closeWindow: () => assert.fail("a window that is in no KWin was closed"),
         ...rest,
     };
@@ -336,15 +338,21 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     editor.desktops = [first];
     k.workspace.setCurrentDesktopForScreen(first, DP1);
 
-    assert.deepStrictEqual(k.events(), events);
-
     // and made see-through, which KWin does not report
     assert.equal(k.events().at(-1).seq, opacityCommand.after_seq);
     k.answer([opacityCommand.batch]);
     assert.equal(editor.opacity, 0.2);
-    assert.deepStrictEqual(k.events(), events);
 
-    assert.deepStrictEqual(editor.frameGeometry, geometry(0, 0, 960, 1050));
+    // the user drags the editor by its title bar, and lets go of it further down and to the right
+    editor.move = true;
+    editor.interactiveMoveResizeStarted.emit();
+    editor.frameGeometry = geometry(40.2, 30, 960, 1050);
+    k.workspace.cursorPos = { x: 1500.4, y: 600 };
+    editor.move = false;
+    editor.interactiveMoveResizeFinished.emit();
+
+    assert.deepStrictEqual(k.events(), events);
+    assert.deepStrictEqual(editor.frameGeometry, geometry(40.2, 30, 960, 1050));
     assert.equal(k.workspace.activeWindow, editor);
     assert.deepStrictEqual(k.raised, [editor]);
     assert.equal(editor.minimized, false);
@@ -653,6 +661,51 @@ test("a window is asked for its position again for a second after the command, a
     k.answer([{ batch: 1, cmds: [{ op: "geo", id: "{w}", x: -900, y: 0, w: 800, h: 600 }] }]);
 
     k.clock.now += 1001;
+    w.frameGeometry = geometry(-700, 0, 800, 600);
+
+    assert.deepStrictEqual(w.frameGeometry, geometry(-700, 0, 800, 600));
+});
+
+test("a drag is reported when the user takes hold of a window and when they let go", () => {
+    const w = window({ id: "{w}", frameGeometry: geometry(0, 0, 960, 1050) });
+    const k = kwin({ windows: [w] });
+
+    w.resize = true;
+    w.interactiveMoveResizeStarted.emit();
+    w.frameGeometry = geometry(0, 0, 1000.4, 1050);
+    k.workspace.cursorPos = { x: 1000.4, y: 500.6 };
+    w.resize = false;
+    w.interactiveMoveResizeFinished.emit();
+
+    assert.deepStrictEqual(k.events().slice(1), [
+        {
+            type: "move_resize_started",
+            id: "{w}",
+            move: false,
+            resize: true,
+            geo: { x: 0, y: 0, w: 960, h: 1050 },
+            seq: 2,
+        },
+        { type: "geometry", id: "{w}", geo: { x: 0, y: 0, w: 1000, h: 1050 }, seq: 3 },
+        {
+            type: "move_resize_finished",
+            id: "{w}",
+            geo: { x: 0, y: 0, w: 1000, h: 1050 },
+            cursor: { x: 1000, y: 501 },
+            seq: 4,
+        },
+    ]);
+});
+
+test("a window the user has taken hold of is not asked again for the position komorebi gave it", () => {
+    const w = window({ id: "{w}" });
+    const k = kwin({ windows: [w] });
+    k.answer([{ batch: 1, cmds: [{ op: "geo", id: "{w}", x: -900, y: 0, w: 800, h: 600 }] }]);
+
+    w.move = true;
+    w.interactiveMoveResizeStarted.emit();
+    w.move = false;
+    w.interactiveMoveResizeFinished.emit();
     w.frameGeometry = geometry(-700, 0, 800, 600);
 
     assert.deepStrictEqual(w.frameGeometry, geometry(-700, 0, 800, 600));

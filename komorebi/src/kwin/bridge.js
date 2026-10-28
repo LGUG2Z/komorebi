@@ -54,8 +54,9 @@
  * `activated` with no `id` means no window has the focus; `caption` is a window's new title;
  * `desktops` says which desktops a window is on now, `desktop_list` which desktops there are, and
  * `current_desktops` which desktop each output shows, each sent when it is not what was last sent;
- * `cursor` answers a cursor query, and `failed` gives back the commands of a batch that could not
- * be carried out.
+ * `move_resize_started` and `move_resize_finished` are the start and the end of a drag of a window
+ * by the user, with its frame, and at the end where the pointer is; `cursor` answers a cursor
+ * query, and `failed` gives back the commands of a batch that could not be carried out.
  *
  * @typedef {{
  *     type: "snapshot", windows: WindowInfo[], screens: Screen[], desktops: Desktop[],
@@ -70,10 +71,15 @@
  * @typedef {{ type: "desktops", id: string, desktops: string[] }} Desktops
  * @typedef {{ type: "desktop_list", desktops: Desktop[] }} DesktopList
  * @typedef {{ type: "current_desktops", current: CurrentDesktop[] }} CurrentDesktops
+ * @typedef {{
+ *     type: "move_resize_started", id: string, move: boolean, resize: boolean, geo: Rect
+ * }} MoveResizeStarted
+ * @typedef {{ type: "move_resize_finished", id: string, geo: Rect, cursor: Point }} MoveResizeFinished
  * @typedef {{ type: "cursor", token: number, x: number, y: number }} CursorAnswer
  * @typedef {{ type: "failed", batch: number, cmds: Command[] }} Failed
  * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Caption | Desktops
- *     | DesktopList | CurrentDesktops | CursorAnswer | Failed} BridgeEvent
+ *     | DesktopList | CurrentDesktops | MoveResizeStarted | MoveResizeFinished | CursorAnswer
+ *     | Failed} BridgeEvent
  */
 
 /**
@@ -360,6 +366,13 @@ function track(w, announce) {
     });
     w.desktopsChanged.connect(function () {
         emit("desktops", { id: id, desktops: desktopIds(w) });
+    });
+    w.interactiveMoveResizeStarted.connect(function () {
+        delete want[id];
+        emit("move_resize_started", { id: id, move: !!w.move, resize: !!w.resize, geo: rect(w.frameGeometry) });
+    });
+    w.interactiveMoveResizeFinished.connect(function () {
+        emit("move_resize_finished", { id: id, geo: rect(w.frameGeometry), cursor: cursor() });
     });
 }
 

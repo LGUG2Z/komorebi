@@ -43,6 +43,10 @@ pub enum KWinNotification {
     WindowRestored,
     /// `window.captionChanged`
     CaptionChanged,
+    /// `window.interactiveMoveResizeStarted` for a move
+    InteractiveMoveStarted,
+    /// `window.interactiveMoveResizeFinished` after a move
+    InteractiveMoveFinished,
 }
 
 /// Events komorebi raises itself, for example from a command
@@ -69,6 +73,11 @@ pub enum WindowManagerEvent {
     Manage(Window),
     /// The user asked komorebi to stop managing the window (`UnmanageFocusedWindow`)
     Unmanage(Window),
+    /// The user took hold of a window to move it with the pointer
+    MoveStart(SystemNotification, Window),
+    /// The user let go of a window they were moving: where it is now is what the window reports,
+    /// and the pointer is where they let go
+    MoveEnd(SystemNotification, Window),
     /// A monitor (by id) now shows another workspace: komorebi did that itself, or a pager, a
     /// shortcut or an app raising a window did. Not about any one window.
     WorkspaceChange(SystemNotification, u32, usize),
@@ -89,6 +98,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::TitleUpdate(_, window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Unmanage(window)
+            | WindowManagerEvent::MoveStart(_, window)
+            | WindowManagerEvent::MoveEnd(_, window)
             | WindowManagerEvent::WorkspaceMove(_, window, _) => *window,
             WindowManagerEvent::WorkspaceChange(..) => return None,
         })
@@ -111,6 +122,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(n, _)
             | WindowManagerEvent::Restore(n, _)
             | WindowManagerEvent::TitleUpdate(n, _)
+            | WindowManagerEvent::MoveStart(n, _)
+            | WindowManagerEvent::MoveEnd(n, _)
             | WindowManagerEvent::WorkspaceChange(n, _, _)
             | WindowManagerEvent::WorkspaceMove(n, _, _) => match n {
                 SystemNotification::KWin(k) => k.to_string(),

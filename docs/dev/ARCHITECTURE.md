@@ -9,9 +9,10 @@ This page describes that trait, who implements and calls it, where each of its r
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
 how an event about a window becomes a tile, how workspaces are the compositor's desktops, how
 a stack hides its windows, how a message on the daemon's socket is answered, how subscribers
-are notified of both, what the orders a message gives do, how the compositor is asked to draw the
-borders, how `komorebi.json` configures the daemon, and how the NixOS module runs the daemon. It
-grows with the code: each part of the daemon that is added has its place here.
+are notified of both, what the orders a message gives do, what a drag with the pointer does, how
+the compositor is asked to draw the borders, how `komorebi.json` configures the daemon, and how
+the NixOS module runs the daemon. It grows with the code: each part of the daemon that is added
+has its place here.
 
 ## Vocabulary
 
@@ -48,9 +49,9 @@ grows with the code: each part of the daemon that is added has its place here.
   container, so it has left the layout, until it is put back in a container of its own where it
   was ([`Workspace::maximized_window`]).
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
-  the focus, minimized or restored, or put on another workspace's desktop; and that a monitor
-  shows another workspace ([`WindowManagerEvent`]). Two events come from komorebi itself: a
-  command asks it to manage the focused window, or to stop managing it.
+  the focus, minimized or restored, dragged by the user, or put on another workspace's desktop;
+  and that a monitor shows another workspace ([`WindowManagerEvent`]). Two events come from
+  komorebi itself: a command asks it to manage the focused window, or to stop managing it.
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
   (focus a window, move it, change the layout, resize it, show a workspace, retile, stop) or a
   question (the state, the monitors, one [`StateQuery`]).
@@ -652,6 +653,35 @@ gives a tile, and [`Workspace::new_container_for_window`] puts the next window i
 `CancelPreselect` removes it. A workspace reserves one place at a time, and the grid layout
 none.
 
+## Dragging
+
+The user can move a window with the pointer. KWin reports the start and the end of a drag
+(`interactiveMoveResizeStarted` and `interactiveMoveResizeFinished`), the bridge sends both with
+the window's frame, and the end with where the pointer is, and the table turns a move into a
+`MoveStart` and a `MoveEnd` ([`Table::handle`]). A drag that resizes the window raises no event.
+The bridge also stops asking KWin again for the position komorebi gave the window (`settle`):
+the window is the user's now.
+
+`MoveStart` records the monitor, the workspace and the window
+([`WindowManager::pending_move_op`]). `MoveEnd` takes the record, and when it names the same
+window, looks at the monitor under the pointer. On another monitor than the one the move began
+on, the window's container goes there and takes the place of the container whose tile the
+pointer is on ([`WindowManager::transfer_window`]); a floating window joins the floating
+windows there, a monocle container is put back among the containers first, and a maximized
+window stays where it is. Both monitors are tiled again.
+
+On the same monitor, `MoveEnd` compares the frame of the focused container's window with the
+tile the layout last gave it ([`Workspace::latest_layout`]). A frame as wide and as tall as its
+tile makes the drag a move. With the float override on, the window is then made a floating one
+where it was let go. Otherwise the container under the pointer
+([`Workspace::container_idx_from_current_point`], through the backend's `cursor_pos`) is the
+target: the focused container swaps with it, or, with the window container behavior `Append`,
+the window joins it ([`Workspace::move_window_to_container`]). The workspace is tiled again,
+which puts a window let go where there is no tile back on its own. A frame of another size
+changes nothing, and neither does a floating window, which is in no container
+([`Workspace::contains_managed_window`]). The swap goes through `LockableSequence`, as
+`MoveWindow`'s does.
+
 ## Configuration
 
 The daemon is configured by `komorebi.json`, which [`StaticConfig`] reads. `main.rs` takes the
@@ -1112,6 +1142,11 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A daemon that is told to stop leaves no socket behind | framework path: [`WindowManager::stop`] removes it before it exits | `the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to` | `SIGKILL` |
 | A container moved onto a locked index is locked in its place, and the lock leaves the container that moved away | framework path: [`Workspace::swap_containers`] swaps through `LockableSequence`, which keeps the lock with the index | `test_swap_respecting_locks_various_cases`, `a_lock_stays_with_its_index_when_a_window_is_moved_onto_it` | `containers_mut()` is the `VecDeque` itself |
 | A window komorebi puts off the screen stays there | framework path: the bridge asks again for the position of a window KWin pulled back after a `geo` command, for a second, three times at most | `a window KWin pulls back from where it was asked to be is asked for the position again`, `a window that cannot go where it was asked is asked again three times at most`, `vm-scrolling` | a window that cannot go where it was asked is left where KWin put it |
+| A window dragged onto the tile of another swaps places with it, and a window let go of elsewhere goes back to its tile | framework path: `handle_event`'s `MoveEnd` swaps the focused container with the one under the pointer through [`Workspace::swap_containers`], and tiles the workspace again | `dragging_a_window_onto_another_swaps_them`, `a_window_let_go_of_where_there_is_no_tile_goes_back_to_its_own` | a frame that is not as wide and as tall as its tile is not taken for a move, and stays where it was let go |
+| A floating window dragged onto a tile takes nothing from it | framework path: `MoveEnd` acts only on a window that is in a container ([`Workspace::contains_managed_window`]) | `a_floating_window_dragged_onto_a_tile_takes_nothing_from_it` | none |
+| A window let go of on another monitor goes there, in the place of the container under the pointer | framework path: `MoveEnd` sees that the monitor under the pointer is not the one the drag began on, and hands the window to [`WindowManager::transfer_window`] without comparing its frame with its tile | `a_window_let_go_of_on_another_monitor_goes_to_that_monitor`, `a_window_let_go_of_on_a_monitor_with_nothing_on_it_goes_there`, `a_floating_window_let_go_of_on_another_monitor_is_one_of_the_floating_windows_there` | a floating window that is the only window of its workspace is not noticed to have moved |
+| With the window container behavior `Append` a window let go of on a tile joins its container, and with the float override on it floats where it was let go of | framework path: `MoveEnd` reads [`WindowManager::window_management_behaviour`] for the focused workspace | `with_append_a_window_let_go_of_on_a_tile_joins_the_container_of_that_tile`, `with_the_float_override_a_window_let_go_of_on_a_tile_floats_where_it_was_let_go_of` | none |
+| The bridge leaves a window the user has taken hold of where the user puts it | framework path: the bridge forgets the position it was asking again for when a drag of the window starts | `a window the user has taken hold of is not asked again for the position komorebi gave it` | none |
 | A resize leaves no tile smaller than a tenth of the work area, or than it was | framework path: [`WindowManager::resize_window`] calculates the tiles for the adjustment, and cuts the adjustment down until they all fit | `a_resize_leaves_every_tile_about_a_tenth_of_the_work_area_wide_at_least` | the paddings are taken off afterwards, so a tile can end up a little smaller |
 | The offset of a workspace wins over its monitor's, which wins over the window manager's | framework path: [`Monitor::update_workspace_globals`] gives the workspace the monitor's offset or else the window manager's, and [`Workspace::update`] takes its own before that | `the_workspaces_offset_wins_over_the_monitors_which_wins_over_the_global_one` | none |
 | A workspace whose tiling is off moves no window | framework path: [`Workspace::update`] returns before the layout when [`Workspace::tile`] is false | `with_tiling_off_no_window_is_moved_until_it_is_back_on` | none |
@@ -1345,7 +1380,9 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
   offsets; [`komorebi/tests/rules.rs`](../../komorebi/tests/rules.rs) and
   [`komorebi/tests/rule_commands.rs`](../../komorebi/tests/rule_commands.rs), the rules and the
-  messages that add and show them.
+  messages that add and show them;
+  [`komorebi/tests/drag_swap.rs`](../../komorebi/tests/drag_swap.rs), dragging a window onto
+  another tile and onto another monitor.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py): what is on the
@@ -1527,6 +1564,10 @@ A window is shown, and ends up on a tile:
 [`Workspace::promotion_swap_container_idx`]: ../../komorebi/src/workspace.rs
 [`WindowManager::resize_delta`]: ../../komorebi/src/window_manager.rs
 [`Workspace::latest_layout`]: ../../komorebi/src/workspace.rs
+[`Workspace::container_idx_from_current_point`]: ../../komorebi/src/workspace.rs
+[`Workspace::contains_managed_window`]: ../../komorebi/src/workspace.rs
+[`WindowManager::pending_move_op`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::transfer_window`]: ../../komorebi/src/window_manager.rs
 [`LayoutOptions`]: ../../komorebi/src/core/mod.rs
 [`Workspace::tile`]: ../../komorebi/src/workspace.rs
 [`Layout`]: ../../komorebi/src/core/mod.rs

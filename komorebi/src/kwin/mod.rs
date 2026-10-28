@@ -791,7 +791,7 @@ impl Backend for KWinBackend {
 
     fn cursor_pos(&self) -> Option<(i32, i32)> {
         // The script is the only thing that can read the pointer, so ask it, and fall back to where
-        // it was last seen if it does not answer in time
+        // it was last seen (the end of a drag) if it does not answer in time
         let token = self.shared.next_token.fetch_add(1, Ordering::Relaxed);
         let (sender, receiver) = std::sync::mpsc::channel();
         self.shared.cursor_waiters.lock().insert(token, sender);

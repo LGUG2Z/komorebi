@@ -1,8 +1,8 @@
 # Moving windows
 
-komorebi moves the focused window to another tile of its workspace when it is told to. The
-window swaps places with the window on that tile, the workspace is tiled again, and the window
-that moved keeps the focus.
+komorebi moves the focused window to another tile of its workspace when it is told to, or when
+the window is dragged there. The window swaps places with the window on that tile, the workspace
+is tiled again, and the window that moved keeps the focus.
 
 ## In a direction
 
@@ -97,7 +97,36 @@ The `LockMonitorWorkspaceContainer` and `UnlockMonitorWorkspaceContainer` messag
 unlock a container by the index of its monitor, its workspace and itself, for a program such as
 a status bar. They have no subcommand.
 
+## By dragging
+
+A window can be moved with the pointer too: drag it by its title bar and let go. Where it goes
+depends on where the pointer is:
+
+- On the tile of another window of the same monitor, the two windows swap places, and the
+  workspace is tiled again. With the
+  [window container behavior](stacking-windows.md#windows-that-open-into-a-stack) set to `append`,
+  the window joins the stack on that tile instead, in front.
+- On another monitor, the window goes there, with the stack it is in, and takes the place of the
+  container whose tile it was let go on, which moves one place on. On a monitor with no window it
+  is the first container. Both monitors are tiled again.
+- Where there is no tile, on a panel for example, the window goes back to its own.
+
+With the [float override](floating-windows.md#windows-that-open-floating) on, a window let go on a
+tile of its own monitor floats where it was let go instead. A floating window can be dragged
+anywhere and takes no tile. Let go on another monitor, it is one of the floating windows there,
+but only when the workspace it came from has a tile: with nothing else on it, komorebi does not
+notice that the window changed monitors.
+
+komorebi takes a drag for a move when the window's frame is as wide and as tall as its tile at
+the end of it, or when it ends on another monitor. A client that sizes itself in steps, such as
+a terminal that keeps to whole cells of its font, can be a few pixels short of its tile: dragging
+it on its own monitor swaps nothing, and it stays where it was let go until the workspace is
+tiled again, which the next change of focus does.
+
 ## The pointer
 
 The pointer follows the window that moved, unless
-[mouse follows focus](focusing-windows.md#the-pointer) is off.
+[mouse follows focus](focusing-windows.md#the-pointer) is off. A drag is the exception: the
+pointer is where it was let go, whether the windows swapped, the window joined another or went
+back to its tile. Only a window let go on another monitor takes the pointer with it, to the
+middle of its tile, unless mouse follows focus is off.

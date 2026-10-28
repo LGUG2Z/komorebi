@@ -150,6 +150,9 @@ pub struct WindowManager {
     /// [`crate::window_manager_event_listener`]
     pub incoming_events: Receiver<WindowManagerEvent>,
     pub minimized_windows: HashMap<u32, Window>,
+    /// The monitor, the workspace and the window of a move the user began with the pointer and
+    /// has not let go of yet
+    pub pending_move_op: Arc<Option<(usize, usize, u32)>>,
     /// The windows an `initial_only` workspace rule has moved already, so that it moves each of
     /// them once, until it closes
     pub already_moved_window_handles: Arc<Mutex<HashSet<u32>>>,
@@ -240,6 +243,7 @@ impl WindowManager {
             work_area_offset: None,
             incoming_events: incoming,
             minimized_windows: HashMap::new(),
+            pending_move_op: Arc::new(None),
             already_moved_window_handles: Default::default(),
             known_window_ids: Default::default(),
         })

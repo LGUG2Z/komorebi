@@ -93,6 +93,11 @@ interface KWinWindow {
     readonly minimizedChanged: Signal;
     readonly captionChanged: Signal;
     readonly desktopsChanged: Signal;
+    /** The user took hold of the window with the pointer, to move it (`move`) or resize it
+     * (`resize`). */
+    readonly interactiveMoveResizeStarted: Signal;
+    /** The user let go of the window. */
+    readonly interactiveMoveResizeFinished: Signal;
     closeWindow(): void;
     /**
      * Maximizes the window vertically and horizontally, or restores it from either. Maximizing

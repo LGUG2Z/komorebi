@@ -32,6 +32,15 @@
 //!   hid ([`struct@HIDDEN_WINDOWS`]) is not the user's, and changes nothing.
 //! - **TitleUpdate**: a window komorebi does not have, and that was not minimized, is announced
 //!   again as a Show, so that a rule that matches on the title it has now decides.
+//! - **MoveStart** and **MoveEnd**: the user dragged a window with the pointer. When they let go
+//!   on another monitor, the window's container goes there and takes the place of the container
+//!   whose tile the pointer is on ([`WindowManager::transfer_window`]). When they let go on the
+//!   same monitor, the focused container swaps places with the container whose tile the pointer
+//!   is on, or, when the window container behavior is `Append`, the window joins it, or, with the
+//!   float override on, the window floats where it was let go; the workspace is tiled again, and
+//!   a window let go where there is no tile goes back to its own. On the same monitor a drag
+//!   counts as a move when the window's frame is as wide and as tall as its tile, and a floating
+//!   window is not swapped.
 //! - **WorkspaceChange**: a monitor shows another workspace, because something other than komorebi
 //!   switched it (a pager, a shortcut, an app raising a window of another desktop). The window
 //!   manager follows ([`WindowManager::adopt_workspace_change`]) and asks the compositor for
@@ -66,6 +75,7 @@ use crate::backend::backend;
 use crate::border_manager;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::Rect;
 use crate::core::WindowContainerBehaviour;
 use crate::notify_subscribers;
 use crate::state::State;
@@ -493,6 +503,227 @@ impl WindowManager {
                         SystemNotification::KWin(KWinNotification::WindowAdded),
                         window,
                     ));
+                }
+            }
+            WindowManagerEvent::MoveStart(_, window) => {
+                let window_id = window.id;
+                if self.pending_move_op.is_none() {
+                    let monitor_idx = self.focused_monitor_idx();
+                    let workspace_idx = self
+                        .focused_monitor()
+                        .ok_or_eyre("there is no monitor with this idx")?
+                        .focused_workspace_idx();
+
+                    let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
+                    *pending_move_op = Option::from((monitor_idx, workspace_idx, window_id));
+                }
+            }
+            WindowManagerEvent::MoveEnd(_, window) => {
+                let window_id = window.id;
+                // We need this because if the event ends on a different monitor,
+                // that monitor will already have been focused and updated in the state
+                let pending = *self.pending_move_op;
+                // Always consume the pending move op whenever this event is handled
+                let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
+                *pending_move_op = None;
+
+                if let Some((origin_monitor_idx, origin_workspace_idx, wid)) = pending {
+                    // If the window handles don't match then something went wrong and the pending move
+                    // is not related to this current move, if so abort this operation.
+                    if wid != window_id {
+                        eyre::bail!(
+                            "window handles for move operation don't match: {} != {}",
+                            wid,
+                            window_id
+                        );
+                    }
+                    let known_window_ids = self.known_window_ids.clone();
+
+                    let target_monitor_idx = self
+                        .monitor_idx_from_current_pos()
+                        .ok_or_eyre("cannot get monitor idx from current position")?;
+
+                    let focused_monitor_idx = self.focused_monitor_idx();
+                    let focused_workspace_idx = self.focused_workspace_idx().unwrap_or_default();
+                    let window_management_behaviour = self
+                        .window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
+
+                    let workspace = self.focused_workspace_mut()?;
+                    let focused_container_idx = workspace.focused_container_idx();
+
+                    if let Some(container) = workspace.focused_container()
+                        && let Some(window) = container.focused_window()
+                    {
+                        // TODO: not sure about this clone
+                        let window = *window;
+                        let new_position = window.rect()?;
+                        let old_position = *workspace
+                            .latest_layout
+                            .get(focused_container_idx)
+                            // If the move was to another monitor with an empty workspace, the
+                            // workspace here will refer to that empty workspace, which won't
+                            // have any latest layout set. We fall back to a Default for Rect
+                            // which allows us to make a reasonable guess that the drag has taken
+                            // place across a monitor boundary to an empty workspace
+                            .unwrap_or(&Rect::default());
+
+                        // This will be true if we have moved to another monitor
+                        let mut moved_across_monitors = false;
+
+                        if let Some((m_idx, _)) = known_window_ids.get(&window_id)
+                            && *m_idx != target_monitor_idx
+                        {
+                            moved_across_monitors = true;
+                        }
+
+                        // If we didn't move to another monitor with an empty workspace, it is
+                        // still possible that we moved to another monitor with a populated workspace
+                        if !moved_across_monitors {
+                            // So we'll check if the origin monitor index and the target monitor index
+                            // are different, if they are, we can set the override
+                            moved_across_monitors = origin_monitor_idx != target_monitor_idx;
+
+                            if moved_across_monitors {
+                                // Want to make sure that we exclude unmanaged windows from cross-monitor
+                                // moves with a mouse, otherwise the currently focused idx container will
+                                // be moved when we just want to drag an unmanaged window
+                                let origin_workspace = self
+                                    .monitors()
+                                    .get(origin_monitor_idx)
+                                    .ok_or_eyre("cannot get monitor idx")?
+                                    .workspaces()
+                                    .get(origin_workspace_idx)
+                                    .ok_or_eyre("cannot get workspace idx")?;
+
+                                let managed_window = origin_workspace.contains_window(window_id);
+
+                                if !managed_window {
+                                    moved_across_monitors = false;
+                                }
+                            }
+                        }
+
+                        let workspace = self.focused_workspace_mut()?;
+                        if (workspace.tile && workspace.contains_managed_window(window_id))
+                            || moved_across_monitors
+                        {
+                            let resize = Rect {
+                                left: new_position.left - old_position.left,
+                                top: new_position.top - old_position.top,
+                                right: new_position.right - old_position.right,
+                                bottom: new_position.bottom - old_position.bottom,
+                            };
+
+                            // If we have moved across the monitors, use that override, otherwise determine
+                            // if a move has taken place by ruling out a resize
+                            let right_bottom_constant = 0;
+
+                            let is_move = moved_across_monitors
+                                || resize.right.abs() == right_bottom_constant
+                                    && resize.bottom.abs() == right_bottom_constant;
+
+                            if is_move {
+                                tracing::info!("moving with mouse");
+
+                                if moved_across_monitors {
+                                    if let Some((
+                                        origin_monitor_idx,
+                                        origin_workspace_idx,
+                                        w_hwnd,
+                                    )) = pending
+                                    {
+                                        let target_workspace_idx = self
+                                            .monitors()
+                                            .get(target_monitor_idx)
+                                            .ok_or_eyre("there is no monitor at this idx")?
+                                            .focused_workspace_idx();
+
+                                        let target_container_idx = self
+                                            .monitors()
+                                            .get(target_monitor_idx)
+                                            .ok_or_eyre("there is no monitor at this idx")?
+                                            .focused_workspace()
+                                            .ok_or_eyre(
+                                                "there is no focused workspace for this monitor",
+                                            )?
+                                            .container_idx_from_current_point()
+                                            // Default to 0 in the case of an empty workspace
+                                            .unwrap_or(0);
+
+                                        let origin =
+                                            (origin_monitor_idx, origin_workspace_idx, w_hwnd);
+                                        let target = (
+                                            target_monitor_idx,
+                                            target_workspace_idx,
+                                            target_container_idx,
+                                        );
+                                        self.transfer_window(origin, target)?;
+
+                                        // We want to make sure both the origin and target monitors are updated,
+                                        // so that we don't have ghost tiles until we force an interaction on
+                                        // the origin monitor's focused workspace
+                                        self.focus_monitor(origin_monitor_idx)?;
+                                        let origin_monitor = self
+                                            .monitors_mut()
+                                            .get_mut(origin_monitor_idx)
+                                            .ok_or_eyre("there is no monitor at this idx")?;
+                                        origin_monitor.focus_workspace(origin_workspace_idx)?;
+                                        self.update_focused_workspace(false, false)?;
+
+                                        self.focus_monitor(target_monitor_idx)?;
+                                        let target_monitor = self
+                                            .monitors_mut()
+                                            .get_mut(target_monitor_idx)
+                                            .ok_or_eyre("there is no monitor at this idx")?;
+                                        target_monitor.focus_workspace(target_workspace_idx)?;
+                                        self.update_focused_workspace(false, false)?;
+
+                                        // Make sure to give focus to the moved window again
+                                        window.focus(self.mouse_follows_focus)?;
+                                    }
+                                } else if window_management_behaviour.float_override {
+                                    // TODO: unsure of this clone
+                                    workspace.floating_windows_mut().push_back(window);
+                                    self.update_focused_workspace(false, false)?;
+                                } else {
+                                    match window_management_behaviour.current_behaviour {
+                                        WindowContainerBehaviour::Create => {
+                                            match workspace.container_idx_from_current_point() {
+                                                Some(target_idx) => {
+                                                    workspace.swap_containers(
+                                                        focused_container_idx,
+                                                        target_idx,
+                                                    );
+                                                    self.update_focused_workspace(false, false)?;
+                                                }
+                                                None => {
+                                                    self.update_focused_workspace(
+                                                        self.mouse_follows_focus,
+                                                        false,
+                                                    )?;
+                                                }
+                                            }
+                                        }
+                                        WindowContainerBehaviour::Append => {
+                                            match workspace.container_idx_from_current_point() {
+                                                Some(target_idx) => {
+                                                    workspace
+                                                        .move_window_to_container(target_idx)?;
+                                                    self.update_focused_workspace(false, false)?;
+                                                }
+                                                None => {
+                                                    self.update_focused_workspace(
+                                                        self.mouse_follows_focus,
+                                                        false,
+                                                    )?;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

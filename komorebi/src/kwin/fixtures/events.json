@@ -80,5 +80,17 @@
         "type": "desktops", "seq": 19, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "desktops": ["desktop-1"]
     },
-    {"type": "current_desktops", "seq": 20, "current": [{"output": "DP-1", "id": "desktop-1"}]}
+    {"type": "current_desktops", "seq": 20, "current": [{"output": "DP-1", "id": "desktop-1"}]},
+    {
+        "type": "move_resize_started", "seq": 21, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "move": true, "resize": false, "geo": {"x": 0, "y": 0, "w": 960, "h": 1050}
+    },
+    {
+        "type": "geometry", "seq": 22, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 40, "y": 30, "w": 960, "h": 1050}
+    },
+    {
+        "type": "move_resize_finished", "seq": 23, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 40, "y": 30, "w": 960, "h": 1050}, "cursor": {"x": 1500, "y": 600}
+    }
 ]
