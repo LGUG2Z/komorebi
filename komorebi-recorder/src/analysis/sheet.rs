@@ -181,14 +181,14 @@ pub struct SheetData {
     pub skipped: Vec<Skipped>,
 }
 
-struct Canvas {
+pub(super) struct Canvas {
     width: u32,
     height: u32,
     rgba: Vec<u8>,
 }
 
 impl Canvas {
-    fn new(width: u32, height: u32) -> Self {
+    pub(super) fn new(width: u32, height: u32) -> Self {
         let mut rgba = Vec::with_capacity(width as usize * height as usize * 4);
         for _ in 0..width as usize * height as usize {
             rgba.extend_from_slice(&[BACKGROUND[0], BACKGROUND[1], BACKGROUND[2], 255]);
@@ -200,7 +200,7 @@ impl Canvas {
         }
     }
 
-    fn put(&mut self, x: i64, y: i64, color: [u8; 3], alpha: f32) {
+    pub(super) fn put(&mut self, x: i64, y: i64, color: [u8; 3], alpha: f32) {
         if x < 0 || y < 0 || x >= i64::from(self.width) || y >= i64::from(self.height) {
             return;
         }
@@ -220,7 +220,15 @@ impl Canvas {
         }
     }
 
-    fn border(&mut self, x: u32, y: u32, width: u32, height: u32, thickness: u32, color: [u8; 3]) {
+    pub(super) fn border(
+        &mut self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        thickness: u32,
+        color: [u8; 3],
+    ) {
         self.rectangle(x, y, width, thickness, color);
         self.rectangle(x, y + height - thickness, width, thickness, color);
         self.rectangle(x, y, thickness, height, color);
@@ -267,7 +275,7 @@ impl Canvas {
         }
     }
 
-    fn save(&self, path: &Path) -> eyre::Result<()> {
+    pub(super) fn save(&self, path: &Path) -> eyre::Result<()> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .wrap_err_with(|| format!("could not create {}", parent.display()))?;

@@ -284,3 +284,183 @@ fn a_moment_a_display_had_no_video_is_skipped_not_invented() {
     ]);
     assert_eq!(huge.status.code(), Some(2));
 }
+
+#[test]
+fn motion_finds_the_segments_and_a_region_limits_where_it_looks() {
+    let Some(dir) = session("video-motion") else {
+        return;
+    };
+
+    let answer = json(&["motion", &dir, "--display", "1", "--json"]);
+    assert_eq!(answer["schema"], "motion/1");
+    let segments = answer["data"]["segments"].as_array().expect("segments");
+    assert_eq!(segments.len(), 2, "{segments:#?}");
+    assert!(segments[0]["peak_share"].as_f64().expect("share") > 0.0);
+    assert!(segments[0]["peak_mean_delta"].as_f64().expect("delta") > 0.0);
+    let duration = segments[1]["duration_s"].as_f64().expect("duration");
+    assert!((duration - 0.97).abs() < 0.1, "{duration}");
+    assert_eq!(segments[1]["events"], json!([1]));
+
+    // counting changes the blocks on the right of the picture: the left half of the display (the
+    // test display is 1000 x 800 points) holds still, the right half moves in both segments
+    let left = json(&[
+        "motion",
+        &dir,
+        "--display",
+        "1",
+        "--region",
+        "0,0,500,800",
+        "--json",
+    ]);
+    assert_eq!(left["data"]["segments"], json!([]));
+    let right = json(&[
+        "motion",
+        &dir,
+        "--display",
+        "1",
+        "--region",
+        "500,0,500,800",
+        "--json",
+    ]);
+    let moved = right["data"]["segments"].as_array().expect("segments");
+    assert_eq!(moved.len(), 2, "{moved:#?}");
+    assert!(moved[0]["bbox_points"][0].as_f64().expect("x") >= 500.0);
+
+    // a region off the display is a usage error, so is a malformed one
+    for bad in ["5000,0,10,10", "1,2,3"] {
+        let output = recorder(&["motion", &dir, "--region", bad]);
+        assert_eq!(output.status.code(), Some(2), "{bad}");
+    }
+}
+
+#[test]
+fn framediff_says_how_much_changed_and_where_and_writes_the_picture() {
+    let Some(dir) = session("video-framediff") else {
+        return;
+    };
+    let png = std::path::Path::new(&dir).join("diff.png");
+    let png_arg = png.display().to_string();
+
+    // the picture is counting at 0.2 s and 0.5 s
+    let moved = json(&[
+        "framediff",
+        &dir,
+        "0.2",
+        "0.5",
+        "--display",
+        "1",
+        "--png",
+        &png_arg,
+        "--json",
+    ]);
+    assert_eq!(moved["schema"], "framediff/1");
+    let data = &moved["data"];
+    assert!(data["changed_share"].as_f64().expect("share") > 0.0);
+    assert!(data["peak_delta"].as_u64().expect("peak") > 100);
+    assert!(data["bbox"][0].as_f64().expect("x") >= 0.5);
+    assert!(png.is_file());
+    assert_eq!(&std::fs::read(&png).expect("png")[1..4], b"PNG");
+
+    // it holds still from 1.1 s to 1.8 s, and a recording is the same as itself
+    let still = json(&["framediff", &dir, "1.1", "1.8", "--display", "1", "--json"]);
+    assert_eq!(still["data"]["changed_pixels"], 0);
+    assert!(still["data"]["bbox"].is_null());
+    let same = json(&[
+        "framediff",
+        &dir,
+        "0.5",
+        "--display",
+        "1",
+        "--against",
+        &dir,
+        "--json",
+    ]);
+    assert_eq!(same["data"]["changed_pixels"], 0);
+
+    // without a second time or another session there is nothing to compare with
+    assert_eq!(
+        recorder(&["framediff", &dir, "0.5", "--display", "1"])
+            .status
+            .code(),
+        Some(2)
+    );
+}
+
+#[test]
+fn blank_finds_the_region_going_white_and_the_picture_freezing() {
+    if !testkit::ffmpeg_available() {
+        eprintln!("skipped: ffmpeg is not available to make a test video");
+        return;
+    }
+
+    // a still picture for a second, all white for half a second, the picture again
+    let (session, _) = SessionBuilder::new("video-blank")
+        .video_showing(1, 0.0, 90, 30, |frame| match frame {
+            30..=44 => 0xFFFF,
+            _ => 0x5A5A,
+        })
+        .build();
+    let dir = session.dir.display().to_string();
+
+    let answer = json(&["blank", &dir, "--region", "0,0,1000,800", "--json"]);
+    assert_eq!(answer["schema"], "blank/1");
+    let stretches = answer["data"]["stretches"].as_array().expect("stretches");
+    let blank: Vec<&Value> = stretches
+        .iter()
+        .filter(|stretch| stretch["kind"] == "blank")
+        .collect();
+    assert_eq!(blank.len(), 1, "{stretches:#?}");
+    assert_eq!(blank[0]["colour"], "white");
+    assert!((blank[0]["start_video_s"].as_f64().expect("start") - 1.0).abs() < 0.06);
+    assert!((blank[0]["duration_s"].as_f64().expect("duration") - 0.5).abs() < 0.1);
+
+    // the picture before and after repeats, frame after frame
+    let frozen = stretches
+        .iter()
+        .filter(|stretch| stretch["kind"] == "frozen")
+        .count();
+    assert!(frozen >= 2, "{stretches:#?}");
+
+    // a minimum length drops what is shorter, and a region is required
+    let long = json(&[
+        "blank",
+        &dir,
+        "--region",
+        "0,0,1000,800",
+        "--min-ms",
+        "5000",
+        "--json",
+    ]);
+    assert_eq!(long["data"]["stretches"], json!([]));
+    assert_eq!(recorder(&["blank", &dir]).status.code(), Some(2));
+}
+
+#[test]
+fn compare_sets_two_recordings_side_by_side() {
+    let Some(dir) = session("video-compare") else {
+        return;
+    };
+    // frames come every 33 ms, except for a hole of 300 ms
+    let mut csv = String::from("index,pts_mach_ns,received_mach_ns\n");
+    let mut at = 1_000_000_000_u64;
+    for index in 0..60 {
+        csv.push_str(&format!("{index},{at},{at}\n"));
+        at += if index == 29 { 300_000_000 } else { 33_000_000 };
+    }
+    std::fs::write(std::path::Path::new(&dir).join("frames-1.csv"), csv).expect("frame log");
+
+    let answer = json(&["compare", &dir, &dir, "--json"]);
+    assert_eq!(answer["schema"], "compare/1");
+    let data = &answer["data"];
+    assert_eq!(data["a"]["frames"], 60);
+    assert!((data["a"]["worst_gap_ms"].as_f64().expect("gap") - 300.0).abs() < 1.0);
+    assert_eq!(data["a"]["late_gaps"], 1);
+    // two on display 1 and one on display 2
+    assert_eq!(data["a"]["motion"]["segments"], 3);
+    assert_eq!(data["deltas"]["frames"], 0);
+    assert_eq!(data["deltas"]["worst_gap_ms"], 0.0);
+
+    let text = recorder(&["compare", &dir, &dir]);
+    assert!(text.status.success());
+    assert!(String::from_utf8_lossy(&text.stdout).contains("worst frame gap"));
+}

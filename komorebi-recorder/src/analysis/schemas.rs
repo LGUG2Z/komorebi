@@ -15,12 +15,16 @@ use super::answers::DeletedData;
 use super::answers::DiffData;
 use super::answers::EventsData;
 use super::answers::StateData;
+use super::blank::BlankData;
 use super::brief::BriefData;
 use super::changes::ChangesData;
 use super::code::CodeData;
+use super::compare::CompareData;
 use super::envelope::Envelope;
+use super::framediff::FrameDiffData;
 use super::history::HistoryData;
 use super::logq::LogqData;
+use super::motion::MotionData;
 use super::overview::OverviewData;
 use super::search::SearchData;
 use super::sheet::SheetData;
@@ -109,6 +113,26 @@ pub const ALL: &[Entry] = &[
         name: "sheet/1",
         about: "`sheet`: a contact sheet image and where each frame is on it",
         schema: of::<SheetData>,
+    },
+    Entry {
+        name: "motion/1",
+        about: "`motion`: activity segments of a display or a region of it, with peak share and brightness delta",
+        schema: of::<MotionData>,
+    },
+    Entry {
+        name: "framediff/1",
+        about: "`framediff`: how two frames differ: changed share, brightness delta, box of change",
+        schema: of::<FrameDiffData>,
+    },
+    Entry {
+        name: "blank/1",
+        about: "`blank`: stretches where a region was blank (one colour) or frozen",
+        schema: of::<BlankData>,
+    },
+    Entry {
+        name: "compare/1",
+        about: "`compare`: two recordings side by side with the difference of each measure",
+        schema: of::<CompareData>,
     },
     Entry {
         name: "annotation/1",

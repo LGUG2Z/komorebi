@@ -4,6 +4,10 @@
 //! |---|---|---|
 //! | `changes` | [`Analysis::changes`](crate::analysis::Analysis::changes) | `changes/1` |
 //! | `sheet` | [`Analysis::sheet`] | `sheet/1` |
+//! | `motion` | [`Analysis::motion`] | `motion/1` |
+//! | `framediff` | [`framediff`](crate::analysis::framediff::framediff) | `framediff/1` |
+//! | `blank` | [`Analysis::blank`] | `blank/1` |
+//! | `compare` | [`Analysis::compare`] | `compare/1` |
 //!
 //! Both work on a range of video time, given as `--from` and `--to` (any time `state --at` takes;
 //! the default is the whole video) or, instead of those, as `--bug <id>`: a bug region from three
@@ -18,9 +22,20 @@
 
 use super::print_json;
 use crate::analysis::Analysis;
+use crate::analysis::blank::DEFAULT_MIN_DURATION_S;
+use crate::analysis::blank::DEFAULT_VARIANCE;
+use crate::analysis::blank::SCHEMA_BLANK;
 use crate::analysis::changes::SCHEMA_CHANGES;
+use crate::analysis::compare::SCHEMA_COMPARE;
 use crate::analysis::envelope;
 use crate::analysis::envelope::Envelope;
+use crate::analysis::framediff::DEFAULT_WIDTH;
+use crate::analysis::framediff::FrameAt;
+use crate::analysis::framediff::FrameDiffOptions;
+use crate::analysis::framediff::SCHEMA_FRAMEDIFF;
+use crate::analysis::motion::SCHEMA_MOTION;
+use crate::analysis::motion::ScanOptions;
+use crate::analysis::pixels::Crop;
 use crate::analysis::sheet::Region;
 use crate::analysis::sheet::SCHEMA_SHEET;
 use crate::analysis::sheet::SheetOptions;
@@ -91,6 +106,102 @@ pub struct SheetArgs {
     /// Where to write the PNG [default: in the session's sheets/ directory, named by the range]
     #[arg(long, value_name = "FILE")]
     pub out: Option<PathBuf>,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// The arguments of `motion`.
+#[derive(Args, Debug)]
+pub struct MotionArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// Only this display (repeatable) [default: every display with video]
+    #[arg(long = "display", value_name = "ID")]
+    pub displays: Vec<u32>,
+    /// Only this part of the display, in display points: x,y,w,h
+    #[arg(long, value_name = "X,Y,W,H")]
+    pub region: Option<String>,
+    /// From this moment [default: the start of the video]
+    #[arg(long, value_name = "TIME")]
+    pub from: Option<String>,
+    /// To this moment [default: the end of the video]
+    #[arg(long, value_name = "TIME")]
+    pub to: Option<String>,
+    /// Above 1 notices smaller changes, below 1 only larger ones
+    #[arg(long, default_value_t = 1.0)]
+    pub sensitivity: f64,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// The arguments of `framediff`.
+#[derive(Args, Debug)]
+pub struct FramediffArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// The first moment
+    #[arg(value_name = "TIME_A")]
+    pub time_a: String,
+    /// The second moment [default with --against: the same as TIME_A]
+    #[arg(value_name = "TIME_B")]
+    pub time_b: Option<String>,
+    /// Compare with the frame of this other recording at TIME_B (resolved in that recording)
+    #[arg(long, value_name = "SESSION")]
+    pub against: Option<PathBuf>,
+    /// The display [default: the first display with video]
+    #[arg(long = "display", value_name = "ID")]
+    pub display: Option<u32>,
+    /// Only this part of the display, in display points: x,y,w,h
+    #[arg(long, value_name = "X,Y,W,H")]
+    pub region: Option<String>,
+    /// Write a PNG of the compared area with the changed pixels in red
+    #[arg(long, value_name = "FILE")]
+    pub png: Option<PathBuf>,
+    /// The width frames are decoded at, in pixels
+    #[arg(long, default_value_t = DEFAULT_WIDTH)]
+    pub width: u32,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// The arguments of `blank`.
+#[derive(Args, Debug)]
+pub struct BlankArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// The region to watch, in display points: x,y,w,h
+    #[arg(long, value_name = "X,Y,W,H")]
+    pub region: String,
+    /// Only this display (repeatable) [default: every display with video]
+    #[arg(long = "display", value_name = "ID")]
+    pub displays: Vec<u32>,
+    /// From this moment [default: the start of the video]
+    #[arg(long, value_name = "TIME")]
+    pub from: Option<String>,
+    /// To this moment [default: the end of the video]
+    #[arg(long, value_name = "TIME")]
+    pub to: Option<String>,
+    /// A region is blank when the variance of its brightness is below this
+    #[arg(long, default_value_t = DEFAULT_VARIANCE)]
+    pub variance: f64,
+    /// Drop stretches shorter than this many milliseconds
+    #[arg(long, value_name = "MS", default_value_t = DEFAULT_MIN_DURATION_S * 1000.0)]
+    pub min_ms: f64,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// The arguments of `compare`.
+#[derive(Args, Debug)]
+pub struct CompareArgs {
+    /// The first session directory
+    pub session_a: PathBuf,
+    /// The second session directory
+    pub session_b: PathBuf,
     /// Machine-readable JSON output
     #[arg(long)]
     pub json: bool,
@@ -231,5 +342,141 @@ pub(super) fn sheet(args: &SheetArgs) -> eyre::Result<()> {
     }
 
     print!("{}", report::sheet_text(&data));
+    Ok(())
+}
+
+fn region(text: Option<&str>) -> eyre::Result<Option<Crop>> {
+    text.map(Crop::parse).transpose()
+}
+
+pub(super) fn motion(args: &MotionArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let video = SessionVideo::new(&analysis.manifest, analysis.guard());
+    let (from, to) = range(&analysis, args.from.as_deref(), args.to.as_deref(), None)?;
+    let shown = displays(&video, &args.displays)?;
+
+    let data = analysis.motion(
+        &video,
+        &ScanOptions {
+            displays: &shown,
+            from_s: from,
+            to_s: to,
+            crop: region(args.region.as_deref())?,
+            cancel: None,
+        },
+        args.sensitivity,
+    )?;
+    if args.json {
+        return print_json(&Envelope::ok(SCHEMA_MOTION, data).warnings(analysis.warnings()));
+    }
+
+    print!("{}", data.to_text());
+    Ok(())
+}
+
+pub(super) fn framediff(args: &FramediffArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let video = SessionVideo::new(&analysis.manifest, analysis.guard());
+    let wanted: Vec<u32> = args.display.into_iter().collect();
+    let display = displays(&video, &wanted)?[0];
+    let options = FrameDiffOptions {
+        crop: region(args.region.as_deref())?,
+        width: args.width,
+        png: args.png.as_deref(),
+    };
+    let first = FrameAt {
+        analysis: &analysis,
+        video: &video,
+        display,
+        time_s: analysis.resolve(&args.time_a)?.video_s,
+    };
+
+    let data = if let Some(path) = &args.against {
+        let other = Analysis::open(path)?;
+        let other_video = SessionVideo::new(&other.manifest, other.guard());
+        let available = other_video.displays();
+        let other_display = if available.contains(&display) {
+            display
+        } else if let [only] = available[..] {
+            only
+        } else {
+            return Err(envelope::not_found(format!(
+                "{} has no display {display}; displays with video: {available:?}",
+                path.display()
+            )));
+        };
+        let time_b = other
+            .resolve(args.time_b.as_deref().unwrap_or(&args.time_a))?
+            .video_s;
+        crate::analysis::framediff::framediff(
+            &first,
+            &FrameAt {
+                analysis: &other,
+                video: &other_video,
+                display: other_display,
+                time_s: time_b,
+            },
+            &options,
+        )?
+    } else {
+        let text = args.time_b.as_deref().ok_or_else(|| {
+            envelope::usage("framediff needs a second time, or --against another session")
+        })?;
+        let time_b = analysis.resolve(text)?.video_s;
+        crate::analysis::framediff::framediff(
+            &first,
+            &FrameAt {
+                time_s: time_b,
+                ..first
+            },
+            &options,
+        )?
+    };
+    if args.json {
+        return print_json(&Envelope::ok(SCHEMA_FRAMEDIFF, data).warnings(analysis.warnings()));
+    }
+
+    print!("{}", data.to_text());
+    Ok(())
+}
+
+pub(super) fn blank(args: &BlankArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let video = SessionVideo::new(&analysis.manifest, analysis.guard());
+    let (from, to) = range(&analysis, args.from.as_deref(), args.to.as_deref(), None)?;
+    let shown = displays(&video, &args.displays)?;
+
+    let data = analysis.blank(
+        &video,
+        &ScanOptions {
+            displays: &shown,
+            from_s: from,
+            to_s: to,
+            crop: region(Some(&args.region))?,
+            cancel: None,
+        },
+        args.variance,
+        args.min_ms / 1000.0,
+    )?;
+    if args.json {
+        return print_json(&Envelope::ok(SCHEMA_BLANK, data).warnings(analysis.warnings()));
+    }
+
+    print!("{}", data.to_text());
+    Ok(())
+}
+
+pub(super) fn compare(args: &CompareArgs) -> eyre::Result<()> {
+    let a = Analysis::open(&args.session_a)?;
+    let b = Analysis::open(&args.session_b)?;
+
+    let data = a.compare(&b, None)?;
+    if args.json {
+        let mut warnings = a.warnings();
+        warnings.extend(b.warnings());
+        return print_json(&Envelope::ok(SCHEMA_COMPARE, data).warnings(warnings));
+    }
+
+    print!("{}", data.to_text());
     Ok(())
 }

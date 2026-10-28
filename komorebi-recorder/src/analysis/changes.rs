@@ -37,7 +37,7 @@
 
 use super::Analysis;
 use super::envelope;
-use super::video::DecodedFrame;
+use super::pixels;
 use super::video::SessionVideo;
 use crate::av::Scale;
 use color_eyre::eyre;
@@ -52,10 +52,10 @@ pub const SCHEMA_CHANGES: &str = "changes/1";
 const COMPARE_WIDTH: u32 = 240;
 
 /// A pixel counts as changed if its brightness moved by more than this (out of 255).
-const PIXEL_THRESHOLD: i32 = 24;
+pub(super) const PIXEL_THRESHOLD: i32 = 24;
 
 /// A frame is a change if at least this share of its pixels changed, at sensitivity 1.
-const SHARE_THRESHOLD: f64 = 0.0005;
+pub(super) const SHARE_THRESHOLD: f64 = 0.0005;
 
 /// Frames of one change closer together than this are one change.
 const MERGE_GAP_S: f64 = 0.15;
@@ -127,28 +127,176 @@ pub struct ChangesData {
     pub gaps: Vec<Gap>,
 }
 
-/// The brightness of every pixel of a BGRA frame.
-fn luma(frame: &DecodedFrame) -> Vec<u8> {
-    frame
-        .frame
-        .bgra
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|pixel| {
-            // Rec. 601 weights in integers
-            ((u32::from(pixel[2]) * 299 + u32::from(pixel[1]) * 587 + u32::from(pixel[0]) * 114)
-                / 1000) as u8
-        })
-        .collect()
+/// One stretch of change being built: shared by `changes` and `motion`.
+pub(super) struct Open {
+    pub(super) start: f64,
+    pub(super) end: f64,
+    pub(super) frames: usize,
+    pub(super) peak: f64,
+    /// The largest mean brightness difference between two consecutive frames in the stretch.
+    pub(super) peak_delta: f64,
+    /// `(min_x, min_y, max_x, max_y)` in pixels of the decoded frame.
+    pub(super) bounds: (u32, u32, u32, u32),
 }
 
-struct Open {
-    start: f64,
-    end: f64,
-    frames: usize,
-    peak: f64,
+/// Groups changed frames into stretches: frames less than [`MERGE_GAP_S`] apart are one.
+#[derive(Default)]
+pub(super) struct Segments {
+    open: Option<Open>,
+    finished: Vec<Open>,
+}
+
+impl Segments {
+    /// Adds a changed frame shown at `shown_s`, `share` of whose compared pixels changed, whose
+    /// mean brightness difference from the frame before was `delta` and whose changed pixels lie
+    /// in `bounds`.
+    pub(super) fn push(
+        &mut self,
+        shown_s: f64,
+        share: f64,
+        delta: f64,
+        bounds: (u32, u32, u32, u32),
+    ) {
+        match &mut self.open {
+            Some(span) if shown_s - span.end <= MERGE_GAP_S => {
+                span.end = shown_s;
+                span.frames += 1;
+                span.peak = span.peak.max(share);
+                span.peak_delta = span.peak_delta.max(delta);
+                span.bounds = (
+                    span.bounds.0.min(bounds.0),
+                    span.bounds.1.min(bounds.1),
+                    span.bounds.2.max(bounds.2),
+                    span.bounds.3.max(bounds.3),
+                );
+            }
+            _ => {
+                self.finished.extend(self.open.take());
+                self.open = Some(Open {
+                    start: shown_s,
+                    end: shown_s,
+                    frames: 1,
+                    peak: share,
+                    peak_delta: delta,
+                    bounds,
+                });
+            }
+        }
+    }
+
+    /// The stretches, in order, including the one still open.
+    pub(super) fn finish(mut self) -> Vec<Open> {
+        self.finished.extend(self.open.take());
+        self.finished
+    }
+}
+
+/// How [`track`] looks for change.
+pub(super) struct Tracking<'a> {
+    /// The share of the compared pixels that must change for a frame to count.
+    pub(super) threshold: f64,
+    /// Only compare this part of the frame, as fractions `[x, y, width, height]` of it.
+    pub(super) crop: Option<[f64; 4]>,
+    /// What size to decode at.
+    pub(super) scale: Scale,
+    /// Stop early once this is set.
+    pub(super) cancel: Option<&'a std::sync::atomic::AtomicBool>,
+}
+
+/// What [`track`] found on one display.
+pub(super) struct Tracked {
+    pub(super) spans: Vec<Open>,
+    /// The size of the last frame decoded.
+    pub(super) dimensions: Option<(u32, u32)>,
+    pub(super) examined: usize,
+}
+
+/// Decodes `display` over `from_s..=to_s` and finds the stretches in which it changed: the engine
+/// of `changes` and `motion`, described in the [module](self) documentation.
+pub(super) fn track(
+    video: &SessionVideo,
+    display: u32,
+    from_s: f64,
+    to_s: f64,
+    how: &Tracking,
+) -> eyre::Result<Tracked> {
+    let mut previous: Option<(Vec<u8>, u32, u32)> = None;
+    let mut segments = Segments::default();
+
+    let examined = video.scan(display, from_s, to_s, how.scale, &mut |decoded| {
+        if how
+            .cancel
+            .is_some_and(|cancel| cancel.load(std::sync::atomic::Ordering::Relaxed))
+        {
+            return false;
+        }
+        let (width, height) = (decoded.frame.width, decoded.frame.height);
+        let whole = pixels::luma(&decoded.frame.bgra);
+        let rect = how.crop.map(|crop| pixels::pixel_rect(crop, width, height));
+        let now = match rect {
+            Some(rect) => pixels::crop_luma(&whole, width, rect),
+            None => whole,
+        };
+        let (row, origin) = rect.map_or((width, (0, 0)), |rect| (rect.width, (rect.x, rect.y)));
+
+        if let Some((before, before_width, before_height)) = &previous
+            && (*before_width, *before_height) == (width, height)
+        {
+            let found = pixels::delta(before, &now, row, PIXEL_THRESHOLD);
+            let share = found.share();
+            if share >= how.threshold {
+                let (min_x, min_y, max_x, max_y) = found.bounds.unwrap_or((0, 0, 0, 0));
+                let (min_x, min_y, max_x, max_y) = (
+                    min_x + origin.0,
+                    min_y + origin.1,
+                    max_x + origin.0,
+                    max_y + origin.1,
+                );
+                segments.push(
+                    decoded.shown_s,
+                    share,
+                    found.mean,
+                    (min_x, min_y, max_x, max_y),
+                );
+            }
+        }
+
+        previous = Some((now, width, height));
+        true
+    })?;
+
+    Ok(Tracked {
+        spans: segments.finish(),
+        dimensions: previous.map(|(_, width, height)| (width, height)),
+        examined,
+    })
+}
+
+/// The box `bounds` (pixels) as fractions of a `dimensions` frame: `[x, y, width, height]`.
+pub(super) fn fractions_of(
     bounds: (u32, u32, u32, u32),
+    dimensions: Option<(u32, u32)>,
+) -> [f64; 4] {
+    let (width, height) = dimensions.unwrap_or((1, 1));
+    let (w, h) = (f64::from(width), f64::from(height));
+    [
+        f64::from(bounds.0) / w,
+        f64::from(bounds.1) / h,
+        f64::from(bounds.2 - bounds.0 + 1) / w,
+        f64::from(bounds.3 - bounds.1 + 1) / h,
+    ]
+}
+
+/// Fractions of a display's frame `[x, y, width, height]` in global points.
+pub(super) fn points_of(frame_box: Option<[f64; 4]>, bbox: [f64; 4]) -> Option<[f64; 4]> {
+    frame_box.map(|[x, y, frame_width, frame_height]| {
+        [
+            x + bbox[0] * frame_width,
+            y + bbox[1] * frame_height,
+            bbox[2] * frame_width,
+            bbox[3] * frame_height,
+        ]
+    })
 }
 
 impl Analysis {
@@ -247,86 +395,22 @@ impl Analysis {
                 .find(|entry| entry.result.display.id == *display)
                 .map(|entry| entry.result.display.frame);
 
-            let mut previous: Option<(Vec<u8>, u32, u32)> = None;
-            let mut open: Option<Open> = None;
-            let mut finished: Vec<Open> = Vec::new();
-
-            examined += video.scan(
+            let tracked = track(
+                video,
                 *display,
                 from_s,
                 to_s,
-                Scale::Width(COMPARE_WIDTH),
-                &mut |decoded| {
-                    if cancel
-                        .is_some_and(|cancel| cancel.load(std::sync::atomic::Ordering::Relaxed))
-                    {
-                        return false;
-                    }
-                    let now = luma(decoded);
-                    let (width, height) = (decoded.frame.width, decoded.frame.height);
-
-                    if let Some((before, before_width, before_height)) = &previous
-                        && (*before_width, *before_height) == (width, height)
-                    {
-                        let (mut count, mut min_x, mut min_y, mut max_x, mut max_y) =
-                            (0_usize, u32::MAX, u32::MAX, 0_u32, 0_u32);
-                        for (index, (a, b)) in before.iter().zip(&now).enumerate() {
-                            if (i32::from(*a) - i32::from(*b)).abs() > PIXEL_THRESHOLD {
-                                let (x, y) = (index as u32 % width, index as u32 / width);
-                                count += 1;
-                                min_x = min_x.min(x);
-                                max_x = max_x.max(x);
-                                min_y = min_y.min(y);
-                                max_y = max_y.max(y);
-                            }
-                        }
-
-                        let share = count as f64 / now.len().max(1) as f64;
-                        if share >= threshold {
-                            match &mut open {
-                                Some(span) if decoded.shown_s - span.end <= MERGE_GAP_S => {
-                                    span.end = decoded.shown_s;
-                                    span.frames += 1;
-                                    span.peak = span.peak.max(share);
-                                    span.bounds = (
-                                        span.bounds.0.min(min_x),
-                                        span.bounds.1.min(min_y),
-                                        span.bounds.2.max(max_x),
-                                        span.bounds.3.max(max_y),
-                                    );
-                                }
-                                _ => {
-                                    finished.extend(open.take());
-                                    open = Some(Open {
-                                        start: decoded.shown_s,
-                                        end: decoded.shown_s,
-                                        frames: 1,
-                                        peak: share,
-                                        bounds: (min_x, min_y, max_x, max_y),
-                                    });
-                                }
-                            }
-                        }
-                    }
-
-                    previous = Some((now, width, height));
-                    true
+                &Tracking {
+                    threshold,
+                    crop: None,
+                    scale: Scale::Width(COMPARE_WIDTH),
+                    cancel,
                 },
             )?;
-            finished.extend(open.take());
+            examined += tracked.examined;
 
-            let dimensions = previous
-                .as_ref()
-                .map(|(_, width, height)| (*width, *height));
-            for span in finished {
-                let (width, height) = dimensions.unwrap_or((1, 1));
-                let (w, h) = (f64::from(width), f64::from(height));
-                let bbox = [
-                    f64::from(span.bounds.0) / w,
-                    f64::from(span.bounds.1) / h,
-                    f64::from(span.bounds.2 - span.bounds.0 + 1) / w,
-                    f64::from(span.bounds.3 - span.bounds.1 + 1) / h,
-                ];
+            for span in tracked.spans {
+                let bbox = fractions_of(span.bounds, tracked.dimensions);
                 let events = self
                     .events()
                     .iter()
@@ -344,14 +428,7 @@ impl Analysis {
                     frames: span.frames,
                     peak_share: span.peak,
                     bbox,
-                    bbox_points: frame_box.map(|[x, y, frame_width, frame_height]| {
-                        [
-                            x + bbox[0] * frame_width,
-                            y + bbox[1] * frame_height,
-                            bbox[2] * frame_width,
-                            bbox[3] * frame_height,
-                        ]
-                    }),
+                    bbox_points: points_of(frame_box, bbox),
                     events,
                 });
             }
@@ -440,5 +517,39 @@ impl Analysis {
         }
 
         gaps
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frames_close_together_are_one_stretch_and_a_pause_starts_another() {
+        let mut segments = Segments::default();
+        segments.push(1.0, 0.10, 5.0, (4, 4, 5, 5));
+        segments.push(1.1, 0.20, 9.0, (2, 6, 3, 8)); // 0.1 s later: the same stretch
+        segments.push(2.0, 0.05, 1.0, (0, 0, 0, 0)); // a second later: another
+
+        let found = segments.finish();
+        assert_eq!(found.len(), 2);
+        assert_eq!(
+            (found[0].start, found[0].end, found[0].frames),
+            (1.0, 1.1, 2)
+        );
+        assert_eq!((found[0].peak, found[0].peak_delta), (0.20, 9.0));
+        assert_eq!(found[0].bounds, (2, 4, 5, 8));
+        assert_eq!((found[1].start, found[1].frames), (2.0, 1));
+    }
+
+    #[test]
+    fn a_box_is_fractions_of_the_frame_and_then_points_of_the_display() {
+        let bbox = fractions_of((10, 5, 19, 9), Some((100, 50)));
+        assert_eq!(bbox, [0.1, 0.1, 0.1, 0.1]);
+        assert_eq!(
+            points_of(Some([1000.0, 0.0, 2000.0, 1000.0]), bbox),
+            Some([1200.0, 100.0, 200.0, 100.0])
+        );
+        assert_eq!(points_of(None, bbox), None);
     }
 }

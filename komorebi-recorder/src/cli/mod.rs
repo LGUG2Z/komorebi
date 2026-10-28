@@ -47,7 +47,11 @@ pub use query::LocateArgs;
 pub use query::RangeArgs;
 pub use query::SummaryArgs;
 pub use record::RecordArgs;
+pub use video::BlankArgs;
 pub use video::ChangesArgs;
+pub use video::CompareArgs;
+pub use video::FramediffArgs;
+pub use video::MotionArgs;
 pub use video::SheetArgs;
 pub use viewer_command::ViewArgs;
 
@@ -116,6 +120,14 @@ pub enum Command {
     Trace(TraceArgs),
     /// When and where on each display the picture changed
     Changes(ChangesArgs),
+    /// When, and how hard, a display or a region of it was moving
+    Motion(MotionArgs),
+    /// How two frames differ: changed share, brightness delta, box of change, optional PNG
+    Framediff(FramediffArgs),
+    /// When a region was blank (one colour, such as white) or frozen
+    Blank(BlankArgs),
+    /// Two recordings side by side: frames, motion, findings, annotations
+    Compare(CompareArgs),
     /// A contact sheet image of frames, with the times, events and bug region marked
     Sheet(SheetArgs),
     /// Open a recording in a window: play and scrub the video with every event on a timeline
@@ -189,6 +201,10 @@ impl Command {
             Self::Window(args) => args.json,
             Self::Changes(args) => args.json,
             Self::Sheet(args) => args.json,
+            Self::Motion(args) => args.json,
+            Self::Framediff(args) => args.json,
+            Self::Blank(args) => args.json,
+            Self::Compare(args) => args.json,
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
             Self::Doctor(args) => args.json,
@@ -251,6 +267,10 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Changes(args) => video::changes(&args),
         Command::View(args) => crate::viewer::run(args.session),
         Command::Sheet(args) => video::sheet(&args),
+        Command::Motion(args) => video::motion(&args),
+        Command::Framediff(args) => video::framediff(&args),
+        Command::Blank(args) => video::blank(&args),
+        Command::Compare(args) => video::compare(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
         Command::Reindex(args) => reindex(&args),

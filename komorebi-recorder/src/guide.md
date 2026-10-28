@@ -96,6 +96,11 @@ locations as hints.
   `unmanaged-window` (on screen and not managed: usually right, and komorebi's explanation is
   quoted), and `trace event:N` shows the facts. Without the probe none of that is knowable, and
   `overview` says nothing about it.
+- To measure the picture instead of scripting `ffmpeg`: `motion` (when a display or `--region x,y,w,h` moved,
+  and how hard), `framediff <a> <b>` (what changed between two moments; `--png` shows where),
+  `blank --region x,y,w,h` (when a region went one colour, such as white, or froze) and
+  `compare <a> <b>` (two recordings' frames, motion and findings side by side). Regions are in display
+  points, the same as the `bbox_points` of `changes`. They need a host that can decode the video.
 - Video time `00:00.000` is the first frame of any display. A display that was unplugged, asleep
   or whose capture failed has a gap, and `incident` records say why.
 

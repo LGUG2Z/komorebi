@@ -8,6 +8,7 @@
 //! bound ([`budget`]).
 
 pub mod answers;
+pub mod blank;
 pub mod blocks;
 pub mod brief;
 pub mod budget;
@@ -15,11 +16,13 @@ pub mod catalog;
 pub mod changes;
 pub mod classify;
 pub mod code;
+pub mod compare;
 pub mod diff;
 pub mod envelope;
 pub mod events;
 pub mod facade;
 pub mod flavor;
+pub mod framediff;
 pub mod ghost;
 pub mod guard;
 pub mod history;
@@ -28,8 +31,10 @@ pub mod invariants;
 pub mod logparse;
 pub mod logq;
 pub mod lookup;
+pub mod motion;
 pub mod os_trace;
 pub mod overview;
+pub mod pixels;
 pub mod probed;
 pub mod schemas;
 pub mod search;
