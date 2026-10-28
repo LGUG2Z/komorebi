@@ -187,10 +187,19 @@
   ],
   "$defs": {
     "AnimationPrefix": {
-      "type": "string",
-      "enum": [
-        "movement",
-        "transparency"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "movement",
+            "transparency"
+          ]
+        },
+        {
+          "description": "A workspace sliding in and out of a monitor when it is switched to",
+          "type": "string",
+          "const": "workspace"
+        }
       ]
     },
     "AnimationStyle": {

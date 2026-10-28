@@ -16,7 +16,7 @@ Options:
   -a, --animation-type <ANIMATION_TYPE>
           Animation type to apply the style to. If not specified, sets global style
           
-          [possible values: movement, transparency]
+          [possible values: movement, transparency, workspace]
 
   -h, --help
           Print help
