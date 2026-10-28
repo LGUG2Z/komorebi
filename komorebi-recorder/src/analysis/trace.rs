@@ -432,13 +432,27 @@ impl Analysis {
             };
 
         if let Some(block) = block {
-            if let Some(ms) = pair.handler_ms
+            if let Some(ms) = pair.delivery_ms
                 && ms >= 100.0
             {
                 notes.push(format!(
-                    "the handler took at least {ms:.0} ms from its header to the notification: {}",
-                    self.flavor().rules().slow_handler_cause()
+                    "komorebi sent this notification {ms:.0} ms before the recorder received it: that is delivery delay (it was queued), not the handler being slow. Go by the pushed time, not the received time, for when komorebi acted"
                 ));
+            }
+            if let Some(ms) = pair.handler_ms
+                && ms >= 100.0
+            {
+                if pair.quality == super::blocks::Quality::Pushed {
+                    notes.push(format!(
+                        "the handler took at least {ms:.0} ms from its header to the notification: {}",
+                        self.flavor().rules().slow_handler_cause()
+                    ));
+                } else {
+                    notes.push(format!(
+                        "the notification was received {ms:.0} ms after the handler's header. That may be delivery delay and not komorebi being slow, because the log has no push time to tell them apart. If komorebi was slow: {}",
+                        self.flavor().rules().slow_handler_cause()
+                    ));
+                }
             }
             if block.errors + block.warnings > 0 {
                 notes.push(format!(

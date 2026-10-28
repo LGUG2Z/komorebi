@@ -292,6 +292,11 @@ fn braced(text: &str) -> Option<(&str, &str)> {
 fn parse_fields(text: &str) -> Vec<(String, String)> {
     let mut fields = Vec::new();
     let mut rest = text.trim();
+    // komorebi for Windows writes a command's span as `process_command{FocusWindow(Left)}`, a bare
+    // value with no field name: keep it as the `message` field the flavor's rules read
+    if !rest.is_empty() && !rest.contains('=') {
+        return vec![("message".to_string(), rest.to_string())];
+    }
     while !rest.is_empty() {
         let Some((key, after)) = rest.split_once('=') else {
             break;
@@ -614,5 +619,18 @@ mod tests {
         );
         assert_eq!(without_level, 0);
         assert!(without_target * 1000 <= structured.len());
+    }
+
+    #[test]
+    fn a_span_with_a_bare_value_is_its_message() {
+        let parsed = parse(
+            b"2026-10-28T15:46:20.730173Z  INFO process_command{FocusWindow(Left)}: komorebi::process_command: processed
+",
+        );
+        let fields = &parsed[0].spans[0].fields;
+        assert_eq!(
+            fields,
+            &[("message".to_string(), "FocusWindow(Left)".to_string())]
+        );
     }
 }

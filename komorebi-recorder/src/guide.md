@@ -65,6 +65,18 @@ locations as hints.
   it was received.
 - komorebi logs no handler *end* line for events at INFO, and cannot show time spent waiting for the
   lock or in accessibility calls before the handler's header. `handler_ms` is a lower bound.
+- A receive time is also when the recorder *got* the notification, which can be well after komorebi
+  sent it: notifications are sometimes delivered in clumps. komorebi's own send time is its DEBUG log
+  line `pushed notification to subscriber:`; where the log has it, an event's handler gives
+  `pushed_video_s` and `delivery_ms` beside the received `video_s`, and `handler_ms` ends at the
+  push. A large `delivery_ms`, or a `delivery-batching` finding, means delay between komorebi and
+  the recorder, not komorebi being slow: go by the pushed time. A `slow-handler` finding without a
+  push time may be the same thing, and says so.
+- Every command that takes a time takes the same forms: video time (`12.5`, `1:02.5`, `1:02:03`),
+  `logtime:15:46:22.743` (a UTC time of day as komorebi's log writes it, on the session's date;
+  `wall:15:46:22.743` is the same), `wall:<RFC 3339>`, `mach:<ns>`, `event:N`, `log:N`, `incident:N`,
+  `bug:<id>`, each with an offset like `+3s`. A bare `15:46:22` is video time, never a log time:
+  the prefix is what makes it one.
 - The state in a notification is the state *after* the event, plus anything background threads did
   since the last one. States can be stale: `age_ms` in `origin` says how long.
 - An `AXError` in komorebi's log comes from the application or the OS, not from komorebi.

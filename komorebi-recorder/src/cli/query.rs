@@ -2,7 +2,9 @@
 //!
 //! These read the session's timeline directly (see [`crate::timeline`]), not through an `Analysis`,
 //! so they say what was recorded without interpreting it as the output of one komorebi or the
-//! other. Times are video timecodes ([`crate::timecode`]).
+//! other. A time is a video timecode ([`crate::timecode`]) or any other form of
+//! [`TimeSpec`](crate::analysis::timespec::TimeSpec): `logtime:15:46:22.743`, `wall:...`, `mach:...`,
+//! `event:12`, `bug:...`, with an offset such as `+3s`.
 //!
 //! | Command | Asks | Prints |
 //! |---|---|---|
@@ -23,6 +25,11 @@
 use super::limit;
 use super::load;
 use super::print_json;
+use crate::analysis::Analysis;
+use crate::analysis::timespec::Anchor;
+use crate::analysis::timespec::Edge;
+use crate::analysis::timespec::Lookup;
+use crate::analysis::timespec::TimeSpec;
 use crate::frames;
 use crate::report;
 use crate::timecode;
@@ -69,7 +76,7 @@ impl FilterArgs {
 pub struct AtArgs {
     /// Session directory
     pub session: PathBuf,
-    /// Video timecode: 12.5, 00:12.500 or 1:02:03
+    /// Video timecode (12.5, 00:12.500, 1:02:03), or logtime:15:46:22.743, wall:..., event:12, ...
     pub time: String,
     /// How far either side of the timecode to look
     #[arg(long, default_value = "1s")]
@@ -84,9 +91,9 @@ pub struct AtArgs {
 pub struct RangeArgs {
     /// Session directory
     pub session: PathBuf,
-    /// Start timecode
+    /// Start: a video timecode, or logtime:15:46:22.743, wall:..., event:12, ...
     pub from: String,
-    /// End timecode
+    /// End: the same forms
     pub to: String,
     /// What to look at, and how to print it
     #[command(flatten)]
@@ -121,7 +128,8 @@ pub struct SummaryArgs {
 pub struct LocateArgs {
     /// Session directory
     pub session: PathBuf,
-    /// A UTC time (RFC 3339), e.g. 2026-10-26T19:43:35.062613Z
+    /// A UTC time (RFC 3339), e.g. 2026-10-26T19:43:35.062613Z, or a time of day from the log,
+    /// e.g. logtime:15:46:22.743
     #[arg(long, group = "what")]
     pub utc: Option<String>,
     /// A 1-based line number in the session's komorebi.log
@@ -183,9 +191,61 @@ fn hint_unknown_app(manifest: &crate::session::Manifest, filter: &FilterArgs, em
     }
 }
 
+/// A lookup for names that point at nothing in the session: `event:12` is not understood here, and
+/// `time_arg` opens the whole analysis for those instead.
+struct NoItems;
+
+impl NoItems {
+    fn refuse<T>() -> eyre::Result<T> {
+        Err(crate::analysis::envelope::usage(
+            "this time names an item of the session",
+        ))
+    }
+}
+
+impl Lookup for NoItems {
+    fn event_mach_ns(&self, _: u64, _: Edge) -> eyre::Result<u64> {
+        Self::refuse()
+    }
+    fn log_mach_ns(&self, _: u64) -> eyre::Result<u64> {
+        Self::refuse()
+    }
+    fn incident_mach_ns(&self, _: u64) -> eyre::Result<u64> {
+        Self::refuse()
+    }
+    fn annotation_span(&self, _: &str) -> eyre::Result<(u64, Option<u64>)> {
+        Self::refuse()
+    }
+}
+
+/// Reads a time argument as seconds of video time.
+///
+/// Any [`TimeSpec`] is accepted: a video timecode (which is read exactly as [`timecode::parse`]
+/// reads it, so existing usage is unchanged), a log time, `wall:`, `mach:`, and the names of events,
+/// log lines, incidents and annotations, each with an optional offset. What does not parse as a
+/// `TimeSpec` is tried as a timecode before giving up, and the `TimeSpec` error, which says what the
+/// forms are, is the one reported.
+fn time_arg(
+    text: &str,
+    dir: &std::path::Path,
+    manifest: &crate::session::Manifest,
+) -> eyre::Result<f64> {
+    let spec = match text.parse::<TimeSpec>() {
+        Ok(spec) => spec,
+        Err(error) => return timecode::parse(text).map_err(|_| error),
+    };
+
+    match spec.anchor {
+        // no clamping or round trip through the master clock: the same number as ever
+        Anchor::Video(seconds) => Ok(seconds + spec.offset_s),
+        Anchor::Item { .. } => Ok(Analysis::open(dir)?.resolve(text)?.video_s),
+        _ => Ok(spec.resolve(manifest, &NoItems)?.video_s),
+    }
+}
+
 pub(super) fn at(args: &AtArgs) -> eyre::Result<()> {
     let (session, manifest) = load(&args.session)?;
-    let center = timecode::parse(&args.time)?;
+    let center = time_arg(&args.time, &args.session, &manifest)?;
     let window = timecode::parse_span(&args.window)?;
     let (from, to) = (center - window, center + window);
 
@@ -219,8 +279,8 @@ pub(super) fn at(args: &AtArgs) -> eyre::Result<()> {
 
 pub(super) fn range(args: &RangeArgs) -> eyre::Result<()> {
     let (session, manifest) = load(&args.session)?;
-    let from = timecode::parse(&args.from)?;
-    let to = timecode::parse(&args.to)?;
+    let from = time_arg(&args.from, &args.session, &manifest)?;
+    let to = time_arg(&args.to, &args.session, &manifest)?;
     if to < from {
         eyre::bail!(
             "the range end {} is before its start {}",
@@ -272,11 +332,26 @@ pub(super) fn summary(args: &SummaryArgs) -> eyre::Result<()> {
 pub(super) fn locate(args: &LocateArgs) -> eyre::Result<()> {
     let (session, manifest) = load(&args.session)?;
     let locator = if let Some(utc) = &args.utc {
-        let time: DateTime<Utc> = DateTime::parse_from_rfc3339(utc)
-            .wrap_err_with(|| {
-                format!("'{utc}' is not an RFC 3339 time like 2026-10-26T19:43:35.062613Z")
+        let time: DateTime<Utc> = if utc.starts_with("logtime:") || utc.starts_with("log-time:") {
+            // a time of day from the log: on the session's date, through the master clock
+            let moment = time_arg(utc, &args.session, &manifest)?;
+            let wall_us = crate::clock::ClockMap::new(manifest.anchors.clone())
+                .mach_to_wall(manifest.mach_at_video_seconds(moment))
+                .ok_or_else(|| {
+                    crate::analysis::envelope::unusable("the session has no clock anchors")
+                })?;
+            DateTime::from_timestamp_micros(wall_us).ok_or_else(|| {
+                crate::analysis::envelope::unusable(format!("{wall_us} is not a time"))
             })?
-            .with_timezone(&Utc);
+        } else {
+            DateTime::parse_from_rfc3339(utc)
+                .wrap_err_with(|| {
+                    format!(
+                        "'{utc}' is not an RFC 3339 time like 2026-10-26T19:43:35.062613Z, or a log time like logtime:15:46:22.743"
+                    )
+                })?
+                .with_timezone(&Utc)
+        };
         Locator::Utc(time)
     } else if let Some(line) = args.log_line {
         Locator::LogLine(line)
@@ -300,7 +375,7 @@ pub(super) fn frames_command(args: &FramesArgs) -> eyre::Result<()> {
     let times = args
         .times
         .iter()
-        .map(|time| timecode::parse(time))
+        .map(|time| time_arg(time, &args.session, &manifest))
         .collect::<eyre::Result<Vec<_>>>()?;
 
     let extraction = frames::extract(&session, &manifest, &times, args.display)?;

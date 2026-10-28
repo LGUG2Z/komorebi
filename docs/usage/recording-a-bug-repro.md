@@ -186,7 +186,8 @@ session.
 
 ## Asking questions of a session
 
-Times are video timecodes: `12.5`, `00:12.500` or `1:02:03`. Video `00:00.000` is the first captured frame.
+Times are video timecodes: `12.5`, `00:12.500` or `1:02:03`, or a time from komorebi's log such as
+`logtime:15:46:22.743` (UTC), or `wall:...`, `event:12`. Video `00:00.000` is the first captured frame.
 
 ```
 # everything within +-1s of 12.5s, grouped by source

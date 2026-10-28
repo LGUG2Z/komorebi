@@ -93,8 +93,14 @@ komorebi-recorder annotate <session> add --kind bug --start 12.5 --end 18 \
 komorebi-recorder annotations <session>
 ```
 
-Times can be a video timecode (`12.5`, `1:02.5`), `wall:<RFC 3339>`, `event:<seq>`, `log:<line>`, `incident:<n>` or
-`bug:<id>` (`.start` or `.end`), each with an offset such as `+3s`. `event:12` is when komorebi began handling event 12
+Times can be a video timecode (`12.5`, `1:02.5`), `logtime:<HH:MM:SS.mmm>`, `wall:<RFC 3339>`, `mach:<ns>`,
+`event:<seq>`, `log:<line>`, `incident:<n>` or `bug:<id>` (`.start` or `.end`), each with an offset such as `+3s`. Every
+command that takes a time (`at`, `range`, `frames`, `trace`, `diff`, `events`, ...) takes all of them.
+
+`logtime:15:46:22.743` is a time of day as komorebi's log writes it (UTC), so a log line can be quoted as it is; the
+date comes from the recording (the one on which the time falls inside it, if the recording crosses midnight).
+`wall:15:46:22.743` means the same. It needs the prefix because a bare `1:02:03` is video time, and the two cannot be
+told apart by their digits. `event:12` is when komorebi began handling event 12
 and `event:12.end` when it finished.
 
 ## Commands
@@ -138,6 +144,10 @@ the same.
 
 - The event timestamp is when komorebi finished the handler. Time spent waiting for its lock or in accessibility calls
   before the handler's first log line is invisible, so `handler_ms` is a lower bound.
+- The recorder can receive notifications long after komorebi sent them, and in clumps. komorebi's own send time is its
+  `pushed notification to subscriber:` DEBUG line; `events --json` shows it as `pushed_video_s` next to the received
+  `video_s`, with `delivery_ms` between them, and `overview` reports a `delivery-batching` finding (info) instead of a
+  slow handler. A `slow-handler` finding in a log without push lines is marked as possibly delivery delay.
 - At the default `info` level there is no log line for the end of an event handler, and few for the decisions inside it.
   Start komorebi with `--log-level trace` before recording a bug you intend to investigate.
 - The `rect` of a window in the state is read live from the accessibility API when the state is serialized: it is where

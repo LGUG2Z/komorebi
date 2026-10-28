@@ -21,7 +21,8 @@
 //! | `window-flapping` | one window's hidden state flipping (parked in komorebi's hiding position, or brought back) at least 4 times within 10 s | warn |
 //! | `focus-oscillation` | focus changing at least 4 times within 5 s between at most two windows | warn |
 //! | `event-storm` | 20 or more events within 1 s | warn for 60 or more, else info |
-//! | `slow-handler` | a handler that took at least 250 ms from its header to its notification: the 10 slowest | warn for 1 s or more, else info |
+//! | `slow-handler` | a handler that took at least 250 ms from its header to komorebi sending its notification (or, with no `pushed notification` line to say when, to the recorder receiving it): the 10 slowest | warn for 1 s or more when komorebi's own send time confirms it; info otherwise, and the text then says it may be delivery delay |
+//! | `delivery-batching` | three or more events received within 50 ms of each other that komorebi sent over 250 ms or more: the notifications were queued before the recorder got them, which is not a slow handler | info |
 //! | `monitor-churn` | two or more display notifications, each within 5 s of the first | warn |
 //! | `log-error`, `log-warning` | komorebi log lines at `ERROR` or `WARN`: one finding for each module and message, where messages that differ only in digits are the same | warn for `log-error`, info for `log-warning` |
 //! | `incident:<kind>` | something the recorder noted about the machine: a display plugged or unplugged, a sleep, a capture that failed | warn for `capture-failed`, `log-stream-lost` and `komorebi-exited`, else info |
@@ -42,6 +43,7 @@
 //! ([`Rules::slow_handler_cause`](super::flavor::Rules::slow_handler_cause)).
 
 use super::Analysis;
+use super::blocks::Quality;
 use super::classify::Class;
 use super::events::Family;
 use super::invariants;
@@ -77,7 +79,7 @@ pub const PRE_ROLL_NS: u64 = 10_000_000_000;
 pub struct Finding {
     /// `invariant:<kind>` (including the ones read from Windows' own account of a window when the
     /// recording was made with `--probe-windows`), `window-flapping`, `focus-oscillation`,
-    /// `event-storm`, `slow-handler`, `log-error`, `log-warning`, `monitor-churn` or
+    /// `event-storm`, `slow-handler`, `delivery-batching`, `log-error`, `log-warning`, `monitor-churn` or
     /// `incident:<kind>`.
     pub kind: String,
     /// How serious it is. For an `invariant:` finding it is the violation's, lowered one step if it
@@ -732,18 +734,28 @@ impl Analysis {
         slow.sort_by(|a, b| b.1.total_cmp(&a.1));
         for (index, ms) in slow.into_iter().take(10) {
             let event = &events[index];
+            // only a pairing with komorebi's own send time measures the handler: otherwise the
+            // time is up to the recorder receiving the notification, which a queue can delay
+            let exact = pairing.pairs[index].quality == Quality::Pushed;
+            let cause = self.flavor().rules().slow_handler_cause();
             let mut finding = self.finding(
                 "slow-handler",
-                if ms >= 1000.0 {
+                if exact && ms >= 1000.0 {
                     Severity::Warn
                 } else {
                     Severity::Info
                 },
-                format!(
-                    "{} took at least {ms:.0} ms to handle: {}",
-                    event.info.summary(),
-                    self.flavor().rules().slow_handler_cause()
-                ),
+                if exact {
+                    format!(
+                        "{} took at least {ms:.0} ms to handle: {cause}",
+                        event.info.summary()
+                    )
+                } else {
+                    format!(
+                        "{} was received {ms:.0} ms after its handler began. This may be delivery delay (the notification was queued before the recorder got it) and not komorebi being slow, because the log has no push time to tell them apart. If komorebi was slow: {cause}",
+                        event.info.summary()
+                    )
+                },
                 event.recv_mach_ns.saturating_sub((ms * 1e6) as u64),
                 event.recv_mach_ns,
             );
@@ -751,6 +763,8 @@ impl Analysis {
             finding.next = Some(format!("komorebi-recorder trace {dir} event:{}", event.seq));
             found.push(finding);
         }
+
+        self.find_delivery_batching(found);
 
         // display changes arriving together
         let monitor: Vec<usize> = (0..events.len())
@@ -792,6 +806,79 @@ impl Analysis {
         }
 
         let _ = Class::Echo;
+    }
+
+    /// Notifications that komorebi sent over a stretch of time but the recorder received together.
+    ///
+    /// A run of at least three events received within 50 ms of each other whose send times (the
+    /// `pushed notification` line, else the handler's header) are spread over at least 250 ms was
+    /// delivered in a batch. The delay is between komorebi and the recorder, so it is not a slow
+    /// handler, and the log times, not the receive times, say when komorebi acted.
+    fn find_delivery_batching(&self, found: &mut Vec<Finding>) {
+        let events = self.events();
+        let pairing = self.pairing();
+        let dir = self.session.dir.display().to_string();
+        let log = self.log();
+
+        // when komorebi sent (or at least began handling) each event, where the log says
+        let sent = |index: usize| -> Option<(u64, bool)> {
+            let pair = &pairing.pairs[index];
+            pair.pushed_mach_ns.map(|ns| (ns, true)).or_else(|| {
+                pair.block
+                    .and_then(|id| log.blocks.get(id))
+                    .map(|block| (block.header_mach_ns, false))
+            })
+        };
+
+        let mut start = 0;
+        while start < events.len() {
+            let mut stop = start;
+            while stop + 1 < events.len()
+                && events[stop + 1].recv_mach_ns - events[stop].recv_mach_ns <= 50_000_000
+            {
+                stop += 1;
+            }
+
+            let times: Vec<(u64, bool)> = (start..=stop).filter_map(sent).collect();
+            let known = times.len();
+            let earliest = times.iter().map(|(ns, _)| *ns).min();
+            let latest = times.iter().map(|(ns, _)| *ns).max();
+            if let (true, Some(earliest), Some(latest)) = (known >= 3, earliest, latest)
+                && latest - earliest >= 250_000_000
+            {
+                let (first, last) = (&events[start], &events[stop]);
+                let by_push = times.iter().all(|(_, pushed)| *pushed);
+                let behind = last.recv_mach_ns.saturating_sub(earliest) as f64 / 1e3;
+                let mut finding = self.finding(
+                    "delivery-batching",
+                    Severity::Info,
+                    format!(
+                        "{} events were received within {:.0} ms of each other, but {} sent them over {:.1} s, the first {:.1} s before they were received. This is delivery delay between komorebi and the recorder, not slow handlers: go by the log's times (a handler's `pushed_video_s` in `events --json`) for when komorebi acted, not by the received times",
+                        stop - start + 1,
+                        last.recv_mach_ns.saturating_sub(first.recv_mach_ns) as f64 / 1e6,
+                        if by_push {
+                            "komorebi's own log shows it"
+                        } else {
+                            "the handler headers in komorebi's log show it"
+                        },
+                        (latest - earliest) as f64 / 1e9,
+                        behind / 1e6,
+                    ),
+                    earliest,
+                    last.recv_mach_ns,
+                );
+                finding.refs = vec![
+                    format!("event:{}", first.seq),
+                    format!("event:{}", last.seq),
+                ];
+                finding.next = Some(format!(
+                    "komorebi-recorder events {dir} --from event:{} --to event:{}",
+                    first.seq, last.seq
+                ));
+                found.push(finding);
+            }
+            start = stop + 1;
+        }
     }
 
     fn find_log_problems(&self, found: &mut Vec<Finding>) {

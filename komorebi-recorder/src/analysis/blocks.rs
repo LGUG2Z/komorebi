@@ -70,6 +70,7 @@ use super::flavor::BlockHeader;
 use super::flavor::Rules;
 use super::logparse::Level;
 use super::logparse::Line;
+use super::logparse::Span;
 use crate::clock::ClockMap;
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -189,13 +190,28 @@ pub fn build(lines: &[Line], clock: &ClockMap, rules: &dyn Rules) -> Vec<Block> 
 
     let mut blocks: Vec<Block> = Vec::new();
     let mut open: Option<usize> = None;
+    // the root span a command block was opened with, to tell two commands of the same name apart
+    let mut command_span: Option<&Span> = None;
 
     for line in lines.iter().filter(|line| !line.continuation) {
         let Some(time) = mach(line) else {
             continue;
         };
 
-        if let Some(header) = rules.block_header(line, open.map(|index| &blocks[index])) {
+        let mut header = rules.block_header(line, open.map(|index| &blocks[index]));
+        // a command that failed leaves its block open, and the next command of the same name, with
+        // other arguments, is another handler
+        if header.is_none()
+            && line.root_span() == Some("process_command")
+            && open.is_some_and(|index| blocks[index].kind == BlockKind::Command)
+            && command_span.is_some_and(|span| line.spans.first() != Some(span))
+        {
+            header = rules.block_header(line, None);
+        }
+        if let Some(header) = header {
+            if header.kind == BlockKind::Command {
+                command_span = line.spans.first();
+            }
             blocks.push(new_block(blocks.len(), header, line.number, time));
             open = Some(blocks.len() - 1);
             continue;
@@ -289,8 +305,20 @@ pub struct Pair {
     pub quality: Quality,
     /// The `pushed notification` line for this event, if there was one.
     pub pushed_line: Option<u64>,
-    /// Milliseconds from the handler's header to the event being received: how long the handler
-    /// took, at least.
+    /// When komorebi logged handing this notification to the recorder, on the master clock in
+    /// nanoseconds: komorebi's own send time, as opposed to the receive time in `events.jsonl`.
+    /// `None` when the log has no such line for this event.
+    #[serde(default)]
+    pub pushed_mach_ns: Option<u64>,
+    /// Milliseconds from komorebi sending the notification (`pushed_mach_ns`) to the recorder
+    /// receiving it. Near 0 normally; a large value means the notification sat in a socket or a
+    /// queue, which is delivery delay and not komorebi's doing. `None` when the send time is not
+    /// known.
+    #[serde(default)]
+    pub delivery_ms: Option<f64>,
+    /// Milliseconds the handler took, at least. From its header to the push when the push is known
+    /// and was not received at once (so that delivery delay is not counted as handling), otherwise
+    /// from its header to the event being received.
     pub handler_ms: Option<f64>,
 }
 
@@ -301,6 +329,58 @@ const SLACK_NS: u64 = 25_000_000;
 
 /// How close a `pushed notification` line must be before an event's receipt.
 const PUSH_WINDOW_NS: u64 = 100_000_000;
+
+/// The longest a notification is believed to sit between komorebi sending it and the recorder
+/// receiving it, when lining pushes up with events in order. A push further back than this is not
+/// taken for the event's.
+const MAX_DELIVERY_NS: u64 = 30_000_000_000;
+
+/// How many pushes may be skipped to find the one an event matches, when lining them up in order
+/// (a notification the recorder did not keep leaves one over).
+const ALIGN_LOOKAHEAD: usize = 3;
+
+/// Lines komorebi's pushes to `subscriber` up with the events, in order.
+///
+/// komorebi sends to a subscriber over one socket, so the notifications arrive in the order they
+/// were pushed: the first event received is the first push logged, and so on. That identifies the
+/// push, and so the handler, of an event even when it was received long after it was sent, which
+/// the 100 ms window of [`Quality::Pushed`] cannot. A push is taken for an event when it was
+/// logged no later than the event was received (with slack), no more than 30 s before it, and its
+/// block has the event's name; up to three pushes may be skipped to get there. Returns, for each
+/// event, the block id and the push, or `None`.
+fn align<'a>(
+    events: &[EventRecord],
+    blocks: &'a [Block],
+    subscriber: Option<&str>,
+) -> Vec<Option<(usize, &'a Push)>> {
+    let Some(name) = subscriber else {
+        return vec![None; events.len()];
+    };
+
+    let mut pushes: Vec<(usize, &Push)> = blocks
+        .iter()
+        .flat_map(|block| block.pushes.iter().map(move |push| (block.id, push)))
+        .filter(|(_, push)| push.subscriber == name)
+        .collect();
+    pushes.sort_by_key(|(_, push)| push.line);
+
+    let mut next = 0;
+    events
+        .iter()
+        .map(|event| {
+            let found = (next..pushes.len().min(next + 1 + ALIGN_LOOKAHEAD)).find(|index| {
+                let (block, push) = pushes[*index];
+                push.mach_ns <= event.recv_mach_ns.saturating_add(SLACK_NS)
+                    && event.recv_mach_ns.saturating_sub(push.mach_ns) <= MAX_DELIVERY_NS
+                    && blocks[block].name == event.info.name
+            });
+            found.map(|index| {
+                next = index + 1;
+                pushes[index]
+            })
+        })
+        .collect()
+}
 
 /// Returns the subscriber name the recorder registered as, found from which `pushed notification`
 /// lines line up with the recorded events, or `None` if none does.
@@ -383,6 +463,13 @@ fn push_for<'a>(
 /// block, the pair is [`Quality::None`] and has neither a block nor a handler time. A pairing is a
 /// judgement from timing, and only a `Pushed` one is exact.
 ///
+/// With a `subscriber`, the pushes to it are also lined up with the events in order, because
+/// komorebi sends over one socket and the notifications arrive in the order they were pushed. That
+/// pairs an event with its handler even when the recorder received it long after komorebi sent it
+/// (notifications are sometimes delivered in clumps), and gives [`Pair::pushed_mach_ns`] and
+/// [`Pair::delivery_ms`]. Such a pair's `handler_ms` ends at the push, not at the receipt, so that
+/// delivery delay is not counted as handling.
+///
 /// # Performance
 ///
 /// Each event looks at every block, so the cost grows with events times blocks.
@@ -445,9 +532,37 @@ pub fn pair(events: &[EventRecord], blocks: &[Block], subscriber: Option<&str>) 
     let mut previous_recv = 0_u64;
     let mut pairs = Vec::with_capacity(events.len());
 
-    for event in events {
+    // the pushes that line up with an event in order claim their blocks first
+    let aligned = align(events, blocks, subscriber);
+    for (block, _) in aligned.iter().flatten() {
+        used[*block] = true;
+    }
+
+    for (event, aligned) in events.iter().zip(aligned) {
         let upper = event.recv_mach_ns.saturating_add(SLACK_NS);
         let lower = previous_recv.saturating_sub(SLACK_NS);
+
+        if let Some((id, push)) = aligned {
+            let delivery_ns = event.recv_mach_ns.saturating_sub(push.mach_ns);
+            // a notification received long after it was sent says nothing about the handler: count
+            // the handler until komorebi sent it
+            let until = if delivery_ns > PUSH_WINDOW_NS {
+                push.mach_ns
+            } else {
+                event.recv_mach_ns
+            };
+            pairs.push(Pair {
+                seq: event.seq,
+                block: Some(id),
+                quality: Quality::Pushed,
+                pushed_line: Some(push.line),
+                pushed_mach_ns: Some(push.mach_ns),
+                delivery_ms: Some(delivery_ns as f64 / 1e6),
+                handler_ms: Some(until.saturating_sub(blocks[id].header_mach_ns) as f64 / 1e6),
+            });
+            previous_recv = event.recv_mach_ns;
+            continue;
+        }
 
         let wanted = match event.info.family {
             Family::WindowManager => Some(BlockKind::Event),
@@ -493,6 +608,9 @@ pub fn pair(events: &[EventRecord], blocks: &[Block], subscriber: Option<&str>) 
                     Quality::Header
                 },
                 pushed_line: push.map(|push| push.line),
+                pushed_mach_ns: push.map(|push| push.mach_ns),
+                delivery_ms: push
+                    .map(|push| event.recv_mach_ns.saturating_sub(push.mach_ns) as f64 / 1e6),
                 handler_ms: Some(
                     event.recv_mach_ns.saturating_sub(block.header_mach_ns) as f64 / 1e6,
                 ),
@@ -503,6 +621,8 @@ pub fn pair(events: &[EventRecord], blocks: &[Block], subscriber: Option<&str>) 
                 block: None,
                 quality: Quality::None,
                 pushed_line: None,
+                pushed_mach_ns: None,
+                delivery_ms: None,
                 handler_ms: None,
             }
         };
@@ -826,5 +946,55 @@ mod tests {
             in_blocks * 10 >= handler_lines * 7,
             "most handler lines are in a block"
         );
+    }
+
+    #[test]
+    fn notifications_received_late_are_lined_up_with_their_pushes_in_order() {
+        let push =
+            "process_event: komorebi: pushed notification to subscriber: komorebi-recorder-1";
+        let lines = log(&[
+            (1.0, "INFO", HEADER),
+            (1.005, "DEBUG", push),
+            (2.0, "INFO", HEADER),
+            (2.005, "DEBUG", push),
+        ]);
+        let blocks = build(&lines, &clock(), Flavor::Macos.rules());
+        // both are received together at 5 s: the second block is not "the latest before receipt"
+        let events = vec![event(1, 5.000, move_end(10)), event(2, 5.001, move_end(10))];
+
+        let pairs = pair(&events, &blocks, Some("komorebi-recorder-1"));
+        assert_eq!(pairs[0].block, Some(0));
+        assert_eq!(pairs[1].block, Some(1));
+        for pair in &pairs {
+            assert_eq!(pair.quality, Quality::Pushed);
+            assert!((pair.handler_ms.expect("handler") - 5.0).abs() < 0.01);
+        }
+        assert!((pairs[0].delivery_ms.expect("delivery") - 3995.0).abs() < 0.01);
+        assert_eq!(pairs[1].pushed_mach_ns, Some(testkit::mach_ns(2.005)));
+
+        // without the subscriber, nothing says when komorebi sent them
+        let unpushed = pair(&events, &blocks, None);
+        assert_eq!(unpushed[0].quality, Quality::Header);
+        assert_eq!(unpushed[0].pushed_mach_ns, None);
+    }
+
+    #[test]
+    fn a_push_for_an_event_that_was_not_recorded_is_skipped() {
+        let push =
+            "process_event: komorebi: pushed notification to subscriber: komorebi-recorder-1";
+        let focus = "process_event: komorebi::process_event: processing event: FocusChange for process 11 with notification AXApplicationActivated";
+        let lines = log(&[
+            (1.0, "INFO", focus),
+            (1.005, "DEBUG", push),
+            (2.0, "INFO", HEADER),
+            (2.005, "DEBUG", push),
+        ]);
+        let blocks = build(&lines, &clock(), Flavor::Macos.rules());
+        // the recorder missed the first notification
+        let events = vec![event(1, 2.01, move_end(10))];
+
+        let pairs = pair(&events, &blocks, Some("komorebi-recorder-1"));
+        assert_eq!(pairs[0].block, Some(1));
+        assert_eq!(pairs[0].quality, Quality::Pushed);
     }
 }

@@ -785,7 +785,7 @@ pub fn events_text(data: &EventsData, verbose: bool) -> String {
             } else {
                 String::new()
             };
-            format!("  handler{ms}{problems}")
+            format!("  handler{ms}{problems}{}", pushed_text(handler))
         });
         let state = match event.state_changed {
             Some(true) => "  state changed",
@@ -1003,22 +1003,31 @@ pub fn trace_text(data: &TraceData) -> String {
         event.reason
     );
     if let Some(handler) = &event.handler {
+        let problems = if handler.errors + handler.warnings > 0 {
+            format!(
+                ", {} error(s), {} warning(s)",
+                handler.errors, handler.warnings
+            )
+        } else {
+            String::new()
+        };
+        let tail = format!("{}{problems}", pushed_text(handler));
         let _ = writeln!(
             out,
             "  handler logged {} line(s) from {}, began {}{}",
             handler.lines,
             timecode::format(handler.started_video_s),
-            handler.handler_ms.map_or_else(String::new, |ms| format!(
-                "{ms:.0} ms before it was received"
-            )),
-            if handler.errors + handler.warnings > 0 {
-                format!(
-                    ", {} error(s), {} warning(s)",
-                    handler.errors, handler.warnings
-                )
-            } else {
-                String::new()
-            }
+            handler.handler_ms.map_or_else(String::new, |ms| {
+                if handler
+                    .delivery_ms
+                    .is_some_and(|delivery| delivery >= DELIVERY_NOTE_MS)
+                {
+                    format!("{ms:.0} ms before komorebi sent the notification")
+                } else {
+                    format!("{ms:.0} ms before it was received")
+                }
+            }),
+            tail
         );
     }
 
@@ -1234,6 +1243,22 @@ pub fn history_text(data: &HistoryData) -> String {
     }
 
     out
+}
+
+/// How long a notification must have been in transit for the text to say when komorebi sent it.
+const DELIVERY_NOTE_MS: f64 = 100.0;
+
+/// `  pushed 00:01.850`: when komorebi sent the notification, if it was well before it was received.
+fn pushed_text(handler: &crate::analysis::views::HandlerView) -> String {
+    match (handler.pushed_video_s, handler.delivery_ms) {
+        (Some(pushed), Some(delivery)) if delivery >= DELIVERY_NOTE_MS => {
+            format!(
+                "  pushed {} ({delivery:.0} ms before received)",
+                timecode::format(pushed)
+            )
+        }
+        _ => String::new(),
+    }
 }
 
 fn event_line(event: &EventView) -> String {

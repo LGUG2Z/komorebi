@@ -70,6 +70,7 @@ pub struct SessionBuilder {
     os_records: Vec<PendingOsRecord>,
     flavor: crate::analysis::flavor::Flavor,
     komorebi_commit: Option<String>,
+    subscriber: Option<String>,
     videos: Vec<PendingVideo>,
 }
 
@@ -92,6 +93,7 @@ impl SessionBuilder {
             os_records: Vec::new(),
             flavor: crate::analysis::flavor::Flavor::Macos,
             komorebi_commit: None,
+            subscriber: None,
             videos: Vec::new(),
         }
     }
@@ -135,6 +137,14 @@ impl SessionBuilder {
     #[must_use]
     pub fn komorebi_commit(mut self, commit: &str) -> Self {
         self.komorebi_commit = Some(commit.to_string());
+        self
+    }
+
+    /// Say the recorder subscribed to komorebi under this name, as the manifest of a real session
+    /// does. It is what a `pushed notification to subscriber:` line in the log is matched to.
+    #[must_use]
+    pub fn subscriber(mut self, name: &str) -> Self {
+        self.subscriber = Some(name.to_string());
         self
     }
 
@@ -236,6 +246,7 @@ impl SessionBuilder {
             ],
         );
         manifest.stop = Some(stop);
+        manifest.komorebi.subscriber.clone_from(&self.subscriber);
         manifest.komorebi.flavor = self.flavor;
         manifest.status = crate::session::STATUS_COMPLETE.to_string();
         manifest.video_t0_mach_ns = Some(T0_MACH_NS);

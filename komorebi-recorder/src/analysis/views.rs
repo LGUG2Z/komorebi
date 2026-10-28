@@ -39,6 +39,15 @@ pub struct HandlerView {
     pub started_video_s: f64,
     /// At least how long the handler took, in milliseconds: header to the event being received.
     pub handler_ms: Option<f64>,
+    /// When komorebi logged sending the notification (its `pushed notification to subscriber`
+    /// line), in video time: komorebi's own send time, next to the `video_s` the recorder received
+    /// it at. Absent when the log has no such line for the event.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pushed_video_s: Option<f64>,
+    /// Milliseconds between komorebi sending the notification and the recorder receiving it. A
+    /// large value is delivery delay (the notification was queued), not komorebi being slow.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_ms: Option<f64>,
     /// How many log lines the handler logged, header included.
     pub lines: usize,
     /// How many of those lines are at level ERROR.
@@ -112,6 +121,8 @@ impl Analysis {
                 last_line: block.last_line,
                 started_video_s: self.video_s(block.header_mach_ns),
                 handler_ms: pair.handler_ms,
+                pushed_video_s: pair.pushed_mach_ns.map(|ns| self.video_s(ns)),
+                delivery_ms: pair.delivery_ms,
                 lines: block.lines.len(),
                 errors: block.errors,
                 warnings: block.warnings,

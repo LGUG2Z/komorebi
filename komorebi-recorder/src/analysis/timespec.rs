@@ -4,6 +4,7 @@
 //! |---|---|
 //! | `12.5`, `1:02.5`, `-1.5` | video time, see [`crate::timecode`] |
 //! | `wall:2026-10-26T20:00:00Z` | a UTC time (RFC 3339) |
+//! | `logtime:15:46:22.743`, `wall:15:46:22.743` | a UTC time of day, as komorebi's log writes it, on the session's date |
 //! | `mach:123456789` | the recorder's master clock, in nanoseconds |
 //! | `event:12`, `log:345`, `incident:2` | when that record happened |
 //! | `bug:a-3f9c1e02`, `bug:a-3f9c1e02.start`, `bug:a-3f9c1e02.end` | an annotation's start or end |
@@ -13,6 +14,21 @@
 //! followed by `.start` or `.end` first (`bug:a-3f9c1e02.end+2s`); the default is the start. The
 //! suffix is accepted after any item reference, but only an event and an annotation have two edges:
 //! on a log line or an incident it changes nothing.
+//!
+//! # Log time
+//!
+//! komorebi's log timestamps are UTC, and a log line is a natural thing to quote: `logtime:15:46:22.743`
+//! (`log-time:` is the same) names that time of day, `HH:MM:SS` with an optional fraction of 1 to 6
+//! digits (milliseconds, or microseconds). `wall:` followed by a time of day instead of an RFC 3339
+//! time (`wall:15:46:22.743`) means the same. It needs no date: it is taken from the session, on the
+//! date the recording started, and if the recording crosses midnight UTC, on the date on which the
+//! time falls inside the recording. A time of day outside the recording is placed on the date
+//! nearest to it, so a log line from just before the recording began is just before it.
+//!
+//! A bare `15:46:22.743` is never a log time: it is video time, `1:02:03` is one hour, two minutes
+//! and three seconds into the video, and a time of day is not told apart from that by its digits (a
+//! recording can be two hours long, and `01:02:03` is both). So log time always has its prefix, and
+//! a prefix never changes what a name without one means.
 //!
 //! Resolving a name never guesses: an unknown event, a log line without a timestamp or an
 //! annotation that does not exist is an error with the "not found" exit code. The one exception is
@@ -67,6 +83,8 @@ use crate::clock::ClockMap;
 use crate::session::Manifest;
 use crate::timecode;
 use chrono::DateTime;
+use chrono::NaiveTime;
+use chrono::Timelike;
 use chrono::Utc;
 use color_eyre::eyre;
 use std::str::FromStr;
@@ -92,6 +110,9 @@ pub enum Anchor {
     Video(f64),
     /// A UTC time (`wall:...`), mapped to the master clock through the session's clock anchors.
     Wall(DateTime<Utc>),
+    /// A UTC time of day with no date (`logtime:15:46:22.743`, `wall:15:46:22.743`): komorebi's log
+    /// timestamps without the day. [`TimeSpec::resolve`] gives it the session's date.
+    TimeOfDay(NaiveTime),
     /// A reading of the master clock in nanoseconds (`mach:...`).
     Mach(u64),
     /// When a recorded item happened: an event, a log line, an incident or an annotation. `edge`
@@ -117,6 +138,8 @@ pub enum Anchor {
 /// - the text is empty or only whitespace: `an empty time`;
 /// - a `wall:` time is not RFC 3339: `'<text>': expected an RFC 3339 time like
 ///   wall:2026-10-26T19:43:35.062613Z`;
+/// - a `logtime:` (or `log-time:`) time is not `HH:MM:SS` with an optional fraction of 1 to 6
+///   digits: `'<text>': expected a UTC time of day like logtime:15:46:22.743`;
 /// - a `mach:` time is not a whole number of nanoseconds: `'<text>': mach: takes nanoseconds, e.g.
 ///   mach:123456`;
 /// - the text starts like an item reference (`event:`, `log:`, `incident:`, `ann:`, `bug:`,
@@ -137,6 +160,11 @@ pub enum Anchor {
 ///
 /// // an offset needs a unit, so this is not an offset and not a timecode
 /// assert!("12.5+3".parse::<TimeSpec>().is_err());
+///
+/// // a time of day as komorebi's log writes it needs its prefix: without it, this is video time
+/// let spec: TimeSpec = "logtime:15:46:22.743+1s".parse()?;
+/// assert!(matches!(spec.anchor, Anchor::TimeOfDay(_)));
+/// assert_eq!("1:02:03".parse::<TimeSpec>()?.anchor, Anchor::Video(3723.0));
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -298,8 +326,61 @@ fn split_offset(text: &str) -> (&str, f64) {
     (text, 0.0)
 }
 
+/// Reads `HH:MM:SS` with an optional fraction of 1 to 6 digits.
+fn parse_time_of_day(text: &str) -> Option<NaiveTime> {
+    let (clock, fraction) = match text.split_once('.') {
+        Some((clock, fraction)) => (clock, Some(fraction)),
+        None => (text, None),
+    };
+
+    let mut parts = clock.split(':');
+    let (hours, minutes, seconds) = (parts.next()?, parts.next()?, parts.next()?);
+    if parts.next().is_some() {
+        return None;
+    }
+
+    let number = |part: &str, width: std::ops::RangeInclusive<usize>| {
+        (width.contains(&part.len()) && part.bytes().all(|byte| byte.is_ascii_digit()))
+            .then(|| part.parse::<u32>().ok())
+            .flatten()
+    };
+    let micros = match fraction {
+        None => 0,
+        Some(digits) => {
+            let value = number(digits, 1..=6)?;
+            // `.5` is half a second, not five microseconds
+            value * 10_u32.pow(6 - u32::try_from(digits.len()).ok()?)
+        }
+    };
+
+    NaiveTime::from_hms_micro_opt(
+        number(hours, 1..=2)?,
+        number(minutes, 2..=2)?,
+        number(seconds, 2..=2)?,
+        micros,
+    )
+}
+
 fn parse_anchor(head: &str, original: &str) -> eyre::Result<Anchor> {
+    if let Some(rest) = head
+        .strip_prefix("logtime:")
+        .or_else(|| head.strip_prefix("log-time:"))
+    {
+        return parse_time_of_day(rest)
+            .map(Anchor::TimeOfDay)
+            .ok_or_else(|| {
+                envelope::usage(format!(
+                    "'{original}': expected a UTC time of day like logtime:15:46:22.743"
+                ))
+            });
+    }
+
     if let Some(rest) = head.strip_prefix("wall:") {
+        // `wall:15:46:22.743` is a time of day; anything else is read as RFC 3339
+        if let Some(time) = parse_time_of_day(rest) {
+            return Ok(Anchor::TimeOfDay(time));
+        }
+
         let time = DateTime::parse_from_rfc3339(rest).map_err(|_| {
             envelope::usage(format!(
                 "'{original}': expected an RFC 3339 time like wall:2026-10-26T19:43:35.062613Z"
@@ -400,6 +481,9 @@ impl TimeSpec {
             Anchor::Wall(time) => ClockMap::new(manifest.anchors.clone())
                 .wall_to_mach(time.timestamp_micros())
                 .ok_or_else(|| envelope::unusable("the session has no clock anchors"))?,
+            Anchor::TimeOfDay(time) => ClockMap::new(manifest.anchors.clone())
+                .wall_to_mach(session_wall_us(*time, manifest))
+                .ok_or_else(|| envelope::unusable("the session has no clock anchors"))?,
             Anchor::Item { item, edge } => match item {
                 ItemRef::Event(seq) => lookup.event_mach_ns(*seq, *edge)?,
                 ItemRef::Log(line) => lookup.log_mach_ns(*line)?,
@@ -422,6 +506,29 @@ impl TimeSpec {
             video_s: manifest.video_seconds(mach_ns),
         })
     }
+}
+
+/// Returns the wall-clock time, in microseconds since the epoch, of UTC time of day `time` on the
+/// date that suits the session: the date on which it falls inside the recording (the recording can
+/// cross midnight), or else the date on which it is nearest to the recording.
+fn session_wall_us(time: NaiveTime, manifest: &Manifest) -> i64 {
+    const DAY_US: i64 = 86_400_000_000;
+
+    let first = manifest.start.wall_us;
+    let last = manifest
+        .stop
+        .map(|stop| stop.wall_us)
+        .into_iter()
+        .chain(manifest.anchors.iter().map(|anchor| anchor.wall_us))
+        .fold(first, i64::max);
+    let of_day = i64::from(time.num_seconds_from_midnight()) * 1_000_000
+        + i64::from(time.nanosecond() / 1000);
+
+    (first.div_euclid(DAY_US) - 1..=last.div_euclid(DAY_US) + 1)
+        .map(|day| day * DAY_US + of_day)
+        // how far outside the recording: 0 inside it
+        .min_by_key(|wall_us| (first - wall_us).max(wall_us - last).max(0))
+        .unwrap_or(first)
 }
 
 /// Returns when the recording ended on the master clock, in nanoseconds.
@@ -592,6 +699,116 @@ mod tests {
                 "{text:?}"
             );
         }
+    }
+
+    #[test]
+    fn a_log_time_is_a_utc_time_of_day_on_the_sessions_date() {
+        // wall 5 s after the epoch is 4 s into the video
+        for text in [
+            "logtime:00:00:05",
+            "log-time:00:00:05.000",
+            "wall:00:00:05",
+            "logtime:0:00:05.0",
+        ] {
+            let resolved = resolve(text).expect(text);
+            assert!(close(resolved.video_s, 4.0), "{text}");
+        }
+        assert!(close(
+            resolve("logtime:00:00:05.250").expect("ms").video_s,
+            4.25
+        ));
+        assert!(close(
+            resolve("logtime:00:00:05.000250").expect("us").video_s,
+            4.00025
+        ));
+        assert!(close(
+            resolve("logtime:00:00:05+2s").expect("offset").video_s,
+            6.0
+        ));
+        assert!(close(
+            resolve("wall:00:00:05-500ms").expect("offset").video_s,
+            3.5
+        ));
+    }
+
+    #[test]
+    fn a_bare_time_of_day_is_still_video_time() {
+        assert_eq!(
+            "1:02:03".parse::<TimeSpec>().expect("clock").anchor,
+            Anchor::Video(3723.0)
+        );
+        assert_eq!(
+            "1:02.5".parse::<TimeSpec>().expect("minutes").anchor,
+            Anchor::Video(62.5)
+        );
+        assert_eq!(
+            "12.5".parse::<TimeSpec>().expect("seconds").anchor,
+            Anchor::Video(12.5)
+        );
+        assert!(matches!(
+            "wall:2026-10-26T20:00:00Z"
+                .parse::<TimeSpec>()
+                .expect("rfc")
+                .anchor,
+            Anchor::Wall(_)
+        ));
+    }
+
+    #[test]
+    fn malformed_log_times_are_usage_errors() {
+        for text in [
+            "logtime:",
+            "logtime:12:00",
+            "logtime:25:00:00",
+            "logtime:12:60:00",
+            "logtime:12:00:00.",
+            "logtime:12:00:00.1234567",
+            "logtime:12:00:00:00",
+            "logtime:noon",
+            "wall:12:00:99",
+        ] {
+            let error = text.parse::<TimeSpec>().expect_err(text);
+            assert_eq!(
+                envelope::exit_kind(&error),
+                envelope::ExitKind::Usage,
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_log_time_takes_the_date_on_which_it_falls_inside_a_recording_that_crosses_midnight() {
+        let day = 86_400_000_000_i64;
+        let start = 20_000 * day + (23 * 3600 + 59 * 60 + 50) * 1_000_000;
+        let mut manifest = Manifest::new(
+            Moment {
+                mach_ns: 100_000_000_000,
+                wall_us: start,
+            },
+            vec![ClockAnchor {
+                mach_ns: 100_000_000_000,
+                wall_us: start,
+            }],
+        );
+        manifest.video_t0_mach_ns = Some(100_000_000_000);
+        manifest.stop = Some(Moment {
+            mach_ns: 130_000_000_000,
+            wall_us: start + 30_000_000,
+        });
+        let video = |text: &str| {
+            text.parse::<TimeSpec>()
+                .and_then(|spec| spec.resolve(&manifest, &Fake))
+                .expect(text)
+                .video_s
+        };
+
+        // before midnight: the day the recording started
+        assert!(close(video("logtime:23:59:55"), 5.0));
+        // after midnight: the next day, which is inside the recording
+        assert!(close(video("logtime:00:00:05"), 15.0));
+        // outside the recording, the nearest date: a minute before and a minute after
+        assert!(close(video("logtime:23:58:50"), -60.0));
+        assert!(close(video("logtime:00:01:10"), 80.0));
     }
 
     #[test]
