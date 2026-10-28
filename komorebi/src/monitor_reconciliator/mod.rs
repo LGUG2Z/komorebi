@@ -22,6 +22,7 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
@@ -217,6 +218,130 @@ where
         .collect::<Vec<_>>())
 }
 
+fn valid_device_id(id: &str) -> bool {
+    !id.is_empty() && id != "UNKNOWN"
+}
+
+fn valid_serial_id(id: &Option<String>) -> bool {
+    id.as_ref()
+        .is_some_and(|id| !id.is_empty() && id != "UNKNOWN")
+}
+
+#[derive(Default)]
+struct MonitorUpdate {
+    changed: bool,
+    layout_changed: bool,
+}
+
+fn update_monitors_from_attached(
+    monitors: &mut VecDeque<Monitor>,
+    attached_devices: &[Monitor],
+) -> MonitorUpdate {
+    let mut assignments = vec![None; monitors.len()];
+    let mut matched_attached = vec![false; attached_devices.len()];
+
+    for (monitor_index, monitor) in monitors.iter().enumerate() {
+        let serial = match &monitor.serial_number_id {
+            Some(serial) if valid_serial_id(&monitor.serial_number_id) => serial,
+            _ => continue,
+        };
+        let monitor_matches = monitors
+            .iter()
+            .enumerate()
+            .filter(|(index, candidate)| {
+                assignments[*index].is_none() && candidate.serial_number_id.as_ref() == Some(serial)
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        let attached_matches = attached_devices
+            .iter()
+            .enumerate()
+            .filter(|(index, candidate)| {
+                !matched_attached[*index] && candidate.serial_number_id.as_ref() == Some(serial)
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if monitor_matches.len() == 1 && attached_matches.len() == 1 {
+            assignments[monitor_index] = Some(attached_matches[0]);
+            matched_attached[attached_matches[0]] = true;
+        }
+    }
+
+    for (monitor_index, monitor) in monitors.iter().enumerate() {
+        if assignments[monitor_index].is_some() || !valid_device_id(&monitor.device_id) {
+            continue;
+        }
+        let monitor_matches = monitors
+            .iter()
+            .enumerate()
+            .filter(|(index, candidate)| {
+                assignments[*index].is_none() && candidate.device_id == monitor.device_id
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        let attached_matches = attached_devices
+            .iter()
+            .enumerate()
+            .filter(|(index, candidate)| {
+                !matched_attached[*index]
+                    && valid_device_id(&candidate.device_id)
+                    && candidate.device_id == monitor.device_id
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if monitor_matches.len() == 1 && attached_matches.len() == 1 {
+            assignments[monitor_index] = Some(attached_matches[0]);
+            matched_attached[attached_matches[0]] = true;
+        }
+    }
+
+    let unmatched_monitors = assignments
+        .iter()
+        .enumerate()
+        .filter_map(|(index, assignment)| assignment.is_none().then_some(index))
+        .collect::<Vec<_>>();
+    let unmatched_attached = matched_attached
+        .iter()
+        .enumerate()
+        .filter_map(|(index, matched)| (!matched).then_some(index))
+        .collect::<Vec<_>>();
+    if monitors.len() == attached_devices.len()
+        && unmatched_monitors.len() == 1
+        && unmatched_attached.len() == 1
+    {
+        assignments[unmatched_monitors[0]] = Some(unmatched_attached[0]);
+    }
+
+    let mut update = MonitorUpdate::default();
+
+    for (index, monitor) in monitors.iter_mut().enumerate() {
+        if let Some(attached_index) = assignments[index] {
+            let attached = &attached_devices[attached_index];
+            let changed = monitor.id != attached.id
+                || monitor.name != attached.name
+                || monitor.device != attached.device
+                || monitor.device_id != attached.device_id
+                || monitor.serial_number_id != attached.serial_number_id
+                || monitor.size != attached.size
+                || monitor.work_area_size != attached.work_area_size;
+            if changed {
+                update.changed = true;
+                update.layout_changed |= monitor.size != attached.size
+                    || monitor.work_area_size != attached.work_area_size;
+                monitor.id = attached.id;
+                monitor.name = attached.name.clone();
+                monitor.device = attached.device.clone();
+                monitor.device_id = attached.device_id.clone();
+                monitor.serial_number_id = attached.serial_number_id.clone();
+                monitor.size = attached.size;
+                monitor.work_area_size = attached.work_area_size;
+            }
+        }
+    }
+
+    update
+}
+
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
     #[allow(clippy::expect_used)]
     Hidden::create("komorebi-hidden")?;
@@ -378,41 +503,33 @@ where
 
                 // Get the currently attached display devices
                 let attached_devices = attached_display_devices(display_provider)?;
-
-                // Make sure that in our state any attached displays have the latest Win32 data
-                for monitor in wm.monitors_mut() {
-                    for attached in &attached_devices {
-                        let serial_number_ids_match = if let (Some(attached_snid), Some(m_snid)) =
-                            (&attached.serial_number_id, &monitor.serial_number_id)
-                        {
-                            attached_snid.eq(m_snid)
-                        } else {
-                            false
-                        };
-
-                        if serial_number_ids_match || attached.device_id.eq(&monitor.device_id) {
-                            monitor.id = attached.id;
-                            monitor.device = attached.device.clone();
-                            monitor.device_id = attached.device_id.clone();
-                            monitor.serial_number_id = attached.serial_number_id.clone();
-                            monitor.name = attached.name.clone();
-                            monitor.size = attached.size;
-                            monitor.work_area_size = attached.work_area_size;
-                        }
-                    }
-                }
-
-                if initial_monitor_count == attached_devices.len() {
-                    tracing::debug!("monitor counts match, reconciliation not required");
-                    drop(wm);
-                    continue 'receiver;
-                }
+                let monitor_update =
+                    update_monitors_from_attached(wm.monitors_mut(), &attached_devices);
 
                 if attached_devices.is_empty() {
                     tracing::debug!(
                         "no devices found, skipping reconciliation to avoid breaking state"
                     );
                     drop(wm);
+                    continue 'receiver;
+                }
+
+                if initial_monitor_count == attached_devices.len() {
+                    if monitor_update.changed {
+                        if monitor_update.layout_changed {
+                            wm.retile_all(true)?;
+                            border_manager::send_notification(None);
+                        }
+                        notify_subscribers(
+                            Notification {
+                                event: NotificationEvent::Monitor(notification),
+                                state: wm.as_ref().into(),
+                            },
+                            initial_state.has_been_modified(&wm),
+                        )?;
+                    } else {
+                        tracing::debug!("monitor state unchanged, reconciliation not required");
+                    }
                     continue 'receiver;
                 }
 
@@ -1282,5 +1399,269 @@ mod tests {
         } else {
             panic!("No monitors found");
         }
+    }
+
+    fn test_monitor(device_id: &str, serial_number_id: Option<&str>, right: i32) -> Monitor {
+        monitor::new(
+            right as isize,
+            Rect {
+                left: 0,
+                top: 0,
+                right,
+                bottom: 1080,
+            },
+            Rect {
+                left: 0,
+                top: 0,
+                right,
+                bottom: 1040,
+            },
+            device_id.to_string(),
+            device_id.to_string(),
+            device_id.to_string(),
+            serial_number_id.map(str::to_string),
+        )
+    }
+
+    #[test]
+    fn equal_count_ambiguous_replacement_does_not_guess() {
+        let mut monitors = VecDeque::from([
+            test_monitor("UNKNOWN", None, 1920),
+            test_monitor("UNKNOWN", None, 2560),
+        ]);
+        let attached = vec![
+            test_monitor("UNKNOWN", Some("serial-a"), 1920),
+            test_monitor("UNKNOWN", Some("serial-b"), 2560),
+        ];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(!update.changed);
+        assert!(!update.layout_changed);
+    }
+
+    #[test]
+    fn identity_only_refresh_does_not_request_layout_update() {
+        let mut monitors = VecDeque::from([test_monitor("display-a", Some("serial-a"), 1920)]);
+        let mut attached = test_monitor("display-a", Some("serial-a"), 1920);
+        attached.id = 42;
+        attached.name = "DISPLAY2".to_string();
+
+        let update = update_monitors_from_attached(&mut monitors, &[attached]);
+
+        assert!(update.changed);
+        assert!(!update.layout_changed);
+    }
+
+    #[test]
+    fn geometry_refresh_requests_layout_update() {
+        let mut monitors = VecDeque::from([test_monitor("display-a", Some("serial-a"), 1920)]);
+        let attached = test_monitor("display-a", Some("serial-a"), 2560);
+
+        let update = update_monitors_from_attached(&mut monitors, &[attached]);
+
+        assert!(update.changed);
+        assert!(update.layout_changed);
+    }
+
+    #[test]
+    fn enumeration_reorder_updates_matching_logical_slots() {
+        let mut monitors = VecDeque::from([
+            test_monitor("display-a", Some("serial-a"), 1920),
+            test_monitor("display-b", Some("serial-b"), 2560),
+        ]);
+        monitors[0].workspace_names.insert(0, "first".to_string());
+        monitors[1].workspace_names.insert(0, "second".to_string());
+        let attached = vec![
+            test_monitor("display-b", Some("serial-b"), 3840),
+            test_monitor("display-a", Some("serial-a"), 1280),
+        ];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(update.changed);
+        assert!(update.layout_changed);
+        assert_eq!(monitors[0].device_id, "display-a");
+        assert_eq!(monitors[0].size.right, 1280);
+        assert_eq!(
+            monitors[0].workspace_names.get(&0).map(String::as_str),
+            Some("first")
+        );
+        assert_eq!(monitors[1].device_id, "display-b");
+        assert_eq!(monitors[1].size.right, 3840);
+        assert_eq!(
+            monitors[1].workspace_names.get(&0).map(String::as_str),
+            Some("second")
+        );
+    }
+
+    #[test]
+    fn one_unmatched_monitor_is_replaced_in_its_logical_slot() {
+        let mut monitors = VecDeque::from([
+            test_monitor("display-a", Some("serial-a"), 1920),
+            test_monitor("display-b", Some("serial-b"), 2560),
+        ]);
+        monitors[1]
+            .workspace_names
+            .insert(0, "preserved".to_string());
+        let attached = vec![
+            test_monitor("display-a", Some("serial-a"), 1920),
+            test_monitor("display-c", Some("serial-c"), 3440),
+        ];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(update.changed);
+        assert!(update.layout_changed);
+        assert_eq!(monitors[1].device_id, "display-c");
+        assert_eq!(
+            monitors[1].workspace_names.get(&0).map(String::as_str),
+            Some("preserved")
+        );
+    }
+
+    #[test]
+    fn identity_only_replacement_changes_state_without_layout_change() {
+        let mut monitors = VecDeque::from([test_monitor("display-a", Some("serial-a"), 1920)]);
+        let attached = vec![test_monitor("display-b", Some("serial-b"), 1920)];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(update.changed);
+        assert!(!update.layout_changed);
+    }
+
+    #[test]
+    fn unchanged_same_count_metadata_is_a_no_op() {
+        let mut monitors = VecDeque::from([test_monitor("display-a", Some("serial-a"), 1920)]);
+        let attached = vec![test_monitor("display-a", Some("serial-a"), 1920)];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(!update.changed);
+        assert!(!update.layout_changed);
+    }
+
+    #[test]
+    fn work_area_only_change_requests_layout_update() {
+        let mut monitors = VecDeque::from([test_monitor("display-a", Some("serial-a"), 1920)]);
+        let mut attached = test_monitor("display-a", Some("serial-a"), 1920);
+        attached.work_area_size.bottom = 1000;
+
+        let update = update_monitors_from_attached(&mut monitors, &[attached]);
+
+        assert!(update.changed);
+        assert!(update.layout_changed);
+    }
+
+    #[test]
+    fn serial_identity_has_precedence_over_device_id() {
+        let mut monitors = VecDeque::from([
+            test_monitor("device-b", Some("serial-b"), 1920),
+            test_monitor("device-a", Some("serial-a"), 2560),
+        ]);
+        monitors[0].workspace_names.insert(0, "first".to_string());
+        monitors[1].workspace_names.insert(0, "second".to_string());
+        let attached = vec![
+            test_monitor("device-b", Some("serial-a"), 1280),
+            test_monitor("device-c", Some("serial-c"), 3440),
+        ];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(update.changed);
+        assert_eq!(monitors[1].device_id, "device-b");
+        assert_eq!(
+            monitors[1].workspace_names.get(&0).map(String::as_str),
+            Some("second")
+        );
+        assert_eq!(monitors[0].device_id, "device-c");
+        assert_eq!(
+            monitors[0].workspace_names.get(&0).map(String::as_str),
+            Some("first")
+        );
+    }
+
+    #[test]
+    fn duplicate_serials_are_not_globally_unambiguous() {
+        let mut monitors = VecDeque::from([
+            test_monitor("device-a", Some("duplicate"), 1920),
+            test_monitor("device-b", Some("duplicate"), 2560),
+        ]);
+        let attached = vec![
+            test_monitor("device-c", Some("duplicate"), 3440),
+            test_monitor("device-d", Some("serial-d"), 1280),
+        ];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(!update.changed);
+    }
+
+    #[test]
+    fn duplicate_device_ids_are_not_globally_unambiguous() {
+        let mut monitors = VecDeque::from([
+            test_monitor("duplicate", None, 1920),
+            test_monitor("duplicate", None, 2560),
+        ]);
+        let attached = vec![
+            test_monitor("duplicate", Some("serial-a"), 3440),
+            test_monitor("new-device", Some("serial-b"), 1280),
+        ];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(!update.changed);
+    }
+
+    #[test]
+    fn unknown_serial_does_not_match_without_device_fallback() {
+        let mut monitors = VecDeque::from([
+            test_monitor("old-unknown", Some("UNKNOWN"), 1920),
+            test_monitor("old-unmatched", Some("old-serial"), 2560),
+            test_monitor("stable", Some("stable-serial"), 3440),
+        ]);
+        let attached = vec![
+            test_monitor("new-unknown", Some("UNKNOWN"), 1280),
+            test_monitor("new-unmatched", Some("new-serial"), 1600),
+            test_monitor("stable", Some("stable-serial"), 3440),
+        ];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(!update.changed);
+        assert!(!update.layout_changed);
+        assert_eq!(monitors[0].device_id, "old-unknown");
+        assert_eq!(monitors[0].size.right, 1920);
+        assert_eq!(monitors[1].device_id, "old-unmatched");
+        assert_eq!(monitors[1].size.right, 2560);
+    }
+
+    #[test]
+    fn unchanged_fully_unidentified_monitor_is_a_no_op() {
+        let mut monitors = VecDeque::from([test_monitor("UNKNOWN", None, 1920)]);
+        let attached = vec![test_monitor("UNKNOWN", None, 1920)];
+
+        assert_eq!(monitors[0].serial_number_id, None);
+        assert_eq!(monitors[0].device_id, "UNKNOWN");
+        assert_eq!(attached[0].serial_number_id, None);
+        assert_eq!(attached[0].device_id, "UNKNOWN");
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(!update.changed);
+        assert!(!update.layout_changed);
+    }
+
+    #[test]
+    fn unidentified_monitor_geometry_change_uses_replacement_fallback() {
+        let mut monitors = VecDeque::from([test_monitor("UNKNOWN", None, 1920)]);
+        let attached = vec![test_monitor("UNKNOWN", None, 2560)];
+
+        let update = update_monitors_from_attached(&mut monitors, &attached);
+
+        assert!(update.changed);
+        assert!(update.layout_changed);
+        assert_eq!(monitors[0].size.right, 2560);
     }
 }

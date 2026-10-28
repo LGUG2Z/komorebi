@@ -78,6 +78,12 @@ use std::sync::atomic::Ordering;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+fn update_automatic_width(end: &mut Position, previous_width: i32, new_width: i32) {
+    if end.x as i32 == previous_width {
+        end.x = new_width as f32;
+    }
+}
+
 lazy_static! {
     static ref SESSION_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
 }
@@ -819,6 +825,8 @@ impl Komobar {
     }
 
     fn update_monitor_coordinates(&mut self, monitor_size: &komorebi_client::Rect) {
+        let previous_width = MONITOR_RIGHT.load(Ordering::SeqCst);
+
         // Store the new monitor coordinates
         MONITOR_TOP.store(monitor_size.top, Ordering::SeqCst);
         MONITOR_LEFT.store(monitor_size.left, Ordering::SeqCst);
@@ -833,6 +841,43 @@ impl Komobar {
             start.x = monitor_size.left as f32;
             start.y = monitor_size.top as f32;
         }
+
+        if let Some(end) = self.config.position.as_mut().and_then(|p| p.end.as_mut()) {
+            update_automatic_width(end, previous_width, monitor_size.right);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Position;
+    use super::update_automatic_width;
+
+    #[test]
+    fn automatic_width_uses_rect_right_as_width() {
+        let mut end = Position { x: 1920.0, y: 50.0 };
+
+        update_automatic_width(&mut end, 1920, 1920);
+
+        assert_eq!(end.x, 1920.0);
+    }
+
+    #[test]
+    fn automatic_width_updates_after_resize() {
+        let mut end = Position { x: 1920.0, y: 50.0 };
+
+        update_automatic_width(&mut end, 1920, 2560);
+
+        assert_eq!(end.x, 2560.0);
+    }
+
+    #[test]
+    fn custom_width_is_not_overwritten() {
+        let mut end = Position { x: 1200.0, y: 50.0 };
+
+        update_automatic_width(&mut end, 1920, 2560);
+
+        assert_eq!(end.x, 1200.0);
     }
 }
 impl eframe::App for Komobar {
