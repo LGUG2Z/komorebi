@@ -733,7 +733,13 @@ impl Workspace {
                     let mut layouts = if self.is_scrolling() {
                         self.layout_scrolling(&adjusted_work_area, container_padding)
                             .into_iter()
-                            .map(|placement| placement.rect)
+                            .map(|placement| {
+                                crate::scrolling::parked(
+                                    placement.rect,
+                                    placement.visibility,
+                                    &adjusted_work_area,
+                                )
+                            })
                             .collect()
                     } else {
                         self.layout.as_boxed_arrangement().calculate(

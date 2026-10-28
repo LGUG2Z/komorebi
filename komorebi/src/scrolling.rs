@@ -44,6 +44,30 @@ fn window_sizes_are_settled() -> bool {
     ) && ANIMATION_MANAGER.lock().count() == 0
 }
 
+/// How much of a window that has scrolled out of view is left on the screen, so that it has an
+/// edge to slide back in from.
+const PARKED_VISIBLE_PIXELS: i32 = 5;
+
+/// Where a window with this rectangle rests when the strip says how much of it is in view.
+///
+/// A window that scrolled out of view comes to rest at the edge of the screen that it left by,
+/// with a few pixels of it still on screen, and keeps its size, so that nothing has to be resized
+/// to bring it back and an animation back into view is short. One that is partly or wholly in
+/// view is where the strip puts it.
+pub(crate) fn parked(rect: Rect, visibility: Visibility, work_area: &Rect) -> Rect {
+    match visibility {
+        Visibility::OffLeft => Rect {
+            left: work_area.left - rect.right + PARKED_VISIBLE_PIXELS,
+            ..rect
+        },
+        Visibility::OffRight => Rect {
+            left: work_area.left + work_area.right - PARKED_VISIBLE_PIXELS,
+            ..rect
+        },
+        _ => rect,
+    }
+}
+
 /// Whether windows that are moved are animated to where they go.
 pub(crate) fn animations_enabled() -> bool {
     ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
@@ -619,5 +643,177 @@ impl Workspace {
         if let Some(space) = self.scrolling.as_mut() {
             scrolling::resize(space, &id, direction, sizing, delta);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::window::Window;
+
+    const AREA: Rect = Rect {
+        left: 100,
+        top: 50,
+        right: 1200,
+        bottom: 800,
+    };
+
+    fn workspace(columns: usize, count: isize) -> Workspace {
+        let mut workspace = Workspace {
+            layout: Layout::Default(DefaultLayout::Scrolling),
+            ..Workspace::default()
+        };
+        workspace.set_scrolling_columns(columns);
+
+        for hwnd in 1..=count {
+            let mut container = Container::default();
+            container.add_window(Window::from(hwnd));
+            let idx = workspace.containers().len();
+            workspace.insert_container_at_idx(idx, container);
+        }
+
+        workspace
+    }
+
+    fn hwnds(workspace: &Workspace) -> Vec<isize> {
+        workspace
+            .containers()
+            .iter()
+            .filter_map(|container| container.focused_window().map(|window| window.hwnd))
+            .collect()
+    }
+
+    #[test]
+    fn opening_a_window_does_not_resize_the_others() {
+        let mut workspace = workspace(3, 1);
+        let before = workspace.layout_scrolling(&AREA, 0)[0].rect.right;
+
+        for hwnd in 2..=5 {
+            let mut container = Container::default();
+            container.add_window(Window::from(hwnd));
+            let idx = workspace
+                .scrolling_insertion_idx()
+                .unwrap_or_else(|| workspace.containers().len());
+            workspace.insert_container_at_idx(idx, container);
+        }
+
+        let placements = workspace.layout_scrolling(&AREA, 0);
+
+        assert_eq!(placements.len(), 5);
+        assert!(placements.iter().all(|p| p.rect.right == before));
+        assert_eq!(before, AREA.right / 3);
+    }
+
+    #[test]
+    fn consuming_puts_two_windows_in_one_column_and_expelling_takes_one_out() {
+        let mut workspace = workspace(3, 3);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(0);
+
+        workspace.consume_scrolling(OperationDirection::Right);
+        let placements = workspace.layout_scrolling(&AREA, 0);
+
+        // the first two windows are one above the other, in the same column
+        assert_eq!(placements[0].rect.left, placements[1].rect.left);
+        assert!(placements[1].rect.top > placements[0].rect.top);
+        assert_ne!(placements[1].rect.left, placements[2].rect.left);
+        assert_eq!(hwnds(&workspace), vec![1, 2, 3]);
+
+        workspace.expel_scrolling();
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_ne!(placements[0].rect.left, placements[1].rect.left);
+    }
+
+    #[test]
+    fn a_column_moves_whole_and_the_containers_follow_its_order() {
+        let mut workspace = workspace(3, 3);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(0);
+
+        assert!(workspace.move_scrolling(OperationDirection::Right));
+        assert_eq!(hwnds(&workspace), vec![2, 1, 3]);
+        assert_eq!(workspace.focused_container_idx(), 1);
+    }
+
+    #[test]
+    fn the_commands_do_nothing_in_a_layout_that_is_not_scrolling() {
+        let mut workspace = workspace(3, 3);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.layout = Layout::Default(DefaultLayout::BSP);
+
+        assert!(!workspace.move_scrolling(OperationDirection::Right));
+        workspace.expel_scrolling();
+        assert_eq!(hwnds(&workspace), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn a_window_out_of_view_rests_at_the_edge_that_it_left_by() {
+        let rect = Rect {
+            left: -500,
+            top: 50,
+            right: 400,
+            bottom: 800,
+        };
+
+        let left = parked(rect, Visibility::OffLeft, &AREA);
+        assert_eq!(left.left + left.right, AREA.left + PARKED_VISIBLE_PIXELS);
+        assert_eq!(left.right, 400);
+
+        let right = parked(rect, Visibility::OffRight, &AREA);
+        assert_eq!(right.left, AREA.left + AREA.right - PARKED_VISIBLE_PIXELS);
+
+        assert_eq!(parked(rect, Visibility::Visible, &AREA), rect);
+    }
+
+    #[test]
+    fn retiling_forgets_what_windows_were_found_to_refuse() {
+        let mut workspace = workspace(3, 3);
+        workspace.layout_scrolling(&AREA, 0);
+
+        let id = workspace.containers().iter().next().unwrap().id.clone();
+        let space = workspace.scrolling.as_mut().unwrap();
+        space.set_width_limits(&id, Some(900), None);
+        assert_eq!(workspace.layout_scrolling(&AREA, 0)[0].rect.right, 900);
+
+        workspace.reset_scrolling_sizes();
+
+        assert_eq!(
+            workspace.layout_scrolling(&AREA, 0)[0].rect.right,
+            AREA.right / 3
+        );
+    }
+
+    #[test]
+    fn expanding_fills_the_room_that_the_columns_in_view_leave() {
+        let mut workspace = workspace(3, 2);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(1);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        workspace.expand_scrolling_column();
+        let after = workspace.layout_scrolling(&AREA, 0);
+
+        // the focused column takes the third of the screen that was empty, and no more
+        let width = |placements: &[ScrollingPlacement], idx: usize| {
+            placements[idx].rect.right - placements[idx].rect.left
+        };
+        assert!(width(&after, 1) > width(&before, 1) + AREA.right / 4);
+        assert_eq!(after[1].rect.right, before[1].rect.right + (AREA.right / 3));
+        assert_eq!(after[0], before[0]);
+    }
+
+    #[test]
+    fn expanding_does_nothing_where_there_are_no_columns() {
+        let mut workspace = Workspace {
+            layout: Layout::Default(DefaultLayout::BSP),
+            ..Workspace::default()
+        };
+        let mut container = Container::default();
+        container.add_window(Window::from(9101));
+        workspace.insert_container_at_idx(0, container);
+
+        workspace.expand_scrolling_column();
+
+        assert!(workspace.scrolling.is_none());
     }
 }
