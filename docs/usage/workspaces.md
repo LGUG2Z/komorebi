@@ -69,7 +69,7 @@ monitor and its own index, and
 for each name it is given, in order. The name is komorebi's, for the commands that find a
 workspace by its name: KWin's desktop keeps the name it has.
 [`komorebic focus-named-workspace`](../cli/focus-named-workspace.md) shows the workspace with that
-name, on whichever monitor has it, and focuses that monitor. A name no workspace has changes
+name, on the monitor that has it, and focuses that monitor. A name no workspace has changes
 nothing. `komorebic query focused-workspace-name` prints the name of the workspace in front, or its
 index when it has none.
 

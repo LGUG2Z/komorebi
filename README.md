@@ -102,11 +102,12 @@ without a checkout of the toolchain.
   [`komorebi-hotkeys/tests/fixtures`](komorebi-hotkeys/tests/fixtures), where
   each case is written in every format that can express it.
 - [`komorebic`](komorebic): the command line. A subcommand that asks something
-  of the daemon is one message on its socket; `quickstart`, `enable-autostart`,
-  `disable-autostart`, `start`, `check`, `configuration`, `log`, `data-directory`,
-  `completions` and the hidden `docgen` work without the daemon, and so do
-  `export-kde-shortcuts` and `hotkeys compile`, which write the bindings of a
-  key binding file that KDE can run by itself as shortcut files.
+  of the daemon is one message on its socket, and the others work without the daemon:
+  `start` and the autostart commands start it, `check` looks at the files and the
+  desktop, `quickstart` writes files, `export-kde-shortcuts` and `hotkeys compile`
+  write the bindings of a key binding file that KDE can run by itself as shortcut
+  files, and `configuration`, `log`, `data-directory`, `completions`, the schema
+  printers and the hidden `docgen` print.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -355,6 +356,8 @@ and [`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
 [`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md) describes the model,
 [`docs/dev/DESIGN.md`](docs/dev/DESIGN.md) says why it is built that way,
 [`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md) what it needs from KDE Plasma,
+[`docs/dev/COMPARE.md`](docs/dev/COMPARE.md) what is the same and what is different in
+komorebi for Windows and komorebi for Mac,
 [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work, and
 [`docs/dev/utm.md`](docs/dev/utm.md) how to develop in a Plasma guest.
 

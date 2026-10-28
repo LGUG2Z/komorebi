@@ -25,6 +25,13 @@ was measured with KWin 6.8.1, Plasma 6.8.1 and Qt 6.12.0 from nixpkgs `d3b13ad`
   a stack, and the windows behind a monocle, on. It is not a workspace.
 - **Headless KWin**: `kwin_wayland --virtual`, a KWin with virtual outputs and no display,
   which the VM tests run ([vm-tests.md](vm-tests.md)).
+- **The spikes**: throwaway measurements made before komorebi for KDE was written, each
+  answering one question about KWin (the event stream, the command channel, how to hide
+  windows, how clients answer a frame, the effects, the native actions, finding KWin again
+  after a restart, whether one `komorebi.json` can be shared, per-output desktops), numbered
+  from 1 to 10. They ran on KWin 6.8.1 in NixOS virtual machines under QEMU on an Apple silicon
+  Mac. Their numbers are quoted where they are used, with the date, and where a VM test repeats
+  a measurement the test is named. `spikes/config-parity/fixtures` is spike 8's.
 
 ## What komorebi needs
 
@@ -573,7 +580,7 @@ test `vm-scrolling` checks that the columns out of view stay where komorebi put 
 The same holds for a frame the user asks for. While the user drags an edge of a window, KWin reports
 at every step of the drag the frame the pointer asks for (`interactiveMoveResizeStepped`), and the
 window's frame follows once the client has drawn at that size. When the user lets go, the frame can
-be well short of where they took the edge: at time of writing (2026-10-27), in the spike, the frame
+be well short of where they took the edge: at time of writing (2026-10-27), in the spikes, the frame
 at the end of a 72-pixel drag of a terminal's edge had moved 12 or 48 pixels. KWin goes on reporting
 the client's frames after the end of the drag: in a run of `vm-drag-resize` at time of writing
 (2026-10-28), a frame of 660 pixels, which is what `foot` had drawn of the 672 asked for, came 1 ms
@@ -827,3 +834,32 @@ and KRDP 6.8.1 and FreeRDP 3.32.2:
   script keys, fails NTLM against KRDP, FreeRDP's client cannot script keys, and a client inside
   the session would send each key back to itself. Whether a key pressed in an RDP client reaches a
   global shortcut is therefore not known; no check from a real client has been recorded.
+
+## What was not measured
+
+At time of writing (2026-10-28) these are gaps, not findings. Nothing on this page says that
+they work or that they do not.
+
+- KWin before 6.8: only 6.8.1 was run ([KWin 6.8 or newer](#kwin-68-or-newer)).
+- Activities.
+- More outputs than a second one to the right of the first: the geometry was checked, the
+  pixels were not.
+- Whether a window of a Qt or KDE application is drawn smaller than the minimum size it reports,
+  or overflows its frame: the frames were measured, not the pixels
+  ([How clients answer a frame](#how-clients-answer-a-frame)).
+- What a window on the parking desktop does to the task manager and the overview, and whether
+  hiding and showing windows flickers. By construction a parked window stays in the task manager
+  unless the task manager shows only the current desktop.
+- The rule identity of an application in a sandbox (Flatpak), which comes from
+  `/proc/<pid>/exe`; the `class` and the `pid` were checked.
+- A real suspend and resume ([Sleep and lock](#sleep-and-lock)).
+- A key pressed in an RDP client ([RDP into the session](#rdp-into-the-session)).
+- Whether the progress of the stock Geometry Change effect follows `QEasingCurve.OutExpo` against
+  the clock in a session: one capture four seconds into a 30 s animation showed no progress, where
+  the curve gives about 60 % ([KWin effects](#kwin-effects)). The log evidence and the comparison
+  with animation off do not depend on it.
+- Graphics other than llvmpipe: every render measured was in software.
+- The scrolling layout on a monitor that has another beside it. A strip spills onto the
+  neighbor when that monitor shows the same workspace number, and a window whose middle is on a
+  monitor that shows another desktop is not drawn. This is read from KWin's sources, not
+  checked with pixels.

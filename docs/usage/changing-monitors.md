@@ -1,7 +1,8 @@
 # Monitors that change
 
-komorebi follows the outputs KWin has. There is nothing to configure and no command to run: this
-page says what komorebi does when a monitor changes.
+komorebi follows the outputs KWin has, and a change of them needs no command: this page says
+what komorebi does when a monitor changes. The one thing to set is where a monitor goes in
+komorebi's order, [`display_index_preferences`](#a-monitor-is-plugged-in).
 
 ## A monitor changes size
 

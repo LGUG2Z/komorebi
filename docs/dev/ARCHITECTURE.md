@@ -11,9 +11,13 @@ how an event about a window becomes a tile, how workspaces are the compositor's 
 a stack hides its windows, how the window manager follows a monitor that changes and sets the
 desktop in order after a sleep or a lock, how a message on the daemon's socket is answered, how
 subscribers are notified of all three, what the orders a message gives do, what a drag with the
-pointer does, how the compositor is asked to draw the borders, how `komorebi.json` configures the
-daemon, and how the NixOS module runs the daemon. It grows with the code: each part of the daemon
-that is added has its place here.
+pointer does, how `komorebi.json` configures the daemon and is checked, how the compositor is
+asked to draw the borders and to animate the windows, how a theme, a wallpaper, transparency and
+focus follows mouse reach it, how the NixOS module runs the daemon, and how a key binding file
+becomes shortcuts that run commands. It grows with the code: each part of the daemon that is
+added has its place here.
+[DESIGN.md](DESIGN.md) says why it is built this way, and [COMPARE.md](COMPARE.md) what is the
+same and what is different in komorebi for Windows and komorebi for Mac.
 
 ## Vocabulary
 
@@ -290,8 +294,7 @@ and cycling the stack or focusing a window of it by its index.
 A monocle hides the other containers in the same way. Turning it on hides every window of each
 of them ([`Container::hide`]), turning it off restores the window in front of each
 ([`Container::restore`]), and cycling it hides the container it gave up. While a monocle is on,
-[`Workspace::restore`] restores its window and no other, and [`Workspace::hide`] hides it with
-the rest.
+[`Workspace::restore`] restores its window and no other.
 
 [`Window::hide`] puts the window's id in [`HIDDEN_WINDOWS`] before it asks the backend, and
 [`Window::restore`] takes it out, so that when the compositor reports something about the window
@@ -626,9 +629,12 @@ closes while it is maximized leaves the workspace like any other. `FocusWindow` 
 container on any side of the maximized window, so the focus goes to the monitor on that side and
 fails where there is none, and a maximized window, or a monocle, on the workspace it reaches is
 given the focus whole. `CycleFocusWindow` is not dropped: it gives the focus to the next
-container's window (the code has a TODO for what it should do). A maximized window is hidden
-with the rest of its workspace, and restored and focused ahead of the containers' windows when
-the workspace is shown again ([`Workspace::hide`], [`Workspace::restore`]).
+container's window and leaves the maximized window as it is, where komorebi for Windows
+maximizes the window the focus cycles to
+([`WindowManager::focus_container_in_cycle_direction`]). When the workspace is shown,
+[`Workspace::restore`] restores the maximized window and gives it the focus ahead of the
+containers' windows. Nothing hides it when the workspace is left: KWin hides the windows of a
+desktop that no monitor shows.
 
 A window the user maximizes, with its title bar, a double click or a shortcut, is the same from
 then on. KWin does it without komorebi's being asked, and the bridge reports it as a `maximized`
@@ -1415,7 +1421,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone`, `an_ignore_rule_keeps_a_window_unmanaged` | `ManageRule` |
 | A window the user unmanaged stays out of the layout until it is managed again | framework path: `handle_event` checks the list of unmanaged windows before it acts on any event but a removal | `unmanage_takes_the_focused_window_out_until_manage_takes_it_back` | none |
 | A paused window manager moves no window | framework path: `handle_event` returns before anything else, and [`read_commands_uds`] drops every message but `TogglePause`, `State`, `GlobalState` and `Stop` | `while_paused_no_event_changes_the_layout_and_manage_takes_in_a_window_it_missed`, `while_paused_only_toggle_pause_state_and_stop_are_handled` | none |
-| A destroyed window leaves whichever workspace has it | framework path: the destroy is looked up in the index of managed windows, which is rebuilt at startup and before and after every event | `a_window_that_was_open_before_komorebi_started_is_removed_when_it_closes` | none |
+| A destroyed window leaves the workspace that has it | framework path: the destroy is looked up in the index of managed windows, which is rebuilt at startup and before and after every event | `a_window_that_was_open_before_komorebi_started_is_removed_when_it_closes` | none |
 | The daemon does not start without KWin, unless it is told to run against the fake | startup check: [`connect`] fails, and the daemon exits with the error, code 1 | `without_a_session_bus_komorebi_exits_with_an_error_naming_it` | `--fake-backend` |
 | One komorebi per session | startup check: the session bus gives `org.komorebi.Bridge` to one connection | none | none |
 | A komorebi that cannot connect to KWin leaves the socket of the running one alone | startup order: `main.rs` connects to KWin before [`WindowManager::new`] binds the socket | `without_kwin_komorebi_leaves_the_socket_it_finds_alone` | `--fake-backend` asks no bus, and takes the socket |
@@ -1595,7 +1601,7 @@ A window is shown, and ends up on a tile:
 depend on the daemon. Its model is the content of a key binding file of any of three hotkey
 daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 
-### The model
+### The key binding model
 
 - **Keymap**: one file: its modes, the applications in which no binding is active (a
   blacklist), a binding that turns the others off and on (a pause binding), and the names the
@@ -1622,7 +1628,7 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 - **Effect**: what the caller of the engine does after an event: activate or deactivate a combo,
   or run a command.
 
-### The parts
+### The parts of the key bindings
 
 - [`qt`](../../komorebi-hotkeys/src/qt.rs): key names to Qt key codes, in the vocabulary of each
   format (skhd's literals and macOS keycodes, whkd's virtual key names, sxhkd's X keysyms), and
@@ -1725,12 +1731,12 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   holds and whether a chain is pending, or `null` when no engine runs; `komorebic hotkeys
   state` adds the actions kglobalaccel has for the component.
 
-### What is guaranteed, and by what
+### What is guaranteed for the key bindings, and by what
 
 | Rule | Enforced by | Proof | Escape hatch |
 |---|---|---|---|
 | A combo is in the form KWin matches (the shifted symbol rule is applied) | type system: `Combo`'s fields are private, and `Combo::new` applies the rule | `compile_fail,E0451` on `Combo`; `shift_on_a_symbol_key_is_the_symbol_it_types` | none |
-| A key has the same code whichever vocabulary names it | test | `the_three_vocabularies_name_the_same_keys` | none |
+| A key has the same code in every vocabulary that names it | test | `the_three_vocabularies_name_the_same_keys` | none |
 | Positional key names (macOS keycodes, `oem_*`) are read as on a US layout | convention only | none | none |
 | Reading a file returns a keymap, whatever the text | type system: a reader returns `Parsed`, not a `Result` | none | none |
 | Text that is left out has a diagnostic that points at it | test | `what_cannot_be_read_is_reported_and_left_out`, `reading_goes_on_after_an_error`, `diagnostics_point_at_the_text_they_are_about` | none |
@@ -1969,6 +1975,10 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),
   a Plasma session in which the module's unit runs the daemon.
+- [`scripts/compare-gen.py`](../../scripts/compare-gen.py): writes the tables of
+  [COMPARE.md](COMPARE.md) from this checkout and from checkouts of komorebi for Windows and
+  komorebi for Mac, and checks them. Continuous integration has neither checkout and does not run
+  it.
 
 [`nixos-module.nix`]: ../../nix/nixos-module.nix
 [`supported-kwin.nix`]: ../../nix/supported-kwin.nix
@@ -2067,8 +2077,6 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 [`Workspace::new_container_for_focused_window`]: ../../komorebi/src/workspace.rs
 [`Workspace::remove_window`]: ../../komorebi/src/workspace.rs
 [`Workspace::focus_container_by_window`]: ../../komorebi/src/workspace.rs
-[`Workspace::restore`]: ../../komorebi/src/workspace.rs
-[`Workspace::hide`]: ../../komorebi/src/workspace.rs
 [`Workspace::window_container_behaviour`]: ../../komorebi/src/workspace.rs
 [`Workspace::float_override`]: ../../komorebi/src/workspace.rs
 [`WindowManager::add_window_to_container`]: ../../komorebi/src/window_manager.rs
@@ -2210,7 +2218,6 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 [`kwin::power`]: ../../komorebi/src/kwin/power.rs
 [`MonitorNotification::Wake`]: ../../komorebi/src/monitor_reconciliator.rs
 [`wake_up`]: ../../komorebi/src/monitor_reconciliator.rs
-[`WindowManager::retile_all`]: ../../komorebi/src/window_manager.rs
 [`kwin::connect`]: ../../komorebi/src/kwin/mod.rs
 [`WindowManager::evacuate_monitor`]: ../../komorebi/src/reconcile.rs
 [`WindowManager::follow_windows_to_their_monitors`]: ../../komorebi/src/reconcile.rs

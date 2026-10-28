@@ -8,13 +8,15 @@ It grows with the code: a decision is added in the commit that makes it.
 
 ## What is komorebi for KDE the port of?
 
-komorebi has a Windows implementation, the original, and a macOS one. The Windows one is
-the reference. I used it as the reference for what to adapt, and I prefer what KDE and
-Wayland do natively over a workaround that the other two platforms need. The events the
-window manager reacts to follow the Windows ones (a window is shown, destroyed, focused,
-minimized, moved, resized), and a window is a small `Copy` handle, as there. The model the
-window manager tiles is the one both platforms have: monitors, each with workspaces, each
-with containers, each with windows.
+komorebi has a Windows implementation, the original, and a macOS one, and both were read for
+what to adapt. I wanted to keep things as close to komorebi for Windows and for Mac as
+possible, so that one configuration file is largely portable across all the platforms, and to
+drop the hacks that Windows or macOS needed and Linux does not, relying on what KDE and
+Wayland do natively. The events the window manager reacts to follow the Windows ones (a
+window is shown, destroyed, focused, minimized, moved, resized), and a window is a small
+`Copy` handle, as there. The model the window manager tiles is the one both platforms have:
+monitors, each with workspaces, each with containers, each with windows. What the three
+programs have in common and where they differ is in [COMPARE.md](COMPARE.md).
 
 ## Why is everything the window manager needs behind one trait?
 
@@ -138,7 +140,7 @@ so `tsc` refuses anything else.
 
 Because a KWin script cannot move the pointer, and KWin can. Its "Move Mouse to Focus" action
 puts the pointer in the middle of the window that has the focus, and it can be invoked over
-D-Bus, through `kglobalaccel`: in the spikes it moved the pointer from the middle of the screen
+D-Bus, through `kglobalaccel`: in [the spikes](PLATFORM.md#vocabulary) it moved the pointer from the middle of the screen
 to the middle of the focused window, for two different windows. The backend asks for it once
 KWin reports the window it focused as active, so the action finds the right one. The cost is
 that the pointer can go to the middle of the focused window and nowhere else, which is what
@@ -264,14 +266,13 @@ and the next run puts it back.
 
 Because a container has one tile, so the windows of a stack that are not in front have to be out
 of sight, and a virtual desktop nobody looks at was the one way to do that which the spikes found
-to cost no focus change. The first spike hid six tiled windows and showed them again three ways.
-Minimizing
-them gave the geometry back exactly, but KWin picked a new active window as each one minimized,
+to cost no focus change. Spike 3 hid six tiled windows and showed them again three ways.
+Minimizing them gave the geometry back exactly, but KWin picked a new active window as each one minimized,
 two focus events nobody asked for. Moving them to a virtual desktop of their own gave no focus
 event and the geometry back exactly. Moving them off the screen worked too, since KWin does not
 clamp a scripted move, but the windows stay mapped on the current desktop, in the window switcher,
 the overview and the task manager, so it was not offered. KWin has nothing else: `Window.hidden`
-cannot be set by a script. The spike's source reading, KWin 6.8.1, is in
+cannot be set by a script. The reading of KWin's sources (6.8.1) is in
 [PLATFORM.md](PLATFORM.md#the-parking-desktop). The other platforms have a setting that chooses
 how windows are hidden; on KDE there is one way, and so no such setting.
 
@@ -320,7 +321,7 @@ adjustment of the container in monocle would be lost when it came back (the comm
 
 Because KWin has a maximize of its own, and komorebi asks for it. The window gets the work area of
 its output with the panels left alone, and a restore goes back to where the window was
-(`docs/kde.md`, and the comment in the bridge where it carries the command out). It is the work
+(see the comment in the bridge where it carries the command out). It is the work
 area and not the padded one that [`Workspace::update`](../../komorebi/src/workspace.rs) maximizes
 a window to ("the compositor's own maximize, which is the work area and not the padded one"), so
 the window cannot be a container: a layout would give it a tile, less the padding. It is held in
@@ -331,13 +332,16 @@ tile's size that it has to get back, not the compositor's idea of its old size" 
 
 ## Why does one `komorebi.json` work on every platform?
 
-Spike 8 asked whether it could, and it can. With the `StaticConfig` of komorebi for Mac, the
-example of komorebi for Windows loaded and read back, and so did a file with every key that only
-Windows has, a real file of komorebi for Mac, and this repository's example; what serde dropped
-was the keys that mean nothing outside their platform. So a key that does nothing on KDE Plasma is accepted and
-ignored, and `config_parity` checks that the keys it ignores are the Windows-only ones and, until
-the features are in, the ones of features that are not. Where the Mac struct had no key that the
-native mapping needs (`focus_follows_mouse`, `transparency`), the KDE struct has the Windows one.
+Because a file written for one platform should load on the others, and a key that means
+nothing on one of them is no reason to refuse the file. `StaticConfig` has the keys of komorebi
+for Windows and for Mac that mean something on KDE Plasma, and serde skips a key it does not
+know, so a key that does nothing here is accepted and ignored. The fixtures of `config_parity`
+(spike 8) are the evidence: the example of komorebi for Windows, a file with every key that only
+Windows has, a real file of komorebi for Mac and this repository's example all load and read
+back, and the test checks that the keys the serializer drops are the Windows-only ones
+(`WINDOWS_ONLY`) and no others. Where komorebi for Mac has no key that KDE needs
+(`focus_follows_mouse`, `transparency`), `StaticConfig` has the one komorebi for Windows has.
+[COMPARE.md](COMPARE.md#configuration) lists the keys of the three programs.
 
 ## Why does komorebi reload its configuration when the file changes?
 
@@ -737,11 +741,11 @@ too.
 
 ## Why does the engine handle every binding by default?
 
-The plan was to make static shortcuts the default and to switch the default if a static
-shortcut turned out to be slow to start its command. It did: on KWin 6.8.1 (in a virtual
-machine, on 2026-10-27) a static shortcut ran its command 165 to 436 ms after the key, 233 ms
-at the median, while the engine was told of the key 3 ms after it. So the default is
-`PlanMode::Engine`, and `PlanMode::Auto` and `PlanMode::Static` stay selectable.
+A static shortcut starts its command later than the engine is told of the key: on KWin 6.8.1
+(in a virtual machine, on 2026-10-27) a static shortcut ran its command 165 to 436 ms after the
+key, 233 ms at the median, while the engine was told of the key 2.5 ms after it, at the
+median. So the default is `PlanMode::Engine`, and `PlanMode::Auto` and `PlanMode::Static` stay
+selectable.
 
 The cost is the robustness of static shortcuts: the engine works only while komorebi runs,
 and a komorebi process that was killed leaves its keys registered and dead until they are

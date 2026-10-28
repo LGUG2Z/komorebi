@@ -27,7 +27,7 @@ the monitor on the right. With no monitor there either, nothing happens, and the
 [`komorebic cycle-monitor`](../cli/cycle-monitor.md) the next or the previous one, and
 [`komorebic focus-monitor-at-cursor`](../cli/focus-monitor-at-cursor.md) the one the pointer is
 on. [`komorebic eager-focus`](../cli/eager-focus.md) focuses the first window komorebi manages of
-an executable, whichever workspace of whichever monitor it is on, and shows its workspace.
+an executable, on any workspace of any monitor, and shows its workspace.
 
 ```sh
 komorebic focus-monitor 1

@@ -2651,17 +2651,12 @@ impl WindowManager {
         direction: CycleDirection,
     ) -> eyre::Result<()> {
         tracing::info!("focusing container");
-        // let mut maximize_next = false;
         let mut monocle_next = false;
 
         let mouse_follows_focus = self.mouse_follows_focus;
 
-        if self.focused_workspace_mut()?.maximized_window.is_some() {
-            // TODO: maximized window stuff
-            // maximize_next = true;
-            // self.unmaximize_window()?;
-        }
-
+        // A maximized window is left as it is: komorebi for Windows maximizes the window the
+        // focus cycles to, and this does not.
         if self.focused_workspace_mut()?.monocle_container.is_some() {
             monocle_next = true;
             self.monocle_off()?;
@@ -2675,9 +2670,6 @@ impl WindowManager {
 
         workspace.focus_container(new_idx);
 
-        // if maximize_next {
-        //     self.toggle_maximize()?;
-        // } else
         if monocle_next {
             self.toggle_monocle()?;
         } else {

@@ -86,6 +86,9 @@ the daemon does.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.
+[Compared with komorebi for Windows and for Mac](dev/COMPARE.md) says, for someone who knows
+komorebi on one of them, what is the same on KDE Plasma, what is different, what KDE does by
+itself and what is not supported.
 
 ## Community
 
