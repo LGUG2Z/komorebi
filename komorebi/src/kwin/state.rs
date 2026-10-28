@@ -610,6 +610,7 @@ impl Table {
             path,
             rect: rect(&w["geo"]),
             minimized: w["minimized"].as_bool().unwrap_or(false),
+            maximized: w["maximized"].as_bool().unwrap_or(false),
             normal: false,
             alive: true,
         };
@@ -674,6 +675,8 @@ impl Table {
     ///   with no `id`, took it away from every window.
     /// - `minimized`: a window was minimized or brought back ([`WindowManagerEvent::Minimize`],
     ///   [`WindowManagerEvent::Restore`]).
+    /// - `maximized`: a window was maximized or restored, by the user or by komorebi's own
+    ///   command ([`WindowManagerEvent::MaximizeChange`]).
     /// - `output`: a window is on another output. It carries the frame the window has now, which
     ///   goes with the output, since the two events arrive in no fixed order
     ///   ([`WindowManagerEvent::OutputChange`]).
@@ -718,6 +721,7 @@ impl Table {
             Some("removed") => self.on_removed(event, now),
             Some("activated") => self.on_activated(event),
             Some("minimized") => self.on_minimized(event),
+            Some("maximized") => self.on_maximized(event),
             Some("move_resize_step") => self.on_drag_step(event),
             Some("output") => self.on_output(event),
             Some("caption") => self.on_caption(event),
@@ -984,6 +988,28 @@ impl Table {
         vec![Output::Event(WindowManagerEvent::OutputChange(
             kwin(KWinNotification::WindowOutputChanged),
             Window::from(id),
+        ))]
+    }
+
+    fn on_maximized(&mut self, event: &Value) -> Vec<Output> {
+        let maximized = event["v"].as_bool().unwrap_or(false);
+        let Some(id) = self.id_of(event) else {
+            return vec![];
+        };
+
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return vec![];
+        };
+        entry.info.maximized = maximized;
+
+        if !entry.info.normal {
+            return vec![];
+        }
+
+        vec![Output::Event(WindowManagerEvent::MaximizeChange(
+            kwin(KWinNotification::WindowMaximizedChanged),
+            Window::from(id),
+            maximized,
         ))]
     }
 
@@ -1357,7 +1383,7 @@ mod tests {
 
             // what komorebi asks for next (fixtures/commands.json, batch 3): the editor on the
             // second workspace, and the output showing it
-            if event["seq"] == 15 {
+            if event["seq"] == 17 {
                 let monitor = t.monitors()[0].id;
                 t.window_workspace_commands(1, 1).unwrap();
                 t.switch_commands(monitor, 1).unwrap();
@@ -1366,7 +1392,7 @@ mod tests {
             // the end of the resize is where the user took the edge, and the window's frame is
             // the one KWin has: the frame at the end of the session is the one the editor has on
             // the other output
-            if event["seq"] == 27 {
+            if event["seq"] == 29 {
                 assert_eq!(
                     t.drag_end(1).unwrap().right,
                     1100,
@@ -1411,6 +1437,8 @@ mod tests {
                 "activated -> FocusChange 1",
                 "minimized -> Minimize 1",
                 "minimized -> Restore 1",
+                "maximized -> MaximizeChange 1",
+                "maximized -> MaximizeChange 1",
                 "removed -> ",
                 "failed -> ",
                 // komorebi's own move and switch, coming back
@@ -1632,6 +1660,53 @@ mod tests {
         assert_eq!(
             events(&t.handle(&json!({ "type": "minimized", "id": "a", "v": false }), now)),
             vec!["Restore 1"]
+        );
+    }
+
+    #[test]
+    fn maximizing_and_restoring_are_events_and_are_remembered() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
+        assert!(!t.window(1).unwrap().maximized);
+
+        assert_eq!(
+            events(&t.handle(&json!({ "type": "maximized", "id": "a", "v": true }), now)),
+            vec!["MaximizeChange 1"]
+        );
+        assert!(t.window(1).unwrap().maximized);
+        assert_eq!(
+            events(&t.handle(&json!({ "type": "maximized", "id": "a", "v": false }), now)),
+            vec!["MaximizeChange 1"]
+        );
+        assert!(!t.window(1).unwrap().maximized);
+    }
+
+    #[test]
+    fn a_window_that_is_maximized_when_the_script_starts_is_maximized() {
+        let mut maximized = win("a", &["d1"]);
+        maximized["maximized"] = json!(true);
+        let t = table(vec![maximized, win("b", &["d1"])]);
+
+        assert!(t.window(1).unwrap().maximized);
+        assert!(!t.window(2).unwrap().maximized);
+    }
+
+    #[test]
+    fn a_dialog_that_is_maximized_is_remembered_and_raises_nothing() {
+        let mut dialog = win("dlg", &["d1"]);
+        dialog["normal"] = json!(false);
+        let mut t = table(vec![dialog]);
+
+        let out = t.handle(
+            &json!({ "type": "maximized", "id": "dlg", "v": true }),
+            Instant::now(),
+        );
+
+        assert!(out.is_empty());
+        assert!(t.window(1).unwrap().maximized);
+        assert!(
+            t.windows().is_empty(),
+            "it is not a window komorebi may manage"
         );
     }
 

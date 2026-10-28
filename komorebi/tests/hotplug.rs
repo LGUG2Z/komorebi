@@ -344,3 +344,72 @@ fn a_maximized_window_of_a_monitor_that_goes_is_not_lost() {
         );
     }
 }
+
+#[test]
+fn a_maximized_window_of_a_monitor_that_goes_stays_maximized() {
+    let (fake, mut wm) = desktop_of(&["Test-S", "Test-T"]);
+    open_on(&fake, &mut wm, 50_951, 0);
+    for id in [50_952, 50_953] {
+        open_on(&fake, &mut wm, id, 1920);
+    }
+    wm.focus_monitor(1).unwrap();
+    with_backend(fake.clone(), || {
+        wm.process_command(SocketMessage::ToggleMaximize, Vec::new())
+    })
+    .unwrap();
+    let maximized = wm.monitors()[1]
+        .focused_workspace()
+        .unwrap()
+        .maximized_window
+        .map(|window| window.id)
+        .expect("there is no maximized window");
+
+    fake.remove_monitor(51);
+    for id in [50_952, 50_953] {
+        fake.move_window_by_user(id, somewhere_in(100));
+    }
+    with_backend(fake.clone(), || reconcile_display_change(&mut wm)).unwrap();
+
+    assert_eq!(wm.monitors().len(), 1);
+    let workspace = wm.monitors()[0].focused_workspace().unwrap();
+    assert_eq!(workspace.maximized_window.map(|w| w.id), Some(maximized));
+    assert!(fake.is_maximized(maximized), "it was restored on the way");
+    assert_eq!(
+        containers_on(&wm, 0),
+        2,
+        "the windows it was not maximized with are tiles, and the maximized window is none"
+    );
+}
+
+#[test]
+fn a_maximized_window_that_comes_to_a_workspace_with_one_takes_its_place() {
+    let (fake, mut wm) = desktop_of(&["Test-U", "Test-V"]);
+    open_on(&fake, &mut wm, 50_961, 0);
+    open_on(&fake, &mut wm, 50_962, 1920);
+    for monitor in [0, 1] {
+        wm.focus_monitor(monitor).unwrap();
+        with_backend(fake.clone(), || {
+            wm.process_command(SocketMessage::ToggleMaximize, Vec::new())
+        })
+        .unwrap();
+    }
+    assert!(fake.is_maximized(50_961) && fake.is_maximized(50_962));
+
+    fake.remove_monitor(51);
+    fake.move_window_by_user(50_962, somewhere_in(100));
+    with_backend(fake.clone(), || reconcile_display_change(&mut wm)).unwrap();
+
+    let workspace = wm.monitors()[0].focused_workspace().unwrap();
+    assert_eq!(
+        workspace.maximized_window.map(|w| w.id),
+        Some(50_962),
+        "the window that came is the maximized one"
+    );
+    assert!(fake.is_maximized(50_962));
+    assert!(
+        !fake.is_maximized(50_961),
+        "the window that was maximized is restored"
+    );
+    assert_eq!(containers_on(&wm, 0), 1, "it is a tile again");
+    assert!(workspace.container_idx_for_window(50_961).is_some());
+}

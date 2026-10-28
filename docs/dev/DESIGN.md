@@ -644,3 +644,17 @@ Because after the screen is unlocked the window that is active again is not alwa
 and komorebi's idea of the focus would stay the one it had. Once a second the bridge compares the
 window KWin has active with the one it last announced, and announces the active one when they
 differ. It costs a comparison of two ids a second.
+
+## Why is a window the user maximizes treated like one komorebi maximized?
+
+Because the compositor reports both the same way, and komorebi has to follow it. The comment on the
+`MaximizeChange` event says that komorebi's own `toggle-maximize` "does this too and finds the window
+already as it asked, but the user's title bar does it without komorebi's knowing". A window that
+stayed a tile would be asked to move at the next retile: the code that reads the windows that are
+open when komorebi starts says a window that is already maximized is "the maximized window, not a tile
+that would be asked to leave the maximized state". So
+[`WindowManager::adopt_maximize_change`](../../komorebi/src/window_manager.rs) takes the window out of
+the layout as `toggle-maximize` makes a window leave it, and what is asked of the layout does
+nothing "until it is restored, by `toggle-maximize` or by the user" (the comment in
+`process_command`). Because the report is the same either way, one comparison serves both: a window
+that is, or is not, already the workspace's maximized window changes nothing.

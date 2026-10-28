@@ -28,9 +28,10 @@
 //! | The windows of a monitor that is gone are tiled on the monitors that are left | [`WindowManager::evacuate_monitor`], called by the monitor reconciliator | `tests/follow_output.rs::the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left_and_come_back_with_it` |
 //! | A stack moves as a stack | [`WindowManager::follow_windows_to_their_monitors`] and [`WindowManager::evacuate_monitor`] move whole containers | `tests/hotplug.rs::a_stack_goes_with_the_monitor_as_a_stack` |
 //! | Nothing is moved while the user drags a window: the drag decides where that window goes | [`WindowManager::follow_windows_to_their_monitors`] returns at once | `tests/follow_output.rs::nothing_is_followed_while_the_user_drags_a_window` |
-//! | A monocle or a maximized window of a monitor that is gone is not lost | [`WindowManager::evacuate_monitor`] takes both out of the workspace and puts each in a container | `tests/hotplug.rs::a_monocle_of_a_monitor_that_goes_comes_back_as_a_container_with_the_windows_it_hid`, `tests/hotplug.rs::a_maximized_window_of_a_monitor_that_goes_is_not_lost` |
+//! | A monocle of a monitor that is gone comes back as a container, and a maximized window stays maximized | [`WindowManager::evacuate_monitor`] takes both out of the workspace: the monocle is put in a container, the maximized window becomes the maximized window of the workspace it goes to ([`Workspace::adopt_maximized_window`]) | `tests/hotplug.rs::a_monocle_of_a_monitor_that_goes_comes_back_as_a_container_with_the_windows_it_hid`, `tests/hotplug.rs::a_maximized_window_of_a_monitor_that_goes_is_not_lost`, `tests/hotplug.rs::a_maximized_window_of_a_monitor_that_goes_stays_maximized`, `tests/hotplug.rs::a_maximized_window_that_comes_to_a_workspace_with_one_takes_its_place` |
 //!
 //! [`reconcile_display_change`]: crate::monitor_reconciliator::reconcile_display_change
+//! [`Workspace::adopt_maximized_window`]: crate::workspace::Workspace::adopt_maximized_window
 
 #![deny(missing_docs)]
 
@@ -238,17 +239,21 @@ impl WindowManager {
     ///
     /// Each container and floating window goes to the workspace of the same number on the monitor
     /// that now has it, or on the first monitor that is left when that is not clear yet. A monocle
-    /// and a maximized window come back as ordinary containers. The monitor itself stays in the
-    /// list, empty, for the caller to remove. Nothing is done when there is no such monitor, or no
-    /// other.
+    /// comes back as an ordinary container, with the windows it hid shown again. A maximized window
+    /// stays maximized, as the maximized window of the workspace it goes to; the one that workspace
+    /// had goes back to its tile. The monitor itself stays in the list, empty, for the caller to
+    /// remove. Nothing is done when there is no such monitor, or no other.
     ///
     /// # Errors
     ///
     /// Returns an error if a monitor or workspace it moves windows between is not there, or if a
-    /// maximized window cannot be put in a container.
+    /// maximized window cannot be put in a container. A maximized window that cannot be kept
+    /// maximized is logged, and stays a tile.
     ///
     /// Covered by `tests/hotplug.rs::a_stack_goes_with_the_monitor_as_a_stack`,
-    /// `tests/hotplug.rs::the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left` and
+    /// `tests/hotplug.rs::the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left`,
+    /// `tests/hotplug.rs::a_maximized_window_of_a_monitor_that_goes_stays_maximized`,
+    /// `tests/hotplug.rs::a_maximized_window_that_comes_to_a_workspace_with_one_takes_its_place` and
     /// `tests/follow_output.rs::the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left_and_come_back_with_it`.
     pub fn evacuate_monitor(&mut self, serial_number_id: &str) -> eyre::Result<()> {
         let Some(gone) = self
@@ -342,14 +347,20 @@ impl WindowManager {
                 )?;
             }
 
-            // a maximized window is a window of an ordinary container on the monitor it goes to
+            // already maximized, and the compositor keeps it so on the monitor it has gone to
             if let Some(window) = maximized {
+                let id = window.id;
                 let mut container = crate::container::Container::default();
                 container.add_window(&window)?;
                 place(
                     self,
                     Some(window),
-                    Box::new(move |workspace| workspace.containers_mut().push_back(container)),
+                    Box::new(move |workspace| {
+                        workspace.containers_mut().push_back(container);
+                        if let Err(error) = workspace.adopt_maximized_window(id) {
+                            tracing::warn!("could not keep window {id} maximized: {error}");
+                        }
+                    }),
                 )?;
             }
         }

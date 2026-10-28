@@ -108,11 +108,12 @@
 //!   **MonocleFocusBehaviour** sets what focusing in a direction does meanwhile, cycle the
 //!   monocle or nothing, and **ToggleMonocleFocusBehaviour** switches between the two.
 //! - **ToggleMaximize** has the compositor maximize the focused window, which leaves the layout,
-//!   or restores it and puts it back in its tile ([`WindowManager::toggle_maximize`]). While a
-//!   window is maximized, the messages about the tiles (**MoveWindow**, **CycleMoveWindow**, the
-//!   stack messages, the resize, promote and preselect messages, **ToggleLock**, **ToggleFloat**,
-//!   **ToggleMonocle** and the ones that send a container to another monitor or workspace) are
-//!   ignored.
+//!   or restores it and puts it back in its tile ([`WindowManager::toggle_maximize`]). A window
+//!   the user maximizes leaves the layout the same way
+//!   ([`WindowManager::adopt_maximize_change`]). While a window is maximized, by either, the
+//!   messages about the tiles (**MoveWindow**, **CycleMoveWindow**, the stack messages, the
+//!   resize, promote and preselect messages, **ToggleLock**, **ToggleFloat**, **ToggleMonocle**
+//!   and the ones that send a container to another monitor or workspace) are ignored.
 //! - **WorkspacePadding** and **ContainerPadding** set the paddings of a workspace given by the
 //!   index of its monitor and its own, **NamedWorkspacePadding** and
 //!   **NamedWorkspaceContainerPadding** those of the workspace with a name
@@ -432,9 +433,9 @@ impl WindowManager {
             tracing::info!("processing command: {message}");
         }
 
-        // a window that is maximized (by `toggle-maximize`) is not in the layout, and what is
-        // asked of the layout is not asked of it: nothing happens until it is restored, by
-        // `toggle-maximize`
+        // a window that is maximized (by `toggle-maximize`, or by the user with its title bar) is
+        // not in the layout, and what is asked of the layout is not asked of it: nothing happens
+        // until it is restored, by `toggle-maximize` or by the user
         if is_layout_command(&message)
             && self
                 .focused_workspace()

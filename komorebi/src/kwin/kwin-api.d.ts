@@ -97,6 +97,7 @@ interface KWinWindow {
     readonly frameGeometryChanged: Signal<[oldGeometry: QRectF]>;
     readonly minimizedChanged: Signal;
     readonly outputChanged: Signal;
+    readonly maximizedChanged: Signal;
     readonly captionChanged: Signal;
     readonly desktopsChanged: Signal;
     /** The user took hold of the window with the pointer, to move it (`move`) or resize it

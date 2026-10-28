@@ -30,6 +30,12 @@
 //! - **Minimize**: a window the user minimized leaves its workspace and the rest are tiled
 //!   again; **Restore** brings it back in a container of its own. A minimize of a window komorebi
 //!   hid ([`struct@HIDDEN_WINDOWS`]) is not the user's, and changes nothing.
+//! - **MaximizeChange**: a window the compositor maximized, which komorebi did not ask for (the
+//!   title bar, a double click, a shortcut), becomes the workspace's maximized window, as
+//!   `ToggleMaximize` makes the focused window, and one the user restored goes back in a container
+//!   of its own ([`WindowManager::adopt_maximize_change`]). The maximize and the restore that
+//!   `ToggleMaximize` asks for come back as this event too, and change nothing. A window that
+//!   opens maximized is taken the same way, after its Show.
 //! - **TitleUpdate**: a window komorebi does not have, and that was not minimized, is announced
 //!   again as a Show, so that a rule that matches on the title it has now decides.
 //! - **MoveStart** and **MoveEnd**: the user dragged a window with the pointer. When they let go
@@ -296,6 +302,9 @@ impl WindowManager {
             WindowManagerEvent::OutputChange(..) => {
                 self.follow_window_to_its_monitor(window)?;
             }
+            WindowManagerEvent::MaximizeChange(_, _, maximized) => {
+                self.adopt_maximize_change(window_id, maximized)?;
+            }
             WindowManagerEvent::WorkspaceMove(_, _, idx) => {
                 // somebody put the window on another workspace's desktop: it belongs there now.
                 // (komorebi's own moves come back here too, and find the window already there.)
@@ -428,6 +437,12 @@ impl WindowManager {
                             // was previously empty, so give this window the focus
                             window.focus(self.mouse_follows_focus)?;
                         }
+                    }
+
+                    // an app that remembers it was maximized opens that way
+                    if backend().window(window_id).is_some_and(|w| w.maximized) {
+                        self.update_known_window_ids();
+                        self.adopt_maximize_change(window_id, true)?;
                     }
 
                     if workspace_contains_window {

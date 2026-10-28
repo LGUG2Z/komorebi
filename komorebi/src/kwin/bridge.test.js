@@ -59,8 +59,10 @@ function geometry(x, y, width, height) {
 // A window. `id` becomes its `internalId`, which is a QUuid in KWin: an object, not a string.
 // Setting `minimized`, `frameGeometry` or `desktops` raises the signal KWin raises, and
 // `closeWindow` closes it once it is in a KWin. `setMaximize` sets `maximizeMode` the way KWin's
-// does and records what it was asked in `maximizations`. `place` is where KWin puts the window
-// when it is asked for a frame: where it was asked, unless a test says otherwise.
+// does, raises `maximizedChanged` when the mode changes, and records what it was asked in
+// `maximizations`: the user's title bar calls it too, so a test maximizes a window for the user by
+// calling it. `place` is where KWin puts the window when it is asked for a frame: where it was
+// asked, unless a test says otherwise.
 function window({
     id,
     minimized = false,
@@ -88,7 +90,11 @@ function window({
         maximizations: [],
         setMaximize: (vertically, horizontally) => {
             w.maximizations.push([vertically, horizontally]);
-            w.maximizeMode = (vertically ? 1 : 0) | (horizontally ? 2 : 0);
+            const mode = (vertically ? 1 : 0) | (horizontally ? 2 : 0);
+            if (mode !== w.maximizeMode) {
+                w.maximizeMode = mode;
+                w.maximizedChanged.emit();
+            }
         },
         move: false,
         resize: false,
@@ -96,6 +102,7 @@ function window({
         frameGeometryChanged: new Signal(),
         minimizedChanged: new Signal(),
         outputChanged: new Signal(),
+        maximizedChanged: new Signal(),
         captionChanged: new Signal(),
         desktopsChanged: new Signal(),
         interactiveMoveResizeStarted: new Signal(),
@@ -633,6 +640,25 @@ test("a window maximized one way only is not maximized", () => {
     assert.deepStrictEqual(
         snapshot.windows.map((w) => w.maximized),
         [false, false, false, true],
+    );
+});
+
+test("a window the user maximizes or restores is reported, and one maximized one way is not", () => {
+    const w = window({ id: "{w}" });
+    const k = kwin({ windows: [w] });
+
+    // the title bar's button maximizes both ways and restores both ways; a shortcut can do one way
+    w.setMaximize(true, true);
+    w.setMaximize(true, false);
+    w.setMaximize(false, false);
+
+    assert.deepStrictEqual(
+        k.events().slice(1).map((e) => [e.type, e.id, e.v]),
+        [
+            ["maximized", "{w}", true],
+            ["maximized", "{w}", false],
+            ["maximized", "{w}", false],
+        ],
     );
 });
 

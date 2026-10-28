@@ -42,7 +42,8 @@ out of sight and bring one of them to the front,
 [Floating windows](usage/floating-windows.md) how to take a window out of the layout and work with
 the floating ones,
 [Monocle](usage/monocle.md) how to give one window the whole work area,
-[Maximizing windows](usage/maximizing-windows.md) how to have KWin maximize one,
+[Maximizing windows](usage/maximizing-windows.md) how to have KWin maximize one, and what
+komorebi does when you maximize one yourself,
 [Managing windows](usage/managing-windows.md) how to minimize, close and unmanage the focused
 window and pause the daemon, and
 [Padding and work area offsets](usage/padding-and-offsets.md) how to put gaps around the tiles

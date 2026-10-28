@@ -1293,6 +1293,101 @@ impl Workspace {
         Ok(())
     }
 
+    /// Takes a window the compositor has maximized without komorebi's being asked (the user's title
+    /// bar, a double click, a shortcut) out of the layout, as [`Workspace::new_maximized_window`]
+    /// does for the focused window: it becomes the workspace's maximized window, with the index it
+    /// goes back to, until it is restored by `toggle-maximize` or by the user. The window is
+    /// already maximized, so it is not asked to be.
+    ///
+    /// A window that is the maximized window already changes nothing. A workspace has room for one
+    /// maximized window: the one it had goes back in the layout first, and a window that was
+    /// floating or in the monocle container leaves it. The window goes back to the index of the
+    /// focused container when it was floating, to the one the monocle container was taken from when
+    /// it was in the monocle, and to its container's index otherwise. A stack or a monocle container
+    /// that the window leaves shows the window that has the focus in it now, and hides the others.
+    ///
+    /// # Errors
+    ///
+    /// - The workspace has no such window in its floating windows, its monocle container or its
+    ///   containers.
+    /// - The maximized window it had cannot be put back, for one of the reasons
+    ///   [`Workspace::reintegrate_maximized_window`] gives.
+    pub fn adopt_maximized_window(&mut self, window_id: u32) -> eyre::Result<()> {
+        if self.maximized_window.is_some_and(|w| w.id == window_id) {
+            return Ok(());
+        }
+
+        // there is room for one: the one that was is a tile again
+        if self.maximized_window.is_some() {
+            self.reintegrate_maximized_window()?;
+        }
+
+        let focused_idx = self.focused_container_idx();
+
+        if let Some(window) = self.remove_floating_window(window_id) {
+            self.maximized_window = Option::from(window);
+            self.maximized_window_restore_idx = Option::from(focused_idx);
+            return Ok(());
+        }
+
+        let monocle_restore_idx = self.monocle_container_restore_idx;
+        if let Some(monocle_container) = &mut self.monocle_container
+            && let Some(window_idx) = monocle_container
+                .windows()
+                .iter()
+                .position(|window| window.id == window_id)
+        {
+            let window = monocle_container
+                .remove_window_by_idx(window_idx)
+                .ok_or_eyre("there is no window")?;
+
+            if monocle_container.windows().is_empty() {
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
+            } else {
+                monocle_container.load_focused_window()?;
+            }
+
+            self.maximized_window = Option::from(window);
+            self.maximized_window_restore_idx = monocle_restore_idx;
+            return Ok(());
+        }
+
+        let container_idx = self
+            .container_idx_for_window(window_id)
+            .ok_or_eyre("there is no such window to maximize")?;
+
+        let container = self
+            .containers_mut()
+            .get_mut(container_idx)
+            .ok_or_eyre("there is no container")?;
+
+        let window_idx = container
+            .windows()
+            .iter()
+            .position(|window| window.id == window_id)
+            .ok_or_eyre("there is no window")?;
+
+        let window = container
+            .remove_window_by_idx(window_idx)
+            .ok_or_eyre("there is no window")?;
+
+        if container.windows().is_empty() {
+            // as for `toggle-maximize`: the index is kept free for the window to come back to
+            self.containers_mut().remove(container_idx);
+            if self.resize_dimensions.get(container_idx).is_some() {
+                self.resize_dimensions.remove(container_idx);
+            }
+        } else {
+            container.load_focused_window()?;
+        }
+
+        self.maximized_window = Option::from(window);
+        self.maximized_window_restore_idx = Option::from(container_idx);
+
+        Ok(())
+    }
+
     /// The maximized window is a tile again, in a container of its own at the index it was taken
     /// from, and the compositor gives it back the frame it had
     ///

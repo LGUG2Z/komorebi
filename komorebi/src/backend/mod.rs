@@ -77,6 +77,9 @@ pub struct WindowInfo {
     pub rect: Rect,
     /// Whether the window is minimized.
     pub minimized: bool,
+    /// Whether the window is maximized, whether by the user (the title bar, a double click, a
+    /// shortcut) or because komorebi asked ([`Backend::maximize`]).
+    pub maximized: bool,
     /// Whether the compositor considers this a normal application window, as opposed to a dialog,
     /// a splash screen, a utility window, a dock and so on.
     pub normal: bool,

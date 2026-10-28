@@ -41,8 +41,9 @@ KWin takes the windows of an output that goes (it is unplugged, or disabled with
 likes. komorebi takes the monitor's workspaces over there: every container, and every floating
 window, goes to the workspace with the same number on the monitor KWin put its window on, and
 the workspaces that changed are tiled again. A [stack](stacking-windows.md) goes as a stack. A
-monocle window and a maximized window come as tiles of their own, and the windows the monocle hid
-are shown again.
+monocle window comes as a tile of its own, and the windows the monocle hid are shown again. A
+[maximized window](maximizing-windows.md) stays maximized, on the workspace it goes to; if that
+workspace has a maximized window already, it goes back to its tile.
 
 A moment after an output goes or comes back (1.5 seconds), komorebi looks at where every window
 is once more, because KWin moves windows about for a while after the outputs change: the windows

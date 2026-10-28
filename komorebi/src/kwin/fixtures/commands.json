@@ -24,7 +24,7 @@
         }
     },
     {
-        "after_seq": 15,
+        "after_seq": 17,
         "batch": {
             "batch": 3,
             "cmds": [
@@ -34,7 +34,7 @@
         }
     },
     {
-        "after_seq": 20,
+        "after_seq": 22,
         "batch": {
             "batch": 4,
             "cmds": [

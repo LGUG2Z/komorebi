@@ -25,7 +25,7 @@ class Event:
     """A window event the daemon handled."""
 
     kind: str
-    """The event (`Show`, `Destroy`, `FocusChange`, `Minimize`, `Restore`)."""
+    """The event (`Show`, `Destroy`, `FocusChange`, `Minimize`, `Restore`, `MaximizeChange`)."""
     window: int
     """The daemon's id for the window."""
     notification: str

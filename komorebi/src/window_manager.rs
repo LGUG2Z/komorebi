@@ -1556,6 +1556,57 @@ impl WindowManager {
         workspace.reintegrate_maximized_window()
     }
 
+    /// Follows the compositor when it maximizes or restores a window: a window the user maximized
+    /// (the title bar, a double click, a shortcut) leaves the layout as `toggle-maximize` makes a
+    /// window leave it, and a window the user restored is put back in a container of its own, where
+    /// it was.
+    ///
+    /// The window may be on any workspace, and that workspace is tiled again when it is the one in
+    /// front. A window komorebi does not have is ignored. So is a change komorebi made itself,
+    /// which the compositor reports too: the workspace is already as the change leaves it.
+    ///
+    /// # Errors
+    ///
+    /// See [`Workspace::adopt_maximized_window`], [`Workspace::reintegrate_maximized_window`] and
+    /// [`Monitor::update_focused_workspace`].
+    #[tracing::instrument(skip(self))]
+    pub fn adopt_maximize_change(&mut self, window_id: u32, maximized: bool) -> eyre::Result<()> {
+        let Some((m_idx, w_idx)) = self.known_window_ids.get(&window_id).cloned() else {
+            return Ok(());
+        };
+
+        let offset = self.work_area_offset;
+        let Some(monitor) = self.monitors_mut().get_mut(m_idx) else {
+            return Ok(());
+        };
+        let Some(workspace) = monitor.workspaces_mut().get_mut(w_idx) else {
+            return Ok(());
+        };
+
+        let is_the_maximized_one = workspace
+            .maximized_window
+            .is_some_and(|w| w.id == window_id);
+
+        if maximized == is_the_maximized_one {
+            return Ok(());
+        }
+
+        if maximized {
+            tracing::info!("window {window_id} was maximized by the user");
+            workspace.adopt_maximized_window(window_id)?;
+        } else {
+            tracing::info!("window {window_id} was restored by the user");
+            workspace.reintegrate_maximized_window()?;
+        }
+
+        if monitor.focused_workspace_idx() == w_idx {
+            monitor.update_focused_workspace(offset)?;
+        }
+        self.update_known_window_ids();
+
+        Ok(())
+    }
+
     /// Takes the focused container out of the layout of the focused workspace and makes it the
     /// monocle container, which the next tiling gives the whole work area, and hides the windows
     /// of the other containers

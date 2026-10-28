@@ -121,8 +121,9 @@ the run.
 - `Kde.session(machine, scale=)` attaches to the session node's own Plasma
   session once its desktop is up, and `shot(name)` returns a screenshot as a
   Pillow image, keeping `NAME.png` in the output directory.
-- `activate`, `minimize` and `close` act on a window through `kdotool`, as the
-  user would, and `wid_by_class` finds a window by its app id or X11 class.
+- `activate`, `minimize`, `maximize`, `unmaximize` and `close` act on a window through
+  `kdotool`, as the user would (`maximize` does what the title bar's button does, and the
+  daemon is not asked), and `wid_by_class` finds a window by its app id or X11 class.
   `Kde.headless(..., xwayland=True)` gives the session XWayland, for X11
   clients.
 - `start_komorebi(*args)` starts the daemon in the session, with the module's

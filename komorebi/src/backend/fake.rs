@@ -282,6 +282,7 @@ impl FakeBackend {
                     bottom: 600,
                 },
                 minimized: false,
+                maximized: false,
                 normal: true,
                 alive: true,
             },
@@ -346,8 +347,15 @@ impl FakeBackend {
         self.state.lock().cursor = Some((x, y));
     }
 
-    /// Returns true if and only if the window has been maximized by a command and not restored
-    /// since.
+    /// Maximizes or restores a window as the user does with its title bar: the compositor does it
+    /// and nobody asks the window manager, so no command is recorded. A test sends the event that
+    /// says so.
+    pub fn user_maximize(&self, id: u32, maximize: bool) {
+        self.state.lock().set_maximized(id, maximize);
+    }
+
+    /// Returns true if and only if the window is maximized, by a command or by
+    /// [`FakeBackend::user_maximize`], and has not been restored since.
     pub fn is_maximized(&self, id: u32) -> bool {
         self.state.lock().maximized.contains_key(&id)
     }
@@ -481,6 +489,7 @@ fn permissive_window(id: u32) -> WindowInfo {
         path: format!("/usr/bin/exe{id}"),
         rect: Rect::default(),
         minimized: false,
+        maximized: false,
         normal: true,
         alive: true,
     }
@@ -494,6 +503,10 @@ impl Backend for FakeBackend {
             .values()
             .filter(|w| w.alive)
             .cloned()
+            .map(|mut w| {
+                w.maximized = state.maximized.contains_key(&w.id);
+                w
+            })
             .collect();
         windows.sort_by_key(|w| w.id);
         windows
@@ -504,7 +517,11 @@ impl Backend for FakeBackend {
         if state.permissive && !state.windows.contains_key(&id) {
             state.windows.insert(id, permissive_window(id));
         }
-        state.windows.get(&id).cloned()
+        let maximized = state.maximized.contains_key(&id);
+        state.windows.get(&id).cloned().map(|mut w| {
+            w.maximized = maximized;
+            w
+        })
     }
 
     fn foreground_window(&self) -> Option<u32> {
@@ -787,6 +804,26 @@ mod tests {
             ]
         );
         Ok(())
+    }
+
+    #[test]
+    fn a_window_the_user_maximizes_is_maximized_and_no_command_is_recorded() {
+        let fake = fake_with(&[1]);
+        fake.set_rect(1, &tile(100, 200)).unwrap();
+        fake.clear_commands();
+
+        fake.user_maximize(1, true);
+
+        assert!(fake.is_maximized(1));
+        assert!(fake.window(1).expect("window 1 was opened").maximized);
+        assert!(fake.windows()[0].maximized);
+        assert_eq!(fake.rect_of(1), Some(tile(0, 1920)));
+        assert!(fake.commands().is_empty());
+
+        fake.user_maximize(1, false);
+
+        assert!(!fake.window(1).expect("window 1 was opened").maximized);
+        assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
     }
 
     #[test]

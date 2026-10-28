@@ -41,6 +41,8 @@ pub enum KWinNotification {
     WindowMinimized,
     /// `window.minimizedChanged` to false
     WindowRestored,
+    /// `window.maximizedChanged`
+    WindowMaximizedChanged,
     /// `window.outputChanged`
     WindowOutputChanged,
     /// `window.captionChanged`
@@ -80,6 +82,10 @@ pub enum WindowManagerEvent {
     /// A window is on another output than it was: the user moved it (a shortcut), or KWin did when
     /// an output went away or came back. Where it is now is what the window reports.
     OutputChange(SystemNotification, Window),
+    /// A window was maximized (`true`) or restored (`false`) by the compositor: komorebi's own
+    /// `toggle-maximize` does this too and finds the window already as it asked, but the user's
+    /// title bar does it without komorebi's knowing
+    MaximizeChange(SystemNotification, Window, bool),
     /// The user asked komorebi to manage the window (`ManageFocusedWindow`)
     Manage(Window),
     /// The user asked komorebi to stop managing the window (`UnmanageFocusedWindow`)
@@ -116,6 +122,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(_, window)
             | WindowManagerEvent::Restore(_, window)
             | WindowManagerEvent::TitleUpdate(_, window)
+            | WindowManagerEvent::MaximizeChange(_, window, _)
             | WindowManagerEvent::OutputChange(_, window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Unmanage(window)
@@ -146,6 +153,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(n, _)
             | WindowManagerEvent::Restore(n, _)
             | WindowManagerEvent::TitleUpdate(n, _)
+            | WindowManagerEvent::MaximizeChange(n, _, _)
             | WindowManagerEvent::OutputChange(n, _)
             | WindowManagerEvent::MoveStart(n, _)
             | WindowManagerEvent::MoveEnd(n, _)
@@ -205,5 +213,22 @@ mod tests {
         assert_eq!(event.window(), None);
         assert_eq!(event.window_id(), None);
         assert_eq!(event.notification(), "WorkspaceChanged");
+    }
+
+    #[test]
+    fn a_maximize_change_says_whether_the_window_was_maximized_or_restored() {
+        let event = WindowManagerEvent::MaximizeChange(
+            SystemNotification::KWin(KWinNotification::WindowMaximizedChanged),
+            Window::from(302),
+            true,
+        );
+
+        assert_eq!(event.window_id(), Some(302));
+        assert_eq!(event.notification(), "WindowMaximizedChanged");
+        assert_eq!(event.to_string(), "MaximizeChange");
+        assert!(matches!(
+            event,
+            WindowManagerEvent::MaximizeChange(_, _, true)
+        ));
     }
 }

@@ -46,14 +46,14 @@ that is added has its place here.
   containers are hidden, until it is put back where it was ([`Workspace::monocle_container`]).
 - **Layer**: which of a workspace's two kinds of windows the focus, move and resize commands
   act on: its tiles (`Tiling`) or its floating windows (`Floating`) ([`WorkspaceLayer`]).
-- **Maximized window**: a workspace's one window that the compositor has maximized. It is in no
-  container, so it has left the layout, until it is put back in a container of its own where it
-  was ([`Workspace::maximized_window`]).
+- **Maximized window**: a workspace's one window that the compositor has maximized, whether
+  komorebi asked for it or the user did. It is in no container, so it has left the layout, until
+  it is put back in a container of its own where it was ([`Workspace::maximized_window`]).
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
-  the focus, minimized or restored, dragged by the user, put on another workspace's desktop, or
-  moved to another output; and that a monitor shows another workspace
-  ([`WindowManagerEvent`]). Two events come from komorebi itself: a command asks it to manage the
-  focused window, or to stop managing it.
+  the focus, minimized or restored, maximized or restored from it, dragged by the user, put on
+  another workspace's desktop, or moved to another output; and that a monitor shows another
+  workspace ([`WindowManagerEvent`]). Two events come from komorebi itself: a command asks it to
+  manage the focused window, or to stop managing it.
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
   (focus a window, move it, change the layout, resize it, show a workspace, retile, stop) or a
   question (the state, the monitors, one [`StateQuery`]).
@@ -113,10 +113,10 @@ the same logic runs against both. The reasons are in
 The desktop, as the window manager sees it, is two lists and a pointer:
 
 - **Windows**, each a [`WindowInfo`]: its id, process, title, `app_id`, executable, frame,
-  whether it is minimized, whether it is a normal application window (as opposed to a
-  dialog, a splash screen or a dock), and whether it is alive. A window that has been
-  destroyed stays in the table for a short time with `alive` false, so that the event that
-  mentions it can still be logged.
+  whether it is minimized, whether it is maximized, whether it is a normal application window
+  (as opposed to a dialog, a splash screen or a dock), and whether it is alive. A window that
+  has been destroyed stays in the table for a short time with `alive` false, so that the event
+  that mentions it can still be logged.
 - **Monitors**, each a [`MonitorInfo`]: its id, name, an identity that survives a
   hot-plug, its bounds and its work area.
 - **The pointer**, a position if the compositor says where it is, and the **focus**, the id
@@ -349,7 +349,9 @@ copy, with its workspaces and settings, in a cache that lives as long as the dae
 that are left ([`WindowManager::evacuate_monitor`]). Each container and floating window goes to
 the workspace of the same number on the monitor that now holds the middle of its window's frame,
 or on the first monitor that is left when the window is on none; a stack goes as the container it
-is, and a monocle and a maximized window come as ordinary containers. The monitor is then removed.
+is, a monocle comes as an ordinary container, and a maximized window stays maximized, as the
+maximized window of the workspace it goes to ([`Workspace::adopt_maximized_window`]). The monitor
+is then removed.
 A monitor that is new to the window manager is added by [`load_monitor_information`], and when
 the cache has a monitor with its serial number id, the new monitor takes the cached workspaces and
 settings, less the windows that have closed or that the window manager has elsewhere now, and the
@@ -622,6 +624,19 @@ given the focus whole. `CycleFocusWindow` is not dropped: it gives the focus to 
 container's window (the code has a TODO for what it should do). A maximized window is hidden
 with the rest of its workspace, and restored and focused ahead of the containers' windows when
 the workspace is shown again ([`Workspace::hide`], [`Workspace::restore`]).
+
+A window the user maximizes, with its title bar, a double click or a shortcut, is the same from
+then on. KWin does it without komorebi's being asked, and the bridge reports it as a `maximized`
+event, which the table turns into a `MaximizeChange` ([`WindowManager::adopt_maximize_change`]).
+The window leaves its container, or the floating windows, or the monocle, for the workspace's
+maximized window, with the index it goes back to ([`Workspace::adopt_maximized_window`]), and the
+workspace is tiled again. It is not asked to maximize: it already is. A workspace has room for one
+maximized window, so the one it had is put back in its container first. When the user restores
+the window, it goes back in a container of its own at that index; a window that was floating comes
+back as a tile, as it does after `ToggleMaximize`. komorebi's own maximize and restore are
+reported too, and find the workspace as they leave it, so they change nothing. A window that is
+already maximized when komorebi starts ([`load_workspace_information`]) or when it opens (a
+`Show`) is the maximized window the same way.
 
 A workspace is on one of two layers ([`Workspace::layer`]), and the focus, move and resize
 messages go to the windows of that layer. `ToggleFloat` puts the workspace on the floating layer,
@@ -1260,6 +1275,12 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A clean stop, and the next start after a crash, bring back the windows a monocle hid | VM test | `vm-core-e2e` ("and every window is on a workspace's desktop", "after a crash and a restart a monocle still hides the other window") | none |
 | A maximized window goes back in a container of its own at the index it came from, and the tiles are where they were | framework path: [`Workspace::new_maximized_window`] keeps the index and [`Workspace::reintegrate_maximized_window`] inserts at it, after asking the backend to restore the window, and nothing else moves in between | `toggle_maximize_takes_the_window_out_of_the_layout_and_back`, `maximizing_works_in_every_layout`, `a_window_goes_back_in_a_container_of_its_own_at_the_index_it_came_from` | none |
 | What is about the tiles does nothing while a window is maximized | framework path: `is_layout_command` in [`WindowManager::process_command`] drops the message before it is handled | `while_a_window_is_maximized_what_is_about_the_tiles_does_nothing` | none |
+| A window the user maximizes leaves the layout as `toggle-maximize` makes a window leave it, and comes back to its tile when the user restores it | framework path: `handle_event` hands a `MaximizeChange` to [`WindowManager::adopt_maximize_change`], which uses [`Workspace::adopt_maximized_window`] and [`Workspace::reintegrate_maximized_window`] | `a_window_the_user_maximizes_leaves_the_layout_like_toggle_maximize_makes_it`, `the_user_restoring_the_window_with_its_title_bar_puts_it_back_in_its_tile`, `a_floating_window_the_user_maximizes_leaves_the_floating_windows_and_comes_back_as_a_tile`, `the_window_in_the_monocle_that_the_user_maximizes_leaves_the_monocle`, `a_second_window_the_user_maximizes_puts_the_first_back_in_its_tile` | none |
+| What komorebi asked for, reported back by the compositor, changes nothing | framework path: [`WindowManager::adopt_maximize_change`] returns when the window already is, or is not, the workspace's maximized window | `komorebis_own_maximize_echoing_back_changes_nothing`, `toggle_maximize_restores_a_window_the_user_maximized`, `restoring_a_window_that_is_not_maximized_changes_nothing` | none |
+| A window that is maximized when komorebi starts or when it opens is the maximized window, and is not asked to leave that state | framework path: [`load_workspace_information`] and the `Show` arm of `handle_event` read [`WindowInfo::maximized`] | `a_window_that_is_maximized_when_komorebi_starts_is_the_maximized_one`, `a_window_that_opens_maximized_is_the_maximized_one` | none |
+| A change to a window komorebi does not have is ignored | framework path: [`WindowManager::adopt_maximize_change`] looks the window up in the index of managed windows first | `a_change_for_a_window_komorebi_has_not_taken_in_is_ignored` | none |
+| The bridge reports a window as maximized only when KWin has it maximized both ways | test: `isMaximized` in [`bridge.js`] reads KWin's `maximizeMode`, which is 3 for both ways | `bridge.test.js` ("a window maximized one way only is not maximized", "a window the user maximizes or restores is reported, and one maximized one way is not") | none |
+| In a real KWin, a window the user maximizes is komorebi's maximized window, the layout does nothing meanwhile, and the window goes back to its tile | VM test | `vm-user-maximize` | none |
 | A window stays maximized through a retile | framework path: [`Workspace::update`] asks the backend to maximize it again, and moves no container | `a_retile_while_a_window_is_maximized_asks_the_compositor_to_maximize_it_again` | none |
 | A maximized window that closes takes the maximize with it | framework path: [`Workspace::remove_window`] looks at the maximized window first, which the index of managed windows lists | `a_maximized_window_that_closes_leaves_the_layout_whole` | none |
 | In a real KWin, the maximized window fills the work area, is on top, and goes back to its tile | VM test | `vm-features` ("the focused window fills the work area", "and is the one on top", "toggled back, it is in its tile again") | none |
@@ -1334,7 +1355,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | Nothing is moved while the user drags a window | framework path: [`WindowManager::follow_windows_to_their_monitors`] returns at once while [`WindowManager::pending_move_op`] or [`WindowManager::pending_resize_op`] holds a drag | `nothing_is_followed_while_the_user_drags_a_window` | none |
 | The windows of a monitor that is unplugged are tiled on the monitors that are left | framework path: [`reconcile_display_change`] has [`WindowManager::evacuate_monitor`] move each container and floating window to the monitor that holds it, before it removes the monitor | `the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left`, `vm-hotplug` ("tiled inside the screen that is left") | none |
 | A stack moves with its monitor as a stack | framework path: [`WindowManager::evacuate_monitor`] moves whole containers | `a_stack_goes_with_the_monitor_as_a_stack` | none |
-| A monocle or a maximized window of a monitor that goes is not lost | framework path: [`WindowManager::evacuate_monitor`] takes both out of the workspace and puts each in a container on the monitor that is left | `a_monocle_of_a_monitor_that_goes_comes_back_as_a_container_with_the_windows_it_hid`, `a_maximized_window_of_a_monitor_that_goes_is_not_lost` | none |
+| A monocle of a monitor that goes comes back as a container, and a maximized window stays maximized | framework path: [`WindowManager::evacuate_monitor`] takes both out of the workspace; the monocle is put in a container on the monitor that is left, and the maximized window becomes the maximized window of its workspace there ([`Workspace::adopt_maximized_window`]), and the one that workspace had goes back to its tile | `a_monocle_of_a_monitor_that_goes_comes_back_as_a_container_with_the_windows_it_hid`, `a_maximized_window_of_a_monitor_that_goes_is_not_lost`, `a_maximized_window_of_a_monitor_that_goes_stays_maximized`, `a_maximized_window_that_comes_to_a_workspace_with_one_takes_its_place` | none |
 | A monitor that is plugged in again has the settings it had, and none of the windows it had | framework path: [`reconcile_display_change`] keeps the monitor in a cache when it goes, and applies it, less the windows the window manager has elsewhere, when a monitor with its serial number id comes | `a_monitor_that_comes_back_gets_what_was_kept_of_it_and_none_of_the_windows_it_had` | none |
 | A monitor komorebi has not seen gets workspaces of its own | framework path: [`load_monitor_information`] adds the monitors the window manager does not have | `a_monitor_that_was_never_there_gets_windows_of_its_own` | none |
 | When KWin reports no output, the window manager keeps the monitors it has | framework path: [`reconcile_display_change`] returns before it removes any | `a_desktop_that_reports_no_monitor_is_left_as_it_was` | none |
@@ -1550,6 +1571,9 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/monocle.rs`](../../komorebi/tests/monocle.rs), the monocle;
   [`komorebi/tests/maximize.rs`](../../komorebi/tests/maximize.rs) and
   [`komorebi/tests/maximize_commands.rs`](../../komorebi/tests/maximize_commands.rs), maximizing;
+  [`komorebi/tests/user_maximize.rs`](../../komorebi/tests/user_maximize.rs) and
+  [`komorebi/tests/user_maximize_cases.rs`](../../komorebi/tests/user_maximize_cases.rs), a window
+  the user maximizes;
   [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
   unmanaging and managing the focused window, and pausing;
   [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
@@ -1565,6 +1589,8 @@ A window is shown, and ends up on a tile:
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py): what is on the
   screen of a real compositing session, read from screenshots.
+- [`nix/tests/vm/suites/user-maximize`](../../nix/tests/vm/suites/user-maximize/test.py): a window
+  the user maximizes, in a real KWin.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
 - [`nix/tests/vm/suites/drag-resize`](../../nix/tests/vm/suites/drag-resize/test.py): edges and
@@ -1743,6 +1769,10 @@ A window is shown, and ends up on a tile:
 [`Workspace::maximized_window`]: ../../komorebi/src/workspace.rs
 [`Workspace::new_maximized_window`]: ../../komorebi/src/workspace.rs
 [`Workspace::reintegrate_maximized_window`]: ../../komorebi/src/workspace.rs
+[`Workspace::adopt_maximized_window`]: ../../komorebi/src/workspace.rs
+[`WindowManager::adopt_maximize_change`]: ../../komorebi/src/window_manager.rs
+[`WindowInfo::maximized`]: ../../komorebi/src/backend/mod.rs
+[`load_workspace_information`]: ../../komorebi/src/desktop.rs
 [`WindowManager::adjust_workspace_padding`]: ../../komorebi/src/window_manager.rs
 [`Workspace::apply_window_based_work_area_offset`]: ../../komorebi/src/workspace.rs
 [`Monitor::update_workspace_globals`]: ../../komorebi/src/monitor.rs

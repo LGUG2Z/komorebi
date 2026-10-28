@@ -287,7 +287,9 @@ pub fn update_monitor_work_areas(wm: &mut WindowManager) -> eyre::Result<()> {
 /// the one in front; a window on every desktop goes to the one in front. The monitor gets as many
 /// workspaces as that takes. A window that is minimized, that komorebi does not manage
 /// ([`Window::should_manage`]: not a normal window, or one the rules ignore), or that is on no
-/// monitor is left alone. Nothing is moved: tiling is [`WindowManager::retile_all`]'s job.
+/// monitor is left alone. A window that is already maximized is the workspace's maximized window
+/// ([`Workspace::adopt_maximized_window`](crate::workspace::Workspace::adopt_maximized_window)), not
+/// a container. Nothing is moved: tiling is [`WindowManager::retile_all`]'s job.
 ///
 /// [`Backend::current_workspaces`]: crate::backend::Backend::current_workspaces
 /// [`Backend::window_workspace`]: crate::backend::Backend::window_workspace
@@ -312,6 +314,8 @@ pub fn update_monitor_work_areas(wm: &mut WindowManager) -> eyre::Result<()> {
 /// fake.open_window(1, "foot", "foot", "a terminal");
 /// fake.open_window(2, "foot", "foot", "a dialog");
 /// fake.set_normal(2, false);
+/// fake.open_window(3, "foot", "foot", "a maximized terminal");
+/// fake.user_maximize(3, true);
 ///
 /// let (_sender, events) = crossbeam_channel::bounded(1);
 /// let socket = PathBuf::from(format!("/tmp/komorebi-windows-doc-{}.sock", std::process::id()));
@@ -325,6 +329,8 @@ pub fn update_monitor_work_areas(wm: &mut WindowManager) -> eyre::Result<()> {
 /// assert!(workspace.contains_window(1));
 /// assert!(!workspace.contains_window(2));
 /// assert_eq!(wm.focused_workspace_idx()?, 0);
+/// assert_eq!(workspace.maximized_window.map(|window| window.id), Some(3));
+/// assert_eq!(workspace.containers().len(), 1);
 /// # std::fs::remove_file(socket)?;
 /// # Ok::<(), color_eyre::eyre::Report>(())
 /// ```
@@ -377,6 +383,14 @@ pub fn load_workspace_information(wm: &mut WindowManager) -> eyre::Result<()> {
             container.windows_mut().push_back(window);
             workspace.containers_mut().push_back(container);
             valid_window_count += 1;
+
+            // already maximized when komorebi started: it is the maximized window, not a tile that
+            // would be asked to leave the maximized state
+            if info.maximized
+                && let Err(error) = workspace.adopt_maximized_window(info.id)
+            {
+                tracing::warn!("could not take the maximized window {}: {error}", info.id);
+            }
         }
     }
 

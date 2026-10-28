@@ -54,9 +54,11 @@
     {"type": "activated", "seq": 11, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}"},
     {"type": "minimized", "seq": 12, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": true},
     {"type": "minimized", "seq": 13, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": false},
-    {"type": "removed", "seq": 14, "id": "{c4b8a2f0-0000-4000-8000-00000000000c}"},
+    {"type": "maximized", "seq": 14, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": true},
+    {"type": "maximized", "seq": 15, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": false},
+    {"type": "removed", "seq": 16, "id": "{c4b8a2f0-0000-4000-8000-00000000000c}"},
     {
-        "type": "failed", "seq": 15, "batch": 2,
+        "type": "failed", "seq": 17, "batch": 2,
         "cmds": [
             {
                 "op": "geo", "id": "{7f3d9e21-0000-4000-8000-00000000000b}", "x": 960, "y": 0,
@@ -65,54 +67,54 @@
         ]
     },
     {
-        "type": "desktops", "seq": 16, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "desktops", "seq": 18, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "desktops": ["desktop-2"]
     },
-    {"type": "current_desktops", "seq": 17, "current": [{"output": "DP-1", "id": "desktop-2"}]},
+    {"type": "current_desktops", "seq": 19, "current": [{"output": "DP-1", "id": "desktop-2"}]},
     {
-        "type": "desktop_list", "seq": 18,
+        "type": "desktop_list", "seq": 20,
         "desktops": [
             {"id": "desktop-1", "name": "Desktop 1"}, {"id": "desktop-2", "name": "Desktop 2"},
             {"id": "desktop-3", "name": "mail"}
         ]
     },
     {
-        "type": "desktops", "seq": 19, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "desktops", "seq": 21, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "desktops": ["desktop-1"]
     },
-    {"type": "current_desktops", "seq": 20, "current": [{"output": "DP-1", "id": "desktop-1"}]},
+    {"type": "current_desktops", "seq": 22, "current": [{"output": "DP-1", "id": "desktop-1"}]},
     {
-        "type": "move_resize_started", "seq": 21, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "move_resize_started", "seq": 23, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "move": true, "resize": false, "geo": {"x": 0, "y": 0, "w": 960, "h": 1050}
     },
     {
-        "type": "geometry", "seq": 22, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "geometry", "seq": 24, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "geo": {"x": 40, "y": 30, "w": 960, "h": 1050}
     },
     {
-        "type": "move_resize_finished", "seq": 23, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "move_resize_finished", "seq": 25, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "geo": {"x": 40, "y": 30, "w": 960, "h": 1050}, "requested": null,
         "cursor": {"x": 1500, "y": 600}
     },
     {
-        "type": "move_resize_started", "seq": 24, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "move_resize_started", "seq": 26, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "move": false, "resize": true, "geo": {"x": 40, "y": 30, "w": 960, "h": 1050}
     },
     {
-        "type": "move_resize_step", "seq": 25, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "move_resize_step", "seq": 27, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "geo": {"x": 40, "y": 30, "w": 1100, "h": 1050}
     },
     {
-        "type": "geometry", "seq": 26, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "geometry", "seq": 28, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "geo": {"x": 40, "y": 30, "w": 1040, "h": 1050}
     },
     {
-        "type": "move_resize_finished", "seq": 27, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "move_resize_finished", "seq": 29, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "geo": {"x": 40, "y": 30, "w": 1040, "h": 1050},
         "requested": {"x": 40, "y": 30, "w": 1100, "h": 1050}, "cursor": {"x": 1500, "y": 600}
     },
     {
-        "type": "screens", "seq": 28,
+        "type": "screens", "seq": 30,
         "screens": [
             {
                 "name": "DP-1", "manufacturer": "ACME", "model": "M1", "serial": "S1",
@@ -122,7 +124,7 @@
         ]
     },
     {
-        "type": "output", "seq": 29, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "type": "output", "seq": 31, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
         "geo": {"x": 40, "y": 30, "w": 1040, "h": 1050}, "output": "DP-2"
     }
 ]

@@ -542,6 +542,19 @@ class Kde:
         """Asks KWin to minimize the window, as its title bar button would."""
         self.sh(f"kdotool windowminimize {shlex.quote(wid)}")
 
+    def maximize(self, wid: str) -> None:
+        """Asks KWin to maximize the window both ways, as its title bar button would.
+
+        It is the user's maximize: the daemon is not asked, and learns of it from KWin.
+        """
+        for state in ("MAXIMIZED_VERT", "MAXIMIZED_HORZ"):
+            self.sh(f"kdotool windowstate --add {state} {shlex.quote(wid)}")
+
+    def unmaximize(self, wid: str) -> None:
+        """Asks KWin to restore the window from being maximized, as its title bar button would."""
+        for state in ("MAXIMIZED_VERT", "MAXIMIZED_HORZ"):
+            self.sh(f"kdotool windowstate --remove {state} {shlex.quote(wid)}")
+
     def close(self, wid: str) -> None:
         """Asks KWin to close the window, as its title bar button would."""
         self.sh(f"kdotool windowclose {shlex.quote(wid)}")
