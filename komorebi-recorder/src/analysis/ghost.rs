@@ -687,6 +687,107 @@ mod tests {
         assert!(found.is_empty(), "{found:#?}");
     }
 
+    /// A Mac with two displays, the second to the left of the main one (so at negative
+    /// coordinates, as a Mac puts a display arranged that way), and one window in a tile on the
+    /// second with the frame given. `showing` is whether the workspace that has it is the one the
+    /// display shows; `paused` is komorebi's pause.
+    fn two_displays(frame: [i64; 4], showing: bool, paused: bool) -> serde_json::Value {
+        use crate::testkit::container;
+        use crate::testkit::monitor;
+        use crate::testkit::state;
+        use crate::testkit::window;
+        use crate::testkit::workspace;
+
+        let main = monitor(
+            1,
+            [0, 0, 1000, 800],
+            vec![workspace("main", Vec::new(), 0, &[])],
+            0,
+        );
+        let left = monitor(
+            2,
+            [-1000, 0, 1000, 800],
+            vec![
+                workspace(
+                    "away",
+                    vec![container("c7", vec![window(7, "Safari", Some(frame))])],
+                    0,
+                    &[[-1000, 0, 1000, 800]],
+                ),
+                workspace("here", Vec::new(), 0, &[]),
+            ],
+            usize::from(!showing),
+        );
+        let mut value = state(vec![main, left], 0);
+        value["is_paused"] = json!(paused);
+        value
+    }
+
+    fn two_display_ghosts(name: &str, frames: &[[i64; 4]], showing: bool, paused: bool) -> usize {
+        let mut builder = SessionBuilder::new(name);
+        for (index, frame) in frames.iter().enumerate() {
+            builder = builder.event(
+                2.0 + index as f64,
+                json!({"type": "Retile"}),
+                Some(two_displays(*frame, showing, paused)),
+            );
+        }
+        let (session, _) = builder.build();
+        Analysis::open(&session.dir)
+            .expect("open")
+            .ghost_tiles()
+            .expect("ghost tiles")
+            .len()
+    }
+
+    #[test]
+    fn on_a_mac_a_window_on_a_display_at_negative_coordinates_can_be_seen() {
+        // the whole of the left display: nothing about it is outside every display
+        let on_it = [-1000, 0, 1000, 800];
+        assert_eq!(
+            two_display_ghosts("ghost-mac-left", &[on_it, on_it, on_it], true, false),
+            0
+        );
+
+        // the same shape, beyond the left display's edge, is outside all of them
+        let past_it = [-3000, 0, 1000, 800];
+        assert_eq!(
+            two_display_ghosts("ghost-mac-past", &[past_it, past_it, past_it], true, false),
+            1
+        );
+    }
+
+    #[test]
+    fn on_a_mac_one_read_is_not_enough_to_call_a_tile_a_ghost() {
+        let nowhere = [0, 0, 0, 0];
+        assert_eq!(
+            two_display_ghosts("ghost-mac-once", &[nowhere], true, false),
+            0
+        );
+        assert_eq!(
+            two_display_ghosts("ghost-mac-twice", &[nowhere, nowhere], true, false),
+            1
+        );
+    }
+
+    #[test]
+    fn on_a_mac_a_window_of_a_workspace_that_is_not_showing_is_not_a_ghost() {
+        let nowhere = [0, 0, 0, 0];
+        assert_eq!(
+            two_display_ghosts("ghost-mac-hidden-workspace", &[nowhere; 3], false, false),
+            0
+        );
+    }
+
+    #[test]
+    fn on_a_mac_nothing_is_a_ghost_while_komorebi_is_paused() {
+        let nowhere = [0, 0, 0, 0];
+        assert_eq!(
+            two_display_ghosts("ghost-mac-paused", &[nowhere; 3], true, true),
+            0
+        );
+    }
+
     #[test]
     fn a_ghost_is_about_a_bug_that_was_marked_while_it_was_there() {
         let ghost = GhostTile {
