@@ -79,8 +79,9 @@ use windows_numerics::Matrix3x2;
 pub const WM_UPDATE_BRUSHES: u32 = WM_USER + 1;
 
 /// Custom WM_USER message used to drive the border in lockstep with an active
-/// movement animation. lparam carries a `Box<Rect>` ownership transfer that the
-/// receiving WndProc reclaims and applies as the new tracked rect.
+/// movement animation. The receiving WndProc takes the newest rect the animation
+/// has for it from `border_manager::take_animated_rect` and applies it as the
+/// new tracked rect.
 pub const WM_ANIMATE_RECT: u32 = WM_USER + 2;
 
 pub struct RenderFactory(ID2D1Factory);
@@ -446,29 +447,6 @@ impl Border {
         };
     }
 
-    /// Drive the border to follow `rect` during a movement animation. Hands
-    /// ownership of a boxed `Rect` to the border's message-loop thread via
-    /// `WM_ANIMATE_RECT`, which mirrors the redraw path normally driven by
-    /// `EVENT_OBJECT_LOCATIONCHANGE` on the real source window.
-    pub fn animate_to(&self, rect: Rect) {
-        let boxed = Box::new(rect);
-        let ptr = Box::into_raw(boxed);
-        let posted = unsafe {
-            PostMessageW(
-                Option::from(self.hwnd()),
-                WM_ANIMATE_RECT,
-                WPARAM(0),
-                LPARAM(ptr as isize),
-            )
-        };
-        if posted.is_err() {
-            // Reclaim the box on failure to avoid leaking.
-            unsafe {
-                drop(Box::from_raw(ptr));
-            }
-        }
-    }
-
     pub fn set_position(&self, rect: &Rect, reference_hwnd: isize) -> color_eyre::Result<()> {
         let mut rect = *rect;
         rect.add_margin(self.width);
@@ -555,8 +533,13 @@ impl Border {
                     LRESULT(0)
                 }
                 WM_ANIMATE_RECT => {
-                    // lparam carries an owned Box<Rect> from the animation thread.
-                    let rect_box = Box::from_raw(lparam.0 as *mut Rect);
+                    // The newest rect there is, which is all there is to draw
+                    // if the animation sent more than one since the last time.
+                    let Some(rect) = crate::border_manager::take_animated_rect(window.0 as isize)
+                    else {
+                        return LRESULT(0);
+                    };
+
                     let border_pointer: *mut Border = GetWindowLongPtrW(window, GWLP_USERDATA) as _;
 
                     if border_pointer.is_null() {
@@ -567,7 +550,7 @@ impl Border {
                         return LRESULT(0);
                     }
 
-                    apply_tracked_rect(border_pointer, *rect_box);
+                    apply_tracked_rect(border_pointer, rect);
                     LRESULT(0)
                 }
                 WM_PAINT => {
@@ -695,4 +678,17 @@ impl Border {
             }
         }
     }
+}
+
+/// Tell a border, from any thread, that the animation has a rect for it to
+/// draw, which it takes with `border_manager::take_animated_rect`.
+pub fn post_animated_rect(border_hwnd: isize) {
+    let _ = unsafe {
+        PostMessageW(
+            Option::from(HWND(border_hwnd as *mut std::ffi::c_void)),
+            WM_ANIMATE_RECT,
+            WPARAM(0),
+            LPARAM(0),
+        )
+    };
 }

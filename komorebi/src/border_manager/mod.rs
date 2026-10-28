@@ -23,7 +23,6 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -109,8 +108,14 @@ fn event_rx() -> Receiver<Notification> {
 
 lazy_static! {
     /// The windows that a ghost is standing in for, which are hidden and not
-    /// where the ghost is. The animation moves their borders.
-    static ref GHOSTED: Mutex<HashSet<isize>> = Mutex::new(HashSet::new());
+    /// where the ghost is, with the border of each, if it had one when the
+    /// ghost was made. The animation moves their borders.
+    static ref GHOSTED: Mutex<HashMap<isize, Option<isize>>> = Mutex::new(HashMap::new());
+
+    /// The newest rect an animation has for a border, by the handle of the
+    /// border, for as long as the border has not got round to drawing it.
+    static ref ANIMATED_RECTS: Mutex<HashMap<isize, crate::core::Rect>> =
+        Mutex::new(HashMap::new());
 }
 
 /// Say that a ghost is, or has stopped being, what is seen of a window: from
@@ -118,14 +123,16 @@ lazy_static! {
 /// (see `animate_to`) and not the window, which is not where it is seen.
 pub fn set_ghosted(hwnd: isize, ghosted: bool) {
     if ghosted {
-        GHOSTED.lock().insert(hwnd);
-    } else {
-        GHOSTED.lock().remove(&hwnd);
+        // looked up once here, and not for every frame of the animation
+        let border = window_border(hwnd).map(|border| border.border_hwnd);
+        GHOSTED.lock().insert(hwnd, border);
+    } else if let Some(Some(border)) = GHOSTED.lock().remove(&hwnd) {
+        ANIMATED_RECTS.lock().remove(&border);
     }
 }
 
 pub(crate) fn is_ghosted(hwnd: isize) -> bool {
-    GHOSTED.lock().contains(&hwnd)
+    GHOSTED.lock().contains_key(&hwnd)
 }
 
 pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
@@ -136,18 +143,53 @@ pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
     })
 }
 
+/// Say what the newest rect an animation has for a border is, and whether that
+/// is the first since the border last drew one, in which case the border has to
+/// be told to.
+fn queue_animated_rect(
+    pending: &mut HashMap<isize, crate::core::Rect>,
+    border: isize,
+    rect: crate::core::Rect,
+) -> bool {
+    pending.insert(border, rect).is_none()
+}
+
 /// Drive the border that tracks `source_hwnd` to follow `rect`. No-op when no
 /// border is registered for the source window. Used by movement animations to
 /// keep the border visually in sync while the source window is cloaked.
+///
+/// A border draws on a thread of its own, and an animation sends it a rect
+/// for every frame, which it can take longer to draw than a frame lasts. It is
+/// only told when there is a rect to draw, and draws the newest when it gets
+/// there, instead of every one it was sent in turn and further and further
+/// behind.
 pub fn animate_to(source_hwnd: isize, rect: crate::core::Rect) {
-    let border_id = match WINDOWS_BORDERS.lock().get(&source_hwnd).cloned() {
-        Some(id) => id,
-        None => return,
+    let border = {
+        let mut ghosted = GHOSTED.lock();
+        let Some(border) = ghosted.get_mut(&source_hwnd) else {
+            return;
+        };
+
+        // a window that had no border when its ghost was made can get one
+        if border.is_none() {
+            *border = window_border(source_hwnd).map(|border| border.border_hwnd);
+        }
+
+        match *border {
+            Some(border) => border,
+            None => return,
+        }
     };
-    let state = BORDER_STATE.lock();
-    if let Some(border) = state.get(&border_id) {
-        border.animate_to(rect);
+
+    if queue_animated_rect(&mut ANIMATED_RECTS.lock(), border, rect) {
+        border::post_animated_rect(border);
     }
+}
+
+/// The newest rect an animation has for a border, which the border takes from
+/// the animation to draw
+pub(crate) fn take_animated_rect(border: isize) -> Option<crate::core::Rect> {
+    ANIMATED_RECTS.lock().remove(&border)
 }
 
 pub fn send_notification(hwnd: Option<isize>) {
@@ -939,5 +981,33 @@ mod tests {
         // and undoing what was never done is fine
         set_ghosted(hwnd, false);
         assert!(!is_ghosted(hwnd));
+    }
+
+    #[test]
+    fn a_border_is_only_told_of_a_rect_when_it_has_none_waiting() {
+        let mut pending = HashMap::new();
+        let rect = |left| crate::core::Rect {
+            left,
+            top: 0,
+            right: 10,
+            bottom: 10,
+        };
+
+        // the first rect has to be sent, and the ones after it only replace it
+        assert!(queue_animated_rect(&mut pending, 7, rect(1)));
+        assert!(!queue_animated_rect(&mut pending, 7, rect(2)));
+        assert!(!queue_animated_rect(&mut pending, 7, rect(3)));
+
+        // another border has its own
+        assert!(queue_animated_rect(&mut pending, 8, rect(9)));
+
+        // and what the border draws is the newest, after which it is told again
+        assert_eq!(pending.remove(&7).map(|rect| rect.left), Some(3));
+        assert!(queue_animated_rect(&mut pending, 7, rect(4)));
+    }
+
+    #[test]
+    fn nothing_is_waiting_for_a_border_that_was_not_ghosted() {
+        assert!(take_animated_rect(0x7e57_0003).is_none());
     }
 }
