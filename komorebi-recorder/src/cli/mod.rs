@@ -298,7 +298,10 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Trace(args) => investigate::trace(&args),
         Command::Window(args) => investigate::window(&args),
         Command::Changes(args) => video::changes(&args),
-        Command::View(args) => crate::viewer::run(args.session),
+        Command::View(args) => {
+            let socket = (!args.new_window).then(crate::viewer::ipc::default_socket);
+            crate::viewer::run(args.session, socket.as_deref())
+        }
         Command::Sheet(args) => video::sheet(&args),
         Command::Motion(args) => video::motion(&args),
         Command::Framediff(args) => video::framediff(&args),

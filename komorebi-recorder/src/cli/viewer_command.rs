@@ -5,9 +5,13 @@
 use clap::Args;
 use std::path::PathBuf;
 
-/// The arguments of `view`: the session to open, if one is given.
+/// The arguments of `view`: the sessions to open, if any are given.
 #[derive(Args, Debug)]
 pub struct ViewArgs {
-    /// The recording's folder [default: choose one in the window]
-    pub session: Option<PathBuf>,
+    /// The recordings' folders, each opened as a tab of the one viewer window [default: choose
+    /// one in the window]
+    pub session: Vec<PathBuf>,
+    /// Open a window of its own, instead of a tab of the viewer that is already running
+    #[arg(long)]
+    pub new_window: bool,
 }

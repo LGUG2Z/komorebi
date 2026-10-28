@@ -9,7 +9,9 @@
 //! [`shuttle`]), the arrow keys step by a frame or, with `Shift`, by a second. [`BINDINGS`] is the
 //! list the help window shows, kept next to the map so the two are edited together.
 //!
-//! Three things are not in the map. Keys with `Command`, `Ctrl` or `Alt` held belong to the
+//! The tab keys (`Cmd`/`Ctrl` with `T`, `W` and the digits, `Ctrl` `Tab`) are in the map, and are
+//! carried out by the window rather than by a session. Otherwise three things are not in the map.
+//! Keys with `Command`, `Ctrl` or `Alt` held belong to the
 //! system and give no action; the window handles `Command`-`Z` (bring back a deleted annotation)
 //! itself. While a text box wants the keyboard, the window reads no keys at all. And the symbol
 //! keys are matched by what they type, not by which physical key they are, since that varies with
@@ -76,6 +78,37 @@ pub enum Action {
     /// Close the list of keys if it is open, else close the form for a bug region if it is open,
     /// else clear the selection and stop looping (`Esc`).
     Escape,
+    /// Open a new start-screen tab (`Cmd`/`Ctrl` `T`). Carried out by the window, not by an open
+    /// session ([`ViewerApp::apply_tab_action`](super::ViewerApp::apply_tab_action)).
+    NewTab,
+    /// Close the current tab (`Cmd`/`Ctrl` `W`).
+    CloseTab,
+    /// Go to the next tab, from the last to the first (`Ctrl` `Tab`, and `Cmd` `Shift` `]`).
+    NextTab,
+    /// Go to the previous tab, from the first to the last (`Ctrl` `Shift` `Tab`, and `Cmd` `Shift`
+    /// `[`).
+    PreviousTab,
+    /// Go to this tab, counting from `0` (`Cmd`/`Ctrl` with `1` to `8`). One beyond the tabs there
+    /// are does nothing.
+    GoToTab(usize),
+    /// Go to the last tab (`Cmd`/`Ctrl` `9`).
+    LastTab,
+}
+
+impl Action {
+    /// Whether this action is about the window's tabs rather than the session in the current one.
+    #[must_use]
+    pub fn is_tab_action(self) -> bool {
+        matches!(
+            self,
+            Self::NewTab
+                | Self::CloseTab
+                | Self::NextTab
+                | Self::PreviousTab
+                | Self::GoToTab(_)
+                | Self::LastTab
+        )
+    }
 }
 
 /// Every binding, for the help screen: the keys and what they do, as text to show a person.
@@ -113,6 +146,13 @@ pub const BINDINGS: &[(&str, &str)] = &[
     ("1 – 9", "step by that display"),
     ("Esc", "clear the selection / close a panel"),
     ("?", "this help"),
+    ("Cmd/Ctrl T", "a new tab"),
+    ("Cmd/Ctrl W", "close the tab"),
+    (
+        "Ctrl Tab  Ctrl Shift Tab",
+        "next / previous tab (on a Mac also Cmd Shift ]  [)",
+    ),
+    ("Cmd/Ctrl 1 – 9", "go to that tab (9 is the last)"),
 ];
 
 /// Returns the action for a key pressed with `modifiers`, if it is bound.
@@ -124,8 +164,10 @@ pub const BINDINGS: &[(&str, &str)] = &[
 /// second at a time), `Home`, `End`, `Esc` and the digits (`0` fits the timeline, `1` to `9` pick a
 /// display).
 ///
-/// Anything pressed with `Command`, `Ctrl` or `Alt` gives `None`, as does any key that is not
-/// bound. [`Action::ClearSelection`] is never returned.
+/// The tab keys hold `Command` (`Cmd` on a Mac, `Ctrl` elsewhere): `T` opens a tab, `W` closes
+/// one, `1` to `9` go to a tab. `Ctrl` `Tab` (with `Shift`, backwards) and, on a Mac, `Command`
+/// `Shift` `]` and `[` move between tabs. Anything else pressed with `Command`, `Ctrl` or `Alt`
+/// gives `None`, as does any key that is not bound. [`Action::ClearSelection`] is never returned.
 ///
 /// # Example
 ///
@@ -147,10 +189,15 @@ pub const BINDINGS: &[(&str, &str)] = &[
 ///
 /// // the command key is left to the system, and an unbound key does nothing
 /// assert_eq!(action(Key::B, Modifiers::COMMAND, None), None);
+/// assert_eq!(action(Key::T, Modifiers::COMMAND, None), Some(Action::NewTab));
+/// assert_eq!(action(Key::Num9, Modifiers::COMMAND, None), Some(Action::LastTab));
 /// assert_eq!(action(Key::Q, Modifiers::NONE, None), None);
 /// ```
 #[must_use]
 pub fn action(key: Key, modifiers: Modifiers, text: Option<&str>) -> Option<Action> {
+    if let Some(tab) = tab_action(key, modifiers) {
+        return Some(tab);
+    }
     if modifiers.command || modifiers.ctrl || modifiers.alt {
         return None;
     }
@@ -194,6 +241,43 @@ pub fn action(key: Key, modifiers: Modifiers, text: Option<&str>) -> Option<Acti
         Key::Num8 => Action::FocusDisplay(7),
         Key::Num9 => Action::FocusDisplay(8),
         Key::Escape => Action::Escape,
+        _ => return None,
+    })
+}
+
+fn tab_action(key: Key, modifiers: Modifiers) -> Option<Action> {
+    if modifiers.alt {
+        return None;
+    }
+    if modifiers.ctrl && key == Key::Tab {
+        return Some(if modifiers.shift {
+            Action::PreviousTab
+        } else {
+            Action::NextTab
+        });
+    }
+    if !modifiers.command {
+        return None;
+    }
+    if modifiers.shift {
+        return match key {
+            Key::CloseBracket | Key::CloseCurlyBracket => Some(Action::NextTab),
+            Key::OpenBracket | Key::OpenCurlyBracket => Some(Action::PreviousTab),
+            _ => None,
+        };
+    }
+    Some(match key {
+        Key::T => Action::NewTab,
+        Key::W => Action::CloseTab,
+        Key::Num1 => Action::GoToTab(0),
+        Key::Num2 => Action::GoToTab(1),
+        Key::Num3 => Action::GoToTab(2),
+        Key::Num4 => Action::GoToTab(3),
+        Key::Num5 => Action::GoToTab(4),
+        Key::Num6 => Action::GoToTab(5),
+        Key::Num7 => Action::GoToTab(6),
+        Key::Num8 => Action::GoToTab(7),
+        Key::Num9 => Action::LastTab,
         _ => return None,
     })
 }
@@ -352,6 +436,76 @@ mod tests {
     }
 
     #[test]
+    fn the_tab_keys_hold_command_and_do_not_clash_with_the_plain_ones() {
+        assert_eq!(
+            action(Key::T, Modifiers::COMMAND, None),
+            Some(Action::NewTab)
+        );
+        assert_eq!(
+            action(Key::W, Modifiers::COMMAND, None),
+            Some(Action::CloseTab)
+        );
+        assert_eq!(
+            action(Key::Tab, Modifiers::CTRL, None),
+            Some(Action::NextTab)
+        );
+        assert_eq!(
+            action(
+                Key::Tab,
+                Modifiers {
+                    ctrl: true,
+                    shift: true,
+                    ..Modifiers::NONE
+                },
+                None
+            ),
+            Some(Action::PreviousTab)
+        );
+        let command_shift = Modifiers {
+            command: true,
+            shift: true,
+            ..Modifiers::NONE
+        };
+        assert_eq!(
+            action(Key::CloseBracket, command_shift, None),
+            Some(Action::NextTab)
+        );
+        assert_eq!(
+            action(Key::OpenCurlyBracket, command_shift, None),
+            Some(Action::PreviousTab)
+        );
+        assert_eq!(
+            action(Key::Num1, Modifiers::COMMAND, None),
+            Some(Action::GoToTab(0))
+        );
+        assert_eq!(
+            action(Key::Num9, Modifiers::COMMAND, None),
+            Some(Action::LastTab)
+        );
+        // the plain digit still picks a display, the plain letters still do what they did
+        assert_eq!(
+            action(Key::Num1, plain(), None),
+            Some(Action::FocusDisplay(0))
+        );
+        assert_eq!(action(Key::T, plain(), None), None);
+        assert_eq!(action(Key::W, plain(), None), None);
+        assert_eq!(action(Key::Tab, plain(), None), None);
+        // Alt makes them something else again
+        assert_eq!(
+            action(
+                Key::T,
+                Modifiers {
+                    command: true,
+                    alt: true,
+                    ..Modifiers::NONE
+                },
+                None
+            ),
+            None
+        );
+    }
+
+    #[test]
     fn every_binding_in_the_help_is_real() {
         // the help lists a key for each of these; if one stops working the list must change
         let listed: String = BINDINGS
@@ -359,7 +513,7 @@ mod tests {
             .map(|(keys, _)| *keys)
             .collect::<Vec<_>>()
             .join(" ");
-        for key in ["Space", "J", "Home", "B", "Esc"] {
+        for key in ["Space", "J", "Home", "B", "Esc", "Cmd/Ctrl T", "Ctrl Tab"] {
             assert!(listed.contains(key), "{key}");
         }
     }

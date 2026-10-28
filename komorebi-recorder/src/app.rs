@@ -10,7 +10,7 @@
 //! |---|---|
 //! | Record | starts a recording on a thread named `recorder` ([`recorder::record`]), with the options the window was started with, the displays ticked below and the predicate typed under Advanced |
 //! | Stop | asks the recording to finish ([`Live::request_stop`]); it indexes and finalizes the session, which the window shows as "finalizing..." |
-//! | Open session..., Open last | open the viewer on a recording, in a process of its own |
+//! | Open session..., Open last | open a recording as a tab of the viewer window, which is started in a process of its own if it is not running ([`crate::viewer::ipc`]) |
 //! | Copy path, Open in the file manager | after a recording: copy where the session was saved, or show it (Finder or Explorer) |
 //!
 //! While idle the list of displays is read again every second, so a display that was docked or
@@ -112,10 +112,24 @@ pub fn latest_session_in(recordings: &std::path::Path) -> Option<PathBuf> {
         .max()
 }
 
-/// Open the viewer, in its own process, on `session` if given. A separate process, so that
-/// reviewing a recording can never disturb one being made, and kept out of the video (by name on
-/// macOS, and by each of its windows asking on Windows).
+/// Open `session` (or just a start-screen tab, with none) in the viewer.
+///
+/// If a viewer is already running it is asked, over its socket, to open the session as a tab and
+/// to come to the front: no process is started. Only when none answers is `komorebi-recorder view`
+/// started, in a process of its own, so that reviewing a recording can never disturb one being
+/// made, and kept out of the video (by name on macOS, and by each of its windows asking on
+/// Windows). It then becomes the one viewer window.
 fn open_viewer(session: Option<&std::path::Path>) -> std::io::Result<()> {
+    use crate::viewer::ipc;
+
+    let request = ipc::Request {
+        open: session.map(ipc::absolute).into_iter().collect(),
+        focus: true,
+    };
+    if ipc::send(&ipc::default_socket(), &request)? == ipc::Delivery::Delivered {
+        return Ok(());
+    }
+
     // on Windows the viewer is the build without a console, so that no console window opens with it
     let this = std::env::current_exe()?;
     let gui = this.with_file_name(format!(
@@ -133,7 +147,7 @@ fn open_viewer(session: Option<&std::path::Path>) -> std::io::Result<()> {
     crate::platform::process::isolate(&mut command);
     command.arg("view");
     if let Some(session) = session {
-        command.arg(session);
+        command.arg(crate::viewer::ipc::absolute(session));
     }
     command.spawn().map(|_| ())
 }

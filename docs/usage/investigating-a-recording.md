@@ -22,8 +22,15 @@ budget, 6 an `assert` check did not hold.
 komorebi-recorder view <session>
 ```
 
-opens the recording in its own window, for the person who made it (or anyone with the folder) to play, scrub and mark.
+opens the recording in the viewer window, for the person who made it (or anyone with the folder) to play, scrub and mark.
 The recorder window has **Open session…** and **Open last** for the same thing.
+
+There is only ever one viewer window. Each recording is a tab of it: `komorebi-recorder view <session>...` (from another
+terminal, or from the recorder window) adds tabs to the window that is already open and brings it to the front, so
+several recordings can be loaded side by side. A recording that is already open is just switched to. **+** (or ⌘/Ctrl-T)
+adds a start tab with your recent recordings and **Open…**, × (or middle-click, or ⌘/Ctrl-W) closes a tab, Ctrl-Tab and
+⌘/Ctrl-1 to 9 move between them, and only the tab you are looking at plays. `view --new-window` skips all of this and
+opens a window of its own.
 
 - The **video** of every display, side by side. A display that was unplugged or asleep shows why it has nothing there,
   and the others carry on. **State overlay** draws komorebi's idea of the layout over the picture: where each tiled
@@ -130,6 +137,7 @@ and `event:12.end` when it finished.
 | `assert --check "KIND ARGS METRIC<=N"` | Pass/fail checks for a scripted scenario, repeatable. Kinds: `findings kind=K [severity=S] count<=N`, `log "<logq query>" count==N`, `motion [region=x,y,w,h] [from=T] [to=T] segments\|active_ms\|peak_share<=N`, `blank region=x,y,w,h [from=T] [to=T] [color=white] ms<=N`, `annotations kind=note\|bug\|finding count>=N`. Operators `==  !=  <=  >=  <  >`. Prints `PASS`/`FAIL` per check; exit 0 if all pass, 6 if one fails, 4 if one cannot be measured (no video), 2 if malformed. `--json` gives `assert/1` |
 | `annotate`, `annotations` | Add, change and list bug regions, notes and findings |
 | `mark TEXT` | While recording: drop a named point note (author `script`) onto the timeline from a script; it then appears in `annotations`, `brief` and the viewer like any note |
+| `view [SESSION...] [--new-window]` | Open recordings in the viewer window, each as a tab of the one window that is running (it is started if there is none and brought to the front if there is); `--new-window` makes a window of its own instead |
 
 ### Who changed it
 

@@ -1,8 +1,8 @@
 //! The viewer window: opening a session and keeping everything on screen in step.
 //!
-//! [`ViewerApp`] is the whole application and holds a [`Screen`]: nothing opened yet, a session
-//! loading, a session that failed to open, or an [`Open`] session. [`ViewerApp::ui`] draws one frame
-//! of whichever it is. An [`Open`] is where the state of a session being viewed lives (the
+//! [`ViewerApp`] is the whole application and holds tabs, each with a [`Screen`]: nothing opened
+//! yet, a session loading, a session that failed to open, or an [`Open`] session.
+//! [`ViewerApp::ui`] draws one frame of the tab bar and of the tab that is showing. An [`Open`] is where the state of a session being viewed lives (the
 //! playhead's [`Playback`], the visible stretch of the timeline, the selection, which event or
 //! finding or bug region is selected, the form being filled in), and its methods are spread
 //! over the files that draw each part: this file keeps it in step with the keyboard, and the lanes,
@@ -13,10 +13,12 @@
 //! bottom of this file run [`ViewerApp::ui`] headlessly through `egui::Context::run` with real key
 //! events, against sessions made by the test kit, and are what covers the behavior.
 
+use super::ipc;
 use super::keymap;
 use super::keymap::Action;
 use super::loaded::Loaded;
 use super::loaded::name_of;
+use super::loaded::tab_name;
 use super::prefs::Prefs;
 use super::theme;
 use super::timeline;
@@ -137,12 +139,13 @@ pub struct Open {
     pub edge_preview: Option<(String, f64, f64)>,
 }
 
-/// The screen the window is showing: a session, or what stands in for one.
+/// What one tab of the window is showing: a session, or what stands in for one.
 ///
-/// A [`ViewerApp`] is always on exactly one of these. [`ViewerApp::open`] moves it from `Empty`
-/// (or any screen) to `Loading`, and from there to `Open` or `Failed` when the load finishes.
+/// Every tab of a [`ViewerApp`] is on exactly one of these. [`ViewerApp::open`] puts a `Loading`
+/// in the tab it opens a session in, and from there it becomes `Open` or `Failed` when the load
+/// finishes.
 pub enum Screen {
-    /// Nothing opened yet: the start screen, with the recent sessions that still exist.
+    /// Nothing opened in this tab: the start screen, with the recent sessions that still exist.
     Empty,
     /// A session is being read in the background: a spinner.
     Loading {
@@ -162,19 +165,50 @@ pub enum Screen {
     Open(Box<Open>),
 }
 
-/// The viewer application: the preferences and the screen being shown.
+impl Screen {
+    /// Returns the session this tab is opening, has failed to open or has open, if it has one.
+    #[must_use]
+    pub fn dir(&self) -> Option<&Path> {
+        match self {
+            Self::Empty => None,
+            Self::Loading { dir, .. } | Self::Failed { dir, .. } => Some(dir),
+            Self::Open(open) => Some(&open.loaded.dir),
+        }
+    }
+
+    /// Whether a session can be opened into this tab without losing anything: it shows the start
+    /// screen, or a failure.
+    #[must_use]
+    pub fn is_free(&self) -> bool {
+        matches!(self, Self::Empty | Self::Failed { .. })
+    }
+}
+
+/// The viewer application: the preferences and the tabs of the window.
 ///
-/// This is what [`run`](super::run) hands to `eframe`. [`ViewerApp::new`] makes one showing the
-/// start screen, [`ViewerApp::open`] opens a session, and [`ViewerApp::ui`] draws a frame. It needs
-/// a window to draw and so has no example.
+/// This is what [`run`](super::run) hands to `eframe`. [`ViewerApp::new`] makes one with a single
+/// start-screen tab, [`ViewerApp::open`] opens a session in a tab, and [`ViewerApp::ui`] draws a
+/// frame. There is always at least one tab, and exactly one is active; the others keep their
+/// state (an open session keeps its playhead, its selection and its scan) but their video is
+/// paused. It needs a window to draw and so has no example.
+///
+/// # Opening a session
+///
+/// Every way of opening one (the buttons, the recent list, the system's folder dialog, a request
+/// from another process: [`ViewerApp::handle_request`]) goes through [`ViewerApp::open`], which
+/// follows one rule: if a tab already has the session, that tab is shown; otherwise, if the
+/// current tab is a start screen or a failure, the session loads into it; otherwise it loads into a
+/// new tab, which is shown. A tab is only ever closed by the user.
 pub struct ViewerApp {
     /// The viewer's preferences. Saved when a session is opened and when the state overlay is
     /// switched.
     pub prefs: Prefs,
     prefs_dir: PathBuf,
-    /// The screen the window is showing.
-    pub screen: Screen,
+    tabs: Vec<Screen>,
+    active: usize,
     picker: Option<Receiver<Option<PathBuf>>>,
+    server: Option<ipc::Server>,
+    release_focus: bool,
 }
 
 /// Ask the user for a folder with the system's own dialog, off the UI thread.
@@ -186,8 +220,15 @@ fn pick_folder() -> Receiver<Option<PathBuf>> {
     receiver
 }
 
+/// The path as sessions are told apart by: made absolute, with symbolic links followed, and on
+/// Windows without the `\\?\` prefix. A path that cannot be resolved (it does not exist) is kept
+/// as given, and then fails to open with the reason.
+fn canonical(dir: &Path) -> PathBuf {
+    dunce::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf())
+}
+
 impl ViewerApp {
-    /// Returns a viewer showing the start screen, with the preferences kept in `prefs_dir`.
+    /// Returns a viewer with one start-screen tab, with the preferences kept in `prefs_dir`.
     ///
     /// The preferences are read with [`Prefs::load`], so a missing or damaged file gives the
     /// defaults. Nothing is opened: see [`ViewerApp::open`].
@@ -196,47 +237,123 @@ impl ViewerApp {
         Self {
             prefs: Prefs::load(&prefs_dir),
             prefs_dir,
-            screen: Screen::Empty,
+            tabs: vec![Screen::Empty],
+            active: 0,
             picker: None,
+            server: None,
+            release_focus: false,
         }
     }
 
-    /// Starts opening the session in `dir` in the background.
+    /// Takes requests from other processes through `server` from now on: see
+    /// [`ViewerApp::handle_request`]. The socket is removed when the viewer is dropped.
+    pub fn listen(&mut self, server: ipc::Server) {
+        self.server = Some(server);
+    }
+
+    /// Returns every tab, in order.
+    #[must_use]
+    pub fn tabs(&self) -> &[Screen] {
+        &self.tabs
+    }
+
+    /// Returns the index of the tab being shown.
+    #[must_use]
+    pub fn active_index(&self) -> usize {
+        self.active
+    }
+
+    /// Returns what the tab being shown has in it.
+    #[must_use]
+    pub fn screen(&self) -> &Screen {
+        &self.tabs[self.active]
+    }
+
+    /// Returns what the tab being shown has in it, to change.
+    pub fn screen_mut(&mut self) -> &mut Screen {
+        &mut self.tabs[self.active]
+    }
+
+    /// Returns the index of the tab that has the session in `dir` (already [`canonical`]) in it.
+    fn find(&self, dir: &Path) -> Option<usize> {
+        self.tabs.iter().position(|tab| {
+            tab.dir()
+                .is_some_and(|have| have == dir || canonical(have) == dir)
+        })
+    }
+
+    /// Opens the session in `dir` in a tab, in the background: see the [type
+    /// documentation](ViewerApp#opening-a-session) for which tab.
     ///
-    /// The screen becomes [`Screen::Loading`] at once, replacing whatever was showing, and
-    /// [`ViewerApp::ui`] brings the result in when the load has finished: an [`Open`] session, or
-    /// [`Screen::Failed`] with the reason. A session that cannot be opened is therefore not an error
-    /// here; see [`Loaded::load`] for what can go wrong.
+    /// The tab is shown at once. It is [`Screen::Loading`] and [`ViewerApp::ui`] brings the result
+    /// in when the load has finished: an [`Open`] session, or [`Screen::Failed`] with the reason. A
+    /// session that cannot be opened is therefore not an error here; see [`Loaded::load`] for what
+    /// can go wrong. A session that is already open is not loaded again; one that failed is
+    /// tried again.
     pub fn open(&mut self, dir: &Path) {
+        let dir = canonical(dir);
+        let slot = match self.find(&dir) {
+            Some(slot) if matches!(self.tabs[slot], Screen::Failed { .. }) => slot,
+            Some(slot) => {
+                self.focus_tab(slot);
+                return;
+            }
+            None => self.slot_for_new_session(),
+        };
+
         let (sender, result) = crossbeam_channel::bounded(1);
-        let target = dir.to_path_buf();
+        let target = dir.clone();
         std::thread::spawn(move || {
             let _ = sender.send(Loaded::load(&target));
         });
-        self.screen = Screen::Loading {
-            dir: dir.to_path_buf(),
-            result,
-        };
+        self.tabs[slot] = Screen::Loading { dir, result };
+        self.focus_tab(slot);
+    }
+
+    /// Returns the tab a session that is not open yet goes in: the current one if it is free, else
+    /// a new one at the end.
+    fn slot_for_new_session(&mut self) -> usize {
+        if self.tabs[self.active].is_free() {
+            self.active
+        } else {
+            self.tabs.push(Screen::Empty);
+            self.tabs.len() - 1
+        }
     }
 
     /// Opens the session in `dir` and waits for it: for tests, which have nothing to draw
     /// meanwhile.
     ///
-    /// On success the screen is [`Screen::Open`], the session is at the top of the recent
-    /// sessions (and the preferences are saved), and the playhead is a second before where the
-    /// first bug region starts, if there is one.
+    /// On success the tab is [`Screen::Open`] (found, or made, as [`ViewerApp::open`] does), the
+    /// session is at the top of the recent sessions (and the preferences are saved), and the
+    /// playhead is a second before where the first bug region starts, if there is one. A session
+    /// that is already open is only shown.
     ///
     /// # Errors
     ///
     /// Returns an error if the session cannot be loaded (see [`Loaded::load`]), if `dir` is not a
     /// session directory, or if the playback cannot be started (see [`Playback::start`]). The
-    /// screen is left as it was: unlike [`ViewerApp::open`], a failure is not shown in the window.
+    /// tabs are left as they were: unlike [`ViewerApp::open`], a failure is not shown in the window.
     pub fn open_now(&mut self, dir: &Path) -> eyre::Result<()> {
-        let loaded = Loaded::load(dir)?;
-        self.finish_open(loaded)
+        let dir = canonical(dir);
+        if let Some(slot) = self.find(&dir)
+            && matches!(self.tabs[slot], Screen::Open(_))
+        {
+            self.focus_tab(slot);
+            return Ok(());
+        }
+        let loaded = Loaded::load(&dir)?;
+        let open = self.build_open(loaded)?;
+        let slot = match self.find(&dir) {
+            Some(slot) => slot,
+            None => self.slot_for_new_session(),
+        };
+        self.tabs[slot] = Screen::Open(Box::new(open));
+        self.focus_tab(slot);
+        Ok(())
     }
 
-    fn finish_open(&mut self, loaded: Loaded) -> eyre::Result<()> {
+    fn build_open(&mut self, loaded: Loaded) -> eyre::Result<Open> {
         let guard = SessionPath::new(&loaded.dir)?;
         let playback = Playback::start(loaded.analysis.manifest.clone(), guard, DECODE_WIDTH)?;
         self.prefs.opened(&loaded.dir);
@@ -282,28 +399,130 @@ impl ViewerApp {
         if let Some(start) = start {
             open.playback.seek((start - 1.0).max(0.0));
         }
-        self.screen = Screen::Open(Box::new(open));
-        Ok(())
+        Ok(open)
     }
 
-    /// Bring a finished load into the window, or show why it failed.
-    fn poll_loading(&mut self) {
-        let Screen::Loading { dir, result } = &self.screen else {
-            return;
-        };
+    /// Adds a start-screen tab at the end and shows it.
+    pub fn new_tab(&mut self) {
+        self.tabs.push(Screen::Empty);
+        self.focus_tab(self.tabs.len() - 1);
+    }
 
-        let Ok(outcome) = result.try_recv() else {
+    /// Shows tab `index`. The tab that was showing is paused, so that only the tab in view decodes
+    /// video. An index beyond the tabs does nothing.
+    pub fn focus_tab(&mut self, index: usize) {
+        if index >= self.tabs.len() {
+            return;
+        }
+        self.active = index;
+        self.pause_hidden();
+        if let Screen::Open(open) = &mut self.tabs[index] {
+            // the overlay is one setting for the window, not one per tab
+            open.overlay = self.prefs.overlay;
+        }
+    }
+
+    /// Pauses every tab but the active one. Decoding stops with the playhead, and a hidden tab's
+    /// scan for changes carries on.
+    fn pause_hidden(&mut self) {
+        for (index, tab) in self.tabs.iter_mut().enumerate() {
+            if index != self.active
+                && let Screen::Open(open) = tab
+                && open.playback.is_playing()
+            {
+                open.playback.pause();
+            }
+        }
+    }
+
+    /// Closes tab `index`. Closing a session stops its scan for changes and its playback; closing
+    /// the last tab leaves a start-screen tab, so the window stays. The tab that takes the closed
+    /// one's place is shown if it was the one showing. An index beyond the tabs does nothing.
+    pub fn close_tab(&mut self, index: usize) {
+        if index >= self.tabs.len() {
+            return;
+        }
+        // dropping an Open cancels its scan and stops its playback
+        drop(self.tabs.remove(index));
+        if self.tabs.is_empty() {
+            self.tabs.push(Screen::Empty);
+        }
+        if index < self.active {
+            self.active -= 1;
+        }
+        self.focus_tab(self.active.min(self.tabs.len() - 1));
+    }
+
+    /// Carries out a tab key: see [`Action::NewTab`] and the others for which are tab actions. Any
+    /// other action does nothing.
+    pub fn apply_tab_action(&mut self, action: Action) {
+        let count = self.tabs.len();
+        match action {
+            Action::NewTab => self.new_tab(),
+            Action::CloseTab => self.close_tab(self.active),
+            Action::NextTab => self.focus_tab((self.active + 1) % count),
+            Action::PreviousTab => self.focus_tab((self.active + count - 1) % count),
+            Action::GoToTab(index) => self.focus_tab(index),
+            Action::LastTab => self.focus_tab(count - 1),
+            _ => {}
+        }
+    }
+
+    /// Carries out a request from another process (see [`ipc::Request`]): opens each session as
+    /// [`ViewerApp::open`] does, or, for a request with none, shows a start-screen tab (a new one
+    /// unless the current tab is one already). Returns whether the window should be raised.
+    pub fn handle_request(&mut self, request: &ipc::Request) -> bool {
+        if request.open.is_empty() {
+            if !matches!(self.tabs[self.active], Screen::Empty) {
+                self.new_tab();
+            }
+        } else {
+            for dir in &request.open {
+                self.open(dir);
+            }
+        }
+        request.focus
+    }
+
+    /// Takes in the requests that arrived from other processes, and raises the window if one asked.
+    fn poll_requests(&mut self, ctx: &egui::Context) {
+        let Some(server) = &self.server else {
             return;
         };
-        let dir = dir.clone();
-        match outcome.and_then(|loaded| self.finish_open(loaded)) {
-            Ok(()) => {}
-            Err(error) => {
-                self.screen = Screen::Failed {
+        let requests = server.requests();
+        let mut raise = false;
+        for request in &requests {
+            raise |= self.handle_request(request);
+        }
+        if raise {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        }
+    }
+
+    /// Bring finished loads into their tabs, or show why they failed.
+    fn poll_loading(&mut self) {
+        for index in 0..self.tabs.len() {
+            let Screen::Loading { dir, result } = &self.tabs[index] else {
+                continue;
+            };
+            let dir = dir.clone();
+            let outcome = match result.try_recv() {
+                Ok(outcome) => outcome,
+                Err(crossbeam_channel::TryRecvError::Empty) => continue,
+                Err(crossbeam_channel::TryRecvError::Disconnected) => {
+                    Err(eyre::eyre!("the thread reading the session stopped"))
+                }
+            };
+            self.tabs[index] = match outcome.and_then(|loaded| self.build_open(loaded)) {
+                Ok(open) => Screen::Open(Box::new(open)),
+                Err(error) => Screen::Failed {
                     dir,
                     message: format!("{error:#}"),
-                };
-            }
+                },
+            };
+            // a session that finished loading in a tab out of view starts paused
+            self.pause_hidden();
         }
     }
 
@@ -321,21 +540,79 @@ impl ViewerApp {
         }
     }
 
+    /// Reads the tab keys, unless a text box wants the keyboard. The keys of the session in the tab
+    /// being shown are read by [`Open::ui`].
+    ///
+    /// Returns whether `Ctrl` `Tab` was pressed: egui also takes that as a request to move the
+    /// keyboard focus to the next widget, which would make the window think a text box wants the
+    /// keyboard, so the focus is let go of again at the start of the next frame.
+    fn tab_keys(&mut self, ctx: &egui::Context) -> bool {
+        if std::mem::take(&mut self.release_focus) {
+            // egui moved the focus when the last frame ended
+            ctx.memory_mut(|memory| {
+                if let Some(id) = memory.focused() {
+                    memory.surrender_focus(id);
+                }
+            });
+        }
+        if ctx.wants_keyboard_input() {
+            return false;
+        }
+        let ctrl_tab = ctx.input(|input| {
+            input.events.iter().any(|event| {
+                matches!(
+                    event,
+                    egui::Event::Key {
+                        key: egui::Key::Tab,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } if modifiers.ctrl
+                )
+            })
+        });
+        let actions: Vec<Action> = ctx.input(|input| {
+            input
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    egui::Event::Key {
+                        key,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } => keymap::action(*key, *modifiers, None),
+                    _ => None,
+                })
+                .filter(|action| action.is_tab_action())
+                .collect()
+        });
+        for action in actions {
+            self.apply_tab_action(action);
+        }
+        ctrl_tab
+    }
+
     /// Draws one frame of the window.
     ///
-    /// It first takes in a finished load and a folder chosen in the system's dialog, then draws the
-    /// top bar and the screen, and saves the preferences if the state overlay was switched. While a
-    /// session is loading, or the dialog is open, it asks `ctx` to draw again soon, so the result
-    /// shows without anyone touching the window. An open session draws itself with [`Open::ui`].
+    /// It first takes in requests from other processes, finished loads and a folder chosen in the
+    /// system's dialog, then draws the tab bar, the top bar of the tab being shown and its screen,
+    /// and saves the preferences if the state overlay was switched. While a session is loading, or
+    /// the dialog is open, it asks `ctx` to draw again soon, so the result shows without anyone
+    /// touching the window. An open session draws itself with [`Open::ui`].
     ///
     /// Needs an `egui::Context`, so a window is needed (the tests of this module draw frames
     /// headlessly with `egui::Context::run`).
     pub fn ui(&mut self, ctx: &egui::Context) {
+        self.poll_requests(ctx);
         self.poll_loading();
         self.poll_picker();
+        let ctrl_tab = self.tab_keys(ctx);
+        self.pause_hidden();
 
         let mut to_open: Option<PathBuf> = None;
         let mut choose = false;
+        let mut bar = TabBar::default();
 
         egui::TopBottomPanel::top("top")
             .frame(
@@ -347,24 +624,31 @@ impl ViewerApp {
                 ui.horizontal(|ui| {
                     // leave room for the window controls that sit over the content
                     ui.add_space(70.0);
+                    bar = tab_bar(ui, &self.tabs, self.active);
                     if ui.button("Open…").clicked() {
                         choose = true;
                     }
-                    match &mut self.screen {
-                        Screen::Open(open) => {
+                });
+                let active = self.active;
+                match &mut self.tabs[active] {
+                    Screen::Open(open) => {
+                        ui.horizontal(|ui| {
                             ui.label(egui::RichText::new(name_of(&open.loaded.dir)).strong());
                             open.top_bar(ui, &mut self.prefs);
-                        }
-                        Screen::Loading { dir, .. } => {
+                        });
+                    }
+                    Screen::Loading { dir, .. } => {
+                        ui.horizontal(|ui| {
                             ui.spinner();
                             ui.label(format!("opening {}…", name_of(dir)));
-                        }
-                        _ => {}
+                        });
                     }
-                });
+                    _ => {}
+                }
             });
 
-        match &mut self.screen {
+        let active = self.active;
+        match &mut self.tabs[active] {
             Screen::Open(open) => open.ui(ctx),
             Screen::Empty => {
                 egui::CentralPanel::default().show(ctx, |ui| {
@@ -381,27 +665,113 @@ impl ViewerApp {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     ui.centered_and_justified(|ui| ui.spinner());
                 });
-                ctx.request_repaint_after(Duration::from_millis(50));
             }
         }
 
+        // a load in any tab, shown or not, is brought in by a later frame
+        if self
+            .tabs
+            .iter()
+            .any(|tab| matches!(tab, Screen::Loading { .. }))
+        {
+            ctx.request_repaint_after(Duration::from_millis(50));
+        }
         if choose && self.picker.is_none() {
             self.picker = Some(pick_folder());
         }
         if let Some(dir) = to_open {
             self.open(&dir);
         }
+        if bar.new_tab {
+            self.new_tab();
+        }
+        if let Some(index) = bar.select {
+            self.focus_tab(index);
+        }
+        if let Some(index) = bar.close {
+            self.close_tab(index);
+        }
+        self.release_focus = ctrl_tab;
         if self.picker.is_some() {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
+        if self.server.is_some() {
+            // requests wake the window themselves; this is for a window that is minimised
+            ctx.request_repaint_after(Duration::from_millis(500));
+        }
 
-        if let Screen::Open(open) = &self.screen
+        if let Screen::Open(open) = &self.tabs[self.active]
             && open.overlay != self.prefs.overlay
         {
             self.prefs.overlay = open.overlay;
             self.prefs.save(&self.prefs_dir);
         }
     }
+}
+
+/// What was clicked in the tab bar in one frame.
+#[derive(Default)]
+struct TabBar {
+    select: Option<usize>,
+    close: Option<usize>,
+    new_tab: bool,
+}
+
+/// What a tab says about itself: its label and the longer text for hovering over it.
+fn tab_title(screen: &Screen) -> (String, String) {
+    match screen {
+        Screen::Empty => ("New tab".to_string(), "Open a recording".to_string()),
+        Screen::Loading { dir, .. } => (
+            format!("… {}", tab_name(dir)),
+            format!("opening {}", dir.display()),
+        ),
+        Screen::Failed { dir, message } => (
+            format!("⚠ {}", tab_name(dir)),
+            format!("{} could not be opened: {message}", dir.display()),
+        ),
+        Screen::Open(open) => (
+            tab_name(&open.loaded.dir),
+            open.loaded.dir.display().to_string(),
+        ),
+    }
+}
+
+/// Draws the tabs, a close button on each, and the `+` after them.
+fn tab_bar(ui: &mut egui::Ui, tabs: &[Screen], active: usize) -> TabBar {
+    let mut bar = TabBar::default();
+    let room = (ui.available_width() - 110.0).max(120.0);
+    egui::ScrollArea::horizontal()
+        .id_salt("tabs")
+        .max_width(room)
+        .auto_shrink([true, true])
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                for (index, tab) in tabs.iter().enumerate() {
+                    let (label, tip) = tab_title(tab);
+                    let response = ui
+                        .selectable_label(index == active, label)
+                        .on_hover_text(tip);
+                    if response.clicked() {
+                        bar.select = Some(index);
+                    }
+                    if response.middle_clicked() {
+                        bar.close = Some(index);
+                    }
+                    if ui
+                        .small_button("×")
+                        .on_hover_text("Close the tab")
+                        .clicked()
+                    {
+                        bar.close = Some(index);
+                    }
+                    ui.add_space(6.0);
+                }
+            });
+        });
+    if ui.button("+").on_hover_text("A new tab").clicked() {
+        bar.new_tab = true;
+    }
+    bar
 }
 
 /// What to show before a session is open (or when it would not open).
@@ -613,6 +983,13 @@ impl Open {
                 }
             }
             Action::Help => self.help = !self.help,
+            // the tabs belong to the window (`ViewerApp::apply_tab_action`)
+            Action::NewTab
+            | Action::CloseTab
+            | Action::NextTab
+            | Action::PreviousTab
+            | Action::GoToTab(_)
+            | Action::LastTab => {}
             Action::Escape => {
                 if self.help {
                     self.help = false;
@@ -880,7 +1257,7 @@ mod tests {
     }
 
     fn open(app: &mut ViewerApp) -> &mut Open {
-        match &mut app.screen {
+        match app.screen_mut() {
             Screen::Open(open) => open,
             _ => panic!("no session is open"),
         }
@@ -911,7 +1288,7 @@ mod tests {
         let mut app = ViewerApp::new(prefs_dir("empty"));
         let ctx = egui::Context::default();
         frame(&mut app, &ctx, vec![]);
-        assert!(matches!(app.screen, Screen::Empty));
+        assert!(matches!(app.screen(), Screen::Empty));
     }
 
     #[test]
@@ -925,11 +1302,11 @@ mod tests {
         app.open(&session.dir);
 
         let deadline = Instant::now() + Duration::from_secs(5);
-        while matches!(app.screen, Screen::Loading { .. }) && Instant::now() < deadline {
+        while matches!(app.screen(), Screen::Loading { .. }) && Instant::now() < deadline {
             frame(&mut app, &ctx, vec![]);
             std::thread::sleep(Duration::from_millis(20));
         }
-        let Screen::Failed { message, .. } = &app.screen else {
+        let Screen::Failed { message, .. } = app.screen() else {
             panic!("the unfinished session opened");
         };
         assert!(message.contains("left unfinished"), "{message}");
@@ -943,7 +1320,10 @@ mod tests {
         let mut app = ViewerApp::new(prefs.clone());
         app.open_now(&dir).expect("open");
 
-        assert_eq!(Prefs::load(&prefs).recent, [dir.display().to_string()]);
+        assert_eq!(
+            Prefs::load(&prefs).recent,
+            [canonical(&dir).display().to_string()]
+        );
     }
 
     #[test]
@@ -1221,7 +1601,7 @@ mod tests {
         });
         assert!(ctx.wants_keyboard_input());
         let _ = ctx.run(input(vec![key(egui::Key::Space)]), |ctx| {
-            if let Screen::Open(open) = &mut app.screen {
+            if let Screen::Open(open) = app.screen_mut() {
                 open.ui(ctx);
             }
         });
@@ -1417,6 +1797,399 @@ mod tests {
         open(&mut app).open_composer();
         open(&mut app).help = true;
         frame(&mut app, &ctx, vec![]);
+    }
+
+    fn names(app: &ViewerApp) -> Vec<String> {
+        app.tabs()
+            .iter()
+            .map(|tab| match tab {
+                Screen::Empty => "empty".to_string(),
+                Screen::Loading { .. } => "loading".to_string(),
+                Screen::Failed { .. } => "failed".to_string(),
+                Screen::Open(open) => short(&open.loaded.dir),
+            })
+            .collect()
+    }
+
+    /// The name a test gave a session, without what the test kit adds to keep sessions apart.
+    fn short(dir: &Path) -> String {
+        let name = name_of(dir);
+        let name = name
+            .strip_prefix("komorebi-recorder-testkit-")
+            .unwrap_or(&name);
+        name.rsplit_once('-')
+            .map_or(name.to_string(), |(name, _)| name.to_string())
+    }
+
+    fn with_command(key: egui::Key, shift: bool) -> egui::Event {
+        egui::Event::Key {
+            key,
+            physical_key: Some(key),
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers {
+                command: true,
+                ctrl: !cfg!(target_os = "macos"),
+                shift,
+                ..egui::Modifiers::NONE
+            },
+        }
+    }
+
+    fn ctrl_tab(shift: bool) -> egui::Event {
+        egui::Event::Key {
+            key: egui::Key::Tab,
+            physical_key: Some(egui::Key::Tab),
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers {
+                ctrl: true,
+                shift,
+                ..egui::Modifiers::NONE
+            },
+        }
+    }
+
+    fn settle(app: &mut ViewerApp, ctx: &egui::Context) {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while app
+            .tabs()
+            .iter()
+            .any(|tab| matches!(tab, Screen::Loading { .. }))
+            && Instant::now() < deadline
+        {
+            frame(app, ctx, vec![]);
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    fn opening_from_a_start_tab_loads_into_it_and_from_a_session_adds_a_tab() {
+        let (a, b, c) = (
+            session("viewer-tabs-a", false),
+            session("viewer-tabs-b", false),
+            session("viewer-tabs-c", false),
+        );
+        let mut app = ViewerApp::new(prefs_dir("tabs-open"));
+        let ctx = egui::Context::default();
+
+        app.open(&a);
+        assert_eq!(app.tabs().len(), 1, "the start tab was used");
+        settle(&mut app, &ctx);
+        assert_eq!(names(&app), ["viewer-tabs-a"]);
+
+        app.open(&b);
+        assert_eq!(app.tabs().len(), 2);
+        assert_eq!(app.active_index(), 1, "the new tab is shown");
+        settle(&mut app, &ctx);
+        app.open_now(&c).expect("open");
+        assert_eq!(
+            names(&app),
+            ["viewer-tabs-a", "viewer-tabs-b", "viewer-tabs-c"]
+        );
+        assert_eq!(app.active_index(), 2);
+        frame(&mut app, &ctx, vec![]);
+
+        // a new tab is a start screen, and a session opened from it goes into it
+        app.new_tab();
+        assert_eq!(app.tabs().len(), 4);
+        assert!(matches!(app.screen(), Screen::Empty));
+        frame(&mut app, &ctx, vec![]);
+        app.open_now(&a).expect("already open");
+        assert_eq!(app.tabs().len(), 4, "nothing was added");
+        assert_eq!(app.active_index(), 0, "it focused the tab that has it");
+        app.focus_tab(3);
+        app.open_now(&session("viewer-tabs-d", false))
+            .expect("open");
+        assert_eq!(app.tabs().len(), 4);
+        assert_eq!(app.active_index(), 3);
+        assert_eq!(names(&app)[3], "viewer-tabs-d");
+    }
+
+    #[test]
+    fn a_session_that_is_already_open_is_focused_not_opened_again() {
+        let a = session("viewer-dedupe-a", false);
+        let b = session("viewer-dedupe-b", false);
+        let mut app = ViewerApp::new(prefs_dir("dedupe"));
+        let ctx = egui::Context::default();
+        app.open_now(&a).expect("open");
+        app.open_now(&b).expect("open");
+        assert_eq!(app.active_index(), 1);
+
+        // by the same path, and by a path that reaches it another way
+        app.open(&a);
+        assert_eq!((app.tabs().len(), app.active_index()), (2, 0));
+        let roundabout = a.join("..").join(name_of(&a));
+        app.focus_tab(1);
+        app.open(&roundabout);
+        assert_eq!((app.tabs().len(), app.active_index()), (2, 0));
+        settle(&mut app, &ctx);
+        assert!(matches!(app.screen(), Screen::Open(_)), "not reloaded");
+    }
+
+    #[test]
+    fn a_session_that_fails_keeps_its_tab_and_its_reason() {
+        let (unfinished, mut manifest) = SessionBuilder::new("viewer-tabs-unfinished").build();
+        manifest.status = "recording".to_string();
+        unfinished.write_manifest(&manifest).expect("manifest");
+        let good = session("viewer-tabs-good", false);
+
+        let mut app = ViewerApp::new(prefs_dir("tabs-failed"));
+        let ctx = egui::Context::default();
+        app.open_now(&good).expect("open");
+        app.open(&unfinished.dir);
+        assert_eq!(app.tabs().len(), 2, "the open session is not replaced");
+        settle(&mut app, &ctx);
+
+        let Screen::Failed { message, .. } = app.screen() else {
+            panic!("it should have failed");
+        };
+        assert!(message.contains("left unfinished"), "{message}");
+        frame(&mut app, &ctx, vec![]);
+
+        // the next session loads into the failed tab, as into any free one
+        app.open_now(&session("viewer-tabs-next", false))
+            .expect("open");
+        assert_eq!(app.tabs().len(), 2);
+        assert_eq!(names(&app), ["viewer-tabs-good", "viewer-tabs-next"]);
+    }
+
+    #[test]
+    fn closing_tabs_keeps_one_and_picks_a_neighbour() {
+        let a = session("viewer-close-a", false);
+        let b = session("viewer-close-b", false);
+        let c = session("viewer-close-c", false);
+        let mut app = ViewerApp::new(prefs_dir("close"));
+        let ctx = egui::Context::default();
+        for dir in [&a, &b, &c] {
+            app.open_now(dir).expect("open");
+        }
+        assert_eq!(app.active_index(), 2);
+
+        // closing a tab before the active one keeps the same session showing
+        app.close_tab(0);
+        assert_eq!(names(&app), ["viewer-close-b", "viewer-close-c"]);
+        assert_eq!(short(app.screen().dir().expect("dir")), "viewer-close-c");
+        // closing the active last tab shows the one before
+        app.close_tab(1);
+        assert_eq!(names(&app), ["viewer-close-b"]);
+        assert_eq!(app.active_index(), 0);
+        // closing the last tab leaves a start screen, and the window draws it
+        app.close_tab(0);
+        assert!(matches!(app.screen(), Screen::Empty));
+        assert_eq!(app.tabs().len(), 1);
+        frame(&mut app, &ctx, vec![]);
+        // an index that is not there does nothing
+        app.close_tab(7);
+        assert_eq!(app.tabs().len(), 1);
+    }
+
+    #[test]
+    fn closing_a_session_cancels_its_scan() {
+        let dir = session("viewer-close-scan", false);
+        let mut app = ViewerApp::new(prefs_dir("close-scan"));
+        app.open_now(&dir).expect("open");
+        let cancel = open(&mut app).changes_cancel.clone();
+        assert!(!cancel.load(std::sync::atomic::Ordering::Relaxed));
+        app.close_tab(0);
+        assert!(cancel.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
+    #[test]
+    fn the_tab_keys_switch_close_and_open_tabs() {
+        let a = session("viewer-keys-a", false);
+        let b = session("viewer-keys-b", false);
+        let c = session("viewer-keys-c", false);
+        let mut app = ViewerApp::new(prefs_dir("tab-keys"));
+        let ctx = egui::Context::default();
+        for dir in [&a, &b, &c] {
+            app.open_now(dir).expect("open");
+        }
+        frame(&mut app, &ctx, vec![]);
+
+        frame(&mut app, &ctx, vec![ctrl_tab(false)]);
+        assert_eq!(app.active_index(), 0, "next wraps round");
+        frame(&mut app, &ctx, vec![ctrl_tab(true)]);
+        assert_eq!(app.active_index(), 2, "previous wraps round");
+        // egui moved the focus for the Tab, and the window lets go of it again
+        frame(&mut app, &ctx, vec![]);
+        frame(&mut app, &ctx, vec![]);
+        assert!(!ctx.wants_keyboard_input());
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num2, false)]);
+        assert_eq!(app.active_index(), 1);
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num9, false)]);
+        assert_eq!(app.active_index(), 2, "9 is the last");
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num1, false)]);
+        assert_eq!(app.active_index(), 0);
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num8, false)]);
+        assert_eq!(app.active_index(), 0, "there is no eighth tab");
+        frame(
+            &mut app,
+            &ctx,
+            vec![with_command(egui::Key::CloseBracket, true)],
+        );
+        assert_eq!(app.active_index(), 1);
+        frame(
+            &mut app,
+            &ctx,
+            vec![with_command(egui::Key::OpenBracket, true)],
+        );
+        assert_eq!(app.active_index(), 0);
+
+        frame(&mut app, &ctx, vec![with_command(egui::Key::T, false)]);
+        assert_eq!(app.tabs().len(), 4);
+        assert!(matches!(app.screen(), Screen::Empty));
+        // the start screen has no keys of its own, and the tab keys work there too
+        frame(&mut app, &ctx, vec![with_command(egui::Key::W, false)]);
+        assert_eq!(app.tabs().len(), 3);
+        frame(&mut app, &ctx, vec![with_command(egui::Key::W, false)]);
+        assert_eq!(app.tabs().len(), 2);
+        assert_eq!(names(&app), ["viewer-keys-a", "viewer-keys-b"]);
+
+        // a plain Space still plays, in the active tab only
+        frame(&mut app, &ctx, vec![key(egui::Key::Space)]);
+        assert!(open(&mut app).playback.is_playing());
+    }
+
+    #[test]
+    fn typing_in_a_text_box_does_not_press_the_tab_keys() {
+        let mut app = ViewerApp::new(prefs_dir("tab-keys-typing"));
+        let ctx = egui::Context::default();
+        ctx.memory_mut(|memory| memory.request_focus(egui::Id::new("a text box")));
+        let _ = ctx.run(input(vec![]), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let mut text = String::new();
+                let response =
+                    ui.add(egui::TextEdit::singleline(&mut text).id(egui::Id::new("a text box")));
+                response.request_focus();
+            });
+        });
+        assert!(ctx.wants_keyboard_input());
+        let _ = ctx.run(input(vec![with_command(egui::Key::T, false)]), |ctx| {
+            app.ui(ctx);
+        });
+        assert_eq!(app.tabs().len(), 1);
+    }
+
+    #[test]
+    fn only_the_tab_in_view_plays() {
+        let a = session("viewer-play-a", false);
+        let b = session("viewer-play-b", false);
+        let mut app = ViewerApp::new(prefs_dir("play"));
+        let ctx = egui::Context::default();
+        app.open_now(&a).expect("open");
+        frame(&mut app, &ctx, vec![key(egui::Key::Space)]);
+        assert!(open(&mut app).playback.is_playing());
+
+        // opening another session hides the first, and pauses it
+        app.open_now(&b).expect("open");
+        let Screen::Open(first) = &app.tabs()[0] else {
+            panic!("the first is open");
+        };
+        assert!(!first.playback.is_playing());
+
+        // and one set playing while hidden is stopped by the next frame
+        if let Screen::Open(first) = &mut app.tabs[0] {
+            first.playback.play(1.0);
+        }
+        frame(&mut app, &ctx, vec![]);
+        let Screen::Open(first) = &app.tabs()[0] else {
+            panic!("the first is open");
+        };
+        assert!(!first.playback.is_playing());
+
+        // each keeps its own place
+        app.focus_tab(0);
+        frame(&mut app, &ctx, vec![key(egui::Key::End)]);
+        let end = open(&mut app).position();
+        app.focus_tab(1);
+        assert!(open(&mut app).position() < end);
+    }
+
+    #[test]
+    fn a_request_from_another_process_opens_tabs_and_raises_the_window() {
+        let a = session("viewer-request-a", false);
+        let b = session("viewer-request-b", false);
+        let mut app = ViewerApp::new(prefs_dir("request"));
+        let ctx = egui::Context::default();
+
+        let request = ipc::Request {
+            open: vec![a.clone(), b.clone()],
+            focus: true,
+        };
+        assert!(app.handle_request(&request));
+        settle(&mut app, &ctx);
+        assert_eq!(names(&app), ["viewer-request-a", "viewer-request-b"]);
+
+        // asking again for one that is open only focuses it
+        let again = ipc::Request {
+            open: vec![a],
+            focus: false,
+        };
+        assert!(!app.handle_request(&again));
+        assert_eq!((app.tabs().len(), app.active_index()), (2, 0));
+
+        // nothing to open: a start-screen tab, but not a second one
+        assert!(app.handle_request(&ipc::Request::default()));
+        assert_eq!(app.tabs().len(), 3);
+        assert!(app.handle_request(&ipc::Request::default()));
+        assert_eq!(app.tabs().len(), 3);
+    }
+
+    #[test]
+    fn requests_over_the_socket_reach_the_window() {
+        let dir = std::env::temp_dir().join(format!("kr-viewer-socket-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("dir");
+        let socket = dir.join("v.sock");
+        let a = session("viewer-socket-a", false);
+
+        let Ok(ipc::Claim::Serving(bound)) = ipc::claim(&socket, &ipc::Request::default()) else {
+            panic!("nobody is serving");
+        };
+        let mut app = ViewerApp::new(prefs_dir("socket"));
+        app.listen(bound.serve(|| {}));
+        let ctx = egui::Context::default();
+
+        let request = ipc::Request {
+            open: vec![a],
+            focus: true,
+        };
+        assert_eq!(
+            ipc::send(&socket, &request).expect("sent"),
+            ipc::Delivery::Delivered
+        );
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !matches!(app.screen(), Screen::Open(_)) && Instant::now() < deadline {
+            frame(&mut app, &ctx, vec![]);
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(names(&app), ["viewer-socket-a"]);
+
+        // closing the viewer removes the socket
+        drop(app);
+        assert!(!socket.exists());
+    }
+
+    #[test]
+    fn every_kind_of_tab_draws_in_the_bar() {
+        let (unfinished, mut manifest) = SessionBuilder::new("viewer-bar-unfinished").build();
+        manifest.status = "recording".to_string();
+        unfinished.write_manifest(&manifest).expect("manifest");
+        let mut app = ViewerApp::new(prefs_dir("bar"));
+        let ctx = egui::Context::default();
+        app.open_now(&session("viewer-bar-ok", false))
+            .expect("open");
+        app.open(&unfinished.dir);
+        frame(&mut app, &ctx, vec![]);
+        settle(&mut app, &ctx);
+        app.new_tab();
+        frame(&mut app, &ctx, vec![]);
+        assert_eq!(
+            names(&app),
+            ["viewer-bar-ok", "failed", "empty"],
+            "open, failed and start tabs"
+        );
     }
 
     #[test]

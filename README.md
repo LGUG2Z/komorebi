@@ -82,7 +82,9 @@ when things happened (events | errors | incidents):
   00:04.500 ##############################    1   0  0
 ```
 
-`komorebi-recorder view ./repro` opens the recording in the viewer, which is where you mark where the bug is.
+`komorebi-recorder view ./repro` opens the recording in the viewer, which is where you mark where the bug is. There is
+one viewer window: running `view` again (or **Open session…** in the recorder window) opens another recording as a tab
+of it, and `view --new-window` makes a window of its own.
 Every command takes `--json` (including `record`, `displays`, `reindex` and `selftest`), and `komorebi-recorder guide`
 prints a playbook for an agent.
 [Investigating a recording](docs/usage/investigating-a-recording.md) walks through both ways of working.

@@ -274,6 +274,26 @@ pub fn name_of(dir: &Path) -> String {
     )
 }
 
+/// Returns the short name of a session for a tab: the time of day it began, when its folder is named
+/// for when it began (`20261026T154619Z` is `15:46:19`, in UTC as the folder is), else the folder's
+/// name as [`name_of`] gives it.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::viewer::loaded::tab_name;
+/// use std::path::Path;
+///
+/// assert_eq!(tab_name(Path::new("/recordings/20261026T154619Z")), "15:46:19");
+/// assert_eq!(tab_name(Path::new("/recordings/repro")), "repro");
+/// ```
+#[must_use]
+pub fn tab_name(dir: &Path) -> String {
+    let name = name_of(dir);
+    chrono::NaiveDateTime::parse_from_str(&name, "%Y%m%dT%H%M%SZ")
+        .map_or(name, |time| time.format("%H:%M:%S").to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
