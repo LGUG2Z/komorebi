@@ -142,12 +142,13 @@ nix build .#checks.x86_64-linux.kwin-effect-geometry-change-komorebi-install
 ## Plasma guests to develop in
 
 [`nix/dev`](nix/dev) has NixOS guests with Plasma for trying a change by hand,
-on an Apple silicon Mac: two that QEMU runs and a disk image for UTM.
-[`docs/dev/utm.md`](docs/dev/utm.md) says how to build and run them, and what a
-builder has to be. They install komorebi with the NixOS module, and carry
-nothing of the person who uses them: a key, a password or a configuration of
-yours goes into the guest when it runs, never into these files. The
-`plasma-guests-eval` check evaluates them, and the VM suite `rdp` runs their
+on an Apple silicon Mac (two that QEMU runs and a disk image for UTM) and on a
+Linux machine with KVM (the same two QEMU guests, for `x86_64` and for
+`aarch64`). [`docs/dev/utm.md`](docs/dev/utm.md) says how to build and run them,
+and what a builder has to be for a Mac. They install komorebi with the NixOS
+module, and carry nothing of the person who uses them: a key, a password or a
+configuration of yours goes into the guest when it runs, never into these files.
+The `plasma-guests-eval` check evaluates them, and the VM suite `rdp` runs their
 RDP server, [`nix/dev/krdp.nix`](nix/dev/krdp.nix).
 
 ## Continuous integration

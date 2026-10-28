@@ -1,29 +1,40 @@
 # Plasma guests to develop in
 
 The VM tests boot a machine, run a scenario and power it off. To try komorebi by hand against a
-real KWin, the flake has three NixOS guests with Plasma 6 that stay up, all `aarch64-linux`, for
-an Apple silicon Mac:
+real KWin, the flake has NixOS guests with Plasma 6 that stay up. Each guest is made for one kind
+of host, because the accelerator of a host (HVF on a Mac, KVM on Linux) runs guests of the host's
+own architecture:
 
-| Guest | Runs under | What it is |
-|---|---|---|
-| `plasma-vm` | QEMU from nixpkgs, with HVF | Plasma installed, no login: a console and ssh, to run `kwin_wayland --virtual` and build komorebi from the repository |
-| `plasma-vm-session` | QEMU from nixpkgs, with HVF | the same, plus a Plasma Wayland session that logs in by itself, komorebi running in it, and an RDP server |
-| `plasma-utm` | [UTM](https://mac.getutm.app), with a GPU | the session guest as a disk image that boots by UEFI |
+| Guest | Host | Runs under | What it is |
+|---|---|---|---|
+| `plasma-vm` | Apple silicon Mac | QEMU from nixpkgs, with HVF | Plasma installed, no login: a console and ssh, to run `kwin_wayland --virtual` and build komorebi from the repository |
+| `plasma-vm-session` | Apple silicon Mac | QEMU from nixpkgs, with HVF | the same, plus a Plasma Wayland session that logs in by itself, komorebi running in it, and an RDP server |
+| `plasma-utm` | Apple silicon Mac | [UTM](https://mac.getutm.app), with a GPU | the session guest as a disk image that boots by UEFI |
+| `plasma-vm-x86_64`, `plasma-vm-session-x86_64` | Linux on x86_64 | QEMU from nixpkgs, with KVM | the first two, as `x86_64-linux` guests |
+| `plasma-vm-aarch64`, `plasma-vm-session-aarch64` | Linux on aarch64 | QEMU from nixpkgs, with KVM | the first two, as `aarch64-linux` guests |
+
+The guests of a Mac are `aarch64-linux`. A guest of a Linux host that has no KVM does not start:
+the runner refuses, because Plasma under software emulation is too slow to try anything.
 
 They are `nixosConfigurations` of the flake, made from
 [`nix/dev/plasma-vm.nix`](../../nix/dev/plasma-vm.nix),
 [`nix/dev/plasma-utm.nix`](../../nix/dev/plasma-utm.nix) and
-[`nix/dev/krdp.nix`](../../nix/dev/krdp.nix). Each one installs komorebi with the flake's NixOS
+[`nix/dev/krdp.nix`](../../nix/dev/krdp.nix), by `mkPlasmaGuest` in
+[`flake.nix`](../../flake.nix), which takes the system of the guest and the packages of the machine
+that runs QEMU. Each one installs komorebi with the flake's NixOS
 module, `services.komorebi`, so the komorebi in a guest is the one of the commit the guest was
 built from, and in the session guests the module's unit starts it at login. They carry no key,
 no password and no configuration of anyone's.
 
-The QEMU in nixpkgs has no 3D, so in the QEMU guests KWin composites on the CPU (llvmpipe) and
-every frame then has to be encoded to reach an RDP client. That is slow. UTM's QEMU has
-`virtio-gpu-gl`, which gives the guest OpenGL through Mesa's VirGL, rendered on the Mac's GPU, and
-UTM shows the guest in a window of its own, so there is no RDP in the path at all.
+In the QEMU guests the guest has a plain `virtio-gpu`, which has no 3D, so KWin composites on the
+CPU (llvmpipe) and every frame then has to be encoded to reach an RDP client. That is slow. On a
+Mac the QEMU in nixpkgs cannot do better: it has no 3D at all. UTM's QEMU has `virtio-gpu-gl`,
+which gives the guest OpenGL through Mesa's VirGL, rendered on the Mac's GPU, and UTM shows the
+guest in a window of its own, so there is no RDP in the path at all. The QEMU of an x86_64 Linux
+host has and a window (GTK), at time of writing (QEMU 11.1.2 from nixpkgs, 2026-10-28), which these guests
+do not use.
 
-## What a builder has to be
+## What a builder has to be, on a Mac
 
 A Mac cannot build a Linux system, so the guests are built on a builder: a machine with Nix that
 builds for `aarch64-linux` and that the Mac can reach as a remote store, such as
@@ -41,7 +52,7 @@ export KOMOREBI_BUILDER=ssh-ng://builder@localhost   # the store URL of your bui
 export NIX_SSHOPTS="-p 31022 -i $HOME/.ssh/builder_ed25519 -o IdentitiesOnly=yes"   # if it needs them
 ```
 
-## The QEMU guests
+## The QEMU guests on a Mac
 
 The system is built on the builder and copied back, and only the QEMU runner, which is a program
 for the Mac, is built on the Mac. A QEMU guest runs the system of its `vmVariant` (which adds the
@@ -72,6 +83,33 @@ once, and the disk keeps it. Both guests can run at once.
 In the guest, `/repo` is the repository and `CARGO_TARGET_DIR` is in the guest's home, since a
 target directory on the shared directory is slow. The session guest shows nothing on the Mac; it
 is reached over RDP ([below](#rdp)).
+
+## The QEMU guests on a Linux machine
+
+A Linux host builds a guest itself, so there is no builder to set up. It needs Nix with flakes, KVM
+(a `/dev/kvm` that the user can open, which on most distributions means the group `kvm`), and room
+for the closure (about 10 GB) and for the guest's disk (20 GB, sparse). The runner is built with
+its system, and started the same way as on a Mac:
+
+```sh
+guest=plasma-vm-session-x86_64   # or plasma-vm-x86_64, or the -aarch64 pair on an aarch64 host
+nix build ".#nixosConfigurations.$guest.config.system.build.vm" -o .vm/result-$guest
+cd .vm && KOMOREBI_REPO=$PWD/.. ./result-$guest/bin/run-*-vm
+```
+
+The console, the user, the ssh ports (2222 and 2223), the RDP port, the disk and `/repo` are as
+described for a Mac. What differs is what nixpkgs' runner does on a Linux host:
+
+- It starts one `virtiofsd` for each shared directory, as the user who runs the guest, and the
+  guest mounts them by virtiofs where a Mac's guest mounts them by 9p. One of them is the host's
+  `/nix/store`, so the guest has the closure without a copy of it.
+- It refuses to start when `/dev/kvm` is missing or cannot be opened by the user, since the guests
+  set `virtualisation.qemu.forceAccel`.
+
+A guest has one display device, a virtio-gpu, so that KWin has a DRM device to draw on. The machine
+of an x86_64 guest has a VGA of its own, which would be a second display next to the virtio-gpu,
+so the guest has `virtio-vga` (a virtio-gpu that is also a VGA) in its place and `-vga none`. The
+session guest shows nothing on the host, as on a Mac: it is reached over RDP ([below](#rdp)).
 
 ## The UTM disk
 
@@ -172,9 +210,13 @@ is known about RDP into the session, and what is not.
 
 ## What is not known
 
-At time of writing (2026-10-27), the guests made from these files have been built on an
+At time of writing (2026-10-28), the guests of a Mac, made from these files, have been built on an
 `aarch64-linux` machine, and not booted: no test covers them, and `plasma-guests-eval` only
-evaluates them. The RDP server is the exception: the VM suite `rdp` runs the same unit in the test
-session. That KWin 6.8 runs well on VirGL under UTM is not known either: the UTM and Mesa notes say
-VirGL is the way to render a Linux desktop, and Plasma works on it for other people, but it has not
-been measured here.
+evaluates them. The `x86_64` pair for a Linux host was built and started under KVM on an `x86_64`
+machine. Both guests reached the login on their serial console and had one DRM device with a render
+node, and the session guest drew the Plasma desktop on its display (a screenshot taken through
+QEMU's monitor) with komorebi running in the session. The `aarch64` pair for a Linux host was
+evaluated and not built. The RDP server is the exception to all of this: the VM suite `rdp` runs the
+same unit in the test session. That KWin 6.8 runs well on VirGL under UTM is not known either: the
+UTM and Mesa notes say VirGL is the way to render a Linux desktop, and Plasma works on it for other
+people, but it has not been measured here.

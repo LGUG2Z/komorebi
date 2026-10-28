@@ -179,10 +179,11 @@ it. `just vm NAME` runs one; [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) has
 the details, including how to run them on a Mac.
 
 To try komorebi by hand in a real Plasma session, the flake has Plasma guests
-to develop in, for an Apple silicon Mac: two that QEMU runs, one with a session
-that can be reached over RDP, and a disk image for UTM, which renders on the
-Mac's GPU. [`docs/dev/utm.md`](docs/dev/utm.md) says how to build and run them;
-`plasma-guests-eval` evaluates them on every system.
+to develop in. For an Apple silicon Mac there are two that QEMU runs, one with a
+session that can be reached over RDP, and a disk image for UTM, which renders on
+the Mac's GPU. For a Linux machine with KVM there are the same two QEMU guests,
+for `x86_64` and for `aarch64`. [`docs/dev/utm.md`](docs/dev/utm.md) says how to
+build and run them; `plasma-guests-eval` evaluates them on every system.
 
 ## How it fits together
 

@@ -285,20 +285,69 @@
 
             # The Plasma guests to develop against, evaluated and never built, so that every system
             # sees an option that nixpkgs renamed or an assertion that fails. The QEMU guests are
-            # systems in a VM (`vmVariant`), with a runner for the Mac; UTM's is a system of its own.
+            # systems in a VM (`vmVariant`), with a runner for the machine that runs QEMU; UTM's is
+            # a system of its own. Each guest is for one kind of machine, which is also checked: the
+            # architecture of the guest, the machine that runs its QEMU, and that a guest of a Linux
+            # machine has KVM and one display device only.
             plasma-guests-eval =
               let
                 guests = self.nixosConfigurations;
-                qemuGuest = name: {
-                  ${name} = guests.${name}.config.virtualisation.vmVariant.system.build.toplevel;
-                  "${name}, its runner" = guests.${name}.config.system.build.vm;
-                };
-                builds =
-                  qemuGuest "plasma-vm"
-                  // qemuGuest "plasma-vm-session"
-                  // {
-                    plasma-utm = guests.plasma-utm.config.system.build.toplevel;
+                machines = {
+                  plasma-vm = {
+                    guest = "aarch64-linux";
+                    host = "aarch64-darwin";
                   };
+                  plasma-vm-session = {
+                    guest = "aarch64-linux";
+                    host = "aarch64-darwin";
+                  };
+                  plasma-vm-x86_64 = {
+                    guest = "x86_64-linux";
+                    host = "x86_64-linux";
+                  };
+                  plasma-vm-session-x86_64 = {
+                    guest = "x86_64-linux";
+                    host = "x86_64-linux";
+                  };
+                  plasma-vm-aarch64 = {
+                    guest = "aarch64-linux";
+                    host = "aarch64-linux";
+                  };
+                  plasma-vm-session-aarch64 = {
+                    guest = "aarch64-linux";
+                    host = "aarch64-linux";
+                  };
+                };
+                isDisplay =
+                  option: lib.hasPrefix "-device virtio-vga" option || lib.hasPrefix "-device virtio-gpu" option;
+                qemuGuest =
+                  name:
+                  let
+                    machine = machines.${name};
+                    vm = guests.${name}.config.virtualisation.vmVariant.virtualisation;
+                  in
+                  assert lib.assertMsg (
+                    guests.${name}.pkgs.stdenv.hostPlatform.system == machine.guest
+                  ) "${name} is not a ${machine.guest} guest";
+                  assert lib.assertMsg (
+                    vm.host.pkgs.stdenv.hostPlatform.system == machine.host
+                  ) "${name} does not run on a ${machine.host} host";
+                  assert lib.assertMsg (vm.qemu.forceAccel
+                  ) "${name} would run without KVM or HVF, which is too slow to use";
+                  assert lib.assertMsg (
+                    builtins.length (builtins.filter isDisplay vm.qemu.options) == 1
+                  ) "${name} does not have exactly one display device";
+                  assert lib.assertMsg
+                    # an x86_64 machine has a VGA of its own, which would be a second display
+                    ((machine.guest == "x86_64-linux") == builtins.elem "-vga none" vm.qemu.options)
+                    "${name} has `-vga none` if and only if it is an x86_64 guest";
+                  {
+                    ${name} = guests.${name}.config.virtualisation.vmVariant.system.build.toplevel;
+                    "${name}, its runner" = guests.${name}.config.system.build.vm;
+                  };
+                builds = lib.foldl' (builds: name: builds // qemuGuest name) { } (lib.attrNames machines) // {
+                  plasma-utm = guests.plasma-utm.config.system.build.toplevel;
+                };
                 lines = lib.mapAttrsToList (
                   name: drv: "${name}: ${builtins.unsafeDiscardStringContext drv.drvPath}"
                 ) builds;
@@ -456,28 +505,48 @@
         };
         nixosModules.komorebi = self.nixosModules.default;
 
-        # Plasma guests to develop against, for an Apple silicon Mac (docs/dev/utm.md): QEMU runs
-        # the first two under HVF, and UTM boots the third from a disk image
+        # Plasma guests to develop against (docs/dev/utm.md). For an Apple silicon Mac, QEMU runs
+        # the first two under HVF, and UTM boots the third from a disk image. For a Linux machine
+        # with KVM, QEMU runs the other four: the same two guests for an x86_64 host and for an
+        # aarch64 one, each of which runs the guest of its own architecture.
         nixosConfigurations =
           let
+            # `guest` is the system of the guest, and `host` the pkgs of the machine that runs QEMU
             mkPlasmaGuest =
+              { guest, host }:
               modules:
               nixpkgs.lib.nixosSystem {
-                specialArgs.hostPkgs = nixpkgs.legacyPackages.aarch64-darwin;
+                specialArgs.hostPkgs = host;
                 modules = [
                   self.nixosModules.default
-                  { nixpkgs.hostPlatform = "aarch64-linux"; }
+                  { nixpkgs.hostPlatform = guest; }
                 ]
                 ++ modules;
               };
-          in
-          {
-            plasma-vm = mkPlasmaGuest [ ./nix/dev/plasma-vm.nix ];
-            plasma-vm-session = mkPlasmaGuest [
+            onMac = mkPlasmaGuest {
+              guest = "aarch64-linux";
+              host = nixpkgs.legacyPackages.aarch64-darwin;
+            };
+            onLinux =
+              system:
+              mkPlasmaGuest {
+                guest = system;
+                host = nixpkgs.legacyPackages.${system};
+              };
+            session = [
               ./nix/dev/plasma-vm.nix
               { komorebi.plasmaVm.session = true; }
             ];
-            plasma-utm = mkPlasmaGuest [ ./nix/dev/plasma-utm.nix ];
+          in
+          {
+            plasma-vm = onMac [ ./nix/dev/plasma-vm.nix ];
+            plasma-vm-session = onMac session;
+            plasma-utm = onMac [ ./nix/dev/plasma-utm.nix ];
+
+            plasma-vm-x86_64 = onLinux "x86_64-linux" [ ./nix/dev/plasma-vm.nix ];
+            plasma-vm-session-x86_64 = onLinux "x86_64-linux" session;
+            plasma-vm-aarch64 = onLinux "aarch64-linux" [ ./nix/dev/plasma-vm.nix ];
+            plasma-vm-session-aarch64 = onLinux "aarch64-linux" session;
           };
       };
     };

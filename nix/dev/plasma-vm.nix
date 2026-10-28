@@ -8,7 +8,9 @@
 
 # A NixOS Plasma 6 guest to develop and test against a real KWin, with komorebi installed by the
 # flake's module, `services.komorebi`, from the flake's packages. The flake builds it for an Apple
-# silicon Mac, which runs it under QEMU with HVF; docs/dev/utm.md says how to build and run it.
+# silicon Mac, which runs it under QEMU with HVF, and for a Linux machine, which runs it under QEMU
+# with KVM; docs/dev/utm.md says how to build and run it. The system of the guest and the packages
+# of the machine that runs QEMU (`hostPkgs`) come from the flake, so that one file serves them all.
 #
 # The guest mounts the repository at /repo, and keeps its disk in the directory it is started
 # from, which is best .vm (gitignored):
@@ -24,6 +26,20 @@
 # komorebi in it, and it can be reached over RDP (krdp.nix).
 let
   cfg = config.komorebi.plasmaVm;
+
+  # The guest's one display, a virtio-gpu, so that KWin has a DRM device to draw on. The machine of
+  # an aarch64 guest has no display of its own. The machine of an x86_64 guest has a VGA, which QEMU
+  # adds unless it is told not to, and KWin would draw on it as well as on the virtio-gpu: a second
+  # head. An x86_64 guest gets `virtio-vga`, a virtio-gpu that is also the VGA, in its place.
+  gpu =
+    args:
+    if pkgs.stdenv.hostPlatform.isx86_64 then
+      [
+        "-vga none"
+        "-device virtio-vga${args}"
+      ]
+    else
+      [ "-device virtio-gpu-pci${args}" ];
 in
 {
   imports = [ ./krdp.nix ];
@@ -130,7 +146,7 @@ in
           diskSize = 20 * 1024;
           graphics = false;
           # no display, but a gpu so there is a drm render node
-          qemu.options = lib.mkIf (!cfg.session) [ "-device virtio-gpu-pci" ];
+          qemu.options = lib.mkIf (!cfg.session) (gpu "");
           forwardPorts = [
             {
               from = "host";
@@ -166,9 +182,7 @@ in
       # kwin drives virtio-gpu through drm on the primary node; that is the only place mesa's software
       # rasterizer can allocate buffers (see docs/dev/PLATFORM.md: the headless --virtual backend
       # cannot)
-      virtualisation.vmVariant.virtualisation.qemu.options = [
-        "-device virtio-gpu-pci,xres=1920,yres=1080"
-      ];
+      virtualisation.vmVariant.virtualisation.qemu.options = gpu ",xres=1920,yres=1080";
       # an idle lock screen or dimmed display changes how kwin animates and what screenshots show
       environment.etc."xdg/kscreenlockerrc".text = ''
         [Daemon]
