@@ -256,11 +256,25 @@ impl MovementRenderDispatcher {
         *self.resize.lock() = Some(thread::spawn(move || {
             let resized = WindowsApi::position_window(hwnd, &target, top, false);
 
-            // A window that is hidden has no reason to lay itself out again
-            // before it is shown, and Explorer takes its time over it when it
-            // is: have it do it now, while the ghost is on screen.
             if resized.is_ok() {
+                // A window that is hidden has no reason to lay itself out again
+                // before it is shown, and Explorer takes its time over it when
+                // it is: have it do it now, while the ghost is on screen.
                 snapshot::paint_now(hwnd);
+
+                // Windows that render through a swap chain are given a real
+                // size change on the way (see `ghost::nudge_swap_chain_window`)
+                // so that their compositor rebuilds its render target at the
+                // final size. It takes as long as the window takes to answer
+                // twice, which is why it is done here, while the window is
+                // hidden, and not in the middle of the animation. It has to be
+                // the last thing done to the size of the window before it is
+                // shown: rendering the window leaves its compositor as stale as
+                // it was, and the window then takes over a hundred
+                // milliseconds to show anything.
+                if ghost::is_swap_chain_window(hwnd) {
+                    ghost::nudge_swap_chain_window(hwnd, &target, top);
+                }
             }
 
             resized
@@ -288,10 +302,6 @@ impl MovementRenderDispatcher {
     /// Show the source again, at its target, under the ghost, which fades out
     /// over it from here on. By now it has had part of the animation to lay
     /// itself out at its new size, which is why this is not done at the end.
-    ///
-    /// Windows that render through a swap chain are given a real size change
-    /// on the way (see `ghost::nudge_swap_chain_window`) so that their
-    /// compositor rebuilds its render target at the final size.
     fn reveal(&self, progress: f64) {
         if self.revealed.swap(true, Ordering::SeqCst) {
             return;
@@ -299,20 +309,13 @@ impl MovementRenderDispatcher {
 
         *self.revealed_at.lock() = progress.clamp(ghost::REVEAL_AT, 1.0);
 
-        match self.finish_resize() {
-            Ok(()) => {
-                if ghost::is_swap_chain_window(self.hwnd) {
-                    ghost::nudge_swap_chain_window(self.hwnd, &self.target_rect, self.top);
-                }
-            }
-            Err(error) => {
-                // the window cannot be left hidden, and the next layout pass
-                // puts it where it belongs
-                tracing::warn!(
-                    "ghost movement: failed to resize hwnd {} to its target: {error}",
-                    self.hwnd
-                );
-            }
+        if let Err(error) = self.finish_resize() {
+            // the window cannot be left hidden, and the next layout pass
+            // puts it where it belongs
+            tracing::warn!(
+                "ghost movement: failed to resize hwnd {} to its target: {error}",
+                self.hwnd
+            );
         }
 
         self.uncloak();
