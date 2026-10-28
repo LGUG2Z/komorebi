@@ -41,6 +41,7 @@ pub use komorebi_layouts::OperationDirection;
 pub use komorebi_layouts::Rect;
 pub use komorebi_layouts::ScrollingLayoutOptions;
 pub use komorebi_layouts::Sizing;
+pub use komorebi_layouts::scrolling::ScrollingCentering;
 pub use komorebi_layouts::validate_ratios;
 
 // Local modules and exports
@@ -125,6 +126,12 @@ pub enum SocketMessage {
     CycleLayout(CycleDirection),
     LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
     ScrollingLayoutColumns(NonZeroUsize),
+    ScrollingLayoutFullWidth,
+    CenterFocus,
+    Expand,
+    Consume(OperationDirection),
+    Expel,
+    ToggleColumnStack,
     ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
     ToggleWorkspaceWindowContainerBehaviour,

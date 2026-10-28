@@ -64,7 +64,6 @@ use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
-use crate::core::ScrollingLayoutOptions;
 use crate::core::Sizing;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
@@ -900,28 +899,33 @@ impl WindowManager {
             }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ScrollingLayoutColumns(count) => {
-                let focused_workspace = self.focused_workspace_mut()?;
-
-                let options = match focused_workspace.layout_options {
-                    Some(mut opts) => {
-                        if let Some(scrolling) = &mut opts.scrolling {
-                            scrolling.columns = count.into();
-                        }
-
-                        opts
-                    }
-                    None => LayoutOptions {
-                        scrolling: Some(ScrollingLayoutOptions {
-                            columns: count.into(),
-                            center_focused_column: Default::default(),
-                        }),
-                        grid: None,
-                        column_ratios: None,
-                        row_ratios: None,
-                    },
-                };
-
-                focused_workspace.layout_options = Some(options);
+                self.focused_workspace_mut()?
+                    .set_scrolling_columns(count.into());
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::ScrollingLayoutFullWidth => {
+                self.focused_workspace_mut()?.toggle_scrolling_full_width();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::CenterFocus => {
+                self.focused_workspace_mut()?.center_scrolling_column();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Expand => {
+                self.focused_workspace_mut()?.expand_scrolling_column();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Consume(direction) => {
+                self.focused_workspace_mut()?.consume_scrolling(direction);
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::ToggleColumnStack => {
+                self.focused_workspace_mut()?
+                    .toggle_scrolling_column_stack()?;
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Expel => {
+                self.focused_workspace_mut()?.expel_scrolling();
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,

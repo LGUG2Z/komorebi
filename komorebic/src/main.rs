@@ -151,6 +151,7 @@ macro_rules! gen_enum_subcommand_args {
 gen_enum_subcommand_args! {
     Focus: OperationDirection,
     Move: OperationDirection,
+    Consume: OperationDirection,
     PreselectDirection: OperationDirection,
     CycleFocus: CycleDirection,
     CycleMove: CycleDirection,
@@ -1284,6 +1285,23 @@ enum SubCommand {
     /// Set the number of visible columns for the Scrolling layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ScrollingLayoutColumns(ScrollingLayoutColumns),
+    /// Make the focused column of the Scrolling layout as wide as the screen, or put it back to
+    /// the width that it had
+    ScrollingLayoutFullWidth,
+    /// Scroll the Scrolling layout so that the focused column is in the middle of the screen, once
+    CenterFocus,
+    /// Make the focused column of the Scrolling layout fill the room that the columns in view leave
+    /// on the screen, which does nothing in any other layout
+    Expand,
+    /// Take the neighbouring window on one side into the focused column of the Scrolling layout
+    #[clap(arg_required_else_help = true)]
+    Consume(Consume),
+    /// Take the focused window out of its column in the Scrolling layout and put it in a column
+    /// of its own on the right
+    Expel,
+    /// Stack the windows of the focused column of the Scrolling layout, or spread the focused
+    /// stack out into a column with a window in each slot
+    ToggleColumnStack,
     /// Set the layout column and row ratios for the focused workspace
     LayoutRatios(LayoutRatios),
     /// Load a custom layout from file for the focused workspace
@@ -2955,6 +2973,24 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
+        }
+        SubCommand::ScrollingLayoutFullWidth => {
+            send_message(&SocketMessage::ScrollingLayoutFullWidth)?;
+        }
+        SubCommand::CenterFocus => {
+            send_message(&SocketMessage::CenterFocus)?;
+        }
+        SubCommand::Expand => {
+            send_message(&SocketMessage::Expand)?;
+        }
+        SubCommand::Consume(args) => {
+            send_message(&SocketMessage::Consume(args.operation_direction))?;
+        }
+        SubCommand::Expel => {
+            send_message(&SocketMessage::Expel)?;
+        }
+        SubCommand::ToggleColumnStack => {
+            send_message(&SocketMessage::ToggleColumnStack)?;
         }
         SubCommand::LayoutRatios(args) => {
             if args.columns.is_none() && args.rows.is_none() {

@@ -1064,6 +1064,9 @@ impl Workspace {
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
+        // wherever it goes next, it goes as wide as it was
+        self.note_scrolling_departure(idx);
+
         let container = self.containers_mut().remove_respecting_locks(idx);
 
         if idx < self.resize_dimensions.len() {
@@ -1143,8 +1146,12 @@ impl Workspace {
             .ok_or_eyre("there is no window")?;
 
         if container.windows().is_empty() {
+            let container_id = container.id.clone();
             self.remove_container_by_idx(container_idx);
-            self.focus_previous_container();
+
+            if !self.focus_after_scrolling_removal(&container_id) {
+                self.focus_previous_container();
+            }
         } else {
             container.load_focused_window();
             if let Some(window) = container.focused_window() {
@@ -1183,6 +1190,12 @@ impl Workspace {
     }
 
     pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
+        // in a strip, left and right are the neighbouring columns and up and down are the tiles of
+        // the column, which the strip is the one to say
+        if self.is_scrolling() && self.scrolling.is_some() {
+            return self.scrolling_idx_for_direction(direction);
+        }
+
         let len = NonZeroUsize::new(self.containers().len())?;
 
         direction.destination(
@@ -1288,6 +1301,8 @@ impl Workspace {
             next
         } else if self.containers().is_empty() {
             0
+        } else if let Some(idx) = self.scrolling_insertion_idx() {
+            idx
         } else {
             self.resolve_placement_index(&window)
         };
@@ -1474,9 +1489,6 @@ impl Workspace {
             }
             Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
                 self.enforce_resize_for_ultrawide();
-            }
-            Layout::Default(DefaultLayout::Scrolling) => {
-                self.enforce_resize_for_scrolling();
             }
             _ => self.enforce_no_resize(),
         }
@@ -1705,28 +1717,6 @@ impl Workspace {
         }
     }
 
-    fn enforce_resize_for_scrolling(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                let len = resize_dimensions.len();
-
-                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        rect.top = 0;
-                        rect.bottom = 0;
-
-                        if i == 0 {
-                            rect.left = 0;
-                        } else if i == len - 1 {
-                            rect.right = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
     fn enforce_no_resize(&mut self) {
         for rect in self.resize_dimensions.iter_mut().flatten() {
             rect.left = 0;
