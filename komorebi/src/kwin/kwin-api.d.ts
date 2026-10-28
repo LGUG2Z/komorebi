@@ -159,6 +159,11 @@ declare function print(...values: unknown[]): void;
 
 declare class QTimer {
     interval: number;
+    /** Whether the timer fires once per `start`, rather than every `interval`. */
+    singleShot: boolean;
+    /** True from `start` until a single-shot timer fires or `stop` is called. */
+    readonly active: boolean;
     readonly timeout: Signal;
     start(): void;
+    stop(): void;
 }

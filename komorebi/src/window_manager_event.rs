@@ -51,6 +51,8 @@ pub enum KWinNotification {
     InteractiveResizeStarted,
     /// `window.interactiveMoveResizeFinished` after a resize
     InteractiveResizeFinished,
+    /// `window.interactiveMoveResizeStepped` of a resize: where the user has the edges now
+    InteractiveResizeStepped,
 }
 
 /// Events komorebi raises itself, for example from a command
@@ -87,6 +89,10 @@ pub enum WindowManagerEvent {
     /// The user let go of the edge or the corner they were dragging: where they took it is what the
     /// window reports
     ResizeEnd(SystemNotification, Window),
+    /// The user is part way through resizing a window: where they have its edges now is what the
+    /// window reports (`Window::rect`). Only the newest of these is ever waiting
+    /// (`window_manager_event_listener`), and they make no notification.
+    ResizeStep(SystemNotification, Window),
     /// A monitor (by id) now shows another workspace: komorebi did that itself, or a pager, a
     /// shortcut or an app raising a window did. Not about any one window.
     WorkspaceChange(SystemNotification, u32, usize),
@@ -111,6 +117,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::MoveEnd(_, window)
             | WindowManagerEvent::ResizeStart(_, window)
             | WindowManagerEvent::ResizeEnd(_, window)
+            | WindowManagerEvent::ResizeStep(_, window)
             | WindowManagerEvent::WorkspaceMove(_, window, _) => *window,
             WindowManagerEvent::WorkspaceChange(..) => return None,
         })
@@ -137,6 +144,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::MoveEnd(n, _)
             | WindowManagerEvent::ResizeStart(n, _)
             | WindowManagerEvent::ResizeEnd(n, _)
+            | WindowManagerEvent::ResizeStep(n, _)
             | WindowManagerEvent::WorkspaceChange(n, _, _)
             | WindowManagerEvent::WorkspaceMove(n, _, _) => match n {
                 SystemNotification::KWin(k) => k.to_string(),

@@ -102,8 +102,8 @@ struct Entry {
     /// The drag the user is in the middle of, if any
     drag: Option<Drag>,
     /// The frame the window had when the drag began, which a drag is measured from. It is kept
-    /// apart from `info.rect`, which the frame events go on changing before the window manager has
-    /// handled the start
+    /// apart from `info.rect`, which the steps and the frame events go on changing before the
+    /// window manager has handled the start
     drag_origin: Option<Rect>,
     /// The frame the user asked for when they let go of an edge of the window, which the end of
     /// the resize is. It is kept apart from `info.rect`, which the frame events that follow the
@@ -685,6 +685,9 @@ impl Table {
     ///   and the end of the resize is `requested`, where the user took the edges, when the event
     ///   has one ([`Table::drag_end`]): the window's frame stays the one KWin reports, which the
     ///   `geometry` events that follow go on changing.
+    /// - `move_resize_step`: part way through a resize, the frame the user is asking for (`geo`),
+    ///   which becomes the window's frame and a [`WindowManagerEvent::ResizeStep`]. A step of a
+    ///   move, or with no drag going on, is nothing.
     /// - `current_desktops`: the desktop each output shows. An output that shows another desktop
     ///   than the table had it showing is a [`WindowManagerEvent::WorkspaceChange`]; komorebi's own
     ///   switch ([`Table::switch_commands`]) raises nothing. An output that shows the parking
@@ -705,6 +708,7 @@ impl Table {
             Some("removed") => self.on_removed(event, now),
             Some("activated") => self.on_activated(event),
             Some("minimized") => self.on_minimized(event),
+            Some("move_resize_step") => self.on_drag_step(event),
             Some("caption") => self.on_caption(event),
             Some("geometry") => {
                 if let Some(entry) = self.entry_mut(event) {
@@ -1002,6 +1006,30 @@ impl Table {
             Drag::Move => WindowManagerEvent::MoveStart(kwin(notification), window),
             Drag::Resize => WindowManagerEvent::ResizeStart(kwin(notification), window),
         })]
+    }
+
+    /// Part way through a drag: for a resize, where the user has the edges now. That is what the
+    /// window manager is told the window is until the drag is over; the frame follows when the client
+    /// has drawn at the new size, and is short of it.
+    fn on_drag_step(&mut self, event: &Value) -> Vec<Output> {
+        let Some(id) = self.id_of(event) else {
+            return vec![];
+        };
+
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return vec![];
+        };
+
+        if entry.drag != Some(Drag::Resize) || !entry.info.normal || !event["geo"].is_object() {
+            return vec![];
+        }
+
+        entry.info.rect = rect(&event["geo"]);
+
+        vec![Output::Event(WindowManagerEvent::ResizeStep(
+            kwin(KWinNotification::InteractiveResizeStepped),
+            Window::from(id),
+        ))]
     }
 
     fn on_drag_finished(&mut self, event: &Value) -> Vec<Output> {
@@ -1314,6 +1342,7 @@ mod tests {
                 "geometry -> ",
                 "move_resize_finished -> MoveEnd 1",
                 "move_resize_started -> ResizeStart 1",
+                "move_resize_step -> ResizeStep 1",
                 "geometry -> ",
                 "move_resize_finished -> ResizeEnd 1",
             ]
@@ -1681,6 +1710,58 @@ mod tests {
         assert_eq!(t.window(1).unwrap().rect.right, 140);
         let origin = t.drag_origin(1).unwrap();
         assert_eq!((origin.left, origin.right), (10, 100), "{origin:?}");
+    }
+
+    #[test]
+    fn steps_are_events_with_where_the_user_has_the_edge_and_do_not_lose_where_the_drag_began() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
+        let start = json!({"x":10,"y":10,"w":100,"h":100});
+
+        t.handle(&json!({ "type": "move_resize_started", "id": "a", "move": false, "resize": true, "geo": start }), now);
+        let step = t.handle(
+            &json!({ "type": "move_resize_step", "id": "a", "geo": {"x":10,"y":10,"w":130,"h":100} }),
+            now,
+        );
+
+        assert_eq!(events(&step), vec!["ResizeStep 1"]);
+        assert_eq!(
+            t.window(1).unwrap().rect.right,
+            130,
+            "the window is where the user has it"
+        );
+        let origin = t.drag_origin(1).unwrap();
+        assert_eq!(
+            (origin.left, origin.right),
+            (10, 100),
+            "the drag began somewhere else: {origin:?}"
+        );
+    }
+
+    #[test]
+    fn steps_of_a_move_and_steps_with_no_drag_are_nothing() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
+        let geo = json!({"x":10,"y":10,"w":100,"h":100});
+
+        // no drag
+        assert!(
+            t.handle(
+                &json!({ "type": "move_resize_step", "id": "a", "geo": geo }),
+                now
+            )
+            .is_empty()
+        );
+
+        // a move
+        t.handle(&json!({ "type": "move_resize_started", "id": "a", "move": true, "resize": false, "geo": geo }), now);
+        assert!(
+            t.handle(
+                &json!({ "type": "move_resize_step", "id": "a", "geo": geo }),
+                now
+            )
+            .is_empty()
+        );
     }
 
     #[test]

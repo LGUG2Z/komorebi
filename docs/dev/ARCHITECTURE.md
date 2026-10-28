@@ -701,6 +701,23 @@ the window is in a container of a workspace that tiles, and the frame changed, t
 tiled again, which also puts back a window whose edge had no neighbor to take room from.
 [drag-resize.md](../drag-resize.md) has the rules and the reasons for each.
 
+The neighbors follow the edge while it is dragged, and the animation effect, which does not
+animate a resize by the user, leaves them to move at once. At every step of a resize KWin reports the
+frame the pointer asks for (`interactiveMoveResizeStepped`); the bridge sends one step every 16 ms
+at most, the newest, from a single-shot timer that sends the last one of a burst, and the table
+makes the frame the window's and raises a `ResizeStep`. [`send_notification`] keeps at most one
+`ResizeStep` waiting in the channel, and drops the others: the window manager reads where the
+edge is when it gets to the step. `ResizeStart` keeps the workspace's
+[`Workspace::resize_dimensions`] and [`Workspace::latest_layout`] as they are when the user takes
+hold ([`LiveResize`], in [`WindowManager::live_resize`]), and puts the window in the list of
+windows being resized ([`live_resize_begins`]), which [`Window::set_position`] leaves alone. A
+step puts the kept layout back, applies the drag so far as `ResizeEnd` does, and tiles the
+workspace; it makes no notification. `ResizeEnd` takes the window out of the list, puts the kept
+layout back if a step moved the neighbors, and does the whole drag on it, so a drag ends the same
+with steps as without, and one that is taken back puts the neighbors back. A window that opens or
+closes part way through a drag changes the number of tiles: the kept layout is dropped, and the
+steps after it change nothing until the end.
+
 ## Configuration
 
 The daemon is configured by `komorebi.json`, which [`StaticConfig`] reads. `main.rs` takes the
@@ -1170,6 +1187,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | The bridge leaves a window the user has taken hold of where the user puts it | framework path: the bridge forgets the position it was asking again for when a drag of the window starts | `a window the user has taken hold of is not asked again for the position komorebi gave it` | none |
 | A drag of an edge resizes the tile of the window that was dragged, by what the pointer moved the edge, and moves no other edge | framework path: `ResizeEnd` compares each edge with the frame the drag began with ([`Table::drag_origin`]) and resizes the dragged window's container | `resizing_a_tile_by_hand_moves_the_split`, `a_drag_is_measured_from_where_the_window_was_not_from_its_tile`, `the_window_that_was_dragged_is_the_one_resized_not_the_focused_one`, `a_corner_resizes_both_of_its_edges`, `vm-drag-resize` | none |
 | The end of a resize is where the user took the edge, not the frame KWin has then, or reports a moment later | framework path: the bridge sends the frame of the last step as `requested`, the table keeps it for a resize apart from the window's frame ([`Table::drag_end`]), which the frame events that follow the end do not reach, and `ResizeEnd` reads it ([`Backend::drag_end`]) | `the_end_of_a_resize_is_where_the_user_took_it_not_where_the_frame_had_got_to`, `a_frame_that_follows_the_end_of_a_resize_does_not_change_where_the_user_took_it`, `the_end_of_a_resize_is_where_the_user_took_the_edge_when_the_frame_has_not_got_there`, `a drag is reported when the user takes hold of a window and when they let go`, `vm-drag-resize` | a drag with no step ends at the frame |
+| The window whose edge is being dragged is not moved until it is let go | framework path: [`Window::set_position`] returns without a command for a window in the list [`live_resize_begins`] adds it to, whatever tiles the workspace | `the_neighbours_follow_a_drag_while_it_is_going_on_and_the_dragged_window_is_left_alone`, `a_window_opening_part_way_through_a_drag_does_not_break_it` | none |
+| A drag ends the same with its steps as without them, and one taken back puts the neighbors back | framework path: every step and the end start from the layout kept at the start ([`LiveResize`]) | `a_drag_has_the_same_result_with_the_steps_as_without_them`, `a_drag_that_is_taken_back_puts_the_neighbours_where_they_were`, `vm-live-resize` | none |
+| A step of a drag never waits behind another step | framework path: the bridge sends one every 16 ms at most, and [`send_notification`] keeps at most one waiting | `the steps of a resize are sent at most every 16 ms, and the last of a burst is not lost`, `a step waiting when the user lets go is not sent after the end` | none |
 | A dragged edge with no neighbor puts the window back on its tile | framework path: `ResizeEnd` tiles the workspace again when the frame changed | `dragging_an_edge_that_has_no_neighbour_puts_the_window_back`, `vm-drag-resize` | none |
 | Only a tile is resized by dragging: the window of a stack resizes the tile of the stack, and a floating window or the window of a monocle is left as the user made it | framework path: `ResizeEnd` looks for the container of the dragged window among the workspace's containers ([`Workspace::container_idx_for_window`]), which leaves out the floating windows and the monocle container, and does nothing when there is none | `the_edge_of_a_stack_is_the_edge_of_its_tile`, `a_floating_window_dragged_by_its_edge_is_left_as_the_user_made_it`, `the_window_of_a_monocle_dragged_by_its_edge_is_left_as_the_user_made_it` | none |
 | A resize leaves no tile smaller than a tenth of the work area, or than it was | framework path: [`WindowManager::resize_window`] calculates the tiles for the adjustment, and cuts the adjustment down until they all fit | `a_resize_leaves_every_tile_about_a_tenth_of_the_work_area_wide_at_least`, `a_drag_further_than_the_neighbour_can_give_goes_as_far_as_it_can`, `shrinking_a_tile_by_more_than_it_can_is_granted_as_far_as_it_goes` | the paddings are taken off afterwards, so a tile can end up a little smaller |
@@ -1408,7 +1428,9 @@ A window is shown, and ends up on a tile:
   messages that add and show them;
   [`komorebi/tests/drag_swap.rs`](../../komorebi/tests/drag_swap.rs), dragging a window onto
   another tile and onto another monitor;
-  [`komorebi/tests/drag_resize.rs`](../../komorebi/tests/drag_resize.rs), dragging an edge.
+  [`komorebi/tests/drag_resize.rs`](../../komorebi/tests/drag_resize.rs), dragging an edge;
+  [`komorebi/tests/live_resize.rs`](../../komorebi/tests/live_resize.rs), the neighbors following
+  it.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py): what is on the
@@ -1416,7 +1438,9 @@ A window is shown, and ends up on a tile:
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
 - [`nix/tests/vm/suites/drag-resize`](../../nix/tests/vm/suites/drag-resize/test.py): edges and
-  corners dragged with a pointer in a Plasma session.
+  corners dragged with a pointer in a Plasma session;
+  [`nix/tests/vm/suites/live-resize`](../../nix/tests/vm/suites/live-resize/test.py), the
+  neighbors read while the edge is held.
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
   fake's desktops;
   [`komorebi/tests/workspace_commands.rs`](../../komorebi/tests/workspace_commands.rs), naming,
@@ -1601,6 +1625,10 @@ A window is shown, and ends up on a tile:
 [`Table::drag_origin`]: ../../komorebi/src/kwin/state.rs
 [`Table::drag_end`]: ../../komorebi/src/kwin/state.rs
 [`Backend::drag_end`]: ../../komorebi/src/backend/mod.rs
+[`LiveResize`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::live_resize`]: ../../komorebi/src/window_manager.rs
+[`live_resize_begins`]: ../../komorebi/src/window.rs
+[`send_notification`]: ../../komorebi/src/window_manager_event_listener.rs
 [`LayoutOptions`]: ../../komorebi/src/core/mod.rs
 [`Workspace::tile`]: ../../komorebi/src/workspace.rs
 [`Layout`]: ../../komorebi/src/core/mod.rs

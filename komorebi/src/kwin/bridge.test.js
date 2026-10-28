@@ -201,13 +201,30 @@ function kwin({
     class QTimer {
         constructor() {
             this.interval = 0;
+            this.singleShot = false;
             this.timeout = new Signal();
             this.running = false;
             timers.push(this);
         }
 
+        get active() {
+            return this.running;
+        }
+
         start() {
             this.running = true;
+        }
+
+        stop() {
+            this.running = false;
+        }
+
+        // the timer's interval has passed
+        fire() {
+            if (this.singleShot) {
+                this.running = false;
+            }
+            this.timeout.emit();
         }
     }
 
@@ -266,6 +283,9 @@ function kwin({
             desktops.push(desktop);
             workspace.desktopsChanged.emit();
         },
+        // the timer that calls `Poll` again, and the one that sends the last step of a resize
+        watchdog: () => timers.find((t) => t.interval === 1000),
+        stepTimer: () => timers.find((t) => t.singleShot),
     };
     return k;
 }
@@ -522,7 +542,7 @@ test("the bridge always has a Poll open: one when it starts, and another after e
 
 test("the watchdog calls Poll again when the last call is older than the hold and 3 seconds", () => {
     const k = kwin();
-    const [watchdog] = k.timers;
+    const watchdog = k.watchdog();
     assert.equal(watchdog.interval, 1000);
     assert.ok(watchdog.running);
 
@@ -539,7 +559,7 @@ test("the answer to a Poll that the watchdog replaced is dropped", () => {
     const k = kwin();
     const [stale] = k.polls();
     k.clock.now += CFG.hold_ms + 3001;
-    k.timers[0].timeout.emit();
+    k.watchdog().timeout.emit();
 
     stale.callback(JSON.stringify([{ batch: 1, cmds: [{ op: "cursor", token: 1 }] }]));
 
@@ -696,16 +716,68 @@ test("a drag is reported when the user takes hold of a window and when they let 
             geo: { x: 0, y: 0, w: 960, h: 1050 },
             seq: 2,
         },
-        { type: "geometry", id: "{w}", geo: { x: 0, y: 0, w: 1000, h: 1050 }, seq: 3 },
+        { type: "move_resize_step", id: "{w}", geo: { x: 0, y: 0, w: 1081, h: 1050 }, seq: 3 },
+        { type: "geometry", id: "{w}", geo: { x: 0, y: 0, w: 1000, h: 1050 }, seq: 4 },
         {
             type: "move_resize_finished",
             id: "{w}",
             geo: { x: 0, y: 0, w: 1000, h: 1050 },
             requested: { x: 0, y: 0, w: 1081, h: 1050 },
             cursor: { x: 1081, y: 501 },
-            seq: 4,
+            seq: 5,
         },
     ]);
+});
+
+test("the steps of a resize are sent at most every 16 ms, and the last of a burst is not lost", () => {
+    const w = window({ id: "{w}", resize: true });
+    const k = kwin({ windows: [w] });
+    w.interactiveMoveResizeStarted.emit();
+
+    w.interactiveMoveResizeStepped.emit(geometry(0, 0, 110, 100));
+    w.interactiveMoveResizeStepped.emit(geometry(0, 0, 120, 100));
+    w.interactiveMoveResizeStepped.emit(geometry(0, 0, 130, 100));
+    assert.ok(k.stepTimer().active, "the burst waits for the timer");
+    k.clock.now += 16;
+    k.stepTimer().fire();
+    k.stepTimer().fire();
+
+    assert.deepStrictEqual(
+        k.events()
+            .filter((e) => e.type === "move_resize_step")
+            .map((e) => e.geo.w),
+        [110, 130],
+    );
+});
+
+test("a step waiting when the user lets go is not sent after the end", () => {
+    const w = window({ id: "{w}", resize: true });
+    const k = kwin({ windows: [w] });
+    w.interactiveMoveResizeStarted.emit();
+    w.interactiveMoveResizeStepped.emit(geometry(0, 0, 110, 100));
+    w.interactiveMoveResizeStepped.emit(geometry(0, 0, 120, 100));
+
+    w.interactiveMoveResizeFinished.emit();
+    k.stepTimer().fire();
+
+    assert.deepStrictEqual(
+        k.events().slice(1).map((e) => e.type),
+        ["move_resize_started", "move_resize_step", "move_resize_finished"],
+    );
+    assert.deepStrictEqual(k.events().at(-1).requested, { x: 0, y: 0, w: 120, h: 100 });
+});
+
+test("the steps of a move are not sent", () => {
+    const w = window({ id: "{w}", move: true });
+    const k = kwin({ windows: [w] });
+    w.interactiveMoveResizeStarted.emit();
+
+    w.interactiveMoveResizeStepped.emit(geometry(50, 0, 100, 100));
+
+    assert.deepStrictEqual(
+        k.events().slice(1).map((e) => e.type),
+        ["move_resize_started"],
+    );
 });
 
 test("a window the user has taken hold of is not asked again for the position komorebi gave it", () => {

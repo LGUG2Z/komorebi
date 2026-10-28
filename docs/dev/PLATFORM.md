@@ -418,8 +418,14 @@ the client's frames after the end of the drag: in a run of `vm-drag-resize` at t
 (2026-10-28), a frame of 660 pixels, which is what `foot` had drawn of the 672 asked for, came 1 ms
 after the end, and the window manager, busy with an earlier event, handled the end 17 ms after that.
 The bridge sends the frame of the last step with the end of the drag, and the end of a resize is
-that frame, which the daemon keeps apart from the frames that follow. The VM test `vm-drag-resize`
-drags edges in a Plasma session with a pointer device that the session node makes with uinput.
+that frame, which the daemon keeps apart from the frames that follow. It also passes the steps on,
+one every 16 ms at most, so that the tiles next to the edge follow it while it is dragged; the VM
+test `vm-live-resize` reads them while the button is still down. KWin's window snapping applies to
+the edge the user drags, and the tiles that follow it are close to it: at time of writing
+(2026-10-27), in `vm-drag-resize` with the default paddings (a gap of 10 pixels between two tiles)
+and KWin's default snap zone of 10 pixels, a dragged edge once ended 9 pixels past the pointer. The
+drag VM tests set KWin's snap zones to 0. The VM test `vm-drag-resize` drags edges in a Plasma
+session with a pointer device that the session node makes with uinput.
 
 ## How long a retile takes
 

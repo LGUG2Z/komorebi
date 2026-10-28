@@ -1261,6 +1261,7 @@ impl StaticConfig {
             minimized_windows: HashMap::new(),
             pending_move_op: Arc::new(None),
             pending_resize_op: Arc::new(None),
+            live_resize: None,
             already_moved_window_handles: Default::default(),
             known_window_ids: HashMap::new(),
         };

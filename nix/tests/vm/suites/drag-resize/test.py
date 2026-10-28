@@ -45,6 +45,13 @@ machine.wait_for_unit("multi-user.target")
 checks = Checks()
 kde = Kde.session(machine, scale=SCALE)
 
+# KWin snaps an edge the user drags to an edge of another window within its snap zone, 10 pixels
+# by default, and the neighbors that follow a drag are about that far from the edge: it would end
+# up a few pixels past the pointer. The test measures komorebi, so KWin snaps nothing.
+for zone in ("BorderSnapZone", "WindowSnapZone", "CenterSnapZone"):
+    kde.sh(f"kwriteconfig6 --file kwinrc --group Windows --key {zone} 0")
+kde.sh("busctl --user call org.kde.KWin /KWin org.kde.KWin reconfigure")
+
 # the session started the module's unit when it logged in
 checks.check(
     "komorebi answers", kde.wait_for(lambda: kde.run("komorebic state")[0] == 0, timeout=120)

@@ -13,6 +13,9 @@
 //! [`Window::hide`] takes a window out of sight, which is what a stack does with every window but
 //! the one in front, and records it in [`struct@HIDDEN_WINDOWS`] so that the window manager does
 //! not mistake what the compositor reports about it for the user's doing.
+//!
+//! The windows the user is resizing with the pointer are recorded too
+//! ([`live_resize_begins`]): [`Window::set_position`] does not move those until the user lets go.
 
 use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
@@ -42,6 +45,28 @@ use std::fmt::Write;
 use std::path::PathBuf;
 use strum::Display;
 use strum::EnumString;
+
+/// The windows the user is resizing by dragging an edge of: komorebi does not move them while they
+/// are (the other tiles follow the drag, and the window is put in its tile when they let go)
+static LIVE_RESIZED_WINDOWS: parking_lot::Mutex<Vec<u32>> = parking_lot::Mutex::new(Vec::new());
+
+/// Records that the user has taken hold of an edge of this window: [`Window::set_position`] leaves
+/// it alone until [`live_resize_ends`]
+pub fn live_resize_begins(id: u32) {
+    let mut windows = LIVE_RESIZED_WINDOWS.lock();
+    if !windows.contains(&id) {
+        windows.push(id);
+    }
+}
+
+/// Records that the user has let go of the edge of this window they were dragging
+pub fn live_resize_ends(id: u32) {
+    LIVE_RESIZED_WINDOWS.lock().retain(|w| *w != id);
+}
+
+fn is_live_resized(id: u32) -> bool {
+    LIVE_RESIZED_WINDOWS.lock().contains(&id)
+}
 
 /// A handle to a window on the desktop: just its id.
 ///
@@ -191,7 +216,15 @@ impl Window {
 
     /// Asks the compositor to move and resize the window to `rect`; where the window ends up is
     /// [`Window::rect`], since a client may refuse a size
+    ///
+    /// A window whose edge the user is dragging ([`live_resize_begins`]) is not moved: it is the
+    /// user's until they let go.
     pub fn set_position(self, rect: &Rect) -> eyre::Result<()> {
+        // the window the user is dragging an edge of is theirs until they let go
+        if is_live_resized(self.id) {
+            return Ok(());
+        }
+
         backend().set_rect(self.id, rect)
     }
 

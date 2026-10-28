@@ -105,6 +105,25 @@ use std::sync::Arc;
 /// A tile cannot be resized to less than this fraction of the work area (or less than it already is)
 const MINIMUM_TILE_FRACTION: i32 = 10;
 
+/// What the focused workspace's layout was when a drag of one of its edges began: the sizes the
+/// tiles had been given by hand, and where the layout put them. Every step of the drag is worked
+/// out from that, not from the step before (the drag so far is the sum of its steps), and the end
+/// of the drag, or a drag that is taken back, starts from it too.
+#[derive(Debug, Clone)]
+pub struct LiveResize {
+    /// The window whose edge is being dragged
+    pub window: u32,
+    /// how many tiles there were: when a window opens or closes part way through a drag, the
+    /// layout it was taken from is not the layout there is
+    pub containers: usize,
+    /// The workspace's [`Workspace::resize_dimensions`] when the drag began
+    pub resize_dimensions: Vec<Option<Rect>>,
+    /// The workspace's [`Workspace::latest_layout`] when the drag began
+    pub latest_layout: Vec<Rect>,
+    /// whether the neighbours were moved while the drag was going on
+    pub stepped: bool,
+}
+
 #[derive(Debug)]
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
@@ -156,6 +175,8 @@ pub struct WindowManager {
     /// The window of a resize the user began with the pointer and has not let go of yet, and the
     /// frame it had when they took hold of it
     pub pending_resize_op: Arc<Option<(u32, Option<Rect>)>>,
+    /// While the user drags an edge: what the layout was when they took hold of it
+    pub live_resize: Option<LiveResize>,
     /// The windows an `initial_only` workspace rule has moved already, so that it moves each of
     /// them once, until it closes
     pub already_moved_window_handles: Arc<Mutex<HashSet<u32>>>,
@@ -248,6 +269,7 @@ impl WindowManager {
             minimized_windows: HashMap::new(),
             pending_move_op: Arc::new(None),
             pending_resize_op: Arc::new(None),
+            live_resize: None,
             already_moved_window_handles: Default::default(),
             known_window_ids: Default::default(),
         })

@@ -1,10 +1,11 @@
 # Resizing a tile by dragging its edge
 
 A tiled window can be resized with the pointer: take hold of one of its edges or corners, drag
-it, and let go. komorebi then moves the edges of the window's tile by as much as the pointer
-moved them, as [`komorebic resize-edge`](cli/resize-edge.md) would, the tiles next to it give up
-or take the room, and the window is put on its tile. This page says what komorebi does with a
-drag, the rules it keeps to, and why each of them is there.
+it, and let go. While the edge is dragged, the tiles next to it follow it. When it is let go,
+komorebi moves the edges of the window's tile by as much as the pointer moved them, as
+[`komorebic resize-edge`](cli/resize-edge.md) would, the tiles next to it give up or take the
+room, and the window is put on its tile. This page says what komorebi does with a drag, the rules
+it keeps to, and why each of them is there.
 
 ## What a drag does
 
@@ -17,6 +18,12 @@ drag, the rules it keeps to, and why each of them is there.
    of pixels, outward or inward. A corner is two edges.
 4. The workspace is tiled again: the dragged window goes onto its tile, wherever the user left it,
    and so do its neighbors.
+
+Between the start and the end, KWin reports every step of the drag with the frame the pointer
+asks for, and the window manager does what it does at the end, from the same start, except that
+it leaves the dragged window where the user has it: the neighbors follow the edge while it is
+dragged. The animation effect ([Animation](usage/animation.md)) does not animate any window while
+a user resize goes on, so the neighbors move at once.
 
 ## The rules
 
@@ -50,6 +57,30 @@ drag, the rules it keeps to, and why each of them is there.
   follows a moment later. The end of a move is the frame, and so is the end of a resize that had no
   step.
 
+## While the edge is dragged
+
+- **Every step is worked out from the start of the drag**, not from the step before. When the user
+  takes hold of the edge, the window manager keeps the sizes the tiles had been given and where
+  the layout put them, and each step, and the end, starts from those: the drag so far is the
+  distance from the start. So a drag has the same result with its steps as without them, and a
+  drag that is taken back, to where it began or with Escape, puts the neighbors back where they
+  were.
+- **The dragged window is the user's until they let go.** komorebi does not move it while the edge
+  is dragged, also when something else tiles the workspace, such as a window that opens.
+- **A window that opens or closes part way through a drag stops the neighbors following.** The
+  layout the drag began on is not the layout there is any more; the end of the drag still resizes
+  the tile, on the layout there is then.
+- **Only the newest step counts.** The pointer makes far more steps than the neighbors can follow:
+  the bridge sends one every 16 ms at most, the newest, and sends the last one of a burst when the
+  16 ms are over; the window manager keeps at most one step waiting, and reads where the edge is
+  when it gets to it. A step that is still waiting when the user lets go is not sent.
+- **A move has no steps.** A window dragged by its title bar moves alone; the tiles change when it
+  is let go ([Moving windows](usage/moving-windows.md#by-dragging)).
+- **KWin's snapping applies to the edge.** KWin snaps an edge the user drags to an edge of another
+  window within its snap zone, 10 pixels by default, and the tiles that follow the edge are about
+  that close to it with the default paddings, so the edge can end a few pixels past the pointer. A
+  window snap zone of 0, in KWin's window behavior settings, turns that off.
+
 ## The layouts
 
 The layouts that move the edges are `komorebi-layouts` from
@@ -81,3 +112,8 @@ of a column.
   are dragged with the pointer, and the tiles are checked exactly (the dragged edge moved by what
   the pointer moved, the neighbor's with it, nothing else), the frames within a cell of the
   terminal's font.
+- `komorebi/tests/live_resize.rs`, against the fake desktop: the neighbors follow a drag while it
+  goes on and the dragged window is left alone; the same result with steps as without; a drag
+  taken back; a step with no drag going on; a window that opens part way through.
+- `vm-live-resize`, in the same session: the edge is held part way and then all the way, and the
+  neighbors' frames are read while the button is still down, and again after it is let go.

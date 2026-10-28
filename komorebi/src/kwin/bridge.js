@@ -56,8 +56,9 @@
  * `current_desktops` which desktop each output shows, each sent when it is not what was last sent;
  * `move_resize_started` and `move_resize_finished` are the start and the end of a drag of a window
  * by the user, with its frame, and at the end where the pointer is and the frame the user last
- * asked for (`requested`, or `null` when the drag asked for none); `cursor` answers a cursor
- * query, and `failed` gives back the commands of a batch that could not be carried out.
+ * asked for (`requested`, or `null` when the drag asked for none); `move_resize_step` is the
+ * frame the user asks for part way through a resize, at most one every 16 ms; `cursor` answers a
+ * cursor query, and `failed` gives back the commands of a batch that could not be carried out.
  *
  * @typedef {{
  *     type: "snapshot", windows: WindowInfo[], screens: Screen[], desktops: Desktop[],
@@ -78,11 +79,12 @@
  * @typedef {{
  *     type: "move_resize_finished", id: string, geo: Rect, requested: Rect | null, cursor: Point
  * }} MoveResizeFinished
+ * @typedef {{ type: "move_resize_step", id: string, geo: Rect }} MoveResizeStep
  * @typedef {{ type: "cursor", token: number, x: number, y: number }} CursorAnswer
  * @typedef {{ type: "failed", batch: number, cmds: Command[] }} Failed
  * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Caption | Desktops
- *     | DesktopList | CurrentDesktops | MoveResizeStarted | MoveResizeFinished | CursorAnswer
- *     | Failed} BridgeEvent
+ *     | DesktopList | CurrentDesktops | MoveResizeStarted | MoveResizeFinished | MoveResizeStep
+ *     | CursorAnswer | Failed} BridgeEvent
  */
 
 /**
@@ -345,6 +347,47 @@ function settle(w, id) {
     }
 }
 
+// While the user resizes a window the daemon is told where they have the edges, so that the
+// neighbors can follow live. The pointer makes far more steps than anyone needs: one every 16 ms
+// at most, the newest one (a trailing timer sends the last of a burst).
+var STEP_MS = 16;
+var stepLast = 0;
+/** @type {{ id: string, geo: Rect } | null} */
+var stepPending = null;
+var stepTimer = new QTimer();
+stepTimer.singleShot = true;
+stepTimer.interval = STEP_MS;
+stepTimer.timeout.connect(function () {
+    if (stepPending) {
+        var p = stepPending;
+        stepPending = null;
+        stepLast = Date.now();
+        emit("move_resize_step", p);
+    }
+});
+
+/**
+ * @param {string} id
+ * @param {QRectF} g
+ */
+function announceStep(id, g) {
+    var p = { id: id, geo: rect(g) };
+    if (Date.now() - stepLast >= STEP_MS && !stepTimer.active) {
+        stepLast = Date.now();
+        emit("move_resize_step", p);
+    } else {
+        stepPending = p;
+        if (!stepTimer.active) {
+            stepTimer.start();
+        }
+    }
+}
+
+function cancelStep() {
+    stepPending = null;
+    stepTimer.stop();
+}
+
 // ---- hooks ---------------------------------------------------------------------------------
 
 /**
@@ -376,6 +419,7 @@ function track(w, announce) {
     w.interactiveMoveResizeStarted.connect(function () {
         delete want[id];
         delete stepped[id];
+        cancelStep();
         emit("move_resize_started", { id: id, move: !!w.move, resize: !!w.resize, geo: rect(w.frameGeometry) });
     });
     // What the user is asking for, every step of the drag. For a Wayland client the frame only
@@ -383,8 +427,12 @@ function track(w, announce) {
     // short of where the pointer took the edge.
     w.interactiveMoveResizeStepped.connect(function (g) {
         stepped[id] = rect(g);
+        if (w.resize) {
+            announceStep(id, g);
+        }
     });
     w.interactiveMoveResizeFinished.connect(function () {
+        cancelStep();
         var requested = stepped[id] || null;
         delete stepped[id];
         emit("move_resize_finished", { id: id, geo: rect(w.frameGeometry), requested: requested, cursor: cursor() });

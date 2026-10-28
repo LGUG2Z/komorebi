@@ -44,7 +44,9 @@
 //! - **ResizeStart** and **ResizeEnd**: the user dragged an edge or a corner of a window. When they
 //!   let go, each edge of the frame they left it with is compared with the same edge of the frame
 //!   it had when the drag began, the edges of its tile move by as much
-//!   ([`WindowManager::resize_window`]), and the workspace is tiled again.
+//!   ([`WindowManager::resize_window`]), and the workspace is tiled again. **ResizeStep**, part
+//!   way through, tiles the workspace as if the drag ended there, from the layout the drag began
+//!   on, and leaves the dragged window where the user has it.
 //! - **WorkspaceChange**: a monitor shows another workspace, because something other than komorebi
 //!   switched it (a pager, a shortcut, an app raising a window of another desktop). The window
 //!   manager follows ([`WindowManager::adopt_workspace_change`]) and asks the compositor for
@@ -88,7 +90,10 @@ use crate::state::State;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
 use crate::window::Window;
+use crate::window::live_resize_begins;
+use crate::window::live_resize_ends;
 use crate::window::should_act;
+use crate::window_manager::LiveResize;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::KWinNotification;
 use crate::window_manager_event::SystemNotification;
@@ -155,6 +160,12 @@ impl WindowManager {
         if self.is_paused {
             tracing::trace!("ignoring while paused");
             return Ok(());
+        }
+
+        // part way through a drag: only the neighbours move, there is no notification to make
+        if let WindowManagerEvent::ResizeStep(_, window) = event {
+            crate::window_manager_event_listener::resize_step_taken();
+            return self.live_resize_step(window);
         }
 
         // a monitor changed which workspace it shows; nothing to do with any window
@@ -275,6 +286,8 @@ impl WindowManager {
             }
             // handled before the window is looked up
             WindowManagerEvent::WorkspaceChange(..) => {}
+            // handled before the window is looked up
+            WindowManagerEvent::ResizeStep(..) => {}
             WindowManagerEvent::WorkspaceMove(_, _, idx) => {
                 // somebody put the window on another workspace's desktop: it belongs there now.
                 // (komorebi's own moves come back here too, and find the window already there.)
@@ -754,6 +767,25 @@ impl WindowManager {
                     };
                     let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
                     *pending_resize_op = Option::from((window_id, Some(started_from)));
+
+                    // what the layout is as the user takes hold, for the steps of the drag to be
+                    // worked out from, and for it to go back to if they take the drag back
+                    self.live_resize = self.focused_workspace().ok().and_then(|workspace| {
+                        workspace
+                            .container_idx_for_window(window_id)
+                            .filter(|_| workspace.tile)
+                            .map(|_| LiveResize {
+                                window: window_id,
+                                containers: workspace.containers().len(),
+                                resize_dimensions: workspace.resize_dimensions.clone(),
+                                latest_layout: workspace.latest_layout.clone(),
+                                stepped: false,
+                            })
+                    });
+
+                    if self.live_resize.is_some() {
+                        live_resize_begins(window_id);
+                    }
                 }
             }
             WindowManagerEvent::ResizeEnd(_, window) => {
@@ -762,6 +794,23 @@ impl WindowManager {
                 // Always consume the pending resize op whenever this event is handled
                 let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
                 *pending_resize_op = None;
+
+                // the drag is over: the window is komorebi's to put in its tile again, and the
+                // layout is what it was when the drag began, to have the whole drag done on it
+                live_resize_ends(window_id);
+                let live = self
+                    .live_resize
+                    .take()
+                    .filter(|live| live.window == window_id);
+                let stepped = live.as_ref().is_some_and(|live| live.stepped);
+                if let Some(live) = live
+                    && let Ok(workspace) = self.focused_workspace_mut()
+                    && live.stepped
+                    && workspace.containers().len() == live.containers
+                {
+                    workspace.resize_dimensions = live.resize_dimensions;
+                    workspace.latest_layout = live.latest_layout;
+                }
 
                 if let Some((wid, Some(started_from))) = pending {
                     // If the window handles don't match then something went wrong and the pending resize
@@ -786,8 +835,9 @@ impl WindowManager {
 
                     // put every window where the layout now says: the dragged one too when
                     // nothing could be done with what it was given (an edge at the edge of the
-                    // screen has no neighbor to take room from)
-                    if resized && new_position != started_from {
+                    // screen has no neighbor to take room from); and the others back, if they
+                    // were moved along with the drag and the drag was taken back
+                    if resized && (new_position != started_from || stepped) {
                         self.update_focused_workspace(false, false)?;
                     }
                 }
@@ -897,5 +947,49 @@ impl WindowManager {
         }
 
         Ok(true)
+    }
+
+    /// The user has the edge of a tile part way: the tiles next to it take the room, as they will
+    /// when it is let go. The dragged window is theirs until then (`window::live_resize_begins`).
+    fn live_resize_step(&mut self, window: Window) -> eyre::Result<()> {
+        let Some((wid, Some(started_from))) = *self.pending_resize_op else {
+            return Ok(());
+        };
+        let Some(live) = self.live_resize.clone().filter(|live| live.window == wid) else {
+            return Ok(());
+        };
+        if wid != window.id {
+            return Ok(());
+        }
+
+        let new_position = window.rect()?;
+        let offset = self.work_area_offset;
+
+        // the drag so far, on the layout as it was when the drag began
+        {
+            let workspace = self.focused_workspace_mut()?;
+
+            if workspace.containers().len() != live.containers {
+                // a window opened or closed: that layout is gone, and the drag goes on without
+                // being shown (what is asked of the layout when it ends is what counts)
+                self.live_resize = None;
+                return Ok(());
+            }
+
+            workspace.resize_dimensions = live.resize_dimensions;
+            workspace.latest_layout = live.latest_layout;
+        }
+
+        if !self.apply_mouse_resize(window, started_from, new_position)? {
+            return Ok(());
+        }
+
+        if let Some(live) = self.live_resize.as_mut() {
+            live.stepped = true;
+        }
+
+        self.focused_monitor_mut()
+            .ok_or_eyre("there is no monitor")?
+            .update_focused_workspace(offset)
     }
 }

@@ -564,3 +564,26 @@ frame event KWin sends a millisecond after the end changes the frame in the tabl
 manager reads it. The end of the drag has to survive that, so it is not the window's frame. The
 frame events go on updating the window's frame, and the retile that ends the drag puts the window on
 its tile. A move changes no size, so the end of a move is the frame.
+
+## Why is every step of a drag worked out from where the drag began?
+
+A step says where the user has the edge now, so the drag so far is the distance from the start,
+not something to add to the step before. Starting each step, and the end, from the layout as it
+was when the user took hold makes the result of a drag the same with its steps as without them,
+and a drag that ends where it began puts the neighbors back where they were.
+
+## Why is the window whose edge is being dragged not moved during the drag?
+
+It is the user's until they let go: KWin moves its edge with the pointer, and komorebi puts it on
+its tile when the drag ends. A step tiles the workspace to move the neighbors, and so can anything
+else that happens during the drag, such as a window that opens. The guard is in
+`Window::set_position`, for the windows being resized, so that whatever tiles the workspace leaves
+the dragged window alone.
+
+## Why are the steps of a drag thinned out?
+
+The pointer makes far more steps than anyone needs. The bridge sends one every 16 ms at most, the
+newest, and a single-shot timer sends the last one of a burst, so the edge's final place is not
+lost. Each step says where the edge is now, so one waiting in the window manager's channel is
+enough: the window manager asks the window where its edges are when it gets to the step, and that
+is the newest.

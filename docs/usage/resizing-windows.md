@@ -45,12 +45,14 @@ the tile is smaller than that already: a resize that would is carried out as far
 
 Take hold of an edge or a corner of a tiled window with the pointer, drag it, and let go: the
 edges of the window's tile move by as much as the pointer moved them, the neighbors give up or
-take the room, and the window is put on its tile. A corner moves two edges. The rules are those
-of `resize-edge`: an edge with no tile on the other side of it does not move, and the window goes
-back to its tile; no tile is made smaller than a tenth of the work area, so a long drag goes as
-far as it can. The window of a stack has the tile of the stack. A floating window and the window
-of a monocle have no tile: they are left as the user made them. [Resizing a tile by dragging its
-edge](../drag-resize.md) says how a drag is measured.
+take the room, and the window is put on its tile. The neighbors follow the edge while it is
+dragged, and go back if it is dragged back to where it began, without the animation of
+[`animation`](animation.md): the effect leaves a user's resize alone. A corner moves two edges. The rules
+are those of `resize-edge`: an edge with no tile on the other side of it does not move, and the
+window goes back to its tile; no tile is made smaller than a tenth of the work area, so a long
+drag goes as far as it can. The window of a stack has the tile of the stack. A floating window and
+the window of a monocle have no tile: they are left as the user made them. [Resizing a tile by
+dragging its edge](../drag-resize.md) says how a drag is measured.
 
 ## Back to the layout
 
