@@ -21,6 +21,7 @@ pub mod render_dispatcher;
 pub mod snapshot;
 pub use render_dispatcher::RenderDispatcher;
 pub mod style;
+pub mod transition;
 
 use serde::Deserialize;
 use serde::Serialize;
