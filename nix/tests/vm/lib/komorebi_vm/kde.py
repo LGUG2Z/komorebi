@@ -31,6 +31,57 @@ class Rect:
             and other.y < self.y + self.h
         )
 
+    def inside(self, area: "Rect", slack: int = 0) -> bool:
+        """Returns true if and only if every pixel of this rectangle is a pixel of `area`, give
+        or take `slack` pixels at each edge."""
+        return (
+            self.x >= area.x - slack
+            and self.y >= area.y - slack
+            and self.x + self.w <= area.x + area.w + slack
+            and self.y + self.h <= area.y + area.h + slack
+        )
+
+
+class Outputs:
+    """The outputs of a KWin session, as `kscreen-doctor` lists and changes them.
+
+    A [`Kde`][] has one, as [`Kde.outputs`][]. Calling it gives the number of outputs KWin has
+    enabled. An output is named as KWin names it (`Virtual-0`), and a disabled output keeps its
+    name, so that it can be enabled again.
+    """
+
+    def __init__(self, kde: "Kde") -> None:
+        self._kde = kde
+
+    def __call__(self) -> int:
+        """The number of outputs KWin has enabled."""
+        return int(
+            self._kde.sh("kscreen-doctor -j | jq '[.outputs[] | select(.enabled)] | length'")
+        )
+
+    def names(self, *, enabled: bool = True) -> list[str]:
+        """The names of the outputs that are enabled (or, with `enabled` false, disabled), from
+        left to right."""
+        listed = self._kde.sh(
+            f"kscreen-doctor -j | jq -r '[.outputs[] | select(.enabled == {str(enabled).lower()})]"
+            " | sort_by(.pos.x) | .[].name'"
+        )
+        return listed.split()
+
+    def disable(self, name: str) -> None:
+        """Unplugs an output, as far as KWin can tell: it is disabled, and its windows go to the
+        outputs that are left."""
+        self._kde.sh(f"kscreen-doctor output.{name}.disable")
+
+    def enable(self, name: str) -> None:
+        """Plugs an output back in, as far as KWin can tell."""
+        self._kde.sh(f"kscreen-doctor output.{name}.enable")
+
+    def scale(self, name: str, factor: float) -> None:
+        """Gives an output another scale: its size in pixels, as the windows see it, becomes
+        its mode divided by `factor`."""
+        self._kde.sh(f"kscreen-doctor output.{name}.scale.{factor:g}")
+
 
 class Kde:
     """One KWin session of the test user, with its own session bus and Wayland socket.
@@ -455,7 +506,11 @@ class Kde:
         return self.run(f"kdotool search --class {pattern} | head -1")[1].strip()
 
     def rect(self, wid: str) -> Rect:
-        """The position and size KWin reports for the window."""
+        """The position and size KWin reports for the window, rounded to whole pixels.
+
+        At a fractional scale the frame is not a whole number of pixels in the logical
+        coordinates KWin reports.
+        """
         out = self.sh(f"kdotool getwindowgeometry {shlex.quote(wid)}")
         position = size = None
         for line in out.splitlines():
@@ -466,8 +521,8 @@ class Kde:
                 size = words[1]
         if position is None or size is None:
             raise AssertionError(f"no geometry in {out!r}")
-        x, y = (int(v) for v in position.split(","))
-        w, h = (int(v) for v in size.split("x"))
+        x, y = (round(float(v)) for v in position.split(","))
+        w, h = (round(float(v)) for v in size.split("x"))
         return Rect(x, y, w, h)
 
     def title(self, wid: str) -> str:
@@ -625,9 +680,11 @@ class Kde:
         mark = f"KS:{name} "
         return [line.split(mark, 1)[1] for line in log.splitlines() if mark in line]
 
-    def outputs(self) -> int:
-        """The number of outputs KWin has enabled."""
-        return int(self.sh("kscreen-doctor -j | jq '[.outputs[] | select(.enabled)] | length'"))
+    @property
+    def outputs(self) -> Outputs:
+        """The session's outputs: `kde.outputs()` is how many are enabled, and `kde.outputs` has
+        the ones to enable, disable and scale ([`Outputs`][])."""
+        return Outputs(self)
 
     def _effects(self, method: str, name: str) -> bool:
         """Asks KWin's `/Effects` object a yes or no question about the effect `name`."""

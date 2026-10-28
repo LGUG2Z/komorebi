@@ -2,9 +2,9 @@
 
 A program such as a status bar, a widget or a script can follow what komorebi does by
 subscribing to its notifications. After each event the window manager handles (a window
-was shown, closed, focused, minimized or restored) and each message it takes on its socket,
-the daemon sends every subscriber a notification: the event or the message, and the state
-of the window manager after it.
+was shown, closed, focused, minimized or restored), each message it takes on its socket and
+each change of the monitors, the daemon sends every subscriber a notification: the event, the
+message or the change, and the state of the window manager after it.
 
 ## Subscribing
 
@@ -34,11 +34,13 @@ object. The first notification a subscriber receives is the one of its subscript
 
 A notification has two fields:
 
-- `event`: the event or the message. An event is a window event, with the signal it came
-  from and the window, such as
+- `event`: the event, the message or the change of the monitors. An event is a window event,
+  with the signal it came from and the window, such as
   `{"type":"Show","content":[{"type":"KWin","content":"WindowAdded"},{"id":...}]}`. A
   message is written the way a client writes it on the daemon's socket, such as
-  `{"type":"Retile"}`.
+  `{"type":"Retile"}`. A change of the monitors is the name of the change with its content,
+  such as `{"Resize":0}`: the id of the monitor that changed, or 0 when KWin does not say
+  which. [Changing monitors](changing-monitors.md) says when each is sent.
 - `state`: the state of the window manager after it, with the same fields as what
   [`komorebic state`](../cli/state.md) prints, on one line.
 
@@ -49,10 +51,11 @@ sent.
 
 A subscriber can ask to be sent a notification only when the event or the message changed
 the state, with the `filter_state_changes` option. It is still sent the notification of a
-window that is shown, of every new subscription, so it receives the state as soon as it
-subscribes, of a theme, which changes the colors of the borders and nothing in the state,
-and of every reload of `komorebi.json`. `komorebic subscribe-socket` has no option for it; a
-program writes the message on the daemon's socket itself:
+window that is shown, of every change of the monitors, of every new subscription, so it
+receives the state as soon as it subscribes, of a theme, which changes the colors of the
+borders and nothing in the state, and of every reload of `komorebi.json`.
+`komorebic subscribe-socket` has no option for it; a program writes the message
+on the daemon's socket itself:
 
 ```sh
 printf '%s' '{"type":"AddSubscriberSocketWithOptions","content":["bar.sock",{"filter_state_changes":true}]}' |

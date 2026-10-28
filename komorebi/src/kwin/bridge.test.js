@@ -81,6 +81,7 @@ function window({
         skipPager: false,
         skipSwitcher: false,
         opacity: 1,
+        dock: false,
         fullScreen: false,
         maximizeMode: 0,
         minSize: { width: 0, height: 0 },
@@ -187,6 +188,7 @@ function kwin({
         windowAdded: new Signal(),
         windowRemoved: new Signal(),
         windowActivated: new Signal(),
+        screensChanged: new Signal(),
         currentDesktopChanged: new Signal(),
         desktopsChanged: new Signal(),
     };
@@ -283,9 +285,11 @@ function kwin({
             desktops.push(desktop);
             workspace.desktopsChanged.emit();
         },
-        // the timer that calls `Poll` again, and the one that sends the last step of a resize
+        // the timer that calls `Poll` again, the one that sends the last step of a resize, and the
+        // one that waits for a panel to settle
         watchdog: () => timers.find((t) => t.interval === 1000),
-        stepTimer: () => timers.find((t) => t.singleShot),
+        stepTimer: () => timers.find((t) => t.interval === 16),
+        areaTimer: () => timers.find((t) => t.interval === 200),
     };
     return k;
 }
@@ -303,7 +307,13 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
         minSize: { width: 300, height: 200 },
         desktops: [{ id: "desktop-1" }],
     });
-    const k = kwin({ windows: [editor], active: editor, cursor: { x: 480.6, y: 525.2 } });
+    const screen = { ...DP1 };
+    const k = kwin({
+        windows: [editor],
+        screens: [screen],
+        active: editor,
+        cursor: { x: 480.6, y: 525.2 },
+    });
 
     const terminal = window({
         id: "{7f3d9e21-0000-4000-8000-00000000000b}",
@@ -380,6 +390,10 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     editor.resize = false;
     editor.interactiveMoveResizeFinished.emit();
 
+    // and a panel takes room from the output
+    screen.placementArea = geometry(0, 0, 1920, 1000);
+    k.workspace.screensChanged.emit();
+
     assert.deepStrictEqual(k.events(), events);
     assert.deepStrictEqual(editor.frameGeometry, geometry(40, 30, 1040, 1050));
     assert.equal(k.workspace.activeWindow, editor);
@@ -393,12 +407,85 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     assert.deepStrictEqual(k.workspace.windowList(), [editor]);
 });
 
+test("a change of the outputs is sent as the screens, once, and the panel is looked at again", () => {
+    const screen = { ...DP1 };
+    const k = kwin({ screens: [screen] });
+
+    screen.geometry = geometry(0, 0, 1280, 720);
+    screen.placementArea = geometry(0, 0, 1280, 700);
+    k.workspace.screensChanged.emit();
+    k.workspace.screensChanged.emit();
+
+    assert.deepStrictEqual(k.events().slice(1), [
+        {
+            type: "screens",
+            screens: [
+                {
+                    name: "DP-1",
+                    manufacturer: "ACME",
+                    model: "M1",
+                    serial: "S1",
+                    geo: { x: 0, y: 0, w: 1280, h: 720 },
+                    scale: 1,
+                    area: { x: 0, y: 0, w: 1280, h: 700 },
+                },
+            ],
+            seq: 2,
+        },
+    ]);
+    assert.ok(k.areaTimer().running, "the panel follows a new resolution a moment later");
+});
+
+test("a panel that opens, moves or closes has the area of the outputs looked at again", () => {
+    const screen = { ...DP1 };
+    const k = kwin({ screens: [screen] });
+    const timer = k.areaTimer();
+    assert.ok(timer.singleShot, "a burst of changes is one look");
+
+    const app = window({ id: "{app}", frameGeometry: geometry(0, 0, 800, 600) });
+    k.open(app, { focus: false });
+    app.frameGeometry = geometry(10, 10, 800, 600);
+    assert.ok(!timer.running, "a window that is not a panel is no reason to look");
+
+    const panel = window({ id: "{panel}", dock: true, frameGeometry: geometry(0, 1050, 1920, 30) });
+    k.open(panel, { focus: false });
+    assert.ok(timer.running, "the panel opened");
+
+    screen.placementArea = geometry(0, 0, 1920, 1000);
+    timer.fire();
+    assert.deepStrictEqual(k.events().at(-1).screens[0].area, { x: 0, y: 0, w: 1920, h: 1000 });
+
+    panel.frameGeometry = geometry(0, 1000, 1920, 80);
+    assert.ok(timer.running, "the panel moved");
+
+    timer.fire();
+    k.close(panel);
+    assert.ok(timer.running, "the panel closed");
+});
+
+test("the outputs are looked at once a second, which finds a panel that starts after the bridge", () => {
+    const screen = { ...DP1 };
+    const k = kwin({ screens: [screen] });
+
+    k.watchdog().timeout.emit();
+    assert.equal(k.events().length, 1, "nothing changed");
+
+    screen.placementArea = geometry(0, 0, 1920, 1000);
+    k.watchdog().timeout.emit();
+    k.watchdog().timeout.emit();
+
+    assert.deepStrictEqual(
+        k.events().slice(1).map((e) => [e.type, e.screens[0].area.h]),
+        [["screens", 1000]],
+    );
+});
+
 test("the desktop each output shows is sent when it changes, and once", () => {
     const k = kwin();
     const [first, second] = k.workspace.desktops;
 
     k.workspace.setCurrentDesktopForScreen(second, DP1);
-    k.timers[0].timeout.emit();
+    k.watchdog().timeout.emit();
     k.workspace.setCurrentDesktopForScreen(first, DP1);
 
     assert.deepStrictEqual(k.events().slice(1), [

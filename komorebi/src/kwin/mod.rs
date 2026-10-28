@@ -34,6 +34,11 @@
 //! owner again, the daemon loads the script into the new KWin, which reports its desktop as it
 //! does at start.
 //!
+//! The script also reports the outputs when KWin's list of them changes, when a panel (a dock
+//! window) opens, closes or moves, and once a second, because KWin has no signal for the room a
+//! panel leaves. A change of an output's size or of its work area is sent to
+//! [`monitor_reconciliator`], which reads the monitors again.
+//!
 //! Workspaces are KWin's own virtual desktops, per output: workspace `i` is desktop `i`, and each
 //! output shows a desktop of its own, which KWin does once its per-output virtual desktops are
 //! turned on. [`connect`] turns them on in the user's `kwinrc` (the exit puts the user's setting
@@ -79,6 +84,7 @@ use crate::backend::Look;
 use crate::backend::MonitorInfo;
 use crate::backend::WindowInfo;
 use crate::core::Rect;
+use crate::monitor_reconciliator;
 use crate::window_manager_event_listener;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -174,6 +180,9 @@ impl Shared {
         for output in outputs {
             match output {
                 Output::Event(event) => window_manager_event_listener::send_notification(event),
+                Output::Monitor(notification) => {
+                    monitor_reconciliator::send_notification(notification)
+                }
                 Output::Command(command) => self.push(command),
                 Output::Cursor { token, x, y } => {
                     if let Some(waiter) = self.cursor_waiters.lock().remove(&token) {

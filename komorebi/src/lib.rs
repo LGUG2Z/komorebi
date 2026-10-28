@@ -18,14 +18,17 @@
 //! the focus see-through. A monitor or a workspace can also have a wallpaper
 //! ([`static_config::Wallpaper`]), which the backend has the Plasma shell show when the
 //! workspace comes into view ([`backend::Backend::set_wallpaper`]).
+//! When the compositor reports that a monitor changed size, [`monitor_reconciliator`] reads the
+//! monitors again and tiles the windows in the area each has now.
 //!
 //! The daemon also listens on a socket, `komorebi.sock` in [`struct@DATA_DIR`], for the messages
 //! in [`core::SocketMessage`]: [`process_command`] reads them and answers, with the window
 //! manager's [`state::State`] for one.
 //!
 //! A program can subscribe to the daemon's notifications with a socket of its own in
-//! [`struct@DATA_DIR`]: after each event and each message the window manager handles,
-//! [`notify_subscribers`] sends every subscriber a [`Notification`] of it, with the state.
+//! [`struct@DATA_DIR`]: after each event, each message and each change of the monitors the window
+//! manager handles, [`notify_subscribers`] sends every subscriber a [`Notification`] of it, with
+//! the state.
 
 use crate::core::ApplicationIdentifier;
 use crate::core::DefaultLayout;
@@ -36,6 +39,7 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
+use crate::monitor_reconciliator::MonitorNotification;
 use crate::state::State;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
@@ -68,6 +72,7 @@ pub mod desktop;
 pub mod kwin;
 pub mod lockable_sequence;
 pub mod monitor;
+pub mod monitor_reconciliator;
 pub mod process_command;
 pub mod process_event;
 pub mod state;
@@ -204,10 +209,10 @@ pub static DEFAULT_RESIZE_DELTA: i32 = 50;
 /// say
 pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = true;
 
-/// The event or the message a [`Notification`] is about
+/// The event, the message or the change of the monitors a [`Notification`] is about
 ///
-/// It is written as the [`WindowManagerEvent`] or the [`SocketMessage`] it carries, each with its
-/// `type`, with no tag around it.
+/// A [`WindowManagerEvent`] or a [`SocketMessage`] is written with its `type`, and a
+/// [`MonitorNotification`] as its variant, `{"Resize":0}`, with no tag around either.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
@@ -216,10 +221,12 @@ pub enum NotificationEvent {
     WindowManager(WindowManagerEvent),
     /// A message the daemon took on its socket
     Socket(SocketMessage),
+    /// A change of the monitors the compositor reported
+    Monitor(MonitorNotification),
 }
 
-/// A notification that [`notify_subscribers`] sends each subscriber: an event or a message the
-/// window manager handled, and its state after it
+/// A notification that [`notify_subscribers`] sends each subscriber: an event, a message or a
+/// change of the monitors the window manager handled, and its state after it
 ///
 /// # Example
 ///
@@ -229,6 +236,7 @@ pub enum NotificationEvent {
 /// use komorebi::Notification;
 /// use komorebi::NotificationEvent;
 /// use komorebi::core::SocketMessage;
+/// use komorebi::monitor_reconciliator::MonitorNotification;
 /// use komorebi::window_manager_event::WindowManagerEvent;
 ///
 /// let state = r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"new_window_behaviour":"Create","float_override":false,"cross_monitor_move_behaviour":"Swap","monocle_focus_behaviour":"NoOp","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
@@ -250,12 +258,19 @@ pub enum NotificationEvent {
 /// ));
 /// assert!(notification.state.mouse_follows_focus);
 ///
+/// let resized = format!(r#"{{"event":{{"Resize":3}},"state":{state}}}"#);
+/// let notification: Notification = serde_json::from_str(&resized)?;
+/// assert!(matches!(
+///     notification.event,
+///     NotificationEvent::Monitor(MonitorNotification::Resize(3))
+/// ));
+///
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Notification {
-    /// The event or the message the window manager handled
+    /// The event, the message or the change of the monitors the window manager handled
     pub event: NotificationEvent,
     /// The window manager's state after it
     pub state: State,
@@ -267,8 +282,8 @@ pub struct Notification {
 /// Each subscriber is sent the notification as JSON on a new connection to its socket, which is
 /// closed after it. A subscriber with `filter_state_changes` in its [`SubscribeOptions`] is sent it
 /// only if `state_has_been_modified`, or if the notification is about a window being shown, a
-/// subscriber being added, a theme being set (the colors of the borders are not part of the
-/// [`State`]) or the configuration being reloaded.
+/// subscriber being added, a change of the monitors, a theme being set (the colors of the borders
+/// are not part of the [`State`]) or the configuration being reloaded.
 ///
 /// A subscriber that cannot be connected to (its program has exited, or its socket was removed)
 /// is removed, with its socket file, and is not tried again: it has to subscribe again. The
@@ -326,7 +341,8 @@ pub fn notify_subscribers(
 ) -> eyre::Result<()> {
     let is_override_event = matches!(
         notification.event,
-        NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
+        NotificationEvent::Monitor(_)
+            | NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
             | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
             | NotificationEvent::Socket(SocketMessage::Theme(_))
             | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_))

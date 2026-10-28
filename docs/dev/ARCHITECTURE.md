@@ -8,11 +8,11 @@ tested, without one.
 This page describes that trait, who implements and calls it, where each of its rules is
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
 how an event about a window becomes a tile, how workspaces are the compositor's desktops, how
-a stack hides its windows, how a message on the daemon's socket is answered, how subscribers
-are notified of both, what the orders a message gives do, what a drag with the pointer does, how
-the compositor is asked to draw the borders, how `komorebi.json` configures the daemon, and how
-the NixOS module runs the daemon. It grows with the code: each part of the daemon that is added
-has its place here.
+a stack hides its windows, how the window manager follows a monitor that changes, how a message
+on the daemon's socket is answered, how subscribers are notified of all three, what the orders a
+message gives do, what a drag with the pointer does, how the compositor is asked to draw the
+borders, how `komorebi.json` configures the daemon, and how the NixOS module runs the daemon. It
+grows with the code: each part of the daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -68,8 +68,11 @@ has its place here.
   settings, as the daemon answers a `State` message with them ([`State`]).
 - **Subscriber**: a program that listens on a socket of its own in [`DATA_DIR`] and has
   asked the daemon, by the name of that socket, to send it notifications.
-- **Notification**: what a subscriber is sent after each event and each message the window
-  manager handles: the event or the message, and the state after it ([`Notification`]).
+- **Monitor notification**: what the KWin backend sends the monitor reconciliator when the
+  outputs change ([`MonitorNotification`]).
+- **Notification**: what a subscriber is sent after each event, each message and each change
+  of the monitors the window manager handles: the event, the message or the change, and the
+  state after it ([`Notification`]).
 - **Look**: how the compositor is asked to dress the windows, which it draws ([`Look`]):
   a border, with its width, its corner radius and two colors, and the animation of windows going
   to their places, with its duration and its easing curve.
@@ -312,6 +315,26 @@ table treats as stale ([`Table::stale_park`]). It is never the parking desktop o
 The snapshot sends the windows on it to the first workspace's desktop, and half a second later
 the backend removes it (`sweep_stale_park`).
 
+## Monitors that change
+
+The outputs KWin has change under a running daemon: an output gets another resolution or
+scale, or a panel changes the room the windows have on it. KWin has one signal for the outputs
+(`workspace.screensChanged`) and none for the room a panel leaves, so the bridge sends every
+output, with its geometry and work area, as a `screens` event when the signal comes, when a
+dock window opens, closes or moves, and once a second, each time the outputs are not what it
+last sent. The table compares them with the monitors it had ([`Table::handle`]), and a monitor
+whose size or work area changed is a [`MonitorNotification::Resize`]. It is not a window
+event, since it is about no window, and it goes to the monitor reconciliator
+([`monitor_reconciliator`]), not to the window manager's channel of events.
+
+The reconciliator is a thread with a channel of its own ([`listen_for_notifications`]). It takes
+one notification at a time with the window manager locked, as the thread of events and the
+thread of messages do, so the three never change the window manager at once. For a `Resize` it
+reads the size and the work area of every monitor from the backend again
+([`update_monitor_work_areas`]), tiles the workspace in front of the focused monitor in the area
+it has now, and notifies the subscribers ([`NotificationEvent::Monitor`]). Another monitor's
+windows keep their tiles until something tiles them again, such as `Retile`.
+
 ## The command socket
 
 The daemon takes messages on a Unix socket, `komorebi.sock` in [`DATA_DIR`]
@@ -354,9 +377,10 @@ or `AddSubscriberSocketWithOptions` with its name and [`SubscribeOptions`]
 [`SUBSCRIPTION_SOCKET_OPTIONS`]. `RemoveSubscriberSocket` takes it out again. The
 subscribers are kept in memory only, and a daemon that restarts has none.
 
-At the end of [`WindowManager::process_event`] and of [`WindowManager::process_command`],
-the window manager calls [`notify_subscribers`] with a [`Notification`]: the event or the
-message ([`NotificationEvent`]), and the [`State`] after it. A [`State`] made before the event
+At the end of [`WindowManager::process_event`] and of [`WindowManager::process_command`], and
+after the monitor reconciliator has handled a notification, the window manager calls
+[`notify_subscribers`] with a [`Notification`]: the event, the message or the change of the
+monitors ([`NotificationEvent`]), and the [`State`] after it. A [`State`] made before the event
 or the message is compared with the window manager after it ([`State::has_been_modified`]);
 the monitors are compared down to the windows, and a window by its id only. An event about a
 window komorebi does not manage, and a message that fails, return before this and are not
@@ -366,13 +390,14 @@ notified.
 its socket, writes the JSON and closes the connection, all on the thread that handled the
 event or the message, with the window manager still locked. A subscriber with
 `filter_state_changes` is skipped when the state did not change, unless the notification is
-about a window being shown, a subscriber being added, a theme being set (the colors of the
-borders are not part of the state) or the configuration being reloaded. A subscriber that
-cannot be connected to is removed, with its socket file, after the loop. Writing to a
-subscriber that was connected to has no timeout, and a failed write returns an error from the
-call that handled the event or the message. A subscriber that stops reading therefore holds
-the window manager, and with it the thread that handles events: the backend's events wait in
-the channel of [`window_manager_event_listener`], and past 20 the backend drops them.
+about a window being shown, a subscriber being added, a change of the monitors, a theme being
+set (the colors of the borders are not part of the state) or the configuration being reloaded.
+A subscriber that cannot be connected to is removed, with its socket file, after the loop.
+Writing to a subscriber that was connected to has no timeout, and a failed write returns an
+error from the call that handled the event or the message. A subscriber that stops reading
+therefore holds the window manager, and with it the thread that handles events: the backend's
+events wait in the channel of [`window_manager_event_listener`], and past 20 the backend drops
+them.
 
 When the daemon stops ([`WindowManager::stop`], or `SIGINT` and `SIGTERM` in `main.rs`), it
 connects to each subscriber and shuts the connection down without writing anything.
@@ -1046,13 +1071,16 @@ module's unit.
   that is not in front, focus another monitor, and move containers and workspaces between
   monitors).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
-  the backend.
+  the backend, and reads the sizes of the monitors again.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
   [`process_event`](../../komorebi/src/process_event.rs): the events, and what the window
   manager does with each.
 - [`window_manager_event_listener`](../../komorebi/src/window_manager_event_listener.rs): the
   channel that carries events from the backend to the window manager, and
   [`listen_for_events`], the thread that takes them off it.
+- [`monitor_reconciliator`](../../komorebi/src/monitor_reconciliator.rs): the channel the KWin
+  backend sends [`MonitorNotification`]s on, and [`listen_for_notifications`], the thread that
+  takes them and has the window manager read the monitors again.
 - [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
   call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table;
   [`kwin::kwinrc`](../../komorebi/src/kwin/kwinrc.rs), the editor of the user's `kwinrc`, which
@@ -1088,8 +1116,8 @@ module's unit.
 - [`main.rs`](../../komorebi/src/main.rs): the daemon. It connects to KWin, or installs the
   fake with `--fake-backend`, makes the window manager from `komorebi.json` when there is one,
   which binds the socket, loads the desktop, gives the monitors their configuration, asks for the
-  borders and tiles, starts the threads that listen on the socket and handle events, and waits to
-  be stopped.
+  borders and tiles, starts the threads that listen on the socket, handle events and take the
+  notifications of the monitors, and waits to be stopped.
 - [`nixos-module.nix`]: the NixOS module, which installs komorebi and runs the daemon as a
   systemd user unit of every Plasma session.
 
@@ -1217,6 +1245,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A monitor raised onto the parking desktop is sent back | framework path: the table sends the monitor back to the desktop it showed before | `following_a_hidden_window_to_the_parking_desktop_sends_that_output_back` | none |
 | A clean stop leaves no window hidden and no parking desktop | framework path: [`WindowManager::stop`] and the signal handler restore every hidden window, and the backend's `shutdown` removes the desktop after the restoring commands have gone out | `restoring_every_window_brings_back_the_hidden_ones_unless_it_is_told_to_ignore_that`, `vm-stacks` ("a clean stop puts every window back") | `SIGKILL`, and `StopIgnoreRestore`, which restores nothing |
 | A parking desktop a dead daemon left is swept by the next one, and its windows go home | startup check: the first snapshot marks it stale, sends its windows to the first workspace's desktop, and the backend removes it | `a_parking_desktop_left_by_a_crashed_run_is_swept`, `a_stale_parking_desktop_is_not_the_one_windows_are_hidden_on`, `vm-stacks` ("a crash leaves a parking desktop") | none |
+| A monitor that changes size has the windows of the workspace in front tiled in the size it has now | framework path: the table reports a changed size or work area as a `Resize`, and the reconciliator reads the monitors again and tiles the focused monitor | `a_new_panel_is_a_resize_and_the_same_screens_again_are_nothing`, `a_change_of_resolution_is_tiled_again`, `vm-hotplug` ("tiled again inside the monitor as it is now") | `Retile` tiles every monitor |
+| The outputs are sent when they are not what the bridge last sent, and the room a panel leaves is found within a second | convention in the bridge: it sends after `screensChanged`, after a dock window opens, closes or moves, and in its watchdog, which runs every second | `a change of the outputs is sent as the screens, once, and the panel is looked at again`, `a panel that opens, moves or closes has the area of the outputs looked at again`, `the outputs are looked at once a second, which finds a panel that starts after the bridge` | none |
+| A subscriber that wants only changes of the state is sent every change of the monitors | framework path: [`notify_subscribers`] treats a monitor notification as an override of the filter | `a_change_of_the_monitors_is_sent_to_a_subscriber_that_filters_state_changes_too` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
@@ -1441,6 +1472,9 @@ A window is shown, and ends up on a tile:
   corners dragged with a pointer in a Plasma session;
   [`nix/tests/vm/suites/live-resize`](../../nix/tests/vm/suites/live-resize/test.py), the
   neighbors read while the edge is held.
+- [`komorebi/tests/monitor_resize.rs`](../../komorebi/tests/monitor_resize.rs): a monitor that
+  changes size, against the fake; [`nix/tests/vm/suites/hotplug`](../../nix/tests/vm/suites/hotplug/test.py),
+  the same against a real KWin with two outputs.
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
   fake's desktops;
   [`komorebi/tests/workspace_commands.rs`](../../komorebi/tests/workspace_commands.rs), naming,
@@ -1670,6 +1704,12 @@ A window is shown, and ends up on a tile:
 [`WindowManager::cross_boundary_behaviour`]: ../../komorebi/src/window_manager.rs
 [`Monitor::focus_workspace`]: ../../komorebi/src/monitor.rs
 [`Monitor::move_container_to_workspace`]: ../../komorebi/src/monitor.rs
+[`monitor_reconciliator`]: ../../komorebi/src/monitor_reconciliator.rs
+[`MonitorNotification`]: ../../komorebi/src/monitor_reconciliator.rs
+[`MonitorNotification::Resize`]: ../../komorebi/src/monitor_reconciliator.rs
+[`listen_for_notifications`]: ../../komorebi/src/monitor_reconciliator.rs
+[`update_monitor_work_areas`]: ../../komorebi/src/desktop.rs
+[`NotificationEvent::Monitor`]: ../../komorebi/src/lib.rs
 [`bridge.js`]: ../../komorebi/src/kwin/bridge.js
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts
 [`bridge.test.js`]: ../../komorebi/src/kwin/bridge.test.js

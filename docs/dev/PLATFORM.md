@@ -123,9 +123,11 @@ It connects to the session bus as `org.komorebi.Bridge`, writes the bridge to
 `$XDG_RUNTIME_DIR/komorebi/bridge.js`, and asks KWin to load it under the name
 `komorebi-bridge`, replacing a script of that name left by an earlier run. The script reports
 the windows and outputs it finds, and from then on every window that opens, closes, takes the
-focus, is minimized or brought back, moves or changes size, and the start and the end of every
-drag of a window by the user. The daemon waits up to 10 seconds for the first report and does
-not start without it.
+focus, is minimized or brought back, moves or changes size, the start and the end of every drag
+of a window by the user, and every change of the outputs (one that changes resolution or scale,
+and the room a panel leaves). KWin has no signal for that room, so the script looks at the
+outputs again when a dock window opens, closes or moves, and once a second. The daemon waits up
+to 10 seconds for the first report and does not start without it.
 
 Before it loads the script, it turns on KWin's per-output virtual desktops in the user's
 `kwinrc` (`[Windows] PerOutputVirtualDesktops=true`), unless they are on, and asks KWin to
@@ -426,6 +428,16 @@ the edge the user drags, and the tiles that follow it are close to it: at time o
 and KWin's default snap zone of 10 pixels, a dragged edge once ended 9 pixels past the pointer. The
 drag VM tests set KWin's snap zones to 0. The VM test `vm-drag-resize` drags edges in a Plasma
 session with a pointer device that the session node makes with uinput.
+
+## Outputs that change
+
+Measured by the VM test `vm-hotplug` at time of writing (2026-10-27), in a headless KWin 6.8.1
+with two outputs of 1920x1080:
+
+- `kscreen-doctor output.<name>.scale.1.5` gives an output the geometry 1280x720. That is what
+  the script reports and komorebi tiles in: every coordinate komorebi uses is KWin's logical
+  one. At that scale `kdotool` prints window frames in fractions of a pixel (a width of
+  695.3333), which the VM library rounds.
 
 ## How long a retile takes
 

@@ -81,9 +81,11 @@ without a checkout of the toolchain.
   `Ring` that holds monitors, workspaces and containers, and the lists in which
   some elements are locked in place. It answers the messages on the daemon's
   socket (`core::SocketMessage`, `process_command`), shows its state (`state`),
-  sends its subscribers a notification of each event and message it handles
-  (`notify_subscribers`), and is configured by a `komorebi.json` that it reads
-  and reads again when it changes (`static_config`).
+  keeps the monitors in step with the compositor's outputs as they change size
+  (`monitor_reconciliator`), sends its subscribers a notification of each
+  event, message and change of the monitors it handles (`notify_subscribers`),
+  and is configured by a `komorebi.json` that it reads and reads again when it
+  changes (`static_config`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
@@ -162,6 +164,11 @@ windows of that desktop, hides the others, and gives the focus to one of them.
 When something else switches a monitor to another desktop (a pager, a shortcut,
 an application raising a window of another desktop), or puts a window on
 another desktop, the window manager follows.
+
+When a monitor changes size (a resolution, a scale, a panel that takes more room),
+the bridge reports the outputs again and the monitor reconciliator, a thread of
+the daemon, reads the size and the work area of every monitor and tiles the
+workspace in front of the focused monitor in the area it now has.
 
 The window manager models the desktop as monitors, each with a ring of
 workspaces, each with a ring of containers, each with a ring of windows. A
@@ -249,9 +256,9 @@ module's `config` option is typed from that schema (`nix/komorebi-options.nix`, 
 `just nixgen`), so a configuration written in Nix is checked when it is evaluated.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
-listens on a socket of its own, and after each event and each message, the
-daemon connects to it and writes the event or the message with the state of
-the window manager.
+listens on a socket of its own, and after each event, each message and each
+change of the monitors, the daemon connects to it and writes it with the state
+of the window manager.
 
 On NixOS, the module [`nix/nixos-module.nix`](nix/nixos-module.nix) runs the
 daemon as a systemd user unit that the Plasma session starts, and systemd

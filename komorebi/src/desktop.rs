@@ -214,6 +214,70 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
     Ok(())
 }
 
+/// Reads the size and work area of every monitor again, and tiles the focused workspace of the
+/// focused monitor in the work area it has now.
+///
+/// A monitor is matched with the backend's by its id: a monitor the backend does not report is left
+/// as it is, and so is one the window manager does not have yet ([`load_monitor_information`] adds
+/// it). The window that has the focus is given the focus again.
+///
+/// # Errors
+///
+/// - The backend cannot report its monitors
+///   ([`Backend::monitors`](crate::backend::Backend::monitors)).
+/// - There is no focused monitor or workspace, or the windows of the focused workspace cannot be
+///   put in their tiles.
+///
+/// # Example
+///
+/// ```rust
+/// use std::path::PathBuf;
+/// use std::sync::Arc;
+///
+/// use komorebi::backend::fake::FakeBackend;
+/// use komorebi::backend::with_backend;
+/// use komorebi::core::Rect;
+/// use komorebi::desktop::update_monitor_work_areas;
+/// use komorebi::window_manager::WindowManager;
+///
+/// let fake = Arc::new(FakeBackend::with_one_monitor());
+/// let (_sender, events) = crossbeam_channel::bounded(1);
+/// let socket = PathBuf::from(format!("/tmp/komorebi-areas-doc-{}.sock", std::process::id()));
+/// let mut wm = WindowManager::new(events, Some(socket.clone()))?;
+/// with_backend(fake.clone(), || wm.init())?;
+/// assert_eq!(wm.monitors()[0].work_area_size.bottom, 1050);
+///
+/// // a panel takes more of the monitor
+/// let size = Rect { left: 0, top: 0, right: 1920, bottom: 1080 };
+/// fake.resize_monitor(1, size, Rect { bottom: 1000, ..size });
+/// with_backend(fake, || update_monitor_work_areas(&mut wm))?;
+///
+/// assert_eq!(wm.monitors()[0].work_area_size.bottom, 1000);
+/// # std::fs::remove_file(socket)?;
+/// # Ok::<(), color_eyre::eyre::Report>(())
+/// ```
+pub fn update_monitor_work_areas(wm: &mut WindowManager) -> eyre::Result<()> {
+    let all_devices = latest_monitor_information()?;
+    for device in all_devices {
+        for monitor in wm.monitors_mut() {
+            if monitor.id == device.id {
+                monitor.size = device.size;
+                monitor.work_area_size = device.work_area_size;
+
+                tracing::info!(
+                    "updated monitor size and work area for monitor {}",
+                    monitor.serial_number_id
+                );
+            }
+        }
+    }
+
+    let mouse_follows_focus = wm.mouse_follows_focus;
+    wm.update_focused_workspace(mouse_follows_focus, true)?;
+
+    Ok(())
+}
+
 /// Puts the windows that are already open into containers on the workspace of the monitor they
 /// are on, so that starting komorebi tiles what is on screen.
 ///

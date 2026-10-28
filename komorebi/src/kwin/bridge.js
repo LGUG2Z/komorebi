@@ -52,8 +52,9 @@
  * What the bridge sends, as the one argument of `Event`. `emit` adds `seq` to each, which counts
  * them from 1. `snapshot` is everything on the desktop, sent once, when the script starts; an
  * `activated` with no `id` means no window has the focus; `caption` is a window's new title;
- * `desktops` says which desktops a window is on now, `desktop_list` which desktops there are, and
- * `current_desktops` which desktop each output shows, each sent when it is not what was last sent;
+ * `screens` says which outputs there are, with their geometry and work area, `desktops` which
+ * desktops a window is on now, `desktop_list` which desktops there are, and `current_desktops`
+ * which desktop each output shows, each sent when it is not what was last sent;
  * `move_resize_started` and `move_resize_finished` are the start and the end of a drag of a window
  * by the user, with its frame, and at the end where the pointer is and the frame the user last
  * asked for (`requested`, or `null` when the drag asked for none); `move_resize_step` is the
@@ -69,6 +70,7 @@
  * @typedef {{ type: "activated", id: string | null }} Activated
  * @typedef {{ type: "minimized", id: string, v: boolean }} Minimized
  * @typedef {{ type: "geometry", id: string, geo: Rect }} Geometry
+ * @typedef {{ type: "screens", screens: Screen[] }} Screens
  * @typedef {{ type: "caption", id: string, caption: string }} Caption
  * @typedef {{ type: "desktops", id: string, desktops: string[] }} Desktops
  * @typedef {{ type: "desktop_list", desktops: Desktop[] }} DesktopList
@@ -82,9 +84,9 @@
  * @typedef {{ type: "move_resize_step", id: string, geo: Rect }} MoveResizeStep
  * @typedef {{ type: "cursor", token: number, x: number, y: number }} CursorAnswer
  * @typedef {{ type: "failed", batch: number, cmds: Command[] }} Failed
- * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Caption | Desktops
- *     | DesktopList | CurrentDesktops | MoveResizeStarted | MoveResizeFinished | MoveResizeStep
- *     | CursorAnswer | Failed} BridgeEvent
+ * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Screens | Caption
+ *     | Desktops | DesktopList | CurrentDesktops | MoveResizeStarted | MoveResizeFinished
+ *     | MoveResizeStep | CursorAnswer | Failed} BridgeEvent
  */
 
 /**
@@ -233,6 +235,33 @@ function screens() {
         });
     }
     return out;
+}
+
+// KWin has no signal for the usable area of a screen changing (a panel starting, resizing or
+// hiding), only for the screens themselves, so the area is looked at again when something that
+// could move it happens (a dock window comes, goes or moves) and once a second regardless: komorebi
+// usually starts before the panel does, and a panel is laid out after the resolution it follows.
+/** @type {string} */
+var lastScreens = "";
+
+function announceScreens() {
+    var now = JSON.stringify(screens());
+    if (now !== lastScreens) {
+        lastScreens = now;
+        emit("screens", { screens: JSON.parse(now) });
+    }
+}
+
+var areaTimer = new QTimer();
+areaTimer.singleShot = true;
+areaTimer.interval = 200;
+areaTimer.timeout.connect(announceScreens);
+
+/** @param {KWinWindow} w */
+function areaMayHaveChanged(w) {
+    if (w.dock) {
+        areaTimer.start();
+    }
 }
 
 /** @returns {Point} */
@@ -406,6 +435,7 @@ function track(w, announce) {
     w.frameGeometryChanged.connect(function (old) {
         emit("geometry", { id: id, geo: rect(w.frameGeometry) });
         settle(w, id);
+        areaMayHaveChanged(w);
     });
     w.minimizedChanged.connect(function () {
         emit("minimized", { id: id, v: !!w.minimized });
@@ -441,8 +471,10 @@ function track(w, announce) {
 
 workspace.windowAdded.connect(function (w) {
     track(w, true);
+    areaMayHaveChanged(w);
 });
 workspace.windowRemoved.connect(function (w) {
+    areaMayHaveChanged(w);
     var id = wid(w);
     delete known[id];
     delete want[id];
@@ -464,6 +496,11 @@ function announceActive(w) {
 }
 
 workspace.windowActivated.connect(announceActive);
+workspace.screensChanged.connect(function () {
+    announceScreens();
+    // the panel follows a new resolution a moment later
+    areaTimer.start();
+});
 workspace.currentDesktopChanged.connect(function () {
     announceDesktops();
 });
@@ -477,6 +514,7 @@ for (var i = 0; i < existing.length; i++) {
 }
 
 lastActive = workspace.activeWindow ? wid(workspace.activeWindow) : null;
+lastScreens = JSON.stringify(screens());
 lastCurrent = JSON.stringify(currentDesktops());
 lastDesktopList = JSON.stringify(desktops());
 
@@ -611,6 +649,7 @@ watchdog.timeout.connect(function () {
     if (Date.now() - lastIssue > CFG.hold_ms + 3000) {
         pull();
     }
+    announceScreens();
     announceDesktops();
 });
 watchdog.start();

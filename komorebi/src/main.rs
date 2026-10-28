@@ -12,8 +12,9 @@
 //! it changes. Without a file it runs on its defaults. It loads the monitors and the windows
 //! that are open, gives each monitor the configuration the file has for it, asks for the borders
 //! it draws ([`komorebi::border_manager`]), tiles the windows, listens for messages on
-//! `komorebi.sock` in [`struct@DATA_DIR`], handles the events the backend reports on a thread of
-//! their own, and runs until it is stopped, with `SIGINT`, `SIGTERM` or a `Stop` message.
+//! `komorebi.sock` in [`struct@DATA_DIR`], handles the events the backend reports and the changes
+//! of the monitors on threads of their own, and runs until it is stopped, with `SIGINT`,
+//! `SIGTERM` or a `Stop` message.
 //!
 //! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
 //! follows.
@@ -33,6 +34,7 @@ use komorebi::backend;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::border_manager;
 use komorebi::core::pathext::replace_env_in_path;
+use komorebi::monitor_reconciliator;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
 use komorebi::static_config::StaticConfig;
@@ -241,6 +243,8 @@ fn main() -> eyre::Result<()> {
         border_manager::update_colours(&wm);
         komorebi::transparency_manager::apply(&mut wm);
     }
+
+    monitor_reconciliator::listen_for_notifications(wm.clone())?;
 
     listen_for_commands(wm.clone());
     listen_for_events(wm.clone());

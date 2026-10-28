@@ -3,7 +3,7 @@ import shlex
 
 import pytest
 
-from komorebi_vm import Kde, Rect
+from komorebi_vm import Kde, Outputs, Rect
 
 from .conftest import FakeMachine
 
@@ -73,6 +73,15 @@ def test_rect_parses_what_kdotool_prints(machine: FakeMachine) -> None:
     )
 
     assert Kde(machine, "main").rect("{abc}") == Rect(10, 20, 300, 400)
+
+
+def test_rect_rounds_what_a_fractional_scale_makes_of_a_frame(machine: FakeMachine) -> None:
+    machine.reply(
+        "getwindowgeometry",
+        output="Window {abc}\n  Position: 0.4,10.5\n  Geometry: 695.3333333333334x400.6\n",
+    )
+
+    assert Kde(machine, "main").rect("{abc}") == Rect(0, 10, 695, 401)
 
 
 def test_rect_fails_on_output_it_does_not_understand(machine: FakeMachine) -> None:
@@ -716,3 +725,53 @@ def test_a_kwin_script_that_never_reports_it_is_done_fails_the_test(machine: Fak
 
     with pytest.raises(AssertionError, match="never reported"):
         kde.kwin_script("silent", "")
+
+
+def test_a_rect_is_inside_an_area_that_has_every_one_of_its_pixels() -> None:
+    area = Rect(0, 0, 1920, 1080)
+
+    assert Rect(0, 0, 1920, 1080).inside(area)
+    assert Rect(100, 50, 800, 600).inside(area)
+    assert not Rect(-1, 0, 100, 100).inside(area)
+    assert not Rect(1900, 0, 100, 100).inside(area)
+    assert not Rect(0, 1000, 100, 100).inside(area)
+    assert Rect(1920, 0, 800, 600).inside(Rect(1920, 0, 1920, 1080))
+    assert Rect(-1, 0, 1921, 1080).inside(area, slack=1)
+    assert not Rect(-2, 0, 100, 100).inside(area, slack=1)
+
+
+def test_outputs_count_the_enabled_ones_when_called(machine: FakeMachine) -> None:
+    machine.reply("length", output="2\n")
+
+    assert Kde(machine, "main").outputs() == 2
+    assert isinstance(Kde(machine, "main").outputs, Outputs)
+
+
+def test_outputs_are_named_left_to_right_and_a_disabled_one_keeps_its_name(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("select(.enabled == true)", output="Virtual-0\nVirtual-1\n")
+    machine.reply("select(.enabled == false)", output="Virtual-1\n")
+    outputs = Kde(machine, "main").outputs
+
+    assert outputs.names() == ["Virtual-0", "Virtual-1"]
+    assert outputs.names(enabled=False) == ["Virtual-1"]
+    assert all("sort_by(.pos.x)" in inner(command) for command in machine.commands)
+
+
+def test_an_output_is_disabled_enabled_and_scaled_with_kscreen_doctor(
+    machine: FakeMachine,
+) -> None:
+    outputs = Kde(machine, "main").outputs
+
+    outputs.disable("Virtual-1")
+    outputs.enable("Virtual-1")
+    outputs.scale("Virtual-0", 1.5)
+    outputs.scale("Virtual-0", 1)
+
+    assert [inner(command) for command in machine.commands] == [
+        "kscreen-doctor output.Virtual-1.disable",
+        "kscreen-doctor output.Virtual-1.enable",
+        "kscreen-doctor output.Virtual-0.scale.1.5",
+        "kscreen-doctor output.Virtual-0.scale.1",
+    ]

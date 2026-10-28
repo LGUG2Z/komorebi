@@ -79,6 +79,7 @@ pub use komorebi::core::animation::AnimationStyle;
 pub use komorebi::core::asc::ApplicationSpecificConfiguration;
 pub use komorebi::core::pathext::PathExt;
 pub use komorebi::core::pathext::replace_env_in_path;
+pub use komorebi::monitor_reconciliator::MonitorNotification;
 pub use komorebi::state::State;
 pub use komorebi::static_config::StaticConfig;
 pub use komorebi::window::Window;

@@ -10,6 +10,7 @@
 use komorebi::SUBSCRIPTION_SOCKETS;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::set_backend;
+use komorebi::monitor_reconciliator;
 use komorebi::process_command::listen_for_commands;
 use komorebi::window::Window;
 use komorebi::window_manager::WindowManager;
@@ -18,6 +19,7 @@ use komorebi::window_manager_event::SystemNotification;
 use komorebi::window_manager_event::WindowManagerEvent;
 use komorebi::window_manager_event_listener;
 use komorebi_client::DATA_DIR;
+use komorebi_client::MonitorNotification;
 use komorebi_client::Notification;
 use komorebi_client::NotificationEvent;
 use komorebi_client::SocketMessage;
@@ -85,6 +87,7 @@ fn daemon() -> (parking_lot::MutexGuard<'static, ()>, &'static Daemon) {
         wm.init().unwrap();
         let wm = Arc::new(Mutex::new(wm));
         listen_for_commands(wm.clone());
+        monitor_reconciliator::listen_for_notifications(wm.clone()).unwrap();
 
         Daemon { fake, wm }
     });
@@ -279,6 +282,32 @@ fn a_subscriber_that_filters_state_changes_is_sent_a_theme()
 
     let received =
         filtered.until(|event| matches!(event, NotificationEvent::Socket(SocketMessage::Theme(_))));
+    assert_eq!(received.len(), 1, "{received:?}");
+    Ok(())
+}
+
+#[test]
+fn a_change_of_the_monitors_is_sent_to_a_subscriber_that_filters_state_changes_too()
+-> Result<(), Box<dyn std::error::Error>> {
+    let (_turn, _daemon) = daemon();
+    let options = SubscribeOptions {
+        filter_state_changes: true,
+    };
+    let filtered = Subscriber::new(
+        "monitors.sock",
+        subscribe_with_options("monitors.sock", options)?,
+    );
+    filtered.subscribed();
+
+    // the monitors are read again and are what they were: the state is the same
+    monitor_reconciliator::send_notification(MonitorNotification::Resize(0));
+
+    let received = filtered.until(|event| {
+        matches!(
+            event,
+            NotificationEvent::Monitor(MonitorNotification::Resize(0))
+        )
+    });
     assert_eq!(received.len(), 1, "{received:?}");
     Ok(())
 }

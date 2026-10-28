@@ -233,6 +233,15 @@ impl FakeBackend {
         fake
     }
 
+    /// Gives a monitor another size and work area, as a change of resolution or scale, or a panel
+    /// that moves, does. Nothing is done when there is no monitor with this id.
+    pub fn resize_monitor(&self, id: u32, size: Rect, work_area: Rect) {
+        if let Some(monitor) = self.state.lock().monitors.iter_mut().find(|m| m.id == id) {
+            monitor.size = size;
+            monitor.work_area = work_area;
+        }
+    }
+
     /// Adds a monitor. Its serial number identity is its name.
     pub fn add_monitor(&self, id: u32, name: &str, size: Rect, work_area: Rect) {
         self.state.lock().monitors.push(MonitorInfo {

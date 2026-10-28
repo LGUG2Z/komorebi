@@ -587,3 +587,16 @@ newest, and a single-shot timer sends the last one of a burst, so the edge's fin
 lost. Each step says where the edge is now, so one waiting in the window manager's channel is
 enough: the window manager asks the window where its edges are when it gets to the step, and that
 is the newest.
+
+## Why does the bridge look at the outputs once a second?
+
+Because KWin has no signal for the room a panel leaves, only for the outputs themselves. A
+panel that starts, grows, moves or hides changes the work area of an output and raises nothing
+the script can connect to, so the bridge reads the work area of every output again when
+`screensChanged` is raised and when a dock window opens, closes or moves, and once a second in
+its watchdog. Two of the moments are not enough alone: komorebi usually starts before the panel
+does, and a panel is laid out after the resolution it follows, so the area at the moment of the
+signal is not the final one. The bridge keeps the outputs it last sent and sends them only when
+they are not the same, so a second that changed nothing sends nothing. The cost is that a panel
+that changes its room with no dock window event is found up to a second late, and that the
+bridge does a little work every second.

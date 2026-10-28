@@ -110,9 +110,14 @@ the run.
 - `Kde` is one KWin session. `Kde.headless(machine, name, size=, outputs=,
   scale=)` starts the units and waits for KWin to own its name on the private
   bus. `wid`, `rect`, `title` and `active` read windows through `kdotool`,
-  `outputs` counts the enabled outputs through `kscreen-doctor`, `spawn` starts
+  `outputs()` counts the enabled outputs through `kscreen-doctor`, `spawn` starts
   a client, and `wait_for(predicate, timeout)` polls, with the timeout
   multiplied by `scale`.
+- `Kde.outputs` has the outputs: `names()` lists them from left to right, and
+  `disable(name)`, `enable(name)` and `scale(name, factor)` change them with
+  `kscreen-doctor`, which is how a suite changes the monitors under the daemon.
+  A disabled output keeps its name, so `names(enabled=False)` finds it to enable
+  again.
 - `Kde.session(machine, scale=)` attaches to the session node's own Plasma
   session once its desktop is up, and `shot(name)` returns a screenshot as a
   Pillow image, keeping `NAME.png` in the output directory.

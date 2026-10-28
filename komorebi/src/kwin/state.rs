@@ -68,6 +68,7 @@
 use crate::backend::MonitorInfo;
 use crate::backend::WindowInfo;
 use crate::core::Rect;
+use crate::monitor_reconciliator::MonitorNotification;
 use crate::window::Window;
 use crate::window_manager_event::KWinNotification;
 use crate::window_manager_event::SystemNotification;
@@ -122,6 +123,8 @@ struct Entry {
 pub enum Output {
     /// A window event for the window manager.
     Event(WindowManagerEvent),
+    /// A change of the monitors, for the monitor reconciliator.
+    Monitor(MonitorNotification),
     /// A command for the script, to be queued with the others.
     Command(Value),
     /// The answer to a cursor query.
@@ -694,6 +697,9 @@ impl Table {
     ///   desktop (KWin followed an activation of a hidden window there) is sent back to the
     ///   desktop it showed before, with an [`Output::Command`].
     /// - `desktop_list`: the virtual desktops, in order. It raises no event.
+    /// - `screens`: the outputs, with their geometry and work area, sent when they are not what
+    ///   was last sent. A monitor whose size or work area changed is a
+    ///   [`MonitorNotification::Resize`] ([`Output::Monitor`]).
     /// - `cursor`: the answer to a cursor query ([`Output::Cursor`]).
     /// - `failed`: commands the script could not carry out. They are logged.
     ///
@@ -719,6 +725,7 @@ impl Table {
             Some("desktops") => self.on_desktops(event),
             Some("move_resize_started") => self.on_drag_started(event),
             Some("move_resize_finished") => self.on_drag_finished(event),
+            Some("screens") => self.on_screens(event),
             Some("current_desktops") => self.on_current_desktops(event),
             Some("desktop_list") => {
                 self.desktops = desktop_list(&event["desktops"]);
@@ -809,15 +816,35 @@ impl Table {
             self.cursor = Some((x as i32, y as i32));
         }
 
-        self.set_monitors(&event["screens"]);
+        out.extend(self.set_monitors(&event["screens"], false));
         out
     }
 
-    fn set_monitors(&mut self, screens: &Value) {
-        self.monitors = screens
+    /// Replaces the monitors with `screens`. When `announce` is set and they are not what the
+    /// table had, the monitor that changed is announced as a resize: the id of the first monitor
+    /// whose size or work area is not what it was, or 0 when there is no such monitor.
+    fn set_monitors(&mut self, screens: &Value, announce: bool) -> Vec<Output> {
+        let monitors: Vec<MonitorInfo> = screens
             .as_array()
             .map(|a| a.iter().map(monitor).collect())
             .unwrap_or_default();
+
+        let previous = std::mem::replace(&mut self.monitors, monitors);
+        if !announce || previous == self.monitors {
+            return vec![];
+        }
+
+        // same monitors, different geometry or work area
+        let changed = self
+            .monitors
+            .iter()
+            .find(|m| previous.iter().any(|p| p.id == m.id && p != *m))
+            .map_or(0, |m| m.id);
+        vec![Output::Monitor(MonitorNotification::Resize(changed))]
+    }
+
+    fn on_screens(&mut self, event: &Value) -> Vec<Output> {
+        self.set_monitors(&event["screens"], true)
     }
 
     fn on_added(&mut self, event: &Value) -> Vec<Output> {
@@ -1274,6 +1301,7 @@ mod tests {
                         format!("WorkspaceChange to {idx}")
                     }
                     Output::Event(e) => format!("{e} {}", e.window_id().unwrap_or(0)),
+                    Output::Monitor(notification) => format!("Monitor {notification}"),
                     Output::Command(command) => format!("Command {command}"),
                     Output::Cursor { token, x, y } => format!("Cursor {token} at {x},{y}"),
                 })
@@ -1345,6 +1373,8 @@ mod tests {
                 "move_resize_step -> ResizeStep 1",
                 "geometry -> ",
                 "move_resize_finished -> ResizeEnd 1",
+                // a panel takes room from the monitor
+                "screens -> Monitor Resize",
             ]
         );
 
@@ -1377,7 +1407,7 @@ mod tests {
                 left: 0,
                 top: 0,
                 right: 1920,
-                bottom: 1050
+                bottom: 1000
             }
         );
     }
@@ -2157,6 +2187,43 @@ mod tests {
         assert!(out.is_empty(), "{out:?}");
         assert_eq!(t.workspace_count(), 3);
         assert_eq!(t.window_workspace(1), Some(2));
+    }
+
+    #[test]
+    fn a_new_panel_is_a_resize_and_the_same_screens_again_are_nothing() {
+        let mut t = table(vec![]);
+        let now = Instant::now();
+        let mut screens = snapshot(vec![])["screens"].clone();
+
+        // a work area change: the panel grew
+        screens[0]["area"]["h"] = json!(1000);
+        let out = t.handle(
+            &json!({ "type": "screens", "screens": screens.clone() }),
+            now,
+        );
+        assert!(
+            matches!(&out[..], [Output::Monitor(MonitorNotification::Resize(id))] if *id == t.monitors()[0].id),
+            "{out:?}"
+        );
+        assert_eq!(t.monitors()[0].work_area.bottom, 1000);
+
+        // a resolution change
+        screens[0]["geo"]["w"] = json!(1280);
+        screens[0]["geo"]["h"] = json!(720);
+        let out = t.handle(&json!({ "type": "screens", "screens": screens }), now);
+        assert!(matches!(
+            &out[..],
+            [Output::Monitor(MonitorNotification::Resize(_))]
+        ));
+        assert_eq!(t.monitors()[0].size.right, 1280);
+
+        // the same screens again change nothing
+        let same = json!({ "type": "screens", "screens": [{
+            "name": "DP-1", "manufacturer": "ACME", "model": "M1", "serial": "S1",
+            "geo": { "x": 0, "y": 0, "w": 1280, "h": 720 },
+            "area": { "x": 0, "y": 0, "w": 1920, "h": 1000 },
+        }] });
+        assert!(t.handle(&same, now).is_empty());
     }
 
     #[test]

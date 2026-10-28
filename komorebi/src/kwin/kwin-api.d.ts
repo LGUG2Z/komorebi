@@ -73,6 +73,8 @@ interface KWinWindow {
     readonly skipTaskbar: boolean;
     readonly skipPager: boolean;
     readonly skipSwitcher: boolean;
+    /** A panel: a window the compositor keeps other windows out of the way of. */
+    readonly dock: boolean;
     minimized: boolean;
     /** How opaque the window is drawn, 0 to 1: 1 is not see-through at all. */
     opacity: number;
@@ -128,6 +130,9 @@ interface Workspace {
     readonly windowRemoved: Signal<[window: KWinWindow]>;
     /** `null` when no window has the focus. */
     readonly windowActivated: Signal<[window: KWinWindow | null]>;
+    /** An output was added or removed, or has another geometry or scale. It does not say which,
+     * and the bridge reads every output. */
+    readonly screensChanged: Signal;
     /** Some output shows another desktop. It does not say which, and the bridge does not need
      * what KWin passes with it: it reads the desktop of every output. */
     readonly currentDesktopChanged: Signal;
