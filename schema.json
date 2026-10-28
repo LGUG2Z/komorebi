@@ -2872,14 +2872,14 @@
       ]
     },
     "InitialWindowPlacementRules": {
-      "description": "Configuration for initial window placement rules on a workspace.\n\nThis can be specified in two forms in the JSON config:\n- A placement target (string or integer) ÔÇö applies the same placement to all windows.\n  Strings are `WindowPlacement` variant names (e.g. `\"Primary\"`, `\"AfterFocused\"`),\n  integers are 1-based container indices.\n- A map of placement targets to matching rules ÔÇö keys can be `WindowPlacement` variant names\n  (e.g. `\"Primary\"`, `\"Secondary\"`) or 1-based container indices (e.g. `\"1\"`, `\"3\"`).\n  Rules are evaluated in key order; the first matching rule determines placement.\n\nNOTE: Container indices in the config are 1-based for user-friendliness.\nThey are converted to 0-based internally during resolution.\n\nNOTE: This feature currently only applies when `WindowContainerBehaviour::Create` is active.\nFuture versions may support toggling this for `Append` mode as well.",
+      "description": "Configuration for initial window placement rules on a workspace.\n\nThis can be specified in two forms in the JSON config:\n- A placement target (string or integer) — applies the same placement to all windows.\n  Strings are `WindowPlacement` variant names (e.g. `\"Primary\"`, `\"AfterFocused\"`),\n  integers are 1-based container indices.\n- A map of placement targets to matching rules — keys can be `WindowPlacement` variant names\n  (e.g. `\"Primary\"`, `\"Secondary\"`) or 1-based container indices (e.g. `\"1\"`, `\"3\"`).\n  Rules are evaluated in key order; the first matching rule determines placement.\n\nNOTE: Container indices in the config are 1-based for user-friendliness.\nThey are converted to 0-based internally during resolution.\n\nNOTE: This feature currently only applies when `WindowContainerBehaviour::Create` is active.\nFuture versions may support toggling this for `Append` mode as well.",
       "anyOf": [
         {
           "description": "A single placement target applied to all new windows (string or integer in config)",
           "$ref": "#/$defs/PlacementTarget"
         },
         {
-          "description": "A map of placement targets to matching rules.\nKeys can be `WindowPlacement` variant names (e.g. `\"Primary\"`) or 1-based container indices (e.g. `\"1\"`).\nValues can be:\n- A single `IdWithIdentifier` object (simple rule)\n- An array containing objects and/or arrays:\n  - Each object in the array is an independent simple rule (OR logic between entries)\n  - Each inner array is a composite rule where all conditions must match (AND logic)\n  - The outer array entries are evaluated with OR logic\nRules are evaluated in key order; the first matching rule determines placement.",
+          "description": "A map of placement targets to matching rules.\nKeys can be `WindowPlacement` variant names (e.g. `\"Primary\"`) or 1-based container indices (e.g. `\"1\"`).\nValues can be:\n- A single `IdWithIdentifier` object (simple rule)\n- An array containing objects and/or arrays:\n  - Each object in the array is an independent simple rule (OR logic between entries)\n  - Each inner array is a composite rule where all conditions must match (AND logic)\n  - The outer array entries are evaluated with OR logic\n\nRules are evaluated in key order; the first matching rule determines placement.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/PlacementMatchingRules"
@@ -3732,7 +3732,7 @@
       ]
     },
     "PlacementMatchingRules": {
-      "description": "Matching rules for a placement target.\n\nCan be specified in JSON as:\n- A single `IdWithIdentifier` object ÔÇö one simple rule\n- An array of `MatchingRule`s ÔÇö multiple rules with OR logic between them\n  (each element can be a simple rule object or a composite rule array with AND logic)\n\nExamples:\n```json\n// Single rule\n{ \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" }\n\n// Multiple rules (OR): chrome OR teams\n[\n  { \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" },\n  { \"kind\": \"Title\", \"id\": \"Microsoft Teams\", \"matching_strategy\": \"Equals\" }\n]\n\n// Mixed: chrome OR (code.exe AND title contains \"workspace\")\n[\n  { \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" },\n  [\n    { \"kind\": \"Exe\", \"id\": \"code.exe\", \"matching_strategy\": \"Equals\" },\n    { \"kind\": \"Title\", \"id\": \"workspace\", \"matching_strategy\": \"Contains\" }\n  ]\n]\n```",
+      "description": "Matching rules for a placement target.\n\nCan be specified in JSON as:\n- A single `IdWithIdentifier` object — one simple rule\n- An array of `MatchingRule`s — multiple rules with OR logic between them\n  (each element can be a simple rule object or a composite rule array with AND logic)\n\nExamples:\n```json\n// Single rule\n{ \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" }\n\n// Multiple rules (OR): chrome OR teams\n[\n  { \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" },\n  { \"kind\": \"Title\", \"id\": \"Microsoft Teams\", \"matching_strategy\": \"Equals\" }\n]\n\n// Mixed: chrome OR (code.exe AND title contains \"workspace\")\n[\n  { \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" },\n  [\n    { \"kind\": \"Exe\", \"id\": \"code.exe\", \"matching_strategy\": \"Equals\" },\n    { \"kind\": \"Title\", \"id\": \"workspace\", \"matching_strategy\": \"Contains\" }\n  ]\n]\n```",
       "anyOf": [
         {
           "description": "A single simple matching rule",
@@ -4341,7 +4341,7 @@
           "default": "Tile"
         },
         "initial_window_placement_rules": {
-          "description": "Initial window placement rules that determine where new windows are placed\nin the container list. Can be a placement strategy string, a 1-based container\nindex, or a map of 1-based container indices to matching rules.",
+          "description": "Initial window placement rules that determine where new tiled windows are placed\nin the container list. Can be a placement target (a `WindowPlacement` string like\n`\"Primary\"` or a 1-based container index), or a map of placement targets to matching rules.",
           "anyOf": [
             {
               "$ref": "#/$defs/InitialWindowPlacementRules"
