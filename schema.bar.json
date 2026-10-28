@@ -5208,16 +5208,44 @@
         }
       ]
     },
+    "ScrollingCentering": {
+      "description": "When the Scrolling layout centres the focused column\n\nA boolean is also accepted when reading, for the layout option that used to be one: `true` is\n`Always` and `false` is `Never`.",
+      "oneOf": [
+        {
+          "description": "Scroll just far enough to bring the focused column into view, and no further",
+          "type": "string",
+          "const": "Never"
+        },
+        {
+          "description": "Keep the focused column in the middle of the screen",
+          "type": "string",
+          "const": "Always"
+        },
+        {
+          "description": "Centre the focused column when it does not fit on the screen together with the column that\nfocus came from",
+          "type": "string",
+          "const": "OnOverflow"
+        }
+      ]
+    },
     "ScrollingLayoutOptions": {
       "description": "Options for the Scrolling layout",
       "type": "object",
       "properties": {
         "center_focused_column": {
-          "description": "With an odd number of visible columns, keep the focused window column centered",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "description": "When to centre the focused column: `Never` (the default), `Always`, or `OnOverflow`, which\nis when it does not fit on the screen together with the column that focus came from. A\nboolean is also accepted, where `true` is `Always` and `false` is `Never`",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/ScrollingCentering"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "columns": {
           "description": "Desired number of visible columns (default: 3)",
@@ -6297,6 +6325,82 @@
           "required": [
             "type",
             "content"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ScrollingLayoutFullWidth"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "CenterFocus"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "Expand"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "content": {
+              "$ref": "#/$defs/OperationDirection"
+            },
+            "type": {
+              "type": "string",
+              "const": "Consume"
+            }
+          },
+          "required": [
+            "type",
+            "content"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "Expel"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ToggleColumnStack"
+            }
+          },
+          "required": [
+            "type"
           ]
         },
         {
