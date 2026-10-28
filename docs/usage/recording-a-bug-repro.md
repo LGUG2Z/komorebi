@@ -79,6 +79,27 @@ komorebi-recorder displays            # list display ids
 komorebi-recorder record --display 2  # record just one display
 ```
 
+To record exactly while a script reproduces the bug, give the command after `--` with `--until-exit`:
+
+```
+komorebi-recorder record --until-exit --out ./repro -- ./repro.sh --slow
+```
+
+The recorder starts the command once the recording is under way, and stops the recording when the command exits. If
+`--duration` or Ctrl-C comes first, that stops the recording and the command is terminated, so whichever comes first
+wins. The command runs in the directory you are in, with this terminal's input and output, and has
+`KOMOREBI_RECORDER_SESSION` in its environment: the session directory (an absolute path) that is being recorded, so
+that anything the script runs can mark the moment with `komorebi-recorder mark` or annotate the session without being
+told where it is. On Windows the command is terminated with `TerminateProcess`, which does not reach programs it
+started.
+
+The exit status of `komorebi-recorder record` is about the recording, never the command: it is 0 when the session was
+finalised, whatever status the command exited with. The command's status is in the summary
+(`command: ... exited with status 3`) and in `record --json` as `data.child` (`end`: `exited`, `stopped`,
+`failed-to-start` or `not-started`; `exit_code`; `success`). `--json` on `record` prints the `record/1` envelope on
+standard output (progress stays on standard error): the session directory, the duration, each display's frames, the
+recorder's warnings and the command's status. `displays`, `reindex` and `selftest` take `--json` too.
+
 Useful options:
 
 | Option                                     | Effect                                                                                  |

@@ -160,6 +160,36 @@ pub const ALL: &[Entry] = &[
         schema: of::<crate::doctor::ProbeReport>,
     },
     Entry {
+        name: "brief-compact/1",
+        about: "`brief --compact`: the brief cut down to the user's words, the top findings and what to run next",
+        schema: of::<super::compact::CompactBrief>,
+    },
+    Entry {
+        name: "findings/1",
+        about: "`findings`: detector findings (with stable ids) and an agent's findings, together",
+        schema: of::<super::findings::FindingsData>,
+    },
+    Entry {
+        name: "record/1",
+        about: "`record --json`: the finished session, its displays and frames, warnings and the --until-exit command's status",
+        schema: of::<crate::cli::outputs::RecordData>,
+    },
+    Entry {
+        name: "displays/1",
+        about: "`displays --json`: the displays that can be recorded",
+        schema: of::<crate::cli::outputs::DisplaysData>,
+    },
+    Entry {
+        name: "reindex/1",
+        about: "`reindex --json`: what was recovered and how many records the index has",
+        schema: of::<crate::cli::outputs::ReindexData>,
+    },
+    Entry {
+        name: "selftest/1",
+        about: "`selftest --json`: the video-to-clock readings of a passing self-test",
+        schema: of::<crate::cli::outputs::SelftestData>,
+    },
+    Entry {
         name: "error/1",
         about: "any failed command: the envelope with `ok: false` and an `error`",
         schema: of::<Envelope<()>>,

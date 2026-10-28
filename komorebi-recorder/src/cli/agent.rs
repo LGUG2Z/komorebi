@@ -41,6 +41,10 @@ pub const GUIDE: &str = include_str!("../guide.md");
 pub struct BriefArgs {
     /// Session directory
     pub session: PathBuf,
+    /// A trimmed brief for a small context window (about 40 lines): the user's words, a line on the
+    /// state, the top 3 findings with their references, and the commands to run next
+    #[arg(long)]
+    pub compact: bool,
     /// Machine-readable JSON output
     #[arg(long)]
     pub json: bool,
@@ -113,6 +117,20 @@ pub struct SchemaArgs {
 pub(super) fn brief(args: &BriefArgs) -> eyre::Result<()> {
     let analysis = Analysis::open(&args.session)?;
     let data = analysis.brief()?;
+
+    if args.compact {
+        let mut warnings = analysis.warnings();
+        warnings.extend(data.skew.warning.clone());
+        let compact = data.compact();
+        if args.json {
+            return print_json(
+                &Envelope::ok(crate::analysis::compact::SCHEMA_BRIEF_COMPACT, compact)
+                    .warnings(warnings),
+            );
+        }
+        print!("{}", compact.text());
+        return Ok(());
+    }
 
     if args.json {
         let mut warnings = analysis.warnings();

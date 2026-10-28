@@ -22,6 +22,11 @@ was marked the brief says so: ask the user when it happened and what they saw, t
 
     komorebi-recorder annotate <session> add --kind bug --start <t> --end <t> --text "<what is wrong>"
 
+With little context to spare, `komorebi-recorder brief <session> --compact` is the same start in about 40 lines: the
+user's words, one line on the state, the top 3 findings with their references and the exact next commands.
+`komorebi-recorder findings <session>` lists everything the detectors found and any findings already recorded (`--kind`,
+`--severity`, `--limit`); each detector finding has a stable id, `f-xxxxxx`.
+
 The brief then gives, for each region: the events in it (echoes of komorebi's own moves are counted,
 not listed), what looked wrong and for how long, the state as the bug began and as it ended and
 what differs, what happened to the machine nearby (a display unplugged, a sleep), and the events most
@@ -116,7 +121,10 @@ locations as hints.
       --ref event:<n> --ref log:<n> --ref code:<path>:<line>
 
 A finding with no evidence is refused, and every reference is checked to exist. Cite evidence by
-event number, log line, video time and state difference. Never claim a cause without a reference,
+event number, log line, video time and state difference. A log line can be cited by its text,
+`--ref 'log:"some text"'`, or its time, `--ref log:HH:MM:SS.mmm` (UTC, as the log has it) or `--ref log:12.5` (video):
+the command prints the line it resolved to, so check it is the statement you meant; an ambiguous
+text lists the candidates and is refused. Never claim a cause without a reference,
 and say what you could not verify.
 
 ## 5. Propose the fix

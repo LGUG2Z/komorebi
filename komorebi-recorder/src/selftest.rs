@@ -69,7 +69,11 @@
 //! assert_eq!(verdict.samples[0].error_ms, -30.0);
 //! ```
 
+use crate::analysis::envelope::Envelope;
 use crate::cli::SelftestArgs;
+use crate::cli::outputs::SCHEMA_SELFTEST;
+use crate::cli::outputs::SelftestData;
+use crate::cli::outputs::SelftestSample;
 use crate::clock;
 use crate::frames;
 use crate::platform::capture;
@@ -591,7 +595,7 @@ fn spawn_clock() -> eyre::Result<(
 /// use komorebi_recorder::selftest::run;
 ///
 /// // record for 8 seconds, and allow the video to disagree with the clocks by up to 100 ms
-/// run(&SelftestArgs { seconds: 8.0, tolerance_ms: 100.0, out: None })?;
+/// run(&SelftestArgs { seconds: 8.0, tolerance_ms: 100.0, out: None, json: false })?;
 /// # Ok::<(), color_eyre::eyre::Report>(())
 /// ```
 ///
@@ -686,12 +690,38 @@ pub fn run(args: &SelftestArgs) -> eyre::Result<()> {
     }
 
     let calibration = evaluate(&readings, args.tolerance_ms);
-    report(&calibration, &undecodable, &mut manifest);
+    report(&calibration, &undecodable, &mut manifest, args.json);
     manifest.calibration = Some(calibration.clone());
     session.write_manifest(&manifest)?;
-    println!("session: {}", dir.display());
+    if !args.json {
+        println!("session: {}", dir.display());
+    }
 
     if calibration.passed {
+        if args.json {
+            let samples = &calibration.samples;
+            return crate::cli::print_json(
+                &Envelope::ok(
+                    SCHEMA_SELFTEST,
+                    SelftestData {
+                        session: dir.display().to_string(),
+                        passed: true,
+                        max_abs_error_ms: calibration.max_abs_error_ms,
+                        mean_bias_ms: samples.iter().map(|sample| sample.error_ms).sum::<f64>()
+                            / samples.len().max(1) as f64,
+                        tolerance_ms: calibration.tolerance_ms,
+                        samples: samples
+                            .iter()
+                            .map(|sample| SelftestSample {
+                                video_s: sample.video_s,
+                                error_ms: sample.error_ms,
+                            })
+                            .collect(),
+                    },
+                )
+                .warnings(manifest.warnings.clone()),
+            );
+        }
         Ok(())
     } else {
         Err(eyre::Report::msg(format!(
@@ -701,7 +731,19 @@ pub fn run(args: &SelftestArgs) -> eyre::Result<()> {
     }
 }
 
-fn report(calibration: &Calibration, undecodable: &[f64], manifest: &mut Manifest) {
+fn report(calibration: &Calibration, undecodable: &[f64], manifest: &mut Manifest, json: bool) {
+    if json {
+        // the readings are in the envelope; only the manifest's note is kept
+        if !undecodable.is_empty() {
+            manifest.warnings.push(format!(
+                "self-test could not read the clock at {} of {} sampled timestamps",
+                undecodable.len(),
+                undecodable.len() + calibration.samples.len()
+            ));
+        }
+        return;
+    }
+
     println!("video second | clock shown in video vs predicted");
     for sample in &calibration.samples {
         println!(

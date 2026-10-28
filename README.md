@@ -40,6 +40,7 @@ runs the latest commit without a checkout.
 ```sh
 komorebi-recorder displays                       # which displays can be recorded
 komorebi-recorder record --duration 30 --out ./repro
+komorebi-recorder record --until-exit --out ./repro -- ./repro.sh   # record while a script runs, stop when it exits
 ```
 
 Run `komorebi-recorder` with no command for a small window with Record and Stop buttons instead.
@@ -55,6 +56,8 @@ the frames.
 
 ```sh
 komorebi-recorder brief ./repro        # what the user marked as the bug, and what the recording shows around it
+komorebi-recorder brief ./repro --compact  # the same in about 40 lines, for a small context window
+komorebi-recorder findings ./repro     # detector findings (with stable ids) and an agent's conclusions, in one list
 komorebi-recorder overview ./repro     # the whole recording at a glance
 komorebi-recorder trace ./repro event:7  # one event, from the handler that ran to what changed and who changed it
 ```
@@ -74,7 +77,8 @@ when things happened (events | errors | incidents):
 ```
 
 `komorebi-recorder view ./repro` opens the recording in the viewer, which is where you mark where the bug is.
-Every command takes `--json`, and `komorebi-recorder guide` prints a playbook for an agent.
+Every command takes `--json` (including `record`, `displays`, `reindex` and `selftest`), and `komorebi-recorder guide`
+prints a playbook for an agent.
 [Investigating a recording](docs/usage/investigating-a-recording.md) walks through both ways of working.
 
 ## How it fits together

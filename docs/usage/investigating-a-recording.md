@@ -6,6 +6,8 @@ this is broken" to "this is the line of komorebi that causes it" using what was 
 
 ```
 komorebi-recorder brief <session>     # start here
+komorebi-recorder brief <session> --compact  # the same, in about 40 lines
+komorebi-recorder findings <session>  # everything the detectors found and an agent concluded
 komorebi-recorder guide               # the playbook, for an agent
 ```
 
@@ -108,6 +110,8 @@ and `event:12.end` when it finished.
 | Command | What it tells you |
 | --- | --- |
 | `brief` | The bug region(s) in the user's words, then what the recording shows around them: the events, what looked wrong, the state as it began and ended, what happened to the machine, and the events most worth tracing first, with why |
+| `brief --compact` | The brief cut down to fit a small context window, about 40 lines: the user's words, one line on the state of the recording, the 3 highest-ranked findings (each with its id and the references to look at), and the exact commands to run next. `--json` gives `brief-compact/1` |
+| `findings` | The detectors' findings and the findings an agent recorded, in one list (an agent's first, then the detectors' ranked as in `overview`). `--kind K` (`log-error`, or `invariant` for every `invariant:<kind>`), `--severity error\|warn\|info` (detector findings only), `--limit N`. `--json` gives `findings/1` |
 | `overview` | The whole recording at a glance: what stands out, ranked (states that are wrong and for how long, windows that flap, event storms, slow handlers, errors, a display unplugged), anything near a bug region first |
 | `state --at T` | What komorebi believed at a moment, and anything inconsistent in it: a window parked off screen on a workspace that is showing, a window in two places, a layout that was not applied |
 | `diff A B` | What changed between two moments in terms a person would use: a window appeared, moved, was really somewhere else; focus moved; a monitor came or went |
@@ -159,6 +163,16 @@ the same.
   the window really was, which is what makes comparing it with where komorebi's layout put it meaningful.
 - An `AXError` in komorebi's log comes from the application or the OS, not from komorebi.
 
+### Finding ids
+
+Each detector finding has an id like `f-04dc11`: `f-` and six hex digits of a fixed hash (FNV-1a) of its kind, its first
+reference (`event:17`, `log:345`) and the ids of the windows it is about; a finding with no reference uses the
+five-second bucket of video time it began in. It does not depend on the score or on the bug regions, so the same finding
+keeps its id between runs and as annotations are added, and `findings`, `brief --compact` and `overview` name it the
+same way. Two different recordings share an id only where the same kind of finding is at the same reference, so use ids
+to compare analyses of one session (before and after a change to the detectors), not to match a bug across recordings.
+An agent's findings keep their annotation id (`a-3f9c1e02`).
+
 ## Recording what you conclude
 
 ```
@@ -168,5 +182,11 @@ komorebi-recorder annotate <session> add --kind finding --about <bug id> \
 ```
 
 A finding with no evidence is refused, and every reference is checked to exist: the event, the log line, the video time,
-the line of komorebi's source. Findings are stored in `annotations.jsonl` beside the bug region, so the person who
+the line of komorebi's source. A log line can be named by what it says or when it was written instead of by number:
+`--ref 'log:"could not place window"'` (the one line of `komorebi.log` that contains the text, ignoring case),
+`--ref log:15:46:23.677700` (the line written at that UTC time, as precisely as you write it; `HH:MM:SS` alone matches the
+whole second) or `--ref log:2.72` (the line nearest that time of the video). A text or time that matches several lines
+is a usage error (exit 2) listing the first few as `log:N: text`; pick one with `log:N`. When a reference was resolved
+this way the command prints the `log:N` it chose and the line's text (on standard error, and in `warnings` with
+`--json`), so you can check it is the statement you meant. Findings are stored in `annotations.jsonl` beside the bug region, so the person who
 recorded the bug can see what was concluded and why.

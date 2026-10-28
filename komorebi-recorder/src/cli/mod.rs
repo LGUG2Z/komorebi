@@ -8,13 +8,18 @@
 mod agent;
 mod annotate;
 mod doctor;
+mod findings;
 mod investigate;
+pub mod outputs;
 mod logq;
 mod query;
 mod record;
+pub mod refspec;
+pub mod until_exit;
 mod video;
 mod viewer_command;
 
+use crate::analysis::envelope::Envelope;
 use crate::analysis::envelope::unusable;
 use crate::analysis::envelope::with_hint;
 use crate::session::Session;
@@ -33,6 +38,7 @@ pub use agent::SearchArgs;
 pub use annotate::AnnotateArgs;
 pub use annotate::AnnotationsArgs;
 pub use doctor::DoctorArgs;
+pub use findings::FindingsArgs;
 pub use investigate::CodeArgs;
 pub use investigate::DiffArgs;
 pub use investigate::EventsArgs;
@@ -46,6 +52,7 @@ pub use query::FramesArgs;
 pub use query::LocateArgs;
 pub use query::RangeArgs;
 pub use query::SummaryArgs;
+pub use record::DisplaysArgs;
 pub use record::RecordArgs;
 pub use video::BlankArgs;
 pub use video::ChangesArgs;
@@ -82,7 +89,7 @@ pub enum Command {
     /// Record without a window; Ctrl-C (or --duration) stops and finalizes the session
     Record(RecordArgs),
     /// List the displays that can be recorded
-    Displays,
+    Displays(DisplaysArgs),
     /// What this machine can do for a recording, and probes that measure what one leans on
     Doctor(DoctorArgs),
     /// Everything recorded around a video timecode: komorebi log, events and OS trace
@@ -134,6 +141,8 @@ pub enum Command {
     View(ViewArgs),
     /// Which line of komorebi's source wrote a line of its log, with the code around it
     Code(CodeArgs),
+    /// What the detectors found and what an agent concluded, in one list, with stable ids
+    Findings(FindingsArgs),
     /// Add, edit or delete a session's bug regions, notes and an agent's findings
     Annotate(AnnotateArgs),
     /// List a session's bug regions, notes and findings
@@ -152,6 +161,9 @@ pub enum Command {
 pub struct ReindexArgs {
     /// Session directory
     pub session: PathBuf,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// The arguments of `selftest`.
@@ -166,6 +178,9 @@ pub struct SelftestArgs {
     /// Session directory for the self-test recording
     #[arg(long)]
     pub out: Option<PathBuf>,
+    /// Machine-readable JSON output (a failed self-test is a failed envelope)
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// Print `value` as pretty JSON.
@@ -208,6 +223,11 @@ impl Command {
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
             Self::Doctor(args) => args.json,
+            Self::Record(args) => args.json,
+            Self::Displays(args) => args.json,
+            Self::Reindex(args) => args.json,
+            Self::Selftest(args) => args.json,
+            Self::Findings(args) => args.json,
             _ => false,
         }
     }
@@ -245,7 +265,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
     match command {
         Command::Gui(args) => crate::app::run(args),
         Command::Record(args) => record::record(&args),
-        Command::Displays => record::displays(),
+        Command::Displays(args) => record::displays(&args),
         Command::Doctor(args) => doctor::doctor(&args),
         Command::At(args) => query::at(&args),
         Command::Range(args) => query::range(&args),
@@ -271,6 +291,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Framediff(args) => video::framediff(&args),
         Command::Blank(args) => video::blank(&args),
         Command::Compare(args) => video::compare(&args),
+        Command::Findings(args) => findings::findings(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
         Command::Reindex(args) => reindex(&args),
@@ -325,6 +346,18 @@ pub(crate) fn load(session: &std::path::Path) -> eyre::Result<(Session, crate::s
 fn reindex(args: &ReindexArgs) -> eyre::Result<()> {
     let session = Session::open(&args.session)?;
     let reindexed = crate::recovery::reindex_session(&session)?;
+
+    if args.json {
+        return print_json(&Envelope::ok(
+            outputs::SCHEMA_REINDEX,
+            outputs::ReindexData {
+                session: session.dir.display().to_string(),
+                recovered: reindexed.recovered,
+                entries: reindexed.stats.entries,
+                by_source: reindexed.stats.by_source,
+            },
+        ));
+    }
 
     for note in &reindexed.recovered {
         println!("recovered: {note}");

@@ -128,7 +128,9 @@ pub struct AddArgs {
     #[arg(long, value_name = "ID")]
     pub about: Option<String>,
     /// Evidence (repeatable; a finding needs at least one): event:<seq>, log:<line>,
-    /// log:<file>:<line>, code:<path>:<line>, frame:<time>
+    /// log:<file>:<line>, code:<path>:<line>, frame:<time>. A log line can also be named by its
+    /// text, log:"some text" (quote it for the shell: 'log:"some text"'), by its UTC time,
+    /// log:HH:MM:SS.mmm, or by a video time, log:12.5; the line it resolves to is printed to check
     #[arg(long = "ref", value_name = "REF")]
     pub refs: Vec<String>,
     /// A checkout of the recorded komorebi, to check code: references [default: `$KOMOREBI_MAC_SRC`
@@ -219,8 +221,21 @@ pub const SCHEMA_ANNOTATIONS: &str = "annotations/1";
 /// The `schema` of the output of `annotate delete` with `--json`: the id removed ([`DeletedData`]).
 pub const SCHEMA_DELETED: &str = "annotation-deleted/1";
 
-fn parse_refs(refs: &[String]) -> eyre::Result<Vec<Ref>> {
-    refs.iter().map(|text| text.parse()).collect()
+/// Reads the references, finding the log line of one that names it by text or time
+/// ([`super::refspec`]). The notes say what each of those was resolved to.
+fn parse_refs(
+    session: &Session,
+    manifest: &Manifest,
+    refs: &[String],
+) -> eyre::Result<(Vec<Ref>, Vec<String>)> {
+    let mut parsed = Vec::new();
+    let mut notes = Vec::new();
+    for text in refs {
+        let resolved = super::refspec::resolve(session, manifest, text)?;
+        parsed.push(resolved.reference.parse()?);
+        notes.extend(resolved.note);
+    }
+    Ok((parsed, notes))
 }
 
 fn resolve_ns(session: &Session, manifest: &Manifest, text: &str) -> eyre::Result<u64> {
@@ -278,7 +293,7 @@ pub(super) fn annotate(args: &AnnotateArgs) -> eyre::Result<()> {
 fn add_annotation(session: &Session, manifest: &Manifest, args: &AddArgs) -> eyre::Result<()> {
     let kind = Kind::from(args.kind);
     let loaded = annotations::load(&session.dir)?;
-    let refs = parse_refs(&args.refs)?;
+    let (refs, resolved) = parse_refs(session, manifest, &args.refs)?;
     let about = match &args.about {
         Some(id) => Some(
             loaded
@@ -345,7 +360,13 @@ fn add_annotation(session: &Session, manifest: &Manifest, args: &AddArgs) -> eyr
         .code_root
         .clone()
         .or_else(|| annotations::default_code_root(manifest.komorebi.flavor));
-    let warnings = annotations::validate_refs(session, manifest, &refs, code_root.as_deref())?;
+    let mut warnings = resolved;
+    warnings.extend(annotations::validate_refs(
+        session,
+        manifest,
+        &refs,
+        code_root.as_deref(),
+    )?);
 
     let author = args.author.clone().unwrap_or_else(|| {
         if kind == Kind::Finding {
@@ -379,16 +400,23 @@ fn add_annotation(session: &Session, manifest: &Manifest, args: &AddArgs) -> eyr
 }
 
 fn edit_annotation(session: &Session, manifest: &Manifest, args: &EditArgs) -> eyre::Result<()> {
-    let refs = (!args.refs.is_empty())
-        .then(|| parse_refs(&args.refs))
-        .transpose()?;
-    let mut warnings = Vec::new();
+    let (refs, mut warnings) = if args.refs.is_empty() {
+        (None, Vec::new())
+    } else {
+        let (refs, notes) = parse_refs(session, manifest, &args.refs)?;
+        (Some(refs), notes)
+    };
     if let Some(refs) = &refs {
         let code_root = args
             .code_root
             .clone()
             .or_else(|| annotations::default_code_root(manifest.komorebi.flavor));
-        warnings = annotations::validate_refs(session, manifest, refs, code_root.as_deref())?;
+        warnings.extend(annotations::validate_refs(
+            session,
+            manifest,
+            refs,
+            code_root.as_deref(),
+        )?);
     }
 
     let patch = Patch {
