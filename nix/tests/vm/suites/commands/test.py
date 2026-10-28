@@ -160,6 +160,10 @@ cycle-focus previous
 cycle-move next
 cycle-move previous
 stack left
+cycle-stack next
+cycle-stack previous
+cycle-stack-index next
+focus-stack-window 0
 unstack
 stack-all
 unstack-all

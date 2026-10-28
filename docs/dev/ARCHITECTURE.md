@@ -249,7 +249,8 @@ other one is hidden. Operations that change which window is in front, or which c
 window is in, end with that call: stacking and unstacking ([`Workspace::move_window_to_container`],
 [`Workspace::new_container_for_focused_window`]), a window that closes
 ([`Workspace::remove_window`], which brings the next one forward and focuses it), a window that
-is floated, and a focus change to a window that is behind ([`Workspace::focus_container_by_window`]).
+is floated, a focus change to a window that is behind ([`Workspace::focus_container_by_window`]),
+and cycling the stack or focusing a window of it by its index.
 
 [`Window::hide`] puts the window's id in [`HIDDEN_WINDOWS`] before it asks the backend, and
 [`Window::restore`] takes it out, so that when the compositor reports something about the window
@@ -429,6 +430,17 @@ puts every window of the workspace in one container ([`WindowManager::stack_all`
 `UnstackAll` takes them out again ([`WindowManager::unstack_all`]). Each ends with the workspace
 tiled again, and the window that was in front has the focus.
 
+`CycleStack` brings the next or the previous window of the focused container to the front, which
+wraps around ([`WindowManager::cycle_container_window_in_direction`]), and `FocusStackWindow` the
+window at an index ([`WindowManager::focus_container_window`]). Both show that window, hide the
+one that was in front ([`Container::load_focused_window`]) and give the window the focus.
+`FocusStackWindow` first focuses the monitor the pointer is on, so that a program such as a bar
+that runs it for a click on its own monitor acts there. `CycleStackIndex` swaps the front window
+with the next or the previous one in the container's order, and keeps it in front
+([`WindowManager::cycle_container_window_index_in_direction`]): only the order of the stack
+changes. A container of one window cannot be cycled, and an index it does not have cannot be
+focused.
+
 A window that opens gets the behavior [`WindowManager::window_management_behaviour`] says for
 its workspace: a container of its own (`Create`, the default), or a place in the focused
 container (`Append`), and a floating window with the float override on. A workspace's own
@@ -597,10 +609,11 @@ module's unit.
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
   promote the focused container, float a window, lock a container, set the padding of a
-  workspace, manage and unmanage a window, stack and unstack windows, show a workspace, move a
-  container to another workspace, follow a workspace switch made by something else, name a
-  workspace and find it by its name, set the layout of a workspace that is not in front, focus
-  another monitor, and move containers and workspaces between monitors).
+  workspace, manage and unmanage a window, stack and unstack windows and choose the one in
+  front, show a workspace, move a container to another workspace, follow a workspace switch
+  made by something else, name a workspace and find it by its name, set the layout of a
+  workspace that is not in front, focus another monitor, and move containers and workspaces
+  between monitors).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -713,6 +726,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | Only the window in front of a stack is in sight | framework path: [`Container::add_window`] and [`Container::load_focused_window`] hide every window of the container but the focused one, and every operation that changes the front ends with the call | `a_window_added_to_a_container_is_in_front_and_the_others_are_hidden`, `loading_the_focused_window_shows_it_and_hides_the_rest`, `stacking_puts_two_windows_in_one_container_and_hides_the_one_behind`, `vm-stacks` ("exactly one window is on it") | none |
 | A hidden window is still on its workspace, and is not reported as moved | framework path: the table keeps the desktop a window came from, and a move to the parking desktop is its own | `parking_a_window_hides_it_without_unmanaging_it`, `komorebis_own_move_and_its_park_and_restore_raise_nothing_new`, `a_window_is_put_on_a_workspace_by_putting_it_on_its_desktop` | none |
 | What the compositor reports about a window komorebi hid is not taken for the user's doing | framework path: [`Window::hide`] records the window in [`HIDDEN_WINDOWS`] before it asks the backend, and the `Minimize` arm of `handle_event` checks it | `a_minimize_komorebi_asked_for_is_not_mistaken_for_the_user`, `a_minimize_the_user_asked_for_takes_the_window_out_of_the_layout` | none |
+| The window the compositor focuses in a stack comes to the front | framework path: the `FocusChange` arm of `handle_event` focuses the container by the window, which loads it ([`Workspace::focus_container_by_window`]) | `focusing_a_hidden_window_of_a_stack_brings_it_to_the_front`, `the_window_the_user_focuses_in_the_back_of_a_stack_comes_to_the_front` | none |
+| Cycling a stack changes which window is in front and nothing else | framework path: [`Container::load_focused_window`] shows the focused window and hides the rest; a cycle by index only swaps two places | `cycling_the_stack_brings_the_next_window_to_the_front_and_hides_the_one_that_was`, `cycling_the_index_moves_the_front_window_along_the_stack_and_keeps_it_in_front`, `focus_stack_window_brings_the_window_at_an_index_to_the_front`, `vm-stacks` ("cycle the stack") | none |
+| A stack with one window cannot be cycled, and an index it lacks is refused | runtime error: the window manager's functions return it before they change anything | `cycling_a_window_that_is_alone_is_an_error`, `focus_stack_window_refuses_an_index_the_stack_does_not_have` | none |
 | Closing the window in front of a stack brings the next one forward | framework path: [`Workspace::remove_window`] shows the container's new front window and focuses it | `closing_the_window_in_front_of_a_stack_brings_the_next_one_forward`, `vm-stacks` ("closing the window in view") | none |
 | The back of a stack stays hidden when its workspace is shown again | framework path: [`Workspace::restore`] restores the front window of each container and no other | `the_back_of_a_stack_stays_hidden_across_a_workspace_round_trip`, `vm-stacks` ("a workspace round trip") | none |
 | A window is never sent to a parking desktop that is not there | framework path: [`Table::hide_commands`] asks for a new one unless KWin lists the one it made | `a_parking_desktop_that_has_gone_is_made_again_not_sent_windows` | none |
@@ -908,6 +924,9 @@ A window is shown, and ends up on a tile:
 [`WindowManager::stack_all`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::unstack_all`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::restore_all_windows`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::cycle_container_window_in_direction`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::cycle_container_window_index_in_direction`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::focus_container_window`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::window_management_behaviour`]: ../../komorebi/src/window_manager.rs
 [`Backend::hide`]: ../../komorebi/src/backend/mod.rs
 [`Table::hide_commands`]: ../../komorebi/src/kwin/state.rs

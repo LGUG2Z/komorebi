@@ -180,7 +180,9 @@ At the edge of a monitor, `focus` and `move` cross to the monitor on that side;
 monitors, and `eager-focus` finds the window of an application wherever it is.
 `stack` puts the focused window and the one next to it in one stack, `unstack`
 takes it out again, and `stack-all` and `unstack-all` do it for a whole
-workspace. `toggle-window-container-behaviour` makes a window that opens join
+workspace; `cycle-stack` and `focus-stack-window` bring another window of a
+stack to the front, and `cycle-stack-index` moves the front one along it.
+`toggle-window-container-behaviour` makes a window that opens join
 the focused stack, and `toggle-float-override` makes it float.
 
 A program such as a status bar can subscribe to the daemon's notifications: it

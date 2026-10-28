@@ -231,7 +231,7 @@ fn the_layout_subcommands_send_the_layout_axis_or_direction_they_are_given() {
 }
 
 #[test]
-fn the_stack_subcommands_send_the_direction_they_are_given() {
+fn the_stack_subcommands_send_the_direction_or_the_index_they_are_given() {
     sends(
         &["stack", "left"],
         r#"{"type":"StackWindow","content":"Left"}"#,
@@ -243,6 +243,22 @@ fn the_stack_subcommands_send_the_direction_they_are_given() {
     sends(&["unstack"], r#"{"type":"UnstackWindow"}"#);
     sends(&["stack-all"], r#"{"type":"StackAll"}"#);
     sends(&["unstack-all"], r#"{"type":"UnstackAll"}"#);
+    sends(
+        &["cycle-stack", "next"],
+        r#"{"type":"CycleStack","content":"Next"}"#,
+    );
+    sends(
+        &["cycle-stack", "previous"],
+        r#"{"type":"CycleStack","content":"Previous"}"#,
+    );
+    sends(
+        &["cycle-stack-index", "next"],
+        r#"{"type":"CycleStackIndex","content":"Next"}"#,
+    );
+    sends(
+        &["focus-stack-window", "2"],
+        r#"{"type":"FocusStackWindow","content":2}"#,
+    );
 }
 
 #[test]
@@ -708,6 +724,8 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "cycle-move.md",
             "cycle-send-to-monitor.md",
             "cycle-send-to-workspace.md",
+            "cycle-stack-index.md",
+            "cycle-stack.md",
             "cycle-workspace.md",
             "data-directory.md",
             "display-index-preference.md",
@@ -720,6 +738,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "focus-monitor-workspace.md",
             "focus-monitor.md",
             "focus-named-workspace.md",
+            "focus-stack-window.md",
             "focus-workspace.md",
             "focus-workspaces.md",
             "focus.md",

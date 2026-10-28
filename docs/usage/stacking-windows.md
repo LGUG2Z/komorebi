@@ -40,6 +40,40 @@ A stack moves as one: moving it with [`komorebic move`](moving-windows.md#in-a-d
 another workspace takes every window in it. When the window in front closes, the next window of
 the stack comes to the front and has the focus.
 
+## Choosing the window in front
+
+[`komorebic cycle-stack`](../cli/cycle-stack.md) brings the next or the previous window of the
+focused stack to the front and gives it the focus; the window that was in front is hidden. It
+wraps around: `next` from the last window of the stack brings the first.
+
+```sh
+komorebic cycle-stack next
+komorebic cycle-stack previous
+```
+
+[`komorebic focus-stack-window`](../cli/focus-stack-window.md) brings the window at an index of
+the stack to the front, counting from 0 in the order the stack has, which is the order of its
+`windows` in [`komorebic state`](../cli/state.md). It works on the monitor the pointer is on,
+which it focuses first, so that a program such as a status bar that runs it when one of its tabs
+is clicked acts on the stack of its own monitor.
+
+```sh
+komorebic focus-stack-window 0
+```
+
+[`komorebic cycle-stack-index`](../cli/cycle-stack-index.md) moves the window in front one place
+along the stack, swapping it with the window there, and wraps around the same way. It stays in
+front and keeps the focus: only the order of the stack changes, which is what `cycle-stack` and
+`focus-stack-window` count by.
+
+```sh
+komorebic cycle-stack-index next
+```
+
+A stack of one window cannot be cycled, and an index the stack does not have cannot be focused:
+the daemon logs "there is only one window in this container" or "there is no window in this
+container at index 5".
+
 ## Windows that open into a stack
 
 By default a window that opens gets a tile of its own. With the window container behavior set to

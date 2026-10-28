@@ -28,7 +28,10 @@
 //! ([`WindowManager::add_window_to_container`], [`WindowManager::remove_window_from_container`])
 //! or all of a workspace together ([`WindowManager::stack_all`], [`WindowManager::unstack_all`]),
 //! and a window that opens joins the focused container instead of getting one of its own when the
-//! window container behavior says so ([`WindowManager::window_management_behaviour`]).
+//! window container behavior says so ([`WindowManager::window_management_behaviour`]). The window
+//! in front is changed by cycling the stack ([`WindowManager::cycle_container_window_in_direction`])
+//! or by the index of a window in it ([`WindowManager::focus_container_window`]), and a window
+//! moves along the stack with [`WindowManager::cycle_container_window_index_in_direction`].
 //! [`WindowManager::stop`] brings back every window the window manager hid
 //! ([`WindowManager::restore_all_windows`]).
 //!
@@ -885,6 +888,45 @@ impl WindowManager {
         }
 
         Ok(())
+    }
+
+    /// Brings the next or the previous window of the focused stack to the front, wrapping around,
+    /// and gives it the focus; the window that was in front is hidden
+    ///
+    /// # Errors
+    ///
+    /// - The focused container has no window, or only one.
+    /// - There is no focused workspace or container, or the window cannot be focused.
+    /// - The workspace cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn cycle_container_window_in_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        tracing::info!("cycling container windows");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let container = self.focused_container_mut()?;
+
+        let len = NonZeroUsize::new(container.windows().len())
+            .ok_or_eyre("there must be at least one window in a container")?;
+
+        if len.get() == 1 {
+            eyre::bail!("there is only one window in this container");
+        }
+
+        let current_idx = container.focused_window_idx();
+        let next_idx = direction.next_idx(current_idx, len);
+
+        container.focus_window(next_idx);
+        container.load_focused_window()?;
+
+        if let Some(window) = container.focused_window() {
+            window.focus(mouse_follows_focus)?;
+        }
+
+        self.update_focused_workspace(mouse_follows_focus, true)
     }
 
     /// Shows workspace `idx` on the focused monitor, creating it (and the ones before it) if it
@@ -1817,6 +1859,47 @@ impl WindowManager {
         workspace.swap_containers(current_idx, new_idx);
         workspace.focus_container(new_idx);
         self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    /// Moves the front window of the focused stack one place along the stack, which wraps around
+    /// at both ends, by swapping it with the window there. It stays in front and keeps the focus:
+    /// only the order of the stack changes.
+    ///
+    /// # Errors
+    ///
+    /// - The focused container has no window, or only one.
+    /// - There is no focused workspace or container, or the window cannot be focused.
+    /// - The workspace cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn cycle_container_window_index_in_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        tracing::info!("cycling container window index");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let container = self.focused_container_mut()?;
+
+        let len = NonZeroUsize::new(container.windows().len())
+            .ok_or_eyre("there must be at least one window in a container")?;
+
+        if len.get() == 1 {
+            eyre::bail!("there is only one window in this container");
+        }
+
+        let current_idx = container.focused_window_idx();
+        let next_idx = direction.next_idx(current_idx, len);
+        container.windows_mut().swap(current_idx, next_idx);
+
+        container.focus_window(next_idx);
+        container.load_focused_window()?;
+
+        if let Some(window) = container.focused_window() {
+            window.focus(mouse_follows_focus)?;
+        }
+
+        self.update_focused_workspace(mouse_follows_focus, true)
     }
 
     /// Gives the focus to the window at `idx` in the focused container, and brings it to the front
@@ -3299,6 +3382,176 @@ mod tests {
             result.is_err(),
             "Expected an error when trying to remove a window from an empty container"
         );
+    }
+
+    #[test]
+    fn cycle_container_window_in_direction() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            let workspace = m.focused_workspace_mut().unwrap();
+
+            {
+                let mut container = Container::default();
+
+                for i in 0..3 {
+                    container.windows_mut().push_back(Window::from(i));
+                }
+
+                // Should have 3 windows in the container
+                assert_eq!(container.windows().len(), 3);
+
+                // Add container to workspace
+                workspace.add_container_to_back(container);
+            }
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Cycle to the next window
+        wm.cycle_container_window_in_direction(CycleDirection::Next)
+            .ok();
+
+        {
+            // Should be on Window 1
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 1);
+        }
+
+        // Cycle to the next window
+        wm.cycle_container_window_in_direction(CycleDirection::Next)
+            .ok();
+
+        {
+            // Should be on Window 2
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 2);
+        }
+
+        // Cycle to the previous window
+        wm.cycle_container_window_in_direction(CycleDirection::Previous)
+            .ok();
+
+        {
+            // Should be on Window 1
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 1);
+        }
+    }
+
+    #[test]
+    fn test_cycle_nonexistent_windows() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDeviceID1".to_string(),
+            );
+
+            // Create a container
+            let container = Container::default();
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 0);
+
+            // Add the container to a workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to cycle through windows in an empty container
+        let result = wm.cycle_container_window_in_direction(CycleDirection::Next);
+        assert!(
+            result.is_err(),
+            "Expected an error when cycling through windows in an empty container"
+        );
+    }
+
+    #[test]
+    fn test_cycle_container_window_index_in_direction() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            let workspace = m.focused_workspace_mut().unwrap();
+
+            {
+                let mut container = Container::default();
+
+                for i in 0..3 {
+                    container.windows_mut().push_back(Window::from(i));
+                }
+
+                // Should have 3 windows in the container
+                assert_eq!(container.windows().len(), 3);
+
+                // Add container to workspace
+                workspace.add_container_to_back(container);
+            }
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Cycle to the next window
+        wm.cycle_container_window_index_in_direction(CycleDirection::Next)
+            .ok();
+
+        {
+            // Should be on Window 1
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 1);
+        }
+
+        // Cycle to the next window
+        wm.cycle_container_window_index_in_direction(CycleDirection::Next)
+            .ok();
+
+        {
+            // Should be on Window 2
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 2);
+        }
+
+        // Cycle to the Previous window
+        wm.cycle_container_window_index_in_direction(CycleDirection::Previous)
+            .ok();
+
+        {
+            // Should be on Window 1
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 1);
+        }
     }
 
     #[test]

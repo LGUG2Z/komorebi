@@ -16,10 +16,13 @@
 //!   next window and give it up.
 //! - `stack` puts the focused window in one container with the window on one side of it, so that
 //!   they share a tile and only one is in sight, `unstack` takes it out again, and `stack-all` and
-//!   `unstack-all` do it for the whole workspace and for the focused stack.
-//!   `toggle-window-container-behaviour` and `toggle-workspace-window-container-behaviour` make a
-//!   window that opens join the focused container instead of getting a tile, and
-//!   `toggle-float-override` and `toggle-workspace-float-override` make it float.
+//!   `unstack-all` do it for the whole workspace and for the focused stack. `cycle-stack` brings
+//!   the next or the previous window of the focused stack to the front, `cycle-stack-index` moves
+//!   the front window along the stack, and `focus-stack-window` brings the window at an index to
+//!   the front. `toggle-window-container-behaviour` and
+//!   `toggle-workspace-window-container-behaviour` make a window that opens join the focused
+//!   container instead of getting a tile, and `toggle-float-override` and
+//!   `toggle-workspace-float-override` make it float.
 //! - `promote`, `promote-swap`, `promote-focus` and `promote-window` bring a window to the largest
 //!   tile, or the focus to it.
 //! - `toggle-float` takes the focused window out of the layout, or puts it back, and
@@ -148,6 +151,8 @@ gen_enum_subcommand_args! {
     CycleEmptyWorkspace: CycleDirection,
     CycleMoveWorkspaceToMonitor: CycleDirection,
     Stack: OperationDirection,
+    CycleStack: CycleDirection,
+    CycleStackIndex: CycleDirection,
     FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
     CycleLayout: CycleDirection,
@@ -182,6 +187,7 @@ gen_target_subcommand_args! {
     FocusWorkspaces,
     MoveWorkspaceToMonitor,
     SwapWorkspacesWithMonitor,
+    FocusStackWindow,
 }
 
 macro_rules! gen_named_target_subcommand_args {
@@ -651,6 +657,15 @@ enum SubCommand {
     Stack(Stack),
     /// Unstack the focused window
     Unstack,
+    /// Cycle the focused stack in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleStack(CycleStack),
+    /// Cycle the index of the focused window in the focused stack in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleStackIndex(CycleStackIndex),
+    /// Focus the specified window index in the focused stack
+    #[clap(arg_required_else_help = true)]
+    FocusStackWindow(FocusStackWindow),
     /// Stack all windows on the focused workspace
     StackAll,
     /// Unstack all windows in the focused container
@@ -1059,6 +1074,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::UnstackAll => {
             send_message(&SocketMessage::UnstackAll)?;
+        }
+        SubCommand::FocusStackWindow(args) => {
+            send_message(&SocketMessage::FocusStackWindow(args.target))?;
+        }
+        SubCommand::CycleStack(args) => {
+            send_message(&SocketMessage::CycleStack(args.cycle_direction))?;
+        }
+        SubCommand::CycleStackIndex(args) => {
+            send_message(&SocketMessage::CycleStackIndex(args.cycle_direction))?;
         }
         SubCommand::FocusWorkspace(args) => {
             send_message(&SocketMessage::FocusWorkspaceNumber(args.target))?;

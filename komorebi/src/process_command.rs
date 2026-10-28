@@ -34,7 +34,12 @@
 //!   ([`WindowManager::add_window_to_container`],
 //!   [`WindowManager::remove_window_from_container`]). **StackAll** puts every window of the
 //!   workspace in one stack, and **UnstackAll** takes every window out of the focused one
-//!   ([`WindowManager::stack_all`], [`WindowManager::unstack_all`]).
+//!   ([`WindowManager::stack_all`], [`WindowManager::unstack_all`]). **CycleStack** brings the next
+//!   or the previous window of the focused stack to the front, **CycleStackIndex** moves the front
+//!   window along the stack, and **FocusStackWindow** brings the window at an index to the front,
+//!   on the monitor the pointer is on ([`WindowManager::cycle_container_window_in_direction`],
+//!   [`WindowManager::cycle_container_window_index_in_direction`],
+//!   [`WindowManager::focus_container_window`]).
 //! - **ToggleWindowContainerBehaviour** and **ToggleWorkspaceWindowContainerBehaviour** set whether
 //!   a window that opens gets a container of its own or joins the focused container, for every
 //!   workspace or for the focused one, and **ToggleFloatOverride** and
@@ -253,9 +258,12 @@ impl WindowManager {
     ///   `UnlockMonitorWorkspaceContainer` is not there (a container that is not there is ignored).
     /// - The focused window cannot be floated or put back, for one of the reasons
     ///   [`WindowManager::toggle_float`] gives.
-    /// - The focused window cannot be stacked or unstacked, for one of the reasons
+    /// - The focused window cannot be stacked, unstacked or cycled, for one of the reasons
     ///   [`WindowManager::add_window_to_container`], [`WindowManager::remove_window_from_container`],
-    ///   [`WindowManager::stack_all`] and [`WindowManager::unstack_all`] give, or the focused
+    ///   [`WindowManager::stack_all`], [`WindowManager::unstack_all`],
+    ///   [`WindowManager::cycle_container_window_in_direction`],
+    ///   [`WindowManager::cycle_container_window_index_in_direction`] and
+    ///   [`WindowManager::focus_container_window`] give, or the focused
     ///   workspace is not there for a behavior to be set on (`ToggleWorkspaceWindowContainerBehaviour`,
     ///   `ToggleWorkspaceFloatOverride`).
     /// - The monitor a monitor command names is not there, or the compositor reports no window
@@ -413,6 +421,22 @@ impl WindowManager {
             }
             SocketMessage::UnstackAll => {
                 self.unstack_all(true)?;
+            }
+            SocketMessage::CycleStack(direction) => {
+                self.cycle_container_window_in_direction(direction)?;
+            }
+            SocketMessage::CycleStackIndex(direction) => {
+                self.cycle_container_window_index_in_direction(direction)?;
+            }
+            SocketMessage::FocusStackWindow(idx) => {
+                // In case you are using this command on a bar on a monitor
+                // different from the currently focused one, you'd want that
+                // monitor to be focused so that the FocusStackWindow happens
+                // on the monitor with the bar you just pressed.
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    self.focus_monitor(monitor_idx)?;
+                }
+                self.focus_container_window(idx)?;
             }
             SocketMessage::CycleFocusMonitor(direction) => {
                 let monitor_idx = direction.next_idx(

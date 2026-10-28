@@ -1,5 +1,5 @@
-//! Stacking windows in one container, and taking the windows a stack does not show out of sight,
-//! against an in-memory desktop.
+//! Stacking windows in one container, taking the windows a stack does not show out of sight, and
+//! choosing which window of a stack is in front, against an in-memory desktop.
 //!
 //! A container tiles one window, so the other windows of a stack are hidden: the backend is asked
 //! to take them out of sight, and the window manager records them as hidden so that what the
@@ -12,6 +12,7 @@
 use komorebi::backend::Backend;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::with_backend;
+use komorebi::core::CycleDirection;
 use komorebi::core::OperationDirection;
 use komorebi::core::SocketMessage;
 use komorebi::core::WindowContainerBehaviour;
@@ -478,4 +479,142 @@ fn the_state_has_the_new_window_behavior_and_the_float_override() {
     let state: serde_json::Value = serde_json::from_slice(&state).unwrap();
     assert_eq!(state["new_window_behaviour"], "Append");
     assert_eq!(state["float_override"], true);
+}
+
+/// A fake desktop with the windows `ids` in one stack, the last in front
+fn stack_of(ids: &[u32]) -> (Arc<FakeBackend>, WindowManager) {
+    let (fake, mut wm) = desktop_with(ids);
+    send(&fake, &mut wm, SocketMessage::StackAll).unwrap();
+    (fake, wm)
+}
+
+#[test]
+fn cycling_the_stack_brings_the_next_window_to_the_front_and_hides_the_one_that_was() {
+    let (fake, mut wm) = stack_of(&[33_201, 33_202, 33_203]);
+    let ids = [33_201, 33_202, 33_203];
+    assert_eq!(containers(&wm), [vec![33_203, 33_201, 33_202]]);
+
+    // the stack is 33_201, 33_202, 33_203 with the last in front: next wraps to the first
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::CycleStack(CycleDirection::Next),
+    )
+    .unwrap();
+
+    assert_eq!(wm.focused_window().unwrap().id, 33_201);
+    assert_eq!(hidden(&fake, &ids), [33_202, 33_203]);
+    assert_eq!(fake.foreground_window(), Some(33_201));
+
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::CycleStack(CycleDirection::Previous),
+    )
+    .unwrap();
+
+    assert_eq!(wm.focused_window().unwrap().id, 33_203);
+    assert_eq!(hidden(&fake, &ids), [33_201, 33_202]);
+    assert_eq!(fake.foreground_window(), Some(33_203));
+}
+
+#[test]
+fn cycling_a_window_that_is_alone_is_an_error() {
+    let (fake, mut wm) = desktop_with(&[33_211, 33_212]);
+
+    for message in [
+        SocketMessage::CycleStack(CycleDirection::Next),
+        SocketMessage::CycleStackIndex(CycleDirection::Previous),
+    ] {
+        let error = send(&fake, &mut wm, message).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "there is only one window in this container"
+        );
+    }
+    assert_eq!(containers(&wm), [vec![33_211], vec![33_212]]);
+}
+
+#[test]
+fn cycling_the_index_moves_the_front_window_along_the_stack_and_keeps_it_in_front() {
+    let (fake, mut wm) = stack_of(&[33_221, 33_222, 33_223]);
+    let ids = [33_221, 33_222, 33_223];
+    let order = |wm: &WindowManager| -> Vec<u32> {
+        wm.focused_workspace()
+            .unwrap()
+            .containers()
+            .iter()
+            .flat_map(|container| container.windows().iter().map(|window| window.id))
+            .collect()
+    };
+    assert_eq!(order(&wm), [33_221, 33_222, 33_223]);
+
+    // 33_223 is in front and last: the next place wraps to the first
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::CycleStackIndex(CycleDirection::Next),
+    )
+    .unwrap();
+
+    assert_eq!(order(&wm), [33_223, 33_222, 33_221]);
+    assert_eq!(wm.focused_window().unwrap().id, 33_223);
+    assert_eq!(hidden(&fake, &ids), [33_221, 33_222]);
+    assert_eq!(fake.foreground_window(), Some(33_223));
+}
+
+#[test]
+fn focus_stack_window_brings_the_window_at_an_index_to_the_front() {
+    let (fake, mut wm) = stack_of(&[33_231, 33_232, 33_233]);
+    let ids = [33_231, 33_232, 33_233];
+
+    send(&fake, &mut wm, SocketMessage::FocusStackWindow(1)).unwrap();
+
+    assert_eq!(wm.focused_window().unwrap().id, 33_232);
+    assert_eq!(hidden(&fake, &ids), [33_231, 33_233]);
+    assert_eq!(fake.foreground_window(), Some(33_232));
+
+    send(&fake, &mut wm, SocketMessage::FocusStackWindow(0)).unwrap();
+    assert_eq!(wm.focused_window().unwrap().id, 33_231);
+    assert_eq!(hidden(&fake, &ids), [33_232, 33_233]);
+}
+
+#[test]
+fn focus_stack_window_refuses_an_index_the_stack_does_not_have() {
+    let (fake, mut wm) = stack_of(&[33_241, 33_242]);
+
+    let error = send(&fake, &mut wm, SocketMessage::FocusStackWindow(5)).unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "there is no window in this container at index 5"
+    );
+    assert_eq!(wm.focused_window().unwrap().id, 33_242);
+}
+
+#[test]
+fn focus_stack_window_on_a_window_that_is_alone_takes_index_0_only() {
+    let (fake, mut wm) = desktop_with(&[33_251]);
+
+    send(&fake, &mut wm, SocketMessage::FocusStackWindow(0)).unwrap();
+    let error = send(&fake, &mut wm, SocketMessage::FocusStackWindow(1)).unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "there is only one window in this container"
+    );
+}
+
+#[test]
+fn the_window_the_user_focuses_in_the_back_of_a_stack_comes_to_the_front() {
+    let (fake, mut wm) = stack_of(&[33_261, 33_262]);
+    let ids = [33_261, 33_262];
+    assert_eq!(hidden(&fake, &ids), [33_261]);
+
+    // the user raises the hidden window (a click in the task manager): KWin gives it the focus
+    fake.set_foreground(Some(33_261));
+    process(&fake, &mut wm, activated(33_261)).unwrap();
+
+    assert_eq!(wm.focused_window().unwrap().id, 33_261);
+    assert_eq!(hidden(&fake, &ids), [33_262]);
 }
