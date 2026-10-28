@@ -19,3 +19,6 @@ sysinfo = { workspace = true }
 [features]
 default = ["schemars"]
 schemars = ["komorebi-client/default"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(FALSE)'] }

@@ -164,7 +164,10 @@ layout, `manage-rule` tiles it whatever the ignore rules say, and
 `session-float-rule` floats the focused window and the windows like it.
 `focus-workspace` shows another workspace, and `move-to-workspace` and
 `send-to-workspace` put the focused window on another workspace, with and
-without showing it.
+without showing it; their `cycle-` and `-last-workspace` forms go to the next,
+the previous or the last workspace, `workspace-name` names a workspace for
+`focus-named-workspace` and the other named commands, and `new-workspace` and
+`close-workspace` add and remove one.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

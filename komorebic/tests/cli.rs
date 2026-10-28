@@ -441,6 +441,80 @@ fn the_workspace_subcommands_send_the_index_they_are_given() {
 }
 
 #[test]
+fn the_other_workspace_subcommands_send_what_they_are_given() {
+    sends(
+        &["cycle-workspace", "next"],
+        r#"{"type":"CycleFocusWorkspace","content":"Next"}"#,
+    );
+    sends(
+        &["cycle-empty-workspace", "previous"],
+        r#"{"type":"CycleFocusEmptyWorkspace","content":"Previous"}"#,
+    );
+    sends(
+        &["cycle-move-to-workspace", "next"],
+        r#"{"type":"CycleMoveContainerToWorkspace","content":"Next"}"#,
+    );
+    sends(
+        &["cycle-send-to-workspace", "previous"],
+        r#"{"type":"CycleSendContainerToWorkspace","content":"Previous"}"#,
+    );
+    sends(
+        &["focus-last-workspace"],
+        r#"{"type":"FocusLastWorkspace"}"#,
+    );
+    sends(
+        &["move-to-last-workspace"],
+        r#"{"type":"MoveContainerToLastWorkspace"}"#,
+    );
+    sends(
+        &["send-to-last-workspace"],
+        r#"{"type":"SendContainerToLastWorkspace"}"#,
+    );
+    sends(
+        &["focus-workspaces", "2"],
+        r#"{"type":"FocusWorkspaceNumbers","content":2}"#,
+    );
+    sends(&["new-workspace"], r#"{"type":"NewWorkspace"}"#);
+    sends(&["close-workspace"], r#"{"type":"CloseWorkspace"}"#);
+}
+
+#[test]
+fn the_named_workspace_subcommands_send_the_names_they_are_given() {
+    sends(
+        &["workspace-name", "0", "1", "mail"],
+        r#"{"type":"WorkspaceName","content":[0,1,"mail"]}"#,
+    );
+    sends(
+        &["focus-named-workspace", "mail"],
+        r#"{"type":"FocusNamedWorkspace","content":"mail"}"#,
+    );
+    sends(
+        &["ensure-workspaces", "0", "3"],
+        r#"{"type":"EnsureWorkspaces","content":[0,3]}"#,
+    );
+    sends(
+        &["ensure-named-workspaces", "0", "web", "code"],
+        r#"{"type":"EnsureNamedWorkspaces","content":[0,["web","code"]]}"#,
+    );
+    sends(
+        &["workspace-layout", "0", "1", "columns"],
+        r#"{"type":"WorkspaceLayout","content":[0,1,"Columns"]}"#,
+    );
+    sends(
+        &["named-workspace-layout", "mail", "rows"],
+        r#"{"type":"NamedWorkspaceLayout","content":["mail","Rows"]}"#,
+    );
+    sends(
+        &["workspace-tiling", "0", "1", "disable"],
+        r#"{"type":"WorkspaceTiling","content":[0,1,false]}"#,
+    );
+    sends(
+        &["named-workspace-tiling", "mail", "enable"],
+        r#"{"type":"NamedWorkspaceTiling","content":["mail",true]}"#,
+    );
+}
+
+#[test]
 fn without_a_daemon_a_question_fails() {
     let runtime = Runtime::new();
 
@@ -484,15 +558,25 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "cancel-preselect.md",
             "change-layout.md",
             "clear-session-float-rules.md",
+            "close-workspace.md",
             "close.md",
             "completions.md",
             "container-padding.md",
+            "cycle-empty-workspace.md",
             "cycle-focus.md",
             "cycle-layout.md",
+            "cycle-move-to-workspace.md",
             "cycle-move.md",
+            "cycle-send-to-workspace.md",
+            "cycle-workspace.md",
             "data-directory.md",
+            "ensure-named-workspaces.md",
+            "ensure-workspaces.md",
             "flip-layout.md",
+            "focus-last-workspace.md",
+            "focus-named-workspace.md",
             "focus-workspace.md",
+            "focus-workspaces.md",
             "focus.md",
             "focused-workspace-container-padding.md",
             "focused-workspace-padding.md",
@@ -508,8 +592,12 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "monitor-information.md",
             "monitor-work-area-offset.md",
             "mouse-follows-focus.md",
+            "move-to-last-workspace.md",
             "move-to-workspace.md",
             "move.md",
+            "named-workspace-layout.md",
+            "named-workspace-tiling.md",
+            "new-workspace.md",
             "preselect-direction.md",
             "promote-focus.md",
             "promote-swap.md",
@@ -524,6 +612,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "retile.md",
             "save-resize.md",
             "scrolling-layout-columns.md",
+            "send-to-last-workspace.md",
             "send-to-workspace.md",
             "session-float-rule.md",
             "session-float-rules.md",
@@ -540,7 +629,10 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "unmanage.md",
             "unmanaged-window-operation-behaviour.md",
             "unsubscribe-socket.md",
+            "workspace-layout.md",
+            "workspace-name.md",
             "workspace-padding.md",
+            "workspace-tiling.md",
             "workspace-work-area-offset.md",
         ]
     );

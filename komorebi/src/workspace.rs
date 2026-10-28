@@ -27,6 +27,7 @@ use std::num::NonZeroUsize;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Workspace {
+    pub name: Option<String>,
     pub containers: Ring<Container>,
     pub floating_windows: Ring<Window>,
     pub layout: Layout,
@@ -55,6 +56,7 @@ impl_ring_elements!(Workspace, Window, "floating_window");
 impl Default for Workspace {
     fn default() -> Self {
         Self {
+            name: None,
             containers: Default::default(),
             workspace_padding: None,
             container_padding: None,

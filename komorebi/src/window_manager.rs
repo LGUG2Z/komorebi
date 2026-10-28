@@ -18,7 +18,9 @@
 //! ([`WindowManager::focus_workspace`]), moves a container to one
 //! ([`WindowManager::move_container_to_workspace`]), makes sure the compositor has a desktop for
 //! each ([`WindowManager::sync_workspace_desktops`]), and follows a workspace switch that
-//! something else made ([`WindowManager::adopt_workspace_change`]).
+//! something else made ([`WindowManager::adopt_workspace_change`]). A workspace can be named
+//! ([`WindowManager::set_workspace_name`]) and found by its name on any monitor
+//! ([`WindowManager::monitor_workspace_index_by_name`]).
 //!
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
@@ -327,6 +329,40 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_layout_default(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        layout: DefaultLayout,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting workspace layout");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.layout = Layout::Default(layout);
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update()?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false, false)?)
+        }
+    }
+
     pub fn focused_workspace_idx(&self) -> eyre::Result<usize> {
         Ok(self
             .focused_monitor()
@@ -346,6 +382,21 @@ impl WindowManager {
             .ok_or_eyre("there is no monitor")?
             .focused_workspace_mut()
             .ok_or_eyre("there is no workspace")
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn new_workspace(&mut self) -> eyre::Result<()> {
+        tracing::info!("adding new workspace");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let monitor = self
+            .focused_monitor_mut()
+            .ok_or_eyre("there is no workspace")?;
+
+        monitor.focus_workspace(monitor.new_workspace_idx())?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
+
+        self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
     pub fn focused_container(&self) -> eyre::Result<&Container> {
@@ -958,6 +1009,36 @@ impl WindowManager {
         self.update_focused_workspace(false, false)
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn focus_monitor(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("focusing monitor");
+
+        if self.monitors().get(idx).is_some() {
+            self.monitors.focus(idx);
+        } else {
+            eyre::bail!("this is not a valid monitor index");
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn monitor_workspace_index_by_name(&mut self, name: &str) -> Option<(usize, usize)> {
+        tracing::info!("looking up workspace by name");
+
+        for (monitor_idx, monitor) in self.monitors().iter().enumerate() {
+            for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
+                if let Some(workspace_name) = &workspace.name
+                    && workspace_name == name
+                {
+                    return Option::from((monitor_idx, workspace_idx));
+                }
+            }
+        }
+
+        None
+    }
+
     /// Gives the focus to the window of the next (or the previous) container of the focused
     /// workspace, wrapping around at the ends, and the pointer follows it if
     /// [`WindowManager::mouse_follows_focus`] is set
@@ -1047,8 +1128,9 @@ impl WindowManager {
         Ok(())
     }
 
-    /// Make sure the compositor has a virtual desktop for every workspace any monitor has, named
-    /// "Workspace 1", "Workspace 2" and so on where it has to create them
+    /// Make sure the compositor has a virtual desktop for every workspace any monitor has, with
+    /// the workspaces' names where it has to create them (and "Workspace 2" and so on for a
+    /// workspace without one)
     pub fn sync_workspace_desktops(&self) {
         let count = self
             .monitors()
@@ -1058,7 +1140,15 @@ impl WindowManager {
             .unwrap_or(1)
             .max(1);
 
-        let names: Vec<String> = (0..count).map(|i| format!("Workspace {}", i + 1)).collect();
+        let names: Vec<String> = (0..count)
+            .map(|i| {
+                self.monitors()
+                    .iter()
+                    .filter_map(|m| m.workspaces().get(i).and_then(|w| w.name.clone()))
+                    .find(|name| !name.is_empty())
+                    .unwrap_or_else(|| format!("Workspace {}", i + 1))
+            })
+            .collect();
 
         if let Err(error) = backend().ensure_workspaces(&names) {
             tracing::warn!("could not make sure there are desktops for the workspaces: {error}");
@@ -1143,6 +1233,31 @@ impl WindowManager {
         self.update_focused_workspace(false, false)
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_name(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        name: String,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting workspace name");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.name = Option::from(name.clone());
+        // monitor.workspace_names.insert(workspace_idx, name);
+
+        Ok(())
+    }
+
     /// Gives the workspace at `workspace_idx` on the monitor at `monitor_idx` a container padding
     /// of `size` pixels, around each tile, and tiles the focused workspace again
     ///
@@ -1170,6 +1285,28 @@ impl WindowManager {
             .ok_or_eyre("there is no monitor")?;
 
         workspace.container_padding = Option::from(size);
+
+        self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_tiling(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        tile: bool,
+    ) -> eyre::Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.tile = tile;
 
         self.update_focused_workspace(false, false)
     }
@@ -1224,6 +1361,62 @@ impl WindowManager {
         workspace.container_padding = Option::from(sizing.adjust_by(padding, adjustment));
 
         self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn ensure_workspaces_for_monitor(
+        &mut self,
+        monitor_idx: usize,
+        workspace_count: usize,
+    ) -> eyre::Result<()> {
+        tracing::info!("ensuring workspace count");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        monitor.ensure_workspace_count(workspace_count);
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn ensure_named_workspaces_for_monitor(
+        &mut self,
+        monitor_idx: usize,
+        names: &Vec<String>,
+    ) -> eyre::Result<()> {
+        tracing::info!("ensuring workspace count");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        monitor.ensure_workspace_count(names.len());
+
+        for (workspace_idx, name) in names.iter().enumerate() {
+            if let Some(workspace) = monitor.workspaces_mut().get_mut(workspace_idx) {
+                workspace.name = Option::from(name.clone());
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_focused_workspace(&mut self) -> Option<Workspace> {
+        let focused_monitor: &mut Monitor = self.focused_monitor_mut()?;
+        let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+        let workspace = focused_monitor.remove_workspace_by_idx(focused_workspace_idx);
+        if let Err(error) = focused_monitor.focus_workspace(focused_workspace_idx.saturating_sub(1))
+        {
+            tracing::error!(
+                "Error focusing previous workspace while removing the focused workspace: {}",
+                error
+            );
+        }
+        workspace
     }
 
     /// Asks the window manager to manage the window that has the focus in the compositor again
@@ -1364,6 +1557,96 @@ mod tests {
         // we should be able to successfully focus an existing workspace too
         wm.focus_workspace(0).unwrap();
         assert_eq!(wm.focused_workspace_idx().unwrap(), 0);
+    }
+
+    #[test]
+    fn test_remove_focused_workspace() {
+        let (mut wm, _context) = setup_window_manager();
+
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDeviceID".to_string(),
+        );
+
+        // a new monitor should have a single workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // the next index on the monitor should be the not-yet-created second workspace
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // add the monitor to the window manager
+        wm.monitors_mut().push_back(m);
+
+        {
+            // focus a workspace which doesn't yet exist should create it
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index + 1).unwrap();
+
+            // Monitor focused workspace should be 2
+            assert_eq!(monitor.focused_workspace_idx(), 2);
+
+            // Should have 3 Workspaces
+            assert_eq!(monitor.workspaces().len(), 3);
+        }
+
+        // Remove the focused workspace
+        wm.remove_focused_workspace().unwrap();
+
+        {
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index).unwrap();
+
+            // Should be focused on workspace 1
+            assert_eq!(monitor.focused_workspace_idx(), 1);
+
+            // Should have 2 Workspaces
+            assert_eq!(monitor.workspaces().len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_set_workspace_name() {
+        let (mut wm, _test_context) = setup_window_manager();
+
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDeviceID".to_string(),
+        );
+
+        // a new monitor should have a single workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // create a new workspace
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // add the monitor to the window manager
+        wm.monitors_mut().push_back(m);
+
+        {
+            // focusing a workspace which doesn't yet exist should create it
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index).unwrap();
+            assert_eq!(monitor.workspaces().len(), 2);
+        }
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 1);
+
+        // set the name of the first workspace
+        wm.set_workspace_name(0, 0, "workspace1".to_string())
+            .unwrap();
+
+        // monitor_workspace_index_by_name should return the index of the workspace with the name "workspace1"
+        let workspace_index = wm.monitor_workspace_index_by_name("workspace1").unwrap();
+
+        // workspace index 0 should now have the name "workspace1"
+        assert_eq!(workspace_index.1, 0);
     }
 
     #[test]
@@ -1727,5 +2010,74 @@ mod tests {
             result.is_err(),
             "Expected an error when trying to float a non-existent window"
         );
+    }
+
+    #[test]
+    fn test_ensure_named_workspace_for_monitor() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            // Add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Create a monitor
+            let m = monitor::new(
+                1,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDeviceID1".to_string(),
+            );
+
+            // Add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Workspace names list
+        let mut workspace_names = vec!["Workspace".to_string(), "Workspace1".to_string()];
+
+        // Ensure workspaces for monitor 1
+        wm.ensure_named_workspaces_for_monitor(1, &workspace_names)
+            .ok();
+
+        {
+            // Monitor 1 should have 2 workspaces with names "Workspace" and "Workspace1"
+            let monitor = wm.monitors().get(1).unwrap();
+            let workspaces = monitor.workspaces();
+            assert_eq!(workspaces.len(), workspace_names.len());
+            for (i, workspace) in workspaces.iter().enumerate() {
+                assert_eq!(workspace.name, Some(workspace_names[i].clone()));
+            }
+        }
+
+        // Add more workspaces to list
+        workspace_names.push("Workspace2".to_string());
+        workspace_names.push("Workspace3".to_string());
+
+        // Ensure workspaces for monitor 0
+        wm.ensure_named_workspaces_for_monitor(0, &workspace_names)
+            .ok();
+
+        {
+            // Monitor 0 should have 4 workspaces with names "Workspace", "Workspace1",
+            // "Workspace2" and "Workspace3"
+            let monitor = wm.monitors().front().unwrap();
+            let workspaces = monitor.workspaces();
+            assert_eq!(workspaces.len(), workspace_names.len());
+            for (i, workspace) in workspaces.iter().enumerate() {
+                assert_eq!(workspace.name, Some(workspace_names[i].clone()));
+            }
+        }
     }
 }

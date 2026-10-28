@@ -33,6 +33,15 @@
 //! - `focus-workspace` shows another workspace of the focused monitor, `move-to-workspace` moves
 //!   the focused window to a workspace and shows it, and `send-to-workspace` moves it there and
 //!   stays. A workspace is KWin's virtual desktop of the same number, counted from 0.
+//!   `cycle-workspace`, `cycle-empty-workspace`, `cycle-move-to-workspace` and
+//!   `cycle-send-to-workspace` go to the next or the previous workspace, `focus-last-workspace`,
+//!   `move-to-last-workspace` and `send-to-last-workspace` to the one that was in front before,
+//!   `focus-workspaces` shows a workspace on every monitor, and `new-workspace` and
+//!   `close-workspace` add a workspace and remove an empty one.
+//! - `workspace-name` names a workspace, which `focus-named-workspace`, `named-workspace-layout`
+//!   and `named-workspace-tiling` find by its name; `workspace-layout` and `workspace-tiling` set
+//!   the layout and the tiling of a workspace by its index, and `ensure-workspaces` and
+//!   `ensure-named-workspaces` give a monitor workspaces up to a number, or with names.
 //!
 //! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
 //! always in it, `session-float-rule` floats the focused window and every window like it until the
@@ -113,6 +122,10 @@ gen_enum_subcommand_args! {
     PreselectDirection: OperationDirection,
     CycleFocus: CycleDirection,
     CycleMove: CycleDirection,
+    CycleMoveToWorkspace: CycleDirection,
+    CycleSendToWorkspace: CycleDirection,
+    CycleWorkspace: CycleDirection,
+    CycleEmptyWorkspace: CycleDirection,
     FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
     CycleLayout: CycleDirection,
@@ -140,6 +153,86 @@ gen_target_subcommand_args! {
     MoveToWorkspace,
     SendToWorkspace,
     FocusWorkspace,
+    FocusWorkspaces,
+}
+
+macro_rules! gen_named_target_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Target workspace name
+                workspace: String,
+            }
+        )+
+    };
+}
+
+gen_named_target_subcommand_args! {
+    FocusNamedWorkspace,
+}
+
+// Thanks to @danielhenrymantilla for showing me how to use cfg_attr with an optional argument like
+// this on the Rust Programming Language Community Discord Server
+macro_rules! gen_workspace_subcommand_args {
+    // Workspace Property: #[enum] Value Enum (if the value is an Enum)
+    // Workspace Property: Value Type (if the value is anything else)
+    ( $( $name:ident: $(#[enum] $(@$value_enum:tt)?)? $value:ty ),+ $(,)? ) => (
+        pastey::paste! {
+            $(
+                #[derive(clap::Parser)]
+                pub struct [<Workspace $name>] {
+                    /// Monitor index (zero-indexed)
+                    monitor: usize,
+
+                    /// Workspace index on the specified monitor (zero-indexed)
+                    workspace: usize,
+
+                    $(#[clap(value_enum)] $($value_enum)?)?
+                    #[cfg_attr(
+                        all($(FALSE $($value_enum)?)?),
+                        doc = ""$name " of the workspace as a "$value ""
+                    )]
+                    value: $value,
+                }
+            )+
+        }
+    )
+}
+
+gen_workspace_subcommand_args! {
+    Name: String,
+    Layout: #[enum] DefaultLayout,
+    Tiling: #[enum] BooleanState,
+}
+
+macro_rules! gen_named_workspace_subcommand_args {
+    // Workspace Property: #[enum] Value Enum (if the value is an Enum)
+    // Workspace Property: Value Type (if the value is anything else)
+    ( $( $name:ident: $(#[enum] $(@$value_enum:tt)?)? $value:ty ),+ $(,)? ) => (
+        pastey::paste! {
+            $(
+                #[derive(clap::Parser)]
+                pub struct [<NamedWorkspace $name>] {
+                    /// Target workspace name
+                    workspace: String,
+
+                    $(#[clap(value_enum)] $($value_enum)?)?
+                    #[cfg_attr(
+                        all($(FALSE $($value_enum)?)?),
+                        doc = ""$name " of the workspace as a "$value ""
+                    )]
+                    value: $value,
+                }
+            )+
+        }
+    )
+}
+
+gen_named_workspace_subcommand_args! {
+    Layout: #[enum] DefaultLayout,
+    Tiling: #[enum] BooleanState,
 }
 
 macro_rules! gen_focused_workspace_padding_subcommand_args {
@@ -304,6 +397,22 @@ struct WorkspaceWorkAreaOffset {
 }
 
 #[derive(Parser)]
+struct EnsureWorkspaces {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Number of desired workspaces
+    workspace_count: usize,
+}
+
+#[derive(Parser)]
+struct EnsureNamedWorkspaces {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Names of desired workspaces
+    names: Vec<String>,
+}
+
+#[derive(Parser)]
 #[allow(clippy::struct_excessive_bools)]
 struct Start {
     /// Arguments to pass to komorebi, after a `--`: `komorebic start -- --log-level debug`
@@ -451,12 +560,40 @@ enum SubCommand {
     /// Move the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     MoveToWorkspace(MoveToWorkspace),
+    /// Move the focused window to the workspace in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMoveToWorkspace(CycleMoveToWorkspace),
     /// Send the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     SendToWorkspace(SendToWorkspace),
+    /// Send the focused window to the workspace in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleSendToWorkspace(CycleSendToWorkspace),
+    /// Send the focused window to the last focused monitor workspace
+    SendToLastWorkspace,
+    /// Move the focused window to the last focused monitor workspace
+    MoveToLastWorkspace,
+    /// Focus the last focused workspace on the focused monitor
+    FocusLastWorkspace,
     /// Focus the specified workspace on the focused monitor
     #[clap(arg_required_else_help = true)]
     FocusWorkspace(FocusWorkspace),
+    /// Focus the specified workspace on all monitors
+    #[clap(arg_required_else_help = true)]
+    FocusWorkspaces(FocusWorkspaces),
+    /// Focus the specified workspace
+    #[clap(arg_required_else_help = true)]
+    FocusNamedWorkspace(FocusNamedWorkspace),
+    /// Close the focused workspace (must be empty and unnamed)
+    CloseWorkspace,
+    /// Focus the workspace in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleWorkspace(CycleWorkspace),
+    /// Focus the next empty workspace in the given cycle direction (if one exists)
+    #[clap(arg_required_else_help = true)]
+    CycleEmptyWorkspace(CycleWorkspace),
+    /// Create and append a new workspace on the focused monitor
+    NewWorkspace,
     /// Set the resize delta (used by resize-edge and resize-axis)
     #[clap(arg_required_else_help = true)]
     ResizeDelta(ResizeDelta),
@@ -514,12 +651,41 @@ enum SubCommand {
     PromoteWindow(PromoteWindow),
     /// Force the retiling of all managed windows
     Retile,
+    /// Create at least this many workspaces for the specified monitor
+    #[clap(arg_required_else_help = true)]
+    EnsureWorkspaces(EnsureWorkspaces),
+    /// Create these many named workspaces for the specified monitor
+    #[clap(arg_required_else_help = true)]
+    EnsureNamedWorkspaces(EnsureNamedWorkspaces),
     /// Set the container padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     ContainerPadding(ContainerPadding),
     /// Set the workspace padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspacePadding(WorkspacePadding),
+    /// Set the layout for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceLayout(WorkspaceLayout),
+    /// Set the layout for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceLayout(NamedWorkspaceLayout),
+    // /// Set a custom layout for the specified workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceCustomLayout(WorkspaceCustomLayout),
+    // /// Set a custom layout for the specified workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceCustomLayout(NamedWorkspaceCustomLayout),
+    /// Enable or disable window tiling for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceTiling(WorkspaceTiling),
+    /// Enable or disable window tiling for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceTiling(NamedWorkspaceTiling),
+    /// Set the workspace name for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceName(WorkspaceName),
     /// Toggle the paused state for all window tiling
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -703,6 +869,26 @@ fn main() -> eyre::Result<()> {
         SubCommand::FocusWorkspace(args) => {
             send_message(&SocketMessage::FocusWorkspaceNumber(args.target))?;
         }
+        SubCommand::FocusLastWorkspace => {
+            send_message(&SocketMessage::FocusLastWorkspace)?;
+        }
+        SubCommand::FocusWorkspaces(args) => {
+            send_message(&SocketMessage::FocusWorkspaceNumbers(args.target))?;
+        }
+        SubCommand::FocusNamedWorkspace(args) => {
+            send_message(&SocketMessage::FocusNamedWorkspace(args.workspace))?;
+        }
+        SubCommand::CloseWorkspace => {
+            send_message(&SocketMessage::CloseWorkspace)?;
+        }
+        SubCommand::CycleWorkspace(args) => {
+            send_message(&SocketMessage::CycleFocusWorkspace(args.cycle_direction))?;
+        }
+        SubCommand::CycleEmptyWorkspace(args) => {
+            send_message(&SocketMessage::CycleFocusEmptyWorkspace(
+                args.cycle_direction,
+            ))?;
+        }
         SubCommand::ToggleFloat => {
             send_message(&SocketMessage::ToggleFloat)?;
         }
@@ -715,8 +901,24 @@ fn main() -> eyre::Result<()> {
         SubCommand::MoveToWorkspace(args) => {
             send_message(&SocketMessage::MoveContainerToWorkspaceNumber(args.target))?;
         }
+        SubCommand::CycleMoveToWorkspace(args) => {
+            send_message(&SocketMessage::CycleMoveContainerToWorkspace(
+                args.cycle_direction,
+            ))?;
+        }
         SubCommand::SendToWorkspace(args) => {
             send_message(&SocketMessage::SendContainerToWorkspaceNumber(args.target))?;
+        }
+        SubCommand::CycleSendToWorkspace(args) => {
+            send_message(&SocketMessage::CycleSendContainerToWorkspace(
+                args.cycle_direction,
+            ))?;
+        }
+        SubCommand::MoveToLastWorkspace => {
+            send_message(&SocketMessage::MoveContainerToLastWorkspace)?;
+        }
+        SubCommand::SendToLastWorkspace => {
+            send_message(&SocketMessage::SendContainerToLastWorkspace)?;
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
@@ -780,6 +982,16 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ManageRule(args) => {
             send_message(&SocketMessage::ManageRule(args.identifier, args.id))?;
+        }
+        SubCommand::NewWorkspace => {
+            send_message(&SocketMessage::NewWorkspace)?;
+        }
+        SubCommand::WorkspaceName(name) => {
+            send_message(&SocketMessage::WorkspaceName(
+                name.monitor,
+                name.workspace,
+                name.value,
+            ))?;
         }
         SubCommand::ResizeDelta(args) => {
             send_message(&SocketMessage::ResizeDelta(args.pixels))?;
@@ -848,6 +1060,33 @@ fn main() -> eyre::Result<()> {
                 args.adjustment,
             ))?;
         }
+        SubCommand::WorkspaceLayout(args) => {
+            send_message(&SocketMessage::WorkspaceLayout(
+                args.monitor,
+                args.workspace,
+                args.value,
+            ))?;
+        }
+        SubCommand::NamedWorkspaceLayout(args) => {
+            send_message(&SocketMessage::NamedWorkspaceLayout(
+                args.workspace,
+                args.value,
+            ))?;
+        }
+
+        SubCommand::WorkspaceTiling(args) => {
+            send_message(&SocketMessage::WorkspaceTiling(
+                args.monitor,
+                args.workspace,
+                args.value.into(),
+            ))?;
+        }
+        SubCommand::NamedWorkspaceTiling(args) => {
+            send_message(&SocketMessage::NamedWorkspaceTiling(
+                args.workspace,
+                args.value.into(),
+            ))?;
+        }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
         }
@@ -859,6 +1098,18 @@ fn main() -> eyre::Result<()> {
             } else {
                 send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
             }
+        }
+        SubCommand::EnsureWorkspaces(workspaces) => {
+            send_message(&SocketMessage::EnsureWorkspaces(
+                workspaces.monitor,
+                workspaces.workspace_count,
+            ))?;
+        }
+        SubCommand::EnsureNamedWorkspaces(args) => {
+            send_message(&SocketMessage::EnsureNamedWorkspaces(
+                args.monitor,
+                args.names,
+            ))?;
         }
         SubCommand::UnmanagedWindowOperationBehaviour(args) => {
             send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(

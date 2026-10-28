@@ -20,7 +20,8 @@ each part of the daemon that is added has its place here.
   the panels).
 - **Workspace**: the containers a monitor shows, in order, and the layout that tiles
   them. A monitor has a ring of workspaces and shows one of them. Workspace `i` is the
-  compositor's desktop `i` on that monitor.
+  compositor's desktop `i` on that monitor. A workspace can have a name, which the named
+  commands find it by.
 - **Desktop**: one of KWin's virtual desktops. KWin shows the windows of one desktop on each
   output and hides the others; with its per-output virtual desktops on, each output shows a
   desktop of its own.
@@ -421,6 +422,22 @@ of the monitor and shows that workspace, and `SendContainerToWorkspaceNumber` do
 and leaves the workspace in front showing ([`WindowManager::move_container_to_workspace`]). A
 workspace that does not exist yet is created, with the ones before it, and gets a desktop.
 
+The other workspace commands are made of the same two operations. `CycleFocusWorkspace`,
+`CycleMoveContainerToWorkspace` and `CycleSendContainerToWorkspace` take the next or the previous
+workspace, which wraps around, and `CycleFocusEmptyWorkspace` the next or the previous with no
+window. A monitor remembers the workspace that was in front before ([`Monitor::focus_workspace`]
+records it), which `FocusLastWorkspace`, `MoveContainerToLastWorkspace` and
+`SendContainerToLastWorkspace` take. `FocusWorkspaceNumbers` shows a workspace on every monitor.
+`WorkspaceName` names a workspace, `EnsureNamedWorkspaces` gives a monitor named workspaces, and
+`FocusNamedWorkspace`, `NamedWorkspaceLayout` and `NamedWorkspaceTiling` look a workspace up by
+its name on every monitor ([`WindowManager::monitor_workspace_index_by_name`]); a name no
+workspace has changes nothing. `FocusNamedWorkspace` focuses the monitor that has the workspace
+([`WindowManager::focus_monitor`]). `WorkspaceLayout` and `WorkspaceTiling` set the layout and the
+tiling of a workspace by index. `NewWorkspace` adds a workspace and shows it, `EnsureWorkspaces`
+gives a monitor workspaces up to a number, and `CloseWorkspace` removes the workspace in front
+when it has no window and no name and is not the monitor's last. A name is komorebi's: the
+compositor's desktops keep theirs.
+
 `PreselectDirection` reserves the index on one side of the focused container for the next
 window ([`WindowManager::preselect_container_in_direction`]). The workspace inserts an empty
 container there ([`Container::preselect`]), which [`Workspace::update`] keeps and the layout
@@ -481,7 +498,8 @@ module's unit.
   window out, move the focus, move the focused container, change the layout, resize or
   promote the focused container, float a window, lock a container, set the padding of a
   workspace, manage and unmanage a window, show a workspace, move a container to another
-  workspace, follow a workspace switch made by something else).
+  workspace, follow a workspace switch made by something else, name a workspace and find
+  it by its name, set the layout of a workspace that is not in front).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -583,6 +601,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A workspace switch or a window move made by something else is followed, and answered with no command | framework path: the table reports what it did not send as a `WorkspaceChange` or a `WorkspaceMove`, and [`WindowManager::adopt_workspace_change`] asks the compositor for nothing | `a_workspace_switch_by_someone_else_is_followed_not_undone`, `a_window_moved_to_another_desktop_by_someone_else_changes_workspace`, `another_party_switching_a_monitor_is_a_workspace_change`, `vm-workspace-switch` ("nothing is flip-flopping") | none |
 | komorebi's own switch or move, reported back by KWin, changes nothing | framework path: the table records a switch and a move when it makes their commands | `the_compositor_reporting_komorebis_own_switch_changes_nothing`, `komorebis_own_move_coming_back_as_an_event_moves_nothing`, `komorebi_switching_a_monitor_comes_back_as_a_change_to_what_it_already_knows` | none |
 | The user's `kwinrc` gets back the value komorebi changed, also after a crash | framework path: [`Kwinrc`] records the first value of a key in a backup file, and the backend's `shutdown` puts it back | `what_komorebi_changed_is_put_back_exactly_and_what_it_added_is_removed`, `a_backup_left_by_a_crash_keeps_the_values_from_before_the_first_run`, `vm-workspace-switch` ("back as they were") | `SIGKILL`: the next run puts it back when it stops |
+| A workspace is closed only when it has no window and no name and is not the monitor's last | framework path: the `CloseWorkspace` arm of [`WindowManager::process_command`] checks all three | `new_workspace_adds_one_and_close_workspace_removes_it_when_it_is_empty_and_unnamed` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
@@ -714,7 +733,9 @@ A window is shown, and ends up on a tile:
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
-  fake's desktops; [`komorebi/src/kwin/kwinrc.rs`](../../komorebi/src/kwin/kwinrc.rs), the
+  fake's desktops;
+  [`komorebi/tests/workspace_commands.rs`](../../komorebi/tests/workspace_commands.rs), naming,
+  cycling and the other workspace commands; [`komorebi/src/kwin/kwinrc.rs`](../../komorebi/src/kwin/kwinrc.rs), the
   `kwinrc` editor and its tests.
 - [`nix/tests/vm/suites/workspace-switch`](../../nix/tests/vm/suites/workspace-switch/test.py):
   workspaces as a real KWin's desktops, switched by `komorebic` and by KWin;
@@ -809,6 +830,9 @@ A window is shown, and ends up on a tile:
 [`WindowManager::adopt_workspace_change`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::focus_workspace`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::move_container_to_workspace`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::monitor_workspace_index_by_name`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::focus_monitor`]: ../../komorebi/src/window_manager.rs
+[`Monitor::focus_workspace`]: ../../komorebi/src/monitor.rs
 [`bridge.js`]: ../../komorebi/src/kwin/bridge.js
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts
 [`bridge.test.js`]: ../../komorebi/src/kwin/bridge.test.js

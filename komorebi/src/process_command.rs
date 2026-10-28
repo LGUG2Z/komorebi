@@ -87,6 +87,19 @@
 //!   shows it, and **SendContainerToWorkspaceNumber** moves it there and stays
 //!   ([`WindowManager::move_container_to_workspace`]). A workspace that does not exist yet is
 //!   made, with the ones before it.
+//! - **CycleFocusWorkspace**, **CycleMoveContainerToWorkspace** and
+//!   **CycleSendContainerToWorkspace** do the same for the next or the previous workspace, and
+//!   **FocusLastWorkspace**, **MoveContainerToLastWorkspace** and
+//!   **SendContainerToLastWorkspace** for the workspace that was in front before.
+//!   **CycleFocusEmptyWorkspace** shows the next or the previous workspace with no window, and
+//!   **FocusWorkspaceNumbers** shows a workspace on every monitor.
+//! - **WorkspaceName** names a workspace and **EnsureNamedWorkspaces** gives a monitor named
+//!   workspaces; **FocusNamedWorkspace** shows the workspace with a name, on its monitor
+//!   ([`WindowManager::monitor_workspace_index_by_name`]), and **NamedWorkspaceLayout** and
+//!   **NamedWorkspaceTiling** set its layout and its tiling, which **WorkspaceLayout** and
+//!   **WorkspaceTiling** do by index. **EnsureWorkspaces** gives a monitor workspaces up to a
+//!   number, **NewWorkspace** adds one and shows it, and **CloseWorkspace** removes the workspace
+//!   in front when it has no window and no name and is not the monitor's last.
 //! - **Retile** tiles the focused workspace of every monitor again, without the resize
 //!   adjustments, and **RetileWithResizeDimensions** with them.
 //! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
@@ -133,6 +146,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::num::NonZeroUsize;
 use std::os::unix::net::UnixStream;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -208,6 +222,9 @@ impl WindowManager {
     ///   `UnlockMonitorWorkspaceContainer` is not there (a container that is not there is ignored).
     /// - The focused window cannot be floated or put back, for one of the reasons
     ///   [`WindowManager::toggle_float`] gives.
+    /// - The monitor or the workspace a message names by its index is not there
+    ///   (`WorkspaceName`, `WorkspaceLayout`, `WorkspaceTiling`, `EnsureWorkspaces`,
+    ///   `EnsureNamedWorkspaces`). A name no workspace has is ignored.
     /// - The focused monitor has no workspace or no container to move to another workspace, or
     ///   the compositor reports no window with the focus (`MoveContainerToWorkspaceNumber`,
     ///   `SendContainerToWorkspaceNumber`), or the focused window of the workspace that is shown
@@ -282,9 +299,117 @@ impl WindowManager {
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
             }
+            SocketMessage::CycleFocusWorkspace(direction) => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let workspace_idx = direction.next_idx(
+                    focused_workspace_idx,
+                    NonZeroUsize::new(workspaces)
+                        .ok_or_eyre("there must be at least one workspace")?,
+                );
+
+                self.focus_workspace(workspace_idx)?;
+            }
+            SocketMessage::CycleFocusEmptyWorkspace(direction) => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let mut empty_workspaces = vec![];
+
+                for (idx, w) in focused_monitor.workspaces().iter().enumerate() {
+                    if w.is_empty() {
+                        empty_workspaces.push(idx);
+                    }
+                }
+
+                if !empty_workspaces.is_empty() {
+                    let mut workspace_idx = direction.next_idx(
+                        focused_workspace_idx,
+                        NonZeroUsize::new(workspaces)
+                            .ok_or_eyre("there must be at least one workspace")?,
+                    );
+
+                    while !empty_workspaces.contains(&workspace_idx) {
+                        workspace_idx = direction.next_idx(
+                            workspace_idx,
+                            NonZeroUsize::new(workspaces)
+                                .ok_or_eyre("there must be at least one workspace")?,
+                        );
+                    }
+
+                    self.focus_workspace(workspace_idx)?;
+                }
+            }
+            SocketMessage::FocusLastWorkspace => {
+                let idx = self
+                    .focused_monitor()
+                    .ok_or_eyre("there is no monitor")?
+                    .focused_workspace_idx();
+
+                if let Some(monitor) = self.focused_monitor_mut()
+                    && let Some(last_focused_workspace) = monitor.last_focused_workspace
+                {
+                    self.focus_workspace(last_focused_workspace)?;
+                }
+
+                self.focused_monitor_mut()
+                    .ok_or_eyre("there is no monitor")?
+                    .last_focused_workspace = Option::from(idx);
+            }
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
                 if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
                     self.focus_workspace(workspace_idx)?;
+                }
+            }
+            SocketMessage::FocusWorkspaceNumbers(workspace_idx) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+
+                for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                    if i != focused_monitor_idx {
+                        monitor.focus_workspace(workspace_idx)?;
+                        monitor.load_focused_workspace(false)?;
+                    }
+                }
+
+                self.focus_workspace(workspace_idx)?;
+            }
+            SocketMessage::FocusNamedWorkspace(ref name) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(name)
+                {
+                    self.focus_monitor(monitor_idx)?;
+                    self.focus_workspace(workspace_idx)?;
+                }
+            }
+            SocketMessage::CloseWorkspace => {
+                let mut can_close = false;
+
+                if let Some(monitor) = self.focused_monitor_mut() {
+                    let focused_workspace_idx = monitor.focused_workspace_idx();
+                    let next_focused_workspace_idx = focused_workspace_idx.saturating_sub(1);
+
+                    if let Some(workspace) = monitor.focused_workspace()
+                        && monitor.workspaces().len() > 1
+                        && workspace.containers().is_empty()
+                        && workspace.floating_windows().is_empty()
+                        && workspace.name.is_none()
+                    {
+                        can_close = true;
+                    }
+
+                    if can_close
+                        && monitor
+                            .workspaces_mut()
+                            .remove(focused_workspace_idx)
+                            .is_some()
+                    {
+                        self.focus_workspace(next_focused_workspace_idx)?;
+                    }
                 }
             }
 
@@ -293,6 +418,97 @@ impl WindowManager {
             }
             SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, false, None)?;
+            }
+            SocketMessage::MoveContainerToLastWorkspace => {
+                let idx = self
+                    .focused_monitor()
+                    .ok_or_eyre("there is no monitor")?
+                    .focused_workspace_idx();
+
+                if let Some(monitor) = self.focused_monitor_mut()
+                    && let Some(last_focused_workspace) = monitor.last_focused_workspace
+                {
+                    self.move_container_to_workspace(last_focused_workspace, true, None)?;
+                }
+
+                self.focused_monitor_mut()
+                    .ok_or_eyre("there is no monitor")?
+                    .last_focused_workspace = Option::from(idx);
+            }
+            SocketMessage::SendContainerToLastWorkspace => {
+                let idx = self
+                    .focused_monitor()
+                    .ok_or_eyre("there is no monitor")?
+                    .focused_workspace_idx();
+
+                if let Some(monitor) = self.focused_monitor_mut()
+                    && let Some(last_focused_workspace) = monitor.last_focused_workspace
+                {
+                    self.move_container_to_workspace(last_focused_workspace, false, None)?;
+                }
+                self.focused_monitor_mut()
+                    .ok_or_eyre("there is no monitor")?
+                    .last_focused_workspace = Option::from(idx);
+            }
+            SocketMessage::CycleMoveContainerToWorkspace(direction) => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let workspace_idx = direction.next_idx(
+                    focused_workspace_idx,
+                    NonZeroUsize::new(workspaces)
+                        .ok_or_eyre("there must be at least one workspace")?,
+                );
+
+                self.move_container_to_workspace(workspace_idx, true, None)?;
+            }
+            SocketMessage::CycleSendContainerToWorkspace(direction) => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let workspace_idx = direction.next_idx(
+                    focused_workspace_idx,
+                    NonZeroUsize::new(workspaces)
+                        .ok_or_eyre("there must be at least one workspace")?,
+                );
+
+                self.move_container_to_workspace(workspace_idx, false, None)?;
+            }
+            SocketMessage::NewWorkspace => {
+                self.new_workspace()?;
+            }
+            SocketMessage::WorkspaceTiling(monitor_idx, workspace_idx, tile) => {
+                self.set_workspace_tiling(monitor_idx, workspace_idx, tile)?;
+            }
+            SocketMessage::WorkspaceLayout(monitor_idx, workspace_idx, layout) => {
+                self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
+            }
+            SocketMessage::NamedWorkspaceTiling(ref workspace, tile) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_tiling(monitor_idx, workspace_idx, tile)?;
+                }
+            }
+            SocketMessage::WorkspaceName(monitor_idx, workspace_idx, ref name) => {
+                self.set_workspace_name(monitor_idx, workspace_idx, name.to_string())?;
+            }
+            SocketMessage::NamedWorkspaceLayout(ref workspace, layout) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
+                }
+            }
+            SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
+                self.ensure_workspaces_for_monitor(monitor_idx, workspace_count)?;
+            }
+            SocketMessage::EnsureNamedWorkspaces(monitor_idx, ref names) => {
+                self.ensure_named_workspaces_for_monitor(monitor_idx, names)?;
             }
             SocketMessage::ToggleFloat => self.toggle_float(false)?,
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
@@ -488,6 +704,14 @@ impl WindowManager {
                         .to_string(),
                     StateQuery::FocusedWindowIndex => {
                         self.focused_container()?.focused_window_idx().to_string()
+                    }
+                    StateQuery::FocusedWorkspaceName => {
+                        let focused_monitor =
+                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                        focused_monitor
+                            .focused_workspace_name()
+                            .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
                     }
                     StateQuery::Version => build::VERSION.to_string(),
                     StateQuery::FocusedWorkspaceLayout => {
@@ -1062,6 +1286,8 @@ mod tests {
         assert_eq!(query(StateQuery::FocusedWorkspaceIndex)?, "0");
         assert_eq!(query(StateQuery::FocusedContainerIndex)?, "0");
         assert_eq!(query(StateQuery::FocusedWindowIndex)?, "0");
+        // a workspace with no name is named by its index
+        assert_eq!(query(StateQuery::FocusedWorkspaceName)?, "0");
         assert_eq!(query(StateQuery::FocusedWorkspaceLayout)?, "BSP");
         assert_eq!(query(StateQuery::FocusedContainerKind)?, "Single");
         // the version is shadow-rs's description of the build, the package version first

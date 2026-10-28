@@ -149,6 +149,7 @@ impl From<&WindowManager> for State {
                         .workspaces()
                         .iter()
                         .map(|workspace| Workspace {
+                            name: workspace.name.clone(),
                             containers: workspace.containers.clone(),
                             floating_windows: workspace.floating_windows.clone(),
                             layout: workspace.layout.clone(),
@@ -170,6 +171,8 @@ impl From<&WindowManager> for State {
                     ws.focus(monitor.workspaces.focused_idx());
                     ws
                 },
+                last_focused_workspace: monitor.last_focused_workspace,
+                // workspace_names: monitor.workspace_names.clone(),
                 container_padding: monitor.container_padding,
                 workspace_padding: monitor.workspace_padding,
             })

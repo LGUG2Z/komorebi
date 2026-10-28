@@ -66,6 +66,10 @@ pub struct Monitor {
     pub window_based_work_area_offset_limit: isize,
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
+    /// The workspace that was in front before the one in front now, which `focus-last-workspace`
+    /// shows again
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_focused_workspace: Option<usize>,
 }
 
 /// Returns a monitor with one empty workspace, the way [`Monitor::new`] makes one, from owned
@@ -90,6 +94,7 @@ pub fn new(
         window_based_work_area_offset: None,
         window_based_work_area_offset_limit: 1,
         workspaces,
+        last_focused_workspace: None,
         container_padding: None,
         workspace_padding: None,
     }
@@ -119,6 +124,7 @@ impl Monitor {
             window_based_work_area_offset_limit: 1,
             container_padding: None,
             workspace_padding: None,
+            last_focused_workspace: None,
         }
     }
 
@@ -176,6 +182,7 @@ impl Monitor {
             if workspaces.get(idx).is_none() {
                 workspaces.resize(idx + 1, Workspace::default());
             }
+            self.last_focused_workspace = Some(self.workspaces.focused_idx());
             self.workspaces.focus(idx);
         }
 
@@ -425,6 +432,13 @@ impl Monitor {
             self.workspaces_mut()
                 .resize(ensure_count, Workspace::default());
         }
+    }
+
+    /// The name of the focused workspace, if it has one
+    pub fn focused_workspace_name(&self) -> Option<String> {
+        self.focused_workspace()
+            .map(|w| w.name.clone())
+            .unwrap_or(None)
     }
 
     /// The layout of the focused workspace, if the monitor has one and its tiling is on

@@ -192,12 +192,43 @@ toggle-tiling
 toggle-tiling
 toggle-pause
 toggle-pause
+ensure-named-workspaces 0 one two three
+workspace-name 0 0 one
+ensure-workspaces 0 3
+workspace-tiling 0 0 disable
+workspace-tiling 0 0 enable
+named-workspace-tiling one disable
+named-workspace-tiling one enable
 focus-workspace 1
 focus-workspace 0
+focus-last-workspace
+focus-last-workspace
+focus-workspaces 1
+focus-workspaces 0
+cycle-workspace next
+cycle-workspace previous
+cycle-empty-workspace next
+focus-workspace 0
+focus-named-workspace two
+focus-named-workspace one
 send-to-workspace 1
 focus-workspace 1
 move-to-workspace 0
 focus-workspace 0
+cycle-send-to-workspace next
+focus-workspace 1
+cycle-move-to-workspace previous
+focus-workspace 0
+send-to-last-workspace
+move-to-last-workspace
+focus-workspace 0
+new-workspace
+close-workspace
+focus-workspace 0
+workspace-layout 0 0 columns
+workspace-layout 0 0 bsp
+named-workspace-layout one columns
+named-workspace-layout one bsp
 global-work-area-offset 10 10 20 20
 global-work-area-offset 0 0 0 0
 monitor-work-area-offset 0 10 10 20 20
@@ -331,6 +362,7 @@ for query in [
     "focused-workspace-index",
     "focused-container-index",
     "focused-window-index",
+    "focused-workspace-name",
     "focused-workspace-layout",
     "focused-container-kind",
     "version",
