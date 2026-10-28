@@ -442,6 +442,11 @@ with two outputs of 1920x1080:
   how it gets it back. The script reports the outputs that are left after the first and all of
   them after the second, and komorebi follows both. A disabled output is enabled again by the
   name it had.
+- A window that a script moves so that the middle of its frame is on the other output is on
+  that output: `Window.output` follows the middle of the frame (found in the spikes with two
+  outputs on KWin 6.8.1). Its desktops are not changed by the move, so it stays on the desktop
+  it was on. KWin raises `outputChanged` for it, which `vm-hotplug` shows by moving windows with
+  `kdotool windowmove`, as a shortcut or the window menu would.
 
 ## How long a retile takes
 

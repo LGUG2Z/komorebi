@@ -18,6 +18,22 @@ KWin has no signal for the room a panel leaves, so komorebi looks at it when a p
 closes or moves, and once a second. A panel that is laid out a moment after komorebi starts is
 found within a second.
 
+## A window is moved to another monitor
+
+A window moves to another monitor when something other than komorebi moves it: a KWin shortcut
+that sends the window to the next screen, the window menu, a drag with the pointer, or an
+application. KWin tells komorebi, which finds every container and floating window that is on
+another monitor than the one it has it on, and moves it to the workspace with the same number on
+the monitor it is on. The monitors that windows moved between are tiled again.
+
+A window is on the monitor whose area has the middle of its frame. A container is on the monitor
+of the window that has the focus in it. A move komorebi made itself, with
+[`komorebic move-to-monitor`](../cli/move-to-monitor.md) for one, is in komorebi's state already,
+and finds nothing to do.
+
+While the user drags a window with the pointer, komorebi moves nothing: where the window goes is
+decided when they let go of it ([moving windows by dragging](moving-windows.md#by-dragging)).
+
 ## A monitor is unplugged
 
 KWin takes the windows of an output that goes (it is unplugged, or disabled with
@@ -27,6 +43,11 @@ window, goes to the workspace with the same number on the monitor KWin put its w
 the workspaces that changed are tiled again. A [stack](stacking-windows.md) goes as a stack. A
 monocle window and a maximized window come as tiles of their own, and the windows the monocle hid
 are shown again.
+
+A moment after an output goes or comes back (1.5 seconds), komorebi looks at where every window
+is once more, because KWin moves windows about for a while after the outputs change: the windows
+it took to the monitor that is left may go back to the output that is plugged in again, and a
+change of resolution or scale changes where the middle of a window is.
 
 komorebi keeps the monitor that went, with its workspaces, layouts, paddings and offsets, for
 when it comes back, and forgets the [workspace rules](workspace-rules.md) of its workspaces until

@@ -47,6 +47,11 @@
 //!   ([`WindowManager::resize_window`]), and the workspace is tiled again. **ResizeStep**, part
 //!   way through, tiles the workspace as if the drag ended there, from the layout the drag began
 //!   on, and leaves the dragged window where the user has it.
+//! - **OutputChange**: a window is on another output than it was, because the user moved it (a
+//!   shortcut that sends a window to the next screen) or KWin did (an output went away or came
+//!   back). The containers and floating windows of every monitor follow their windows to the
+//!   monitors they are on, and the monitors that changed are tiled again
+//!   ([`WindowManager::follow_window_to_its_monitor`]).
 //! - **WorkspaceChange**: a monitor shows another workspace, because something other than komorebi
 //!   switched it (a pager, a shortcut, an app raising a window of another desktop). The window
 //!   manager follows ([`WindowManager::adopt_workspace_change`]) and asks the compositor for
@@ -288,6 +293,9 @@ impl WindowManager {
             WindowManagerEvent::WorkspaceChange(..) => {}
             // handled before the window is looked up
             WindowManagerEvent::ResizeStep(..) => {}
+            WindowManagerEvent::OutputChange(..) => {
+                self.follow_window_to_its_monitor(window)?;
+            }
             WindowManagerEvent::WorkspaceMove(_, _, idx) => {
                 // somebody put the window on another workspace's desktop: it belongs there now.
                 // (komorebi's own moves come back here too, and find the window already there.)

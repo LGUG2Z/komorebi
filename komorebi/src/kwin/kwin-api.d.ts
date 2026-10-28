@@ -78,6 +78,9 @@ interface KWinWindow {
     minimized: boolean;
     /** How opaque the window is drawn, 0 to 1: 1 is not see-through at all. */
     opacity: number;
+    /** The output the window is on, which is the one that has the middle of its frame; `null` when
+     * there is none. */
+    readonly output: Output | null;
     readonly fullScreen: boolean;
     /** `KWin::MaximizeMode`: 0 restored, 1 vertically, 2 horizontally, 3 both ways. */
     readonly maximizeMode: number;
@@ -93,6 +96,7 @@ interface KWinWindow {
     desktops: VirtualDesktop[];
     readonly frameGeometryChanged: Signal<[oldGeometry: QRectF]>;
     readonly minimizedChanged: Signal;
+    readonly outputChanged: Signal;
     readonly captionChanged: Signal;
     readonly desktopsChanged: Signal;
     /** The user took hold of the window with the pointer, to move it (`move`) or resize it

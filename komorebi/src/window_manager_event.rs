@@ -41,6 +41,8 @@ pub enum KWinNotification {
     WindowMinimized,
     /// `window.minimizedChanged` to false
     WindowRestored,
+    /// `window.outputChanged`
+    WindowOutputChanged,
     /// `window.captionChanged`
     CaptionChanged,
     /// `window.interactiveMoveResizeStarted` for a move
@@ -75,6 +77,9 @@ pub enum WindowManagerEvent {
     Restore(SystemNotification, Window),
     /// The window's title changed
     TitleUpdate(SystemNotification, Window),
+    /// A window is on another output than it was: the user moved it (a shortcut), or KWin did when
+    /// an output went away or came back. Where it is now is what the window reports.
+    OutputChange(SystemNotification, Window),
     /// The user asked komorebi to manage the window (`ManageFocusedWindow`)
     Manage(Window),
     /// The user asked komorebi to stop managing the window (`UnmanageFocusedWindow`)
@@ -111,6 +116,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(_, window)
             | WindowManagerEvent::Restore(_, window)
             | WindowManagerEvent::TitleUpdate(_, window)
+            | WindowManagerEvent::OutputChange(_, window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Unmanage(window)
             | WindowManagerEvent::MoveStart(_, window)
@@ -140,6 +146,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(n, _)
             | WindowManagerEvent::Restore(n, _)
             | WindowManagerEvent::TitleUpdate(n, _)
+            | WindowManagerEvent::OutputChange(n, _)
             | WindowManagerEvent::MoveStart(n, _)
             | WindowManagerEvent::MoveEnd(n, _)
             | WindowManagerEvent::ResizeStart(n, _)
@@ -173,6 +180,18 @@ mod tests {
         assert_eq!(event.process_id(), Some(1301));
         assert_eq!(event.notification(), "WindowMinimized");
         assert_eq!(event.to_string(), "Minimize");
+    }
+
+    #[test]
+    fn an_output_change_names_its_window_and_the_signal_it_came_from() {
+        let event = WindowManagerEvent::OutputChange(
+            SystemNotification::KWin(KWinNotification::WindowOutputChanged),
+            Window::from(302),
+        );
+
+        assert_eq!(event.window(), Some(Window::from(302)));
+        assert_eq!(event.notification(), "WindowOutputChanged");
+        assert_eq!(event.to_string(), "OutputChange");
     }
 
     #[test]

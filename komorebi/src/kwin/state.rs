@@ -674,6 +674,9 @@ impl Table {
     ///   with no `id`, took it away from every window.
     /// - `minimized`: a window was minimized or brought back ([`WindowManagerEvent::Minimize`],
     ///   [`WindowManagerEvent::Restore`]).
+    /// - `output`: a window is on another output. It carries the frame the window has now, which
+    ///   goes with the output, since the two events arrive in no fixed order
+    ///   ([`WindowManagerEvent::OutputChange`]).
     /// - `caption`: a window's title changed ([`WindowManagerEvent::TitleUpdate`]).
     /// - `geometry`: a window's frame changed. It raises no event.
     /// - `desktops`: a window is on other desktops. When it is now on another workspace than the
@@ -716,6 +719,7 @@ impl Table {
             Some("activated") => self.on_activated(event),
             Some("minimized") => self.on_minimized(event),
             Some("move_resize_step") => self.on_drag_step(event),
+            Some("output") => self.on_output(event),
             Some("caption") => self.on_caption(event),
             Some("geometry") => {
                 if let Some(entry) = self.entry_mut(event) {
@@ -957,6 +961,30 @@ impl Table {
         } else {
             WindowManagerEvent::Restore(kwin(KWinNotification::WindowRestored), window)
         })]
+    }
+
+    fn on_output(&mut self, event: &Value) -> Vec<Output> {
+        let Some(id) = self.id_of(event) else {
+            return vec![];
+        };
+
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return vec![];
+        };
+
+        // the frame that goes with the output (the two events arrive in no fixed order)
+        if event["geo"].is_object() {
+            entry.info.rect = rect(&event["geo"]);
+        }
+
+        if !entry.info.normal {
+            return vec![];
+        }
+
+        vec![Output::Event(WindowManagerEvent::OutputChange(
+            kwin(KWinNotification::WindowOutputChanged),
+            Window::from(id),
+        ))]
     }
 
     fn on_caption(&mut self, event: &Value) -> Vec<Output> {
@@ -1335,6 +1363,18 @@ mod tests {
                 t.switch_commands(monitor, 1).unwrap();
             }
 
+            // the end of the resize is where the user took the edge, and the window's frame is
+            // the one KWin has: the frame at the end of the session is the one the editor has on
+            // the other output
+            if event["seq"] == 27 {
+                assert_eq!(
+                    t.drag_end(1).unwrap().right,
+                    1100,
+                    "where the user took the edge"
+                );
+                assert_eq!(t.window(1).unwrap().rect.right, 1040, "the frame KWin has");
+            }
+
             if event["type"] == "added" && event["caption"] == "a terminal" {
                 let w = t.window(2).unwrap();
                 assert_eq!(
@@ -1390,6 +1430,8 @@ mod tests {
                 "move_resize_finished -> ResizeEnd 1",
                 // a panel takes room from the monitor
                 "screens -> Monitor Resize",
+                // somebody moves the editor to another output
+                "output -> OutputChange 1",
             ]
         );
 
@@ -1397,11 +1439,9 @@ mod tests {
         let windows = t.windows();
         assert_eq!(windows.len(), 1);
         assert_eq!(windows[0].title, "notes.txt — Kate");
-        assert_eq!(windows[0].rect.right, 1040, "the frame KWin has");
         assert_eq!(
-            t.drag_end(1).unwrap().right,
-            1100,
-            "where the user took the edge"
+            windows[0].rect.right, 1040,
+            "the frame that goes with the output"
         );
         assert_eq!(t.window(3).map(|w| w.alive), Some(false));
         assert_eq!(t.window(2).unwrap().rect.bottom, 532, "the geometry event");
@@ -1613,6 +1653,53 @@ mod tests {
                 bottom: 4
             }
         );
+    }
+
+    #[test]
+    fn a_window_on_another_output_raises_an_output_change_with_the_frame_it_has_there() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
+
+        let out = t.handle(
+            &json!({
+                "type": "output", "id": "a", "output": "DP-2",
+                "geo": { "x": 2100, "y": 300, "w": 800, "h": 600 },
+            }),
+            now,
+        );
+
+        assert_eq!(events(&out), vec!["OutputChange 1"]);
+        let window = t.window(1).unwrap();
+        assert_eq!(
+            window.rect,
+            Rect {
+                left: 2100,
+                top: 300,
+                right: 800,
+                bottom: 600
+            }
+        );
+    }
+
+    #[test]
+    fn an_output_change_of_a_dialog_or_of_a_window_nobody_knows_raises_nothing() {
+        let mut t = table(vec![]);
+        t.handle(
+            &json!({
+                "type": "added", "id": "dialog", "pid": 0, "class": "foot", "caption": "Save As",
+                "normal": false, "minimized": false, "fullscreen": false,
+                "geo": { "x": 0, "y": 0, "w": 100, "h": 100 }, "desktops": ["d1"],
+            }),
+            Instant::now(),
+        );
+
+        for id in ["dialog", "nobody"] {
+            let out = t.handle(
+                &json!({ "type": "output", "id": id, "output": "DP-2" }),
+                Instant::now(),
+            );
+            assert!(out.is_empty(), "{out:?}");
+        }
     }
 
     #[test]

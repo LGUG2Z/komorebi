@@ -92,8 +92,10 @@ function window({
         },
         move: false,
         resize: false,
+        output: null,
         frameGeometryChanged: new Signal(),
         minimizedChanged: new Signal(),
+        outputChanged: new Signal(),
         captionChanged: new Signal(),
         desktopsChanged: new Signal(),
         interactiveMoveResizeStarted: new Signal(),
@@ -394,6 +396,10 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     screen.placementArea = geometry(0, 0, 1920, 1000);
     k.workspace.screensChanged.emit();
 
+    // and somebody sends the editor to another output
+    editor.output = { name: "DP-2" };
+    editor.outputChanged.emit();
+
     assert.deepStrictEqual(k.events(), events);
     assert.deepStrictEqual(editor.frameGeometry, geometry(40, 30, 1040, 1050));
     assert.equal(k.workspace.activeWindow, editor);
@@ -477,6 +483,25 @@ test("the outputs are looked at once a second, which finds a panel that starts a
     assert.deepStrictEqual(
         k.events().slice(1).map((e) => [e.type, e.screens[0].area.h]),
         [["screens", 1000]],
+    );
+});
+
+test("a window that is on another output is reported with the frame it has and the output's name", () => {
+    const w = window({ id: "{w}", frameGeometry: geometry(100, 100, 800, 600) });
+    const k = kwin({ windows: [w] });
+
+    w.frameGeometry = geometry(2100.4, 300, 800, 600);
+    w.output = { name: "DP-2" };
+    w.outputChanged.emit();
+    w.output = null;
+    w.outputChanged.emit();
+
+    assert.deepStrictEqual(
+        k.events().slice(1).filter((e) => e.type === "output"),
+        [
+            { type: "output", id: "{w}", geo: { x: 2100, y: 300, w: 800, h: 600 }, output: "DP-2", seq: 3 },
+            { type: "output", id: "{w}", geo: { x: 2100, y: 300, w: 800, h: 600 }, output: "", seq: 4 },
+        ],
     );
 });
 

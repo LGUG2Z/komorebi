@@ -49,9 +49,10 @@ grows with the code: each part of the daemon that is added has its place here.
   container, so it has left the layout, until it is put back in a container of its own where it
   was ([`Workspace::maximized_window`]).
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
-  the focus, minimized or restored, dragged by the user, or put on another workspace's desktop;
-  and that a monitor shows another workspace ([`WindowManagerEvent`]). Two events come from
-  komorebi itself: a command asks it to manage the focused window, or to stop managing it.
+  the focus, minimized or restored, dragged by the user, put on another workspace's desktop, or
+  moved to another output; and that a monitor shows another workspace
+  ([`WindowManagerEvent`]). Two events come from komorebi itself: a command asks it to manage the
+  focused window, or to stop managing it.
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
   (focus a window, move it, change the layout, resize it, show a workspace, retile, stop) or a
   question (the state, the monitors, one [`StateQuery`]).
@@ -360,6 +361,23 @@ added again. The configuration fills the cache as well: [`StaticConfig::postload
 [`StaticConfig::reload`] keep a copy of each monitor that has the entry its display index
 preference names, and make a monitor from the entry of each preference whose monitor is not
 connected, so that the monitor takes its entry when it is plugged in.
+
+The compositor can also move a window to another output without the set of outputs changing: a
+shortcut that sends it to the next screen, the window menu, an application. The bridge reports
+that from the window's `outputChanged` signal as an `output` event, with the frame the window
+has by then, since the signal and the frame arrive in no fixed order, and the table makes it an
+`OutputChange` event for the window manager. KWin also moves windows for a moment after outputs
+come and go, so the reconciliator looks again 1.5 seconds after each notification
+([`settle_later`]; a burst of notifications makes one look). Both end in
+[`WindowManager::follow_windows_to_their_monitors`]: it finds every container whose focused
+window, and every floating window, is on another monitor than the one the window manager has it
+on, and moves it, whole, to the workspace of the same number on the monitor that holds the
+middle of its frame, creating workspaces if that monitor has fewer, and tiles the monitors that
+windows moved between. The window manager reads every window, not only the one in the event,
+since when one moved others may have, and a move komorebi made itself is in its state already
+and finds nothing. While the user drags a window nothing moves, since the end of the drag decides
+where that window goes: the method returns at once while [`WindowManager::pending_move_op`] or
+[`WindowManager::pending_resize_op`] holds a drag.
 
 ## The command socket
 
@@ -1109,7 +1127,8 @@ module's unit.
   takes them, and [`reconcile_display_change`], which brings the window manager's monitors in
   line with the outputs;
   [`reconcile`](../../komorebi/src/reconcile.rs): moves what was on a monitor that went to the
-  monitors that are left.
+  monitors that are left, and every container whose window is on another monitor to that
+  monitor.
 - [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
   call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table;
   [`kwin::kwinrc`](../../komorebi/src/kwin/kwinrc.rs), the editor of the user's `kwinrc`, which
@@ -1276,6 +1295,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A parking desktop a dead daemon left is swept by the next one, and its windows go home | startup check: the first snapshot marks it stale, sends its windows to the first workspace's desktop, and the backend removes it | `a_parking_desktop_left_by_a_crashed_run_is_swept`, `a_stale_parking_desktop_is_not_the_one_windows_are_hidden_on`, `vm-stacks` ("a crash leaves a parking desktop") | none |
 | A monitor that changes size has the windows of the workspace in front tiled in the size it has now | framework path: the table reports a changed size or work area as a `Resize`, and the reconciliator reads the monitors again and tiles the focused monitor | `plugging_in_a_monitor_is_a_connection_change_and_a_new_panel_is_a_resize`, `a_change_of_resolution_is_tiled_again`, `vm-hotplug` ("tiled again inside the monitor as it is now") | `Retile` tiles every monitor |
 | The outputs are sent when they are not what the bridge last sent, and the room a panel leaves is found within a second | convention in the bridge: it sends after `screensChanged`, after a dock window opens, closes or moves, and in its watchdog, which runs every second | `a change of the outputs is sent as the screens, once, and the panel is looked at again`, `a panel that opens, moves or closes has the area of the outputs looked at again`, `the outputs are looked at once a second, which finds a panel that starts after the bridge` | none |
+| A window moved to another output by something other than komorebi is tiled on that monitor | framework path: the bridge reports an output change, the table makes it an `OutputChange` event, and [`WindowManager::follow_windows_to_their_monitors`] moves the containers whose windows are on another monitor | `a_window_sent_to_another_screen_by_a_shortcut_is_tiled_there`, `a_window_on_another_output_raises_an_output_change_with_the_frame_it_has_there`, `a window that is on another output is reported with the frame it has and the output's name`, `vm-hotplug` ("komorebi follows it") | none |
+| A move komorebi made itself is not undone when KWin reports it | framework path: [`WindowManager::follow_windows_to_their_monitors`] compares the frame of each window with the monitor the window manager has it on, and finds them equal | `vm-hotplug` ("still on the right monitor once KWin has said so") | none |
+| Nothing is moved while the user drags a window | framework path: [`WindowManager::follow_windows_to_their_monitors`] returns at once while [`WindowManager::pending_move_op`] or [`WindowManager::pending_resize_op`] holds a drag | `nothing_is_followed_while_the_user_drags_a_window` | none |
 | The windows of a monitor that is unplugged are tiled on the monitors that are left | framework path: [`reconcile_display_change`] has [`WindowManager::evacuate_monitor`] move each container and floating window to the monitor that holds it, before it removes the monitor | `the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left`, `vm-hotplug` ("tiled inside the screen that is left") | none |
 | A stack moves with its monitor as a stack | framework path: [`WindowManager::evacuate_monitor`] moves whole containers | `a_stack_goes_with_the_monitor_as_a_stack` | none |
 | A monocle or a maximized window of a monitor that goes is not lost | framework path: [`WindowManager::evacuate_monitor`] takes both out of the workspace and puts each in a container on the monitor that is left | `a_monocle_of_a_monitor_that_goes_comes_back_as_a_container_with_the_windows_it_hid`, `a_maximized_window_of_a_monitor_that_goes_is_not_lost` | none |
@@ -1508,9 +1530,11 @@ A window is shown, and ends up on a tile:
   corners dragged with a pointer in a Plasma session;
   [`nix/tests/vm/suites/live-resize`](../../nix/tests/vm/suites/live-resize/test.py), the
   neighbors read while the edge is held.
-- [`komorebi/tests/monitor_resize.rs`](../../komorebi/tests/monitor_resize.rs) and
-  [`komorebi/tests/hotplug.rs`](../../komorebi/tests/hotplug.rs): a monitor that changes size,
-  and monitors that are unplugged and plugged in, against the fake;
+- [`komorebi/tests/monitor_resize.rs`](../../komorebi/tests/monitor_resize.rs),
+  [`komorebi/tests/hotplug.rs`](../../komorebi/tests/hotplug.rs) and
+  [`komorebi/tests/follow_output.rs`](../../komorebi/tests/follow_output.rs): a monitor that
+  changes size, monitors that are unplugged and plugged in, and windows that move to another
+  output, against the fake;
   [`nix/tests/vm/suites/hotplug`](../../nix/tests/vm/suites/hotplug/test.py), both against a real
   KWin with two outputs.
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
@@ -1752,6 +1776,8 @@ A window is shown, and ends up on a tile:
 [`reconcile_display_change`]: ../../komorebi/src/monitor_reconciliator.rs
 [`insert_in_monitor_cache`]: ../../komorebi/src/monitor_reconciliator.rs
 [`WindowManager::evacuate_monitor`]: ../../komorebi/src/reconcile.rs
+[`WindowManager::follow_windows_to_their_monitors`]: ../../komorebi/src/reconcile.rs
+[`settle_later`]: ../../komorebi/src/monitor_reconciliator.rs
 [`NotificationEvent::Monitor`]: ../../komorebi/src/lib.rs
 [`bridge.js`]: ../../komorebi/src/kwin/bridge.js
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts

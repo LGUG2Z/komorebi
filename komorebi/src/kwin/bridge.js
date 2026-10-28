@@ -52,14 +52,16 @@
  * What the bridge sends, as the one argument of `Event`. `emit` adds `seq` to each, which counts
  * them from 1. `snapshot` is everything on the desktop, sent once, when the script starts; an
  * `activated` with no `id` means no window has the focus; `caption` is a window's new title;
- * `screens` says which outputs there are, with their geometry and work area, `desktops` which
- * desktops a window is on now, `desktop_list` which desktops there are, and `current_desktops`
- * which desktop each output shows, each sent when it is not what was last sent;
- * `move_resize_started` and `move_resize_finished` are the start and the end of a drag of a window
- * by the user, with its frame, and at the end where the pointer is and the frame the user last
- * asked for (`requested`, or `null` when the drag asked for none); `move_resize_step` is the
- * frame the user asks for part way through a resize, at most one every 16 ms; `cursor` answers a
- * cursor query, and `failed` gives back the commands of a batch that could not be carried out.
+ * `output` says that a window is on another output, by the output's name (empty for none), with
+ * the frame the window has there; `screens` says which outputs there are, with their geometry and
+ * work area, `desktops` which desktops a window is on now, `desktop_list` which desktops there
+ * are, and `current_desktops` which desktop each output shows, each sent when it is not what was
+ * last sent; `move_resize_started` and `move_resize_finished` are the start and the end of a drag
+ * of a window by the user, with its frame, and at the end where the pointer is and the frame the
+ * user last asked for (`requested`, or `null` when the drag asked for none); `move_resize_step`
+ * is the frame the user asks for part way through a resize, at most one every 16 ms; `cursor`
+ * answers a cursor query, and `failed` gives back the commands of a batch that could not be
+ * carried out.
  *
  * @typedef {{
  *     type: "snapshot", windows: WindowInfo[], screens: Screen[], desktops: Desktop[],
@@ -71,6 +73,7 @@
  * @typedef {{ type: "minimized", id: string, v: boolean }} Minimized
  * @typedef {{ type: "geometry", id: string, geo: Rect }} Geometry
  * @typedef {{ type: "screens", screens: Screen[] }} Screens
+ * @typedef {{ type: "output", id: string, geo: Rect, output: string }} OutputChange
  * @typedef {{ type: "caption", id: string, caption: string }} Caption
  * @typedef {{ type: "desktops", id: string, desktops: string[] }} Desktops
  * @typedef {{ type: "desktop_list", desktops: Desktop[] }} DesktopList
@@ -84,9 +87,9 @@
  * @typedef {{ type: "move_resize_step", id: string, geo: Rect }} MoveResizeStep
  * @typedef {{ type: "cursor", token: number, x: number, y: number }} CursorAnswer
  * @typedef {{ type: "failed", batch: number, cmds: Command[] }} Failed
- * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Screens | Caption
- *     | Desktops | DesktopList | CurrentDesktops | MoveResizeStarted | MoveResizeFinished
- *     | MoveResizeStep | CursorAnswer | Failed} BridgeEvent
+ * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Screens | OutputChange
+ *     | Caption | Desktops | DesktopList | CurrentDesktops | MoveResizeStarted
+ *     | MoveResizeFinished | MoveResizeStep | CursorAnswer | Failed} BridgeEvent
  */
 
 /**
@@ -439,6 +442,11 @@ function track(w, announce) {
     });
     w.minimizedChanged.connect(function () {
         emit("minimized", { id: id, v: !!w.minimized });
+    });
+    // moved to another output by somebody else: the user's shortcut, or KWin when an output goes
+    // away (its geometry goes with it, as the two arrive in no fixed order)
+    w.outputChanged.connect(function () {
+        emit("output", { id: id, geo: rect(w.frameGeometry), output: w.output ? String(w.output.name) : "" });
     });
     w.captionChanged.connect(function () {
         emit("caption", { id: id, caption: String(w.caption) });

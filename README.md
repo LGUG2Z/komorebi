@@ -173,7 +173,9 @@ workspace in front of the focused monitor in the area it now has. When an output
 is unplugged, KWin takes its windows to the outputs that are left, and the
 daemon takes the monitor's containers over to the monitors the windows are on,
 tiles them there, and keeps the monitor, with its settings, for when it is
-plugged in again.
+plugged in again. A window that something else moves to another output (a
+shortcut, an application, KWin itself) is followed to the workspace of the same
+number on that monitor and tiled there.
 
 The window manager models the desktop as monitors, each with a ring of
 workspaces, each with a ring of containers, each with a ring of windows. A

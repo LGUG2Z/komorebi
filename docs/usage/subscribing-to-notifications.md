@@ -2,9 +2,9 @@
 
 A program such as a status bar, a widget or a script can follow what komorebi does by
 subscribing to its notifications. After each event the window manager handles (a window
-was shown, closed, focused, minimized or restored), each message it takes on its socket and
-each change of the monitors, the daemon sends every subscriber a notification: the event, the
-message or the change, and the state of the window manager after it.
+was shown, closed, focused, minimized, restored or moved to another output), each message it
+takes on its socket and each change of the monitors, the daemon sends every subscriber a
+notification: the event, the message or the change, and the state of the window manager after it.
 
 ## Subscribing
 

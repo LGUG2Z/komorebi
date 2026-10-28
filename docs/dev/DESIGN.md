@@ -611,3 +611,16 @@ and tiles the monitors that changed. It keeps the
 monitor that went, with its workspaces and settings, so that an output that is plugged in again
 gets them back: the windows the monitor had are tiled elsewhere by then, and it comes back
 without them.
+
+## Why does komorebi look at every window again a moment after the monitors change?
+
+Because KWin moves windows about for a moment after the outputs change, so what it reports
+first is not where the windows end up. An output that went takes its windows to another, one
+that is plugged back may take them again, and a change of scale or resolution changes where the
+middle of a window is. The monitor reconciliator therefore waits 1.5 seconds after a change of
+the monitors (a burst of changes makes one wait) and then finds every container whose window is
+on another monitor than the one komorebi has it on, and follows it there. A window that KWin
+reports on another output is handled the same way, looking at every window and not only that
+one, since when one has moved others may have too. komorebi tiles at once the windows it knows
+about when the monitors change, such as those of an output that went; the ones KWin moves
+afterwards are tiled up to 1.5 seconds later.

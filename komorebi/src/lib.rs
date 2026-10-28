@@ -21,7 +21,8 @@
 //! When the compositor reports that a monitor changed size, [`monitor_reconciliator`] reads the
 //! monitors again and tiles the windows in the area each has now. When a monitor is unplugged it
 //! moves what was on it to the monitors that are left ([`reconcile`]), keeps the monitor for when
-//! it is plugged in again, and adds a monitor it has not seen.
+//! it is plugged in again, and adds a monitor it has not seen. A window that something else moves
+//! to another output is followed to that monitor ([`reconcile`]).
 //!
 //! The daemon also listens on a socket, `komorebi.sock` in [`struct@DATA_DIR`], for the messages
 //! in [`core::SocketMessage`]: [`process_command`] reads them and answers, with the window

@@ -13,14 +13,16 @@
 //!
 //! A monitor that is unplugged is kept, with its workspaces and settings, and a monitor plugged in
 //! with the same serial number id gets them back. The workspace rules of a monitor that goes are
-//! dropped, and the rules of the workspaces of one that comes back apply again.
+//! dropped, and the rules of the workspaces of one that comes back apply again. A moment after each
+//! notification, the windows are followed to the monitors the compositor moved them to
+//! ([`WindowManager::follow_windows_to_their_monitors`]).
 //!
 //! Every subscriber is sent a notification after each one is handled
 //! ([`NotificationEvent::Monitor`]), and the backend is asked for the look again
 //! ([`border_manager::send_notification`]), which it does nothing about unless a setting changed.
 //!
-//! Covered by `tests/monitor_resize.rs` and `tests/hotplug.rs` against the fake backend, and by
-//! the `vm-hotplug` VM suite.
+//! Covered by `tests/monitor_resize.rs`, `tests/hotplug.rs` and `tests/follow_output.rs` against the
+//! fake backend, and by the `vm-hotplug` VM suite.
 
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::Notification;
@@ -41,6 +43,9 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 use strum::Display;
 
 /// A change of the monitors, sent to the monitor reconciliator with [`send_notification`].
@@ -95,6 +100,34 @@ pub fn insert_in_monitor_cache(serial_number_id: &str, monitor: Monitor) {
         .lock();
 
     monitor_cache.insert(preferred_id, monitor);
+}
+
+/// Whether a [`settle_later`] is waiting, so that a burst of notifications makes one.
+static SETTLING: AtomicBool = AtomicBool::new(false);
+
+/// The compositor moves windows about for a moment after the monitors change: an output that went
+/// takes its windows to another, one that came back may take them again, a scale or a resolution
+/// changes where the middle of a window is. A moment later (1.5 seconds), see where they all are,
+/// with [`WindowManager::follow_windows_to_their_monitors`]. A call made while one is waiting
+/// does nothing.
+fn settle_later(wm: Arc<Mutex<WindowManager>>) {
+    if SETTLING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(1500));
+        SETTLING.store(false, Ordering::SeqCst);
+
+        let mut wm = wm.lock();
+        match wm.follow_windows_to_their_monitors() {
+            Ok(true) => tracing::info!("windows followed the monitors they were moved to"),
+            Ok(false) => {}
+            Err(error) => {
+                tracing::error!("could not follow the windows to their monitors: {error}")
+            }
+        }
+    });
 }
 
 /// Sends `notification` to the monitor reconciliator, without waiting. A notification is dropped,
@@ -458,8 +491,9 @@ pub fn reconcile_display_change(wm: &mut WindowManager) -> color_eyre::Result<()
 
 /// Takes the notifications one at a time, for as long as komorebi runs.
 ///
-/// Each is dealt with as the [module docs](self) say. The subscribers are then notified, and the
-/// backend is asked for the look again.
+/// Each is dealt with as the [module docs](self) say, and a moment later the windows are followed
+/// to their monitors. The subscribers are then notified, and the backend is asked for the look
+/// again.
 ///
 /// # Errors
 ///
@@ -491,6 +525,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 reconcile_display_change(&mut wm)?;
             }
         }
+
+        settle_later(wm.clone());
 
         {
             let wm = wm.lock();
