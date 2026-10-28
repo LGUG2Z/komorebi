@@ -31,6 +31,10 @@ class Machine(Protocol):
         """Runs each command and fails the test if it exits with status 0."""
         ...
 
+    def copy_from_machine(self, source: str, /) -> None:
+        """Copies the file `source` of the machine into `out_dir`, under its own name."""
+        ...
+
     def screenshot(self, filename: str, /) -> None:
         """Saves a PNG of the machine's display as `filename` in `out_dir`."""
         ...

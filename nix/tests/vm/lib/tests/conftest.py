@@ -15,6 +15,7 @@ class FakeMachine:
 
         self.commands: list[str] = []
         self.keys: list[str] = []
+        self.copied: list[str] = []
         self.replies: list[tuple[Callable[[str], bool], tuple[int, str]]] = []
 
     def reply(self, contains: str, status: int = 0, output: str = "") -> None:
@@ -30,6 +31,10 @@ class FakeMachine:
 
     def send_key(self, key: str, /) -> None:
         self.keys.append(key)
+
+    def copy_from_machine(self, source: str, /) -> None:
+        self.copied.append(source)
+        Image.new("RGB", (4, 4), (10, 20, 30)).save(self.out_dir / Path(source).name, format="PPM")
 
     def screenshot(self, filename: str, /) -> None:
         Image.new("RGB", (4, 4), (10, 20, 30)).save(self.out_dir / f"{filename}.png")

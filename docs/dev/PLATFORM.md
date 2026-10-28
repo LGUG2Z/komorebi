@@ -840,7 +840,9 @@ and KRDP 6.8.1 and FreeRDP 3.32.2:
   that FreeRDP's client is let in with the password and not with another (`/auth-only`); and that
   the picture the client gets, on an X server of its own, is the display: thousands of colors,
   within 16 of 255 on average of a screenshot taken right after it (6.7 and 6.6 in two runs, 2.9
-  seconds after the client started).
+  seconds after the client started). The VM suite `run-kde` runs the same checks against the
+  demo guest, whose password comes from a directory of the host that the guest's user cannot
+  read: the guest copies it before the login, and KRDP starts by itself.
 - Keys over RDP are not verified end to end. KRDP injects them into KWin through
   `org_kde_kwin_fake_input`, which, read from the sources, puts them through the input pipeline
   of KWin that KDE's global shortcuts are part of. No test sends one: aardwolf, a client that can

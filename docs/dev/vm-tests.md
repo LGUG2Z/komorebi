@@ -120,8 +120,14 @@ Wayland socket after 11 to 19 seconds and a painted desktop after 35 seconds.
 
 A suite's `node` can import a module of the repository: `rdp` imports
 [`nix/dev/krdp.nix`](../../nix/dev/krdp.nix), the RDP server of the Plasma
-guests to develop in, so that the suite checks the unit those guests run. The
-guests themselves, which stay up for a person to use, are in [utm.md](utm.md).
+guests to develop in, so that the suite checks the unit those guests run, and
+`run-kde` imports [`nix/dev/run-kde.nix`](../../nix/dev/run-kde.nix), the demo
+guest that the command `run-kde` starts, so that what CI boots is what the
+command starts. The node of `run-kde` also makes the directory that the host
+shares with that guest (`/run/run-kde`), owned by a user the guest does not
+have, with a password and a public key in it, as the guest finds it once it has
+mounted it. The guests themselves, which stay up for a person to use, are in
+[utm.md](utm.md).
 
 ## The library
 
@@ -214,6 +220,13 @@ the run.
   pointer lands within a pixel of where it is asked. The program itself is
   [`komorebi_vm/uinput.py`](../../nix/tests/vm/lib/komorebi_vm/uinput.py),
   whose arithmetic the `vm-lib` check tests.
+- `RdpClient(machine, kde)` is FreeRDP's client on an X server of its own, for a
+  node that runs KRDP: `listening()` asks the guest whether the server has its
+  port, `logs_in(password)` whether a client with that password is let in,
+  `connect(password)` starts a client that stays, `picture()` reads what it
+  shows from its X server, and `shows_display()` waits for that to be the
+  display (more than a thousand colors, within 16 of 255 on average of a
+  screenshot). The suites `rdp` and `run-kde` both use it.
 - `Keys(machine).send("alt-shift-k")` presses a combo on the machine's
   keyboard, written as KDE writes it in lower case with `-` between the keys
   (`meta` and `super` are the left Super key).

@@ -149,8 +149,9 @@ Linux machine with KVM (the same two QEMU guests, for `x86_64` and for
 and what a builder has to be for a Mac. They install komorebi with the NixOS
 module, and carry nothing of the person who uses them: a key, a password or a
 configuration of yours goes into the guest when it runs, never into these files.
-The `plasma-guests-eval` check evaluates them, and the VM suite `rdp` runs their
-RDP server, [`nix/dev/krdp.nix`](nix/dev/krdp.nix). The demo guest has no
+The `plasma-guests-eval` check evaluates them, the VM suite `rdp` runs their
+RDP server, [`nix/dev/krdp.nix`](nix/dev/krdp.nix), and the VM suite `run-kde`
+boots the demo guest. The demo guest has no
 password and no key in its closure: the host shares a directory with them, and
 `run-kde` ([`scripts/run-kde`](scripts/run-kde)) starts it. The script is
 shellchecked when the package is built, and `run-kde-dry-run` and

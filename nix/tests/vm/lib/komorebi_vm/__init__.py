@@ -15,6 +15,8 @@ A suite imports what it needs from here:
   the ring around a window.
 * [`latency`](komorebi_vm.latency) times the daemon's commands from a recording
   of the session bus.
+* [`RdpClient`](komorebi_vm.rdp.RdpClient) logs in to KRDP from FreeRDP on an X server of its own,
+  and reads its picture back.
 * [`Pointer`](komorebi_vm.pointer.Pointer) moves and clicks the pointer of a
   session node, through [`uinput`](komorebi_vm.uinput), a program the node runs.
 
@@ -29,6 +31,7 @@ from komorebi_vm.kde import Kde, Outputs, Rect
 from komorebi_vm.keys import Keys
 from komorebi_vm.machine import Machine
 from komorebi_vm.pointer import Pointer
+from komorebi_vm.rdp import RdpClient
 
 __all__ = [
     "Checks",
@@ -37,6 +40,7 @@ __all__ = [
     "Machine",
     "Outputs",
     "Pointer",
+    "RdpClient",
     "Rect",
     "daemon",
     "latency",
