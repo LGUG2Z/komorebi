@@ -1,4 +1,4 @@
-# schema-sha256: be9289ac70f6f47d7d8aebee0d7c67a2fa0d54456d9306ce6c634ef6e7748ddf
+# schema-sha256: 03b13ffd266a4432379c1dc2dc69b84b180484acd196ffda7dd436e511ad4170
 { lib, ... }:
 let
   animationStyle = (
@@ -242,6 +242,12 @@ let
       "None"
       "Center"
       "CenterAndResize"
+    ]
+  );
+  placementMatchingRules = (
+    lib.types.oneOf [
+      idWithIdentifier
+      (lib.types.listOf matchingRule)
     ]
   );
   rect = (
@@ -708,6 +714,28 @@ in
                                 type = (lib.types.nullOr floatingLayerBehaviour);
                                 default = "Tile";
                                 description = "Determine what happens to a new window when the Floating workspace layer is active";
+                              };
+                              initial_window_placement_rules = lib.mkOption {
+                                type = (
+                                  lib.types.nullOr (
+                                    lib.types.oneOf [
+                                      (lib.types.oneOf [
+                                        (lib.types.enum [
+                                          "Primary"
+                                          "Secondary"
+                                          "BeforeFocused"
+                                          "AfterFocused"
+                                          "Last"
+                                        ])
+                                        lib.types.int
+                                        lib.types.str
+                                      ])
+                                      (lib.types.attrsOf placementMatchingRules)
+                                    ]
+                                  )
+                                );
+                                default = null;
+                                description = "Initial window placement rules that determine where new tiled windows are placed\nin the container list. Can be a placement target (a `WindowPlacement` string like\n`\"Primary\"` or a 1-based container index), or a map of placement targets to matching rules.";
                               };
                               initial_workspace_rules = lib.mkOption {
                                 type = (lib.types.nullOr (lib.types.listOf matchingRule));

@@ -222,6 +222,9 @@ impl From<&WindowManager> for State {
                             wallpaper: workspace.wallpaper.clone(),
                             workspace_config: None,
                             preselected_container_idx: None,
+                            initial_window_placement_rules: workspace
+                                .initial_window_placement_rules
+                                .clone(),
                             promotion_swap_container_idx: None,
                         })
                         .collect::<VecDeque<_>>();

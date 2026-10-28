@@ -27,7 +27,8 @@ container of its own, when it is restored.
 It stays open, in the middle of the work area with the size it had, and komorebi leaves it alone
 from then on: it does not tile it again, and it does not move it.
 [`komorebic manage`](../cli/manage.md), with that window focused, puts it back in the layout,
-after the focused window.
+after the focused window, or where the workspace's
+[placement rules](../initial-window-placement-rules.md) say.
 
 ```sh
 komorebic unmanage

@@ -11,18 +11,23 @@
 //! [`Workspace::work_area_offset_rules`]), and its layout options come from the workspace or from
 //! the defaults of its layout.
 
+use crate::REGEX_IDENTIFIERS;
 use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Axis;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::FloatingLayerBehaviour;
+use crate::core::InitialWindowPlacementRules;
 use crate::core::Layout;
 use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
+use crate::core::PlacementMatchingRules;
+use crate::core::PlacementTarget;
 use crate::core::Rect;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowPlacement;
 use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
 use crate::static_config::Wallpaper;
@@ -30,6 +35,8 @@ use crate::static_config::WorkspaceConfig;
 use crate::theme_manager;
 use crate::window::Window;
 use crate::window::WindowDetails;
+use crate::window::should_act;
+use crate::window::should_act_individual;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_themes::KomorebiTheme;
@@ -115,6 +122,11 @@ pub struct Workspace {
     pub preselected_container_idx: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub promotion_swap_container_idx: Option<usize>,
+    /// Initial window placement rules that determine where new tiled windows are placed
+    /// ([`Workspace::new_container_for_window`]); with none, a window goes after the focused
+    /// container
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initial_window_placement_rules: Option<InitialWindowPlacementRules>,
 }
 
 /// Which of a workspace's two kinds of windows the focus, move and resize commands act on: the
@@ -174,6 +186,7 @@ impl Default for Workspace {
             wallpaper: None,
             workspace_config: None,
             preselected_container_idx: None,
+            initial_window_placement_rules: None,
             promotion_swap_container_idx: None,
         }
     }
@@ -268,8 +281,9 @@ impl HorizontalBounds for Rect {
 impl Workspace {
     /// Takes the settings of `config`, which `komorebi.json` has for this workspace: its name, its
     /// layout and the rules that change it with the number of containers, its padding and offsets,
-    /// what a new window gets and whether it floats, whether it tiles, how its layout is flipped
-    /// and what a new window does on its floating layer, and keeps `config` itself
+    /// what a new window gets and whether it floats, whether it tiles, how its layout is flipped,
+    /// what a new window does on its floating layer, and where in the layout a new window goes
+    /// ([`Workspace::initial_window_placement_rules`]), and keeps `config` itself
     /// ([`Workspace::workspace_config`])
     ///
     /// `layout_defaults` is what `komorebi.json` says every layout has, for the layout options the
@@ -348,6 +362,7 @@ impl Workspace {
         self.wallpaper = config.wallpaper.clone();
         // Load layout options directly (LayoutOptions is used in both config and runtime)
         self.layout_options = config.layout_options;
+        self.initial_window_placement_rules = config.initial_window_placement_rules.clone();
 
         // Load threshold-based layout options rules, sorted by threshold ascending
         self.layout_options_rules =
@@ -516,8 +531,9 @@ impl Workspace {
     }
 
     /// Puts the window in a container of its own, and focuses that container: in the container a
-    /// preselection reserved, if there is one, and otherwise after the focused container (at the
-    /// start of an empty workspace)
+    /// preselection reserved, if there is one, and otherwise at the index the workspace's initial
+    /// window placement rules give it ([`Workspace::initial_window_placement_rules`]), which is
+    /// after the focused container unless they say otherwise (at the start of an empty workspace)
     pub fn new_container_for_window(&mut self, window: &Window) -> eyre::Result<()> {
         let next_idx = if let Some(idx) = self.preselected_container_idx {
             let next = idx;
@@ -527,7 +543,7 @@ impl Workspace {
         } else if self.containers().is_empty() {
             0
         } else {
-            self.focused_container_idx() + 1
+            self.resolve_placement_index(window)
         };
 
         let mut container = Container::default();
@@ -536,6 +552,119 @@ impl Workspace {
         self.insert_container_at_idx(next_idx, container);
 
         Ok(())
+    }
+
+    /// Resolves the container index at which a new window should be placed,
+    /// based on the `initial_window_placement_rules` configuration.
+    ///
+    /// Falls back to the default placement (`AfterFocused`,
+    /// i.e. `focused_container_idx() + 1`) when:
+    /// - No rules are configured
+    /// - A `Rules` map has no matching rule for the window
+    /// - A resolved index is out of bounds
+    fn resolve_placement_index(&self, window: &Window) -> usize {
+        let fallback_idx = self.focused_container_idx() + 1;
+
+        let Some(rules) = &self.initial_window_placement_rules else {
+            return fallback_idx;
+        };
+
+        match rules {
+            InitialWindowPlacementRules::Target(target) => {
+                self.resolve_placement_target(target, fallback_idx)
+            }
+            InitialWindowPlacementRules::Rules(rules_map) => {
+                let (Some(title), Some(exe_name), Some(class), Some(path)) =
+                    (window.title(), window.exe(), window.class(), window.path())
+                else {
+                    return fallback_idx;
+                };
+                let path = path.to_string_lossy();
+
+                let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
+
+                // BTreeMap iterates in key order
+                for (target, placement_rules) in rules_map {
+                    let matched = match placement_rules {
+                        PlacementMatchingRules::Single(id) => should_act_individual(
+                            &title,
+                            &exe_name,
+                            &[class.as_str()],
+                            &path,
+                            id,
+                            &regex_identifiers,
+                        ),
+                        PlacementMatchingRules::Many(rules) => {
+                            // OR logic: any matching rule triggers placement at this target.
+                            // Each MatchingRule handles its own Simple/Composite (AND) logic
+                            // internally via should_act.
+                            should_act(
+                                &title,
+                                &exe_name,
+                                &[class.as_str()],
+                                &path,
+                                rules,
+                                &regex_identifiers,
+                            )
+                            .is_some()
+                        }
+                    };
+
+                    if matched {
+                        return self.resolve_placement_target(target, fallback_idx);
+                    }
+                }
+
+                // No matching rule found
+                fallback_idx
+            }
+        }
+    }
+
+    /// Resolves a `WindowPlacement` variant to a concrete container index.
+    fn resolve_window_placement(&self, placement: &WindowPlacement, fallback_idx: usize) -> usize {
+        match placement {
+            WindowPlacement::AfterFocused => self.focused_container_idx() + 1,
+            WindowPlacement::BeforeFocused => self.focused_container_idx(),
+            WindowPlacement::Primary => {
+                let idx = self.layout.primary_index();
+                if idx <= self.containers().len() {
+                    idx
+                } else {
+                    fallback_idx
+                }
+            }
+            WindowPlacement::Secondary => {
+                if let Some(idx) = self.layout.secondary_index(self.containers().len()) {
+                    if idx <= self.containers().len() {
+                        idx
+                    } else {
+                        fallback_idx
+                    }
+                } else {
+                    fallback_idx
+                }
+            }
+            WindowPlacement::Last => self.containers().len(),
+        }
+    }
+
+    /// Resolves a `PlacementTarget` (either a named placement or a 1-based index) to a concrete container index.
+    fn resolve_placement_target(&self, target: &PlacementTarget, fallback_idx: usize) -> usize {
+        match target {
+            PlacementTarget::Placement(placement) => {
+                self.resolve_window_placement(placement, fallback_idx)
+            }
+            PlacementTarget::Index(idx) => {
+                // Config indices are 1-based; convert to 0-based
+                let zero_based = idx.saturating_sub(1);
+                if zero_based <= self.containers().len() {
+                    zero_based
+                } else {
+                    fallback_idx
+                }
+            }
+        }
     }
 
     // this fn respects locked container indexes - we should use it for pretty much everything
@@ -908,8 +1037,9 @@ impl Workspace {
     }
 
     /// Takes the focused window out of its container, which is how a window is unstacked, and puts
-    /// it in a container of its own after the focused one. The container it left is removed when
-    /// it has no window left, or shows its next window.
+    /// it in a container of its own, where a new window goes ([`Workspace::new_container_for_window`]):
+    /// after the focused one, unless the workspace's initial window placement rules say otherwise.
+    /// The container it left is removed when it has no window left, or shows its next window.
     ///
     /// # Errors
     ///

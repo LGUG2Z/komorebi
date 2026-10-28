@@ -51,6 +51,8 @@ window and pause the daemon, and
 and keep parts of a monitor free of them.
 [Rules](usage/rules.md) explains how to keep an application out of the layout, always tile it, or
 float its windows.
+[Initial window placement rules](initial-window-placement-rules.md) explains how to say where in the
+layout a window goes when it opens.
 [Workspaces](usage/workspaces.md) explains how each monitor shows one of its workspaces, which
 are KWin's virtual desktops, and how to show another or move a window to one, and
 [Workspace rules](usage/workspace-rules.md) how to have the windows of an application go to a

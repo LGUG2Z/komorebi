@@ -13,9 +13,11 @@ komorebic toggle-maximize
 
 A window that is the only one of its container takes the container with it, and the container is
 made again when the window comes back. The tiles that were left are not moved while the window is
-maximized: it covers them. A window that opens meanwhile is added to the layout, after the focused
-container, and has its tile when the maximized window is restored. A window that closes while it
-is maximized takes the maximize with it, and the other windows are tiled again.
+maximized: it covers them. A window that opens meanwhile is added to the layout, where a new
+window goes (after the focused container, unless the workspace has
+[placement rules](../initial-window-placement-rules.md)), and has its tile when the maximized
+window is restored. A window that closes while it is maximized takes the maximize with it, and the
+other windows are tiled again.
 
 A window in [monocle](monocle.md) that is maximized leaves the monocle. When the monitor of a
 maximized window is unplugged, the window goes to a monitor that is left and stays maximized: see

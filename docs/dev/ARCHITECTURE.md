@@ -63,6 +63,10 @@ that is added has its place here.
 - **Rule**: a condition on a window's title, executable, class or path ([`MatchingRule`]), in
   one of the process-wide lists that decide whether a window is managed (the ignore and the
   manage rules) and whether it floats when it opens (the float rules).
+- **Placement rule**: where in the list of containers the container of a new window goes: a place,
+  such as the first or the last, for every window, or a place for the windows that match a
+  condition ([`InitialWindowPlacementRules`]). A workspace has none unless it is given them, and a
+  window goes after the focused container.
 - **Direction**: where an order goes from the focused container: a side of its tile
   ([`OperationDirection`]), or the next or the previous container of the workspace
   ([`CycleDirection`]).
@@ -138,7 +142,8 @@ the same thing at every level.
 - A **workspace** ([`Workspace`]) has a layout, its padding, an optional work area offset of its
   own, whether it takes the monitor's window-based offset, its containers, in order, its
   monocle container and its maximized window, if it has them, and its floating windows, which
-  are in no container and which the layout does not tile, and which layer it is on.
+  are in no container and which the layout does not tile, which layer it is on, and its placement
+  rules, if it has them.
 - A **container** ([`Container`]) has its windows. A new window gets a container of its
   own, unless the window container behavior says to put it in the focused one. With more than
   one window it is a stack: the focused window is in front and the others are hidden. A
@@ -777,6 +782,22 @@ gives a tile, and [`Workspace::new_container_for_window`] puts the next window i
 `CancelPreselect` removes it. A workspace reserves one place at a time, and the grid layout
 none.
 
+A new window's container goes after the focused container, unless the workspace has placement
+rules ([`Workspace::initial_window_placement_rules`]), which the entry of the workspace in
+`komorebi.json` gives it ([`Workspace::load_static_config`]). A rule is a place for every window,
+or a map from places to conditions, which are the conditions of the ignore and manage rules and are
+read by [`should_act`] and [`should_act_individual`]; the first place in key order whose condition
+matches the window is the window's. A place is a strategy ([`WindowPlacement`]: the primary tile,
+the secondary, before the focused container, after it, the last place) or a number counting from
+1, and the primary and the secondary tile are indexes 0 and 1 of every layout
+([`Workspace::new_container_for_window`]). A place that does not exist, such as the secondary tile
+of a workspace with one container or a number past the end, is the default place. A reserved place
+(`PreselectDirection`) is used before the rules are asked, and the container is inserted through
+`LockableSequence`, so that a rule that asks for the index of a locked container gets the index
+after it. The rules apply wherever a window gets a container of its own: a window that opens, one
+that comes back from a minimize, one that `ManageFocusedWindow` takes in, one that comes out of a
+stack, and one that a workspace rule or the compositor moves to the workspace.
+
 ## Dragging
 
 The user can move a window with the pointer, and resize it by dragging an edge. KWin reports the
@@ -884,7 +905,8 @@ defaults. The settings of the borders are statics too, which the file sets and
 [`border_manager::current_look`] and the layout read. A **rule** is an entry of one of the
 process-wide lists. A workspace's own `layout_rules`, `work_area_offset_rules` and
 `window_container_behaviour_rules` are fields of the [`Workspace`], which [`Workspace::update`]
-reads each time it tiles.
+reads each time it tiles, and so are its `initial_window_placement_rules`, which
+[`Workspace::new_container_for_window`] reads when a window gets a container.
 
 A workspace's `workspace_rules` and `initial_workspace_rules` are not fields of the window manager
 but entries of [`WORKSPACE_MATCHING_RULES`], which [`StaticConfig::postload`] and
@@ -954,6 +976,8 @@ goes the other way, for `GenerateStaticConfig`.
 | A workspace's own layout options replace the defaults of its layout, whole | framework path: [`Workspace::update`] takes the workspace's options and rules when it has either, and else those of `layout_defaults` | `layout_options_of_a_workspace_replace_the_defaults_of_its_layout` | none |
 | The highest of the rules a count of containers reaches decides the layout, the offset and the container behavior | framework path: [`Workspace::update`] reads the rules, kept in the order of their thresholds | `layout_rules_change_the_layout_with_the_number_of_windows`, `work_area_offset_rules_change_the_offset_with_the_number_of_windows`, `window_container_behaviour_rules_change_the_behaviour_with_the_number_of_containers` | none |
 | A workspace's own container behavior and float override come before the one for every workspace, and its floating layer behavior before its monitor's, which comes before the one for every workspace | framework path: [`WindowManager::window_management_behaviour`] reads the workspace, then (for the floating layer) the monitor, then the window manager | `the_behaviour_of_a_workspace_comes_before_the_one_for_every_workspace`, `the_float_override_of_a_workspace_comes_before_the_one_for_every_workspace`, `the_floating_layer_behaviour_of_a_workspace_comes_before_a_monitors_and_that_before_the_default` | none |
+| A workspace places the windows that open by the `initial_window_placement_rules` of its entry in `komorebi.json` | framework path: [`Workspace::load_static_config`] sets [`Workspace::initial_window_placement_rules`] from the entry, and [`Workspace::new_container_for_window`] reads it | `a_workspace_in_komorebi_json_has_them`, `the_rules_come_from_the_configuration_of_the_workspace`, `vm-placement` | none |
+| The schema, and the module's typed `config`, take a place in each form the daemon reads: a name, a number, or text that is a number | test: the schema of [`PlacementTarget`] is written by hand, to say what its `Serialize` and `Deserialize` do, and a file with a place of each form is checked against `schema.json` | `a_place_is_described_as_a_name_a_number_or_text_that_is_a_number`, `nix-options-validation`, `nixos-module-eval` ("the place a workspace gives the windows that open is a typed option in each form it is read") | none |
 | The configuration the daemon generates loads and says the same | test | `a_configuration_comes_out_again_as_the_settings_of_the_window_manager` | none |
 | The daemon reads the file it is given or the one in the config home, not both | startup order: `main.rs` takes `--config` before the config home | `the_daemon_follows_the_file_it_is_given_when_the_file_changes`, `the_daemon_reads_komorebi_json_from_the_config_home` | none |
 
@@ -1293,6 +1317,14 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A window that leaves fullscreen is put in the tile the layout has for it | framework path: `handle_event` tiles the workspace in front again on a `FullscreenChange` back from fullscreen | `a_fullscreen_window_is_left_covering_the_monitor_and_goes_back_to_its_tile_afterwards` | none |
 | The bridge reports a fullscreen change with what the window is now | test: the bridge reads `fullScreen` when KWin raises `fullScreenChanged`, and the table keeps it | `bridge.test.js` ("a window that goes fullscreen or comes back from it is reported as it is now", and the session), `going_fullscreen_and_coming_back_are_events_and_are_remembered` | none |
 | In a real KWin, a fullscreen window covers the monitor, a window that opens does not take it out of fullscreen, and it goes back to a tile that overlaps no other | VM test | `vm-features` (section E) | none |
+| Without placement rules a window goes after the focused container | framework path: `resolve_placement_index` returns that index when the workspace has no rules, or none matches | `without_rules_a_window_goes_after_the_focused_one` | none |
+| A place that does not exist is the default place, never an error | framework path: `resolve_placement_index` falls back to the default for a number past the end and for the secondary tile of one container | `a_place_that_is_not_there_is_the_default` | none |
+| The first rule in key order decides | framework path: the rules are a `BTreeMap` ordered by the text of the place | `the_first_rule_in_key_order_wins`, `a_place_for_the_windows_that_match_a_rule` | none |
+| A rule of several conditions needs all of them | framework path: a composite [`MatchingRule`] is read by [`should_act`], which needs every part | `a_rule_of_several_conditions_needs_them_all` | none |
+| A setting that is not a place is refused | type system: `PlacementTarget` reads a strategy name or a number, and nothing else; checked when the setting is read | `a_place_that_is_not_one_is_refused` | none |
+| A reserved place wins over the rules | framework path: [`Workspace::new_container_for_window`] checks `preselected_container_idx` before it asks for a place | `a_place_that_was_preselected_wins_over_the_rules` | none |
+| A locked container keeps its index when a rule asks for it | framework path: the container is inserted through `LockableSequence` | `a_rule_that_asks_for_the_place_of_a_locked_container_gets_the_place_after_it` | none |
+| In a real KWin, windows go where the rules say, by program, app id and title | VM test | `vm-placement` | none |
 | A window stays maximized through a retile | framework path: [`Workspace::update`] asks the backend to maximize it again, and moves no container | `a_retile_while_a_window_is_maximized_asks_the_compositor_to_maximize_it_again` | none |
 | A maximized window that closes takes the maximize with it | framework path: [`Workspace::remove_window`] looks at the maximized window first, which the index of managed windows lists | `a_maximized_window_that_closes_leaves_the_layout_whole` | none |
 | In a real KWin, the maximized window fills the work area, is on top, and goes back to its tile | VM test | `vm-features` ("the focused window fills the work area", "and is the one on top", "toggled back, it is in its tile again") | none |
@@ -1439,9 +1471,10 @@ A window is shown, and ends up on a tile:
 3. The index of managed windows is rebuilt from the containers. If the workspace in front
    already has the window, or the index has it on another monitor or workspace, the event
    creates nothing.
-4. [`Workspace::new_container_for_window`] puts the window in a new container after the
-   focused one, inserted through `LockableSequence` so that a locked container keeps its
-   index, and focuses the new container.
+4. [`Workspace::new_container_for_window`] puts the window in a new container, inserted through
+   `LockableSequence` so that a locked container keeps its index, and focuses the new container.
+   It goes after the focused one, unless a place was preselected or the workspace's placement
+   rules give another.
 5. [`WindowManager::update_focused_workspace`] asks the focused [`Monitor`] to give its
    focused workspace the work area, the padding and the offset ([`WorkspaceGlobals`]),
    and calls [`Workspace::update`].
@@ -1588,6 +1621,9 @@ A window is shown, and ends up on a tile:
   the user maximizes;
   [`komorebi/tests/fullscreen.rs`](../../komorebi/tests/fullscreen.rs), a window that goes
   fullscreen and comes back;
+  [`komorebi/tests/placement.rs`](../../komorebi/tests/placement.rs) and
+  [`komorebi/tests/placement_cases.rs`](../../komorebi/tests/placement_cases.rs), the placement
+  rules;
   [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
   unmanaging and managing the focused window, and pausing;
   [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
@@ -1605,6 +1641,8 @@ A window is shown, and ends up on a tile:
   screen of a real compositing session, read from screenshots.
 - [`nix/tests/vm/suites/user-maximize`](../../nix/tests/vm/suites/user-maximize/test.py): a window
   the user maximizes, in a real KWin.
+- [`nix/tests/vm/suites/placement`](../../nix/tests/vm/suites/placement/test.py): where the
+  windows of a real KWin go in the layout, by the placement rules of a `komorebi.json`.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
 - [`nix/tests/vm/suites/drag-resize`](../../nix/tests/vm/suites/drag-resize/test.py): edges and
@@ -1714,6 +1752,7 @@ A window is shown, and ends up on a tile:
 [`Window`]: ../../komorebi/src/window.rs
 [`Window::should_manage`]: ../../komorebi/src/window.rs
 [`should_act`]: ../../komorebi/src/window.rs
+[`should_act_individual`]: ../../komorebi/src/window.rs
 [`RuleDebug`]: ../../komorebi/src/window.rs
 [`GlobalState`]: ../../komorebi/src/state.rs
 [`MatchingRule`]: ../../komorebi/src/core/config_generation.rs
@@ -1787,6 +1826,10 @@ A window is shown, and ends up on a tile:
 [`WindowManager::adopt_maximize_change`]: ../../komorebi/src/window_manager.rs
 [`WindowInfo::maximized`]: ../../komorebi/src/backend/mod.rs
 [`WindowInfo::fullscreen`]: ../../komorebi/src/backend/mod.rs
+[`InitialWindowPlacementRules`]: ../../komorebi/src/core/mod.rs
+[`PlacementTarget`]: ../../komorebi/src/core/mod.rs
+[`WindowPlacement`]: ../../komorebi/src/core/mod.rs
+[`Workspace::initial_window_placement_rules`]: ../../komorebi/src/workspace.rs
 [`load_workspace_information`]: ../../komorebi/src/desktop.rs
 [`WindowManager::adjust_workspace_padding`]: ../../komorebi/src/window_manager.rs
 [`Workspace::apply_window_based_work_area_offset`]: ../../komorebi/src/workspace.rs

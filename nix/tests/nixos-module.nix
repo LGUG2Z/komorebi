@@ -118,6 +118,43 @@ let
     };
   };
 
+  # where a workspace puts the windows that open, in each form komorebi reads: a name, a number,
+  # text that is a number, and a map of places to rules
+  withPlacement = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      config.monitors = [
+        {
+          workspaces = [
+            {
+              name = "name";
+              initial_window_placement_rules = "Primary";
+            }
+            {
+              name = "number";
+              initial_window_placement_rules = 3;
+            }
+            {
+              name = "text";
+              initial_window_placement_rules = "3";
+            }
+            {
+              name = "map";
+              initial_window_placement_rules = {
+                Primary = {
+                  kind = "Exe";
+                  id = "firefox";
+                  matching_strategy = "Equals";
+                };
+              };
+            }
+          ];
+        }
+      ];
+    };
+  };
+
   # a layout komorebi does not have
   badLayout = eval {
     imports = [ plasma ];
@@ -466,6 +503,19 @@ let
           (lib.elemAt (lib.head withConfig.services.komorebi.internal.configAttrs.monitors).workspaces 1)
           .window_container_behaviour_rules."2" == "Append";
       got = withConfig.services.komorebi.internal.configAttrs;
+    }
+    {
+      name = "the place a workspace gives the windows that open is a typed option in each form it is read";
+      ok =
+        let
+          workspaces = (lib.head withPlacement.services.komorebi.internal.configAttrs.monitors).workspaces;
+          place = name: (lib.findFirst (w: w.name == name) null workspaces).initial_window_placement_rules;
+        in
+        place "name" == "Primary"
+        && place "number" == 3
+        && place "text" == "3"
+        && (place "map").Primary.id == "firefox";
+      got = withPlacement.services.komorebi.internal.configAttrs;
     }
     {
       name = "config reaches execStart as a komorebi.json that was checked against the schema";

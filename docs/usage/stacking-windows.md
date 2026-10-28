@@ -18,9 +18,10 @@ komorebic stack down
 ```
 
 [`komorebic unstack`](../cli/unstack.md) takes the window in front out of its stack and puts it
-in a tile of its own after the stack, and the next window of the stack is in front again. A
-window that is alone on its tile cannot be unstacked, and the daemon logs "a container must have
-at least one window".
+in a tile of its own, and the next window of the stack is in front again. The tile is after the
+stack, unless the workspace has [placement rules](../initial-window-placement-rules.md), which
+say where a window goes that gets a tile of its own. A window that is alone on its tile cannot be
+unstacked, and the daemon logs "a container must have at least one window".
 
 ```sh
 komorebic unstack

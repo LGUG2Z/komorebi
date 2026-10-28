@@ -192,6 +192,7 @@ named for it. A workspace has these keys:
 | `float_override` | the default | Whether every window that opens on this workspace floats |
 | `floating_layer_behaviour` | the default | What a window that opens while this workspace is on its floating layer gets: `Tile` or `Float` |
 | `wallpaper` | none | The picture the monitor shows while this workspace is in front, instead of its monitor's: `{ "path": "~/Pictures/sea.png" }`, and `generate_theme` and `theme_options` for the borders' colors ([Wallpapers](wallpapers.md)) |
+| `initial_window_placement_rules` | none | Where in the list of containers a window that opens on this workspace goes: a place, or a place for each kind of window ([Initial window placement rules](../initial-window-placement-rules.md)) |
 
 A workspace that names no `layout` and does not say `"tile": true` does not tile: its windows
 stay where they open. A workspace with `layout_rules` tiles. Otherwise a workspace tiles.

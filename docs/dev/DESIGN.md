@@ -671,3 +671,19 @@ tile it has now" (the comment in `handle_event`), so the workspace is tiled agai
 second request for a position gives up after three tries for the same reason: so that a window that
 cannot go where it was asked, "a fullscreen one, say", is left alone rather than chased (the comment
 on `settle` in [`bridge.js`](../../komorebi/src/kwin/bridge.js)).
+
+## Why does `initial_window_placement_rules` take a number as well as text?
+
+Because the documentation of the setting shows a number (`"initial_window_placement_rules": 3`),
+and a JSON object's keys can only be text: the doc comment on the `Deserialize` of
+[`PlacementTarget`](../../komorebi/src/core/mod.rs) says both. The place is read from `"Primary"`,
+`"3"` and `3`, so the form the page shows works as well as the form a map's keys force. In komorebi
+for Windows, at its commit 83c4e11d, the deserializer reads only text, so the number its page shows
+is refused. [The page of this repository](../initial-window-placement-rules.md#on-kde) says which
+forms are read.
+
+The JSON schema of the type is written by hand, so that it says the same. The one `schemars`
+derives for the enum is an object with a `Placement` or an `Index` key, which the comment on the
+`JsonSchema` impl of [`PlacementTarget`](../../komorebi/src/core/mod.rs) calls "not what
+`Serialize` and `Deserialize` read and write". The schema `schema.json` has says a name, a number,
+or text that is a number, which is also what the module's typed `config` takes.

@@ -261,7 +261,10 @@ names, layouts, paddings and rules. It watches the file, and when it changes
 applies it again to the windows it has. It also sets what a window that opens
 gets (`window_container_behaviour`, `float_override`, `floating_layer_behaviour`,
 for a workspace or for all of them) and what focusing does in monocle
-(`monocle_focus_behaviour`). A key that komorebi for KDE does not read
+(`monocle_focus_behaviour`). Where a new window goes in the layout is the
+workspace's `initial_window_placement_rules`: after the focused container unless
+they say another place, which can depend on the window's program, app id or
+title. A key that komorebi for KDE does not read
 is ignored, so one file serves every platform. Rules for particular applications
 can be in files of their own, which `app_specific_configuration_path` names.
 `workspace-layout-rule` makes a
