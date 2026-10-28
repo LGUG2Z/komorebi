@@ -1049,7 +1049,10 @@ mod tests {
 
         assert_eq!(open(&mut app).loaded.ghosts.len(), 1);
         let ghost = open(&mut app).loaded.ghosts[0].clone();
-        assert_eq!((ghost.exe.as_str(), ghost.class.as_str()), ("DDM.exe", "Window"));
+        assert_eq!(
+            (ghost.exe.as_str(), ghost.class.as_str()),
+            ("DDM.exe", "Window")
+        );
 
         assert_eq!(
             open(&mut app).ghosts_during(1.5, 3.5),
@@ -1064,7 +1067,11 @@ mod tests {
         let form = open(&mut app).rule.as_ref().expect("the form is open");
         assert_eq!(form.app, "DDM");
         let rule = form.rule().expect("a rule");
-        assert_eq!(rule.identifiers.len(), 2, "the program and the class together");
+        assert_eq!(
+            rule.identifiers.len(),
+            2,
+            "the program and the class together"
+        );
         frame(&mut app, &ctx, vec![]);
 
         // a blank name has no rule to send, and sending then does nothing
@@ -1123,10 +1130,16 @@ mod tests {
 
         let form = open(&mut app).rule.take().expect("the form is still open");
         let Stage::Done(Outcome::Failed(failure)) = form.stage else {
-            panic!("it did not fail as it should: done is {}", matches!(form.stage, Stage::Done(_)));
+            panic!(
+                "it did not fail as it should: done is {}",
+                matches!(form.stage, Stage::Done(_))
+            );
         };
         assert_eq!(failure.step, "cloning the repository");
-        assert!(failure.instructions.contains("DDMWindow") || failure.instructions.contains("\"Window\""));
+        assert!(
+            failure.instructions.contains("DDMWindow")
+                || failure.instructions.contains("\"Window\"")
+        );
         if let Some(kept) = &failure.dir {
             let _ = std::fs::remove_dir_all(kept);
         }

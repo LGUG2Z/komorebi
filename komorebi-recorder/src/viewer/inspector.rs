@@ -25,13 +25,13 @@ use super::app::Tab;
 use super::theme;
 use crate::analysis::classify::Class;
 use crate::analysis::ghost::GhostTile;
-use crate::asc::Platform;
-use crate::asc::rule::Rule;
 use crate::analysis::os_trace::GroupKind;
 use crate::analysis::os_trace::OsTraceData;
 use crate::analysis::os_trace::Phase;
 use crate::analysis::trace::TraceData;
 use crate::annotations::Kind;
+use crate::asc::Platform;
+use crate::asc::rule::Rule;
 use crate::timecode;
 use eframe::egui;
 use eframe::egui::Color32;
@@ -105,7 +105,9 @@ fn ghost_card(ui: &mut egui::Ui, ghost: &GhostTile, wants: &mut Wants) {
                     wants.propose_rule = Some(ghost.hwnd);
                 }
             } else {
-                let why = rule.err().map_or_else(String::new, |error| error.to_string());
+                let why = rule
+                    .err()
+                    .map_or_else(String::new, |error| error.to_string());
                 ui.label(
                     RichText::new(format!(
                         "No rule can be written that catches it and nothing else: {why}."

@@ -15,7 +15,6 @@ ignore = [
 allow = [
   "0BSD",
   "Apache-2.0",
-  "Artistic-2.0",
   # clipboard-win's error-code, which eframe pulls in on Windows
   "BSL-1.0",
   "BSD-2-Clause",
