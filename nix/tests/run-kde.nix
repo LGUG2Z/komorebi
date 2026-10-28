@@ -15,8 +15,8 @@ let
   # not keep.
   setup = ''
     t=$PWD/machine
-    mkdir -p $t/bin $t/repo $t/dri
-    touch $t/repo/flake.nix $t/kvm $t/kvm-denied $t/fuse $t/dxg
+    mkdir -p $t/bin $t/repo $t/dri $t/wsl-lib $t/va
+    touch $t/repo/flake.nix $t/kvm $t/kvm-denied $t/fuse $t/dxg $t/va/d3d12_drv_video.so
     chmod 000 $t/kvm-denied
     printf '#!/bin/sh\n' > $t/bin/nix
     printf '#!/bin/sh\necho "[ERROR virtiofsd] Error creating the vhost-user socket: Address in use (os error 98)" >&2\nexit 1\n' > $t/bin/virtiofsd-broken
@@ -34,6 +34,7 @@ let
         RUN_KDE_RUNNER_BIN=/nix/store/fake-nixos-vm/bin/run-komorebi-demo-vm \
         RUN_KDE_CPUINFO=$t/cpuinfo-svm RUN_KDE_STORE_DIR=$t RUN_KDE_FREE_GB=100 \
         RUN_KDE_DRI_DIR=$t/dri RUN_KDE_CPUS=12 RUN_KDE_FUSE_DEVICE=$t/fuse \
+        RUN_KDE_WSL_LIB_DIR=$t/wsl-lib RUN_KDE_VA_DRIVERS_DIR=$t/va \
         "$@"
     }
     plain() { sed "s|$t|@T@|g"; }
@@ -72,6 +73,14 @@ in
     (scenario "dry-run-wslg-gpu" 0
       ''machine ${wslg} RUN_KDE_DXG_DEVICE=$t/dxg "RUN_KDE_HOST_RENDERER=D3D12 (AMD Radeon RX 7800 XT)" ${exe} --dry-run''
     )
+    # without the d3d12 video driver the host's GPU still renders, and nothing says libva which driver
+    (scenario "dry-run-wslg-gpu-no-video-driver" 0
+      ''machine ${wslg} RUN_KDE_DXG_DEVICE=$t/dxg "RUN_KDE_HOST_RENDERER=D3D12 (AMD Radeon RX 7800 XT)" RUN_KDE_VA_DRIVERS_DIR=$t/absent ${exe} --dry-run''
+    )
+    # what a person has set is kept, and the directory of Windows' libraries comes first
+    (scenario "dry-run-wslg-gpu-own-env" 0
+      ''machine ${wslg} RUN_KDE_DXG_DEVICE=$t/dxg "RUN_KDE_HOST_RENDERER=D3D12 (AMD Radeon RX 7800 XT)" GALLIUM_DRIVER=zink LD_LIBRARY_PATH=/opt/lib LIBVA_DRIVER_NAME=radeonsi ${exe} --dry-run''
+    )
     (scenario "dry-run-wslg-no-gpu" 0
       "machine ${wslg} RUN_KDE_DXG_DEVICE=$t/absent RUN_KDE_HOST_RENDERER= ${exe} --dry-run"
     )
@@ -85,6 +94,9 @@ in
   run-kde-doctor = check "run-kde-doctor" [
     (scenario "doctor-wslg-gpu" 0
       ''machine ${wslg} RUN_KDE_DXG_DEVICE=$t/dxg "RUN_KDE_HOST_RENDERER=D3D12 (AMD Radeon RX 7800 XT)" RUN_KDE_WSLCONFIG=$t/none ${exe} --doctor''
+    )
+    (scenario "doctor-wslg-gpu-no-driver" 0
+      ''machine ${wslg} RUN_KDE_DXG_DEVICE=$t/dxg "RUN_KDE_HOST_RENDERER=D3D12 (AMD Radeon RX 7800 XT)" RUN_KDE_WSL_LIB_DIR=$t/absent RUN_KDE_VA_DRIVERS_DIR=$t/absent RUN_KDE_WSLCONFIG=$t/none ${exe} --doctor''
     )
     (scenario "doctor-wsl-no-kvm" 1
       "machine WAYLAND_DISPLAY=w RUN_KDE_OSRELEASE=$t/osrelease-wsl RUN_KDE_KVM_DEVICE=$t/absent RUN_KDE_CPUINFO=$t/cpuinfo-none RUN_KDE_MEMINFO=$t/meminfo-small RUN_KDE_DXG_DEVICE=$t/absent RUN_KDE_HOST_RENDERER= RUN_KDE_WSLCONFIG=$t/none ${exe} --doctor"

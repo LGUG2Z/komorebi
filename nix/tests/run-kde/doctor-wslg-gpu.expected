@@ -12,5 +12,7 @@ run-kde: what the guest needs, and what this machine has
       on NixOS-WSL, wsl.interop.includePath = true; (and wsl.interop.register = true;)
   ✓ GPU: @T@/dxg is there
   ✓ GPU: the host's OpenGL renderer is D3D12 (AMD Radeon RX 7800 XT)
+  ✓ GPU: the Windows driver is in @T@/wsl-lib
+  ✓ GPU: the video driver of Mesa for it (d3d12) is in @T@/va
   ✓ the guest will use the GPU: @T@/dxg is there and the OpenGL of the host is D3D12 (AMD Radeon RX 7800 XT)
 run-kde: 0 error(s), 1 warning(s)

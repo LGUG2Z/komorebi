@@ -1,0 +1,56 @@
+mesa: let go of the fence a surface is flushed or processed again over
+
+vlVaSurfaceFlush() (the upload of an image, the clear of a new surface) and the end of a
+video-processing pass (vl_compositor_proc: the scale_vaapi of FFmpeg, the blit of
+vaPutImage) flush into surf->pipe_fence, which gets the new fence of the flush and loses
+the old one. The only places that let go of it are vaSyncSurface() and the destruction of
+the surface, so a surface that is flushed again before a sync, which one of a pool is,
+leaves the fence it had behind.
+
+With virgl a fence owns a file descriptor: the sync_file that the kernel returns for the
+out-fence of the execbuffer (VIRTGPU_EXECBUF_FENCE_FD_OUT), closed when the fence is freed.
+The guest's KRDP kept one open for every frame it captured until it had 1024 of them,
+after which every ioctl failed with EMFILE ("got error from kernel - expect bad rendering
+24") and the picture froze.
+
+Release the fence a flush is about to replace. The newer one covers it: both are fences of
+the same context.
+
+--- a/src/gallium/frontends/va/surface.c	2026-10-28 17:58:18.769410786 -0700
++++ b/src/gallium/frontends/va/surface.c	2026-10-28 17:58:30.469583700 -0700
+@@ -812,6 +812,14 @@
+ void
+ vlVaSurfaceFlush(vlVaDriver *drv, vlVaSurface *surf)
+ {
++   /* A flush makes a new fence, which replaces the one in the surface: the one of the last flush
++    * is what vaSyncSurface waits for, and it is only let go of there and when the surface is
++    * destroyed. Replaced without a release, its fence is never freed, and with a driver whose
++    * fences hold a file descriptor (virgl: a sync_file) a surface that is flushed again and
++    * again, as the ones of a pool are, leaves one open a time until there are no more. */
++   if (surf->pipe_fence)
++      drv->pipe->screen->fence_reference(drv->pipe->screen, &surf->pipe_fence, NULL);
++
+    drv->pipe->flush(drv->pipe, &surf->pipe_fence,
+                     drv->has_external_handles ? 0 : PIPE_FLUSH_ASYNC);
+ }
+--- a/src/gallium/auxiliary/vl/vl_compositor_proc.c	2026-10-28 17:58:18.771011962 -0700
++++ b/src/gallium/auxiliary/vl/vl_compositor_proc.c	2026-10-28 17:58:30.814280800 -0700
+@@ -185,8 +185,17 @@
+                           struct pipe_picture_desc *picture)
+ {
+    struct vl_compositor_proc *proc = (struct vl_compositor_proc *)codec;
++   struct pipe_context *context = proc->b.context;
+ 
+-   proc->b.context->flush(proc->b.context, picture->out_pipe_fence, picture->flush_flags);
++   /* out_pipe_fence is the pipe_fence of the target surface (vlVaEndPicture, vlVaPutImage), and
++    * the flush makes a new fence for it. The last one is what a sync waits for, so the one it
++    * replaces is let go of here: left, it is never freed, and with virgl its fence is a
++    * sync_file, one more of them open for every frame of a pooled surface that is processed
++    * again before it is synced. */
++   if (picture->out_pipe_fence && *picture->out_pipe_fence)
++      context->screen->fence_reference(context->screen, picture->out_pipe_fence, NULL);
++
++   context->flush(context, picture->out_pipe_fence, picture->flush_flags);
+ 
+    return 0;
+ }

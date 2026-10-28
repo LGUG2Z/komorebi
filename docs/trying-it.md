@@ -186,6 +186,14 @@ a black window or a guest that does not start. The guest says which it got, in t
 on the console: `GPU (virgl)` or `software (llvmpipe)`. That is the guest's driver, not the host's:
 the guest cannot tell a GPU from a host that draws in software.
 
+On WSL 2 the command also sets what Mesa and libva need to find the Windows driver, in the process
+that runs QEMU, unless you have set it yourself: `GALLIUM_DRIVER=d3d12`, `LD_LIBRARY_PATH` with
+`/usr/lib/wsl/lib` first, and `LIBVA_DRIVER_NAME` and `LIBVA_DRIVERS_PATH` for the video driver of
+Mesa for it. With them the host's GPU encodes the H.264 that KRDP sends over RDP: the guest's VA-API
+lists an encoder, and KRDP uses it. Without the video driver (`/run/opengl-driver/lib/dri/d3d12_drv_video.so`,
+which `wsl.useWindowsDriver = true;` brings on NixOS-WSL) the guest encodes on its CPUs, and
+`run-kde --doctor` says so.
+
 ## RDP
 
 The guest also runs an RDP server, which is the way in when there is no window. The banner has its

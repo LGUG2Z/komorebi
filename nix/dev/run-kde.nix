@@ -360,6 +360,31 @@ in
     };
   };
 
+  # Mesa's video compositor (vl_compositor) never loads an RGB to YUV matrix on a driver that takes
+  # its graphics path, which virgl does: the draw multiplies by the YUV to RGB one of its initial
+  # state, and the NV12 that scale_vaapi makes of the screen, which KRDP encodes, is the wrong
+  # picture (nix/dev/mesa-virgl-rgb-yuv-csc.patch). `builtins.path` makes the patch a store path of
+  # its own, so that Mesa is built once for any way of reading this file. There is no binary cache:
+  # this is a build of Mesa from source.
+  #
+  # The same driver leaks a sync_file, an out-fence of the kernel, for every picture it converts or
+  # uploads: the surface keeps the fence of its last flush in `pipe_fence`, and the next flush of
+  # it stores a new one over it, so the first is never released, and its file descriptor is never
+  # closed. A KRDP session ran out of descriptors (1024) after about 950 frames, and the stream
+  # froze (nix/dev/mesa-virgl-fence-leak.patch).
+  hardware.graphics.package = pkgs.mesa.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [
+      (builtins.path {
+        path = ./mesa-virgl-rgb-yuv-csc.patch;
+        name = "mesa-virgl-rgb-yuv-csc.patch";
+      })
+      (builtins.path {
+        path = ./mesa-virgl-fence-leak.patch;
+        name = "mesa-virgl-fence-leak.patch";
+      })
+    ];
+  });
+
   # What only the runner, which is the machine of the person who starts the guest, can say. The
   # ports are forwarded and the display device is added on its command line, and the memory is
   # sized to what that machine has: the shared memory that virtiofs needs is a backend of the
@@ -369,6 +394,38 @@ in
     # `run-kde` says whether KVM is there, and `--tcg` lets it start without
     qemu.forceAccel = lib.mkForce false;
     qemu.enableSharedMemory = false;
+    # QEMU never asks virglrenderer for the host's video encoder, so the guest's VA-API lists none
+    # and KRDP encodes H.264 on the guest's CPUs. The patch does (nix/dev/qemu-virgl-video.patch);
+    # VIRGL_RENDERER_USE_VIDEO is only defined with VIRGL_RENDERER_UNSTABLE_APIS. Only the runner
+    # has it: there is no binary cache, so it is a QEMU built from source. The virglrenderer under
+    # it has four patches, in this order, for a host whose encoder is the d3d12 one of WSL 2:
+    #   chroma-format    the guest's Mesa and virglrenderer number the chroma format of a codec
+    #                    differently: 4:2:0 was read as 4:2:2, and the encoder refused every codec
+    #   video-memory-upload
+    #                    the d3d12 driver has no dma-bufs, so the picture to encode goes to the
+    #                    surface through memory
+    #   h264-packed-sps  Mesa's VA-API takes the level of the stream from a packed SPS, which
+    #                    virglrenderer never sent: level 0 crashed the d3d12 encoder
+    #   ubo0-constants   a constant buffer 0 bound as a buffer was never read by the shader, so the
+    #                    colour matrix of an RGB to YUV conversion was zero
+    qemu.package =
+      (pkgs.qemu_kvm.override {
+        virglrenderer = pkgs.virglrenderer.overrideAttrs (old: {
+          patches = (old.patches or [ ]) ++ [
+            ./virglrenderer-chroma-format.patch
+            ./virglrenderer-video-memory-upload.patch
+            ./virglrenderer-h264-packed-sps.patch
+            ./virglrenderer-ubo0-constants.patch
+          ];
+        });
+      }).overrideAttrs
+        (old: {
+          patches = (old.patches or [ ]) ++ [ ./qemu-virgl-video.patch ];
+          configureFlags = (old.configureFlags or [ ]) ++ [
+            "--extra-cflags=-DVIRGL_RENDERER_UNSTABLE_APIS"
+          ];
+          doCheck = false;
+        });
     qemu.options = [
       "-object memory-backend-memfd,id=mem0,size=\${RUN_KDE_MEMORY:-8192}M,share=on"
       "-machine memory-backend=mem0"

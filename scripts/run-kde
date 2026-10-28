@@ -59,6 +59,8 @@ osrelease=${RUN_KDE_OSRELEASE:-/proc/sys/kernel/osrelease}
 sys_module_dir=${RUN_KDE_SYS_MODULE_DIR:-/sys/module}
 store_dir=${RUN_KDE_STORE_DIR:-/nix}
 wslconfig=${RUN_KDE_WSLCONFIG:-}
+wsl_lib_dir=${RUN_KDE_WSL_LIB_DIR:-/usr/lib/wsl/lib}
+va_drivers_dir=${RUN_KDE_VA_DRIVERS_DIR:-/run/opengl-driver/lib/dri}
 
 mode=run
 display=auto
@@ -276,6 +278,26 @@ find_virtiofsd() {
   fi
 }
 
+# What the host's GPU needs of the process that uses it, on WSL 2. Mesa has to be told to take the
+# d3d12 driver of Windows, whose libraries are in a directory of their own, and the libva that
+# virglrenderer takes the host's video encoder from has to be told which driver that is. Without
+# the first OpenGL is llvmpipe, and without the second the guest's VA-API lists no encoder, so KRDP
+# encodes H.264 on the guest's CPUs. What a person has set is left as it is.
+host_env=()
+if [ "$wsl" = 1 ] && [ "$gpu_on" = 1 ]; then
+  host_env+=("GALLIUM_DRIVER=${GALLIUM_DRIVER:-d3d12}")
+  if [ -d "$wsl_lib_dir" ]; then
+    case ":${LD_LIBRARY_PATH:-}:" in
+      *":$wsl_lib_dir:"*) ;;
+      *) host_env+=("LD_LIBRARY_PATH=$wsl_lib_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}") ;;
+    esac
+  fi
+  if [ -e "$va_drivers_dir/d3d12_drv_video.so" ]; then
+    host_env+=("LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-d3d12}")
+    host_env+=("LIBVA_DRIVERS_PATH=${LIBVA_DRIVERS_PATH:-$va_drivers_dir}")
+  fi
+fi
+
 # ---------------------------------------------------------------------------------------------
 # the checks
 
@@ -474,6 +496,20 @@ check_everything() {
       *) ok "GPU: the host's OpenGL renderer is $renderer" ;;
     esac
   fi
+  if [ "$wsl" = 1 ] && [ -n "$gpu_device" ]; then
+    if [ -d "$wsl_lib_dir" ]; then
+      ok "GPU: the Windows driver is in $wsl_lib_dir"
+    else
+      warn "GPU: there is no $wsl_lib_dir, so Mesa cannot take the Windows driver (d3d12)" \
+        "run \`wsl --update\` in PowerShell, and install the Windows GPU driver with WSL support"
+    fi
+    if [ -e "$va_drivers_dir/d3d12_drv_video.so" ]; then
+      ok "GPU: the video driver of Mesa for it (d3d12) is in $va_drivers_dir"
+    else
+      warn "GPU: there is no d3d12 video driver in $va_drivers_dir, so KRDP encodes H.264 on the guest's CPUs" \
+        "on NixOS-WSL, wsl.useWindowsDriver = true; with a Mesa that is built with video codecs"
+    fi
+  fi
   if [ "$gpu_on" = 1 ]; then
     ok "the guest will use the GPU: $gpu_why"
   else
@@ -564,6 +600,7 @@ if [ "$mode" = dry-run ]; then
   echo "    RUN_KDE_MEMORY=$guest_memory"
   echo "    QEMU_NET_OPTS=$net_opts"
   echo "    QEMU_OPTS=${qemu_opts[*]}"
+  for var in "${host_env[@]}"; do echo "    $var"; done
   echo "  command: ${runner_bin:-<the runner, built from $repo>} ${runner_args[*]}"
   exit 0
 fi
@@ -633,6 +670,10 @@ export RUN_KDE_STATE=$state_dir
 export RUN_KDE_MEMORY=$guest_memory
 export QEMU_NET_OPTS=$net_opts
 export QEMU_OPTS="${qemu_opts[*]}${RUN_KDE_QEMU_OPTS:+ $RUN_KDE_QEMU_OPTS}"
+for var in "${host_env[@]}"; do
+  # shellcheck disable=SC2163 # the variable named by what `var` holds, as NAME=value
+  export "$var"
+done
 # virtiofsd says a great deal about being run by a user and not by root, none of it a problem
 export RUST_LOG=${RUST_LOG:-error}
 

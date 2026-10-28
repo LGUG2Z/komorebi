@@ -15,6 +15,16 @@
 let
   cfg = config.komorebi.krdp;
 
+  # KRDP asks for the H.264 Constrained Baseline profile and nothing else. A guest whose VA-API
+  # drives the host's encoder (virgl, with the QEMU of run-kde.nix) lists Main and High and no
+  # Constrained Baseline, so ffmpeg's h264_vaapi finds no profile it can use and KRDP encodes on
+  # the CPUs. Main is in RDP's H.264 mode as well, and the software encoder takes it too.
+  krdp = pkgs.kdePackages.krdp.overrideAttrs (old: {
+    postPatch = (old.postPatch or "") + ''
+      substituteInPlace src/VideoStreamSurface.cpp --replace-fail H264Baseline H264Main
+    '';
+  });
+
   startKrdp = pkgs.writeShellScript "krdp-start" ''
     set -eu
     dir=$HOME/.config/komorebi-vm
@@ -33,7 +43,7 @@ let
       chmod 600 "$dir/rdp.key"
     fi
     # --plasma asks KWin for the screen and for input directly, with no portal prompt to click
-    exec ${pkgs.kdePackages.krdp}/bin/krdpserver --plasma --address 0.0.0.0 --port 3389 \
+    exec ${krdp}/bin/krdpserver --plasma --address 0.0.0.0 --port 3389 \
       --certificate "$dir/rdp.crt" --certificate-key "$dir/rdp.key" \
       --username "$USER" --password "$(cat "$password_file")"
   '';
@@ -57,7 +67,7 @@ in
 
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [
-      pkgs.kdePackages.krdp
+      krdp
       # A client, to try the server from inside the guest. FreeRDP decodes H.264 with OpenH264
       # when it is built with it, and OpenH264 shows nothing of the video KRDP sends; without it,
       # FreeRDP decodes with FFmpeg (the VM suite `rdp`, docs/dev/PLATFORM.md).

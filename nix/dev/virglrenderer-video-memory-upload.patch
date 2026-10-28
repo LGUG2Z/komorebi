@@ -1,0 +1,237 @@
+virglrenderer: upload the picture to encode through memory
+
+virglrenderer shares a video buffer with the host's VA-API driver as a dma-buf: it
+exports the VA surface (vaExportSurfaceHandle) and imports it into EGL to copy the
+guest's picture in. The d3d12 driver on WSL 2 has no dma-bufs, so the export fails
+("export surface failed, err = 0x6"), nothing is uploaded and the encoder returns an
+empty bitstream.
+
+When the first export fails, read the planes of the guest's picture back from their
+textures (glReadPixels, into the planes of a VAImage) and write them to the surface
+through vaDeriveImage(), as FFmpeg's hwupload does; where the driver cannot derive an
+image, a vaCreateImage() image is copied with vaPutImage(). On the d3d12 driver the
+vaPutImage() copy came out with an all-zero luma plane (the chroma was right), where
+the derived image encodes exactly: a luma ramp through the encoder comes back as
+43 125 207 for 43 125 207. Where the export works nothing changes: it is tried first,
+and given up on only after it has failed.
+
+diff --git a/src/vrend/virgl_video.c b/src/vrend/virgl_video.c
+index dc1e8cd..8b47837 100644
+--- a/src/vrend/virgl_video.c
++++ b/src/vrend/virgl_video.c
+@@ -438,12 +438,100 @@ static void destroy_video_dma_buf(struct virgl_video_dma_buf *dmabuf)
+     }
+ }
+ 
++/*
++ * Upload the picture to encode through memory, for a host that cannot export
++ * a video buffer as a dma-buf: the d3d12 driver on WSL 2 has no dma-bufs, and
++ * vaExportSurfaceHandle() fails on it. The callback reads the planes of the
++ * guest's picture into a VAImage, which vaPutImage() copies to the surface,
++ * as FFmpeg's hwupload does.
++ */
++static void encode_upload_picture_cpu(struct virgl_video_codec *codec,
++                                      struct virgl_video_buffer *buffer)
++{
++    VAStatus va_stat;
++    VAImageFormat fmt;
++    VAImage image;
++    void *data = NULL;
++    uint8_t *dst[3] = { NULL, NULL, NULL };
++    unsigned pitches[3] = { 0, 0, 0 };
++    unsigned i;
++    int ret;
++    bool derived = false;
++
++    if (!callbacks || !callbacks->encode_read_picture)
++        return;
++
++    memset(&fmt, 0, sizeof(fmt));
++    fmt.byte_order = VA_LSB_FIRST;
++    fmt.bits_per_pixel = 12;
++    switch (buffer->format) {
++    case PIPE_FORMAT_NV12:
++        fmt.fourcc = VA_FOURCC_NV12;
++        break;
++    case PIPE_FORMAT_NV21:
++        fmt.fourcc = VA_FOURCC_NV21;
++        break;
++    default:
++        virgl_error("upload through memory: pipe format %d not supported\n",
++                    buffer->format);
++        return;
++    }
++
++    /*
++     * Write to the surface itself when the driver can show it as an image, as FFmpeg's
++     * hwupload does. On the d3d12 driver the picture of an image made with vaCreateImage() and
++     * copied by vaPutImage() came out with an all-zero luma plane (the chroma was right),
++     * where the same planes written through vaDeriveImage() encode exactly.
++     */
++    va_stat = vaDeriveImage(va_dpy, buffer->va_sfc, &image);
++    if (VA_STATUS_SUCCESS == va_stat) {
++        derived = true;
++    } else {
++        va_stat = vaCreateImage(va_dpy, &fmt, buffer->width, buffer->height, &image);
++        if (VA_STATUS_SUCCESS != va_stat) {
++            virgl_error("create image failed, err = 0x%x\n", va_stat);
++            return;
++        }
++    }
++
++    va_stat = vaMapBuffer(va_dpy, image.buf, &data);
++    if (VA_STATUS_SUCCESS != va_stat || !data) {
++        virgl_error("map image failed, err = 0x%x\n", va_stat);
++        goto destroy_image;
++    }
++
++    for (i = 0; i < image.num_planes && i < ARRAY_SIZE(dst); i++) {
++        dst[i] = (uint8_t *)data + image.offsets[i];
++        pitches[i] = image.pitches[i];
++    }
++
++    ret = callbacks->encode_read_picture(codec, buffer, image.num_planes,
++                                         dst, pitches);
++    vaUnmapBuffer(va_dpy, image.buf);
++    if (ret) {
++        virgl_error("read picture failed, err = %d\n", ret);
++        goto destroy_image;
++    }
++
++    if (!derived) {
++        va_stat = vaPutImage(va_dpy, buffer->va_sfc, image.image_id,
++                             0, 0, buffer->width, buffer->height,
++                             0, 0, buffer->width, buffer->height);
++        if (VA_STATUS_SUCCESS != va_stat)
++            virgl_error("put image failed, err = 0x%x\n", va_stat);
++    }
++
++destroy_image:
++    vaDestroyImage(va_dpy, image.image_id);
++}
++
+ static void encode_upload_picture(struct virgl_video_codec *codec,
+                                   struct virgl_video_buffer *buffer)
+ {
+     VAStatus va_stat;
++    static bool dmabuf_unsupported;
+ 
+-    if (!callbacks || !callbacks->encode_upload_picture)
++    if (!callbacks)
+         return;
+ 
+     va_stat = vaSyncSurface(va_dpy, buffer->va_sfc);
+@@ -452,11 +540,20 @@ static void encode_upload_picture(struct virgl_video_codec *codec,
+         return;
+     }
+ 
+-    if (!buffer->dmabuf)
++    /* once a surface cannot be exported none can: go through memory */
++    if (!buffer->dmabuf && !dmabuf_unsupported && callbacks->encode_upload_picture) {
+         buffer->dmabuf = export_video_dma_buf(buffer, VIRGL_VIDEO_DMABUF_WRITE_ONLY);
++        if (!buffer->dmabuf) {
++            dmabuf_unsupported = true;
++            virgl_warn("cannot export a video buffer as a dma-buf, "
++                       "uploading the pictures to encode through memory\n");
++        }
++    }
+ 
+     if (buffer->dmabuf)
+         callbacks->encode_upload_picture(codec, buffer->dmabuf);
++    else
++        encode_upload_picture_cpu(codec, buffer);
+ }
+ 
+ static void encode_completed(struct virgl_video_codec *codec,
+diff --git a/src/vrend/virgl_video.h b/src/vrend/virgl_video.h
+index e954559..c39d33d 100644
+--- a/src/vrend/virgl_video.h
++++ b/src/vrend/virgl_video.h
+@@ -115,6 +115,16 @@ struct virgl_video_callbacks {
+     void (*encode_upload_picture)(struct virgl_video_codec *codec,
+                                   const struct virgl_video_dma_buf *dmabuf);
+ 
++    /* Read the picture data to be encoded into memory, plane by plane, for
++     * a host whose video buffers cannot be exported as dma-bufs (the d3d12
++     * driver of WSL 2): plane i is written to dst[i], pitches[i] bytes a row.
++     * Returns 0 when the planes are filled. */
++    int (*encode_read_picture)(struct virgl_video_codec *codec,
++                               struct virgl_video_buffer *buffer,
++                               unsigned num_planes,
++                               uint8_t * const *dst,
++                               const unsigned *pitches);
++
+     /* Callback when encoding is complete, used to download the encoded data
+      * and reference picture */
+     void (*encode_completed)(struct virgl_video_codec *codec,
+diff --git a/src/vrend/vrend_video.c b/src/vrend/vrend_video.c
+index 57341d8..dc30c55 100644
+--- a/src/vrend/vrend_video.c
++++ b/src/vrend/vrend_video.c
+@@ -293,6 +293,58 @@ static void vrend_video_enocde_upload_picture(
+     sync_video_buffer_to_dmabuf(buf, dmabuf);
+ }
+ 
++/*
++ * The picture to encode is the planes of a video buffer the guest rendered to, which are
++ * textures here (R8 for the luma, RG8 for the chroma of NV12). Read them into the planes of a
++ * VAImage, for a host that cannot share its video buffer as a dma-buf.
++ */
++static int vrend_video_encode_read_picture(
++                                struct virgl_video_codec *codec,
++                                struct virgl_video_buffer *vbuf,
++                                unsigned num_planes,
++                                uint8_t * const *dst,
++                                const unsigned *pitches)
++{
++    struct vrend_video_buffer *buf = vrend_video_buffer(vbuf);
++    int ret = 0;
++
++    (void)codec;
++
++    if (!buf)
++        return -1;
++
++    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
++    glPixelStorei(GL_PACK_ALIGNMENT, 1);
++
++    for (unsigned i = 0; i < num_planes && i < buf->num_planes; i++) {
++        struct vrend_video_plane *plane = &buf->planes[i];
++        struct vrend_resource *res;
++        /* NV12 and NV21 have a plane of one byte a pixel, and one of two */
++        const unsigned bytes_per_pixel = i ? 2 : 1;
++
++        res = vrend_renderer_ctx_res_lookup(buf->ctx->ctx, plane->res_handle);
++        if (!res) {
++            virgl_error("%s: res %d not found\n", __func__, plane->res_handle);
++            ret = -1;
++            continue;
++        }
++
++        glBindFramebuffer(GL_READ_FRAMEBUFFER, plane->framebuffer);
++        glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
++                               GL_TEXTURE_2D, res->gl_id, 0);
++
++        glPixelStorei(GL_PACK_ROW_LENGTH, pitches[i] / bytes_per_pixel);
++        glReadPixels(0, 0, res->base.width0, res->base.height0,
++                     i ? GL_RG : GL_RED, GL_UNSIGNED_BYTE, dst[i]);
++    }
++
++    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
++    glPixelStorei(GL_PACK_ALIGNMENT, 4);
++    glBindFramebuffer(GL_FRAMEBUFFER, 0);
++
++    return ret;
++}
++
+ static void vrend_video_encode_completed(
+                                 struct virgl_video_codec *codec,
+                                 const struct virgl_video_dma_buf *src_buf,
+@@ -349,6 +401,7 @@ static void vrend_video_encode_completed(
+ static struct virgl_video_callbacks video_callbacks = {
+     .decode_completed           = vrend_video_decode_completed,
+     .encode_upload_picture      = vrend_video_enocde_upload_picture,
++    .encode_read_picture        = vrend_video_encode_read_picture,
+     .encode_completed           = vrend_video_encode_completed,
+ };
+ 

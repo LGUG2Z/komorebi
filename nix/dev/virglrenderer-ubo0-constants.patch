@@ -1,0 +1,105 @@
+vrend: read constant buffer 0 bound as a buffer into the default uniforms
+
+A guest binds the constant buffer 0 of a shader either as inline constants
+(SET_CONSTANT_BUFFER) or as a buffer resource (SET_UNIFORM_BUFFER). A shader reads its
+constant buffer 0 from the default uniform block (fsconst0[] and the like), which vrend
+fills only from the inline constants, and vrend binds UBOs only for the buffers from 1:
+a buffer bound at index 0 was never seen by the shader, and its constants stayed zero.
+
+Mesa's vl_compositor binds the colour matrix of an RGB to YUV conversion that way, so
+with the virgl driver the conversion (scale_vaapi from RGB to NV12 in FFmpeg, which
+KRDP uses) multiplied by a zero matrix and wrote zeros: a solid green picture.
+
+Remember when the constant buffer 0 is set whether it is a buffer, and at the draw read
+it (glGetBufferSubData) into the uniforms with glUniform4uiv. It is read at every draw,
+since the guest can write to the buffer without binding it again. The conversion then
+writes what Mesa's matrix gives: the luma of a ramp goes from 0 0 0 to 0 124 255. What
+is left is Mesa's: the graphics path of vl_compositor_convert_rgb_to_yuv() never loads
+an RGB to YUV matrix, and the one that is sent is the YUV to RGB matrix of the
+compositor's initial state.
+
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+index 4bf88e0..a5166c4 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -735,6 +735,8 @@ struct vrend_sub_context {
+ 
+    struct vrend_constants consts[PIPE_SHADER_TYPES];
+    bool const_dirty[PIPE_SHADER_TYPES];
++   /* constant buffer 0 was last bound as a buffer resource, not as inline constants */
++   bool const0_from_buffer[PIPE_SHADER_TYPES];
+ 
+    struct pipe_constant_buffer cbs[PIPE_SHADER_TYPES][PIPE_MAX_CONSTANT_BUFFERS];
+    uint32_t const_bufs_used_mask[PIPE_SHADER_TYPES];
+@@ -3486,6 +3488,7 @@ void vrend_set_constants(struct vrend_context *ctx,
+ 
+    consts = &ctx->sub->consts[shader];
+    ctx->sub->const_dirty[shader] = true;
++   ctx->sub->const0_from_buffer[shader] = false;
+ 
+    /* avoid reallocations by only growing the buffer */
+    if (consts->num_allocated_consts < num_constant) {
+@@ -3517,6 +3520,9 @@ void vrend_set_uniform_buffer(struct vrend_context *ctx,
+    struct pipe_constant_buffer *cbs = &ctx->sub->cbs[shader][index];
+    const uint32_t mask = 1u << index;
+ 
++   if (index == 0)
++      ctx->sub->const0_from_buffer[shader] = res_handle != 0;
++
+    if (res_handle) {
+       res = vrend_renderer_ctx_res_lookup(ctx, res_handle);
+ 
+@@ -5352,9 +5358,53 @@ static GLuint vrend_draw_bind_ubo_shader(struct vrend_sub_context *sub_ctx,
+    return next_ubo_id;
+ }
+ 
++/*
++ * A guest can bind constant buffer 0 as a buffer resource (SET_UNIFORM_BUFFER) instead of as
++ * inline constants (SET_CONSTANT_BUFFER): Mesa's vl_compositor does for the colour matrix of an
++ * RGB to YUV conversion. A shader reads its constant buffer 0 as the default uniform block
++ * (fsconst0[]), which only the inline constants fill, and the UBOs are for the buffers from 1:
++ * the matrix stayed zero, and the conversion wrote zeros. Read the buffer into the uniforms. It
++ * is read at every draw, as the guest can write to the buffer without binding it again. Returns
++ * whether the constants came from the buffer.
++ */
++static bool vrend_draw_bind_const0_buffer(struct vrend_sub_context *sub_ctx,
++                                          int shader_type)
++{
++   const struct vrend_shader_selector *sel = sub_ctx->shaders[shader_type];
++   const struct pipe_constant_buffer *cb = &sub_ctx->cbs[shader_type][0];
++   const struct vrend_resource *res = (const struct vrend_resource *)cb->buffer;
++   unsigned num_consts, bytes;
++   uint32_t *data;
++
++   if (!sub_ctx->const0_from_buffer[shader_type] || !sel || !sel->sinfo.num_consts ||
++       sub_ctx->prog->const_location[shader_type] == -1 ||
++       !(sub_ctx->const_bufs_used_mask[shader_type] & 1) ||
++       !res || !has_bit(res->storage_bits, VREND_STORAGE_GL_BUFFER))
++      return false;
++
++   num_consts = sel->sinfo.num_consts;
++   bytes = num_consts * 4 * sizeof(uint32_t);
++   data = calloc(1, bytes);
++   if (!data)
++      return true;
++
++   glBindBuffer(GL_COPY_READ_BUFFER, res->gl_id);
++   glGetBufferSubData(GL_COPY_READ_BUFFER, cb->buffer_offset,
++                      MIN2(bytes, cb->buffer_size), data);
++   glBindBuffer(GL_COPY_READ_BUFFER, 0);
++
++   glUniform4uiv(sub_ctx->prog->const_location[shader_type], num_consts, data);
++   free(data);
++
++   return true;
++}
++
+ static void vrend_draw_bind_const_shader(struct vrend_sub_context *sub_ctx,
+                                          int shader_type, bool new_program)
+ {
++   if (vrend_draw_bind_const0_buffer(sub_ctx, shader_type))
++      return;
++
+    if (sub_ctx->consts[shader_type].consts &&
+        sub_ctx->shaders[shader_type] &&
+        (sub_ctx->prog->const_location[shader_type] != -1) &&

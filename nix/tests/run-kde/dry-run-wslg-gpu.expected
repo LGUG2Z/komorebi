@@ -9,4 +9,8 @@ run-kde would start run-kde-x86_64:
     RUN_KDE_MEMORY=8192
     QEMU_NET_OPTS=hostfwd=tcp:127.0.0.1:2223-:22,hostfwd=tcp:127.0.0.1:3389-:3389
     QEMU_OPTS=-cpu host -display gtk,gl=on -vga none -device virtio-vga-gl,xres=1280,yres=800
+    GALLIUM_DRIVER=d3d12
+    LD_LIBRARY_PATH=@T@/wsl-lib
+    LIBVA_DRIVER_NAME=d3d12
+    LIBVA_DRIVERS_PATH=@T@/va
   command: /nix/store/fake-nixos-vm/bin/run-komorebi-demo-vm -m 8192 -smp 6
