@@ -174,7 +174,7 @@ pub enum NotificationEvent {
 /// use komorebi::core::SocketMessage;
 /// use komorebi::window_manager_event::WindowManagerEvent;
 ///
-/// let state = r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"new_window_behaviour":"Create","float_override":false,"cross_monitor_move_behaviour":"Swap","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
+/// let state = r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"new_window_behaviour":"Create","float_override":false,"cross_monitor_move_behaviour":"Swap","monocle_focus_behaviour":"NoOp","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
 ///
 /// let shown = format!(
 ///     r#"{{"event":{{"type":"Show","content":[{{"type":"KWin","content":"WindowAdded"}},{{"id":7}}]}},"state":{state}}}"#
@@ -249,7 +249,7 @@ pub struct Notification {
 /// ]);
 ///
 /// let state: State = serde_json::from_str(
-///     r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"new_window_behaviour":"Create","float_override":false,"cross_monitor_move_behaviour":"Swap","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#,
+///     r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"new_window_behaviour":"Create","float_override":false,"cross_monitor_move_behaviour":"Swap","monocle_focus_behaviour":"NoOp","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#,
 /// )?;
 /// let event = NotificationEvent::Socket(SocketMessage::Retile);
 /// notify_subscribers(Notification { event, state }, false)?;

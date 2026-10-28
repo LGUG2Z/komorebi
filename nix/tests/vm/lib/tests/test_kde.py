@@ -367,10 +367,14 @@ def container(*titles: str, focused: int = 0) -> dict[str, object]:
 
 
 def workspace(
-    *containers: dict[str, object], focused: int = 0, floating: tuple[str, ...] = ()
+    *containers: dict[str, object],
+    focused: int = 0,
+    floating: tuple[str, ...] = (),
+    monocle: dict[str, object] | None = None,
 ) -> dict[str, object]:
     return {
         "containers": {"elements": list(containers), "focused": focused},
+        "monocle_container": monocle,
         "floating_windows": {"elements": [window(t) for t in floating], "focused": 0},
     }
 
@@ -409,6 +413,21 @@ def test_a_workspace_without_containers_has_no_titles(machine: FakeMachine) -> N
     assert Kde(machine, "main").containers() == []
 
 
+def test_monocle_is_the_titles_of_the_monocle_container_and_empty_without_one(
+    machine: FakeMachine,
+) -> None:
+    machine.reply(
+        "komorebic state",
+        output=a_state(
+            workspace(container("a"), monocle=container("m", "n")), workspace(container("d"))
+        ),
+    )
+    kde = Kde(machine, "main")
+
+    assert kde.monocle() == ["m", "n"]
+    assert kde.monocle(1) == []
+
+
 def test_managed_counts_the_windows_of_every_container_of_the_workspace(
     machine: FakeMachine,
 ) -> None:
@@ -422,7 +441,7 @@ def test_managed_counts_the_windows_of_every_container_of_the_workspace(
     assert kde.managed(1) == 1
 
 
-def test_managed_all_counts_the_windows_and_the_floating_windows_of_every_workspace(
+def test_managed_all_counts_the_windows_the_floating_windows_and_the_monocle_of_every_workspace(
     machine: FakeMachine,
 ) -> None:
     first = {
@@ -431,14 +450,17 @@ def test_managed_all_counts_the_windows_and_the_floating_windows_of_every_worksp
     }
     second = {
         "id": 2,
-        "workspaces": {"elements": [workspace(container("c")), workspace()], "focused": 0},
+        "workspaces": {
+            "elements": [workspace(container("c")), workspace(monocle=container("m"))],
+            "focused": 0,
+        },
     }
     machine.reply(
         "komorebic state",
         output=json.dumps({"monitors": {"elements": [first, second], "focused": 0}}),
     )
 
-    assert Kde(machine, "main").managed_all() == 4
+    assert Kde(machine, "main").managed_all() == 5
 
 
 def test_managed_is_zero_for_a_workspace_without_containers(machine: FakeMachine) -> None:

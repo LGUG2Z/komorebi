@@ -296,3 +296,22 @@ records a window in it before it asks the backend to hide it. What the composito
 hidden window (a minimize, a move to another desktop) is the echo of a command komorebi sent, and
 the window manager has to be able to tell that from the user's own: a window that the user
 minimizes leaves the layout, and one komorebi hid does not.
+
+## Why is the monocle container not one of the containers?
+
+Because a layout gives every container a tile, and the monocle container is the one that has the
+whole work area. [`Workspace::new_monocle_container`](../../komorebi/src/workspace.rs) takes the
+focused container out of the workspace's containers and remembers its index, and
+[`Workspace::update`](../../komorebi/src/workspace.rs) puts the window of the monocle container on
+the work area and gives the other containers no tile. The container is taken out and put back
+with the plain remove and insert of the ring, and not the ones that respect locked containers:
+the comments of the code say that a monocle, like a maximize, takes over the whole screen before
+it is reinserted at the same index, which is what respecting the indexes of locked containers
+needs.
+
+The container keeps its resize adjustment, "because when this container is inevitably
+reintegrated, it would be weird if it doesn't go back to the dimensions it had before", and for
+the same reason `update` does not shorten the list of adjustments while there is a monocle
+container: with two containers, one of them in monocle, the list would be cut to one, and the
+adjustment of the container in monocle would be lost when it came back (the comments in
+`new_monocle_container` and `update`).

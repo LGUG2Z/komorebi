@@ -192,6 +192,8 @@ scrolling-layout-columns 2
 change-layout bsp
 preselect-direction left
 cancel-preselect
+toggle-monocle
+toggle-monocle
 toggle-float
 toggle-float
 toggle-lock
@@ -302,6 +304,9 @@ cross-monitor-move-behaviour insert
 cross-monitor-move-behaviour swap
 toggle-cross-monitor-move-behaviour
 toggle-cross-monitor-move-behaviour
+monocle-focus-behaviour cycle
+toggle-monocle-focus-behaviour
+toggle-monocle-focus-behaviour
 unmanaged-window-operation-behaviour op
 unmanaged-window-operation-behaviour no-op
 unmanaged-window-operation-behaviour op

@@ -45,10 +45,10 @@ komorebic start -- --log-level debug
 komorebic start -- --fake-backend
 ```
 
-[`komorebic stop`](../cli/stop.md) tells the daemon to stop. It brings back the windows it hid
-(the back of a stack, [stacking windows](stacking-windows.md)), removes the desktop they were
-hidden on, asks KWin to unload its script, removes its socket and exits. Stopping the process with
-`SIGINT` or `SIGTERM` does the same.
+[`komorebic stop`](../cli/stop.md) tells the daemon to stop. It brings back the windows it hid (the
+back of a stack, [stacking windows](stacking-windows.md), and the windows behind a
+[monocle](monocle.md)), removes the desktop they were hidden on, asks KWin to unload its script,
+removes its socket and exits. Stopping the process with `SIGINT` or `SIGTERM` does the same.
 
 ## Asking komorebi what it is doing
 

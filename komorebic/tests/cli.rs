@@ -480,6 +480,23 @@ fn the_subcommands_about_the_focused_window_and_pausing_send_their_message() {
 }
 
 #[test]
+fn the_monocle_subcommands_send_their_message() {
+    sends(&["toggle-monocle"], r#"{"type":"ToggleMonocle"}"#);
+    sends(
+        &["monocle-focus-behaviour", "cycle"],
+        r#"{"type":"MonocleFocusBehaviour","content":"Cycle"}"#,
+    );
+    sends(
+        &["monocle-focus-behaviour", "no-op"],
+        r#"{"type":"MonocleFocusBehaviour","content":"NoOp"}"#,
+    );
+    sends(
+        &["toggle-monocle-focus-behaviour"],
+        r#"{"type":"ToggleMonocleFocusBehaviour"}"#,
+    );
+}
+
+#[test]
 fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
     sends(
         &["mouse-follows-focus", "enable"],
@@ -755,6 +772,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "minimize.md",
             "monitor-information.md",
             "monitor-work-area-offset.md",
+            "monocle-focus-behaviour.md",
             "mouse-follows-focus.md",
             "move-to-last-workspace.md",
             "move-to-monitor-workspace.md",
@@ -800,6 +818,8 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "toggle-float-override.md",
             "toggle-float.md",
             "toggle-lock.md",
+            "toggle-monocle-focus-behaviour.md",
+            "toggle-monocle.md",
             "toggle-mouse-follows-focus.md",
             "toggle-pause.md",
             "toggle-tiling.md",

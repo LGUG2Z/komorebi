@@ -14,6 +14,7 @@
 use crate::DATA_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
+use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::Rect;
@@ -128,6 +129,7 @@ pub struct State {
     pub new_window_behaviour: WindowContainerBehaviour,
     pub float_override: bool,
     pub cross_monitor_move_behaviour: MoveBehaviour,
+    pub monocle_focus_behaviour: MonocleFocusBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub work_area_offset: Option<Rect>,
     pub mouse_follows_focus: bool,
@@ -158,6 +160,8 @@ impl From<&WindowManager> for State {
                         .map(|workspace| Workspace {
                             name: workspace.name.clone(),
                             containers: workspace.containers.clone(),
+                            monocle_container: workspace.monocle_container.clone(),
+                            monocle_container_restore_idx: workspace.monocle_container_restore_idx,
                             floating_windows: workspace.floating_windows.clone(),
                             layout: workspace.layout.clone(),
                             layout_options: workspace.layout_options,
@@ -197,6 +201,7 @@ impl From<&WindowManager> for State {
             new_window_behaviour: wm.window_management_behaviour.current_behaviour,
             float_override: wm.window_management_behaviour.float_override,
             cross_monitor_move_behaviour: wm.cross_monitor_move_behaviour,
+            monocle_focus_behaviour: wm.monocle_focus_behaviour,
             mouse_follows_focus: wm.mouse_follows_focus,
             unmanaged_window_operation_behaviour: wm.unmanaged_window_operation_behaviour,
         }
@@ -206,8 +211,8 @@ impl From<&WindowManager> for State {
 impl State {
     /// Returns true if and only if the window manager's monitors (with their workspaces,
     /// containers and windows), whether it is paused, its new window behavior, its float override,
-    /// its unmanaged window operation behavior, its work area offset or its mouse follows focus
-    /// setting differ from this state's
+    /// its monocle focus behavior, its unmanaged window operation behavior, its work area offset
+    /// or its mouse follows focus setting differ from this state's
     ///
     /// A window is compared by its id only, so a window that moved or was renamed is not a
     /// change.
@@ -231,6 +236,10 @@ impl State {
         }
 
         if self.cross_monitor_move_behaviour != new.cross_monitor_move_behaviour {
+            return true;
+        }
+
+        if self.monocle_focus_behaviour != new.monocle_focus_behaviour {
             return true;
         }
 

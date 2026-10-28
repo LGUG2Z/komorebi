@@ -385,10 +385,13 @@ pub enum SocketMessage {
     UnlockMonitorWorkspaceContainer(usize, usize, usize),
     ToggleLock,
     ToggleFloat,
+    ToggleMonocle,
     ToggleWindowContainerBehaviour,
     ToggleFloatOverride,
     ToggleCrossMonitorMoveBehaviour,
     CrossMonitorMoveBehaviour(MoveBehaviour),
+    ToggleMonocleFocusBehaviour,
+    MonocleFocusBehaviour(MonocleFocusBehaviour),
     UnmanagedWindowOperationBehaviour(OperationBehaviour),
     // Current Workspace Commands
     ManageFocusedWindow,

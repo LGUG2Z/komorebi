@@ -127,9 +127,10 @@ the run.
   printed, failing the test if it fails. `state()` is the daemon's state as
   `komorebic state` prints it, `managed(workspace)` the number of windows the
   daemon has on a workspace of the first monitor, `managed_all()` the number it
-  has on every workspace of every monitor (floating windows too),
-  `containers(workspace)` the titles of the windows of each of its containers,
-  and `focused_title(workspace)` the title of the window it has focused there.
+  has on every workspace of every monitor (floating windows and monocle
+  containers too), `containers(workspace)` the titles of the windows of each of
+  its containers, `monocle(workspace)` those of its monocle container, and
+  `focused_title(workspace)` the title of the window it has focused there.
 - `daemon` reads the daemon's view of the desktop from that log, at the debug
   level the nodes set: `daemon.events(log)` lists the window events it handled,
   in order, `daemon.window_ids(log)` maps a window's title to the daemon's id

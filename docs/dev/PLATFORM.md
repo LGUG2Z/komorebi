@@ -22,7 +22,7 @@ was measured with KWin 6.8.1, Plasma 6.8.1 and Qt 6.12.0 from nixpkgs `d3b13ad`
 - **Desktop**: one of KWin's virtual desktops. Each output shows one; komorebi's workspace `i`
   is desktop `i`.
 - **Parking desktop**: the desktop named `komorebi-park`, which komorebi makes to hide the back of
-  a stack on. It is not a workspace.
+  a stack, and the windows behind a monocle, on. It is not a workspace.
 - **Headless KWin**: `kwin_wayland --virtual`, a KWin with virtual outputs and no display,
   which the VM tests run ([vm-tests.md](vm-tests.md)).
 
@@ -132,11 +132,12 @@ reload its configuration. If a workspace has no desktop, it creates the missing 
 `org.kde.KWin.VirtualDesktopManager`, named "Workspace 1", "Workspace 2" and so on. A desktop
 that is already there keeps its name.
 
-When a stack hides a window for the first time, it makes one more desktop, named `komorebi-park`,
-after the desktops of the workspaces (the missing workspace desktops are made by position, so that
-it stays last), and moves the window there. The desktop is not a workspace: komorebi counts the
-workspaces without it, and a window on it is on the workspace it will come back to. It checks that
-KWin still lists the desktop before it sends another window there.
+When komorebi hides a window for the first time (the back of a stack, or a window behind a
+monocle), it makes one more desktop, named `komorebi-park`, after the desktops of the workspaces
+(the missing workspace desktops are made by position, so that it stays last), and moves the window
+there. The desktop is not a workspace: komorebi counts the workspaces without it, and a window on
+it is on the workspace it will come back to. It checks that KWin still lists the desktop before it
+sends another window there.
 
 Every command of the window manager (move and resize, focus, raise, hide or restore, minimize,
 bring back or close a window, show a workspace on an output, put a window on a workspace) is

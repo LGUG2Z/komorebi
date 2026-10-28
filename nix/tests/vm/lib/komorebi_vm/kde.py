@@ -305,6 +305,17 @@ class Kde:
             for container in elements
         ]
 
+    def monocle(self, workspace: int = 0) -> list[str]:
+        """The titles of the windows of the monocle container of a workspace of the first monitor.
+
+        The windows are in the order of the stack. A workspace that is not in monocle gives an
+        empty list.
+        """
+        container = self._workspace(workspace)["monocle_container"]
+        if container is None:
+            return []
+        return [window["details"]["title"] for window in container["windows"]["elements"]]
+
     def managed(self, workspace: int = 0) -> int:
         """The number of windows the daemon has on a workspace of the first monitor."""
         containers = self._workspace(workspace)["containers"]["elements"]
@@ -313,13 +324,15 @@ class Kde:
     def managed_all(self) -> int:
         """The number of windows the daemon has, on every workspace of every monitor.
 
-        That is the windows of the containers, and the floating windows.
+        That is the windows of the containers, the monocle container and the floating windows.
         """
         total = 0
         for monitor in self.state()["monitors"]["elements"]:
             for workspace in monitor["workspaces"]["elements"]:
                 for container in workspace["containers"]["elements"]:
                     total += len(container["windows"]["elements"])
+                if workspace["monocle_container"] is not None:
+                    total += len(workspace["monocle_container"]["windows"]["elements"])
                 total += len(workspace["floating_windows"]["elements"])
         return total
 

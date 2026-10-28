@@ -69,6 +69,10 @@
 //! - **ToggleFloat** takes the focused window out of the layout into the floating windows of the
 //!   workspace, which komorebi does not move, or puts a floating window back
 //!   ([`WindowManager::toggle_float`]).
+//! - **ToggleMonocle** gives the focused container the whole work area, with the others out of
+//!   the layout and out of sight, or puts it back ([`WindowManager::toggle_monocle`]).
+//!   **MonocleFocusBehaviour** sets what focusing in a direction does meanwhile, cycle the
+//!   monocle or nothing, and **ToggleMonocleFocusBehaviour** switches between the two.
 //! - **WorkspacePadding** and **ContainerPadding** set the paddings of a workspace given by the
 //!   index of its monitor and its own, **NamedWorkspacePadding** and
 //!   **NamedWorkspaceContainerPadding** those of the workspace with a name
@@ -156,6 +160,7 @@ use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
+use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
@@ -258,6 +263,8 @@ impl WindowManager {
     ///   `UnlockMonitorWorkspaceContainer` is not there (a container that is not there is ignored).
     /// - The focused window cannot be floated or put back, for one of the reasons
     ///   [`WindowManager::toggle_float`] gives.
+    /// - The monocle cannot be turned on or off, for one of the reasons
+    ///   [`WindowManager::toggle_monocle`] gives.
     /// - The focused window cannot be stacked, unstacked or cycled, for one of the reasons
     ///   [`WindowManager::add_window_to_container`], [`WindowManager::remove_window_from_container`],
     ///   [`WindowManager::stack_all`], [`WindowManager::unstack_all`],
@@ -349,6 +356,9 @@ impl WindowManager {
 
                 if let Some(location) = window_location {
                     match location {
+                        WorkspaceWindowLocation::Monocle(window_idx) => {
+                            self.focus_container_window(window_idx)?;
+                        }
                         WorkspaceWindowLocation::Container(container_idx, window_idx) => {
                             let focused_container_idx = self.focused_container_idx()?;
                             if container_idx != focused_container_idx {
@@ -578,6 +588,7 @@ impl WindowManager {
                         && monitor.workspaces().len() > 1
                         && workspace.containers().is_empty()
                         && workspace.floating_windows().is_empty()
+                        && workspace.monocle_container.is_none()
                         && workspace.name.is_none()
                     {
                         can_close = true;
@@ -821,6 +832,7 @@ impl WindowManager {
             SocketMessage::EnsureNamedWorkspaces(monitor_idx, ref names) => {
                 self.ensure_named_workspaces_for_monitor(monitor_idx, names)?;
             }
+            SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleFloat => self.toggle_float(false)?,
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
@@ -1357,6 +1369,15 @@ impl WindowManager {
             }
             SocketMessage::ToggleMouseFollowsFocus => {
                 self.mouse_follows_focus = !self.mouse_follows_focus;
+            }
+            SocketMessage::ToggleMonocleFocusBehaviour => {
+                self.monocle_focus_behaviour = match self.monocle_focus_behaviour {
+                    MonocleFocusBehaviour::Cycle => MonocleFocusBehaviour::NoOp,
+                    MonocleFocusBehaviour::NoOp => MonocleFocusBehaviour::Cycle,
+                };
+            }
+            SocketMessage::MonocleFocusBehaviour(behaviour) => {
+                self.monocle_focus_behaviour = behaviour;
             }
             SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
                 self.unmanaged_window_operation_behaviour = behaviour;

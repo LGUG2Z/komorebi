@@ -27,6 +27,9 @@
 //!   tile, or the focus to it.
 //! - `toggle-float` takes the focused window out of the layout, or puts it back, and
 //!   `toggle-lock` locks the focused container at its index, or unlocks it.
+//! - `toggle-monocle` gives the focused container the whole work area, or puts it back, and
+//!   `monocle-focus-behaviour` and `toggle-monocle-focus-behaviour` set what focusing in a
+//!   direction does meanwhile.
 //! - `focused-workspace-padding`, `focused-workspace-container-padding`, `workspace-padding`,
 //!   `container-padding` and the two `adjust-*-padding` set the padding around the tiles and
 //!   between them, and `global-work-area-offset`, `monitor-work-area-offset`,
@@ -188,6 +191,13 @@ gen_target_subcommand_args! {
     MoveWorkspaceToMonitor,
     SwapWorkspacesWithMonitor,
     FocusStackWindow,
+}
+
+#[derive(Parser)]
+struct MonocleFocusBehaviour {
+    /// Desired monocle focus behavior
+    #[clap(value_enum)]
+    behaviour: komorebi_client::MonocleFocusBehaviour,
 }
 
 macro_rules! gen_named_target_subcommand_args {
@@ -880,6 +890,8 @@ enum SubCommand {
     ToggleTiling,
     /// Toggle floating mode for the focused window
     ToggleFloat,
+    /// Toggle monocle mode for the focused container
+    ToggleMonocle,
     /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
     ToggleLock,
     /// Force komorebi to manage the focused window
@@ -891,6 +903,11 @@ enum SubCommand {
     CrossMonitorMoveBehaviour(CrossMonitorMoveBehaviour),
     /// Toggle the behaviour when moving windows across monitor boundaries
     ToggleCrossMonitorMoveBehaviour,
+    /// Set the behavior when focusing in a direction while a monocle container is active
+    #[clap(arg_required_else_help = true)]
+    MonocleFocusBehaviour(MonocleFocusBehaviour),
+    /// Toggle the behavior when focusing in a direction while a monocle container is active
+    ToggleMonocleFocusBehaviour,
     /// Set the operation behavior when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
@@ -1090,6 +1107,9 @@ fn main() -> eyre::Result<()> {
         SubCommand::ToggleCrossMonitorMoveBehaviour => {
             send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour)?;
         }
+        SubCommand::ToggleMonocleFocusBehaviour => {
+            send_message(&SocketMessage::ToggleMonocleFocusBehaviour)?;
+        }
         SubCommand::FocusMonitor(args) => {
             send_message(&SocketMessage::FocusMonitorNumber(args.target))?;
         }
@@ -1124,6 +1144,9 @@ fn main() -> eyre::Result<()> {
             send_message(&SocketMessage::CycleFocusEmptyWorkspace(
                 args.cycle_direction,
             ))?;
+        }
+        SubCommand::ToggleMonocle => {
+            send_message(&SocketMessage::ToggleMonocle)?;
         }
         SubCommand::ToggleFloat => {
             send_message(&SocketMessage::ToggleFloat)?;
@@ -1433,6 +1456,9 @@ fn main() -> eyre::Result<()> {
                 args.monitor,
                 args.names,
             ))?;
+        }
+        SubCommand::MonocleFocusBehaviour(args) => {
+            send_message(&SocketMessage::MonocleFocusBehaviour(args.behaviour))?;
         }
         SubCommand::UnmanagedWindowOperationBehaviour(args) => {
             send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(

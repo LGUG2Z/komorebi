@@ -29,13 +29,16 @@ daemon. It grows with the code: each part of the daemon that is added has its pl
   that tile.
 - **Stack**: a container with more than one window. It has one tile, and the window in front
   (the container's focused window) is in sight; the others are hidden.
-- **Hidden window**: a window of a stack that is not in front, which komorebi has taken out of
-  sight ([`Backend::hide`]) and recorded in [`HIDDEN_WINDOWS`]. It is alive, not minimized, and
-  on its workspace.
+- **Hidden window**: a window of a stack that is not in front, or of a container a monocle
+  leaves out, which komorebi has taken out of sight ([`Backend::hide`]) and recorded in
+  [`HIDDEN_WINDOWS`]. It is alive, not minimized, and on its workspace.
 - **Parking desktop**: the virtual desktop, named `komorebi-park`, that the KWin backend hides
   windows on. It is not a workspace.
 - **Layout**: the arrangement (BSP, columns, rows, ...) that turns a work area and a
   number of containers into one rectangle, a **tile**, for each container.
+- **Monocle**: a workspace's one container that has the whole work area. It is held out of the
+  workspace's containers, so the layout gives no container a tile, and the windows of the
+  containers are hidden, until it is put back where it was ([`Workspace::monocle_container`]).
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
   the focus, minimized or restored, or put on another workspace's desktop; and that a monitor
   shows another workspace ([`WindowManagerEvent`]). Two events come from komorebi itself: a
@@ -107,8 +110,9 @@ the same thing at every level.
   its padding, an optional work area offset, an optional window-based offset with the number of
   windows up to which it applies, and its workspaces. It shows the focused one.
 - A **workspace** ([`Workspace`]) has a layout, its padding, an optional work area offset of its
-  own, whether it takes the monitor's window-based offset, its containers, in order, and its
-  floating windows, which are in no container and which the layout does not tile.
+  own, whether it takes the monitor's window-based offset, its containers, in order, its
+  monocle container, if it has one, and its floating windows, which are in no container and
+  which the layout does not tile.
 - A **container** ([`Container`]) has its windows. A new window gets a container of its
   own, unless the window container behavior says to put it in the focused one. With more than
   one window it is a stack: the focused window is in front and the others are hidden. A
@@ -251,6 +255,12 @@ window is in, end with that call: stacking and unstacking ([`Workspace::move_win
 ([`Workspace::remove_window`], which brings the next one forward and focuses it), a window that
 is floated, a focus change to a window that is behind ([`Workspace::focus_container_by_window`]),
 and cycling the stack or focusing a window of it by its index.
+
+A monocle hides the other containers in the same way. Turning it on hides every window of each
+of them ([`Container::hide`]), turning it off restores the window in front of each
+([`Container::restore`]), and cycling it hides the container it gave up. While a monocle is on,
+[`Workspace::restore`] restores its window and no other, and [`Workspace::hide`] hides it with
+the rest.
 
 [`Window::hide`] puts the window's id in [`HIDDEN_WINDOWS`] before it asks the backend, and
 [`Window::restore`] takes it out, so that when the compositor reports something about the window
@@ -450,6 +460,25 @@ manager's, and `Append` on an empty workspace is `Create`. `ToggleWindowContaine
 `ToggleWorkspaceFloatOverride` the focused workspace's, which starts from the opposite of the
 window manager's value the first time.
 
+`ToggleMonocle` takes the focused container out of the workspace's containers and makes it the
+monocle container, which [`Workspace::update`] puts on the whole work area, less the padding, and
+hides the windows of the other containers; turned off, their windows are restored and the
+container is put back at the index it came from ([`WindowManager::toggle_monocle`],
+[`Workspace::new_monocle_container`], [`Workspace::reintegrate_monocle_container`]). The container's resize adjustment is kept
+meanwhile, and so is the whole of [`Workspace::resize_dimensions`], so that the tiles come back
+as they were resized. While there is a monocle container, the window in front of it is the one
+that has the focus: a `FocusChange` to another window gives the focus back to it, and
+[`WindowManager::update_focused_workspace`] focuses it, not the focused container's window, which
+is one of the tiles behind. `MoveWindow` and `CycleMoveWindow` are refused, and `ToggleFloat` is
+ignored, for the focused container is not the window in front. What `FocusWindow` does is
+[`WindowManager::monocle_focus_behaviour`]: with `Cycle`, it makes the next or the previous
+container the monocle ([`WindowManager::cycle_monocle`]); with `NoOp`, the default, there is no
+container on any side, so the focus goes to the monitor on that side, and it fails where there
+is none. `CycleFocusWindow` always carries the monocle to the next or the previous container.
+`MonocleFocusBehaviour` sets the behavior, and `ToggleMonocleFocusBehaviour` switches it. A focus
+that crosses to a monitor whose workspace has a monocle container gives the focus to its window,
+and a container moved to a workspace with one turns that monocle off first.
+
 `ToggleLock` locks the focused container, or unlocks it ([`WindowManager::toggle_lock`]), and
 `LockMonitorWorkspaceContainer` and `UnlockMonitorWorkspaceContainer` do the same for a
 container given by its indices. A lock changes nothing until containers are inserted, removed or
@@ -608,12 +637,12 @@ module's unit.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
-  promote the focused container, float a window, lock a container, set the padding of a
-  workspace, manage and unmanage a window, stack and unstack windows and choose the one in
-  front, show a workspace, move a container to another workspace, follow a workspace switch
-  made by something else, name a workspace and find it by its name, set the layout of a
-  workspace that is not in front, focus another monitor, and move containers and workspaces
-  between monitors).
+  promote the focused container, float a window, put a container in monocle, lock a
+  container, set the padding of a workspace, manage and unmanage a window, stack and unstack
+  windows and choose the one in front, show a workspace, move a container to another
+  workspace, follow a workspace switch made by something else, name a workspace and find it
+  by its name, set the layout of a workspace that is not in front, focus another monitor, and
+  move containers and workspaces between monitors).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -675,7 +704,8 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 - A hidden window (`hide`) is out of sight, alive, not minimized, and on the workspace it was
   on until `restore`: `window_workspace` still names that workspace, and
   `set_window_workspace` changes where it comes back to, not where it is hidden. Only the back of
-  a stack is hidden: nothing is hidden to leave a workspace.
+  a stack and the containers behind a monocle are hidden: nothing is hidden to leave a
+  workspace.
 - `shutdown`, `is_window`, `window_rect` and `monitor_from_point` have defaults, written in
   terms of the queries. An implementor should not need to override them, except `shutdown`
   when it created something in the compositor that has to be given up.
@@ -690,6 +720,13 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A test's backend does not outlive the test | framework path: [`with_backend`] restores the previous one on drop | `with_backend_puts_the_previous_backend_back_when_the_closure_panics` | none |
 | A command about a missing window is an error, not a panic | test | `a_command_about_a_window_nobody_opened_is_an_error`, `a_command_about_a_closed_window_is_an_error` and `hiding_or_restoring_a_window_nobody_opened_is_an_error` against the fake, `a_command_about_a_window_the_table_does_not_know_is_an_error_and_sends_nothing` against the KWin backend | none |
 | A locked container keeps its index | framework path: a [`Workspace`] inserts, removes and swaps its containers through `LockableSequence` | `test_locked_containers_with_new_window`, `test_locked_containers_remove_window`, `a_window_that_opens_does_not_push_a_locked_container_from_its_index` | `containers_mut()` is the `VecDeque` itself |
+| A container in monocle goes back to the index it came from, and the tiles come back as they were resized | framework path: [`Workspace::new_monocle_container`] keeps the index and [`Workspace::reintegrate_monocle_container`] inserts at it, and [`Workspace::update`] does not shorten the resize adjustments while there is a monocle container | `test_toggle_monocle`, `a_monocle_goes_back_to_its_index_even_when_a_window_opens_meanwhile`, `a_tile_that_was_resized_is_the_size_it_was_after_a_monocle` | none |
+| The window in monocle keeps the focus | framework path: `handle_event` gives the focus back to the monocle window on a `FocusChange`, and [`WindowManager::update_focused_workspace`] focuses it | `a_window_that_takes_the_focus_from_the_monocle_is_made_to_give_it_back` | none |
+| What is about the tiles does nothing while a window is in monocle | framework path: [`WindowManager::move_container_in_direction`] and [`WindowManager::move_container_in_cycle_direction`] bail, and [`WindowManager::toggle_float`] returns, when the window in front is in monocle | `what_is_about_the_tiles_is_refused_or_ignored_while_a_monocle_is_on` | none |
+| A focus that crosses to a monitor in monocle gives its monocle window the focus, and a container moved or sent to a workspace in monocle turns the monocle off | framework path: the `None` arm of [`WindowManager::focus_container_in_direction`], [`WindowManager::move_container_in_direction`], [`WindowManager::move_container_to_monitor`] and [`Monitor::move_container_to_workspace`] | `focusing_towards_a_monitor_in_monocle_gives_the_focus_to_its_monocle_window`, `a_container_moved_to_a_monitor_in_monocle_turns_the_monocle_off_there`, `a_container_sent_to_a_workspace_in_monocle_turns_the_monocle_off_there` | none |
+| A window in monocle that closes takes the monocle with it | framework path: [`Workspace::remove_window`] looks in the monocle container, which the index of managed windows lists | `closing_the_window_in_monocle_tiles_the_others_again` | none |
+| In a real KWin, the window in monocle fills the work area and goes back to its tile | VM test | `vm-core-e2e` ("in monocle the focused window fills the work area", "toggling back puts it on its tile") | none |
+| A clean stop, and the next start after a crash, bring back the windows a monocle hid | VM test | `vm-core-e2e` ("and every window is on a workspace's desktop", "after a crash and a restart a monocle still hides the other window") | none |
 | A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone`, `an_ignore_rule_keeps_a_window_unmanaged` | `ManageRule` |
 | A window the user unmanaged stays out of the layout until it is managed again | framework path: `handle_event` checks the list of unmanaged windows before it acts on any event but a removal | `unmanage_takes_the_focused_window_out_until_manage_takes_it_back` | none |
 | A paused window manager moves no window | framework path: `handle_event` returns before anything else, and [`read_commands_uds`] drops every message but `TogglePause`, `State`, `GlobalState` and `Stop` | `while_paused_no_event_changes_the_layout_and_manage_takes_in_a_window_it_missed`, `while_paused_only_toggle_pause_state_and_stop_are_handled` | none |
@@ -726,6 +763,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | Only the window in front of a stack is in sight | framework path: [`Container::add_window`] and [`Container::load_focused_window`] hide every window of the container but the focused one, and every operation that changes the front ends with the call | `a_window_added_to_a_container_is_in_front_and_the_others_are_hidden`, `loading_the_focused_window_shows_it_and_hides_the_rest`, `stacking_puts_two_windows_in_one_container_and_hides_the_one_behind`, `vm-stacks` ("exactly one window is on it") | none |
 | A hidden window is still on its workspace, and is not reported as moved | framework path: the table keeps the desktop a window came from, and a move to the parking desktop is its own | `parking_a_window_hides_it_without_unmanaging_it`, `komorebis_own_move_and_its_park_and_restore_raise_nothing_new`, `a_window_is_put_on_a_workspace_by_putting_it_on_its_desktop` | none |
 | What the compositor reports about a window komorebi hid is not taken for the user's doing | framework path: [`Window::hide`] records the window in [`HIDDEN_WINDOWS`] before it asks the backend, and the `Minimize` arm of `handle_event` checks it | `a_minimize_komorebi_asked_for_is_not_mistaken_for_the_user`, `a_minimize_the_user_asked_for_takes_the_window_out_of_the_layout` | none |
+| While a window is in monocle the windows of the other containers are hidden, and they are shown again when it is turned off | framework path: [`WindowManager::monocle_on`], [`WindowManager::cycle_monocle`] and [`WindowManager::monocle_off`] hide and restore the containers, and [`Workspace::remove_window`] restores them when the window in monocle closes | `a_monocle_hides_the_other_windows_until_it_is_turned_off`, `a_window_in_monocle_that_leaves_shows_the_containers_behind_it`, `the_back_of_a_stack_stays_hidden_in_monocle_and_after_it`, `vm-stacks` ("the window in monocle fills the work area and the other one is out of sight") | none |
 | The window the compositor focuses in a stack comes to the front | framework path: the `FocusChange` arm of `handle_event` focuses the container by the window, which loads it ([`Workspace::focus_container_by_window`]) | `focusing_a_hidden_window_of_a_stack_brings_it_to_the_front`, `the_window_the_user_focuses_in_the_back_of_a_stack_comes_to_the_front` | none |
 | Cycling a stack changes which window is in front and nothing else | framework path: [`Container::load_focused_window`] shows the focused window and hides the rest; a cycle by index only swaps two places | `cycling_the_stack_brings_the_next_window_to_the_front_and_hides_the_one_that_was`, `cycling_the_index_moves_the_front_window_along_the_stack_and_keeps_it_in_front`, `focus_stack_window_brings_the_window_at_an_index_to_the_front`, `vm-stacks` ("cycle the stack") | none |
 | A stack with one window cannot be cycled, and an index it lacks is refused | runtime error: the window manager's functions return it before they change anything | `cycling_a_window_that_is_alone_is_an_error`, `focus_stack_window_refuses_an_index_the_stack_does_not_have` | none |
@@ -838,7 +876,8 @@ A window is shown, and ends up on a tile:
 - [`nix/tests/vm/suites/kwin-events`](../../nix/tests/vm/suites/kwin-events/test.py): the
   events of a real KWin, through the daemon.
 - [`nix/tests/vm/suites/core-e2e`](../../nix/tests/vm/suites/core-e2e/test.py): the daemon
-  tiling a real KWin, checked against what KWin has, and read and stopped with `komorebic`.
+  tiling a real KWin, checked against what KWin has, with a window in monocle, and read and
+  stopped with `komorebic`.
 - [`nix/tests/vm/suites/kwin-restart`](../../nix/tests/vm/suites/kwin-restart/test.py): KWin
   restarting under the daemon.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
@@ -855,6 +894,7 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/promote.rs`](../../komorebi/tests/promote.rs), promoting;
   [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating;
   [`komorebi/tests/lock.rs`](../../komorebi/tests/lock.rs), locking;
+  [`komorebi/tests/monocle.rs`](../../komorebi/tests/monocle.rs), the monocle;
   [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
   unmanaging and managing the focused window, and pausing;
   [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
@@ -911,12 +951,15 @@ A window is shown, and ends up on a tile:
 [`Window::restore`]: ../../komorebi/src/window.rs
 [`HIDDEN_WINDOWS`]: ../../komorebi/src/lib.rs
 [`Container::add_window`]: ../../komorebi/src/container.rs
+[`Container::hide`]: ../../komorebi/src/container.rs
 [`Container::load_focused_window`]: ../../komorebi/src/container.rs
+[`Container::restore`]: ../../komorebi/src/container.rs
 [`Workspace::move_window_to_container`]: ../../komorebi/src/workspace.rs
 [`Workspace::new_container_for_focused_window`]: ../../komorebi/src/workspace.rs
 [`Workspace::remove_window`]: ../../komorebi/src/workspace.rs
 [`Workspace::focus_container_by_window`]: ../../komorebi/src/workspace.rs
 [`Workspace::restore`]: ../../komorebi/src/workspace.rs
+[`Workspace::hide`]: ../../komorebi/src/workspace.rs
 [`Workspace::window_container_behaviour`]: ../../komorebi/src/workspace.rs
 [`Workspace::float_override`]: ../../komorebi/src/workspace.rs
 [`WindowManager::add_window_to_container`]: ../../komorebi/src/window_manager.rs
@@ -950,6 +993,14 @@ A window is shown, and ends up on a tile:
 [`WindowManager::resize_window`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_float`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_lock`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::toggle_monocle`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::monocle_on`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::monocle_off`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::cycle_monocle`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::monocle_focus_behaviour`]: ../../komorebi/src/window_manager.rs
+[`Workspace::monocle_container`]: ../../komorebi/src/workspace.rs
+[`Workspace::new_monocle_container`]: ../../komorebi/src/workspace.rs
+[`Workspace::reintegrate_monocle_container`]: ../../komorebi/src/workspace.rs
 [`WindowManager::adjust_workspace_padding`]: ../../komorebi/src/window_manager.rs
 [`Workspace::apply_window_based_work_area_offset`]: ../../komorebi/src/workspace.rs
 [`Monitor::update_workspace_globals`]: ../../komorebi/src/monitor.rs
@@ -1004,6 +1055,7 @@ A window is shown, and ends up on a tile:
 [`WindowManager::cross_monitor_move_behaviour`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::cross_boundary_behaviour`]: ../../komorebi/src/window_manager.rs
 [`Monitor::focus_workspace`]: ../../komorebi/src/monitor.rs
+[`Monitor::move_container_to_workspace`]: ../../komorebi/src/monitor.rs
 [`bridge.js`]: ../../komorebi/src/kwin/bridge.js
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts
 [`bridge.test.js`]: ../../komorebi/src/kwin/bridge.test.js

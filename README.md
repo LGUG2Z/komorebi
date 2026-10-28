@@ -38,7 +38,8 @@ While it runs, the daemon takes messages on a Unix socket, `komorebi.sock` in
 directory): a message can ask for the state of the window manager, ask which
 monitor, workspace or container has the focus, give the focus to another
 window, move the focused window to another tile, change the layout, resize a
-tile, float a window, retile every monitor, or stop the daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
+tile, float a window, give one window the whole work area, retile every monitor, or stop the
+daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
 the command line, is how a person sends them. `komorebic start` runs the
 `komorebi` on the `PATH`, and passes it what follows a `--`. In a Plasma
 session:
@@ -67,7 +68,7 @@ without a checkout of the toolchain.
   through which it reaches a compositor and the in-memory desktop the tests use
   (`backend`), the backend that reaches KWin through a script it runs and edits
   the one setting of KWin's it needs in the user's `kwinrc` and the parking desktop
-  it hides the back of a stack on (`kwin`),
+  it hides the back of a stack and the windows behind a monocle on (`kwin`),
   the model of what it tiles (`monitor`, `workspace`, `container`, `window`), the
   window manager that keeps the model (`window_manager`), loads it from the
   backend (`desktop`) and changes it when the compositor reports an event
@@ -144,7 +145,8 @@ A container with more than one window is a stack: the layout gives it one tile,
 and the window in front is in sight. The others are hidden, which on KWin means
 moved to one more virtual desktop, `komorebi-park`, that nobody looks at and that
 is not a workspace. The daemon makes it when it first needs it, removes it when
-it stops, and removes one that a run that did not stop left behind.
+it stops, and removes one that a run that did not stop left behind. A monocle
+hides the windows of the other containers there too.
 
 Everything else reaches the daemon as a message on its socket: one JSON
 `SocketMessage` per line, handled one at a time with the window manager
@@ -159,7 +161,8 @@ another layout, `layout-ratios` and `scrolling-layout-columns` tune it,
 `preselect-direction` reserves a tile for the next window, `resize-edge` and
 `resize-axis` move the edges of the focused tile, `promote` brings the
 focused window to the largest tile, `toggle-float` takes it out of the
-layout, and `toggle-lock` keeps its container at its place. The scrolling layout
+layout, `toggle-monocle` gives its container the whole work area, hiding the
+others, and puts it back, and `toggle-lock` keeps its container at its place. The scrolling layout
 is a strip of columns that runs past the edges of the monitor and scrolls to
 the window that has the focus. `minimize` and `close` ask KWin to minimize or
 close the focused window, `unmanage` takes it out of the layout until `manage`

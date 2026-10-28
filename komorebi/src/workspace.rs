@@ -30,6 +30,13 @@ use std::num::NonZeroUsize;
 pub struct Workspace {
     pub name: Option<String>,
     pub containers: Ring<Container>,
+    /// The container that has the whole work area, and so is the only one in view: it is not one
+    /// of `containers`, which are not given tiles until it is put back
+    /// ([`Workspace::new_monocle_container`], [`Workspace::reintegrate_monocle_container`])
+    pub monocle_container: Option<Container>,
+    /// The index in `containers` the monocle container goes back to
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monocle_container_restore_idx: Option<usize>,
     pub floating_windows: Ring<Window>,
     pub layout: Layout,
     pub layout_options: Option<LayoutOptions>,
@@ -65,6 +72,8 @@ impl Default for Workspace {
         Self {
             name: None,
             containers: Default::default(),
+            monocle_container: None,
+            monocle_container_restore_idx: None,
             workspace_padding: None,
             container_padding: None,
             resize_dimensions: vec![],
@@ -88,6 +97,7 @@ impl Default for Workspace {
 /// Where a workspace has a window of an application ([`Workspace::location_from_exe`])
 #[derive(Debug)]
 pub enum WorkspaceWindowLocation {
+    Monocle(usize),          // window_idx
     Container(usize, usize), // container_idx, window_idx
     Floating(usize),         // idx in floating_windows
 }
@@ -280,6 +290,13 @@ impl Workspace {
             }
         }
 
+        if let Some(container) = &self.monocle_container {
+            for window in container.windows() {
+                let entry = tracker.entry(window.id).or_insert(0);
+                *entry += 1;
+            }
+        }
+
         for (window_id, count) in &tracker {
             if *count > 1 {
                 to_prune_from_containers.push(*window_id);
@@ -324,6 +341,14 @@ impl Workspace {
             }
         }
 
+        if let Some(container) = &self.monocle_container {
+            for window in container.windows() {
+                if !window.is_valid() {
+                    invalid_window_ids.push(window.id);
+                }
+            }
+        }
+
         for window in self.floating_windows() {
             if !window.is_valid() {
                 invalid_floating_window_ids.push(window.id);
@@ -354,6 +379,28 @@ impl Workspace {
     ///
     /// No container of the workspace has the window.
     pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
+        if let Some(container) = self.monocle_container.as_mut()
+            && let Some(window_idx) = container
+                .windows()
+                .iter()
+                .position(|window| window.id == window_id)
+        {
+            let window = container
+                .remove_window_by_idx(window_idx)
+                .ok_or_eyre("there is no window")?;
+
+            if container.windows().is_empty() {
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
+            }
+
+            for c in self.containers_mut() {
+                c.restore()?;
+            }
+
+            return Ok(window);
+        }
+
         let container_idx = self
             .container_idx_for_window(window_id)
             .ok_or_eyre("there is no window")?;
@@ -403,8 +450,30 @@ impl Workspace {
         self.focus_container(focused_idx.saturating_sub(1));
     }
 
+    /// Returns true if the window that has the focus in the compositor is in the monocle
+    /// container, and so out of the layout
+    ///
+    /// # Errors
+    ///
+    /// The compositor reports no focused window.
+    pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
+        let window_id = backend()
+            .foreground_window()
+            .ok_or_eyre("no foreground window")?;
+
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(window_id)
+        {
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
     pub fn is_empty(&self) -> bool {
-        self.containers().is_empty() && self.floating_windows().is_empty()
+        self.containers().is_empty()
+            && self.monocle_container.is_none()
+            && self.floating_windows().is_empty()
     }
 
     pub fn contains_window(&self, window_id: u32) -> bool {
@@ -412,6 +481,12 @@ impl Workspace {
             if container.contains_window(window_id) {
                 return true;
             }
+        }
+
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(window_id)
+        {
+            return true;
         }
 
         for window in self.floating_windows() {
@@ -423,8 +498,8 @@ impl Workspace {
         false
     }
 
-    /// Where this workspace has a window of the executable `exe`, the first one in a container
-    /// before a floating one
+    /// Where this workspace has a window of the executable `exe`: in a container first, then in
+    /// the monocle container, then floating
     pub fn location_from_exe(&self, exe: &str) -> Option<WorkspaceWindowLocation> {
         for (container_idx, container) in self.containers().iter().enumerate() {
             if let Some(window_idx) = container.idx_from_exe(exe) {
@@ -433,6 +508,12 @@ impl Workspace {
                     window_idx,
                 ));
             }
+        }
+
+        if let Some(container) = &self.monocle_container
+            && let Some(window_idx) = container.idx_from_exe(exe)
+        {
+            return Some(WorkspaceWindowLocation::Monocle(window_idx));
         }
 
         for (window_idx, window) in self.floating_windows().iter().enumerate() {
@@ -446,13 +527,19 @@ impl Workspace {
         None
     }
 
-    /// Returns true if and only if the window is in one of the containers, which leaves out the
-    /// floating windows: the windows komorebi tiles
+    /// Returns true if and only if the window is in one of the containers or in the monocle
+    /// container, which leaves out the floating windows: the windows komorebi tiles
     pub fn contains_managed_window(&self, window_id: u32) -> bool {
         for container in self.containers() {
             if container.contains_window(window_id) {
                 return true;
             }
+        }
+
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(window_id)
+        {
+            return true;
         }
 
         false
@@ -539,7 +626,7 @@ impl Workspace {
     }
 
     /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
-    /// windows of every container. A scrolling workspace is tiled again first without its resize
+    /// windows of every container and of the monocle container. A scrolling workspace is tiled again first without its resize
     /// adjustments, which are put back after, so that the windows are hidden where the layout
     /// has them and not where they were dragged.
     ///
@@ -581,6 +668,10 @@ impl Workspace {
             self.resize_dimensions = resize_dimensions;
         }
 
+        if let Some(container) = &mut self.monocle_container {
+            container.hide(omit)?;
+        }
+
         Ok(())
     }
 
@@ -590,8 +681,20 @@ impl Workspace {
     ///
     /// The compositor shows a workspace's windows by itself when the workspace's desktop is shown;
     /// this is what komorebi does after it has asked for that, and it brings back what komorebi
-    /// itself has hidden (the back of a stack stays hidden).
+    /// itself has hidden (the back of a stack stays hidden). While there is a monocle container
+    /// only its window is restored and focused, for the other containers are out of sight behind
+    /// it.
     pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        if let Some(container) = &mut self.monocle_container {
+            container.restore()?;
+
+            if let Some(window) = container.focused_window() {
+                window.focus(mouse_follows_focus)?;
+            }
+
+            return Ok(());
+        }
+
         let idx = self.focused_container_idx();
         let mut to_focus = None;
 
@@ -682,6 +785,106 @@ impl Workspace {
         self.focus_container(0);
     }
 
+    /// Takes the focused container out of the containers and makes it the monocle container,
+    /// remembering its index, and focuses the container before it. The window in front of the
+    /// monocle container is shown and the rest of its windows are hidden.
+    ///
+    /// The container's resize adjustment stays where it is, so that the container goes back to the
+    /// size it had.
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no containers.
+    pub fn new_monocle_container(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+
+        // we shouldn't use remove_container_by_idx here because it doesn't make sense for
+        // monocle and maximized toggles which take over the whole screen before being reinserted
+        // at the same index to respect locked container indexes
+        let container = self
+            .containers_mut()
+            .remove(focused_idx)
+            .ok_or_eyre("there is no container")?;
+
+        // We don't remove any resize adjustments for a monocle, because when this container is
+        // inevitably reintegrated, it would be weird if it doesn't go back to the dimensions
+        // it had before
+
+        self.monocle_container = Option::from(container);
+        self.monocle_container_restore_idx = Option::from(focused_idx);
+        self.focus_previous_container();
+
+        self.monocle_container
+            .as_mut()
+            .ok_or_eyre("there is no monocle container")?
+            .load_focused_window()?;
+
+        Ok(())
+    }
+
+    /// Puts the monocle container back and makes the next (or the previous) container the
+    /// monocle, wrapping around at the ends
+    ///
+    /// A workspace with no other container is left as it is.
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no monocle container.
+    pub fn cycle_monocle_container(&mut self, direction: CycleDirection) -> eyre::Result<()> {
+        if self.containers().is_empty() {
+            return Ok(());
+        }
+
+        self.reintegrate_monocle_container()?;
+
+        let new_idx = self
+            .new_idx_for_cycle_direction(direction)
+            .ok_or_eyre("there is no container to cycle monocle to")?;
+
+        self.focus_container(new_idx);
+        self.new_monocle_container()?;
+
+        Ok(())
+    }
+
+    /// Puts the monocle container back in the containers at the index it was taken from, and
+    /// focuses it. The window in front of the container is shown and the rest are hidden.
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no monocle container.
+    pub fn reintegrate_monocle_container(&mut self) -> eyre::Result<()> {
+        let restore_idx = self
+            .monocle_container_restore_idx
+            .ok_or_eyre("there is no monocle restore index")?;
+
+        let container = self
+            .monocle_container
+            .as_ref()
+            .ok_or_eyre("there is no monocle container")?;
+
+        let container = container.clone();
+        if restore_idx >= self.containers().len() {
+            self.containers_mut()
+                .resize(restore_idx, Container::default());
+        }
+
+        // we shouldn't use insert_container_at_index here because it doesn't make sense for
+        // monocle and maximized toggles which take over the whole screen before being reinserted
+        // at the same index to respect locked container indexes
+        self.containers_mut().insert(restore_idx, container);
+        self.focus_container(restore_idx);
+
+        self.focused_container_mut()
+            .ok_or_eyre("there is no container")?
+            .load_focused_window()?;
+
+        self.monocle_container = None;
+        self.monocle_container_restore_idx = None;
+
+        Ok(())
+    }
+
     /// Takes the focused window out of its container, and out of the layout, into the floating
     /// windows of the workspace; a container that is left with no window is removed, and one that
     /// is left with windows shows the one in front now
@@ -690,7 +893,20 @@ impl Workspace {
     ///
     /// The workspace has no containers, or the focused one has no window.
     pub fn new_floating_window(&mut self) -> eyre::Result<()> {
-        let window = {
+        let window = if let Some(monocle_container) = &mut self.monocle_container {
+            let window = monocle_container
+                .remove_focused_window()
+                .ok_or_eyre("there is no window")?;
+
+            if monocle_container.windows().is_empty() {
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
+            } else {
+                monocle_container.load_focused_window()?;
+            }
+
+            window
+        } else {
             let focused_idx = self.focused_container_idx();
 
             let container = self
@@ -791,6 +1007,11 @@ impl Workspace {
     /// part of the window is in view is first centered in the work area. A workspace whose tiling
     /// is off ([`Workspace::tile`] is false) moves no window.
     ///
+    /// While the workspace has a monocle container ([`Workspace::monocle_container`]), the window
+    /// in front of it is put on the work area, less the container padding, and the other containers
+    /// are left where they are. The window-based offset is then applied whatever the number of
+    /// containers, if the monitor has one.
+    ///
     /// The layout applies the resize adjustment of each container ([`Workspace::resize_dimensions`])
     /// after the parts its layout cannot apply have been cleared. The tiles are kept in
     /// [`Workspace::latest_layout`], which the scrolling layout scrolls from.
@@ -832,7 +1053,8 @@ impl Workspace {
             },
         );
 
-        if self.containers().len() <= window_based_work_area_offset_limit as usize
+        if (self.containers().len() <= window_based_work_area_offset_limit as usize
+            || self.monocle_container.is_some() && window_based_work_area_offset_limit > 0)
             && self.apply_window_based_work_area_offset
         {
             adjusted_work_area = window_based_work_area_offset.map_or_else(
@@ -856,7 +1078,12 @@ impl Workspace {
         if self.tile {
             // the backend batches the commands this produces and sends them together
             let result = (|| -> eyre::Result<()> {
-                if !self.containers().is_empty() {
+                if let Some(container) = self.monocle_container.as_mut() {
+                    if let Some(window) = container.focused_window_mut() {
+                        adjusted_work_area.add_padding(container_padding);
+                        window.set_position(&adjusted_work_area)?;
+                    };
+                } else if !self.containers().is_empty() {
                     let mut layouts = self.layout.as_boxed_arrangement().calculate(
                         &adjusted_work_area,
                         NonZeroUsize::new(self.containers().len()).ok_or_eyre(
@@ -941,7 +1168,16 @@ impl Workspace {
         // number of layouts / containers. This should never actually truncate as the remove_window
         // function takes care of cleaning up resize dimensions when destroying empty containers
         let container_count = self.containers().len();
-        self.resize_dimensions.resize(container_count, None);
+
+        // since monocle is a toggle, we never want to truncate the resize dimensions since it will
+        // almost always be toggled off and the container will be reintegrated into layout
+        //
+        // without this check, if there are exactly two containers, when one is toggled to monocle
+        // the resize dimensions will be truncated to len == 1, and when it is reintegrated, if it
+        // had a resize adjustment before, that will have been lost
+        if self.monocle_container.is_none() {
+            self.resize_dimensions.resize(container_count, None);
+        }
 
         Ok(())
     }
@@ -2217,6 +2453,61 @@ mod tests {
 
         with_backend(fake.clone(), || workspace.hide(None))?;
         assert!(fake.is_hidden(471));
+        Ok(())
+    }
+
+    /// A workspace with the windows `ids` in containers of their own, and the last of them in
+    /// monocle: the others are hidden
+    fn workspace_in_monocle(ids: &[u32]) -> (Arc<FakeBackend>, Workspace) {
+        let (fake, mut workspace) = workspace_with(ids);
+        with_backend(fake.clone(), || {
+            workspace.new_monocle_container().unwrap();
+            for container in workspace.containers_mut() {
+                container.hide(None).unwrap();
+            }
+        });
+        (fake, workspace)
+    }
+
+    #[test]
+    fn showing_a_workspace_in_monocle_restores_the_monocle_window_and_no_other() -> eyre::Result<()>
+    {
+        let (fake, mut workspace) = workspace_in_monocle(&[481, 482, 483]);
+        assert!(fake.is_hidden(481) && fake.is_hidden(482) && !fake.is_hidden(483));
+        with_backend(fake.clone(), || workspace.hide(None))?;
+        assert!(
+            fake.is_hidden(483),
+            "leaving the workspace hides the monocle window too"
+        );
+
+        with_backend(fake.clone(), || workspace.restore(false))?;
+
+        assert!(!fake.is_hidden(483), "the window in monocle is shown");
+        assert!(
+            fake.is_hidden(481) && fake.is_hidden(482),
+            "the containers behind it stay hidden"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn hiding_a_workspace_in_monocle_hides_the_monocle_window_too() -> eyre::Result<()> {
+        let (fake, mut workspace) = workspace_in_monocle(&[491, 492]);
+
+        with_backend(fake.clone(), || workspace.hide(None))?;
+
+        assert!(fake.is_hidden(491) && fake.is_hidden(492));
+        Ok(())
+    }
+
+    #[test]
+    fn a_window_in_monocle_that_leaves_shows_the_containers_behind_it() -> eyre::Result<()> {
+        let (fake, mut workspace) = workspace_in_monocle(&[501, 502, 503]);
+
+        with_backend(fake.clone(), || workspace.remove_window(503))?;
+
+        assert!(workspace.monocle_container.is_none());
+        assert!(!fake.is_hidden(501) && !fake.is_hidden(502));
         Ok(())
     }
 

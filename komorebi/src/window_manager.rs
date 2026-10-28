@@ -55,6 +55,7 @@ use crate::core::CrossBoundaryBehaviour;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::OperationDirection;
@@ -112,6 +113,9 @@ pub struct WindowManager {
     /// Where a focus or a move towards a side with no container goes: the monitor on that side
     /// (`Monitor`, the default), or the next workspace of the same monitor (`Workspace`)
     pub cross_boundary_behaviour: CrossBoundaryBehaviour,
+    /// What focusing in a direction does while the workspace has a monocle container: cycle the
+    /// monocle to the next or the previous container, or nothing (the default)
+    pub monocle_focus_behaviour: MonocleFocusBehaviour,
     /// Whether the pointer is moved to the window that is given the focus, which is the default
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
@@ -171,6 +175,7 @@ impl WindowManager {
             window_management_behaviour: WindowManagementBehaviour::default(),
             cross_monitor_move_behaviour: Default::default(),
             cross_boundary_behaviour: Default::default(),
+            monocle_focus_behaviour: MonocleFocusBehaviour::default(),
             mouse_follows_focus: true,
             work_area_offset: None,
             incoming_events: incoming,
@@ -198,7 +203,7 @@ impl WindowManager {
     /// that opens on the focused workspace ([`Workspace::preselect_container_idx`])
     ///
     /// The grid layout has no preselection: there, and where there is no container on that side,
-    /// nothing is reserved.
+    /// or while the workspace has a monocle container, nothing is reserved.
     ///
     /// # Errors
     ///
@@ -218,7 +223,11 @@ impl WindowManager {
 
         tracing::info!("preselecting container");
 
-        let new_idx = workspace.new_idx_for_direction(direction);
+        let new_idx = if workspace.monocle_container.is_some() {
+            None
+        } else {
+            workspace.new_idx_for_direction(direction)
+        };
 
         match new_idx {
             Some(new_idx) => {
@@ -253,6 +262,13 @@ impl WindowManager {
     ///
     /// Nothing is retiled: the focus moves, the windows stay where they are.
     ///
+    /// While the workspace has a monocle container, no container is on any side of the window in
+    /// front. With the monocle focus behaviour `Cycle`, focusing left or down cycles the monocle to
+    /// the previous container and focusing right or up to the next one
+    /// ([`WindowManager::cycle_monocle`]); with `NoOp`, the default, the focus falls through to
+    /// the monitor on that side, and gives the window in front of its monocle container the focus
+    /// if it has one.
+    ///
     /// # Errors
     ///
     /// - There is no focused workspace, or neither a container nor a monitor on that side of the
@@ -272,7 +288,23 @@ impl WindowManager {
 
         tracing::info!("focusing container");
 
-        let new_idx = workspace.new_idx_for_direction(direction);
+        if workspace.monocle_container.is_some()
+            && matches!(self.monocle_focus_behaviour, MonocleFocusBehaviour::Cycle)
+        {
+            let cycle_direction = match direction {
+                OperationDirection::Left | OperationDirection::Down => CycleDirection::Previous,
+                OperationDirection::Right | OperationDirection::Up => CycleDirection::Next,
+            };
+            return self.cycle_monocle(cycle_direction);
+        }
+
+        let new_idx = if workspace.monocle_container.is_some() {
+            None
+        } else {
+            workspace.new_idx_for_direction(direction)
+        };
+
+        let mut cross_monitor_monocle_or_max = false;
 
         // this is for when we are scrolling across workspaces like PaperWM
         if new_idx.is_none()
@@ -305,7 +337,9 @@ impl WindowManager {
 
             self.focus_workspace(next_idx)?;
 
-            if let Ok(focused_workspace) = self.focused_workspace_mut() {
+            if let Ok(focused_workspace) = self.focused_workspace_mut()
+                && focused_workspace.monocle_container.is_none()
+            {
                 match direction {
                     OperationDirection::Left => match focused_workspace.layout {
                         Layout::Default(layout) => {
@@ -338,23 +372,30 @@ impl WindowManager {
                 self.focus_monitor(monitor_idx)?;
 
                 if let Ok(focused_workspace) = self.focused_workspace_mut() {
-                    match direction {
-                        OperationDirection::Left => match focused_workspace.layout {
-                            Layout::Default(layout) => {
-                                let target_index =
-                                    layout.rightmost_index(focused_workspace.containers().len());
-                                focused_workspace.focus_container(target_index);
-                            }
-                        },
-                        OperationDirection::Right => match focused_workspace.layout {
-                            Layout::Default(layout) => {
-                                let target_index =
-                                    layout.leftmost_index(focused_workspace.containers().len());
-                                focused_workspace.focus_container(target_index);
-                            }
-                        },
-                        _ => {}
-                    };
+                    if let Some(monocle) = &focused_workspace.monocle_container {
+                        if let Some(window) = monocle.focused_window() {
+                            window.focus(mouse_follows_focus)?;
+                            cross_monitor_monocle_or_max = true;
+                        }
+                    } else {
+                        match direction {
+                            OperationDirection::Left => match focused_workspace.layout {
+                                Layout::Default(layout) => {
+                                    let target_index = layout
+                                        .rightmost_index(focused_workspace.containers().len());
+                                    focused_workspace.focus_container(target_index);
+                                }
+                            },
+                            OperationDirection::Right => match focused_workspace.layout {
+                                Layout::Default(layout) => {
+                                    let target_index =
+                                        layout.leftmost_index(focused_workspace.containers().len());
+                                    focused_workspace.focus_container(target_index);
+                                }
+                            },
+                            _ => {}
+                        };
+                    }
                 }
             }
             Some(idx) => {
@@ -363,11 +404,13 @@ impl WindowManager {
             }
         }
 
-        let ws = self.focused_workspace_mut()?;
-        if !ws.is_empty()
-            && let Ok(focused_window) = self.focused_window()
-        {
-            focused_window.focus(mouse_follows_focus)?;
+        if !cross_monitor_monocle_or_max {
+            let ws = self.focused_workspace_mut()?;
+            if !ws.is_empty()
+                && let Ok(focused_window) = self.focused_window()
+            {
+                focused_window.focus(mouse_follows_focus)?;
+            }
         }
 
         Ok(())
@@ -388,6 +431,7 @@ impl WindowManager {
     /// - There is no focused workspace, or neither a container nor a monitor on that side of the
     ///   focused one.
     /// - [`WindowManager::handle_unmanaged_window_behaviour`] refuses the message.
+    /// - The window in front is in monocle mode, which has no neighbours to swap with.
     /// - The workspace cannot be tiled, or the backend refuses to focus the window.
     #[tracing::instrument(skip(self))]
     pub fn move_container_in_direction(
@@ -398,6 +442,12 @@ impl WindowManager {
 
         let workspace = self.focused_workspace()?;
         let workspace_idx = self.focused_workspace_idx()?;
+
+        // the monocle container is not one of the containers, so the index of the focused
+        // container is not the window in front: moving it would move one that is out of sight
+        if workspace.is_focused_window_monocle_or_maximized()? {
+            bail!("ignoring command while active window is in monocle mode or maximized");
+        }
 
         tracing::info!("moving container");
 
@@ -466,6 +516,18 @@ impl WindowManager {
 
                     // focus the target monitor
                     self.focus_monitor(target_monitor_idx)?;
+
+                    // unset monocle container on target workspace if there is one
+                    let mut target_workspace_has_monocle = false;
+                    if let Ok(target_workspace) = self.focused_workspace()
+                        && target_workspace.monocle_container.is_some()
+                    {
+                        target_workspace_has_monocle = true;
+                    }
+
+                    if target_workspace_has_monocle {
+                        self.toggle_monocle()?;
+                    }
 
                     // get a mutable ref to the focused workspace on the target monitor
                     let target_workspace = self.focused_workspace_mut()?;
@@ -547,11 +609,22 @@ impl WindowManager {
             .ok_or_eyre("there is no monitor")?
             .update_focused_workspace(offset)?;
 
-        if follow_focus
-            && trigger_focus
-            && let Ok(window) = self.focused_window_mut()
-        {
-            window.focus(mouse_follows_focus)?;
+        if follow_focus && trigger_focus {
+            // When a monocle container is active, workspace.update() already positioned it at
+            // the work area. Focus that window directly: the focused container is one of the
+            // tiles behind it, and the pointer is to follow the window that is in front.
+            let monocle_window = self
+                .focused_workspace_mut()?
+                .monocle_container
+                .as_mut()
+                .and_then(|c| c.focused_window_mut())
+                .cloned();
+
+            if let Some(window) = monocle_window {
+                window.focus(mouse_follows_focus)?;
+            } else if let Ok(window) = self.focused_window_mut() {
+                window.focus(mouse_follows_focus)?;
+            }
         }
 
         Ok(())
@@ -978,9 +1051,100 @@ impl WindowManager {
         Ok(())
     }
 
+    /// Turns the monocle of the focused workspace on, for the focused container, or off, and tiles
+    /// the workspace again
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or it has no container to turn into a monocle.
+    /// - The workspace cannot be tiled, or the backend refuses to focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_monocle(&mut self) -> eyre::Result<()> {
+        let workspace = self.focused_workspace()?;
+        match workspace.monocle_container {
+            None => self.monocle_on()?,
+            Some(_) => self.monocle_off()?,
+        }
+
+        self.update_focused_workspace(true, true)?;
+
+        Ok(())
+    }
+
+    /// Takes the focused container out of the layout of the focused workspace and makes it the
+    /// monocle container, which the next tiling gives the whole work area, and hides the windows
+    /// of the other containers
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or it has no container.
+    #[tracing::instrument(skip(self))]
+    pub fn monocle_on(&mut self) -> eyre::Result<()> {
+        tracing::info!("enabling monocle");
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.new_monocle_container()?;
+
+        for container in workspace.containers_mut() {
+            container.hide(None)?;
+        }
+
+        Ok(())
+    }
+
+    /// Shows the windows of the other containers again, and puts the monocle container of the
+    /// focused workspace back in the layout, where it was
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or it has no monocle container.
+    #[tracing::instrument(skip(self))]
+    pub fn monocle_off(&mut self) -> eyre::Result<()> {
+        tracing::info!("disabling monocle");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        for container in workspace.containers_mut() {
+            container.restore()?;
+        }
+
+        workspace.reintegrate_monocle_container()
+    }
+
+    /// Puts the monocle container back in the layout and makes the next (or the previous)
+    /// container the monocle, wrapping around at the ends, hides the windows of the containers
+    /// that are left, and tiles the workspace again
+    ///
+    /// A workspace where the monocle is the only container is left as it is.
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or it has no monocle container.
+    /// - The workspace cannot be tiled, or the backend refuses to focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn cycle_monocle(&mut self, direction: CycleDirection) -> eyre::Result<()> {
+        tracing::info!("cycling monocle container");
+
+        if self.focused_workspace()?.containers().is_empty() {
+            return Ok(());
+        }
+
+        self.focused_workspace_mut()?
+            .cycle_monocle_container(direction)?;
+
+        for container in self.focused_workspace_mut()?.containers_mut() {
+            container.hide(None)?;
+        }
+
+        self.update_focused_workspace(true, true)
+    }
+
     /// Takes the window that has the focus in the compositor out of the layout of the focused
     /// workspace, or puts it back when it is one of its floating windows and `force_float` is not
     /// set, and tiles the workspace again
+    ///
+    /// While the workspace has a monocle container nothing is done: the message is logged and
+    /// ignored.
     ///
     /// # Errors
     ///
@@ -995,6 +1159,10 @@ impl WindowManager {
             .ok_or_eyre("no foreground window")?;
 
         let workspace = self.focused_workspace_mut()?;
+        if workspace.monocle_container.is_some() {
+            tracing::warn!("ignoring toggle-float command while workspace has a monocle container");
+            return Ok(());
+        }
 
         let mut is_floating_window = false;
 
@@ -1662,6 +1830,18 @@ impl WindowManager {
             .focused_workspace_mut()
             .ok_or_eyre("there is no focused workspace on target monitor")?;
 
+        if target_workspace.monocle_container.is_some() {
+            for container in target_workspace.containers_mut() {
+                container.restore()?;
+            }
+
+            for window in target_workspace.floating_windows_mut() {
+                window.restore();
+            }
+
+            target_workspace.reintegrate_monocle_container()?;
+        }
+
         if let Some(window) = floating_window {
             window.move_to_area(&current_area, &target_monitor_work_area_size)?;
             target_workspace.floating_windows_mut().push_back(window);
@@ -1806,6 +1986,9 @@ impl WindowManager {
     /// workspace, wrapping around at the ends, and the pointer follows it if
     /// [`WindowManager::mouse_follows_focus`] is set
     ///
+    /// While the workspace has a monocle container, the monocle goes with the focus: it is turned
+    /// off, the next container is focused, and it is turned on for that one.
+    ///
     /// # Errors
     ///
     /// - There is no focused workspace, or it has no containers.
@@ -1816,8 +1999,14 @@ impl WindowManager {
         direction: CycleDirection,
     ) -> eyre::Result<()> {
         tracing::info!("focusing container");
+        let mut monocle_next = false;
 
         let mouse_follows_focus = self.mouse_follows_focus;
+
+        if self.focused_workspace_mut()?.monocle_container.is_some() {
+            monocle_next = true;
+            self.monocle_off()?;
+        }
 
         let workspace = self.focused_workspace_mut()?;
 
@@ -1827,7 +2016,11 @@ impl WindowManager {
 
         workspace.focus_container(new_idx);
 
-        self.focused_window_mut()?.focus(mouse_follows_focus)?;
+        if monocle_next {
+            self.toggle_monocle()?;
+        } else {
+            self.focused_window_mut()?.focus(mouse_follows_focus)?;
+        }
 
         Ok(())
     }
@@ -1841,6 +2034,7 @@ impl WindowManager {
     /// # Errors
     ///
     /// - There is no focused workspace, or it has no containers.
+    /// - The window in front is in monocle mode, which has no neighbours to swap with.
     /// - The workspace cannot be tiled, or the backend refuses to focus the window.
     #[tracing::instrument(skip(self))]
     pub fn move_container_in_cycle_direction(
@@ -1848,6 +2042,9 @@ impl WindowManager {
         direction: CycleDirection,
     ) -> eyre::Result<()> {
         let workspace = self.focused_workspace_mut()?;
+        if workspace.is_focused_window_monocle_or_maximized()? {
+            eyre::bail!("ignoring command while active window is in monocle mode or maximized");
+        }
 
         tracing::info!("moving container");
 
@@ -1879,7 +2076,12 @@ impl WindowManager {
 
         let mouse_follows_focus = self.mouse_follows_focus;
 
-        let container = self.focused_container_mut()?;
+        let container =
+            if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
+                container
+            } else {
+                self.focused_container_mut()?
+            };
 
         let len = NonZeroUsize::new(container.windows().len())
             .ok_or_eyre("there must be at least one window in a container")?;
@@ -1916,7 +2118,12 @@ impl WindowManager {
 
         let mouse_follows_focus = self.mouse_follows_focus;
 
-        let container = self.focused_container_mut()?;
+        let container =
+            if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
+                container
+            } else {
+                self.focused_container_mut()?
+            };
 
         let len = NonZeroUsize::new(container.windows().len())
             .ok_or_eyre("there must be at least one window in a container")?;
@@ -2120,6 +2327,12 @@ impl WindowManager {
 
                 for window in workspace.floating_windows() {
                     known_window_ids.insert(window.id, (m_idx, w_idx));
+                }
+
+                if let Some(container) = &workspace.monocle_container {
+                    for window in container.windows() {
+                        known_window_ids.insert(window.id, (m_idx, w_idx));
+                    }
                 }
             }
         }
@@ -2535,6 +2748,37 @@ impl WindowManager {
                 target_workspace
                     .floating_windows_mut()
                     .push_back(floating_window);
+            }
+        } else if origin_workspace
+            .monocle_container
+            .as_ref()
+            .and_then(|monocle| monocle.focused_window().map(|w| w.id == window_id))
+            .unwrap_or_default()
+        {
+            // Moving monocle container
+            if let Some(monocle_idx) = origin_workspace.monocle_container_restore_idx {
+                let origin_workspace = self
+                    .monitors_mut()
+                    .get_mut(origin_monitor_idx)
+                    .ok_or_eyre("there is no monitor at this idx")?
+                    .workspaces_mut()
+                    .get_mut(origin_workspace_idx)
+                    .ok_or_eyre("there is no workspace for this monitor")?;
+
+                for container in origin_workspace.containers_mut() {
+                    container.restore()?;
+                }
+
+                origin_workspace.reintegrate_monocle_container()?;
+
+                self.transfer_container(
+                    (origin_monitor_idx, origin_workspace_idx, monocle_idx),
+                    (
+                        target_monitor_idx,
+                        target_workspace_idx,
+                        target_container_idx,
+                    ),
+                )?;
             }
         }
         Ok(())
@@ -4237,6 +4481,203 @@ mod tests {
         assert!(
             result.is_err(),
             "Expected an error when trying to float a non-existent window"
+        );
+    }
+
+    #[test]
+    fn test_monocle_on_and_monocle_off() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add a window to the container
+            container.windows_mut().push_back(Window::from(1));
+
+            // Should have 1 window in the container
+            assert_eq!(container.windows().len(), 1);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Move container to monocle container
+        wm.monocle_on().ok();
+
+        {
+            // Container should be a monocle container
+            let monocle_container = wm
+                .focused_workspace()
+                .unwrap()
+                .monocle_container
+                .as_ref()
+                .unwrap();
+            assert_eq!(monocle_container.windows().len(), 1);
+            assert_eq!(monocle_container.windows()[0].id, 1);
+        }
+
+        {
+            // Should not have any containers
+            let container = wm.focused_workspace().unwrap();
+            assert_eq!(container.containers().len(), 0);
+        }
+
+        // Move monocle container to regular container
+        wm.monocle_off().ok();
+
+        {
+            // Should have 1 container in the workspace
+            let container = wm.focused_workspace().unwrap();
+            assert_eq!(container.containers().len(), 1);
+            assert_eq!(container.containers()[0].windows()[0].id, 1);
+        }
+
+        {
+            // No windows should be in the monocle container
+            let monocle_container = &wm.focused_workspace().unwrap().monocle_container;
+            assert_eq!(*monocle_container, None);
+        }
+    }
+
+    #[test]
+    fn test_monocle_on_and_off_nonexistent_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to move a non-existent container to monocle
+        let result = wm.monocle_on();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to move a non-existent container to monocle"
+        );
+
+        // Should return an error when trying to restore a non-existent container from monocle
+        let result = wm.monocle_off();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to restore a non-existent container from monocle"
+        );
+    }
+
+    #[test]
+    fn test_toggle_monocle() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add a window to the container
+            container.windows_mut().push_back(Window::from(1));
+
+            // Should have 1 window in the container
+            assert_eq!(container.windows().len(), 1);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Toggle monocle on
+        wm.toggle_monocle().ok();
+
+        {
+            // Container should be a monocle container
+            let monocle_container = wm
+                .focused_workspace()
+                .unwrap()
+                .monocle_container
+                .as_ref()
+                .unwrap();
+            assert_eq!(monocle_container.windows().len(), 1);
+            assert_eq!(monocle_container.windows()[0].id, 1);
+        }
+
+        {
+            // Should not have any containers
+            let container = wm.focused_workspace().unwrap();
+            assert_eq!(container.containers().len(), 0);
+        }
+
+        // Toggle monocle off
+        wm.toggle_monocle().ok();
+
+        {
+            // Should have 1 container in the workspace
+            let container = wm.focused_workspace().unwrap();
+            assert_eq!(container.containers().len(), 1);
+            assert_eq!(container.containers()[0].windows()[0].id, 1);
+        }
+
+        {
+            // No windows should be in the monocle container
+            let monocle_container = &wm.focused_workspace().unwrap().monocle_container;
+            assert_eq!(*monocle_container, None);
+        }
+    }
+
+    #[test]
+    fn test_toggle_monocle_nonexistent_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to toggle monocle on a non-existent container
+        let result = wm.toggle_monocle();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to toggle monocle on a non-existent container"
         );
     }
 

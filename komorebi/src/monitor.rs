@@ -243,7 +243,13 @@ impl Monitor {
                 .containers()
                 .iter()
                 .flat_map(|c| c.windows().iter())
-                .chain(workspace.floating_windows().iter());
+                .chain(workspace.floating_windows().iter())
+                .chain(
+                    workspace
+                        .monocle_container
+                        .iter()
+                        .flat_map(|c| c.windows().iter()),
+                );
 
             for window in windows {
                 if backend().window_workspace(window.id) != Some(idx)
@@ -267,7 +273,8 @@ impl Monitor {
     /// the ones before it) if it does not exist, and focuses that workspace when `follow` is set.
     ///
     /// With a `direction`, the container goes where a container moved across a boundary in that
-    /// direction goes ([`Monitor::add_container_with_direction`]).
+    /// direction goes ([`Monitor::add_container_with_direction`]). A container that moves to a
+    /// workspace with a monocle container first turns the monocle off there.
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(
         &mut self,
@@ -321,6 +328,18 @@ impl Monitor {
                 }
                 Some(workspace) => workspace,
             };
+
+            if target_workspace.monocle_container.is_some() {
+                for container in target_workspace.containers_mut() {
+                    container.restore()?;
+                }
+
+                for window in target_workspace.floating_windows_mut() {
+                    window.restore();
+                }
+
+                target_workspace.reintegrate_monocle_container()?;
+            }
 
             if let Some(direction) = direction {
                 self.add_container_with_direction(

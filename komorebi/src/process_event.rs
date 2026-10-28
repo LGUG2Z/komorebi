@@ -19,7 +19,9 @@
 //!   komorebi leaves it alone until it is managed again.
 //! - **FocusChange**: the workspace is tiled again and the container of the window that has the
 //!   focus becomes the focused container. In the scrolling layout the workspace is tiled after
-//!   that instead, so that the strip scrolls to the window that has the focus.
+//!   that instead, so that the strip scrolls to the window that has the focus. While the
+//!   workspace has a monocle container, the focus goes back to its window instead, no matter
+//!   which window was given it.
 //! - **Minimize**: a window the user minimized leaves its workspace and the rest are tiled
 //!   again; **Restore** brings it back in a container of its own. A minimize of a window komorebi
 //!   hid ([`struct@HIDDEN_WINDOWS`]) is not the user's, and changes nothing.
@@ -197,7 +199,11 @@ impl WindowManager {
                     is_on_current_workspace = true;
                 }
 
-                if is_on_current_workspace {
+                if let Some(monocle) = &workspace.monocle_container {
+                    if let Some(window) = monocle.focused_window() {
+                        window.focus(false)?;
+                    }
+                } else if is_on_current_workspace {
                     workspace.focus_container_by_window(window_id)?;
                 }
 
@@ -271,6 +277,8 @@ impl WindowManager {
                     let behaviour = self
                         .window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
                     let workspace = self.focused_workspace_mut()?;
+                    let workspace_contains_window = workspace.contains_window(window_id);
+                    let monocle_container = workspace.monocle_container.clone();
 
                     let floating_applications = FLOATING_APPLICATIONS.lock();
                     let mut should_float = false;
@@ -338,6 +346,20 @@ impl WindowManager {
                             // If after adding this window the workspace only contains 1 window, it
                             // was previously empty, so give this window the focus
                             window.focus(self.mouse_follows_focus)?;
+                        }
+                    }
+
+                    if workspace_contains_window {
+                        let mut monocle_window_event = false;
+                        if let Some(ref monocle) = monocle_container
+                            && let Some(monocle_window) = monocle.focused_window()
+                            && monocle_window.id == window_id
+                        {
+                            monocle_window_event = true;
+                        }
+
+                        if !monocle_window_event && monocle_container.is_some() {
+                            window.hide();
                         }
                     }
                 }
