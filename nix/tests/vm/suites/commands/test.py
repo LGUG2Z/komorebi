@@ -192,6 +192,26 @@ toggle-tiling
 toggle-tiling
 toggle-pause
 toggle-pause
+global-work-area-offset 10 10 20 20
+global-work-area-offset 0 0 0 0
+monitor-work-area-offset 0 10 10 20 20
+monitor-work-area-offset 0 0 0 0 0
+workspace-work-area-offset 0 0 10 10 20 20
+workspace-work-area-offset 0 0 0 0 0 0
+toggle-window-based-work-area-offset
+toggle-window-based-work-area-offset
+focused-workspace-container-padding 20
+focused-workspace-container-padding 10
+focused-workspace-padding 20
+focused-workspace-padding 10
+adjust-container-padding increase 5
+adjust-container-padding decrease 5
+adjust-workspace-padding increase 5
+adjust-workspace-padding decrease 5
+container-padding 0 0 12
+container-padding 0 0 10
+workspace-padding 0 0 12
+workspace-padding 0 0 10
 unmanaged-window-operation-behaviour op
 unmanaged-window-operation-behaviour no-op
 unmanaged-window-operation-behaviour op

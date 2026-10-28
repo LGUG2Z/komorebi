@@ -146,7 +146,8 @@ is a strip of columns that runs past the edges of the monitor and scrolls to
 the window that has the focus. `minimize` and `close` ask KWin to minimize or
 close the focused window, `unmanage` takes it out of the layout until `manage`
 takes it back, and `toggle-pause` stops the daemon acting on events and orders
-until it is resumed.
+until it is resumed. The padding commands set the gaps around the tiles, and
+the work area offsets keep parts of a monitor free of tiles.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

@@ -1013,6 +1013,120 @@ impl WindowManager {
         }
     }
 
+    /// Gives the workspace at `workspace_idx` on the monitor at `monitor_idx` a workspace padding
+    /// of `size` pixels, around its tiles, and tiles the focused workspace again
+    ///
+    /// # Errors
+    ///
+    /// There is no monitor or no workspace at the index, or the focused workspace cannot be tiled
+    /// again.
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_padding(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        size: i32,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting workspace padding");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.workspace_padding = Option::from(size);
+
+        self.update_focused_workspace(false, false)
+    }
+
+    /// Gives the workspace at `workspace_idx` on the monitor at `monitor_idx` a container padding
+    /// of `size` pixels, around each tile, and tiles the focused workspace again
+    ///
+    /// # Errors
+    ///
+    /// There is no monitor or no workspace at the index, or the focused workspace cannot be tiled
+    /// again.
+    #[tracing::instrument(skip(self))]
+    pub fn set_container_padding(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        size: i32,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting container padding");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.container_padding = Option::from(size);
+
+        self.update_focused_workspace(false, false)
+    }
+
+    /// Makes the workspace padding of the focused workspace `adjustment` pixels larger or smaller,
+    /// and tiles it again
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, it has no workspace padding of its own (set with
+    /// [`WindowManager::set_workspace_padding`]), or it cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn adjust_workspace_padding(
+        &mut self,
+        sizing: Sizing,
+        adjustment: i32,
+    ) -> eyre::Result<()> {
+        tracing::info!("adjusting workspace padding");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let padding = workspace
+            .workspace_padding
+            .ok_or_eyre("there is no workspace padding")?;
+
+        workspace.workspace_padding = Option::from(sizing.adjust_by(padding, adjustment));
+
+        self.update_focused_workspace(false, false)
+    }
+
+    /// Makes the container padding of the focused workspace `adjustment` pixels larger or smaller,
+    /// and tiles it again
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, it has no container padding of its own (set with
+    /// [`WindowManager::set_container_padding`]), or it cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn adjust_container_padding(
+        &mut self,
+        sizing: Sizing,
+        adjustment: i32,
+    ) -> eyre::Result<()> {
+        tracing::info!("adjusting container padding");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let padding = workspace
+            .container_padding
+            .ok_or_eyre("there is no container padding")?;
+
+        workspace.container_padding = Option::from(sizing.adjust_by(padding, adjustment));
+
+        self.update_focused_workspace(false, false)
+    }
+
     /// Asks the window manager to manage the window that has the focus in the compositor again
     /// after [`WindowManager::unmanage_focused_window`], by raising a
     /// [`WindowManagerEvent::Manage`] for it, which is handled like a window that opens

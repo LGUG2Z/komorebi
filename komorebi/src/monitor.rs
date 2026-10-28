@@ -54,6 +54,8 @@ pub struct Monitor {
     pub size: Rect,
     pub work_area_offset: Option<Rect>,
     pub work_area_size: Rect,
+    pub window_based_work_area_offset: Option<Rect>,
+    pub window_based_work_area_offset_limit: isize,
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
 }
@@ -77,6 +79,8 @@ pub fn new(
         size,
         work_area_size,
         work_area_offset: None,
+        window_based_work_area_offset: None,
+        window_based_work_area_offset_limit: 1,
         workspaces,
         container_padding: None,
         workspace_padding: None,
@@ -103,6 +107,8 @@ impl Monitor {
             size,
             work_area_offset: None,
             work_area_size,
+            window_based_work_area_offset: None,
+            window_based_work_area_offset_limit: 1,
             container_padding: None,
             workspace_padding: None,
         }
@@ -137,6 +143,8 @@ impl Monitor {
             .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::Relaxed)));
         let work_area = self.work_area_size;
         let work_area_offset = self.work_area_offset.or(offset);
+        let window_based_work_area_offset = self.window_based_work_area_offset;
+        let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
 
         if let Some(workspace) = self.workspaces_mut().get_mut(workspace_idx) {
             workspace.globals = WorkspaceGlobals {
@@ -144,6 +152,8 @@ impl Monitor {
                 workspace_padding,
                 work_area,
                 work_area_offset,
+                window_based_work_area_offset,
+                window_based_work_area_offset_limit,
             }
         }
     }

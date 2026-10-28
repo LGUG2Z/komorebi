@@ -44,6 +44,18 @@
 //! - **ToggleFloat** takes the focused window out of the layout into the floating windows of the
 //!   workspace, which komorebi does not move, or puts a floating window back
 //!   ([`WindowManager::toggle_float`]).
+//! - **WorkspacePadding** and **ContainerPadding** set the paddings of a workspace given by the
+//!   index of its monitor and its own, **FocusedWorkspacePadding** and
+//!   **FocusedWorkspaceContainerPadding** those of the focused workspace, and
+//!   **AdjustWorkspacePadding** and **AdjustContainerPadding** make the focused workspace's larger
+//!   or smaller ([`WindowManager::set_workspace_padding`],
+//!   [`WindowManager::set_container_padding`], [`WindowManager::adjust_workspace_padding`],
+//!   [`WindowManager::adjust_container_padding`]).
+//! - **WorkAreaOffset**, **MonitorWorkAreaOffset** and **WorkspaceWorkAreaOffset** set the work
+//!   area offset of every monitor, of one monitor or of one workspace, and tile every monitor again
+//!   (a monitor or a workspace that is not there is ignored), and
+//!   **ToggleWindowBasedWorkAreaOffset** sets whether the focused workspace takes its monitor's
+//!   window-based offset.
 //! - **Minimize** and **Close** ask the compositor to minimize or close the window that has the
 //!   focus. The window leaves the layout when the compositor reports that it did.
 //! - **UnmanageFocusedWindow** takes the window that has the focus out of the layout and leaves it
@@ -170,6 +182,9 @@ impl WindowManager {
     ///   `UnlockMonitorWorkspaceContainer` is not there (a container that is not there is ignored).
     /// - The focused window cannot be floated or put back, for one of the reasons
     ///   [`WindowManager::toggle_float`] gives.
+    /// - The monitor or the workspace of `WorkspacePadding` or `ContainerPadding` is not there, or
+    ///   the focused workspace has no padding of its own for `AdjustWorkspacePadding` or
+    ///   `AdjustContainerPadding` to change.
     /// - `Minimize`, `Close`, `ManageFocusedWindow` or `UnmanageFocusedWindow` when the compositor
     ///   reports no focused window, or the backend refuses to minimize or close it.
     /// - The file of `QuickSave` or `Save` cannot be written, or the file of `QuickLoad` or
@@ -370,6 +385,13 @@ impl WindowManager {
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
             SocketMessage::ToggleLock => self.toggle_lock()?,
+            SocketMessage::ToggleWindowBasedWorkAreaOffset => {
+                let workspace = self.focused_workspace_mut()?;
+                workspace.apply_window_based_work_area_offset =
+                    !workspace.apply_window_based_work_area_offset;
+
+                self.retile_all(true)?;
+            }
             SocketMessage::ToggleTiling => {
                 self.toggle_tiling()?;
             }
@@ -439,8 +461,56 @@ impl WindowManager {
 
                 reply.write_all(response.as_bytes())?;
             }
+            SocketMessage::ContainerPadding(monitor_idx, workspace_idx, size) => {
+                self.set_container_padding(monitor_idx, workspace_idx, size)?;
+            }
+            SocketMessage::WorkspacePadding(monitor_idx, workspace_idx, size) => {
+                self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
+            }
+            SocketMessage::FocusedWorkspaceContainerPadding(adjustment) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+
+                self.set_container_padding(focused_monitor_idx, focused_workspace_idx, adjustment)?;
+            }
+            SocketMessage::FocusedWorkspacePadding(adjustment) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+
+                self.set_workspace_padding(focused_monitor_idx, focused_workspace_idx, adjustment)?;
+            }
+            SocketMessage::WorkAreaOffset(rect) => {
+                self.work_area_offset = Option::from(rect);
+                self.retile_all(false)?;
+            }
+            SocketMessage::MonitorWorkAreaOffset(monitor_idx, rect) => {
+                if let Some(monitor) = self.monitors_mut().get_mut(monitor_idx) {
+                    monitor.work_area_offset = Option::from(rect);
+                    self.retile_all(false)?;
+                }
+            }
+            SocketMessage::WorkspaceWorkAreaOffset(monitor_idx, workspace_idx, rect) => {
+                if let Some(monitor) = self.monitors_mut().get_mut(monitor_idx)
+                    && let Some(workspace) = monitor.workspaces_mut().get_mut(workspace_idx)
+                {
+                    workspace.work_area_offset = Option::from(rect);
+                    self.retile_all(false)?
+                }
+            }
             SocketMessage::ResizeDelta(delta) => {
                 self.resize_delta = delta;
+            }
+            SocketMessage::AdjustContainerPadding(sizing, adjustment) => {
+                self.adjust_container_padding(sizing, adjustment)?;
+            }
+            SocketMessage::AdjustWorkspacePadding(sizing, adjustment) => {
+                self.adjust_workspace_padding(sizing, adjustment)?;
             }
             SocketMessage::ScrollingLayoutColumns(count) => {
                 let focused_workspace = self.focused_workspace_mut()?;

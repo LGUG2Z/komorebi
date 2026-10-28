@@ -18,6 +18,11 @@
 //!   tile, or the focus to it.
 //! - `toggle-float` takes the focused window out of the layout, or puts it back, and
 //!   `toggle-lock` locks the focused container at its index, or unlocks it.
+//! - `focused-workspace-padding`, `focused-workspace-container-padding`, `workspace-padding`,
+//!   `container-padding` and the two `adjust-*-padding` set the padding around the tiles and
+//!   between them, and `global-work-area-offset`, `monitor-work-area-offset`,
+//!   `workspace-work-area-offset` and `toggle-window-based-work-area-offset` keep parts of the work
+//!   area free of tiles.
 //! - `minimize` and `close` minimize and close the focused window, `unmanage` takes it out of
 //!   the layout until `manage` takes it back, `unmanaged-window-operation-behaviour` sets whether
 //!   the daemon carries out an order while the focused window is not one it tiles, and
@@ -46,6 +51,7 @@ use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
 use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
+use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
@@ -108,6 +114,66 @@ gen_enum_subcommand_args! {
     PromoteWindow: OperationDirection,
 }
 
+macro_rules! gen_focused_workspace_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Pixels size to set as an integer
+                size: i32,
+            }
+        )+
+    };
+}
+
+gen_focused_workspace_padding_subcommand_args! {
+    FocusedWorkspaceContainerPadding,
+    FocusedWorkspacePadding,
+}
+
+macro_rules! gen_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Monitor index (zero-indexed)
+                monitor: usize,
+                /// Workspace index on the specified monitor (zero-indexed)
+                workspace: usize,
+                /// Pixels to pad with as an integer
+                size: i32,
+            }
+        )+
+    };
+}
+
+gen_padding_subcommand_args! {
+    ContainerPadding,
+    WorkspacePadding,
+}
+
+macro_rules! gen_padding_adjustment_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                #[clap(value_enum)]
+                sizing: Sizing,
+                /// Pixels to adjust by as an integer
+                adjustment: i32,
+            }
+        )+
+    };
+}
+
+gen_padding_adjustment_subcommand_args! {
+    AdjustContainerPadding,
+    AdjustWorkspacePadding,
+}
+
 #[derive(Parser)]
 struct Resize {
     #[clap(value_enum)]
@@ -140,6 +206,48 @@ struct SubscribeSocket {
 struct UnsubscribeSocket {
     /// Name of the socket to stop sending event notifications to
     socket: String,
+}
+
+#[derive(Parser)]
+struct GlobalWorkAreaOffset {
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Parser)]
+struct MonitorWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Parser)]
+struct WorkspaceWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index (zero-indexed)
+    workspace: usize,
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
 }
 
 #[derive(Parser)]
@@ -288,6 +396,32 @@ enum SubCommand {
     /// Set the resize delta (used by resize-edge and resize-axis)
     #[clap(arg_required_else_help = true)]
     ResizeDelta(ResizeDelta),
+    // /// Set the invisible border dimensions around each window
+    // #[clap(arg_required_else_help = true)]
+    // InvisibleBorders(InvisibleBorders),
+    /// Set offsets to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    GlobalWorkAreaOffset(GlobalWorkAreaOffset),
+    /// Set offsets for a monitor to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    MonitorWorkAreaOffset(MonitorWorkAreaOffset),
+    /// Set offsets for a workspace to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    WorkspaceWorkAreaOffset(WorkspaceWorkAreaOffset),
+    /// Toggle application of the window-based work area offset for the focused workspace
+    ToggleWindowBasedWorkAreaOffset,
+    /// Set container padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FocusedWorkspaceContainerPadding(FocusedWorkspaceContainerPadding),
+    /// Set workspace padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FocusedWorkspacePadding(FocusedWorkspacePadding),
+    /// Adjust container padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    AdjustContainerPadding(AdjustContainerPadding),
+    /// Adjust workspace padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    AdjustWorkspacePadding(AdjustWorkspacePadding),
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
@@ -316,6 +450,12 @@ enum SubCommand {
     PromoteWindow(PromoteWindow),
     /// Force the retiling of all managed windows
     Retile,
+    /// Set the container padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    ContainerPadding(ContainerPadding),
+    /// Set the workspace padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspacePadding(WorkspacePadding),
     /// Toggle the paused state for all window tiling
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -519,6 +659,9 @@ fn main() -> eyre::Result<()> {
         SubCommand::PromoteWindow(args) => {
             send_message(&SocketMessage::PromoteWindow(args.operation_direction))?;
         }
+        SubCommand::ToggleWindowBasedWorkAreaOffset => {
+            send_message(&SocketMessage::ToggleWindowBasedWorkAreaOffset)?;
+        }
         SubCommand::ToggleTiling => {
             send_message(&SocketMessage::ToggleTiling)?;
         }
@@ -536,6 +679,70 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ResizeDelta(args) => {
             send_message(&SocketMessage::ResizeDelta(args.pixels))?;
+        }
+        SubCommand::MonitorWorkAreaOffset(args) => {
+            send_message(&SocketMessage::MonitorWorkAreaOffset(
+                args.monitor,
+                Rect {
+                    left: args.left,
+                    top: args.top,
+                    right: args.right,
+                    bottom: args.bottom,
+                },
+            ))?;
+        }
+        SubCommand::GlobalWorkAreaOffset(args) => {
+            send_message(&SocketMessage::WorkAreaOffset(Rect {
+                left: args.left,
+                top: args.top,
+                right: args.right,
+                bottom: args.bottom,
+            }))?;
+        }
+
+        SubCommand::WorkspaceWorkAreaOffset(args) => {
+            send_message(&SocketMessage::WorkspaceWorkAreaOffset(
+                args.monitor,
+                args.workspace,
+                Rect {
+                    left: args.left,
+                    top: args.top,
+                    right: args.right,
+                    bottom: args.bottom,
+                },
+            ))?;
+        }
+        SubCommand::ContainerPadding(args) => {
+            send_message(&SocketMessage::ContainerPadding(
+                args.monitor,
+                args.workspace,
+                args.size,
+            ))?;
+        }
+        SubCommand::WorkspacePadding(args) => {
+            send_message(&SocketMessage::WorkspacePadding(
+                args.monitor,
+                args.workspace,
+                args.size,
+            ))?;
+        }
+        SubCommand::FocusedWorkspacePadding(args) => {
+            send_message(&SocketMessage::FocusedWorkspacePadding(args.size))?;
+        }
+        SubCommand::FocusedWorkspaceContainerPadding(args) => {
+            send_message(&SocketMessage::FocusedWorkspaceContainerPadding(args.size))?;
+        }
+        SubCommand::AdjustWorkspacePadding(args) => {
+            send_message(&SocketMessage::AdjustWorkspacePadding(
+                args.sizing,
+                args.adjustment,
+            ))?;
+        }
+        SubCommand::AdjustContainerPadding(args) => {
+            send_message(&SocketMessage::AdjustContainerPadding(
+                args.sizing,
+                args.adjustment,
+            ))?;
         }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;

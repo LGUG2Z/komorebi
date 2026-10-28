@@ -298,6 +298,62 @@ fn the_promote_subcommands_send_their_message() {
 }
 
 #[test]
+fn the_padding_subcommands_send_the_workspace_and_the_pixels_they_are_given() {
+    sends(
+        &["focused-workspace-padding", "20"],
+        r#"{"type":"FocusedWorkspacePadding","content":20}"#,
+    );
+    sends(
+        &["focused-workspace-container-padding", "10"],
+        r#"{"type":"FocusedWorkspaceContainerPadding","content":10}"#,
+    );
+    sends(
+        &["workspace-padding", "0", "1", "12"],
+        r#"{"type":"WorkspacePadding","content":[0,1,12]}"#,
+    );
+    sends(
+        &["container-padding", "1", "0", "8"],
+        r#"{"type":"ContainerPadding","content":[1,0,8]}"#,
+    );
+    sends(
+        &["adjust-workspace-padding", "increase", "5"],
+        r#"{"type":"AdjustWorkspacePadding","content":["Increase",5]}"#,
+    );
+    sends(
+        &["adjust-container-padding", "decrease", "3"],
+        r#"{"type":"AdjustContainerPadding","content":["Decrease",3]}"#,
+    );
+}
+
+#[test]
+fn the_offset_subcommands_send_the_offset_they_are_given() {
+    sends(
+        &["global-work-area-offset", "10", "20", "30", "40"],
+        r#"{"type":"WorkAreaOffset","content":{"left":10,"top":20,"right":30,"bottom":40}}"#,
+    );
+    sends(
+        &["monitor-work-area-offset", "1", "10", "20", "30", "40"],
+        r#"{"type":"MonitorWorkAreaOffset","content":[1,{"left":10,"top":20,"right":30,"bottom":40}]}"#,
+    );
+    sends(
+        &[
+            "workspace-work-area-offset",
+            "1",
+            "2",
+            "10",
+            "20",
+            "30",
+            "40",
+        ],
+        r#"{"type":"WorkspaceWorkAreaOffset","content":[1,2,{"left":10,"top":20,"right":30,"bottom":40}]}"#,
+    );
+    sends(
+        &["toggle-window-based-work-area-offset"],
+        r#"{"type":"ToggleWindowBasedWorkAreaOffset"}"#,
+    );
+}
+
+#[test]
 fn the_subcommands_about_the_focused_window_and_pausing_send_their_message() {
     sends(&["minimize"], r#"{"type":"Minimize"}"#);
     sends(&["close"], r#"{"type":"Close"}"#);
@@ -369,22 +425,29 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
     assert_eq!(
         pages,
         [
+            "adjust-container-padding.md",
+            "adjust-workspace-padding.md",
             "cancel-preselect.md",
             "change-layout.md",
             "close.md",
             "completions.md",
+            "container-padding.md",
             "cycle-focus.md",
             "cycle-layout.md",
             "cycle-move.md",
             "data-directory.md",
             "flip-layout.md",
             "focus.md",
+            "focused-workspace-container-padding.md",
+            "focused-workspace-padding.md",
+            "global-work-area-offset.md",
             "layout-ratios.md",
             "load-resize.md",
             "log.md",
             "manage.md",
             "minimize.md",
             "monitor-information.md",
+            "monitor-work-area-offset.md",
             "mouse-follows-focus.md",
             "move.md",
             "preselect-direction.md",
@@ -410,9 +473,12 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "toggle-mouse-follows-focus.md",
             "toggle-pause.md",
             "toggle-tiling.md",
+            "toggle-window-based-work-area-offset.md",
             "unmanage.md",
             "unmanaged-window-operation-behaviour.md",
             "unsubscribe-socket.md",
+            "workspace-padding.md",
+            "workspace-work-area-offset.md",
         ]
     );
 

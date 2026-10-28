@@ -37,6 +37,10 @@ pub struct Workspace {
     pub latest_layout: Vec<Rect>,
     pub resize_dimensions: Vec<Option<Rect>>,
     pub tile: bool,
+    /// The work area offset of this workspace, which it takes instead of its monitor's
+    pub work_area_offset: Option<Rect>,
+    /// Whether this workspace takes its monitor's window-based offset (true by default)
+    pub apply_window_based_work_area_offset: bool,
     #[serde(skip)]
     pub globals: WorkspaceGlobals,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -56,11 +60,13 @@ impl Default for Workspace {
             container_padding: None,
             resize_dimensions: vec![],
             layout: Layout::Default(DefaultLayout::BSP),
+            work_area_offset: None,
             latest_layout: vec![],
             layout_flip: None,
             layout_options: None,
             globals: Default::default(),
             tile: true,
+            apply_window_based_work_area_offset: true,
             floating_windows: Default::default(),
             preselected_container_idx: None,
             promotion_swap_container_idx: None,
@@ -69,13 +75,15 @@ impl Default for Workspace {
 }
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
-/// The work area a monitor gives the workspace it shows, and the padding and the offset the
-/// workspace falls back to when it sets none of its own
+/// The work area a monitor gives the workspace it shows, the padding and the offset the
+/// workspace falls back to when it sets none of its own, and the monitor's window-based offset
 pub struct WorkspaceGlobals {
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
     pub work_area: Rect,
     pub work_area_offset: Option<Rect>,
+    pub window_based_work_area_offset: Option<Rect>,
+    pub window_based_work_area_offset_limit: isize,
 }
 
 /// `komorebi_layouts::Rect::percentage_within_horizontal_bounds`, which that crate compiles only
@@ -532,7 +540,10 @@ impl Workspace {
 
 impl Workspace {
     /// Tiles the workspace: asks the layout for a tile per container in the work area, less the
-    /// offset and the workspace padding, and puts every window of each container on its tile.
+    /// offset (the workspace's own, or else the one its monitor gives it), the monitor's
+    /// window-based offset while there are no more containers than its limit and
+    /// [`Workspace::apply_window_based_work_area_offset`] is set, and the workspace padding, and
+    /// puts every window of each container on its tile.
     ///
     /// Containers that have no windows left are dropped first, except the one a preselection
     /// reserved, and so is a window that is in more than one container. A tile is clamped to the
@@ -565,7 +576,9 @@ impl Workspace {
             .or(self.globals.workspace_padding)
             .unwrap_or_default();
         let work_area = self.globals.work_area;
-        let work_area_offset = self.globals.work_area_offset;
+        let work_area_offset = self.work_area_offset.or(self.globals.work_area_offset);
+        let window_based_work_area_offset = self.globals.window_based_work_area_offset;
+        let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
 
         let mut adjusted_work_area = work_area_offset.map_or_else(
             || work_area,
@@ -579,6 +592,23 @@ impl Workspace {
                 with_offset
             },
         );
+
+        if self.containers().len() <= window_based_work_area_offset_limit as usize
+            && self.apply_window_based_work_area_offset
+        {
+            adjusted_work_area = window_based_work_area_offset.map_or_else(
+                || adjusted_work_area,
+                |offset| {
+                    let mut with_offset = adjusted_work_area;
+                    with_offset.left += offset.left;
+                    with_offset.top += offset.top;
+                    with_offset.right -= offset.right;
+                    with_offset.bottom -= offset.bottom;
+
+                    with_offset
+                },
+            );
+        }
 
         adjusted_work_area.add_padding(workspace_padding);
 

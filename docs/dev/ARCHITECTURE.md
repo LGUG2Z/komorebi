@@ -85,8 +85,10 @@ element focused, so that "the focused workspace" or "the focused container" mean
 the same thing at every level.
 
 - A **monitor** ([`Monitor`]) is one of the backend's monitors: its bounds, its work area,
-  its padding, an optional work area offset, and its workspaces. It shows the focused one.
-- A **workspace** ([`Workspace`]) has a layout, its padding, its containers, in order, and its
+  its padding, an optional work area offset, an optional window-based offset with the number of
+  windows up to which it applies, and its workspaces. It shows the focused one.
+- A **workspace** ([`Workspace`]) has a layout, its padding, an optional work area offset of its
+  own, whether it takes the monitor's window-based offset, its containers, in order, and its
   floating windows, which are in no container and which the layout does not tile.
 - A **container** ([`Container`]) has its windows. A new window gets a container of its
   own. A container can be locked, which keeps it at its index while others are inserted,
@@ -95,9 +97,11 @@ the same thing at every level.
   Everything else about the window, and every change to it, goes through the backend.
 
 Tiling a workspace ([`Workspace::update`]) is a function of this tree and a work area. The
-monitor gives its focused workspace the work area, the padding to fall back to and the
-offset ([`WorkspaceGlobals`]). The workspace takes the offset and its padding off the work
-area, the layout gives one tile per container, in order, each shrunk by the container
+monitor gives its focused workspace the work area, the padding to fall back to, the offset
+(its own, or else the window manager's) and its window-based offset ([`WorkspaceGlobals`]).
+The workspace takes the offset (its own, or else the monitor's) off the work area, then the
+window-based offset while it has no more containers than the monitor's limit, then its
+padding; the layout gives one tile per container, in order, each shrunk by the container
 padding, and every window of a container is asked to move onto its tile with `set_rect`. A
 tile is clamped to the work area, so it cannot reach onto a neighboring monitor.
 
@@ -328,6 +332,15 @@ window manager. `UnmanagedWindowOperationBehaviour` sets
 focused is in no container of the focused workspace
 ([`WindowManager::handle_unmanaged_window_behaviour`]).
 
+`WorkspacePadding`, `ContainerPadding` and their `FocusedWorkspace` forms set a workspace's own
+padding, and `AdjustWorkspacePadding` and `AdjustContainerPadding` change the focused
+workspace's by a number of pixels, which needs a padding of its own to change
+([`WindowManager::adjust_workspace_padding`]). `WorkAreaOffset`, `MonitorWorkAreaOffset` and
+`WorkspaceWorkAreaOffset` set the offset of the window manager, of a monitor or of a workspace,
+and `ToggleWindowBasedWorkAreaOffset` sets whether the focused workspace takes its monitor's
+window-based offset ([`Workspace::apply_window_based_work_area_offset`]). Each tiles the
+workspace in front again, or every monitor.
+
 `ResizeWindowEdge` and `ResizeWindowAxis` resize the focused container
 ([`WindowManager::resize_window`]). A resize is an adjustment of the container's tile, kept in
 [`Workspace::resize_dimensions`], one per container, which the layout applies when it calculates
@@ -396,8 +409,8 @@ module's unit.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
-  promote the focused container, float a window, lock a container, manage and unmanage a
-  window).
+  promote the focused container, float a window, lock a container, set the padding of a
+  workspace, manage and unmanage a window).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -484,6 +497,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A container moved onto a locked index is locked in its place, and the lock leaves the container that moved away | framework path: [`Workspace::swap_containers`] swaps through `LockableSequence`, which keeps the lock with the index | `test_swap_respecting_locks_various_cases`, `a_lock_stays_with_its_index_when_a_window_is_moved_onto_it` | `containers_mut()` is the `VecDeque` itself |
 | A window komorebi puts off the screen stays there | framework path: the bridge asks again for the position of a window KWin pulled back after a `geo` command, for a second, three times at most | `a window KWin pulls back from where it was asked to be is asked for the position again`, `a window that cannot go where it was asked is asked again three times at most`, `vm-scrolling` | a window that cannot go where it was asked is left where KWin put it |
 | A resize leaves no tile smaller than a tenth of the work area, or than it was | framework path: [`WindowManager::resize_window`] calculates the tiles for the adjustment, and cuts the adjustment down until they all fit | `a_resize_leaves_every_tile_about_a_tenth_of_the_work_area_wide_at_least` | the paddings are taken off afterwards, so a tile can end up a little smaller |
+| The offset of a workspace wins over its monitor's, which wins over the window manager's | framework path: [`Monitor::update_workspace_globals`] gives the workspace the monitor's offset or else the window manager's, and [`Workspace::update`] takes its own before that | `the_workspaces_offset_wins_over_the_monitors_which_wins_over_the_global_one` | none |
 | A workspace whose tiling is off moves no window | framework path: [`Workspace::update`] returns before the layout when [`Workspace::tile`] is false | `with_tiling_off_no_window_is_moved_until_it_is_back_on` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
@@ -604,7 +618,9 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating;
   [`komorebi/tests/lock.rs`](../../komorebi/tests/lock.rs), locking;
   [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
-  unmanaging and managing the focused window, and pausing.
+  unmanaging and managing the focused window, and pausing;
+  [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
+  offsets.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
@@ -646,6 +662,9 @@ A window is shown, and ends up on a tile:
 [`WindowManager::resize_window`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_float`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_lock`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::adjust_workspace_padding`]: ../../komorebi/src/window_manager.rs
+[`Workspace::apply_window_based_work_area_offset`]: ../../komorebi/src/workspace.rs
+[`Monitor::update_workspace_globals`]: ../../komorebi/src/monitor.rs
 [`WindowManager::manage_focused_window`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::unmanage_focused_window`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::is_paused`]: ../../komorebi/src/window_manager.rs

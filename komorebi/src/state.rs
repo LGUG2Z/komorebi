@@ -76,6 +76,8 @@ impl From<&WindowManager> for State {
                 size: monitor.size,
                 work_area_size: monitor.work_area_size,
                 work_area_offset: monitor.work_area_offset,
+                window_based_work_area_offset: monitor.window_based_work_area_offset,
+                window_based_work_area_offset_limit: monitor.window_based_work_area_offset_limit,
                 workspaces: {
                     let mut ws = Ring::default();
                     *ws.elements_mut() = monitor
@@ -92,6 +94,9 @@ impl From<&WindowManager> for State {
                             latest_layout: workspace.latest_layout.clone(),
                             resize_dimensions: workspace.resize_dimensions.clone(),
                             tile: workspace.tile,
+                            work_area_offset: workspace.work_area_offset,
+                            apply_window_based_work_area_offset: workspace
+                                .apply_window_based_work_area_offset,
                             globals: workspace.globals,
                             preselected_container_idx: None,
                             promotion_swap_container_idx: None,
