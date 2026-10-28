@@ -21,8 +21,12 @@
 //! [`struct@DATA_DIR`]: after each event and each message the window manager handles,
 //! [`notify_subscribers`] sends every subscriber a [`Notification`] of it, with the state.
 
+use crate::core::ApplicationIdentifier;
 use crate::core::SocketMessage;
 use crate::core::SubscribeOptions;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use crate::state::State;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
@@ -30,6 +34,7 @@ use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
+use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -95,6 +100,32 @@ lazy_static! {
     static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
         AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
     ));
+    /// The compiled regular expression of each rule whose matching strategy is `Regex`, by the
+    /// rule's id
+    static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    /// Windows that are tiled even when an ignore rule covers them (`ManageRule`)
+    static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
+    /// Windows that are never tiled, unless a manage rule says otherwise. Most of what would belong
+    /// here (the panel, krunner, popups) is not a normal window and is filtered before rules run.
+    pub static ref IGNORE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(
+        ["plasmashell", "org.kde.plasmashell", "krunner", "org.kde.krunner"]
+            .into_iter()
+            .map(|class| MatchingRule::Simple(IdWithIdentifier {
+                kind: ApplicationIdentifier::Class,
+                id: String::from(class),
+                matching_strategy: Option::from(MatchingStrategy::Equals),
+            }))
+            .collect()
+    ));
+    /// The float rules `SessionFloatRule` added, which `ClearSessionFloatRules` takes out of
+    /// [`struct@FLOATING_APPLICATIONS`] again
+    static ref SESSION_FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> =
+        Arc::new(Mutex::new(Vec::new()));
+    /// Windows that are managed as floating windows from the moment they open
+    static ref FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
+    /// Window classes that are never managed, whatever the rules say
+    static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     /// The windows `UnmanageFocusedWindow` took out of the layout: komorebi leaves them alone
     /// until `ManageFocusedWindow` takes them back, or until they close
     static ref UNMANAGED_WINDOW_IDS: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(vec![]));

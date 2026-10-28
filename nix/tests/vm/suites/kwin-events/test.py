@@ -1,8 +1,10 @@
 # The daemon reads a real KWin through its script. What only a real KWin can tell: that the script
 # loads and reports the desktop, that KWin's signals reach the window manager as the events
 # `komorebi/src/kwin/state.rs` and `komorebi/tests/wm_events.rs` feed it by hand, in the order KWin
-# raised them (KWin activates a new window before it announces it), and that it takes its script
-# out of KWin when it stops.
+# raised them (KWin activates a new window before it announces it), that a window giving itself
+# another title is reported, and that it takes its script out of KWin when it stops.
+import shlex
+
 from komorebi_vm import Checks, Kde, daemon
 from komorebi_vm.daemon import Event
 
@@ -95,6 +97,23 @@ in_order = [kind for kind in mine if kind in ("Show", "Minimize", "Restore", "De
 checks.check(
     "alpha's events came in the order they happened",
     in_order == ["Show", "Minimize", "Restore", "Destroy"],
+)
+
+print("== a window gives itself another title")
+rename = 'sleep 4; printf "\\033]0;beta-renamed\\007"; sleep 3000'
+kde.spawn(f"foot -T beta sh -c {shlex.quote(rename)}")
+checks.check(
+    "KWin's focus on it reached the daemon, by title",
+    kde.wait_for(lambda: "beta" in daemon.window_ids(daemon_log()), timeout=30),
+)
+b = daemon.window_ids(daemon_log()).get("beta", -1)
+checks.check(
+    "KWin has it under its new title",
+    kde.wait_for(lambda: kde.wid("beta-renamed") != "", timeout=20),
+)
+checks.check(
+    "the title change is a TitleUpdate",
+    kde.wait_for(lambda: handled(Event("TitleUpdate", b, "CaptionChanged")), timeout=10),
 )
 
 print("== stop")

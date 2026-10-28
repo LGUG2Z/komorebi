@@ -330,6 +330,7 @@ impl Table {
     ///   with no `id`, took it away from every window.
     /// - `minimized`: a window was minimized or brought back ([`WindowManagerEvent::Minimize`],
     ///   [`WindowManagerEvent::Restore`]).
+    /// - `caption`: a window's title changed ([`WindowManagerEvent::TitleUpdate`]).
     /// - `geometry`: a window's frame changed. It raises no event.
     /// - `cursor`: the answer to a cursor query ([`Output::Cursor`]).
     /// - `failed`: commands the script could not carry out. They are logged.
@@ -345,6 +346,7 @@ impl Table {
             Some("removed") => self.on_removed(event, now),
             Some("activated") => self.on_activated(event),
             Some("minimized") => self.on_minimized(event),
+            Some("caption") => self.on_caption(event),
             Some("geometry") => {
                 if let Some(entry) = self.entry_mut(event) {
                     entry.info.rect = rect(&event["geo"]);
@@ -513,6 +515,26 @@ impl Table {
         } else {
             WindowManagerEvent::Restore(kwin(KWinNotification::WindowRestored), window)
         })]
+    }
+
+    fn on_caption(&mut self, event: &Value) -> Vec<Output> {
+        let Some(id) = self.id_of(event) else {
+            return vec![];
+        };
+
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return vec![];
+        };
+        entry.info.title = event["caption"].as_str().unwrap_or_default().to_string();
+
+        if entry.info.normal {
+            vec![Output::Event(WindowManagerEvent::TitleUpdate(
+                kwin(KWinNotification::CaptionChanged),
+                Window::from(id),
+            ))]
+        } else {
+            vec![]
+        }
     }
 }
 
@@ -856,6 +878,18 @@ mod tests {
                 bottom: 4
             }
         );
+    }
+
+    #[test]
+    fn a_title_change_raises_a_title_update() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let out = t.handle(
+            &json!({ "type": "caption", "id": "a", "caption": "renamed" }),
+            Instant::now(),
+        );
+
+        assert_eq!(events(&out), vec!["TitleUpdate 1"]);
+        assert_eq!(t.window(1).unwrap().title, "renamed");
     }
 
     #[test]

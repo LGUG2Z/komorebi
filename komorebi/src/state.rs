@@ -5,11 +5,18 @@
 //! subscribers in every [`Notification`]. [`State::has_been_modified`] decides whether an event or
 //! a message changed it, for the subscribers that want a notification only then.
 //!
+//! [`GlobalState`] is what the daemon has besides the window manager, the rules and the data
+//! directory, which it writes in answer to `GlobalState`.
+//!
 //! [`SocketMessage::State`]: crate::core::SocketMessage::State
 //! [`Notification`]: crate::Notification
 
+use crate::DATA_DIR;
+use crate::IGNORE_IDENTIFIERS;
+use crate::MANAGE_IDENTIFIERS;
 use crate::core::OperationBehaviour;
 use crate::core::Rect;
+use crate::core::config_generation::MatchingRule;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window_manager::WindowManager;
@@ -17,6 +24,64 @@ use crate::workspace::Workspace;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::VecDeque;
+use std::path::PathBuf;
+
+/// What the daemon has that is not part of the window manager, as it answers
+/// [`SocketMessage::GlobalState`](crate::core::SocketMessage::GlobalState): the ignore and the manage
+/// rules, and the data directory
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi::state::GlobalState;
+///
+/// let state = GlobalState::default();
+/// // plasmashell and krunner are ignored from the start
+/// let json = serde_json::to_string(&state.ignore_identifiers)?;
+/// assert!(json.contains(r#""id":"org.kde.plasmashell""#), "{json}");
+/// assert!(state.manage_identifiers.is_empty());
+/// assert_eq!(state.data_dir, *komorebi::DATA_DIR);
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GlobalState {
+    // pub border_enabled: bool,
+    // pub border_colours: BorderColours,
+    // pub border_style: BorderStyle,
+    // pub border_offset: i32,
+    // pub border_width: i32,
+    // pub stackbar_mode: StackbarMode,
+    // pub stackbar_label: StackbarLabel,
+    // pub stackbar_focused_text_colour: Colour,
+    // pub stackbar_unfocused_text_colour: Colour,
+    // pub stackbar_tab_background_colour: Colour,
+    // pub stackbar_tab_width: i32,
+    // pub stackbar_height: i32,
+    // pub remove_titlebars: bool,
+    // #[serde(alias = "float_identifiers")]
+    pub ignore_identifiers: Vec<MatchingRule>,
+    pub manage_identifiers: Vec<MatchingRule>,
+    // pub layered_whitelist: Vec<MatchingRule>,
+    // pub tray_and_multi_window_identifiers: Vec<MatchingRule>,
+    // pub name_change_on_launch_identifiers: Vec<MatchingRule>,
+    // pub monitor_index_preferences: HashMap<usize, Rect>,
+    // pub ignored_duplicate_monitor_serial_ids: Vec<String>,
+    // pub window_hiding_behaviour: HidingBehaviour,
+    pub data_dir: PathBuf,
+    // pub custom_ffm: bool,
+}
+
+impl Default for GlobalState {
+    fn default() -> Self {
+        Self {
+            ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
+            manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
+            data_dir: DATA_DIR.clone(),
+        }
+    }
+}
 
 /// A copy of the window manager's monitors, with their workspaces, containers and windows, and
 /// of its settings, which serializes to JSON

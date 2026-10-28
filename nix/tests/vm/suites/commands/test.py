@@ -219,6 +219,12 @@ mouse-follows-focus enable
 mouse-follows-focus disable
 toggle-mouse-follows-focus
 toggle-mouse-follows-focus
+session-float-rule
+session-float-rules
+clear-session-float-rules
+toggle-float
+ignore-rule exe nonexistent
+manage-rule exe nonexistent
 manage
 close
 retile
@@ -269,8 +275,50 @@ checks.check(
     kde.wait_for(lambda: kde.managed() == before and healthy() == 0, timeout=10),
 )
 
+print("== 3c. a rule that matches a title decides when the window has its title")
+kde.komorebic("ignore-rule", "title", "pending-rule")
+before_all = kde.managed_all()
+
+
+def ignored(title: str) -> bool:
+    """True once the daemon has logged that it leaves the window titled `title` alone."""
+    return any(
+        "should not be managed" in line and f"title: {title}," in line
+        for line in kde.komorebi_log().splitlines()
+    )
+
+
+# foot is titled pending-rule when it opens, and gives itself another title after 4 seconds
+rename = 'sleep 4; printf "\\033]0;renamed-rule\\007"; sleep 3000'
+kde.spawn(f"foot -T pending-rule sh -c {shlex.quote(rename)}")
+checks.check(
+    "a window the ignore rule matches by its title is left alone",
+    kde.wait_for(lambda: ignored("pending-rule"), timeout=20) and kde.managed_all() == before_all,
+)
+checks.check(
+    "once it has a title the rule does not match, it is tiled",
+    kde.wait_for(
+        lambda: kde.wid("renamed-rule") != "" and kde.managed_all() == before_all + 1,
+        timeout=20,
+    )
+    and healthy() == 0,
+)
+# the daemon's log names a window by the title it had when it was focused, which for this one is
+# the first: close it, so that the last check finds every window it looks for in the log
+kde.close(kde.wid("renamed-rule"))
+checks.check(
+    "closed, it leaves komorebi",
+    kde.wait_for(lambda: kde.wid("renamed-rule") == "" and healthy() == 0, timeout=10),
+)
+
 print("== 4. what komorebic only prints")
-for args in ["state", "monitor-information", "data-directory"]:
+for args in [
+    "state",
+    "global-state",
+    "monitor-information",
+    "data-directory",
+    "session-float-rules",
+]:
     checks.check(f"komorebic {args}", kde.run(f"komorebic {args}")[0] == 0)
 for query in [
     "focused-monitor-index",

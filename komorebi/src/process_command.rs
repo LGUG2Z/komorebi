@@ -9,6 +9,11 @@
 //! - **State**: the window manager's [`State`], as JSON.
 //! - **MonitorInformation**: the id, the name and the bounds of each monitor, as JSON.
 //! - **Query**: one value as text, the answer to a [`StateQuery`].
+//! - **GlobalState**: the ignore and the manage rules and the data directory ([`GlobalState`]), as
+//!   JSON.
+//! - **SessionFloatRules**: the float rules **SessionFloatRule** added, as JSON.
+//! - **DebugWindow**: what [`Window::should_manage`] read of a window and which rules matched it
+//!   ([`RuleDebug`]), as JSON, or nothing for a window that is not there.
 //!
 //! The others answer nothing:
 //!
@@ -64,8 +69,13 @@
 //! - **UnmanagedWindowOperationBehaviour** sets whether a message is carried out while the window
 //!   that has the focus is not tiled ([`WindowManager::handle_unmanaged_window_behaviour`]). With
 //!   `NoOp`, every message is refused then, this one included.
+//! - **IgnoreRule** adds a rule that keeps the windows of an application out of the layout, and
+//!   takes the ones it names exactly out of the workspaces in front; **ManageRule** adds a rule
+//!   that has them tiled whatever the ignore rules say. **SessionFloatRule** floats the window
+//!   that has the focus and adds a rule that floats the windows that open with its executable,
+//!   title and class, and **ClearSessionFloatRules** removes those rules.
 //! - **TogglePause** pauses the window manager, or resumes it: while it is paused, it handles no
-//!   event, and of the messages only **TogglePause**, **State** and **Stop**
+//!   event, and of the messages only **TogglePause**, **State**, **GlobalState** and **Stop**
 //!   ([`read_commands_uds`]).
 //! - **ResizeWindowEdge** and **ResizeWindowAxis** resize the focused container by the
 //!   [`WindowManager::resize_delta`] that **ResizeDelta** sets ([`WindowManager::resize_window`]),
@@ -81,11 +91,16 @@
 //! ([`notify_subscribers`]).
 
 use crate::DATA_DIR;
+use crate::FLOATING_APPLICATIONS;
+use crate::IGNORE_IDENTIFIERS;
+use crate::MANAGE_IDENTIFIERS;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::backend::backend;
+use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
@@ -94,9 +109,14 @@ use crate::core::Rect;
 use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
+use crate::state::GlobalState;
 use crate::state::State;
+use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
@@ -185,8 +205,10 @@ impl WindowManager {
     /// - The monitor or the workspace of `WorkspacePadding` or `ContainerPadding` is not there, or
     ///   the focused workspace has no padding of its own for `AdjustWorkspacePadding` or
     ///   `AdjustContainerPadding` to change.
-    /// - `Minimize`, `Close`, `ManageFocusedWindow` or `UnmanageFocusedWindow` when the compositor
-    ///   reports no focused window, or the backend refuses to minimize or close it.
+    /// - `Minimize`, `Close`, `ManageFocusedWindow`, `UnmanageFocusedWindow` or `SessionFloatRule`
+    ///   when the compositor reports no focused window, or the backend refuses to minimize, close or
+    ///   float it.
+    /// - `IgnoreRule` cannot take a window out of a workspace, or tile the workspace again.
     /// - The file of `QuickSave` or `Save` cannot be written, or the file of `QuickLoad` or
     ///   `Load` cannot be read or is not a list of resize adjustments.
     /// - The window manager fails to retile, for one of the reasons
@@ -407,6 +429,18 @@ impl WindowManager {
 
                 tracing::info!("replying to state done");
             }
+            SocketMessage::GlobalState => {
+                let state = match serde_json::to_string_pretty(&GlobalState::default()) {
+                    Ok(state) => state,
+                    Err(error) => error.to_string(),
+                };
+
+                tracing::info!("replying to global state");
+
+                reply.write_all(state.as_bytes())?;
+
+                tracing::info!("replying to global state done");
+            }
             SocketMessage::MonitorInformation => {
                 let mut monitors = vec![];
                 for monitor in self.monitors() {
@@ -460,6 +494,148 @@ impl WindowManager {
                 };
 
                 reply.write_all(response.as_bytes())?;
+            }
+            SocketMessage::SessionFloatRule => {
+                let foreground_window = Window::from(
+                    backend()
+                        .foreground_window()
+                        .ok_or_eyre("there is no foreground window")?,
+                );
+                let (exe, title, class) = (
+                    foreground_window.exe(),
+                    foreground_window.title(),
+                    foreground_window.class(),
+                );
+
+                if let (Some(exe), Some(title), Some(class)) = (exe, title, class) {
+                    let rule = MatchingRule::Composite(vec![
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Exe,
+                            id: exe,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Title,
+                            id: title,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Class,
+                            id: class,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                    ]);
+
+                    let mut floating_applications = FLOATING_APPLICATIONS.lock();
+                    floating_applications.push(rule.clone());
+                    let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                    session_floating_applications.push(rule.clone());
+
+                    self.toggle_float(true)?;
+                }
+            }
+            SocketMessage::SessionFloatRules => {
+                let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                let rules = serde_json::to_string_pretty(&*session_floating_applications)
+                    .unwrap_or_else(|error| error.to_string());
+
+                reply.write_all(rules.as_bytes())?;
+            }
+            SocketMessage::ClearSessionFloatRules => {
+                let mut floating_applications = FLOATING_APPLICATIONS.lock();
+                let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                floating_applications.retain(|r| !session_floating_applications.contains(r));
+                session_floating_applications.clear()
+            }
+            SocketMessage::IgnoreRule(identifier, ref id) => {
+                let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+
+                let mut should_push = true;
+                for i in &*ignore_identifiers {
+                    if let MatchingRule::Simple(i) = i
+                        && i.id.eq(id)
+                    {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    }));
+                }
+
+                let offset = self.work_area_offset;
+
+                let mut window_ids_to_purge = vec![];
+                for (i, monitor) in self.monitors().iter().enumerate() {
+                    for container in monitor
+                        .focused_workspace()
+                        .ok_or_eyre("there is no workspace")?
+                        .containers()
+                    {
+                        for window in container.windows() {
+                            match identifier {
+                                ApplicationIdentifier::Path => {
+                                    if window.path().unwrap_or_default().to_string_lossy() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+                                }
+                                ApplicationIdentifier::Exe => {
+                                    if window.exe().unwrap_or_default() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+                                }
+                                ApplicationIdentifier::Class => {
+                                    if window.class().unwrap_or_default() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+                                }
+                                ApplicationIdentifier::Title => {
+                                    if window.title().unwrap_or_default() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (monitor_idx, id) in window_ids_to_purge {
+                    let monitor = self
+                        .monitors_mut()
+                        .get_mut(monitor_idx)
+                        .ok_or_eyre("there is no monitor")?;
+
+                    monitor
+                        .focused_workspace_mut()
+                        .ok_or_eyre("there is no focused workspace")?
+                        .remove_window(id)?;
+
+                    monitor.update_focused_workspace(offset)?;
+                }
+            }
+            SocketMessage::ManageRule(identifier, ref id) => {
+                let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
+
+                let mut should_push = true;
+                for m in &*manage_identifiers {
+                    if let MatchingRule::Simple(m) = m
+                        && m.id.eq(id)
+                    {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    manage_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    }));
+                }
             }
             SocketMessage::ContainerPadding(monitor_idx, workspace_idx, size) => {
                 self.set_container_padding(monitor_idx, workspace_idx, size)?;
@@ -641,6 +817,16 @@ impl WindowManager {
                 workspace.resize_dimensions = resize;
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::DebugWindow(window_id) => {
+                let window = Window::from(window_id);
+                if window.is_valid() {
+                    let mut rule_debug = RuleDebug::default();
+                    let _ = window.should_manage(None, &mut rule_debug);
+                    let schema = serde_json::to_string_pretty(&rule_debug)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
+            }
         }
 
         self.update_known_window_ids();
@@ -664,8 +850,8 @@ impl WindowManager {
 ///
 /// A message that arrives while the window manager has been locked for a second is logged and
 /// dropped. While the window manager is paused, the first message that is not `TogglePause`,
-/// `State` or `Stop` is dropped, and the first that is one of them is handled; either way, the
-/// lines after it are not read.
+/// `State`, `GlobalState` or `Stop` is dropped, and the first that is one of them is handled;
+/// either way, the lines after it are not read.
 ///
 /// # Errors
 ///
@@ -693,9 +879,10 @@ pub fn read_commands_uds(
             Some(mut wm) => {
                 if wm.is_paused {
                     return match message {
-                        SocketMessage::TogglePause | SocketMessage::State | SocketMessage::Stop => {
-                            Ok(wm.process_command(message, &mut stream)?)
-                        }
+                        SocketMessage::TogglePause
+                        | SocketMessage::State
+                        | SocketMessage::GlobalState
+                        | SocketMessage::Stop => Ok(wm.process_command(message, &mut stream)?),
                         _ => {
                             tracing::trace!("ignoring while paused");
                             Ok(())

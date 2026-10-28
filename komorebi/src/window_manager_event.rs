@@ -36,6 +36,8 @@ pub enum KWinNotification {
     WindowMinimized,
     /// `window.minimizedChanged` to false
     WindowRestored,
+    /// `window.captionChanged`
+    CaptionChanged,
 }
 
 /// Events komorebi raises itself, for example from a command
@@ -56,6 +58,8 @@ pub enum WindowManagerEvent {
     Destroy(SystemNotification, Window),
     Minimize(SystemNotification, Window),
     Restore(SystemNotification, Window),
+    /// The window's title changed
+    TitleUpdate(SystemNotification, Window),
     /// The user asked komorebi to manage the window (`ManageFocusedWindow`)
     Manage(Window),
     /// The user asked komorebi to stop managing the window (`UnmanageFocusedWindow`)
@@ -71,6 +75,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Destroy(_, window)
             | WindowManagerEvent::Minimize(_, window)
             | WindowManagerEvent::Restore(_, window)
+            | WindowManagerEvent::TitleUpdate(_, window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Unmanage(window) => *window,
         })
@@ -91,7 +96,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Show(n, _)
             | WindowManagerEvent::Destroy(n, _)
             | WindowManagerEvent::Minimize(n, _)
-            | WindowManagerEvent::Restore(n, _) => match n {
+            | WindowManagerEvent::Restore(n, _)
+            | WindowManagerEvent::TitleUpdate(n, _) => match n {
                 SystemNotification::KWin(k) => k.to_string(),
                 SystemNotification::Manual(m) => m.to_string(),
             },

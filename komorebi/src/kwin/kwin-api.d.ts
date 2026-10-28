@@ -85,6 +85,7 @@ interface KWinWindow {
     readonly desktops: VirtualDesktop[];
     readonly frameGeometryChanged: Signal<[oldGeometry: QRectF]>;
     readonly minimizedChanged: Signal;
+    readonly captionChanged: Signal;
     closeWindow(): void;
 }
 

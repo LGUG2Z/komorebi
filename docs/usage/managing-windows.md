@@ -1,7 +1,8 @@
 # Managing windows
 
 komorebi tiles every normal application window that KWin reports, and leaves dialogs, splash
-screens and other windows that are not for tiling alone. The commands here act on the window
+screens and other windows that are not for tiling alone, and the windows that [rules](rules.md)
+say to ignore. The commands here act on the window
 that has the focus in KWin, take a window out of the layout or back into it, and pause the
 daemon.
 
@@ -34,7 +35,7 @@ komorebic manage
 ```
 
 `komorebic manage` also takes in a window komorebi missed, such as one that opened while the
-daemon was paused. The daemon forgets an unmanaged window when it closes, and when the daemon
+daemon was paused, but not a window an ignore rule covers. The daemon forgets an unmanaged window when it closes, and when the daemon
 stops.
 
 ## Commands while the focused window is not tiled
@@ -58,8 +59,8 @@ sets the behavior back to `op`: give the focus to a tiled window first.
 
 [`komorebic toggle-pause`](../cli/toggle-pause.md) pauses the daemon, and the same command
 resumes it. While it is paused, komorebi does not act on what KWin reports, so it moves no
-window, and of its commands it carries out only `toggle-pause`, `state` and `stop`. The daemon's
-state says whether it is paused, as `is_paused`.
+window, and of its commands it carries out only `toggle-pause`, `state`, `global-state` and
+`stop`. The daemon's state says whether it is paused, as `is_paused`.
 
 ```sh
 komorebic toggle-pause

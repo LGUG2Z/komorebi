@@ -147,7 +147,10 @@ the window that has the focus. `minimize` and `close` ask KWin to minimize or
 close the focused window, `unmanage` takes it out of the layout until `manage`
 takes it back, and `toggle-pause` stops the daemon acting on events and orders
 until it is resumed. The padding commands set the gaps around the tiles, and
-the work area offsets keep parts of a monitor free of tiles.
+the work area offsets keep parts of a monitor free of tiles. Rules decide which
+windows are managed at all: `ignore-rule` keeps an application out of the
+layout, `manage-rule` tiles it whatever the ignore rules say, and
+`session-float-rule` floats the focused window and the windows like it.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

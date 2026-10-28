@@ -354,6 +354,44 @@ fn the_offset_subcommands_send_the_offset_they_are_given() {
 }
 
 #[test]
+fn the_rule_subcommands_send_the_application_they_are_given() {
+    sends(
+        &["ignore-rule", "exe", "steam"],
+        r#"{"type":"IgnoreRule","content":["Exe","steam"]}"#,
+    );
+    sends(
+        &["float-rule", "class", "org.kde.kcalc"],
+        r#"{"type":"IgnoreRule","content":["Class","org.kde.kcalc"]}"#,
+    );
+    sends(
+        &["manage-rule", "title", "Picture-in-Picture"],
+        r#"{"type":"ManageRule","content":["Title","Picture-in-Picture"]}"#,
+    );
+    sends(&["session-float-rule"], r#"{"type":"SessionFloatRule"}"#);
+    sends(
+        &["clear-session-float-rules"],
+        r#"{"type":"ClearSessionFloatRules"}"#,
+    );
+}
+
+#[test]
+fn global_state_and_session_float_rules_print_the_answer_of_the_daemon() {
+    for (args, message) in [
+        ("global-state", r#"{"type":"GlobalState"}"#),
+        ("session-float-rules", r#"{"type":"SessionFloatRules"}"#),
+    ] {
+        let runtime = Runtime::new();
+        let daemon = runtime.serve("[]");
+
+        let output = runtime.komorebic(&[args]);
+
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(daemon.join().unwrap(), message);
+        assert_eq!(stdout(&output), "[]\n");
+    }
+}
+
+#[test]
 fn the_subcommands_about_the_focused_window_and_pausing_send_their_message() {
     sends(&["minimize"], r#"{"type":"Minimize"}"#);
     sends(&["close"], r#"{"type":"Close"}"#);
@@ -429,6 +467,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "adjust-workspace-padding.md",
             "cancel-preselect.md",
             "change-layout.md",
+            "clear-session-float-rules.md",
             "close.md",
             "completions.md",
             "container-padding.md",
@@ -440,10 +479,13 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "focus.md",
             "focused-workspace-container-padding.md",
             "focused-workspace-padding.md",
+            "global-state.md",
             "global-work-area-offset.md",
+            "ignore-rule.md",
             "layout-ratios.md",
             "load-resize.md",
             "log.md",
+            "manage-rule.md",
             "manage.md",
             "minimize.md",
             "monitor-information.md",
@@ -464,6 +506,8 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "retile.md",
             "save-resize.md",
             "scrolling-layout-columns.md",
+            "session-float-rule.md",
+            "session-float-rules.md",
             "start.md",
             "state.md",
             "stop.md",

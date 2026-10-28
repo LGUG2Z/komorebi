@@ -5,16 +5,32 @@
 //! [`Backend`](crate::backend::Backend) when it is needed, and everything done to it (a move, the
 //! focus, a close) is a command to the backend. Nothing is cached, so a window that changed its
 //! title, or closed, is seen as it is now.
+//!
+//! [`Window::should_manage`] decides whether komorebi manages a window: it has to be a normal
+//! application window that is alive, and then the ignore and manage rules decide
+//! ([`should_act`], [`should_act_individual`]), writing what they found to a [`RuleDebug`].
 
+use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
+use crate::IGNORE_IDENTIFIERS;
+use crate::MANAGE_IDENTIFIERS;
+use crate::PERMAIGNORE_CLASSES;
+use crate::REGEX_IDENTIFIERS;
 use crate::backend::backend;
+use crate::core::ApplicationIdentifier;
 use crate::core::Rect;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
+use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::Serializer;
 use serde::ser::SerializeStruct;
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write;
@@ -224,24 +240,60 @@ impl Window {
         })
     }
 
-    /// Whether the window is one komorebi should tile: a window that is still alive and that the
+    /// Whether the window is one komorebi should tile: a window that is still alive, that the
     /// compositor considers a normal application window, as opposed to a dialog, a splash screen,
-    /// a utility window or a dock ([`WindowInfo::normal`](crate::backend::WindowInfo::normal)).
+    /// a utility window or a dock ([`WindowInfo::normal`](crate::backend::WindowInfo::normal)),
+    /// and that no ignore rule covers, or that a manage rule rescues
     ///
-    /// A window the compositor has no record of is not managed. Windows that are minimized when
-    /// komorebi starts are not picked up either
+    /// What was looked at and which rules matched is written to `debug`, which is how
+    /// `DebugWindow` answers. A window the compositor has no record of is not managed. Windows
+    /// that are minimized when komorebi starts are not picked up either
     /// ([`load_workspace_information`](crate::desktop::load_workspace_information)).
-    pub fn should_manage(&self) -> bool {
+    ///
+    /// # Errors
+    ///
+    /// None: every path returns `Ok`.
+    #[tracing::instrument(skip_all)]
+    pub fn should_manage(
+        &self,
+        event: Option<WindowManagerEvent>,
+        debug: &mut RuleDebug,
+    ) -> eyre::Result<bool> {
         let Some(info) = self.info() else {
-            return false;
+            return Ok(false);
         };
 
         if !info.alive {
-            return false;
+            return Ok(false);
         }
 
         // dialogs, splash screens, utility windows, docks and the like are not for tiling
-        info.normal
+        if !info.normal {
+            return Ok(false);
+        }
+
+        debug.is_window = true;
+
+        // windows are often announced before their title is set; a TitleUpdate re-evaluates them
+        debug.has_title = !info.title.is_empty();
+
+        debug.title = Some(info.title.clone());
+        debug.exe_name = Some(info.exe.clone());
+        debug.class = Some(info.class.clone());
+        debug.path = Some(info.path.clone());
+
+        let eligible = window_is_eligible(
+            self.id,
+            &info.title,
+            &info.exe,
+            &[&info.class],
+            &info.path,
+            event,
+            debug,
+        );
+
+        debug.should_manage = eligible;
+        Ok(eligible)
     }
 }
 
@@ -288,6 +340,435 @@ impl AspectRatio {
             AspectRatio::Custom(w, h) => (w, h),
         }
     }
+}
+
+/// Why [`Window::should_manage`] decided as it did: what it read of the window, and the rule of
+/// each kind that matched it
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RuleDebug {
+    pub should_manage: bool,
+    pub is_window: bool,
+    // pub has_minimum_width: bool,
+    // pub has_minimum_height: bool,
+    pub has_title: bool,
+    // pub is_cloaked: bool,
+    // pub allow_cloaked: bool,
+    // pub allow_layered_transparency: bool,
+    // pub window_style: Option<WindowStyle>,
+    // pub extended_window_style: Option<ExtendedWindowStyle>,
+    pub title: Option<String>,
+    pub exe_name: Option<String>,
+    pub class: Option<String>,
+    pub path: Option<String>,
+    pub matches_permaignore_class: Option<String>,
+    pub matches_ignore_identifier: Option<MatchingRule>,
+    pub matches_managed_override: Option<MatchingRule>,
+    // pub matches_layered_whitelist: Option<MatchingRule>,
+    pub matches_floating_applications: Option<MatchingRule>,
+    // pub matches_wsl2_gui: Option<String>,
+    // pub matches_no_titlebar: Option<MatchingRule>,
+}
+
+/// Whether the rules let a window be managed: not when its class is one of
+/// [`struct@PERMAIGNORE_CLASSES`], and not when an ignore rule matches it and no manage rule
+/// does. Every rule that matches is written to `debug`, the float rules too, which do not decide
+/// whether the window is managed.
+#[allow(clippy::too_many_arguments)]
+fn window_is_eligible(
+    _window_id: u32,
+    title: &str,
+    exe_name: &str,
+    classes: &[&str],
+    path: &str,
+    // style: &WindowStyle,
+    // ex_style: &ExtendedWindowStyle,
+    _event: Option<WindowManagerEvent>,
+    debug: &mut RuleDebug,
+) -> bool {
+    {
+        let permaignore_classes = PERMAIGNORE_CLASSES.lock();
+        for class in classes {
+            if permaignore_classes.contains(&class.to_string()) {
+                debug.matches_permaignore_class = Some(class.to_string());
+                return false;
+            }
+        }
+    }
+
+    let regex_identifiers = REGEX_IDENTIFIERS.lock();
+
+    let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+    let should_ignore = if let Some(rule) = should_act(
+        title,
+        exe_name,
+        classes,
+        path,
+        &ignore_identifiers,
+        &regex_identifiers,
+    ) {
+        debug.matches_ignore_identifier = Some(rule);
+        true
+    } else {
+        false
+    };
+
+    let manage_identifiers = MANAGE_IDENTIFIERS.lock();
+    let managed_override = if let Some(rule) = should_act(
+        title,
+        exe_name,
+        classes,
+        path,
+        &manage_identifiers,
+        &regex_identifiers,
+    ) {
+        debug.matches_managed_override = Some(rule);
+        true
+    } else {
+        false
+    };
+
+    let floating_identifiers = FLOATING_APPLICATIONS.lock();
+    if let Some(rule) = should_act(
+        title,
+        exe_name,
+        classes,
+        path,
+        &floating_identifiers,
+        &regex_identifiers,
+    ) {
+        debug.matches_floating_applications = Some(rule);
+    }
+
+    if should_ignore && !managed_override {
+        return false;
+    }
+
+    true
+}
+
+/// Returns the last of `identifiers` that matches a window with this title, executable, classes
+/// and path, if one does: a simple rule matches when its one condition does
+/// ([`should_act_individual`]), and a composite rule when all of its conditions do
+#[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
+pub fn should_act(
+    title: &str,
+    exe_name: &str,
+    classes: &[&str],
+    path: &str,
+    identifiers: &[MatchingRule],
+    regex_identifiers: &HashMap<String, Regex>,
+) -> Option<MatchingRule> {
+    let mut matching_rule = None;
+    for rule in identifiers {
+        match rule {
+            MatchingRule::Simple(identifier) => {
+                if should_act_individual(
+                    title,
+                    exe_name,
+                    classes,
+                    path,
+                    identifier,
+                    regex_identifiers,
+                ) {
+                    matching_rule = Some(rule.clone());
+                };
+            }
+            MatchingRule::Composite(identifiers) => {
+                let mut composite_results = vec![];
+                for identifier in identifiers {
+                    composite_results.push(should_act_individual(
+                        title,
+                        exe_name,
+                        classes,
+                        path,
+                        identifier,
+                        regex_identifiers,
+                    ));
+                }
+
+                if composite_results.iter().all(|&x| x) {
+                    matching_rule = Some(rule.clone());
+                }
+            }
+        }
+    }
+
+    matching_rule
+}
+
+/// Returns true if and only if the condition `identifier` holds for a window with this title,
+/// executable, classes and path
+///
+/// The condition compares the title, the executable, any of the classes or the path with its id,
+/// by its matching strategy. Without one, or with `Legacy`, a title or a class matches when it
+/// starts or ends with the id, and an executable or a path when it is the id. A `Regex` id is
+/// looked up in `regex_identifiers`, and an id with no compiled regex there matches nothing. A
+/// `.exe` in the id is ignored.
+pub fn should_act_individual(
+    title: &str,
+    exe_name: &str,
+    classes: &[&str],
+    path: &str,
+    identifier: &IdWithIdentifier,
+    regex_identifiers: &HashMap<String, Regex>,
+) -> bool {
+    let mut should_act = false;
+
+    let mut identifier = identifier.clone();
+    identifier.id = identifier.id.replace(".exe", "");
+
+    match identifier.matching_strategy {
+        None | Some(MatchingStrategy::Legacy) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if title.starts_with(&identifier.id) || title.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if class.starts_with(&identifier.id) || class.ends_with(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if exe_name.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if path.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::Equals) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if title.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if class.eq(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if exe_name.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if path.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::DoesNotEqual) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if !title.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if !class.eq(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if !exe_name.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if !path.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::StartsWith) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if title.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if class.starts_with(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if exe_name.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if path.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::DoesNotStartWith) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if !title.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if !class.starts_with(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if !exe_name.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if !path.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::EndsWith) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if title.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if class.ends_with(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if exe_name.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if path.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::DoesNotEndWith) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if !title.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if !class.ends_with(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if !exe_name.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if !path.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::Contains) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if title.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if class.contains(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if exe_name.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if path.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::DoesNotContain) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if !title.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                for class in classes {
+                    if !class.contains(&identifier.id) {
+                        should_act = true;
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if !exe_name.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if !path.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::Regex) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if let Some(re) = regex_identifiers.get(&identifier.id)
+                    && re.is_match(title)
+                {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                if let Some(re) = regex_identifiers.get(&identifier.id) {
+                    for class in classes {
+                        if re.is_match(class) {
+                            should_act = true;
+                        }
+                    }
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if let Some(re) = regex_identifiers.get(&identifier.id)
+                    && re.is_match(exe_name)
+                {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if let Some(re) = regex_identifiers.get(&identifier.id)
+                    && re.is_match(path)
+                {
+                    should_act = true;
+                }
+            }
+        },
+    }
+
+    should_act
 }
 
 #[cfg(test)]
@@ -397,10 +878,12 @@ mod tests {
         fake.close_window_now(207);
 
         with_backend(fake, || {
-            assert!(Window::from(205).should_manage());
-            assert!(!Window::from(206).should_manage());
-            assert!(!Window::from(207).should_manage());
-            assert!(!Window::from(208).should_manage());
+            let should_manage =
+                |id| Window::from(id).should_manage(None, &mut RuleDebug::default());
+            assert!(should_manage(205).unwrap());
+            assert!(!should_manage(206).unwrap());
+            assert!(!should_manage(207).unwrap());
+            assert!(!should_manage(208).unwrap());
         });
     }
 
@@ -415,5 +898,95 @@ mod tests {
         assert_eq!(json["details"]["title"], "a terminal");
         assert_eq!(json["details"]["path"], "/usr/bin/foot");
         Ok(())
+    }
+
+    fn condition(
+        kind: ApplicationIdentifier,
+        id: &str,
+        matching_strategy: Option<MatchingStrategy>,
+    ) -> IdWithIdentifier {
+        IdWithIdentifier {
+            kind,
+            id: id.to_string(),
+            matching_strategy,
+        }
+    }
+
+    /// Whether `condition` holds for a Kate window editing notes.txt
+    fn holds_for_kate(condition: &IdWithIdentifier, regexes: &HashMap<String, Regex>) -> bool {
+        should_act_individual(
+            "notes.txt — Kate",
+            "kate",
+            &["org.kde.kate"],
+            "/usr/bin/kate",
+            condition,
+            regexes,
+        )
+    }
+
+    /// Whether the condition holds for the Kate window, with no compiled regex
+    fn holds(kind: ApplicationIdentifier, id: &str, strategy: Option<MatchingStrategy>) -> bool {
+        holds_for_kate(&condition(kind, id, strategy), &HashMap::new())
+    }
+
+    #[test]
+    fn without_a_strategy_a_title_or_a_class_matches_at_either_end_and_an_executable_whole() {
+        use ApplicationIdentifier::*;
+
+        assert!(holds(Title, "Kate", None));
+        assert!(holds(Title, "notes", None));
+        assert!(!holds(Title, "txt", None));
+        assert!(holds(Class, "kate", None));
+        assert!(holds(Exe, "kate.exe", None));
+        assert!(!holds(Exe, "kat", None));
+        assert!(holds(Path, "/usr/bin/kate", None));
+    }
+
+    #[test]
+    fn a_strategy_says_how_the_id_is_compared_and_a_regex_needs_its_compiled_form() {
+        use ApplicationIdentifier::*;
+        use MatchingStrategy::*;
+
+        assert!(!holds(Class, "kate", Some(Equals)));
+        assert!(holds(Class, "org.kde.kate", Some(Equals)));
+        assert!(holds(Title, "txt", Some(Contains)));
+        assert!(holds(Exe, "foot", Some(DoesNotEqual)));
+        assert!(holds(Path, "/usr/", Some(StartsWith)));
+
+        let regex = condition(Title, "^notes\\.", Some(Regex));
+        assert!(!holds_for_kate(&regex, &HashMap::new()));
+        let compiled = HashMap::from([(
+            String::from("^notes\\."),
+            regex::Regex::new("^notes\\.").unwrap(),
+        )]);
+        assert!(holds_for_kate(&regex, &compiled));
+    }
+
+    #[test]
+    fn a_composite_rule_needs_every_condition_and_the_last_rule_that_matches_is_the_one() {
+        use ApplicationIdentifier::*;
+        let kate = condition(Class, "org.kde.kate", Some(MatchingStrategy::Equals));
+        let notes = condition(Title, "notes", None);
+        let other = condition(Title, "other", None);
+        let rules = [
+            MatchingRule::Composite(vec![kate.clone(), other]),
+            MatchingRule::Simple(kate.clone()),
+            MatchingRule::Composite(vec![kate, notes]),
+        ];
+
+        let matched = should_act(
+            "notes.txt — Kate",
+            "kate",
+            &["org.kde.kate"],
+            "/usr/bin/kate",
+            &rules,
+            &HashMap::new(),
+        );
+
+        assert_eq!(matched, Some(rules[2].clone()));
+        assert_eq!(
+            should_act("x", "x", &["x"], "x", &rules[..1], &HashMap::new()),
+            None
+        );
     }
 }

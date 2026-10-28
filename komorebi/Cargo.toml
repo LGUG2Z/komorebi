@@ -17,6 +17,7 @@ lazy_static = { workspace = true }
 nanoid = "0.4"
 parking_lot = "0.12"
 pastey = { workspace = true }
+regex = "1"
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

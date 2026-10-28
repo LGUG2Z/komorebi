@@ -1,12 +1,14 @@
 //! How the window manager answers what the compositor reports: [`WindowManager::process_event`].
 //!
 //! Nothing changes while the window manager is paused (`TogglePause`). An event about a window
-//! komorebi does not manage ([`Window::should_manage`]), or about one the user took out of the
-//! layout with `UnmanageFocusedWindow`, changes nothing either. Otherwise:
+//! komorebi does not manage ([`Window::should_manage`]: a dialog, or a window an ignore rule
+//! covers and no manage rule rescues), or about one the user took out of the layout with
+//! `UnmanageFocusedWindow`, changes nothing either. Otherwise:
 //!
 //! - **Show**, and **Manage** (`ManageFocusedWindow`): the window gets a container of its own after
 //!   the focused one, and the workspace is tiled again. The first window on an empty workspace is
-//!   given the focus.
+//!   given the focus. A window a float rule matches goes into the workspace's floating windows
+//!   instead, on a Show (a Manage tiles it whatever the rules say).
 //! - **Destroy**, and **Unmanage** (`UnmanageFocusedWindow`): the window is taken out of whichever
 //!   workspace has it, and if that is the one in front it is tiled again. A window that is
 //!   unmanaged stays open, centered in the work area so that it is not left behind the tiles, and
@@ -16,6 +18,8 @@
 //!   that instead, so that the strip scrolls to the window that has the focus.
 //! - **Minimize**: a window the user minimized leaves its workspace and the rest are tiled
 //!   again; **Restore** brings it back in a container of its own.
+//! - **TitleUpdate**: a window komorebi does not have, and that was not minimized, is announced
+//!   again as a Show, so that a rule that matches on the title it has now decides.
 //!
 //! The daemon hands events to the window manager on a thread of their own,
 //! [`listen_for_events`], one at a time and in the order the backend raised them.
@@ -25,16 +29,23 @@
 //!
 //! [`Window::should_manage`]: crate::window::Window::should_manage
 
+use crate::FLOATING_APPLICATIONS;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::REGEX_IDENTIFIERS;
 use crate::UNMANAGED_WINDOW_IDS;
 use crate::backend::backend;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::notify_subscribers;
 use crate::state::State;
+use crate::window::RuleDebug;
+use crate::window::should_act;
 use crate::window_manager::WindowManager;
+use crate::window_manager_event::KWinNotification;
+use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::window_manager_event_listener;
 use color_eyre::eyre;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -101,15 +112,17 @@ impl WindowManager {
         };
         let window_id = window.id;
 
-        // A destroyed window can no longer be asked whether it should be managed, and a window the
-        // user unmanaged is let go of whatever it is, so a removal is let through without asking
+        // A destroyed window can no longer be asked whether it should be managed, and rules must
+        // not stop us dropping a window we do manage, so this is settled before the rules are
         let is_removal = matches!(
             event,
             WindowManagerEvent::Destroy(_, _) | WindowManagerEvent::Unmanage(_)
         );
 
+        let mut rule_debug = RuleDebug::default();
         let should_manage = is_removal
-            || (window.should_manage() && !UNMANAGED_WINDOW_IDS.lock().contains(&window_id));
+            || (window.should_manage(Some(event), &mut rule_debug)?
+                && !UNMANAGED_WINDOW_IDS.lock().contains(&window_id));
 
         if !should_manage {
             tracing::debug!("ignoring event as window should not be managed: {window}");
@@ -182,14 +195,65 @@ impl WindowManager {
                 }
 
                 if create {
+                    let behaviour = self.window_management_behaviour;
                     let workspace = self.focused_workspace_mut()?;
-                    workspace.new_container_for_window(&window)?;
-                    self.update_focused_workspace(false, false)?;
 
-                    if self.focused_workspace()?.containers().len() == 1 {
-                        // If after adding this window the workspace only contains 1 window, it
-                        // was previously empty, so give this window the focus
-                        window.focus(self.mouse_follows_focus)?;
+                    let floating_applications = FLOATING_APPLICATIONS.lock();
+                    let mut should_float = false;
+
+                    if !floating_applications.is_empty() {
+                        let regex_identifiers = REGEX_IDENTIFIERS.lock();
+
+                        if let (Some(title), Some(exe_name), Some(class), Some(path)) =
+                            (window.title(), window.exe(), window.class(), window.path())
+                        {
+                            should_float = should_act(
+                                &title,
+                                &exe_name,
+                                &[&class],
+                                &path.to_string_lossy(),
+                                &floating_applications,
+                                &regex_identifiers,
+                            )
+                            .is_some();
+                        }
+                    }
+                    drop(floating_applications);
+
+                    if behaviour.float_override
+                        || behaviour.floating_layer_override
+                        || (should_float && !matches!(event, WindowManagerEvent::Manage(_)))
+                    {
+                        let placement = if behaviour.floating_layer_override {
+                            // Floating layer override placement
+                            behaviour.floating_layer_placement
+                        } else if behaviour.float_override {
+                            // Float override placement
+                            behaviour.float_override_placement
+                        } else {
+                            // Float rule placement
+                            behaviour.float_rule_placement
+                        };
+                        // Center floating windows according to the proper placement if not
+                        // on a floating workspace
+                        let center_spawned_floats = placement.should_center() && workspace.tile;
+                        workspace.floating_windows_mut().push_back(window);
+                        if center_spawned_floats {
+                            let mut floating_window = window;
+                            floating_window
+                                .center(&workspace.globals.work_area, placement.should_resize())?;
+                        }
+
+                        self.update_focused_workspace(false, false)?;
+                    } else {
+                        workspace.new_container_for_window(&window)?;
+                        self.update_focused_workspace(false, false)?;
+
+                        if self.focused_workspace()?.containers().len() == 1 {
+                            // If after adding this window the workspace only contains 1 window, it
+                            // was previously empty, so give this window the focus
+                            window.focus(self.mouse_follows_focus)?;
+                        }
                     }
                 }
             }
@@ -256,6 +320,19 @@ impl WindowManager {
                     self.update_focused_workspace(false, false)?;
                 }
             },
+            WindowManagerEvent::TitleUpdate(_, _) => {
+                // Windows are routinely announced before their title is set. Now that it is, a rule
+                // that matches on the title can finally decide, so a window that was not picked up
+                // gets another chance to be.
+                if !self.known_window_ids.contains_key(&window_id)
+                    && !self.minimized_windows.contains_key(&window_id)
+                {
+                    window_manager_event_listener::send_notification(WindowManagerEvent::Show(
+                        SystemNotification::KWin(KWinNotification::WindowAdded),
+                        window,
+                    ));
+                }
+            }
         }
 
         self.update_known_window_ids();

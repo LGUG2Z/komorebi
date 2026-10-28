@@ -41,6 +41,8 @@ daemon, ask it what it is doing and read its log.
 window and pause the daemon, and
 [Padding and work area offsets](usage/padding-and-offsets.md) how to put gaps around the tiles
 and keep parts of a monitor free of them.
+[Rules](usage/rules.md) explains how to keep an application out of the layout, always tile it, or
+float its windows.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.

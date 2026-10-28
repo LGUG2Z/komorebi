@@ -391,7 +391,18 @@ pub enum SocketMessage {
     WorkspaceWorkAreaOffset(usize, usize, Rect),
     ToggleWindowBasedWorkAreaOffset,
     ResizeDelta(i32),
+    SessionFloatRule,
+    SessionFloatRules,
+    ClearSessionFloatRules,
+    #[serde(alias = "FloatRule")]
+    IgnoreRule(ApplicationIdentifier, String),
+    ManageRule(ApplicationIdentifier, String),
+    // IdentifyObjectNameChangeApplication(ApplicationIdentifier, String),
+    // IdentifyTrayApplication(ApplicationIdentifier, String),
+    // IdentifyLayeredApplication(ApplicationIdentifier, String),
+    // IdentifyBorderOverflowApplication(ApplicationIdentifier, String),
     State,
+    GlobalState,
     MonitorInformation,
     Query(StateQuery),
     MouseFollowsFocus(bool),
@@ -403,6 +414,7 @@ pub enum SocketMessage {
     RemoveSubscriberSocket(String),
     // AddSubscriberPipe(String),
     // RemoveSubscriberPipe(String),
+    DebugWindow(u32),
 }
 
 impl SocketMessage {

@@ -62,7 +62,7 @@ pub struct WindowManager {
     /// [`WindowManager::new`] was given another path
     pub command_listener: UnixListener,
     /// Whether `TogglePause` has paused the window manager: while it is paused, it handles no
-    /// event, and of the messages only `TogglePause`, `State` and `Stop`
+    /// event, and of the messages only `TogglePause`, `State`, `GlobalState` and `Stop`
     pub is_paused: bool,
     /// How many pixels `ResizeWindowEdge` and `ResizeWindowAxis` resize by
     pub resize_delta: i32,

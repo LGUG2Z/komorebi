@@ -44,8 +44,9 @@
 /**
  * What the bridge sends, as the one argument of `Event`. `emit` adds `seq` to each, which counts
  * them from 1. `snapshot` is everything on the desktop, sent once, when the script starts; an
- * `activated` with no `id` means no window has the focus; `cursor` answers a cursor query, and
- * `failed` gives back the commands of a batch that could not be carried out.
+ * `activated` with no `id` means no window has the focus; `caption` is a window's new title;
+ * `cursor` answers a cursor query, and `failed` gives back the commands of a batch that could not
+ * be carried out.
  *
  * @typedef {{
  *     type: "snapshot", windows: WindowInfo[], screens: Screen[], active: string | null,
@@ -56,9 +57,10 @@
  * @typedef {{ type: "activated", id: string | null }} Activated
  * @typedef {{ type: "minimized", id: string, v: boolean }} Minimized
  * @typedef {{ type: "geometry", id: string, geo: Rect }} Geometry
+ * @typedef {{ type: "caption", id: string, caption: string }} Caption
  * @typedef {{ type: "cursor", token: number, x: number, y: number }} CursorAnswer
  * @typedef {{ type: "failed", batch: number, cmds: Command[] }} Failed
- * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | CursorAnswer | Failed} BridgeEvent
+ * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Caption | CursorAnswer | Failed} BridgeEvent
  */
 
 /**
@@ -266,6 +268,9 @@ function track(w, announce) {
     });
     w.minimizedChanged.connect(function () {
         emit("minimized", { id: id, v: !!w.minimized });
+    });
+    w.captionChanged.connect(function () {
+        emit("caption", { id: id, caption: String(w.caption) });
     });
 }
 

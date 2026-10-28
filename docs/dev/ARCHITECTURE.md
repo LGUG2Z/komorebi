@@ -29,6 +29,9 @@ its place here.
   itself: a command asks it to manage the focused window, or to stop managing it.
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
   (focus a window, move it, change the layout, resize it, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
+- **Rule**: a condition on a window's title, executable, class or path ([`MatchingRule`]), in
+  one of the process-wide lists that decide whether a window is managed (the ignore and the
+  manage rules) and whether it floats when it opens (the float rules).
 - **Direction**: where an order goes from the focused container: a side of its tile
   ([`OperationDirection`]), or the next or the previous container of the workspace
   ([`CycleDirection`]).
@@ -108,9 +111,9 @@ tile is clamped to the work area, so it cannot reach onto a neighboring monitor.
 The [`WindowManager`] keeps the monitors, the windows the user minimized (they are in no
 workspace until they are restored), and an index from each window it manages to the
 monitor and workspace that have it. It is loaded from the backend at startup: every
-monitor, and every open window that is normal, alive and not minimized, on the focused
-workspace of the monitor its middle is on. After that it changes only when an event comes
-in, and each event ends with the workspace in front tiled again.
+monitor, and every open window that is normal, alive, not minimized and not ignored by a
+rule, on the focused workspace of the monitor its middle is on. After that it changes only
+when an event comes in, and each event ends with the workspace in front tiled again.
 
 ## The KWin backend
 
@@ -324,9 +327,25 @@ area, and its id goes into a list of unmanaged windows that `handle_event` check
 on any other event about a window; a `Manage` takes the id out of the list and is handled like a
 `Show`. A `Destroy` takes the id out of the list too.
 
+Whether a window is managed is [`Window::should_manage`]: the window has to be alive and normal,
+and then the rules decide ([`should_act`]). An ignore rule that matches keeps the window out
+unless a manage rule matches it too. The float rules do not decide whether a window is managed,
+but a `Show` puts a window one matches in the workspace's floating windows instead of a container
+(a `Manage` does not ask them). The rules live in process-wide lists in `lib.rs`:
+`IgnoreRule` and `ManageRule` add a rule that names an application by one of the four
+([`ApplicationIdentifier`]), and take the windows that it names exactly out of the containers of
+the workspaces in front; `SessionFloatRule` adds a float rule made of the focused window's
+executable, title and class, all three to be equal, and floats it, and `ClearSessionFloatRules`
+takes those rules out again. `GlobalState` answers with the ignore and the manage rules
+([`GlobalState`]), and `DebugWindow` with what [`Window::should_manage`] read of a window and
+which rules matched ([`RuleDebug`]). A rule decides when a window is shown; the bridge reports
+a title change (`caption`), which is a `TitleUpdate` event, and a `TitleUpdate` about a window
+the index does not have, and that is not minimized, is sent again as a `Show`, so that a rule
+about the title it has now decides.
+
 `TogglePause` sets [`WindowManager::is_paused`]: while it is set, `handle_event` returns at once
-for every event, and [`read_commands_uds`] hands only `TogglePause`, `State` and `Stop` to the
-window manager. `UnmanagedWindowOperationBehaviour` sets
+for every event, and [`read_commands_uds`] hands only `TogglePause`, `State`, `GlobalState` and
+`Stop` to the window manager. `UnmanagedWindowOperationBehaviour` sets
 [`WindowManager::unmanaged_window_operation_behaviour`]: with `NoOp`,
 [`WindowManager::process_command`] refuses every message while the window the compositor has
 focused is in no container of the focused workspace
@@ -402,7 +421,7 @@ module's unit.
   holding one the same accessors (`containers()`, `focused_container_mut()`, ...).
 - [`monitor`](../../komorebi/src/monitor.rs), [`workspace`](../../komorebi/src/workspace.rs),
   [`container`](../../komorebi/src/container.rs), [`window`](../../komorebi/src/window.rs):
-  the four levels of the tree.
+  the four levels of the tree; `window` also has the rule engine ([`should_act`]).
 - [`lockable_sequence`](../../komorebi/src/lockable_sequence.rs): inserting, removing and
   swapping in a list where some elements are locked in place, which is how a workspace
   changes its containers.
@@ -475,9 +494,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A test's backend does not outlive the test | framework path: [`with_backend`] restores the previous one on drop | `with_backend_puts_the_previous_backend_back_when_the_closure_panics` | none |
 | A command about a missing window is an error, not a panic | test | `a_command_about_a_window_nobody_opened_is_an_error` and `a_command_about_a_closed_window_is_an_error` against the fake, `a_command_about_a_window_the_table_does_not_know_is_an_error_and_sends_nothing` against the KWin backend | none |
 | A locked container keeps its index | framework path: a [`Workspace`] inserts, removes and swaps its containers through `LockableSequence` | `test_locked_containers_with_new_window`, `test_locked_containers_remove_window`, `a_window_that_opens_does_not_push_a_locked_container_from_its_index` | `containers_mut()` is the `VecDeque` itself |
-| A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone` | none |
+| A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone`, `an_ignore_rule_keeps_a_window_unmanaged` | `ManageRule` |
 | A window the user unmanaged stays out of the layout until it is managed again | framework path: `handle_event` checks the list of unmanaged windows before it acts on any event but a removal | `unmanage_takes_the_focused_window_out_until_manage_takes_it_back` | none |
-| A paused window manager moves no window | framework path: `handle_event` returns before anything else, and [`read_commands_uds`] drops every message but `TogglePause`, `State` and `Stop` | `while_paused_no_event_changes_the_layout_and_manage_takes_in_a_window_it_missed`, `while_paused_only_toggle_pause_state_and_stop_are_handled` | none |
+| A paused window manager moves no window | framework path: `handle_event` returns before anything else, and [`read_commands_uds`] drops every message but `TogglePause`, `State`, `GlobalState` and `Stop` | `while_paused_no_event_changes_the_layout_and_manage_takes_in_a_window_it_missed`, `while_paused_only_toggle_pause_state_and_stop_are_handled` | none |
 | A destroyed window leaves whichever workspace has it | framework path: the destroy is looked up in the index of managed windows, which is rebuilt at startup and before and after every event | `a_window_that_was_open_before_komorebi_started_is_removed_when_it_closes` | none |
 | The daemon does not start without KWin, unless it is told to run against the fake | startup check: [`connect`] fails, and the daemon exits with the error, code 1 | `without_a_session_bus_komorebi_exits_with_an_error_naming_it` | `--fake-backend` |
 | One komorebi per session | startup check: the session bus gives `org.komorebi.Bridge` to one connection | none | none |
@@ -525,7 +544,9 @@ A window is shown, and ends up on a tile:
    [`WindowManager::process_event`], which hands it to `handle_event` and logs how long that
    took. The end-to-end tests build the event themselves and call `process_event`.
 2. `handle_event` asks [`Window::should_manage`], which asks the backend's `window(id)`
-   whether the window is alive and normal. If it is not, the event changes nothing.
+   whether the window is alive and normal, and then the rules whether it is to be managed. If
+   it is not, the event changes nothing. If a float rule matches it, it goes into the
+   workspace's floating windows and the steps below do not apply.
 3. The index of managed windows is rebuilt from the containers. If the workspace in front
    already has the window, or the index has it on another monitor or workspace, the event
    creates nothing.
@@ -620,7 +641,9 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
   unmanaging and managing the focused window, and pausing;
   [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
-  offsets.
+  offsets; [`komorebi/tests/rules.rs`](../../komorebi/tests/rules.rs) and
+  [`komorebi/tests/rule_commands.rs`](../../komorebi/tests/rule_commands.rs), the rules and the
+  messages that add and show them.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
@@ -645,6 +668,11 @@ A window is shown, and ends up on a tile:
 [`Container`]: ../../komorebi/src/container.rs
 [`Window`]: ../../komorebi/src/window.rs
 [`Window::should_manage`]: ../../komorebi/src/window.rs
+[`should_act`]: ../../komorebi/src/window.rs
+[`RuleDebug`]: ../../komorebi/src/window.rs
+[`GlobalState`]: ../../komorebi/src/state.rs
+[`MatchingRule`]: ../../komorebi/src/core/config_generation.rs
+[`ApplicationIdentifier`]: ../../komorebi/src/core/mod.rs
 [`Window::set_position`]: ../../komorebi/src/window.rs
 [`Workspace::new_container_for_window`]: ../../komorebi/src/workspace.rs
 [`WindowManager`]: ../../komorebi/src/window_manager.rs

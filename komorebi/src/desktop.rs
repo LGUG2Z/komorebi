@@ -40,6 +40,7 @@ use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Rect;
 use crate::monitor::Monitor;
+use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
@@ -144,7 +145,8 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
 /// monitor they are on, so that starting komorebi tiles what is on screen.
 ///
 /// A window is on the monitor whose bounds contain its middle. A window that is minimized, that
-/// komorebi does not manage ([`Window::should_manage`]), or that is on no monitor is left alone.
+/// komorebi does not manage ([`Window::should_manage`]: not a normal window, or one the rules
+/// ignore), or that is on no monitor is left alone.
 /// Nothing is moved: tiling is [`WindowManager::retile_all`]'s job.
 ///
 /// # Errors
@@ -192,7 +194,8 @@ pub fn load_workspace_information(wm: &mut WindowManager) -> eyre::Result<()> {
         }
 
         let window = Window::from(info.id);
-        if !window.should_manage() {
+        let mut rule_debug = RuleDebug::default();
+        if !window.should_manage(None, &mut rule_debug)? {
             continue;
         }
 

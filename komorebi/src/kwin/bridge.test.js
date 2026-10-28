@@ -86,6 +86,7 @@ function window({
         desktops: [],
         frameGeometryChanged: new Signal(),
         minimizedChanged: new Signal(),
+        captionChanged: new Signal(),
         closeWindow: () => assert.fail("a window that is in no KWin was closed"),
         ...rest,
     };
@@ -345,6 +346,21 @@ test("a window maximized one way only is not maximized", () => {
         snapshot.windows.map((w) => w.maximized),
         [false, false, false, true],
     );
+});
+
+test("a title change is reported with the title the window has now", () => {
+    const w = window({ id: "{beta}", caption: "beta" });
+    const k = kwin({ windows: [w] });
+
+    w.caption = "beta-renamed";
+    w.captionChanged.emit();
+
+    assert.deepStrictEqual(k.events().at(-1), {
+        type: "caption",
+        seq: 2,
+        id: "{beta}",
+        caption: "beta-renamed",
+    });
 });
 
 test("every call goes to the daemon's names, with one JSON string", () => {

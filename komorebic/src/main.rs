@@ -31,6 +31,11 @@
 //!   `quick-save-resize`, `quick-load-resize`, `save-resize` and `load-resize` save the sizes of
 //!   the tiles of the focused workspace and load them back.
 //!
+//! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
+//! always in it, `session-float-rule` floats the focused window and every window like it until the
+//! daemon stops, `session-float-rules` shows those rules and `clear-session-float-rules` removes
+//! them, and `global-state` shows the rules the daemon has.
+//!
 //! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
 //! event and each message it handles.
@@ -46,6 +51,7 @@ use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
+use komorebi_client::ApplicationIdentifier;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
@@ -172,6 +178,31 @@ macro_rules! gen_padding_adjustment_subcommand_args {
 gen_padding_adjustment_subcommand_args! {
     AdjustContainerPadding,
     AdjustWorkspacePadding,
+}
+
+macro_rules! gen_application_target_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                #[clap(value_enum)]
+                identifier: ApplicationIdentifier,
+                /// Identifier as a string
+                id: String,
+            }
+        )+
+    };
+}
+
+gen_application_target_subcommand_args! {
+    IgnoreRule,
+    ManageRule,
+    // IdentifyTrayApplication,
+    // IdentifyLayeredApplication,
+    // IdentifyObjectNameChangeApplication,
+    // IdentifyBorderOverflowApplication,
+    // RemoveTitleBar,
 }
 
 #[derive(Parser)]
@@ -327,6 +358,8 @@ enum SubCommand {
     DataDirectory,
     /// Show a JSON representation of the current window manager state
     State,
+    /// Show a JSON representation of the current global state
+    GlobalState,
     /// Show information about connected monitors
     #[clap(alias = "monitor-info")]
     MonitorInformation,
@@ -471,6 +504,19 @@ enum SubCommand {
     /// Set the operation behavior when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
+    /// Add a rule to float the foreground window for the rest of this session
+    SessionFloatRule,
+    /// Show all session float rules
+    SessionFloatRules,
+    /// Clear all session float rules
+    ClearSessionFloatRules,
+    /// Add a rule to ignore the specified application
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "float-rule")]
+    IgnoreRule(IgnoreRule),
+    /// Add a rule to always manage the specified application
+    #[clap(arg_required_else_help = true)]
+    ManageRule(ManageRule),
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -671,11 +717,29 @@ fn main() -> eyre::Result<()> {
         SubCommand::State => {
             print_query(&SocketMessage::State);
         }
+        SubCommand::GlobalState => {
+            print_query(&SocketMessage::GlobalState);
+        }
         SubCommand::Query(args) => {
             print_query(&SocketMessage::Query(args.state_query));
         }
         SubCommand::MonitorInformation => {
             print_query(&SocketMessage::MonitorInformation);
+        }
+        SubCommand::SessionFloatRule => {
+            send_message(&SocketMessage::SessionFloatRule)?;
+        }
+        SubCommand::SessionFloatRules => {
+            print_query(&SocketMessage::SessionFloatRules);
+        }
+        SubCommand::ClearSessionFloatRules => {
+            send_message(&SocketMessage::ClearSessionFloatRules)?;
+        }
+        SubCommand::IgnoreRule(args) => {
+            send_message(&SocketMessage::IgnoreRule(args.identifier, args.id))?;
+        }
+        SubCommand::ManageRule(args) => {
+            send_message(&SocketMessage::ManageRule(args.identifier, args.id))?;
         }
         SubCommand::ResizeDelta(args) => {
             send_message(&SocketMessage::ResizeDelta(args.pixels))?;
