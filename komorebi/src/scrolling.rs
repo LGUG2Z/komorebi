@@ -68,6 +68,94 @@ pub(crate) fn parked(rect: Rect, visibility: Visibility, work_area: &Rect) -> Re
     }
 }
 
+/// Whether two rectangles have any area in common.
+fn overlaps(a: &Rect, b: &Rect) -> bool {
+    a.left < b.left + b.right
+        && b.left < a.left + a.right
+        && a.top < b.top + b.bottom
+        && b.top < a.top + a.bottom
+}
+
+/// The monitors other than the one that has the work area, which is the one that contains it.
+pub(crate) fn other_monitors(work_area: &Rect, monitors: &[Rect]) -> Vec<Rect> {
+    monitors
+        .iter()
+        .filter(|monitor| {
+            !(monitor.left <= work_area.left
+                && monitor.top <= work_area.top
+                && monitor.left + monitor.right >= work_area.left + work_area.right
+                && monitor.top + monitor.bottom >= work_area.top + work_area.bottom)
+        })
+        .copied()
+        .collect()
+}
+
+/// Cut a rectangle down to what is inside the work area.
+pub(crate) fn clamp_to_work_area(rect: &mut Rect, work_area: &Rect) {
+    if rect.left < work_area.left {
+        rect.right -= work_area.left - rect.left;
+        rect.left = work_area.left;
+    }
+
+    let right_edge = work_area.left + work_area.right;
+    if rect.left + rect.right > right_edge {
+        rect.right = right_edge - rect.left;
+    }
+
+    if rect.top < work_area.top {
+        rect.bottom -= work_area.top - rect.top;
+        rect.top = work_area.top;
+    }
+
+    let bottom_edge = work_area.top + work_area.bottom;
+    if rect.top + rect.bottom > bottom_edge {
+        rect.bottom = bottom_edge - rect.top;
+    }
+}
+
+/// Where a window rests, and whether it has to be hidden to rest there, when `others` are the
+/// other monitors.
+///
+/// A window is seen on whichever monitor it overlaps. One that rests or overhangs past an edge that
+/// another monitor is next to would be seen there, so a window that scrolled out of view is hidden
+/// instead of parked, and a window that is partly in view is made narrower to fit the work area.
+/// Without a monitor next to it, the window is where [`parked`] puts it.
+pub(crate) fn rest(
+    rect: Rect,
+    visibility: Visibility,
+    work_area: &Rect,
+    others: &[Rect],
+) -> (Rect, bool) {
+    let at = parked(rect, visibility, work_area);
+    let seen_elsewhere = others.iter().any(|monitor| overlaps(&at, monitor));
+
+    match visibility {
+        Visibility::Visible => (at, false),
+        Visibility::Clipped if seen_elsewhere => {
+            let mut clamped = at;
+            clamp_to_work_area(&mut clamped, work_area);
+            (clamped, false)
+        }
+        Visibility::OffLeft | Visibility::OffRight if seen_elsewhere => (at, true),
+        _ => (at, false),
+    }
+}
+
+/// Whether a window that is about to be put where the strip says should be shown first, because it
+/// was hidden when it went out of view past an edge with another monitor next to it.
+///
+/// Only the window that is showing in its container is: the others are the tabs at the back of a
+/// stack, which are hidden because they are at the back, and showing them would put them in front
+/// of the one that is in front, and the system would take the one that was shown for the one that
+/// was chosen.
+pub(crate) fn should_restore_when_placed(
+    window: isize,
+    focused_in_container: Option<isize>,
+    hidden: &[isize],
+) -> bool {
+    focused_in_container == Some(window) && hidden.contains(&window)
+}
+
 /// Whether windows that are moved are animated to where they go.
 pub(crate) fn animations_enabled() -> bool {
     ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
@@ -109,6 +197,8 @@ impl Workspace {
             let excess = container
                 .windows()
                 .iter()
+                // a window that is hidden has not been where it was told to be
+                .filter(|window| !crate::HIDDEN_HWNDS.lock().contains(&window.hwnd))
                 .filter_map(|window| WindowsApi::window_rect(window.hwnd).ok())
                 .map(|actual| actual.right - placed.right)
                 .max()
@@ -781,6 +871,74 @@ mod tests {
             workspace.layout_scrolling(&AREA, 0)[0].rect.right,
             AREA.right / 3
         );
+    }
+
+    fn monitor(left: i32) -> Rect {
+        Rect {
+            left,
+            top: 0,
+            right: 1400,
+            bottom: 900,
+        }
+    }
+
+    #[test]
+    fn the_monitor_with_the_work_area_is_not_one_of_the_others() {
+        let monitors = [monitor(-1400), monitor(0), monitor(1400)];
+        let others = other_monitors(&AREA, &monitors);
+
+        assert_eq!(others, vec![monitor(-1400), monitor(1400)]);
+    }
+
+    #[test]
+    fn a_window_that_would_be_seen_on_a_neighbouring_monitor_is_hidden_or_made_narrower() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1400,
+            bottom: 900,
+        };
+        let others = [monitor(1400)];
+        let wide = Rect {
+            left: -1000,
+            top: 0,
+            right: 400,
+            bottom: 900,
+        };
+
+        // out to the left, with nothing there, it rests at the edge
+        let (rect, hidden) = rest(wide, Visibility::OffLeft, &work_area, &others);
+        assert!(!hidden);
+        assert_eq!(rect.left + rect.right, PARKED_VISIBLE_PIXELS);
+
+        // out to the right, where there is a monitor, it is hidden
+        let off_right = Rect { left: 2000, ..wide };
+        let (_, hidden) = rest(off_right, Visibility::OffRight, &work_area, &others);
+        assert!(hidden);
+
+        // partly in view at the right edge it is cut down to the work area
+        let clipped = Rect { left: 1200, ..wide };
+        let (rect, hidden) = rest(clipped, Visibility::Clipped, &work_area, &others);
+        assert!(!hidden);
+        assert_eq!(rect.left + rect.right, 1400);
+
+        // and without a monitor there it is left as it is
+        let (rect, _) = rest(clipped, Visibility::Clipped, &work_area, &[]);
+        assert_eq!(rect, clipped);
+    }
+
+    #[test]
+    fn only_the_window_at_the_front_of_a_stack_is_shown_when_it_is_placed() {
+        let hidden = [10, 11];
+
+        // the one at the front, if it was hidden, is shown
+        assert!(should_restore_when_placed(10, Some(10), &hidden));
+        // the one at the back stays hidden, whatever is hidden
+        assert!(!should_restore_when_placed(11, Some(10), &hidden));
+        // one that is not hidden has nothing to be shown from
+        assert!(!should_restore_when_placed(12, Some(12), &hidden));
+        // and a container with no window in front shows none
+        assert!(!should_restore_when_placed(10, None, &hidden));
     }
 
     #[test]

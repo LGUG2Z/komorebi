@@ -262,6 +262,22 @@ impl WindowsApi {
             .process()
     }
 
+    /// The rectangle of every monitor that is attached.
+    pub fn monitor_rects() -> Vec<Rect> {
+        let mut rects: Vec<Rect> = vec![];
+
+        if Self::enum_display_monitors(
+            Some(windows_callbacks::enum_monitor_rects),
+            &raw mut rects as isize,
+        )
+        .is_err()
+        {
+            tracing::warn!("could not enumerate the monitors");
+        }
+
+        rects
+    }
+
     pub fn valid_hmonitors() -> eyre::Result<Vec<(String, isize)>> {
         Ok(win32_display_data::connected_displays_all()
             .flatten()

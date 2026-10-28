@@ -11,6 +11,7 @@ use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::FloatingLayerBehaviour;
+use crate::HIDDEN_HWNDS;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::KomorebiTheme;
 use crate::NO_TITLEBAR;
@@ -730,15 +731,24 @@ impl Workspace {
                         self.layout_options,
                         self.layout_options_rules.len(),
                     );
+                    let mut hidden = vec![];
                     let mut layouts = if self.is_scrolling() {
+                        let others = crate::scrolling::other_monitors(
+                            &self.globals.work_area,
+                            &WindowsApi::monitor_rects(),
+                        );
+
                         self.layout_scrolling(&adjusted_work_area, container_padding)
                             .into_iter()
                             .map(|placement| {
-                                crate::scrolling::parked(
+                                let (rect, hide) = crate::scrolling::rest(
                                     placement.rect,
                                     placement.visibility,
                                     &adjusted_work_area,
-                                )
+                                    &others,
+                                );
+                                hidden.push(hide);
+                                rect
                             })
                             .collect()
                     } else {
@@ -805,7 +815,20 @@ impl Workspace {
                                         WindowsApi::restore_window(window.hwnd);
                                     }
                                 }
-                                window.set_position(layout, false)?;
+                                if hidden.get(i).copied().unwrap_or_default() {
+                                    // it is seen on another monitor wherever it rests here
+                                    window.hide();
+                                } else {
+                                    if crate::scrolling::should_restore_when_placed(
+                                        window.hwnd,
+                                        container.focused_window().map(|w| w.hwnd),
+                                        &HIDDEN_HWNDS.lock(),
+                                    ) {
+                                        window.restore();
+                                    }
+
+                                    window.set_position(layout, false)?;
+                                }
                             }
                         }
                     }

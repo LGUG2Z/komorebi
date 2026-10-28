@@ -161,9 +161,13 @@ on screen. It keeps its size, so nothing has to be resized to bring it back. Wit
 
 A window that is partly in view keeps its size too, and overhangs the edge of the work area.
 
+Windows are seen on whichever monitor they overlap, so with more than one monitor this needs care. If another monitor
+is next to the edge that a window would rest at or overhang, a window that has scrolled out of view is hidden instead
+of parked, and a window that is partly in view is made narrower to fit its own work area. Each monitor has a strip of
+its own, and focus and move commands carry on to the next monitor when they reach the end of one.
+
 ## Limits
 
-- The Scrolling layout is only supported on a single monitor.
 - Switching to another layout and back keeps the widths, but a column whose windows were moved past each other in the
   other layout is made again from the order that they are in.
 - Windows resting at the edges have borders too, so you may see a thin line of one at the edge of the screen.

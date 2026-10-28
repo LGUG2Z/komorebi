@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use crate::border_manager;
 use crate::container::Container;
+use crate::core::Rect;
 use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
@@ -10,7 +11,10 @@ use crate::winevent::WinEvent;
 use crate::winevent_listener;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
+use windows::Win32::Foundation::RECT;
 use windows::Win32::Foundation::WPARAM;
+use windows::Win32::Graphics::Gdi::HDC;
+use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
 use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
@@ -21,6 +25,22 @@ use windows::Win32::UI::WindowsAndMessaging::WS_CHILD;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 use windows_core::BOOL;
+
+/// Collects the rectangle of every monitor, as the system sees them.
+pub extern "system" fn enum_monitor_rects(
+    hmonitor: HMONITOR,
+    _hdc: HDC,
+    _rect: *mut RECT,
+    lparam: LPARAM,
+) -> BOOL {
+    let rects = unsafe { &mut *(lparam.0 as *mut Vec<Rect>) };
+
+    if let Ok(info) = WindowsApi::monitor_info_w(hmonitor) {
+        rects.push(Rect::from(info.monitorInfo.rcMonitor));
+    }
+
+    true.into()
+}
 
 pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let containers = unsafe { &mut *(lparam.0 as *mut VecDeque<Container>) };
