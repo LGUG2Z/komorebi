@@ -26,6 +26,7 @@ pub mod history;
 pub mod ids;
 pub mod invariants;
 pub mod logparse;
+pub mod logq;
 pub mod lookup;
 pub mod os_trace;
 pub mod overview;

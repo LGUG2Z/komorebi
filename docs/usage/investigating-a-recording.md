@@ -115,6 +115,7 @@ and `event:12.end` when it finished.
 | `trace event:N` | One event end to end: what its handler logged, with the source statement for each line, what other threads logged meanwhile, and every change with who made it (see below). `--os` adds the OS trace around it: komorebi's own calls into the OS, the system and each application, split into while the handler ran and after |
 | `window ID\|TEXT` | One window's life: when it appeared, moved, was parked off screen, was really somewhere else, and which event did each |
 | `code event:N`, `code log:N` | The line of komorebi's source that wrote a log line, with the code around it |
+| `logq QUERY` | Query komorebi's log by field, with no escape codes or span prefixes to strip: `level=ERROR and message~ghost`, `hwnd=0x77179C` (decimal and hex are the same window), `command=MoveWindow`; `--count`, `--group-by FIELD`, `--from`/`--to`, `--spans` |
 | `search TEXT` | Where a word appears: komorebi's log, events, incidents, annotations (and `--oslog` for the macOS trace) |
 | `changes` | When and where on each display the picture changed, and which events fall inside |
 | `sheet` | A contact sheet image of frames with times, events and the bug region marked |

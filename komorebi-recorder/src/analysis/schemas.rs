@@ -20,6 +20,7 @@ use super::changes::ChangesData;
 use super::code::CodeData;
 use super::envelope::Envelope;
 use super::history::HistoryData;
+use super::logq::LogqData;
 use super::overview::OverviewData;
 use super::search::SearchData;
 use super::sheet::SheetData;
@@ -93,6 +94,11 @@ pub const ALL: &[Entry] = &[
         name: "search/1",
         about: "`search`: where a word appears in the recording",
         schema: of::<SearchData>,
+    },
+    Entry {
+        name: "logq/1",
+        about: "`logq`: lines of komorebi's log matching a field query, counted or grouped",
+        schema: of::<LogqData>,
     },
     Entry {
         name: "changes/1",

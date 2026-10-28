@@ -9,6 +9,7 @@ mod agent;
 mod annotate;
 mod doctor;
 mod investigate;
+mod logq;
 mod query;
 mod record;
 mod video;
@@ -38,6 +39,7 @@ pub use investigate::EventsArgs;
 pub use investigate::StateArgs;
 pub use investigate::TraceArgs;
 pub use investigate::WindowArgs;
+pub use logq::LogqArgs;
 pub use query::AtArgs;
 pub use query::FilterArgs;
 pub use query::FramesArgs;
@@ -96,6 +98,8 @@ pub enum Command {
     Overview(OverviewArgs),
     /// Where a word appears: komorebi's log, events, incidents, annotations, optionally the OS trace
     Search(SearchArgs),
+    /// Query komorebi's log by field: level, target, message, span fields (hwnd, event, ...), with counts and group-by
+    Logq(LogqArgs),
     /// How to investigate a recording, for an agent
     Guide(GuideArgs),
     /// The JSON Schema of a command's `--json` output
@@ -175,6 +179,7 @@ impl Command {
             Self::Brief(args) => args.json,
             Self::Overview(args) => args.json,
             Self::Search(args) => args.json,
+            Self::Logq(args) => args.json,
             Self::Guide(args) => args.json,
             Self::State(args) => args.json,
             Self::Diff(args) => args.json,
@@ -234,6 +239,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Brief(args) => agent::brief(&args),
         Command::Overview(args) => agent::overview(&args),
         Command::Search(args) => agent::search(&args),
+        Command::Logq(args) => logq::logq(&args),
         Command::Guide(args) => agent::guide(&args),
         Command::Schema(args) => agent::schema(&args),
         Command::State(args) => investigate::state(&args),

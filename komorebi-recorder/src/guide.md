@@ -57,6 +57,12 @@ locations as hints.
    with the code around it. `ambiguous` and `generic` matches say so: do not pin a cause on one.
 7. **Anything else.** `search <text>` across the log, events, incidents and annotations
    (`--oslog` adds the OS trace, where the recording has one); `at`, `range` and `summary` read the raw timeline.
+   To query komorebi's log by field instead of grepping it, use `logq <session> 'level=ERROR and hwnd=0x77179C'`
+   (`and`/`or`, `= != ~ !~`; `command`, `event` and any span field; `--count`, `--group-by <field>`);
+   each hit's `log:N` goes to `at`, `trace` and `annotate --ref`.
+   To query komorebi's log by field instead of grepping it, use `logq <session> 'level=ERROR and hwnd=0x77179C'`
+   (`and`/`or`, `= != ~ !~`; `command`, `event` and any span field; `--count`, `--group-by <field>`);
+   each hit's `log:N` goes to `at`, `trace` and `annotate --ref`.
 
 ## 3. Facts about the data that change what it means
 

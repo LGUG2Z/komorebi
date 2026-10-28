@@ -112,6 +112,13 @@ pub struct Line {
     /// The spans the code was inside, outermost first. Empty for a line logged outside any span,
     /// such as one from another thread.
     pub spans: Vec<Span>,
+    /// The span chain as the log wrote it, ANSI removed: `process_command{MoveWindow(Right)}:move_container_in_direction{direction=Right}`.
+    /// Unlike [`Line::spans`] it keeps a span's braces exactly, so a span that is not `key=value`
+    /// fields (the argument of `process_command`) is still there. Empty when `spans` is. Not part
+    /// of the serialized line.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub chain: String,
     /// The module that logged, e.g. `komorebi::container`. `None` for a continuation and for a line
     /// in which none was found.
     pub target: Option<String>,
@@ -216,6 +223,7 @@ pub fn parse_line(
             continuation,
             level: None,
             spans: Vec::new(),
+            chain: String::new(),
             target: None,
             message: text.to_string(),
         };
@@ -236,18 +244,20 @@ pub fn parse_line(
             continuation: false,
             level: None,
             spans: Vec::new(),
+            chain: String::new(),
             target: None,
             message: after_time.to_string(),
         };
     };
 
-    let (spans, target, message) = parse_body(body.trim_start());
+    let (spans, chain, target, message) = parse_body(body.trim_start());
     Line {
         number,
         wall_us: time.map(|time| time.timestamp_micros()),
         continuation: false,
         level: Some(level),
         spans,
+        chain,
         target,
         message,
     }
@@ -330,8 +340,10 @@ fn parse_fields(text: &str) -> Vec<(String, String)> {
 }
 
 /// The span chain, target and message of the part of a line after its level.
-fn parse_body(body: &str) -> (Vec<Span>, Option<String>, String) {
+fn parse_body(body: &str) -> (Vec<Span>, String, Option<String>, String) {
     let mut spans = Vec::new();
+    // each span as written, parallel to `spans`
+    let mut raws: Vec<&str> = Vec::new();
     let mut cursor = body;
 
     // spans: `name`, `name{fields}`, joined by `:`; the chain ends at `: `
@@ -348,13 +360,17 @@ fn parse_body(body: &str) -> (Vec<Span>, Option<String>, String) {
             break;
         }
 
-        let (fields, tail) = if after.starts_with('{') {
+        let (fields, tail, raw) = if after.starts_with('{') {
             match braced(after) {
-                Some((inside, tail)) => (parse_fields(inside), tail),
+                Some((inside, tail)) => (
+                    parse_fields(inside),
+                    tail,
+                    &cursor[..cursor.len() - tail.len()],
+                ),
                 None => break,
             }
         } else {
-            (Vec::new(), after)
+            (Vec::new(), after, name)
         };
 
         if let Some(rest) = tail.strip_prefix(": ") {
@@ -362,6 +378,7 @@ fn parse_body(body: &str) -> (Vec<Span>, Option<String>, String) {
                 name: name.to_string(),
                 fields,
             });
+            raws.push(raw);
             cursor = rest;
             break;
         }
@@ -371,6 +388,7 @@ fn parse_body(body: &str) -> (Vec<Span>, Option<String>, String) {
                 name: name.to_string(),
                 fields,
             });
+            raws.push(raw);
             cursor = rest;
             continue;
         }
@@ -390,6 +408,7 @@ fn parse_body(body: &str) -> (Vec<Span>, Option<String>, String) {
     {
         return (
             spans,
+            raws.join(":"),
             Some(target.to_string()),
             cursor[target_len + 1..].to_string(),
         );
@@ -399,10 +418,11 @@ fn parse_body(body: &str) -> (Vec<Span>, Option<String>, String) {
     if spans.last().is_some_and(|last| last.fields.is_empty())
         && let Some(last) = spans.pop()
     {
-        return (spans, Some(last.name), cursor.to_string());
+        raws.pop();
+        return (spans, raws.join(":"), Some(last.name), cursor.to_string());
     }
 
-    (spans, None, cursor.to_string())
+    (spans, raws.join(":"), None, cursor.to_string())
 }
 
 #[cfg(test)]
@@ -414,6 +434,25 @@ mod tests {
     fn line(text: &str) -> Line {
         let time = komorebi_log::parse_timestamp(text);
         parse_line(1, &strip_ansi(text), time, time.is_none())
+    }
+
+    #[test]
+    fn the_chain_keeps_each_span_as_written() {
+        let parsed = line(
+            "2026-10-26T23:09:16.688494Z  INFO process_command{MoveWindow(Right)}:move_container_in_direction{direction=Right}: komorebi::window_manager: moving",
+        );
+        assert_eq!(
+            parsed.chain,
+            "process_command{MoveWindow(Right)}:move_container_in_direction{direction=Right}"
+        );
+
+        // a lone word before the message is a target, so it is not part of the chain
+        let lone = line("2026-10-26T23:09:16.688494Z  INFO a{x=1}:komorebi: hello");
+        assert_eq!(lone.chain, "a{x=1}");
+        assert_eq!(lone.target.as_deref(), Some("komorebi"));
+
+        let bare = line("2026-10-26T23:09:16.688494Z  INFO komorebi::x: hello");
+        assert_eq!(bare.chain, "");
     }
 
     #[test]
