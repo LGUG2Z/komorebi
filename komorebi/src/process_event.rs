@@ -390,7 +390,12 @@ impl WindowManager {
 
                 if hide {
                     self.focused_workspace_mut()?.remove_window(window.hwnd)?;
-                    self.update_focused_workspace(false, false)?;
+
+                    // Closing a window sends Hide and not Destroy to many applications, so
+                    // hand focus on to the surviving window as the Destroy arm does
+                    let refocus =
+                        should_refocus_after_destroy(WindowsApi::foreground_window().ok());
+                    self.update_focused_workspace(refocus, refocus)?;
                 }
 
                 let mut already_moved_window_handles = self.already_moved_window_handles.lock();
