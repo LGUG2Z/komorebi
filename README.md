@@ -82,11 +82,11 @@ without a checkout of the toolchain.
   some elements are locked in place. It answers the messages on the daemon's
   socket (`core::SocketMessage`, `process_command`), shows its state (`state`),
   keeps the monitors in step with the compositor's outputs as they change size
-  and are unplugged and plugged in (`monitor_reconciliator`, `reconcile`),
-  sends its subscribers a notification of each event, message and change of
-  the monitors it handles (`notify_subscribers`), and is configured by a
-  `komorebi.json` that it reads and reads again when it changes
-  (`static_config`).
+  and are unplugged and plugged in, and when the machine wakes or the screen is
+  unlocked (`monitor_reconciliator`, `reconcile`, `kwin::power`), sends its
+  subscribers a notification of each event, message and change of the monitors
+  it handles (`notify_subscribers`), and is configured by a `komorebi.json` that
+  it reads and reads again when it changes (`static_config`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
@@ -127,6 +127,8 @@ they need from KWin.
 `just check` runs the formatting check, clippy with warnings denied, the tests,
 rustdoc with warnings denied, and the type check and tests of the bridge (no
 package.json: `tsc` and `node` come from the dev shell), inside `nix develop`.
+The test of the signals for sleep and lock starts private D-Bus buses with
+`dbus-daemon`, which the dev shell has, and does nothing where there is none.
 `nix flake check` runs the same checks as derivations, plus `cargo deny`, the
 TOML and Nix formatting, the tests under `cargo nextest`, and
 `nixos-module-eval`, which evaluates the NixOS module in real NixOS systems, on
@@ -176,6 +178,14 @@ tiles them there, and keeps the monitor, with its settings, for when it is
 plugged in again. A window that something else moves to another output (a
 shortcut, an application, KWin itself) is followed to the workspace of the same
 number on that monitor and tiled there.
+
+While the screen is locked or the machine is asleep KWin sends its clients no
+frame callbacks, so what the daemon asked for in that time is not done. The
+daemon watches for the machine waking up (logind's `PrepareForSleep`) and for
+the lock screen going away (`org.freedesktop.ScreenSaver`), and then looks at
+the monitors and at where every window is, and puts each in its tile. The lock
+screen is a window of KWin's that the bridge does not report as an application
+window, so it has no tile.
 
 The window manager models the desktop as monitors, each with a ring of
 workspaces, each with a ring of containers, each with a ring of windows. A

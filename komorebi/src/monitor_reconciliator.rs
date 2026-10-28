@@ -1,8 +1,9 @@
-//! Keeping komorebi's monitors in step with the compositor's outputs, as they change size and are
-//! unplugged and plugged back.
+//! Keeping komorebi's monitors in step with the compositor's outputs, as they change size, are
+//! unplugged and plugged back, and come back from a sleep or a lock.
 //!
-//! The KWin backend sends a [`MonitorNotification`] when KWin's list of outputs changes. The
-//! thread [`listen_for_notifications`] starts takes them one at a time:
+//! The KWin backend sends a [`MonitorNotification`] when KWin's list of outputs changes, and
+//! [`kwin::power`](crate::kwin::power) sends one when the machine wakes or the screen is unlocked.
+//! The thread [`listen_for_notifications`] starts takes them one at a time:
 //!
 //! - [`MonitorNotification::Resize`]: the size and work area of every monitor are read again
 //!   ([`desktop::update_monitor_work_areas`]), and the focused workspace of the focused monitor
@@ -10,6 +11,7 @@
 //! - [`MonitorNotification::DisplayConnectionChange`]: [`reconcile_display_change`] removes the
 //!   monitors that went, once what was on them is on the monitors that are left, and adds the ones
 //!   that came.
+//! - [`MonitorNotification::Wake`]: [`wake_up`] does both, and puts every window in its tile.
 //!
 //! A monitor that is unplugged is kept, with its workspaces and settings, and a monitor plugged in
 //! with the same serial number id gets them back. The workspace rules of a monitor that goes are
@@ -21,8 +23,8 @@
 //! ([`NotificationEvent::Monitor`]), and the backend is asked for the look again
 //! ([`border_manager::send_notification`]), which it does nothing about unless a setting changed.
 //!
-//! Covered by `tests/monitor_resize.rs`, `tests/hotplug.rs` and `tests/follow_output.rs` against the
-//! fake backend, and by the `vm-hotplug` VM suite.
+//! Covered by `tests/monitor_resize.rs`, `tests/hotplug.rs`, `tests/follow_output.rs` and
+//! `tests/wake.rs` against the fake backend, and by the `vm-hotplug` and `vm-lock-sleep` VM suites.
 
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::Notification;
@@ -60,6 +62,9 @@ pub enum MonitorNotification {
     Resize(u32),
     /// A monitor was connected or disconnected: the KWin backend sends 0
     DisplayConnectionChange(u32),
+    /// The machine woke up, or the screen was unlocked: look at the monitors and at where the
+    /// windows are, and put each where it belongs
+    Wake,
 }
 
 static CHANNEL: OnceLock<(Sender<MonitorNotification>, Receiver<MonitorNotification>)> =
@@ -489,6 +494,29 @@ pub fn reconcile_display_change(wm: &mut WindowManager) -> color_eyre::Result<()
     Ok(())
 }
 
+/// The desktop after a sleep or a lock: the monitors as they are now, the windows on the monitors
+/// they are on, and every one of them where its tile is
+///
+/// Nothing is done while komorebi is paused.
+///
+/// # Errors
+///
+/// Returns the errors of [`reconcile_display_change`] and of
+/// [`WindowManager::follow_windows_to_their_monitors`], and an error if the monitors cannot be
+/// read again or the windows cannot be tiled.
+pub fn wake_up(wm: &mut WindowManager) -> color_eyre::Result<()> {
+    if wm.is_paused {
+        return Ok(());
+    }
+
+    reconcile_display_change(wm)?;
+    desktop::update_monitor_work_areas(wm)?;
+    wm.follow_windows_to_their_monitors()?;
+    wm.retile_all(true)?;
+
+    Ok(())
+}
+
 /// Takes the notifications one at a time, for as long as komorebi runs.
 ///
 /// Each is dealt with as the [module docs](self) say, and a moment later the windows are followed
@@ -499,8 +527,8 @@ pub fn reconcile_display_change(wm: &mut WindowManager) -> color_eyre::Result<()
 ///
 /// Returns an error if [`reconcile_display_change`] fails for a
 /// [`MonitorNotification::DisplayConnectionChange`], or if the subscribers cannot be notified;
-/// [`listen_for_notifications`] then calls it again. The errors of a
-/// [`MonitorNotification::Resize`] are logged.
+/// [`listen_for_notifications`] then calls it again. The errors of the other notifications are
+/// logged.
 pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
     tracing::info!("listening");
     let receiver = event_rx();
@@ -517,6 +545,13 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 let mut wm = wm.lock();
                 if let Err(error) = desktop::update_monitor_work_areas(&mut wm) {
                     tracing::error!("failed to update monitor work areas: {error}");
+                }
+            }
+            MonitorNotification::Wake => {
+                tracing::debug!("handling wake notification");
+                let mut wm = wm.lock();
+                if let Err(error) = wake_up(&mut wm) {
+                    tracing::error!("could not put the desktop in order after waking: {error}");
                 }
             }
             MonitorNotification::DisplayConnectionChange(_) => {

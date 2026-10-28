@@ -41,7 +41,9 @@ A notification has two fields:
   `{"type":"Retile"}`. A change of the monitors is the name of the change with its content:
   `{"Resize":0}` for a monitor that changed size, with the id of the monitor, or 0 when KWin
   does not say which, and `{"DisplayConnectionChange":0}` for a monitor that was unplugged or
-  plugged in. [Changing monitors](changing-monitors.md) says when each is sent.
+  plugged in, and `"Wake"` for the machine waking up or the screen being unlocked.
+  [Changing monitors](changing-monitors.md) and [Sleeping and locking](sleeping-and-locking.md)
+  say when each is sent.
 - `state`: the state of the window manager after it, with the same fields as what
   [`komorebic state`](../cli/state.md) prints, on one line.
 

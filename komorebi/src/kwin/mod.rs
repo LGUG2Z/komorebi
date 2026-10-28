@@ -39,6 +39,10 @@
 //! panel leaves. A change of an output's size or of its work area is sent to
 //! [`monitor_reconciliator`], which reads the monitors again.
 //!
+//! [`power`] watches for the machine waking up and the screen being unlocked, and sends those to
+//! the reconciliator too. The script compares KWin's active window with the one it last announced
+//! once a second, so that the focus is kept in step when the screen is locked and unlocked.
+//!
 //! Workspaces are KWin's own virtual desktops, per output: workspace `i` is desktop `i`, and each
 //! output shows a desktop of its own, which KWin does once its per-output virtual desktops are
 //! turned on. [`connect`] turns them on in the user's `kwinrc` (the exit puts the user's setting
@@ -75,6 +79,7 @@
 
 mod effects;
 mod kwinrc;
+pub mod power;
 pub mod state;
 mod wallpaper;
 
@@ -440,6 +445,7 @@ async fn start(shared: Arc<Shared>) -> eyre::Result<()> {
         })?;
 
     *shared.connection.lock() = Some(connection.clone());
+    power::watch(connection.clone()).await;
     enable_per_output_desktops(&shared, &connection).await;
     load_script(&connection).await
 }

@@ -333,6 +333,9 @@
               pkgs.just
               pkgs.ripgrep
 
+              # the tests of the sleep and lock signals start private buses (`kwin::power`)
+              pkgs.dbus
+
               # the bridge's type check and tests (`just check-js`)
               pkgs.nodejs
               pkgs.typescript

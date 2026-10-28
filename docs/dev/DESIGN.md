@@ -624,3 +624,23 @@ reports on another output is handled the same way, looking at every window and n
 one, since when one has moved others may have too. komorebi tiles at once the windows it knows
 about when the monitors change, such as those of an output that went; the ones KWin moves
 afterwards are tiled up to 1.5 seconds later.
+
+## Why does komorebi look at the desktop again when the machine wakes and the screen is unlocked?
+
+Because nothing komorebi asked for while the screen was locked or the machine asleep was done.
+In that time KWin sends its clients no frame callbacks, so a window that was asked to move did
+not, a window that something else moved stayed where it was moved, and the monitors can come
+back in another order or at another size. Neither an unlock nor a wake is an event about a
+window, so komorebi listens for the two signals that say it happened, logind's `PrepareForSleep`
+and the lock screen's `ActiveChanged`, and then reads the monitors, finds where every window is,
+and puts each in its tile. It waits first: 0.6 seconds after an unlock, because the lock screen
+goes before the windows can be seen, and 2.5 seconds after a wake, because the outputs are found
+again one after another and the compositor moves windows about as they are. Going to sleep and
+locking the screen change nothing, so komorebi does nothing for them.
+
+## Why does the bridge compare the active window with the last one it announced?
+
+Because after the screen is unlocked the window that is active again is not always announced,
+and komorebi's idea of the focus would stay the one it had. Once a second the bridge compares the
+window KWin has active with the one it last announced, and announces the active one when they
+differ. It costs a comparison of two ids a second.

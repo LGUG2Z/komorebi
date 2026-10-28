@@ -504,6 +504,16 @@ function announceActive(w) {
 }
 
 workspace.windowActivated.connect(announceActive);
+
+// The active window as KWin has it, against the one last announced. They part ways when the screen is
+// locked and unlocked (the window that is active again is not always announced), and it costs nothing
+// to say so once a second.
+function checkActive() {
+    var now = workspace.activeWindow ? wid(workspace.activeWindow) : null;
+    if (now !== lastActive) {
+        announceActive(workspace.activeWindow);
+    }
+}
 workspace.screensChanged.connect(function () {
     announceScreens();
     // the panel follows a new resolution a moment later
@@ -659,5 +669,6 @@ watchdog.timeout.connect(function () {
     }
     announceScreens();
     announceDesktops();
+    checkActive();
 });
 watchdog.start();

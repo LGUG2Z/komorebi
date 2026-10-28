@@ -280,6 +280,10 @@ function kwin({
             }
             workspace.windowRemoved.emit(w);
         },
+        // KWin gives a window the focus and nothing is raised, as when the screen is unlocked
+        activateQuietly: (w) => {
+            activeWindow = w;
+        },
         // the daemon answers the bridge's last `Poll` with these batches
         answer: (batches) => k.reply(JSON.stringify(batches)),
         // somebody makes another desktop (System Settings, the pager)
@@ -574,6 +578,26 @@ test("no window having the focus is an activation with no id", () => {
     k.workspace.activeWindow = null;
 
     assert.deepStrictEqual(k.events().at(-1), { type: "activated", id: null, seq: 2 });
+});
+
+test("the active window is announced when KWin has another than the one last announced, once", () => {
+    const [a, b] = [window({ id: "{a}" }), window({ id: "{b}" })];
+    const k = kwin({ windows: [a, b], active: a });
+
+    k.watchdog().timeout.emit();
+    assert.equal(k.events().length, 1, "KWin and the bridge agree");
+
+    // the screen is unlocked, and the window that is active again was not announced
+    k.activateQuietly(b);
+    k.watchdog().timeout.emit();
+    k.watchdog().timeout.emit();
+
+    assert.deepStrictEqual(k.events().slice(1), [{ type: "activated", id: "{b}", seq: 2 }]);
+
+    k.activateQuietly(null);
+    k.watchdog().timeout.emit();
+
+    assert.deepStrictEqual(k.events().at(-1), { type: "activated", id: null, seq: 3 });
 });
 
 test("dialogs, the lock screen and windows nobody can switch to are not application windows", () => {

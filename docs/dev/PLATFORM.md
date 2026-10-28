@@ -126,8 +126,16 @@ the windows and outputs it finds, and from then on every window that opens, clos
 focus, is minimized or brought back, moves or changes size, the start and the end of every drag
 of a window by the user, and every change of the outputs (one that changes resolution or scale,
 and the room a panel leaves). KWin has no signal for that room, so the script looks at the
-outputs again when a dock window opens, closes or moves, and once a second. The daemon waits up
-to 10 seconds for the first report and does not start without it.
+outputs again when a dock window opens, closes or moves, and once a second; it also compares
+KWin's active window with the one it last reported once a second. The daemon waits up to 10
+seconds for the first report and does not start without it.
+
+It also watches for the machine waking up and the screen being unlocked, with two signals that
+are not KWin's ([D-Bus](#d-bus)): logind's `PrepareForSleep` on the system bus, and the lock
+screen's `ActiveChanged` on the session bus. Either one makes it look at the monitors and at
+where every window is again, after a delay (2.5 seconds after a wake, 0.6 after an unlock). Where
+there is no system bus, as in a container, it logs that it is not watching for sleep, and
+carries on.
 
 Before it loads the script, it turns on KWin's per-output virtual desktops in the user's
 `kwinrc` (`[Windows] PerOutputVirtualDesktops=true`), unless they are on, and asks KWin to
@@ -191,8 +199,9 @@ directory keeps the user's value), or the session ends.
 
 ### A headless KWin
 
-`kwin_wayland --virtual` behaves like the KWin of a session for everything komorebi does:
-the VM tests run the daemon against one, on a private session bus of its own. It cannot draw
+`kwin_wayland --virtual` behaves like the KWin of a session for everything komorebi does but
+the lock screen, which it has none of (`vm-lock-sleep` runs in a Plasma session): the VM tests
+run the daemon against one, on a private session bus of its own. It cannot draw
 (see [Rendering](#rendering-in-virtual-machines-and-over-rdp)), so nothing that depends on
 pixels can be tested against it. Started with `--no-global-shortcuts`, as the VM tests start
 it, KWin does not own `org.kde.kglobalaccel`, and the pointer does not follow the focus; the
@@ -237,6 +246,16 @@ What komorebi calls:
 | `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
 | `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the properties `desktops` and `count`, `createDesktop(us)`, `setDesktopName(ss)`, `removeDesktop(s)` | when a workspace has no desktop, and at start; `createDesktop` also for the parking desktop, the first time a window is hidden, and `removeDesktop` for it when komorebi stops and for one a killed run left |
 | `org.kde.plasmashell` | `/PlasmaShell` | `org.kde.PlasmaShell` | `evaluateScript(s) -> s`, `wallpaper(u) -> a{sv}`, `setWallpaper(sa{sv}u)` | when a workspace with a wallpaper comes into view ([The Plasma shell](#the-plasma-shell)) |
+
+What komorebi listens to, for the machine sleeping and the screen being locked:
+
+| Bus | Sender | Interface | Signal | Meaning |
+|---|---|---|---|---|
+| system | `org.freedesktop.login1` | `org.freedesktop.login1.Manager` | `PrepareForSleep(b)` | the machine is going to sleep (true) or has woken up (false) |
+| session | any | `org.freedesktop.ScreenSaver` | `ActiveChanged(b)` | the lock screen came up (true) or went away (false) |
+
+Only logind is believed about sleep. The lock screen's signal is taken from any sender on the
+session bus.
 
 The property `desktops` is introspected as `a(iss)`, a position, an id and a name for each
 desktop, and the value on the wire is `a(uss)`: komorebi reads it as that. It is read uncached,
@@ -447,6 +466,13 @@ with two outputs of 1920x1080:
   outputs on KWin 6.8.1). Its desktops are not changed by the move, so it stays on the desktop
   it was on. KWin raises `outputChanged` for it, which `vm-hotplug` shows by moving windows with
   `kdotool windowmove`, as a shortcut or the window menu would.
+
+## Sleep and lock
+
+At time of writing (2026-10-27), a real suspend and resume is not tested: the QEMU guests the VM
+tests run in have no way to wake from one. The signals are tested on private buses
+(`komorebi/tests/power.rs`), and the lock screen against a real KWin in a Plasma session
+(`vm-lock-sleep`, which locks and unlocks with `loginctl lock-session` and `unlock-session`).
 
 ## How long a retile takes
 

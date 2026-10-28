@@ -8,11 +8,12 @@ tested, without one.
 This page describes that trait, who implements and calls it, where each of its rules is
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
 how an event about a window becomes a tile, how workspaces are the compositor's desktops, how
-a stack hides its windows, how the window manager follows a monitor that changes, how a message
-on the daemon's socket is answered, how subscribers are notified of all three, what the orders a
-message gives do, what a drag with the pointer does, how the compositor is asked to draw the
-borders, how `komorebi.json` configures the daemon, and how the NixOS module runs the daemon. It
-grows with the code: each part of the daemon that is added has its place here.
+a stack hides its windows, how the window manager follows a monitor that changes and sets the
+desktop in order after a sleep or a lock, how a message on the daemon's socket is answered, how
+subscribers are notified of all three, what the orders a message gives do, what a drag with the
+pointer does, how the compositor is asked to draw the borders, how `komorebi.json` configures the
+daemon, and how the NixOS module runs the daemon. It grows with the code: each part of the daemon
+that is added has its place here.
 
 ## Vocabulary
 
@@ -70,7 +71,8 @@ grows with the code: each part of the daemon that is added has its place here.
 - **Subscriber**: a program that listens on a socket of its own in [`DATA_DIR`] and has
   asked the daemon, by the name of that socket, to send it notifications.
 - **Monitor notification**: what the KWin backend sends the monitor reconciliator when the
-  outputs change ([`MonitorNotification`]).
+  outputs change, and what [`kwin::power`] sends it when the machine wakes or the screen is
+  unlocked ([`MonitorNotification`]).
 - **Notification**: what a subscriber is sent after each event, each message and each change
   of the monitors the window manager handles: the event, the message or the change, and the
   state after it ([`Notification`]).
@@ -378,6 +380,36 @@ since when one moved others may have, and a move komorebi made itself is in its 
 and finds nothing. While the user drags a window nothing moves, since the end of the drag decides
 where that window goes: the method returns at once while [`WindowManager::pending_move_op`] or
 [`WindowManager::pending_resize_op`] holds a drag.
+
+## Sleep, wake and lock
+
+While the screen is locked or the machine is asleep, KWin sends its clients no frame callbacks,
+so nothing komorebi asked for in that time is done, and the monitors can come back in another
+order or size. None of it changes komorebi's state, but each can leave the desktop other than
+komorebi left it. [`kwin::power`] watches for the two ends of it and sends a
+[`MonitorNotification::Wake`] to the monitor reconciliator:
+
+- `PrepareForSleep` of `org.freedesktop.login1.Manager` on the system bus, with `false`, 2.5
+  seconds after it. The match rule names `org.freedesktop.login1` as the sender, so that only
+  logind is believed.
+- `ActiveChanged` of `org.freedesktop.ScreenSaver` on the session bus, with `false`, which KDE's
+  lock screen sends when it goes, 0.6 seconds after it, from any sender.
+
+Going to sleep and locking the screen only log. A session with no lock screen or a machine with
+no system bus has nothing to watch, and the daemon logs that and runs. The watchers are tasks of
+the runtime of the KWin backend, which [`kwin::connect`] starts with the connection.
+
+[`wake_up`] is what the reconciliator does for a `Wake`: it does what it does for a change of the
+set of monitors ([`reconcile_display_change`]), reads the size and work area of every monitor
+([`update_monitor_work_areas`]), follows the windows to the monitors they are on
+([`WindowManager::follow_windows_to_their_monitors`]), and tiles every monitor
+([`WindowManager::retile_all`]). A paused window manager is left alone.
+
+The lock screen is a window of KWin's, with the class `kwin_wayland`, on every desktop and in no
+task list, pager or switcher, and the bridge does not report it as an application window, so the
+table never has a tile for it. The bridge also compares KWin's active window with the one it
+last announced once a second, and announces the active one when they differ, since the window
+that is active again after the screen is unlocked is not always announced.
 
 ## The command socket
 
@@ -1125,12 +1157,14 @@ module's unit.
 - [`monitor_reconciliator`](../../komorebi/src/monitor_reconciliator.rs): the channel the KWin
   backend sends [`MonitorNotification`]s on, [`listen_for_notifications`], the thread that
   takes them, and [`reconcile_display_change`], which brings the window manager's monitors in
-  line with the outputs;
+  line with the outputs, and [`wake_up`], which puts the desktop in order after a wake;
   [`reconcile`](../../komorebi/src/reconcile.rs): moves what was on a monitor that went to the
   monitors that are left, and every container whose window is on another monitor to that
   monitor.
 - [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
   call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table;
+  [`kwin::power`](../../komorebi/src/kwin/power.rs), the watchers of logind's sleep signal and the
+  lock screen's;
   [`kwin::kwinrc`](../../komorebi/src/kwin/kwinrc.rs), the editor of the user's `kwinrc`, which
   keeps the values it changes and puts them back; the parking desktop is made, swept and removed
   in `kwin` and tracked in `kwin::state`; and
@@ -1305,6 +1339,13 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A monitor komorebi has not seen gets workspaces of its own | framework path: [`load_monitor_information`] adds the monitors the window manager does not have | `a_monitor_that_was_never_there_gets_windows_of_its_own` | none |
 | When KWin reports no output, the window manager keeps the monitors it has | framework path: [`reconcile_display_change`] returns before it removes any | `a_desktop_that_reports_no_monitor_is_left_as_it_was` | none |
 | A monitor is only removed once its windows are on the monitors that are left | framework path: [`reconcile_display_change`] evacuates every monitor that went before it removes any | `the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left` | none |
+| Waking up and unlocking each make the window manager look at the desktop again, once, after a delay, and going to sleep and locking do not | framework path: [`kwin::power`] sends a `Wake` after each of the two signals' `false`, and nothing for `true` | `waking_and_unlocking_make_the_window_manager_look_again_and_going_to_sleep_and_locking_do_not` (private buses) | none |
+| Only logind is believed about the machine going to sleep | framework path: the match rule of the system bus names `org.freedesktop.login1` as the sender | the same test sends as another connection too | none |
+| komorebi runs without a system bus or a lock screen | framework path: [`kwin::power`] logs that it is not watching, and a session with no lock screen sends no signal | none | none |
+| On waking, the windows are where their tiles are, and a monitor that went while asleep is dealt with | framework path: [`wake_up`] reconciles the monitors, follows the windows and tiles every monitor | `windows_that_did_not_get_where_they_were_sent_while_the_screen_was_off_are_put_there_on_waking`, `a_monitor_unplugged_while_the_machine_slept_is_dealt_with_on_waking` | none |
+| A paused window manager moves no window on waking | framework path: [`wake_up`] returns first when the window manager is paused | `a_paused_window_manager_is_left_alone_on_waking` | none |
+| The lock screen has no tile | convention in the bridge: a window of the class `kwin_wayland` is not an application window | `dialogs, the lock screen and windows nobody can switch to are not application windows`, `vm-lock-sleep` ("the lock screen is not one") | none |
+| komorebi's idea of the focus follows KWin's after the screen is unlocked | convention in the bridge: it announces KWin's active window when it is not the one it last announced, once a second | `the active window is announced when KWin has another than the one last announced, once`, `vm-lock-sleep` ("its idea of the focus is KWin's") | none |
 | A subscriber that wants only changes of the state is sent every change of the monitors | framework path: [`notify_subscribers`] treats a monitor notification as an override of the filter | `a_change_of_the_monitors_is_sent_to_a_subscriber_that_filters_state_changes_too` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
@@ -1537,6 +1578,11 @@ A window is shown, and ends up on a tile:
   output, against the fake;
   [`nix/tests/vm/suites/hotplug`](../../nix/tests/vm/suites/hotplug/test.py), both against a real
   KWin with two outputs.
+- [`komorebi/tests/wake.rs`](../../komorebi/tests/wake.rs): the desktop after a wake, against the
+  fake; [`komorebi/tests/power.rs`](../../komorebi/tests/power.rs), the signals of logind and
+  of the lock screen, on private buses;
+  [`nix/tests/vm/suites/lock-sleep`](../../nix/tests/vm/suites/lock-sleep/test.py), the lock
+  screen of a real Plasma session.
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
   fake's desktops;
   [`komorebi/tests/workspace_commands.rs`](../../komorebi/tests/workspace_commands.rs), naming,
@@ -1775,6 +1821,11 @@ A window is shown, and ends up on a tile:
 [`MonitorNotification::DisplayConnectionChange`]: ../../komorebi/src/monitor_reconciliator.rs
 [`reconcile_display_change`]: ../../komorebi/src/monitor_reconciliator.rs
 [`insert_in_monitor_cache`]: ../../komorebi/src/monitor_reconciliator.rs
+[`kwin::power`]: ../../komorebi/src/kwin/power.rs
+[`MonitorNotification::Wake`]: ../../komorebi/src/monitor_reconciliator.rs
+[`wake_up`]: ../../komorebi/src/monitor_reconciliator.rs
+[`WindowManager::retile_all`]: ../../komorebi/src/window_manager.rs
+[`kwin::connect`]: ../../komorebi/src/kwin/mod.rs
 [`WindowManager::evacuate_monitor`]: ../../komorebi/src/reconcile.rs
 [`WindowManager::follow_windows_to_their_monitors`]: ../../komorebi/src/reconcile.rs
 [`settle_later`]: ../../komorebi/src/monitor_reconciliator.rs
