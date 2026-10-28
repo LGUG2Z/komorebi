@@ -34,6 +34,7 @@ use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
+use parking_lot::RwLock;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -100,6 +101,10 @@ lazy_static! {
     static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
         AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
     ));
+    /// The index the user gives each monitor, by its serial number id
+    /// ([`SocketMessage::DisplayIndexPreference`]): the window manager orders its monitors by it
+    static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<usize, String>>> =
+        Arc::new(RwLock::new(HashMap::new()));
     /// The compiled regular expression of each rule whose matching strategy is `Regex`, by the
     /// rule's id
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
@@ -165,7 +170,7 @@ pub enum NotificationEvent {
 /// use komorebi::core::SocketMessage;
 /// use komorebi::window_manager_event::WindowManagerEvent;
 ///
-/// let state = r#"{"monitors":{"elements":[],"focused":0},"is_paused":false,"resize_delta":50,"unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
+/// let state = r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"cross_monitor_move_behaviour":"Swap","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
 ///
 /// let shown = format!(
 ///     r#"{{"event":{{"type":"Show","content":[{{"type":"KWin","content":"WindowAdded"}},{{"id":7}}]}},"state":{state}}}"#
@@ -240,7 +245,7 @@ pub struct Notification {
 /// ]);
 ///
 /// let state: State = serde_json::from_str(
-///     r#"{"monitors":{"elements":[],"focused":0},"is_paused":false,"resize_delta":50,"unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#,
+///     r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"cross_monitor_move_behaviour":"Swap","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#,
 /// )?;
 /// let event = NotificationEvent::Socket(SocketMessage::Retile);
 /// notify_subscribers(Notification { event, state }, false)?;

@@ -304,7 +304,10 @@ direction, both from `komorebi-layouts`:
 `FocusWindow` and `CycleFocusWindow` focus another container of the focused workspace and give
 its window the focus with the backend's `focus` ([`WindowManager::focus_container_in_direction`],
 [`WindowManager::focus_container_in_cycle_direction`]). They retile nothing. When there is no
-container in that direction, the message fails and changes nothing. Whether the pointer follows
+container in that direction, the focus goes to the monitor in that direction
+([`WindowManager::monitor_idx_in_direction`], from the bounds of the monitors), to its container
+nearest the monitor the focus came from (the leftmost one going right); with no monitor there
+either, the message fails and changes nothing. Whether the pointer follows
 the focus is [`WindowManager::mouse_follows_focus`], which `MouseFollowsFocus` and
 `ToggleMouseFollowsFocus` set.
 
@@ -313,8 +316,13 @@ direction ([`WindowManager::move_container_in_direction`],
 [`WindowManager::move_container_in_cycle_direction`]), and tile the workspace again: the window
 that moved takes the other's tile, keeps the focus, and the pointer follows it. The swap goes
 through `LockableSequence`, so a lock stays with its index: the container swapped onto a locked
-index is locked in its place. When there is no container in that direction, the message fails
-and nothing moves.
+index is locked in its place. When there is no container in that direction, the container goes
+to the monitor in that direction ([`WindowManager::move_container_to_monitor`]), and
+[`WindowManager::cross_monitor_move_behaviour`] says what it does there: by default (`Swap`) the
+container at that edge of the other monitor comes back in its place, `Insert` puts it in among
+the containers there, and `NoOp` keeps it where it is. With no monitor in that direction, the
+message fails and nothing moves. [`WindowManager::cross_boundary_behaviour`] can make both cross
+to the next workspace of the same monitor instead.
 
 `ChangeLayout` and `CycleLayout` set the focused workspace's [`Layout`], and `FlipLayout`
 mirrors it along an axis, on top of the flip it has ([`Workspace::layout_flip`]); each tiles
@@ -438,6 +446,21 @@ gives a monitor workspaces up to a number, and `CloseWorkspace` removes the work
 when it has no window and no name and is not the monitor's last. A name is komorebi's: the
 compositor's desktops keep theirs.
 
+A window the compositor reports shown or focused on a monitor that is not the focused one
+focuses that monitor ([`WindowManager::monitor_idx_from_window`]). The monitor commands work on
+the ring of monitors: `FocusMonitorNumber`, `CycleFocusMonitor` and `FocusMonitorAtCursor` focus
+one ([`WindowManager::focus_monitor`]), and `FocusMonitorWorkspaceNumber` a workspace of it;
+`MoveContainerToMonitorNumber`, `SendContainerToMonitorNumber`, their cycle and monitor-workspace
+forms, and `MoveContainerToNamedWorkspace` and `SendContainerToNamedWorkspace` take the focused
+container to another monitor, put its windows on the desktop of the workspace they go to, and tile
+both monitors ([`WindowManager::move_container_to_monitor`]); `MoveWorkspaceToMonitorNumber` and
+`CycleMoveWorkspaceToMonitor` take the workspace in front to another monitor, and
+`SwapWorkspacesToMonitorNumber` exchanges the workspaces of two monitors.
+`DisplayIndexPreference` gives a monitor, by its serial number id, the index the window manager
+puts it at when it loads the monitors, with placeholders before it while the monitors in between
+are not connected. `EagerFocus` focuses the first window of an executable, searching every
+workspace of every monitor, and shows its workspace.
+
 `PreselectDirection` reserves the index on one side of the focused container for the next
 window ([`WindowManager::preselect_container_in_direction`]). The workspace inserts an empty
 container there ([`Container::preselect`]), which [`Workspace::update`] keeps and the layout
@@ -499,7 +522,8 @@ module's unit.
   promote the focused container, float a window, lock a container, set the padding of a
   workspace, manage and unmanage a window, show a workspace, move a container to another
   workspace, follow a workspace switch made by something else, name a workspace and find
-  it by its name, set the layout of a workspace that is not in front).
+  it by its name, set the layout of a workspace that is not in front, focus another monitor,
+  and move containers and workspaces between monitors).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -602,6 +626,8 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | komorebi's own switch or move, reported back by KWin, changes nothing | framework path: the table records a switch and a move when it makes their commands | `the_compositor_reporting_komorebis_own_switch_changes_nothing`, `komorebis_own_move_coming_back_as_an_event_moves_nothing`, `komorebi_switching_a_monitor_comes_back_as_a_change_to_what_it_already_knows` | none |
 | The user's `kwinrc` gets back the value komorebi changed, also after a crash | framework path: [`Kwinrc`] records the first value of a key in a backup file, and the backend's `shutdown` puts it back | `what_komorebi_changed_is_put_back_exactly_and_what_it_added_is_removed`, `a_backup_left_by_a_crash_keeps_the_values_from_before_the_first_run`, `vm-workspace-switch` ("back as they were") | `SIGKILL`: the next run puts it back when it stops |
 | A workspace is closed only when it has no window and no name and is not the monitor's last | framework path: the `CloseWorkspace` arm of [`WindowManager::process_command`] checks all three | `new_workspace_adds_one_and_close_workspace_removes_it_when_it_is_empty_and_unnamed` | none |
+| The focus and a move at the edge of a monitor go to the monitor on that side, and fail only when there is none | framework path: the `None` arms of [`WindowManager::focus_container_in_direction`] and [`WindowManager::move_container_in_direction`] | `the_focus_crosses_to_the_monitor_on_that_side`, `a_move_at_the_edge_of_a_monitor_swaps_with_the_window_on_the_next_one_by_default`, `focus_towards_a_side_with_no_window_is_an_error_and_changes_nothing` | `NoOp` keeps a move on its monitor |
+| A window shown or focused on another monitor focuses that monitor, and nothing else does | framework path: `handle_event` focuses the monitor of a `Show` or `FocusChange` before it acts on it | `a_window_that_opens_on_the_monitor_that_is_not_focused_focuses_it`, `a_scrolling_strip_on_the_next_monitor_over_does_not_take_focus_with_it` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
@@ -735,7 +761,9 @@ A window is shown, and ends up on a tile:
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
   fake's desktops;
   [`komorebi/tests/workspace_commands.rs`](../../komorebi/tests/workspace_commands.rs), naming,
-  cycling and the other workspace commands; [`komorebi/src/kwin/kwinrc.rs`](../../komorebi/src/kwin/kwinrc.rs), the
+  cycling and the other workspace commands;
+  [`komorebi/tests/monitors.rs`](../../komorebi/tests/monitors.rs), two monitors: crossing from
+  one to the other, the monitor commands and `EagerFocus`; [`komorebi/src/kwin/kwinrc.rs`](../../komorebi/src/kwin/kwinrc.rs), the
   `kwinrc` editor and its tests.
 - [`nix/tests/vm/suites/workspace-switch`](../../nix/tests/vm/suites/workspace-switch/test.py):
   workspaces as a real KWin's desktops, switched by `komorebic` and by KWin;
@@ -832,6 +860,11 @@ A window is shown, and ends up on a tile:
 [`WindowManager::move_container_to_workspace`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::monitor_workspace_index_by_name`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::focus_monitor`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::monitor_idx_in_direction`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::monitor_idx_from_window`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::move_container_to_monitor`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::cross_monitor_move_behaviour`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::cross_boundary_behaviour`]: ../../komorebi/src/window_manager.rs
 [`Monitor::focus_workspace`]: ../../komorebi/src/monitor.rs
 [`bridge.js`]: ../../komorebi/src/kwin/bridge.js
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts

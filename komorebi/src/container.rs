@@ -62,6 +62,19 @@ impl Container {
         self.id == "PRESELECT"
     }
 
+    /// The index of the first window of the executable `exe` in this container
+    pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
+        for (idx, window) in self.windows().iter().enumerate() {
+            if let Some(window_exe) = window.exe()
+                && exe == window_exe
+            {
+                return Option::from(idx);
+            }
+        }
+
+        None
+    }
+
     pub fn contains_window(&self, window_id: u32) -> bool {
         for window in self.windows() {
             if window.id == window_id {

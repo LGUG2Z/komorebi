@@ -229,6 +229,35 @@ workspace-layout 0 0 columns
 workspace-layout 0 0 bsp
 named-workspace-layout one columns
 named-workspace-layout one bsp
+focus-monitor 1
+focus-monitor 0
+cycle-monitor next
+cycle-monitor previous
+focus-monitor-workspace 1 1
+focus-monitor-workspace 0 0
+focus-monitor-at-cursor
+focus-monitor 0
+send-to-named-workspace two
+focus-named-workspace two
+move-to-named-workspace one
+focus-named-workspace one
+send-to-monitor 1
+focus-monitor 1
+move-to-monitor 0
+focus-monitor 0
+cycle-send-to-monitor next
+focus-monitor 1
+cycle-move-to-monitor next
+focus-monitor 0
+send-to-monitor-workspace 1 1
+focus-monitor-workspace 1 1
+move-to-monitor-workspace 0 0
+focus-monitor 0
+focus-workspace 0
+move-workspace-to-monitor 1
+cycle-move-workspace-to-monitor next
+swap-workspaces-with-monitor 1
+swap-workspaces-with-monitor 1
 global-work-area-offset 10 10 20 20
 global-work-area-offset 0 0 0 0
 monitor-work-area-offset 0 10 10 20 20
@@ -249,9 +278,14 @@ container-padding 0 0 12
 container-padding 0 0 10
 workspace-padding 0 0 12
 workspace-padding 0 0 10
+cross-monitor-move-behaviour insert
+cross-monitor-move-behaviour swap
+toggle-cross-monitor-move-behaviour
+toggle-cross-monitor-move-behaviour
 unmanaged-window-operation-behaviour op
 unmanaged-window-operation-behaviour no-op
 unmanaged-window-operation-behaviour op
+display-index-preference 0 Virtual-0
 mouse-follows-focus enable
 mouse-follows-focus disable
 toggle-mouse-follows-focus
@@ -265,6 +299,7 @@ manage-rule exe nonexistent
 manage
 close
 retile
+eager-focus foot
 """
 for line in SWEEP.strip().splitlines():
     status, out = kde.run(shlex.join(["komorebic", *line.split()]))

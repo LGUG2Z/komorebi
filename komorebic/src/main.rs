@@ -38,6 +38,15 @@
 //!   `move-to-last-workspace` and `send-to-last-workspace` to the one that was in front before,
 //!   `focus-workspaces` shows a workspace on every monitor, and `new-workspace` and
 //!   `close-workspace` add a workspace and remove an empty one.
+//! - `focus-monitor`, `cycle-monitor` and `focus-monitor-at-cursor` focus another monitor, and
+//!   `focus-monitor-workspace` a workspace of another monitor; `move-to-monitor`,
+//!   `send-to-monitor`, their `cycle-` forms, `move-to-monitor-workspace`,
+//!   `send-to-monitor-workspace`, `move-to-named-workspace` and `send-to-named-workspace` take the
+//!   focused window to another monitor; `move-workspace-to-monitor`,
+//!   `cycle-move-workspace-to-monitor` and `swap-workspaces-with-monitor` take workspaces there;
+//!   `cross-monitor-move-behaviour` and `toggle-cross-monitor-move-behaviour` set what `move` does
+//!   at the edge of a monitor, and `display-index-preference` gives a monitor an index.
+//!   `eager-focus` focuses the first window of an executable, on any workspace of any monitor.
 //! - `workspace-name` names a workspace, which `focus-named-workspace`, `named-workspace-layout`
 //!   and `named-workspace-tiling` find by its name; `workspace-layout` and `workspace-tiling` set
 //!   the layout and the tiling of a workspace by its index, and `ensure-workspaces` and
@@ -67,6 +76,7 @@ use komorebi_client::ApplicationIdentifier;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
+use komorebi_client::MoveBehaviour;
 use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
 use komorebi_client::Rect;
@@ -124,14 +134,19 @@ gen_enum_subcommand_args! {
     CycleMove: CycleDirection,
     CycleMoveToWorkspace: CycleDirection,
     CycleSendToWorkspace: CycleDirection,
+    CycleSendToMonitor: CycleDirection,
+    CycleMoveToMonitor: CycleDirection,
+    CycleMonitor: CycleDirection,
     CycleWorkspace: CycleDirection,
     CycleEmptyWorkspace: CycleDirection,
+    CycleMoveWorkspaceToMonitor: CycleDirection,
     FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
     CycleLayout: CycleDirection,
     // WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
+    CrossMonitorMoveBehaviour: MoveBehaviour,
     UnmanagedWindowOperationBehaviour: OperationBehaviour,
     PromoteWindow: OperationDirection,
 }
@@ -150,10 +165,15 @@ macro_rules! gen_target_subcommand_args {
 }
 
 gen_target_subcommand_args! {
+    MoveToMonitor,
     MoveToWorkspace,
+    SendToMonitor,
     SendToWorkspace,
+    FocusMonitor,
     FocusWorkspace,
     FocusWorkspaces,
+    MoveWorkspaceToMonitor,
+    SwapWorkspacesWithMonitor,
 }
 
 macro_rules! gen_named_target_subcommand_args {
@@ -170,6 +190,8 @@ macro_rules! gen_named_target_subcommand_args {
 }
 
 gen_named_target_subcommand_args! {
+    MoveToNamedWorkspace,
+    SendToNamedWorkspace,
     FocusNamedWorkspace,
 }
 
@@ -397,6 +419,38 @@ struct WorkspaceWorkAreaOffset {
 }
 
 #[derive(Parser)]
+struct FocusMonitorWorkspace {
+    /// Target monitor index (zero-indexed)
+    target_monitor: usize,
+    /// Workspace index on the target monitor (zero-indexed)
+    target_workspace: usize,
+}
+
+#[derive(Parser)]
+pub struct SendToMonitorWorkspace {
+    /// Target monitor index (zero-indexed)
+    target_monitor: usize,
+    /// Workspace index on the target monitor (zero-indexed)
+    target_workspace: usize,
+}
+
+#[derive(Parser)]
+pub struct MoveToMonitorWorkspace {
+    /// Target monitor index (zero-indexed)
+    target_monitor: usize,
+    /// Workspace index on the target monitor (zero-indexed)
+    target_workspace: usize,
+}
+
+#[derive(Parser)]
+struct DisplayIndexPreference {
+    /// Preferred monitor index (zero-indexed)
+    index_preference: usize,
+    /// Display name as identified in komorebic state
+    display: String,
+}
+
+#[derive(Parser)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -435,6 +489,12 @@ struct LoadResize {
     /// File from which the resize layout dimensions should be loaded
     #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
+}
+
+#[derive(Parser)]
+struct EagerFocus {
+    /// Case-sensitive exe identifier
+    exe: String,
 }
 
 #[derive(Parser)]
@@ -550,6 +610,9 @@ enum SubCommand {
     /// Move the focused window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMove(CycleMove),
+    /// Focus the first managed window matching the given executable
+    #[clap(arg_required_else_help = true)]
+    EagerFocus(EagerFocus),
     /// Resize the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "resize")]
@@ -557,22 +620,51 @@ enum SubCommand {
     /// Resize the focused window or primary column along the specified axis
     #[clap(arg_required_else_help = true)]
     ResizeAxis(ResizeAxis),
+    /// Move the focused window to the specified monitor
+    #[clap(arg_required_else_help = true)]
+    MoveToMonitor(MoveToMonitor),
+    /// Move the focused window to the monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMoveToMonitor(CycleMoveToMonitor),
     /// Move the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     MoveToWorkspace(MoveToWorkspace),
+    /// Move the focused window to the specified workspace
+    #[clap(arg_required_else_help = true)]
+    MoveToNamedWorkspace(MoveToNamedWorkspace),
     /// Move the focused window to the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMoveToWorkspace(CycleMoveToWorkspace),
+    /// Send the focused window to the specified monitor
+    #[clap(arg_required_else_help = true)]
+    SendToMonitor(SendToMonitor),
+    /// Send the focused window to the monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleSendToMonitor(CycleSendToMonitor),
     /// Send the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     SendToWorkspace(SendToWorkspace),
+    /// Send the focused window to the specified workspace
+    #[clap(arg_required_else_help = true)]
+    SendToNamedWorkspace(SendToNamedWorkspace),
     /// Send the focused window to the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleSendToWorkspace(CycleSendToWorkspace),
+    /// Send the focused window to the specified monitor workspace
+    #[clap(arg_required_else_help = true)]
+    SendToMonitorWorkspace(SendToMonitorWorkspace),
+    /// Move the focused window to the specified monitor workspace
+    #[clap(arg_required_else_help = true)]
+    MoveToMonitorWorkspace(MoveToMonitorWorkspace),
     /// Send the focused window to the last focused monitor workspace
     SendToLastWorkspace,
     /// Move the focused window to the last focused monitor workspace
     MoveToLastWorkspace,
+    /// Focus the specified monitor
+    #[clap(arg_required_else_help = true)]
+    FocusMonitor(FocusMonitor),
+    /// Focus the monitor at the current cursor location
+    FocusMonitorAtCursor,
     /// Focus the last focused workspace on the focused monitor
     FocusLastWorkspace,
     /// Focus the specified workspace on the focused monitor
@@ -581,17 +673,32 @@ enum SubCommand {
     /// Focus the specified workspace on all monitors
     #[clap(arg_required_else_help = true)]
     FocusWorkspaces(FocusWorkspaces),
+    /// Focus the specified workspace on the target monitor
+    #[clap(arg_required_else_help = true)]
+    FocusMonitorWorkspace(FocusMonitorWorkspace),
     /// Focus the specified workspace
     #[clap(arg_required_else_help = true)]
     FocusNamedWorkspace(FocusNamedWorkspace),
     /// Close the focused workspace (must be empty and unnamed)
     CloseWorkspace,
+    /// Focus the monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMonitor(CycleMonitor),
     /// Focus the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleWorkspace(CycleWorkspace),
     /// Focus the next empty workspace in the given cycle direction (if one exists)
     #[clap(arg_required_else_help = true)]
     CycleEmptyWorkspace(CycleWorkspace),
+    /// Move the focused workspace to the specified monitor
+    #[clap(arg_required_else_help = true)]
+    MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
+    /// Move the focused workspace monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMoveWorkspaceToMonitor(CycleMoveWorkspaceToMonitor),
+    /// Swap focused monitor workspaces with specified monitor
+    #[clap(arg_required_else_help = true)]
+    SwapWorkspacesWithMonitor(SwapWorkspacesWithMonitor),
     /// Create and append a new workspace on the focused monitor
     NewWorkspace,
     /// Set the resize delta (used by resize-edge and resize-axis)
@@ -651,6 +758,12 @@ enum SubCommand {
     PromoteWindow(PromoteWindow),
     /// Force the retiling of all managed windows
     Retile,
+    // /// Set the monitor index preference for a monitor identified using its size
+    // #[clap(arg_required_else_help = true)]
+    // MonitorIndexPreference(MonitorIndexPreference),
+    /// Set the display index preference for a monitor identified using its display name
+    #[clap(arg_required_else_help = true)]
+    DisplayIndexPreference(DisplayIndexPreference),
     /// Create at least this many workspaces for the specified monitor
     #[clap(arg_required_else_help = true)]
     EnsureWorkspaces(EnsureWorkspaces),
@@ -698,6 +811,11 @@ enum SubCommand {
     Manage,
     /// Unmanage a window that was forcibly managed
     Unmanage,
+    /// Set the behaviour when moving windows across monitor boundaries
+    #[clap(arg_required_else_help = true)]
+    CrossMonitorMoveBehaviour(CrossMonitorMoveBehaviour),
+    /// Toggle the behaviour when moving windows across monitor boundaries
+    ToggleCrossMonitorMoveBehaviour,
     /// Set the operation behavior when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
@@ -869,17 +987,35 @@ fn main() -> eyre::Result<()> {
         SubCommand::FocusWorkspace(args) => {
             send_message(&SocketMessage::FocusWorkspaceNumber(args.target))?;
         }
+        SubCommand::ToggleCrossMonitorMoveBehaviour => {
+            send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour)?;
+        }
+        SubCommand::FocusMonitor(args) => {
+            send_message(&SocketMessage::FocusMonitorNumber(args.target))?;
+        }
+        SubCommand::FocusMonitorAtCursor => {
+            send_message(&SocketMessage::FocusMonitorAtCursor)?;
+        }
         SubCommand::FocusLastWorkspace => {
             send_message(&SocketMessage::FocusLastWorkspace)?;
         }
         SubCommand::FocusWorkspaces(args) => {
             send_message(&SocketMessage::FocusWorkspaceNumbers(args.target))?;
         }
+        SubCommand::FocusMonitorWorkspace(args) => {
+            send_message(&SocketMessage::FocusMonitorWorkspaceNumber(
+                args.target_monitor,
+                args.target_workspace,
+            ))?;
+        }
         SubCommand::FocusNamedWorkspace(args) => {
             send_message(&SocketMessage::FocusNamedWorkspace(args.workspace))?;
         }
         SubCommand::CloseWorkspace => {
             send_message(&SocketMessage::CloseWorkspace)?;
+        }
+        SubCommand::CycleMonitor(args) => {
+            send_message(&SocketMessage::CycleFocusMonitor(args.cycle_direction))?;
         }
         SubCommand::CycleWorkspace(args) => {
             send_message(&SocketMessage::CycleFocusWorkspace(args.cycle_direction))?;
@@ -898,19 +1034,65 @@ fn main() -> eyre::Result<()> {
         SubCommand::ResizeAxis(args) => {
             send_message(&SocketMessage::ResizeWindowAxis(args.axis, args.sizing))?;
         }
+        SubCommand::MoveToMonitor(args) => {
+            send_message(&SocketMessage::MoveContainerToMonitorNumber(args.target))?;
+        }
+        SubCommand::CycleMoveToMonitor(args) => {
+            send_message(&SocketMessage::CycleMoveContainerToMonitor(
+                args.cycle_direction,
+            ))?;
+        }
         SubCommand::MoveToWorkspace(args) => {
             send_message(&SocketMessage::MoveContainerToWorkspaceNumber(args.target))?;
+        }
+        SubCommand::MoveToNamedWorkspace(args) => {
+            send_message(&SocketMessage::MoveContainerToNamedWorkspace(
+                args.workspace,
+            ))?;
         }
         SubCommand::CycleMoveToWorkspace(args) => {
             send_message(&SocketMessage::CycleMoveContainerToWorkspace(
                 args.cycle_direction,
             ))?;
         }
+        SubCommand::SendToMonitor(args) => {
+            send_message(&SocketMessage::SendContainerToMonitorNumber(args.target))?;
+        }
+        SubCommand::CycleSendToMonitor(args) => {
+            send_message(&SocketMessage::CycleSendContainerToMonitor(
+                args.cycle_direction,
+            ))?;
+        }
         SubCommand::SendToWorkspace(args) => {
             send_message(&SocketMessage::SendContainerToWorkspaceNumber(args.target))?;
         }
+        SubCommand::SendToNamedWorkspace(args) => {
+            send_message(&SocketMessage::SendContainerToNamedWorkspace(
+                args.workspace,
+            ))?;
+        }
         SubCommand::CycleSendToWorkspace(args) => {
             send_message(&SocketMessage::CycleSendContainerToWorkspace(
+                args.cycle_direction,
+            ))?;
+        }
+        SubCommand::SendToMonitorWorkspace(args) => {
+            send_message(&SocketMessage::SendContainerToMonitorWorkspaceNumber(
+                args.target_monitor,
+                args.target_workspace,
+            ))?;
+        }
+        SubCommand::MoveToMonitorWorkspace(args) => {
+            send_message(&SocketMessage::MoveContainerToMonitorWorkspaceNumber(
+                args.target_monitor,
+                args.target_workspace,
+            ))?;
+        }
+        SubCommand::MoveWorkspaceToMonitor(args) => {
+            send_message(&SocketMessage::MoveWorkspaceToMonitorNumber(args.target))?;
+        }
+        SubCommand::CycleMoveWorkspaceToMonitor(args) => {
+            send_message(&SocketMessage::CycleMoveWorkspaceToMonitor(
                 args.cycle_direction,
             ))?;
         }
@@ -919,6 +1101,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::SendToLastWorkspace => {
             send_message(&SocketMessage::SendContainerToLastWorkspace)?;
+        }
+        SubCommand::SwapWorkspacesWithMonitor(args) => {
+            send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(args.target))?;
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
@@ -982,6 +1167,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ManageRule(args) => {
             send_message(&SocketMessage::ManageRule(args.identifier, args.id))?;
+        }
+        SubCommand::EagerFocus(args) => {
+            send_message(&SocketMessage::EagerFocus(args.exe))?;
         }
         SubCommand::NewWorkspace => {
             send_message(&SocketMessage::NewWorkspace)?;
@@ -1098,6 +1286,17 @@ fn main() -> eyre::Result<()> {
             } else {
                 send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
             }
+        }
+        SubCommand::CrossMonitorMoveBehaviour(args) => {
+            send_message(&SocketMessage::CrossMonitorMoveBehaviour(
+                args.move_behaviour,
+            ))?;
+        }
+        SubCommand::DisplayIndexPreference(args) => {
+            send_message(&SocketMessage::DisplayIndexPreference(
+                args.index_preference,
+                args.display,
+            ))?;
         }
         SubCommand::EnsureWorkspaces(workspaces) => {
             send_message(&SocketMessage::EnsureWorkspaces(

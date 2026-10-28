@@ -36,6 +36,7 @@
 
 #![deny(missing_docs)]
 
+use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Rect;
@@ -44,6 +45,7 @@ use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
+use std::collections::HashMap;
 
 fn contains_point(area: &Rect, x: i32, y: i32) -> bool {
     x >= area.left && x < area.left + area.right && y >= area.top && y < area.top + area.bottom
@@ -86,11 +88,14 @@ pub fn latest_monitor_information() -> eyre::Result<Vec<Monitor>> {
         .collect())
 }
 
-/// Adds the monitors the window manager does not have yet, after the ones it has, in the
-/// backend's order.
+/// Adds the monitors the window manager does not have yet, and rebuilds the map from the indices
+/// the user gives monitors to the window manager's ([`WindowManager::monitor_usr_idx_map`]).
 ///
-/// A monitor is known when the window manager has one with the same serial number id, so
-/// loading twice adds nothing the second time, and a known monitor keeps its workspaces.
+/// A monitor the user gave an index to (`DisplayIndexPreference`) is put at that index, with
+/// placeholders before it while the monitors in between are not there; any other new monitor goes
+/// after the ones the window manager has, in the backend's order. A monitor is known when the
+/// window manager has one with the same serial number id, so loading twice adds nothing the
+/// second time, and a known monitor keeps its workspaces.
 ///
 /// # Errors
 ///
@@ -127,6 +132,7 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
     let all_devices = latest_monitor_information()?;
 
     let monitors = &mut wm.monitors;
+    let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
 
     'read: for device in all_devices {
         for monitor in monitors.elements() {
@@ -135,7 +141,74 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
             }
         }
 
-        monitors.elements_mut().push_back(device);
+        let m = device.clone();
+
+        let mut index_preference = None;
+        let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+        for (index, id) in &*display_index_preferences {
+            if m.serial_number_id.eq(id) {
+                index_preference = Option::from(index);
+            }
+        }
+
+        if let Some(preference) = index_preference {
+            while *preference >= monitors.elements().len() {
+                monitors.elements_mut().push_back(Monitor::placeholder());
+            }
+
+            let current_serial_id = monitors
+                .elements_mut()
+                .get(*preference)
+                .map_or("", |m| &m.serial_number_id);
+            if current_serial_id == "PLACEHOLDER" {
+                let _ = monitors.elements_mut().remove(*preference);
+                monitors.elements_mut().insert(*preference, m);
+            } else {
+                monitors.elements_mut().insert(*preference, m);
+            }
+        } else {
+            monitors.elements_mut().push_back(m);
+        }
+    }
+
+    monitors
+        .elements_mut()
+        .retain(|m| m.serial_number_id.ne("PLACEHOLDER"));
+
+    // Rebuild monitor index map
+    *monitor_usr_idx_map = HashMap::new();
+    let mut added_monitor_idxs = Vec::new();
+    for (index, id) in &*DISPLAY_INDEX_PREFERENCES.read() {
+        if let Some(m_idx) = monitors
+            .elements()
+            .iter()
+            .position(|m| m.serial_number_id.eq(id))
+        {
+            monitor_usr_idx_map.insert(*index, m_idx);
+            added_monitor_idxs.push(m_idx);
+        }
+    }
+
+    let max_usr_idx = monitors
+        .elements()
+        .len()
+        .max(monitor_usr_idx_map.keys().max().map_or(0, |v| *v));
+
+    let mut available_usr_idxs = (0..max_usr_idx)
+        .filter(|i| !monitor_usr_idx_map.contains_key(i))
+        .collect::<Vec<_>>();
+
+    let not_added_monitor_idxs = (0..monitors.elements().len())
+        .filter(|i| !added_monitor_idxs.contains(i))
+        .collect::<Vec<_>>();
+
+    for i in not_added_monitor_idxs {
+        if let Some(next_usr_idx) = available_usr_idxs.first() {
+            monitor_usr_idx_map.insert(*next_usr_idx, i);
+            available_usr_idxs.remove(0);
+        } else if let Some(idx) = monitor_usr_idx_map.keys().max() {
+            monitor_usr_idx_map.insert(*idx, i);
+        }
     }
 
     Ok(())

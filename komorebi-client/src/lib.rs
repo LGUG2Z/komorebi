@@ -198,7 +198,7 @@ where
 /// # let daemon = std::thread::spawn(move || -> std::io::Result<()> {
 /// #     let (mut stream, _) = listener.accept()?;
 /// #     BufReader::new(stream.try_clone()?).read_line(&mut String::new())?;
-/// #     let state = r#"{"monitors":{"elements":[],"focused":0},"is_paused":false,"resize_delta":50,"unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
+/// #     let state = r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"cross_monitor_move_behaviour":"Swap","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
 /// #     stream.write_all(state.as_bytes())
 /// # });
 /// use komorebi_client::SocketMessage;
@@ -260,7 +260,7 @@ pub fn send_query(message: &SocketMessage) -> std::io::Result<String> {
 /// #     let mut message = String::new();
 /// #     BufReader::new(stream).read_line(&mut message)?;
 /// #     let subscriber = komorebi_client::DATA_DIR.join("bar.sock");
-/// #     let state = r#"{"monitors":{"elements":[],"focused":0},"is_paused":false,"resize_delta":50,"unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
+/// #     let state = r#"{"monitors":{"elements":[],"focused":0},"monitor_usr_idx_map":{},"is_paused":false,"resize_delta":50,"cross_monitor_move_behaviour":"Swap","unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
 /// #     let notification = format!(r#"{{"event":{message},"state":{state}}}"#);
 /// #     std::os::unix::net::UnixStream::connect(subscriber)?.write_all(notification.as_bytes())?;
 /// #     Ok(message)

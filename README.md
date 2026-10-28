@@ -168,6 +168,9 @@ without showing it; their `cycle-` and `-last-workspace` forms go to the next,
 the previous or the last workspace, `workspace-name` names a workspace for
 `focus-named-workspace` and the other named commands, and `new-workspace` and
 `close-workspace` add and remove one.
+At the edge of a monitor, `focus` and `move` cross to the monitor on that side;
+`focus-monitor`, `move-to-monitor`, `send-to-monitor` and their kind work on the
+monitors, and `eager-focus` finds the window of an application wherever it is.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

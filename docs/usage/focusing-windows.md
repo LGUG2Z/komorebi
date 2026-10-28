@@ -18,8 +18,21 @@ komorebic focus up
 komorebic focus right
 ```
 
-When there is no tile on that side, nothing happens, and the daemon logs "there is no container
-in this direction".
+When there is no tile on that side, the focus goes to the monitor on that side, if there is one,
+to the tile nearest the monitor the focus came from: `focus right` lands on the leftmost tile of
+the monitor on the right. With no monitor there either, nothing happens, and the daemon logs
+"there is no container or monitor in this direction".
+
+[`komorebic focus-monitor`](../cli/focus-monitor.md) focuses a monitor by its index,
+[`komorebic cycle-monitor`](../cli/cycle-monitor.md) the next or the previous one, and
+[`komorebic focus-monitor-at-cursor`](../cli/focus-monitor-at-cursor.md) the one the pointer is
+on. [`komorebic eager-focus`](../cli/eager-focus.md) focuses the first window komorebi manages of
+an executable, whichever workspace of whichever monitor it is on, and shows its workspace.
+
+```sh
+komorebic focus-monitor 1
+komorebic eager-focus firefox
+```
 
 ## In order
 

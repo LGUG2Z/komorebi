@@ -240,6 +240,34 @@ impl Window {
         })
     }
 
+    /// Moves the window from one work area to another, keeping where it is in the area and how
+    /// much of it it takes, in proportion: a floating window that goes to another monitor
+    pub fn move_to_area(&self, current_area: &Rect, target_area: &Rect) -> eyre::Result<()> {
+        let current_rect = self.rect()?;
+        let x_diff = target_area.left - current_area.left;
+        let y_diff = target_area.top - current_area.top;
+        let x_ratio = f32::abs((target_area.right as f32) / (current_area.right as f32));
+        let y_ratio = f32::abs((target_area.bottom as f32) / (current_area.bottom as f32));
+        let window_relative_x = current_rect.left - current_area.left;
+        let window_relative_y = current_rect.top - current_area.top;
+        let corrected_relative_x = (window_relative_x as f32 * x_ratio) as i32;
+        let corrected_relative_y = (window_relative_y as f32 * y_ratio) as i32;
+        let window_x = current_area.left + corrected_relative_x;
+        let window_y = current_area.top + corrected_relative_y;
+        let left = x_diff + window_x;
+        let top = y_diff + window_y;
+
+        let corrected_width = (current_rect.right as f32 * x_ratio) as i32;
+        let corrected_height = (current_rect.bottom as f32 * y_ratio) as i32;
+
+        self.set_position(&Rect {
+            left,
+            top,
+            right: corrected_width,
+            bottom: corrected_height,
+        })
+    }
+
     /// Whether the window is one komorebi should tile: a window that is still alive, that the
     /// compositor considers a normal application window, as opposed to a dialog, a splash screen,
     /// a utility window or a dock ([`WindowInfo::normal`](crate::backend::WindowInfo::normal)),

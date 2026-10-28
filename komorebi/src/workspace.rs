@@ -76,6 +76,13 @@ impl Default for Workspace {
     }
 }
 
+/// Where a workspace has a window of an application ([`Workspace::location_from_exe`])
+#[derive(Debug)]
+pub enum WorkspaceWindowLocation {
+    Container(usize, usize), // container_idx, window_idx
+    Floating(usize),         // idx in floating_windows
+}
+
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
 /// The work area a monitor gives the workspace it shows, the padding and the offset the
 /// workspace falls back to when it sets none of its own, and the monitor's window-based offset
@@ -376,6 +383,29 @@ impl Workspace {
         }
 
         false
+    }
+
+    /// Where this workspace has a window of the executable `exe`, the first one in a container
+    /// before a floating one
+    pub fn location_from_exe(&self, exe: &str) -> Option<WorkspaceWindowLocation> {
+        for (container_idx, container) in self.containers().iter().enumerate() {
+            if let Some(window_idx) = container.idx_from_exe(exe) {
+                return Some(WorkspaceWindowLocation::Container(
+                    container_idx,
+                    window_idx,
+                ));
+            }
+        }
+
+        for (window_idx, window) in self.floating_windows().iter().enumerate() {
+            if let Some(window_exe) = window.exe()
+                && exe == window_exe
+            {
+                return Some(WorkspaceWindowLocation::Floating(window_idx));
+            }
+        }
+
+        None
     }
 
     /// Returns true if and only if the window is in one of the containers, which leaves out the
@@ -737,6 +767,12 @@ impl Workspace {
         self.resize_dimensions.resize(container_count, None);
 
         Ok(())
+    }
+
+    /// The container that has the window, if one of this workspace's does
+    pub fn container_for_window(&self, window_id: u32) -> Option<&Container> {
+        self.containers()
+            .get(self.container_idx_for_window(window_id)?)
     }
 }
 

@@ -120,7 +120,9 @@ fn move_towards_a_side_with_no_window_is_an_error_and_moves_nothing() {
 
     assert_eq!(
         result.map_err(|error| error.to_string()),
-        Err(String::from("there is no container in this direction"))
+        Err(String::from(
+            "there is no container or monitor in this direction"
+        ))
     );
     assert_eq!(order(&wm), [20_011, 20_012]);
     assert!(fake.commands().is_empty(), "{:?}", fake.commands());

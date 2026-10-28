@@ -159,6 +159,16 @@ impl WindowManager {
         // We don't have From implemented for &mut WindowManager
         let initial_state = State::from(self.as_ref());
 
+        // a window can open on a monitor other than the focused one, and focus can follow
+        if matches!(
+            event,
+            WindowManagerEvent::FocusChange(_, _) | WindowManagerEvent::Show(_, _)
+        ) && let Some(monitor_idx) = self.monitor_idx_from_window(window)
+            && self.focused_monitor_idx() != monitor_idx
+        {
+            self.focus_monitor(monitor_idx)?;
+        }
+
         match event {
             WindowManagerEvent::FocusChange(_, _) => {
                 let is_known = self.known_window_ids.get(&window_id).cloned();

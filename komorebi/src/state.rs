@@ -14,6 +14,7 @@
 use crate::DATA_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
+use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::Rect;
 use crate::core::config_generation::MatchingRule;
@@ -23,6 +24,7 @@ use crate::window_manager::WindowManager;
 use crate::workspace::Workspace;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
@@ -119,8 +121,10 @@ impl Default for GlobalState {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub monitors: Ring<Monitor>,
+    pub monitor_usr_idx_map: HashMap<usize, usize>,
     pub is_paused: bool,
     pub resize_delta: i32,
+    pub cross_monitor_move_behaviour: MoveBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub work_area_offset: Option<Rect>,
     pub mouse_follows_focus: bool,
@@ -181,9 +185,11 @@ impl From<&WindowManager> for State {
 
         Self {
             monitors: stripped_monitors,
+            monitor_usr_idx_map: wm.monitor_usr_idx_map.clone(),
             is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
+            cross_monitor_move_behaviour: wm.cross_monitor_move_behaviour,
             mouse_follows_focus: wm.mouse_follows_focus,
             unmanaged_window_operation_behaviour: wm.unmanaged_window_operation_behaviour,
         }
@@ -205,6 +211,10 @@ impl State {
         }
 
         if self.is_paused != new.is_paused {
+            return true;
+        }
+
+        if self.cross_monitor_move_behaviour != new.cross_monitor_move_behaviour {
             return true;
         }
 

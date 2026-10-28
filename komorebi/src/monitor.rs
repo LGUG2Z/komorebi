@@ -128,6 +128,26 @@ impl Monitor {
         }
     }
 
+    /// A stand-in for a monitor the user gave an index to (`DisplayIndexPreference`) that is not
+    /// connected, so that the monitors after it keep their indices while it is not there
+    pub fn placeholder() -> Self {
+        Self {
+            // temp
+            id: 2051316,
+            device: "".to_string(),
+            serial_number_id: "PLACEHOLDER".to_string(),
+            size: Default::default(),
+            work_area_size: Default::default(),
+            work_area_offset: None,
+            window_based_work_area_offset: None,
+            window_based_work_area_offset_limit: 0,
+            workspaces: Default::default(),
+            last_focused_workspace: None,
+            container_padding: None,
+            workspace_padding: None,
+        }
+    }
+
     /// Tiles the focused workspace in this monitor's work area, less `offset` if the monitor has
     /// no offset of its own
     #[tracing::instrument(skip_all)]
@@ -388,6 +408,30 @@ impl Monitor {
         };
 
         Ok(())
+    }
+
+    pub fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
+        let container_padding = self
+            .container_padding
+            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
+        let workspace_padding = self
+            .workspace_padding
+            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+        let work_area = self.work_area_size;
+        let work_area_offset = self.work_area_offset.or(offset);
+        let window_based_work_area_offset = self.window_based_work_area_offset;
+        let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
+
+        for workspace in self.workspaces_mut() {
+            workspace.globals = WorkspaceGlobals {
+                container_padding,
+                workspace_padding,
+                work_area,
+                work_area_offset,
+                window_based_work_area_offset,
+                window_based_work_area_offset_limit,
+            }
+        }
     }
 
     pub fn remove_workspace_by_idx(&mut self, idx: usize) -> Option<Workspace> {

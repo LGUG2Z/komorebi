@@ -515,6 +515,86 @@ fn the_named_workspace_subcommands_send_the_names_they_are_given() {
 }
 
 #[test]
+fn the_monitor_subcommands_send_what_they_are_given() {
+    sends(
+        &["focus-monitor", "1"],
+        r#"{"type":"FocusMonitorNumber","content":1}"#,
+    );
+    sends(
+        &["cycle-monitor", "next"],
+        r#"{"type":"CycleFocusMonitor","content":"Next"}"#,
+    );
+    sends(
+        &["focus-monitor-at-cursor"],
+        r#"{"type":"FocusMonitorAtCursor"}"#,
+    );
+    sends(
+        &["focus-monitor-workspace", "1", "2"],
+        r#"{"type":"FocusMonitorWorkspaceNumber","content":[1,2]}"#,
+    );
+    sends(
+        &["move-to-monitor", "1"],
+        r#"{"type":"MoveContainerToMonitorNumber","content":1}"#,
+    );
+    sends(
+        &["send-to-monitor", "0"],
+        r#"{"type":"SendContainerToMonitorNumber","content":0}"#,
+    );
+    sends(
+        &["cycle-move-to-monitor", "previous"],
+        r#"{"type":"CycleMoveContainerToMonitor","content":"Previous"}"#,
+    );
+    sends(
+        &["cycle-send-to-monitor", "next"],
+        r#"{"type":"CycleSendContainerToMonitor","content":"Next"}"#,
+    );
+    sends(
+        &["move-to-monitor-workspace", "1", "0"],
+        r#"{"type":"MoveContainerToMonitorWorkspaceNumber","content":[1,0]}"#,
+    );
+    sends(
+        &["send-to-monitor-workspace", "0", "1"],
+        r#"{"type":"SendContainerToMonitorWorkspaceNumber","content":[0,1]}"#,
+    );
+    sends(
+        &["move-to-named-workspace", "mail"],
+        r#"{"type":"MoveContainerToNamedWorkspace","content":"mail"}"#,
+    );
+    sends(
+        &["send-to-named-workspace", "mail"],
+        r#"{"type":"SendContainerToNamedWorkspace","content":"mail"}"#,
+    );
+    sends(
+        &["move-workspace-to-monitor", "1"],
+        r#"{"type":"MoveWorkspaceToMonitorNumber","content":1}"#,
+    );
+    sends(
+        &["cycle-move-workspace-to-monitor", "next"],
+        r#"{"type":"CycleMoveWorkspaceToMonitor","content":"Next"}"#,
+    );
+    sends(
+        &["swap-workspaces-with-monitor", "1"],
+        r#"{"type":"SwapWorkspacesToMonitorNumber","content":1}"#,
+    );
+    sends(
+        &["cross-monitor-move-behaviour", "insert"],
+        r#"{"type":"CrossMonitorMoveBehaviour","content":"Insert"}"#,
+    );
+    sends(
+        &["toggle-cross-monitor-move-behaviour"],
+        r#"{"type":"ToggleCrossMonitorMoveBehaviour"}"#,
+    );
+    sends(
+        &["display-index-preference", "1", "DP-2"],
+        r#"{"type":"DisplayIndexPreference","content":[1,"DP-2"]}"#,
+    );
+    sends(
+        &["eager-focus", "firefox"],
+        r#"{"type":"EagerFocus","content":"firefox"}"#,
+    );
+}
+
+#[test]
 fn without_a_daemon_a_question_fails() {
     let runtime = Runtime::new();
 
@@ -562,18 +642,28 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "close.md",
             "completions.md",
             "container-padding.md",
+            "cross-monitor-move-behaviour.md",
             "cycle-empty-workspace.md",
             "cycle-focus.md",
             "cycle-layout.md",
+            "cycle-monitor.md",
+            "cycle-move-to-monitor.md",
             "cycle-move-to-workspace.md",
+            "cycle-move-workspace-to-monitor.md",
             "cycle-move.md",
+            "cycle-send-to-monitor.md",
             "cycle-send-to-workspace.md",
             "cycle-workspace.md",
             "data-directory.md",
+            "display-index-preference.md",
+            "eager-focus.md",
             "ensure-named-workspaces.md",
             "ensure-workspaces.md",
             "flip-layout.md",
             "focus-last-workspace.md",
+            "focus-monitor-at-cursor.md",
+            "focus-monitor-workspace.md",
+            "focus-monitor.md",
             "focus-named-workspace.md",
             "focus-workspace.md",
             "focus-workspaces.md",
@@ -593,7 +683,11 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "monitor-work-area-offset.md",
             "mouse-follows-focus.md",
             "move-to-last-workspace.md",
+            "move-to-monitor-workspace.md",
+            "move-to-monitor.md",
+            "move-to-named-workspace.md",
             "move-to-workspace.md",
+            "move-workspace-to-monitor.md",
             "move.md",
             "named-workspace-layout.md",
             "named-workspace-tiling.md",
@@ -613,6 +707,9 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "save-resize.md",
             "scrolling-layout-columns.md",
             "send-to-last-workspace.md",
+            "send-to-monitor-workspace.md",
+            "send-to-monitor.md",
+            "send-to-named-workspace.md",
             "send-to-workspace.md",
             "session-float-rule.md",
             "session-float-rules.md",
@@ -620,6 +717,8 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "state.md",
             "stop.md",
             "subscribe-socket.md",
+            "swap-workspaces-with-monitor.md",
+            "toggle-cross-monitor-move-behaviour.md",
             "toggle-float.md",
             "toggle-lock.md",
             "toggle-mouse-follows-focus.md",
