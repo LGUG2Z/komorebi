@@ -513,6 +513,23 @@ fn the_border_subcommands_send_what_they_are_given() {
 }
 
 #[test]
+fn the_transparency_subcommands_send_what_they_are_given() {
+    sends(
+        &["transparency", "enable"],
+        r#"{"type":"Transparency","content":true}"#,
+    );
+    sends(
+        &["transparency", "disable"],
+        r#"{"type":"Transparency","content":false}"#,
+    );
+    sends(
+        &["transparency-alpha", "150"],
+        r#"{"type":"TransparencyAlpha","content":150}"#,
+    );
+    sends(&["toggle-transparency"], r#"{"type":"ToggleTransparency"}"#);
+}
+
+#[test]
 fn the_animation_subcommands_send_what_they_are_given() {
     sends(
         &["animation", "enable"],
@@ -1190,11 +1207,14 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "toggle-mouse-follows-focus.md",
             "toggle-pause.md",
             "toggle-tiling.md",
+            "toggle-transparency.md",
             "toggle-window-based-work-area-offset.md",
             "toggle-window-container-behaviour.md",
             "toggle-workspace-float-override.md",
             "toggle-workspace-layer.md",
             "toggle-workspace-window-container-behaviour.md",
+            "transparency-alpha.md",
+            "transparency.md",
             "unmanage.md",
             "unmanaged-window-operation-behaviour.md",
             "unstack-all.md",

@@ -234,10 +234,12 @@ fn main() -> eyre::Result<()> {
 
     wm.lock().retile_all(false)?;
 
-    // and what the windows that are already there look like: their border colors
+    // and what the windows that are already there look like: their border colors, how see-through
+    // they are
     {
-        let wm = wm.lock();
+        let mut wm = wm.lock();
         border_manager::update_colours(&wm);
+        komorebi::transparency_manager::apply(&mut wm);
     }
 
     listen_for_commands(wm.clone());
@@ -256,6 +258,7 @@ fn main() -> eyre::Result<()> {
     {
         let mut wm = wm.lock();
         wm.restore_all_windows(false)?;
+        komorebi::transparency_manager::restore(&mut wm);
     }
     backend::backend().shutdown();
 

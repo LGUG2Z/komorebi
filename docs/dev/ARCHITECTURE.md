@@ -70,6 +70,8 @@ grows with the code: each part of the daemon that is added has its place here.
 - **Look**: how the compositor is asked to dress the windows, which it draws ([`Look`]):
   a border, with its width, its corner radius and two colors, and the animation of windows going
   to their places, with its duration and its easing curve.
+- **Opacity**: how opaque a window is drawn, 0 to 255, a property of the window in the compositor,
+  which [`transparency_manager`] sets for the windows that do not have the focus.
 - **Effect**: a plugin of the compositor that changes how windows are drawn. KDE Rounded Corners
   is the effect that draws the border, and Geometry Change the one that animates windows.
 - **Compositor**: the program that owns the screen and the windows. On KDE Plasma it is
@@ -822,6 +824,25 @@ once, when the effect is the stock one: every border is then the focused or the 
 the look.
 [PLATFORM.md](PLATFORM.md#kwin-effects) has the effect, its settings and what was measured.
 
+## Transparency
+
+The opacity of a window is a property KWin has, so komorebi sets it ([`Backend::set_opacity`],
+which the KWin backend sends the bridge as an `opacity` command: `alpha / 255`) and the compositor
+draws the window so. [`transparency_manager`] holds the settings, as statics that `Transparency`,
+`ToggleTransparency` and `TransparencyAlpha` set and the `transparency` and `transparency_alpha`
+keys of the file give a value, and the rules for the ignored windows (`TRANSPARENCY_BLACKLIST`, set
+by the `transparency_ignore_rules` of the file). [`transparency_manager::apply`] is called
+before the first layout and after every event and every message: it works out
+[`transparency_manager::transparent_windows`], on the workspace each monitor shows (the window in
+front in every container, unless the container has the focus on the focused monitor; a monocled
+window only on a monitor that is not the focused one; none on a workspace that does not tile; none
+that a rule ignores), and sends the backend only what differs
+from what the window manager kept in [`WindowManager::opacity_applied`]. A window that should not
+be see-through any more is made opaque, and with transparency off every window is. When komorebi
+stops, [`transparency_manager::restore`] makes every window it changed opaque again. The border
+effect draws a window from a texture that has its opacity in it, and the build komorebi installs
+draws it again when the opacity changes ([PLATFORM.md](PLATFORM.md#the-patches)).
+
 ## The NixOS module
 
 The flake exports one module under two names, `nixosModules.default` and
@@ -918,6 +939,8 @@ module's unit.
 - [`border_manager`](../../komorebi/src/border_manager/mod.rs): the border settings, and the
   [`Look`] they make, which it asks the backend for.
 - [`animation`](../../komorebi/src/animation/mod.rs): the animation settings, which the look has.
+- [`transparency_manager`](../../komorebi/src/transparency_manager.rs): which windows are
+  see-through, and the opacity they are given.
 - [`kwin::effects`](../../komorebi/src/kwin/effects.rs): the KWin effect that draws the border,
   its settings and the state komorebi keeps of it.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
@@ -1067,6 +1090,10 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A command that changes a stack is carried out with the animation off, and the animation is on again after it | framework path: the arms of [`WindowManager::process_command`] for the stack messages swap `ANIMATION_ENABLED_GLOBAL` for false and put the value back | `the_animation_is_on_again_after_a_command_that_changes_a_stack` | none |
 | The `animation` key of the file is the animation settings, and a file without it leaves them | framework path: `StaticConfig::apply_globals` sets them only when the key is there, and `duration` and `style` only when the key has one | `the_animation_key_of_the_file_is_the_animation_settings` | none |
 | Every style is a curve Qt has | test: [`AnimationStyle::qt_curve`] is a `match` of every style, and the test checks each against its name without the "Ease" | `every_style_is_a_curve_qt_has`, the doctest of `qt_curve`, `vm-features` (section D: two curves are in different places at the same moment) | a cubic Bézier is an ease out |
+| Only the windows the rules make see-through are, and only while transparency is on | framework path: [`transparency_manager::apply`] asks [`transparency_manager::transparent_windows`] and sends the difference from [`WindowManager::opacity_applied`] | `unfocused_windows_are_transparent_and_the_focused_one_is_not`, `turning_transparency_off_makes_everything_opaque_again`, `a_monocled_window_is_not_transparent`, `windows_the_rules_ignore_keep_their_opacity`, `vm-features` (section B) | none |
+| The `transparency` keys of the file are the settings, and a key the file leaves out has the default | framework path: `StaticConfig::apply_globals` stores `transparency` and `transparency_alpha` whether the file has them or not, and adds the ignore rules to `TRANSPARENCY_BLACKLIST` | `the_transparency_keys_of_the_file_are_the_transparency_settings` | none |
+| A window komorebi made see-through is opaque again when komorebi exits | framework path: [`WindowManager::stop`] and `main.rs` call [`transparency_manager::restore`] | `what_komorebi_made_see_through_is_opaque_again_when_it_exits` | `SIGKILL`: the windows stay as they were drawn |
+| What the backend sends for an opacity is what the bridge sets | tests: the `opacity` command of [`fixtures`] is what the backend's test sends and what the bridge's test answers with, checking the window's `opacity` | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a window is given the opacity it is asked for, and one KWin has not got is given back` | none |
 | The effect komorebi loaded is unloaded, and the user's settings of it are put back, when komorebi stops using it or exits | framework path: the effect's state unloads what komorebi loaded, and [`Kwinrc`] puts the group back | `one_group_can_be_put_back_while_the_others_stay_changed`, `vm-look` | `SIGKILL`: the next run puts the settings back when it stops |
 | Queries never block on the compositor | convention only | none | the KWin backend's `cursor_pos` waits up to 250 ms |
 | Only the backend module reaches the compositor | convention only | none | none |
@@ -1202,7 +1229,9 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/animation.rs`](../../komorebi/tests/animation.rs), the messages that set the
   animation, [`komorebi/tests/animation_config.rs`](../../komorebi/tests/animation_config.rs), its
   key of the file, and [`komorebi/tests/animation_stack.rs`](../../komorebi/tests/animation_stack.rs),
-  the stack commands that turn it off; [`komorebi/tests/border_colours.rs`](../../komorebi/tests/border_colours.rs) and
+  the stack commands that turn it off; [`komorebi/tests/transparency.rs`](../../komorebi/tests/transparency.rs)
+  and [`komorebi/tests/transparency_config.rs`](../../komorebi/tests/transparency_config.rs),
+  transparency and its keys of the file; [`komorebi/tests/border_colours.rs`](../../komorebi/tests/border_colours.rs) and
   [`komorebi/tests/borders_off.rs`](../../komorebi/tests/borders_off.rs), the color of each
   window's border, and none with borders off;
   [`nix/tests/vm/suites/look`](../../nix/tests/vm/suites/look/test.py), the border in a real
@@ -1293,6 +1322,12 @@ A window is shown, and ends up on a tile:
 [`border_manager::send_notification`]: ../../komorebi/src/border_manager/mod.rs
 [`BORDER_DRAWN`]: ../../komorebi/src/border_manager/mod.rs
 [`animation`]: ../../komorebi/src/animation/mod.rs
+[`transparency_manager`]: ../../komorebi/src/transparency_manager.rs
+[`transparency_manager::apply`]: ../../komorebi/src/transparency_manager.rs
+[`transparency_manager::transparent_windows`]: ../../komorebi/src/transparency_manager.rs
+[`transparency_manager::restore`]: ../../komorebi/src/transparency_manager.rs
+[`Backend::set_opacity`]: ../../komorebi/src/backend/mod.rs
+[`WindowManager::opacity_applied`]: ../../komorebi/src/window_manager.rs
 [`animation::movement_animation`]: ../../komorebi/src/animation/mod.rs
 [`animation::movement_style`]: ../../komorebi/src/animation/mod.rs
 [`AnimationStyle::qt_curve`]: ../../komorebi/src/core/animation.rs

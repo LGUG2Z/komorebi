@@ -345,6 +345,10 @@ What the KWin scripting API offers a script, and what it does not, at time of wr
 uses, which `tsc` checks it against with ECMAScript 2016's library and nothing else. Node and
 TypeScript are needed only for those checks: in the session the bridge needs KWin alone.
 
+- A window's `opacity` is a number from 0 to 1 that a script may set: `Window.opacity` is KWin's
+  own property, so komorebi sets the opacity of a window by setting it, and the effect that
+  draws the border has to draw the window again when it changes
+  ([The patches](#the-patches)).
 - `callDBus` sends a JavaScript number as a 32-bit integer, and a call whose arguments do not
   match the method's signature fails without a word. The bridge sends every argument as a
   JSON string.

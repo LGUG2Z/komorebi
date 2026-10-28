@@ -80,9 +80,10 @@
  * What the daemon sends: the answer to `Poll` is a list of batches, each a list of commands. A
  * window command names the window by its `id`: `geo` sets its frame, `min` minimizes it (`v`) or
  * brings it back, `maximize` maximizes it (`v`) or restores it, `desktop` puts it on the desktop
- * `v` (and on no other), and `activate`, `raise` and `close` do what they say. `output_desktop`
- * shows the desktop `v` on one output, leaving the others as they are. A cursor query is
- * numbered by `token` so that its answer can be matched.
+ * `v` (and on no other), `opacity` draws it with the opacity `v` (0 to 1, 1 being not see-through
+ * at all), and `activate`, `raise` and `close` do what they say. `output_desktop` shows the desktop
+ * `v` on one output, leaving the others as they are. A cursor query is numbered by `token` so that
+ * its answer can be matched.
  *
  * @typedef {{ op: "cursor", token: number }} CursorQuery
  * @typedef {{ op: "output_desktop", output: string, v: string }} OutputDesktop
@@ -93,7 +94,8 @@
  * @typedef {{ op: "raise", id: string }} Raise
  * @typedef {{ op: "close", id: string }} Close
  * @typedef {{ op: "desktop", id: string, v: string }} SetDesktop
- * @typedef {SetFrame | SetMinimized | SetMaximized | Activate | Raise | Close | SetDesktop} WindowCommand
+ * @typedef {{ op: "opacity", id: string, v: number }} SetOpacity
+ * @typedef {SetFrame | SetMinimized | SetMaximized | Activate | Raise | Close | SetDesktop | SetOpacity} WindowCommand
  * @typedef {CursorQuery | OutputDesktop | WindowCommand} Command
  * @typedef {{ batch: number, cmds: Command[] }} Batch
  */
@@ -470,6 +472,9 @@ function applyOne(c) {
             w.desktops = [d];
             break;
         }
+        case "opacity":
+            w.opacity = c.v;
+            break;
         default:
             return false;
     }

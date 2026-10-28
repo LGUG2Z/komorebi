@@ -5,8 +5,8 @@
 //! subscribers in every [`Notification`]. [`State::has_been_modified`] decides whether an event or
 //! a message changed it, for the subscribers that want a notification only then.
 //!
-//! [`GlobalState`] is what the daemon has besides the window manager, the rules and the data
-//! directory, which it writes in answer to `GlobalState`.
+//! [`GlobalState`] is what the daemon has besides the window manager, the rules, the transparency
+//! and the data directory, which it writes in answer to `GlobalState`.
 //!
 //! [`SocketMessage::State`]: crate::core::SocketMessage::State
 //! [`Notification`]: crate::Notification
@@ -16,6 +16,7 @@ use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
+use crate::TRANSPARENCY_BLACKLIST;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
@@ -36,8 +37,8 @@ use std::path::PathBuf;
 
 /// What the daemon has that is not part of the window manager, as it answers
 /// [`SocketMessage::GlobalState`](crate::core::SocketMessage::GlobalState): the ignore and the manage
-/// rules, the indices the user gave the monitors, the workspace rules, and the configuration and
-/// the data directories
+/// rules, what the transparency is, the indices the user gave the monitors, the workspace rules,
+/// and the configuration and the data directories
 ///
 /// # Example
 ///
@@ -49,6 +50,9 @@ use std::path::PathBuf;
 /// let json = serde_json::to_string(&state.ignore_identifiers)?;
 /// assert!(json.contains(r#""id":"org.kde.plasmashell""#), "{json}");
 /// assert!(state.manage_identifiers.is_empty());
+/// // nothing is see-through until it is asked for
+/// assert!(!state.transparency_enabled);
+/// assert_eq!(state.transparency_alpha, 200);
 /// assert!(state.display_index_preferences.is_empty());
 /// assert!(state.workspace_rules.is_empty());
 /// assert_eq!(state.configuration_dir, *komorebi::HOME_DIR);
@@ -72,6 +76,12 @@ pub struct GlobalState {
     // pub stackbar_tab_width: i32,
     // pub stackbar_height: i32,
     // pub remove_titlebars: bool,
+    /// Whether the windows that do not have the focus are see-through
+    pub transparency_enabled: bool,
+    /// How opaque a see-through window is, from 0 to 255
+    pub transparency_alpha: u8,
+    /// The rules for the windows that are never see-through
+    pub transparency_blacklist: Vec<MatchingRule>,
     // #[serde(alias = "float_identifiers")]
     pub ignore_identifiers: Vec<MatchingRule>,
     pub manage_identifiers: Vec<MatchingRule>,
@@ -91,6 +101,11 @@ pub struct GlobalState {
 impl Default for GlobalState {
     fn default() -> Self {
         Self {
+            transparency_enabled: crate::transparency_manager::TRANSPARENCY_ENABLED
+                .load(std::sync::atomic::Ordering::SeqCst),
+            transparency_alpha: crate::transparency_manager::TRANSPARENCY_ALPHA
+                .load(std::sync::atomic::Ordering::SeqCst),
+            transparency_blacklist: TRANSPARENCY_BLACKLIST.lock().clone(),
             ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             display_index_preferences: DISPLAY_INDEX_PREFERENCES.read().clone(),

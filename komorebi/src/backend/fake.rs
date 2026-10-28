@@ -70,6 +70,8 @@ pub enum Command {
     /// [`Backend::set_border_colours`]: the colors of each window's border, when they are not the
     /// ones given before.
     BorderColours(Vec<(u32, u32)>),
+    /// [`Backend::set_opacity`]: the window, and how opaque it was asked to be.
+    SetOpacity(u32, u8),
 }
 
 #[derive(Default)]
@@ -93,6 +95,8 @@ struct State {
     window_ws: HashMap<u32, usize>,
     /// the desktop each monitor (by id) shows
     shown: HashMap<u32, usize>,
+    /// how opaque each window was last asked to be
+    opacity: HashMap<u32, u8>,
     /// the border color each window was last given, `0xRRGGBB`
     border_colours: HashMap<u32, u32>,
     /// the look last applied, so that asking for it again is not a command
@@ -368,6 +372,12 @@ impl FakeBackend {
         state.shown.insert(monitor_id, idx);
     }
 
+    /// Returns how opaque the window manager last asked this window to be, 255 being not see-through
+    /// at all, which is what a window is until it is asked otherwise.
+    pub fn opacity_of(&self, id: u32) -> u8 {
+        self.state.lock().opacity.get(&id).copied().unwrap_or(255)
+    }
+
     /// Returns the border color the window manager last gave this window, `0xRRGGBB`, if it gave
     /// it one.
     pub fn border_colour_of(&self, id: u32) -> Option<u32> {
@@ -602,6 +612,12 @@ impl Backend for FakeBackend {
             state.last_look = Some(look.clone());
         }
         Ok(state.borders_drawn && look.border.is_some())
+    }
+
+    fn set_opacity(&self, id: u32, alpha: u8) -> eyre::Result<()> {
+        self.record(id, Command::SetOpacity(id, alpha), |state| {
+            state.opacity.insert(id, alpha);
+        })
     }
 
     fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
@@ -942,6 +958,19 @@ mod tests {
                 Command::BorderColours(vec![(2, 0x00FF00)]),
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn a_window_is_opaque_until_it_is_asked_to_be_otherwise() -> eyre::Result<()> {
+        let fake = fake_with(&[1]);
+        assert_eq!(fake.opacity_of(1), 255);
+
+        fake.set_opacity(1, 100)?;
+
+        assert_eq!(fake.opacity_of(1), 100);
+        assert_eq!(fake.commands(), [Command::SetOpacity(1, 100)]);
+        assert!(fake.set_opacity(9, 100).is_err());
         Ok(())
     }
 

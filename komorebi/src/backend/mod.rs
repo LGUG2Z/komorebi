@@ -442,6 +442,31 @@ pub trait Backend: Send + Sync + 'static {
         Ok(false)
     }
 
+    /// Asks the compositor to draw the window with this opacity: 255 is not see-through at all.
+    /// The default does nothing.
+    ///
+    /// # Errors
+    ///
+    /// When the window does not exist or is no longer alive.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi::backend::Backend;
+    /// use komorebi::backend::fake::FakeBackend;
+    ///
+    /// let fake = FakeBackend::with_one_monitor();
+    /// fake.open_window(7, "foot", "foot", "a terminal");
+    /// assert_eq!(fake.opacity_of(7), 255);
+    ///
+    /// fake.set_opacity(7, 150)?;
+    /// assert_eq!(fake.opacity_of(7), 150);
+    /// # Ok::<(), color_eyre::eyre::Report>(())
+    /// ```
+    fn set_opacity(&self, _id: u32, _alpha: u8) -> eyre::Result<()> {
+        Ok(())
+    }
+
     // ---- provided ------------------------------------------------------------------------------
 
     /// Called once as komorebi exits, after the window manager has put back what it moved, so that

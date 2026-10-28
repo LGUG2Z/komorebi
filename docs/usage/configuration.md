@@ -120,6 +120,17 @@ runs.
 settings as they are, and one that has it and leaves out `duration` or `style` leaves that one as it
 is; a value given for every kind of animation takes the settings of single kinds away.
 
+### Transparency
+
+| Key | Default | What it does |
+|---|---|---|
+| `transparency` | `false` | Whether the windows that do not have the focus are see-through |
+| `transparency_alpha` | `200` | How opaque they are, from 0 to 255 |
+| `transparency_ignore_rules` | none | Rules for the windows that are never see-through |
+
+[Transparency](transparency.md) explains which windows are see-through. `transparency_ignore_rules`
+is a list of rules, which [Rules](#rules) describes, and has no command.
+
 ### Rules
 
 | Key | What it does |

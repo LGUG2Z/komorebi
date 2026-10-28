@@ -325,6 +325,11 @@ mouse-follows-focus enable
 mouse-follows-focus disable
 toggle-mouse-follows-focus
 toggle-mouse-follows-focus
+transparency enable
+transparency-alpha 150
+toggle-transparency
+toggle-transparency
+transparency disable
 border enable
 border-width 8
 border-offset 1

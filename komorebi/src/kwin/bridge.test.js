@@ -80,6 +80,7 @@ function window({
         skipTaskbar: false,
         skipPager: false,
         skipSwitcher: false,
+        opacity: 1,
         fullScreen: false,
         maximizeMode: 0,
         minSize: { width: 0, height: 0 },
@@ -310,7 +311,7 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     // the client took the frame it was given to whole cells of its font
     terminal.frameGeometry = geometry(480.4, 270, 956, 532);
 
-    const [cursorQuery, windowCommands, workspaceCommands] = commands;
+    const [cursorQuery, windowCommands, workspaceCommands, opacityCommand] = commands;
     assert.equal(k.events().at(-1).seq, cursorQuery.after_seq);
     k.workspace.cursorPos = { x: 1200, y: 700.5 };
     k.answer([cursorQuery.batch]);
@@ -336,6 +337,13 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     k.workspace.setCurrentDesktopForScreen(first, DP1);
 
     assert.deepStrictEqual(k.events(), events);
+
+    // and made see-through, which KWin does not report
+    assert.equal(k.events().at(-1).seq, opacityCommand.after_seq);
+    k.answer([opacityCommand.batch]);
+    assert.equal(editor.opacity, 0.2);
+    assert.deepStrictEqual(k.events(), events);
+
     assert.deepStrictEqual(editor.frameGeometry, geometry(0, 0, 960, 1050));
     assert.equal(k.workspace.activeWindow, editor);
     assert.deepStrictEqual(k.raised, [editor]);
@@ -575,6 +583,17 @@ test("a command for a window KWin no longer has is given back, and the rest are 
 
     assert.deepStrictEqual(k.raised, [w]);
     assert.deepStrictEqual(k.events().at(-1), { type: "failed", batch: 3, cmds: [gone], seq: 2 });
+});
+
+test("a window is given the opacity it is asked for, and one KWin has not got is given back", () => {
+    const w = window({ id: "{w}" });
+    const k = kwin({ windows: [w] });
+    const gone = { op: "opacity", id: "{gone}", v: 0.5 };
+
+    k.answer([{ batch: 2, cmds: [{ op: "opacity", id: "{w}", v: 0.8 }, gone] }]);
+
+    assert.equal(w.opacity, 0.8);
+    assert.deepStrictEqual(k.events().at(-1), { type: "failed", batch: 2, cmds: [gone], seq: 2 });
 });
 
 test("a command KWin throws on is printed and given back as failed", () => {

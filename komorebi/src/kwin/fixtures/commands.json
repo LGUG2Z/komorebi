@@ -32,5 +32,14 @@
                 {"op": "output_desktop", "output": "DP-1", "v": "desktop-2"}
             ]
         }
+    },
+    {
+        "after_seq": 20,
+        "batch": {
+            "batch": 4,
+            "cmds": [
+                {"op": "opacity", "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": 0.2}
+            ]
+        }
     }
 ]

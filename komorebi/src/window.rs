@@ -195,6 +195,11 @@ impl Window {
         backend().set_rect(self.id, rect)
     }
 
+    /// Asks the compositor to draw the window with this opacity, 255 being not see-through at all
+    pub fn set_opacity(self, alpha: u8) -> eyre::Result<()> {
+        backend().set_opacity(self.id, alpha)
+    }
+
     pub fn focus(self, mouse_follows_focus: bool) -> eyre::Result<()> {
         backend().focus(self.id, mouse_follows_focus)
     }

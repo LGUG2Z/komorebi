@@ -303,6 +303,33 @@
       ],
       "default": "CenterAndResize"
     },
+    "transparency": {
+      "description": "Add transparency to unfocused windows (default: false)",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "transparency_alpha": {
+      "description": "Alpha value for unfocused window transparency [[0-255]] (default: 200)",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0
+    },
+    "transparency_ignore_rules": {
+      "description": "Individual window transparency ignore rules",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MatchingRule"
+      }
+    },
     "unmanaged_window_operation_behaviour": {
       "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground",
       "anyOf": [

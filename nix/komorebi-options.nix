@@ -1,4 +1,4 @@
-# schema-sha256: 775a2171f74c90914b3de3fd6eed52485bd52cc19c881c90c56f60c36b91611e
+# schema-sha256: f46c8e0d1557a1e36d2bd123a2d02a4238b28f07146beafb9b5c5fb5825b09df
 { lib, ... }:
 let
   animationStyle = (
@@ -632,6 +632,21 @@ in
           type = (lib.types.nullOr placement);
           default = "CenterAndResize";
           description = "Determines the placement of a new window when toggling to float";
+        };
+        transparency = lib.mkOption {
+          type = (lib.types.nullOr lib.types.bool);
+          default = null;
+          description = "Add transparency to unfocused windows (default: false)";
+        };
+        transparency_alpha = lib.mkOption {
+          type = (lib.types.nullOr lib.types.int);
+          default = null;
+          description = "Alpha value for unfocused window transparency [[0-255]] (default: 200)";
+        };
+        transparency_ignore_rules = lib.mkOption {
+          type = (lib.types.nullOr (lib.types.listOf matchingRule));
+          default = null;
+          description = "Individual window transparency ignore rules";
         };
         unmanaged_window_operation_behaviour = lib.mkOption {
           type = (

@@ -460,6 +460,15 @@ one of Qt's curves, and is drawn as an ease out, the kind of curve a window movi
 wants. The stock Geometry Change has one curve, an exponential ease out, so komorebi's build of
 it reads a `Curve` setting ([PLATFORM.md](PLATFORM.md#the-patches)).
 
+## Why does the window manager keep the opacity it gave each window?
+
+So that the backend is told only what changed. `transparency_manager::apply`
+([`transparency_manager.rs`](../../komorebi/src/transparency_manager.rs)) is called after every
+event and every message, and most of them change no window's opacity: the window manager keeps
+the opacity it gave each window that is not opaque (`WindowManager::opacity_applied`), sends the
+difference, makes a window opaque again when it should no longer be see-through (and only if it is
+still there), and makes every one opaque when it stops.
+
 ## Why are the effects patched?
 
 Because the stock effects lack what komorebi needs of them. Each patch leaves the effect

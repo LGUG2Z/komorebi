@@ -50,7 +50,8 @@
 //! Once an event about a managed window has been handled, every subscriber is sent a notification
 //! of it ([`notify_subscribers`]), the backend is asked for the look again
 //! ([`border_manager::send_notification`]), which it does nothing about unless a setting changed,
-//! and told the color of each window's border ([`border_manager::update_colours`]).
+//! told the color of each window's border ([`border_manager::update_colours`]), and the windows are
+//! made as see-through as the settings say ([`transparency_manager::apply`]).
 //!
 //! [`Window::should_manage`]: crate::window::Window::should_manage
 //! [`Monitor::assign_windows_to_workspaces`]: crate::monitor::Monitor::assign_windows_to_workspaces
@@ -68,6 +69,7 @@ use crate::core::Layout;
 use crate::core::WindowContainerBehaviour;
 use crate::notify_subscribers;
 use crate::state::State;
+use crate::transparency_manager;
 use crate::window::RuleDebug;
 use crate::window::should_act;
 use crate::window_manager::WindowManager;
@@ -145,6 +147,7 @@ impl WindowManager {
             // other windows are in view
             border_manager::send_notification();
             border_manager::update_colours(self);
+            transparency_manager::apply(self);
             return result;
         }
 
@@ -517,6 +520,7 @@ impl WindowManager {
 
         border_manager::send_notification();
         border_manager::update_colours(self);
+        transparency_manager::apply(self);
 
         Ok(())
     }

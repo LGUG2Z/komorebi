@@ -6,6 +6,7 @@
 #   A  toggle-maximize: the window fills the work area, is the one on top, and goes back to its
 #      tile. It runs on the daemon the session started with the module's unit, as on a user's
 #      machine; the sections after it stop that daemon and start their own runs
+#   B  transparency: unfocused windows are see-through, the focused one is not
 #   C  border colors: every kind of window has its own: the focused window, the others, a locked
 #      container that does not have the focus, a stack and a monocled window that have it, and a
 #      floating window that has it
@@ -193,6 +194,43 @@ checks.check(
 
 # the session started the module's unit when it logged in: section A used its daemon, and the
 # sections after it start their own runs
+stop_komorebi()
+
+print("== B. transparency")
+start_komorebi()
+kde.komorebic("transparency-alpha", "100")
+kde.komorebic("transparency", "enable")
+windows()
+
+
+def center_of(title: str) -> tuple[int, int]:
+    frame = kde.rect(kde.wid(title))
+    return frame.x + frame.w // 2, frame.y + frame.h // 2
+
+
+def middle_of(title: str, color: tuple[int, int, int]) -> bool:
+    """Returns true if and only if the middle of the window is `color` in a screenshot now."""
+    return pixels.near(pixels.pixel(kde.shot(f"middle-{title}"), *center_of(title)), color)
+
+
+checks.check(
+    "the focused window is its own color",
+    kde.wait_for(lambda: middle_of("blue", BLUE), timeout=15),
+)
+checks.check(
+    "an unfocused window is not: it lets the desktop through",
+    kde.wait_for(lambda: not middle_of("red", RED), timeout=15),
+)
+kde.komorebic("transparency", "disable")
+checks.check(
+    "with transparency off the unfocused window is opaque again",
+    kde.wait_for(lambda: middle_of("red", RED), timeout=15),
+)
+kde.komorebic("toggle-transparency")
+checks.check(
+    "toggled on, see-through again",
+    kde.wait_for(lambda: not middle_of("red", RED), timeout=15),
+)
 stop_komorebi()
 
 print("== C. border colors")

@@ -74,6 +74,8 @@ interface KWinWindow {
     readonly skipPager: boolean;
     readonly skipSwitcher: boolean;
     minimized: boolean;
+    /** How opaque the window is drawn, 0 to 1: 1 is not see-through at all. */
+    opacity: number;
     readonly fullScreen: boolean;
     /** `KWin::MaximizeMode`: 0 restored, 1 vertically, 2 horizontally, 3 both ways. */
     readonly maximizeMode: number;

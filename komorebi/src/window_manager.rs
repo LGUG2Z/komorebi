@@ -138,6 +138,9 @@ pub struct WindowManager {
     pub monocle_focus_behaviour: MonocleFocusBehaviour,
     /// Whether the pointer is moved to the window that is given the focus, which is the default
     pub mouse_follows_focus: bool,
+    /// The opacity each window was last given by [`crate::transparency_manager`], for the ones that
+    /// are not opaque
+    pub opacity_applied: HashMap<u32, u8>,
     pub work_area_offset: Option<Rect>,
     /// The events the backend has reported and the window manager has yet to handle, from
     /// [`crate::window_manager_event_listener`]
@@ -227,6 +230,7 @@ impl WindowManager {
             cross_monitor_move_behaviour: Default::default(),
             cross_boundary_behaviour: Default::default(),
             monocle_focus_behaviour: MonocleFocusBehaviour::default(),
+            opacity_applied: HashMap::new(),
             mouse_follows_focus: true,
             work_area_offset: None,
             incoming_events: incoming,
@@ -1307,10 +1311,11 @@ impl WindowManager {
     }
 
     /// Stops the daemon: brings back the windows it has hidden, unless `ignore_restore` is set
-    /// ([`WindowManager::restore_all_windows`]), connects to every subscriber and closes the
-    /// connection without writing anything, removes the command socket, lets the backend give up
-    /// what it set up in the compositor (the desktop hidden windows are parked on), and exits the
-    /// process with status 0
+    /// ([`WindowManager::restore_all_windows`]), makes every window komorebi made see-through
+    /// opaque again ([`crate::transparency_manager::restore`]), connects to every subscriber and
+    /// closes the connection without writing anything, removes the command socket, lets the
+    /// backend give up what it set up in the compositor (the desktop hidden windows are parked
+    /// on), and exits the process with status 0
     ///
     /// # Errors
     ///
@@ -1322,6 +1327,8 @@ impl WindowManager {
         );
 
         self.restore_all_windows(ignore_restore)?;
+
+        crate::transparency_manager::restore(self);
 
         let sockets = SUBSCRIPTION_SOCKETS.lock();
         for path in (*sockets).values() {

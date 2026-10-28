@@ -70,7 +70,8 @@ without a checkout of the toolchain.
   the settings of KWin's it needs in the user's `kwinrc`, the parking desktop it
   hides the back of a stack and the windows behind a monocle on, and the borders
   and animations it has KWin draw (`kwin`), the border and animation settings and
-  the look they make (`border_manager`, `animation`),
+  the look they make (`border_manager`, `animation`), the opacity of the windows
+  that do not have the focus (`transparency_manager`),
   the model of what it tiles (`monitor`, `workspace`, `container`, `window`), the
   window manager that keeps the model (`window_manager`), loads it from the
   backend (`desktop`) and changes it when the compositor reports an event
@@ -259,7 +260,9 @@ komorebi gives each window the border color of what it is to the layout: the foc
 window, the others, a locked container, a floating window. `border`, `border-colour`,
 `border-width` and `border-offset` set it. Windows going to their places are
 animated by another effect, Geometry Change, which `animation`,
-`animation-duration` and `animation-style` turn on and set.
+`animation-duration` and `animation-style` turn on and set. `transparency` makes
+the windows that do not have the focus see-through, by the opacity KWin gives a
+window.
 
 ## Documentation
 

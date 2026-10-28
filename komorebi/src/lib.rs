@@ -13,7 +13,8 @@
 //!
 //! On KDE Plasma the backend is [`kwin::KWinBackend`], which talks to a script it loads into KWin.
 //! The compositor also draws what the windows look like: [`border_manager`] asks the backend for
-//! the borders, and [`animation`] holds how windows are animated going to their places.
+//! the borders, [`animation`] holds how windows are animated going to their places, and
+//! [`transparency_manager`] makes the windows that do not have the focus see-through.
 //!
 //! The daemon also listens on a socket, `komorebi.sock` in [`struct@DATA_DIR`], for the messages
 //! in [`core::SocketMessage`]: [`process_command`] reads them and answers, with the window
@@ -68,6 +69,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod state;
 pub mod static_config;
+pub mod transparency_manager;
 pub mod window;
 pub mod window_manager;
 pub mod window_manager_event;
@@ -151,6 +153,8 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
     /// Windows that are tiled even when an ignore rule covers them (`ManageRule`)
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
+    /// Windows that are never made see-through, whatever the rules of the transparency say
+    pub static ref TRANSPARENCY_BLACKLIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
     /// Windows that are never tiled, unless a manage rule says otherwise. Most of what would belong
     /// here (the panel, krunner, popups) is not a normal window and is filtered before rules run.
     pub static ref IGNORE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(

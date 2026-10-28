@@ -69,6 +69,8 @@
 //! - `border` sets whether the compositor draws a border around each window, `border-colour` the
 //!   color of the border of a kind of window, and `border-width` and `border-offset` the room the
 //!   layout leaves for it.
+//! - `transparency` and `toggle-transparency` set whether the windows that do not have the focus
+//!   are see-through, and `transparency-alpha` how opaque they are.
 //! - `animation`, `animation-duration` and `animation-style` set whether windows are animated going
 //!   to their places, for how long and with what easing, and `animation-fps` the frame rate that
 //!   is stored and ignored.
@@ -213,6 +215,7 @@ gen_enum_subcommand_args! {
     CycleLayout: CycleDirection,
     // WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
+    Transparency: BooleanState,
     Query: StateQuery,
     CrossMonitorMoveBehaviour: MoveBehaviour,
     UnmanagedWindowOperationBehaviour: OperationBehaviour,
@@ -759,6 +762,12 @@ struct BorderOffset {
 }
 
 #[derive(Parser)]
+struct TransparencyAlpha {
+    /// Alpha
+    alpha: u8,
+}
+
+#[derive(Parser)]
 struct Animation {
     #[clap(value_enum)]
     boolean_state: BooleanState,
@@ -1229,6 +1238,14 @@ enum SubCommand {
     // /// Set the border implementation
     // #[clap(arg_required_else_help = true)]
     // BorderImplementation(BorderImplementation),
+    /// Enable or disable transparency for unfocused windows
+    #[clap(arg_required_else_help = true)]
+    Transparency(Transparency),
+    /// Set the alpha value for unfocused window transparency
+    #[clap(arg_required_else_help = true)]
+    TransparencyAlpha(TransparencyAlpha),
+    /// Toggle transparency for unfocused windows
+    ToggleTransparency,
     /// Enable or disable movement animations
     #[clap(arg_required_else_help = true)]
     Animation(Animation),
@@ -2064,6 +2081,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::BorderOffset(args) => {
             send_message(&SocketMessage::BorderOffset(args.offset))?;
+        }
+        SubCommand::Transparency(args) => {
+            send_message(&SocketMessage::Transparency(args.boolean_state.into()))?;
+        }
+        SubCommand::TransparencyAlpha(args) => {
+            send_message(&SocketMessage::TransparencyAlpha(args.alpha))?;
+        }
+        SubCommand::ToggleTransparency => {
+            send_message(&SocketMessage::ToggleTransparency)?;
         }
         SubCommand::Animation(args) => {
             send_message(&SocketMessage::Animation(

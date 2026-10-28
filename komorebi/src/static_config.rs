@@ -36,6 +36,7 @@ use crate::IGNORE_IDENTIFIERS;
 use crate::LAYOUT_DEFAULTS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
+use crate::TRANSPARENCY_BLACKLIST;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
@@ -72,6 +73,7 @@ use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core::pathext::ResolvedPathBuf;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::transparency_manager;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
 use crate::window_manager::WindowManager;
@@ -444,6 +446,15 @@ pub struct StaticConfig {
     // /// Active window border implementation (default: Komorebi)
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub border_implementation: Option<BorderImplementation>,
+    /// Add transparency to unfocused windows (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transparency: Option<bool>,
+    /// Alpha value for unfocused window transparency [[0-255]] (default: 200)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transparency_alpha: Option<u8>,
+    /// Individual window transparency ignore rules
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transparency_ignore_rules: Option<Vec<MatchingRule>>,
     /// Global default workspace padding
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_WORKSPACE_PADDING)))]
@@ -624,6 +635,13 @@ impl From<&WindowManager> for StaticConfig {
             border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
             border_radius: Option::from(border_manager::BORDER_RADIUS.load(Ordering::SeqCst)),
             border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
+            transparency: Option::from(
+                transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst),
+            ),
+            transparency_alpha: Option::from(
+                transparency_manager::TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
+            ),
+            transparency_ignore_rules: None,
             // border_style: Option::from(STYLE.load()),
             // border_z_order: None,
             // border_implementation: Option::from(IMPLEMENTATION.load()),
@@ -796,6 +814,11 @@ impl StaticConfig {
         //     border_manager::send_notification(None);
         // }
         //
+        transparency_manager::TRANSPARENCY_ENABLED
+            .store(self.transparency.unwrap_or(false), Ordering::SeqCst);
+        transparency_manager::TRANSPARENCY_ALPHA
+            .store(self.transparency_alpha.unwrap_or(200), Ordering::SeqCst);
+
         let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
@@ -803,6 +826,7 @@ impl StaticConfig {
         // let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
         // let mut object_name_change_title_ignore_list = OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST.lock();
         // let mut layered_identifiers = LAYERED_WHITELIST.lock();
+        let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
         // let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
         let mut floating_applications = FLOATING_APPLICATIONS.lock();
         // let mut no_titlebar_applications = NO_TITLEBAR.lock();
@@ -856,6 +880,10 @@ impl StaticConfig {
         //         &mut regex_identifiers,
         //     )?;
         // }
+        //
+        if let Some(rules) = &mut self.transparency_ignore_rules {
+            populate_rules(rules, &mut transparency_blacklist, &mut regex_identifiers)?;
+        }
         //
         // if let Some(rules) = &mut self.slow_application_identifiers {
         //     populate_rules(
@@ -1055,6 +1083,7 @@ impl StaticConfig {
                 .unmanaged_window_operation_behaviour
                 .unwrap_or(OperationBehaviour::Op),
             resize_delta: value.resize_delta.unwrap_or(DEFAULT_RESIZE_DELTA),
+            opacity_applied: HashMap::new(),
             mouse_follows_focus: value
                 .mouse_follows_focus
                 .unwrap_or(DEFAULT_MOUSE_FOLLOWS_FOCUS),

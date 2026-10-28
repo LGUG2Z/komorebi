@@ -902,6 +902,13 @@ impl Backend for KWinBackend {
         })?
     }
 
+    fn set_opacity(&self, id: u32, alpha: u8) -> eyre::Result<()> {
+        self.command(
+            id,
+            |uuid| json!({ "op": "opacity", "id": uuid, "v": f64::from(alpha) / 255.0 }),
+        )
+    }
+
     fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
         let shared = self.shared.clone();
 
@@ -1037,7 +1044,7 @@ mod tests {
             serde_json::from_str(include_str!("fixtures/commands.json")).unwrap();
 
         // what the window manager asks of the backend, batch by batch
-        let asks: [fn(&KWinBackend); 3] = [
+        let asks: [fn(&KWinBackend); 4] = [
             |backend| {
                 // nothing answers the query here, so the pointer is where the snapshot had it
                 assert_eq!(backend.cursor_pos(), Some((481, 525)));
@@ -1068,6 +1075,10 @@ mod tests {
                 backend.switch_workspace(monitor, 1).unwrap();
                 assert_eq!(backend.window_workspace(1), Some(1));
                 assert_eq!(backend.current_workspaces(), [(monitor, 1)]);
+            },
+            |backend| {
+                // 51 of 255 is a fifth
+                backend.set_opacity(1, 51).unwrap();
             },
         ];
         assert_eq!(asks.len(), commands.len());

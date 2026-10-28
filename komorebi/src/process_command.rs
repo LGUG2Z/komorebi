@@ -11,8 +11,8 @@
 //! - **VisibleWindows**: what the compositor says about each window that can be seen on the
 //!   workspace each monitor shows, by the id of the monitor, as JSON.
 //! - **Query**: one value as text, the answer to a [`StateQuery`].
-//! - **GlobalState**: the ignore and the manage rules and the data directory ([`GlobalState`]), as
-//!   JSON.
+//! - **GlobalState**: the ignore and the manage rules, the transparency settings and the data
+//!   directory ([`GlobalState`]), as JSON.
 //! - **SessionFloatRules**: the float rules **SessionFloatRule** added, as JSON.
 //! - **DebugWindow**: what [`Window::should_manage`] read of a window and which rules matched it
 //!   ([`RuleDebug`]), as JSON, or nothing for a window that is not there.
@@ -182,6 +182,10 @@
 //!   handled. **BorderColour** sets the color of the border of one kind of window
 //!   ([`WindowKind`]), and every message, once handled, tells the backend the color of each
 //!   window's border ([`border_manager::update_colours`]).
+//! - **Transparency** and **ToggleTransparency** set whether the windows that do not have the
+//!   focus are see-through, and **TransparencyAlpha** how opaque they are, 0 to 255; every message,
+//!   once handled, has [`transparency_manager::apply`] make the windows as see-through as that
+//!   says.
 //! - **Animation** sets whether windows are animated going to their places, **AnimationDuration**
 //!   for how long, **AnimationStyle** the easing curve, and **AnimationFps** the frame rate that is
 //!   stored and has nothing to map to (the compositor animates at the refresh rate of the
@@ -240,6 +244,7 @@ use crate::notify_subscribers;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
+use crate::transparency_manager;
 use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
@@ -1971,6 +1976,16 @@ impl WindowManager {
                     border_manager::destroy_all_borders()?;
                 }
             }
+            SocketMessage::Transparency(enable) => {
+                transparency_manager::TRANSPARENCY_ENABLED.store(enable, Ordering::SeqCst);
+            }
+            SocketMessage::ToggleTransparency => {
+                let current = transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst);
+                transparency_manager::TRANSPARENCY_ENABLED.store(!current, Ordering::SeqCst);
+            }
+            SocketMessage::TransparencyAlpha(alpha) => {
+                transparency_manager::TRANSPARENCY_ALPHA.store(alpha, Ordering::SeqCst);
+            }
             SocketMessage::BorderColour(kind, r, g, b) => match kind {
                 WindowKind::Single => {
                     border_manager::FOCUSED.store(border_manager::pack(r, g, b), Ordering::SeqCst);
@@ -2050,6 +2065,7 @@ impl WindowManager {
 
         border_manager::send_notification();
         border_manager::update_colours(self);
+        transparency_manager::apply(self);
 
         tracing::info!("processed command: {message}");
 

@@ -45,10 +45,6 @@ const WINDOWS_ONLY: &[&str] = &[
 const NOT_YET: &[&str] = &[
     // a color for each kind of window's border, whose type is komorebi-themes' (49)
     "border_colours",
-    // transparency (47)
-    "transparency",
-    "transparency_alpha",
-    "transparency_ignore_rules",
     // focus follows mouse (48)
     "focus_follows_mouse",
     // themes (49)
