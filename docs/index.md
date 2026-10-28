@@ -30,6 +30,8 @@ key bindings  -------->  komorebic  <------>  komorebi
 
 ## Getting started
 
+[Trying komorebi in a virtual machine](trying-it.md) starts a Plasma guest in which komorebi tiles a
+few windows, with one command, and says what to do when it does not start.
 [Installing komorebi](installation.md) explains how to install the two programs: on NixOS with
 the flake's module, which also starts komorebi with every Plasma session, and from source
 anywhere else. [Running komorebi](usage/running-komorebi.md) explains how to start and stop the

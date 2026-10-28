@@ -63,6 +63,19 @@ use. With [direnv](https://direnv.net), the [`.envrc`](.envrc) does it on
 `cd`. On Linux, `nix run .#komorebi -- --version` builds and runs the daemon
 without a checkout of the toolchain.
 
+## Trying it in a virtual machine
+
+On a Linux machine with KVM, which includes NixOS in WSL 2 on Windows 11, one command starts a
+Plasma guest in which komorebi tiles a few windows, in a window of your desktop:
+
+```sh
+nix run .#run-kde
+```
+
+`run-kde --doctor` checks the machine and says how to fix what is missing.
+[`docs/trying-it.md`](docs/trying-it.md) says what you need, what you see, the key bindings to try
+and what to do when it does not start.
+
 ## Binaries
 
 The [releases](https://github.com/LGUG2Z/komorebi-for-kde/releases) of this
@@ -369,6 +382,7 @@ and the unit starts the daemon with the file.
 ## Documentation
 
 The user guide starts at [`docs/index.md`](docs/index.md),
+[`docs/trying-it.md`](docs/trying-it.md) starts a guest in which komorebi tiles a few windows,
 [`docs/installation.md`](docs/installation.md) says how to install komorebi,
 [`docs/usage/configuration.md`](docs/usage/configuration.md) explains `komorebi.json`,
 [`docs/example-configurations.md`](docs/example-configurations.md) has an example of it,

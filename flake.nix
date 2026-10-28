@@ -160,7 +160,7 @@
             inherit pkgs;
             rev = "nix-check";
           };
-          # `run-kde` starts the demo guest of the host's architecture (docs/dev/utm.md). The guest's
+          # `run-kde` starts the demo guest of the host's architecture (docs/trying-it.md). The guest's
           # runner is named in the program, not depended on: the command works out what is missing
           # and builds it, with its progress shown, instead of `nix run` fetching 4 GB first.
           runKde =

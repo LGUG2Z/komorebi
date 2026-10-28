@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # run-kde: start the komorebi demo guest (nix/dev/run-kde.nix) in a virtual machine, so that anyone
-# can try tiling by hand. docs/dev/utm.md says what the guest takes from it; this is the program.
+# can try tiling by hand. docs/trying-it.md is the guide, docs/dev/utm.md says what the guest takes
+# from its runner; this is the program.
 #
 #   nix run .#run-kde -- [options]      or      just run-kde [options]
 #

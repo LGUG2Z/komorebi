@@ -12,8 +12,8 @@
 #
 # and the guest takes them at boot (`run-kde-credentials`). What a person's own run needs at start
 # up, the memory, the ports, the display device and the repository, comes from the environment of
-# the runner, which `run-kde` sets (docs/dev/utm.md). The guest shows a window through QEMU or is
-# reached over RDP, and the terminal of whoever starts it is its console.
+# the runner, which `run-kde` sets (docs/dev/utm.md, docs/trying-it.md). The guest shows a window
+# through QEMU or is reached over RDP, and the terminal of whoever starts it is its console.
 {
   config,
   lib,

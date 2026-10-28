@@ -135,7 +135,8 @@ what a person's run needs comes from the environment of the runner:
 | `QEMU_OPTS` | the display device: `-vga none -device virtio-vga,xres=1280,yres=800`, or `-display gtk,gl=on -vga none -device virtio-vga-gl,xres=1280,yres=800` for a GPU |
 | `NIX_DISK_IMAGE` | the disk image, which the runner makes when it is not there |
 
-[`run-kde`](#the-command) sets them; to start the guest by hand, on a Linux machine:
+[`run-kde`](#the-command) sets them ([the guide](../trying-it.md) says what a person sees and does);
+to start the guest by hand, on a Linux machine:
 
 ```sh
 nix build .#nixosConfigurations.run-kde-x86_64.config.system.build.vm -o .vm/result-run-kde
@@ -190,7 +191,8 @@ In order, it:
    to try anything.
 2. Builds the guest when its runner is not in the store, with `nix build` of the checkout's flake and
    the build log shown. There is no binary cache: the first run builds komorebi and downloads about
-   4 GB of Plasma, which are 11 GB in the Nix store.
+   4 GB of Plasma, which are 11 GB in the Nix store. [The first run](../trying-it.md#the-first-run)
+   says how long that took where it was measured.
 3. Makes the state directory, `$XDG_STATE_HOME/komorebi-run-kde` (`~/.local/state/komorebi-run-kde`),
    when it is not there: the guest's disk (20 GB, or `--size`, sparse), a random RDP password and an
    ed25519 key for ssh, all of mode 0600 in a directory of mode 0700. `--reset` deletes it. Nothing

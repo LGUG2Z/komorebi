@@ -70,7 +70,7 @@ docgen:
     rm -f docs/cli/*.md
     cargo run --package komorebic --locked -- docgen --output docs/cli
 
-# the demo guest in a virtual machine, with komorebi tiling a few windows (docs/dev/utm.md);
+# the demo guest in a virtual machine, with komorebi tiling a few windows (docs/trying-it.md);
 # `just run-kde --doctor` says what this machine is missing
 run-kde *args:
     nix run .#run-kde -- {{ args }}

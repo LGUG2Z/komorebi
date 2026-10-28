@@ -834,6 +834,58 @@ a Linux builder that is itself a virtual machine on the Mac, as `darwin.linux-bu
 nested KVM. `nixos-install` is a plain program, in a guest that runs at the speed of the Mac's own
 virtualization.
 
+## Why does `run-kde` start the guest in QEMU with KVM, and not in Hyper-V?
+
+The guest is started from a NixOS machine in WSL 2 that has this repository checked out: that is the
+machine I named (Windows 11, an AMD CPU, the latest NixOS-WSL, x86_64), and the command is meant to
+need nothing else set up. The flake already builds the Plasma guests as a QEMU runner that boots
+the system from the host's Nix store, and the VM tests boot the same guests under QEMU with KVM,
+so the command starts what CI boots. KVM is what WSL 2 offers inside its own virtual machine when
+nested virtualization is on. The command needs it, and refuses to start without it, since Plasma
+under software emulation is too slow to try anything; `--tcg` allows it anyway.
+
+Why not Hyper-V, whose virtual machines Windows itself runs? Nobody wrote down a reason, and this
+entry does not make one up. What is known is that a Hyper-V guest would be another artifact, a disk
+image that Windows' hypervisor boots, and that the repository builds none. The reason for
+choosing QEMU over it still needs to be written down.
+
+## Why is the QEMU window the first way to see the guest, and RDP the second?
+
+I decided that the primary view is the QEMU window through WSLg, and that RDP from
+Windows (`mstsc`) comes second. The reason was not written down. What bears on it is known: the
+guest's RDP server, KRDP, sends H.264 video only, encoded in software on the guest's CPUs when there
+is no VAAPI device, FreeRDP built with OpenH264 shows nothing of it, and nobody has tried Windows'
+client against it ([PLATFORM.md](PLATFORM.md#rdp-into-the-session)). A window of QEMU has no video
+encoder between the guest and the screen. How fast the window is through WSLg has not been
+measured: the plan has the probe's number decide which is the default.
+
+## Why does the guest use the GPU wherever the host has one?
+
+Because I want GPU accel where it's available on the host. So the GPU path is part of the design and
+not an opt-in: `run-kde` looks for it (`/dev/dxg` on WSL 2, a render node elsewhere, and a host
+OpenGL that is not llvmpipe) and starts the guest with `virtio-vga-gl` and QEMU's GTK window with
+OpenGL, which gives KWin in the guest real OpenGL through VirGL. When the host has none, it starts the
+guest with a software `virtio-vga` and says why. `--gpu auto|on|off` overrides the choice, and KVM is
+needed either way.
+
+The display device is not part of the guest. The runner of nixpkgs would fix it when the guest is
+built, so the demo guest leaves it out, and `run-kde` gives the runner the device when it starts
+the guest: one closure and one disk serve both paths.
+
+## Why is the password made for each user, and shared by a directory?
+
+A guest's closure is in the Nix store of whoever builds it, which every user of that machine can
+read, so a password or a key in it would be known to all of them, and would be the same for everyone
+who runs the demo. The Plasma guests carry no key and no password already
+([utm.md](utm.md)). `run-kde` makes a random RDP password and an ssh key pair when it makes the state
+directory, in files that only the user can read, and shares that directory with the guest, which
+takes the two files when it boots. Why a shared directory and not another way to hand the guest a
+secret was not written down; the guests already get the repository that way.
+
+The guest copies the files as root, and does not read them where they are, because the user of the
+host who owns the directory need not be the guest's user: with another owner, and the mode of 0700 the
+directory has, the guest's user cannot read it.
+
 ## Why are binaries published only by this repository?
 
 The Komorebi License allows anyone to distribute the source code, with changes, but not

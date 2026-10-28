@@ -850,6 +850,40 @@ and KRDP 6.8.1 and FreeRDP 3.32.2:
   the session would send each key back to itself. Whether a key pressed in an RDP client reaches a
   global shortcut is therefore not known; no check from a real client has been recorded.
 
+## WSL 2
+
+`run-kde` is written for NixOS in WSL 2 on Windows 11 with an AMD CPU and an x86_64 guest, and
+nothing in this section has been measured on that machine yet. The table says what the command
+expects and what is still to be recorded, as dated facts, from the probe
+(`scripts/wsl2-probe.sh`) when somebody runs it there. The facts that were measured on a Linux machine
+with KVM and no WSL, window or GPU are in [Rendering in virtual machines and over
+RDP](#rendering-in-virtual-machines-and-over-rdp).
+
+| Probe | What the command expects | Result |
+|---|---|---|
+| KVM | `/dev/kvm` is there with `nestedVirtualization=true` in `.wslconfig`, the CPU flags show `svm`, and the user is in the group `kvm` | to be recorded |
+| KVM | QEMU with `-accel kvm` boots a kernel; how fast a CPU loop runs in the guest against WSL | to be recorded |
+| Display | `WAYLAND_DISPLAY` or `DISPLAY` is set by WSLg, and QEMU's GTK window opens | to be recorded |
+| Display | the keyboard and the pointer work in the window, and Ctrl + Alt + g grabs and releases them; the frame rate of a moving window | to be recorded |
+| GPU | `/dev/dxg` is there, `wsl.useWindowsDriver = true` is in effect, and the host's OpenGL renderer string is d3d12 and not llvmpipe | to be recorded |
+| GPU | `-device virtio-vga-gl -display gtk,gl=on` starts, and the guest's renderer is virgl; the frame rate with and without it | to be recorded |
+| RDP | `localhost:3389` in Windows reaches the guest; Windows' client shows a picture of KRDP's H.264; keyboard layouts survive | to be recorded |
+| Resources | free memory and disk in WSL, the values of `.wslconfig`, the time to build the guest, the size of its closure | to be recorded |
+| virtiofs | `virtiofsd` starts as the user and serves `/nix/store` and a directory; the guest mounts both through virtio-fs devices, with its memory in a shared memfd, reads the store, and reads and writes the directory | to be recorded |
+
+What is known of virtiofs without WSL 2 (nixpkgs' runner mounts the host's `/nix/store` and the
+shared directories by virtiofs on a Linux host), at time of writing (2026-10-28): the chain that
+the probe's P6 builds, `virtiofsd` 1.14.0 started as an ordinary user with the runner's options, and
+a guest that mounts the host's `/nix/store` read-only and a directory read-write, passes on an
+`x86_64` machine with KVM, on an `aarch64` machine and under TCG. `virtiofsd` prints two warnings
+as an ordinary user (it cannot raise the limit of open files, and it cannot use file handles) and
+never opens `/dev/fuse`. A file owned by the host user shows up in the guest with the same numeric
+uid. The kernel configuration of WSL 2 (`linux-msft-wsl-6.6.y`, read, not run) has
+`CONFIG_FUSE_FS=y`, `CONFIG_MEMFD_CREATE=y`, `CONFIG_USER_NS=y` and `CONFIG_KVM_AMD=m`.
+
+One thing that the command depends on is not in the probe, and is not known either: whether
+Windows or WSLg takes any of the Alt combinations of the key bindings before the window sees them.
+
 ## What was not measured
 
 At time of writing (2026-10-28) these are gaps, not findings. Nothing on this page says that
