@@ -16,6 +16,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod process_movement;
 pub mod reaper;
+pub mod scrolling;
 pub mod set_window_position;
 pub mod splash;
 pub mod stackbar_manager;

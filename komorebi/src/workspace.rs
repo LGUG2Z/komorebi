@@ -46,6 +46,7 @@ use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::Base16ColourPalette;
 use komorebi_themes::KomorebiThemeCustom as Custom;
 use serde::Deserialize;
@@ -102,6 +103,10 @@ pub struct Workspace {
     /// Initial window placement rules that determine where new tiled windows are placed
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initial_window_placement_rules: Option<InitialWindowPlacementRules>,
+    /// The strip of columns that the Scrolling layout lays containers out in
+    #[serde(skip)]
+    #[cfg_attr(feature = "schemars", schemars(skip))]
+    pub(crate) scrolling: Option<ScrollingSpace<String>>,
 }
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -159,6 +164,7 @@ impl Default for Workspace {
             preselected_container_idx: None,
             promotion_swap_container_idx: None,
             initial_window_placement_rules: None,
+            scrolling: None,
         }
     }
 }
@@ -364,7 +370,7 @@ impl Workspace {
     ///   1. Try threshold match from rules (highest matching threshold wins)
     ///   2. If a rule matches -> use it (full replacement of base)
     ///   3. Else -> use the base `layout_options`
-    fn effective_layout_options(&self) -> Option<LayoutOptions> {
+    pub(crate) fn effective_layout_options(&self) -> Option<LayoutOptions> {
         let container_count = self.containers().len();
 
         let has_workspace_overrides =
@@ -715,18 +721,25 @@ impl Workspace {
                     self.layout_options,
                     self.layout_options_rules.len(),
                 );
-                let mut layouts = self.layout.as_boxed_arrangement().calculate(
-                    &adjusted_work_area,
-                    NonZeroUsize::new(self.containers().len()).ok_or_eyre(
-                        "there must be at least one container to calculate a workspace layout",
-                    )?,
-                    Some(container_padding),
-                    self.layout_flip,
-                    &self.resize_dimensions,
-                    self.focused_container_idx(),
-                    effective_layout_options,
-                    &self.latest_layout,
-                );
+                let mut layouts = if self.is_scrolling() {
+                    self.layout_scrolling(&adjusted_work_area, container_padding)
+                        .into_iter()
+                        .map(|placement| placement.rect)
+                        .collect()
+                } else {
+                    self.layout.as_boxed_arrangement().calculate(
+                        &adjusted_work_area,
+                        NonZeroUsize::new(self.containers().len()).ok_or_eyre(
+                            "there must be at least one container to calculate a workspace layout",
+                        )?,
+                        Some(container_padding),
+                        self.layout_flip,
+                        &self.resize_dimensions,
+                        self.focused_container_idx(),
+                        effective_layout_options,
+                        &self.latest_layout,
+                    )
+                };
 
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 let no_titlebar = NO_TITLEBAR.lock().clone();
