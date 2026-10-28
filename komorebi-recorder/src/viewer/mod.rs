@@ -59,9 +59,12 @@
 //! The viewer is used on the machine whose behavior is being investigated, so it must neither be
 //! tiled by komorebi nor appear in a recording being made.
 //!
-//! - **Not tiled.** The window has an empty title ([`run`] builds it with `with_title("")`), and
-//!   komorebi leaves windows with no title alone: komorebi for Mac does not manage a window that
-//!   has none. The three settings that also hide the title bar apply on macOS only. Whether
+//! - **Not tiled.** The window is named `komorebi-recorder` only when it is safely ignored
+//!   ([`crate::komorebi_ignore`]): [`run`] first registers `komorebic ignore-rule exe` for the
+//!   recorder's executables with a running komorebi for Windows, or finds none running. When it
+//!   cannot (no `komorebic`, the command fails, or any macOS host, where komorebi manages every
+//!   window with a title) the title is empty, and komorebi leaves windows with no title alone.
+//!   The three settings that also hide the title bar apply on macOS only. Whether
 //!   komorebi for Windows leaves the window alone is checked on a real machine rather than assumed:
 //!   with `KOMOREBI_RECORDER_PROBE_WINDOW=1` set, the window asks komorebi whether it would manage
 //!   it and writes the answer to `komorebi-recorder-window-probe.txt` in the temp directory
@@ -99,7 +102,7 @@ pub use app::ViewerApp;
 /// fail: the window comes up and shows why. With no `session` the window shows a start screen with
 /// the recent sessions that still exist ([`prefs::Prefs::existing`]) and a button to choose one.
 ///
-/// The window is 1500 by 920 points (at least 900 by 600), dark, and untitled: see the [module
+/// The window is 1500 by 920 points (at least 900 by 600), dark, and titled only when komorebi ignores it: see the [module
 /// documentation](self#staying-out-of-the-way-of-what-is-being-investigated) for why. Needs a
 /// window, so there is no example; the tests in `viewer::app` drive the same [`ViewerApp`]
 /// headlessly.
@@ -109,11 +112,14 @@ pub use app::ViewerApp;
 /// Returns an error saying "the viewer window failed" if the window cannot be created or its event
 /// loop fails (for example, there is no display or no usable graphics adapter).
 pub fn run(session: Option<PathBuf>) -> eyre::Result<()> {
+    // before the window exists, so komorebi never sees a titled window it was not told to ignore
+    let title = crate::komorebi_ignore::prepare_window().title;
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            // no title: komorebi leaves untitled windows alone, so opening the viewer does not
-            // move the layout of the machine whose behavior is being investigated
-            .with_title("")
+            // titled only when komorebi ignores it (or is not running), so opening the viewer does
+            // not move the layout of the machine whose behavior is being investigated
+            .with_title(title)
+            .with_app_id("komorebi-recorder")
             .with_icon(crate::icon::window_icon())
             .with_title_shown(false)
             .with_titlebar_shown(false)

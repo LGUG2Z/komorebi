@@ -36,10 +36,15 @@
 //!   video. On Windows a whole monitor is captured, so about once a second the window asks Windows
 //!   to leave it out of captures (`WDA_EXCLUDEFROMCAPTURE`) through
 //!   [`crate::platform::window::Chrome`].
-//! - **Not tiled.** The window is deliberately borderless and untitled, with its own drag handle
-//!   and close button, and always on top. komorebi does not manage windows that have no title (komorebi
-//!   for Mac rejects them in `Window::should_manage`), so opening the recorder does not perturb the
-//!   very layout being observed: a titled window would be tiled into the workspace. On Windows
+//! - **Not tiled.** The window is borderless, with its own drag handle and close button, and always
+//!   on top. It is named only when it is safely ignored ([`crate::komorebi_ignore`]): on Windows,
+//!   [`run`] first asks a running komorebi, with `komorebic ignore-rule exe`, to ignore the
+//!   recorder's executables (komorebi's live rule, nothing is written to `komorebi.json`), and
+//!   then titles the window `komorebi-recorder`; with no komorebi running it is titled too. If
+//!   `komorebic` cannot be found or fails, and always on macOS (komorebi for Mac manages any window
+//!   with a title, in `Window::should_manage`), the window stays untitled so that opening the
+//!   recorder does not perturb the very layout being observed, and one line on standard error and
+//!   the window's message area say how to add the rule by hand. On Windows
 //!   `KOMOREBI_RECORDER_PROBE_WINDOW=1` makes the window ask komorebi whether it would manage it
 //!   (see [`crate::platform::window::PROBE_VARIABLE`]).
 //!
@@ -154,7 +159,7 @@ const DISPLAY_REFRESH: Duration = Duration::from_secs(1);
 ///
 /// A recording that fails does not make this fail: the window shows why, and can record again.
 ///
-/// The window is 420 by 380 points (at least 360 by 260), borderless, untitled and always on top:
+/// The window is 420 by 380 points (at least 360 by 260), borderless and always on top, titled `komorebi-recorder` only when komorebi ignores it:
 /// see the [module documentation](self#staying-out-of-the-video-and-out-of-the-layout). Needs a
 /// window, so there is no example.
 ///
@@ -166,10 +171,13 @@ pub fn run(args: RecordArgs) -> eyre::Result<()> {
     // killing the window (or logging out) must still finalize a recording in progress
     let _ = ctrlc::set_handler(|| QUIT.store(true, Ordering::SeqCst));
 
+    // before the window exists, so komorebi never sees a titled window it was not told to ignore
+    let setup = crate::komorebi_ignore::prepare_window();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            // no title: komorebi leaves untitled windows alone
-            .with_title("")
+            // titled only when komorebi ignores it (or is not running); see `komorebi_ignore`
+            .with_title(setup.title)
+            .with_app_id("komorebi-recorder")
             .with_icon(crate::icon::window_icon())
             .with_decorations(false)
             .with_inner_size([420.0, 380.0])
@@ -181,7 +189,11 @@ pub fn run(args: RecordArgs) -> eyre::Result<()> {
     eframe::run_native(
         "komorebi-recorder",
         options,
-        Box::new(|_creation_context| Ok(Box::new(RecorderApp::new(args)))),
+        Box::new(move |_creation_context| {
+            let mut app = RecorderApp::new(args);
+            app.last = setup.note.map(Err);
+            Ok(Box::new(app))
+        }),
     )
     .map_err(|error| eyre::Report::msg(format!("the recorder window failed: {error}")))
 }

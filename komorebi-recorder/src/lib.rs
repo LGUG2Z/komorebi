@@ -43,6 +43,7 @@
 //! | [`clock`] | the master clock, anchors and the map between the wall clock and the master clock |
 //! | [`platform`] | everything that differs by host, behind one facade |
 //! | [`analysis`] | understanding a session without a window, starting with the komorebi flavors |
+//! | [`komorebi_ignore`] | naming the windows, once komorebi is told to ignore them |
 //! | [`komorebi_link`] | talking to a running komorebi over its socket |
 //! | [`incidents`] | what happened to the recording itself, as a log of its own |
 //! | [`lock`] | telling a running recorder from one that died |
@@ -86,6 +87,7 @@ pub mod doctor;
 pub mod frames;
 pub mod icon;
 pub mod incidents;
+pub mod komorebi_ignore;
 pub mod komorebi_link;
 pub mod lock;
 pub mod platform;

@@ -135,6 +135,8 @@ pub struct KomorebiReport {
     /// How verbose the daemon's log is, and how that was worked out. `None` if it is not
     /// running.
     pub log_level: Option<DetectedLevel>,
+    /// Whether the recorder's windows will have a title, and why (see [`crate::komorebi_ignore`]).
+    pub window_title: String,
     /// komorebi's command socket.
     pub socket: SocketReport,
     /// Where komorebi's plaintext log is, and the newest files in it.
@@ -306,6 +308,7 @@ pub fn report() -> Report {
             .map(|exe| exe.display().to_string()),
         version,
         log_level: process.as_ref().map(|process| process.level.clone()),
+        window_title: crate::komorebi_ignore::describe_here(),
         socket,
         log_files: newest_logs(&log_dir),
         log_dir: log_dir.display().to_string(),
@@ -604,6 +607,7 @@ pub fn text(report: &Report) -> String {
     let k = &report.komorebi;
     let _ = writeln!(out, "\nkomorebi for {}", k.flavor);
     let _ = writeln!(out, "  running:      {}", yes(k.running));
+    let _ = writeln!(out, "  windows:      {}", k.window_title);
     if let Some(pid) = k.pid {
         let _ = writeln!(out, "  pid:          {pid}");
     }

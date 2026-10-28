@@ -58,8 +58,37 @@ The recorder window keeps itself out of the video (Windows 10 version 2004 or la
 - **`ffmpeg`** is only needed for `frames` and `selftest`. It is never used to capture. The `nix develop` shell provides
   it; otherwise `brew install ffmpeg`.
 
-The recorder window is borderless and untitled on purpose: komorebi does not manage windows without a title, so opening
-it does not move your layout around while you are trying to reproduce a layout bug. It is also excluded from the video, as is any other `komorebi-recorder` process.
+The recorder window is borderless, and on Windows is named `komorebi-recorder` only once komorebi is told to ignore it:
+at start the recorder runs `komorebic ignore-rule exe komorebi-recorder.exe` (and the same for
+`komorebi-recorder-gui.exe`, which opens the viewer) against the running komorebi, a live rule that is not saved. If
+komorebi is not running the window is named too; if `komorebic` is not found or fails, and on a Mac, the window stays
+untitled, because komorebi does not manage windows without a title, and the recorder says so on standard error and in
+the window. Either way opening it does not move your layout around while you are trying to reproduce a layout bug.
+`komorebi-recorder doctor` shows which you will get. To keep the rule across komorebi restarts, add this to your own
+komorebi configuration (the entries below are in the shape of the application-specific configuration; in `komorebi.json`
+the same match is an `ignore_rules` entry with `kind: Exe`, `id: komorebi-recorder.exe`, `matching_strategy: Equals`):
+
+```json
+  "komorebi-recorder": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "komorebi-recorder.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "komorebi-recorder-gui": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "komorebi-recorder-gui.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  }
+```
+ It is also excluded from the video, as is any other `komorebi-recorder` process.
 The viewer is one such process.
 
 ## Recording
