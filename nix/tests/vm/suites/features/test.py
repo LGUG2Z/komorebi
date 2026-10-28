@@ -11,14 +11,17 @@
 #      container that does not have the focus, a stack and a monocled window that have it, and a
 #      floating window that has it
 #   D  animation curves: two curves put a window in different places at the same moment
+#   E  fullscreen: a fullscreen window covers the monitor, is not moved, and goes back to its tile
 #
 # Every window is a `foot` of one color all over (`Kde.colored_window`), and a color is read at the
-# pixels just outside the frame of the window (`pixels.ring`). `komorebi/tests/maximize.rs` and
-# `maximize_commands.rs` check what the window manager does with a maximize against the fake;
-# section A checks that KWin's own maximize does it.
+# pixels just outside the frame of the window (`pixels.ring`); section E reads the frames KWin
+# reports for the windows, not a screenshot. `komorebi/tests/maximize.rs`, `maximize_commands.rs`
+# and `fullscreen.rs` check what the window manager does with a maximize and a fullscreen against
+# the fake; section A checks that KWin's own maximize does it, and section E that a window KWin has
+# taken fullscreen is left alone.
 import time
 
-from komorebi_vm import Checks, Kde, pixels
+from komorebi_vm import Checks, Kde, Rect, pixels
 
 UNIT = "komorebi.service"
 # the daemon's log of the day, without colors, which every run of the unit adds to
@@ -312,5 +315,61 @@ print(f"     a few seconds into a 30 s move, red is this far along: {linear}% wi
 print(f"     {expo}% with EaseOutExpo")
 checks.check("Linear is less than 60% of the way", 0 <= linear < 60)
 checks.check("EaseOutExpo is at least 20 points further along than Linear", expo >= linear + 20)
+
+print("== E. fullscreen")
+# This section needs the daemon running and a red, a green and a blue window open and tiled, and
+# does not depend on which section came before it: when one has stopped the daemon or closed the
+# windows, they are started and opened again.
+if not answering():
+    kde.systemctl("start", UNIT)
+    kde.wait_for(answering, timeout=60)
+for title, background in [("red", "ff0000"), ("green", "00ff00"), ("blue", "0000ff")]:
+    if kde.wid(title) == "":
+        open_window(title, background)
+kde.wait_for(lambda: kde.managed() == 3, timeout=30)
+kde.wait_for(lambda: kde.focused_title() == "blue", timeout=20)
+blue = kde.wid("blue")
+monitor = kde.state()["monitors"]["elements"][0]["size"]
+whole = Rect(monitor["left"], monitor["top"], monitor["right"], monitor["bottom"])
+# the bridge asks again for the position of a window that is not where komorebi put it for a second
+# after it did, which is not the thing tested here
+time.sleep(3 * SCALE)
+kde.fullscreen(blue)
+checks.check(
+    f"the window covers the monitor, panels included ({kde.rect(blue)}, the monitor is {whole})",
+    kde.wait_for(lambda: kde.rect(blue) == whole, timeout=20),
+)
+open_window("yellow", "ffff00")
+checks.check("komorebi manages the fourth window", kde.wait_for(lambda: kde.managed() == 4))
+time.sleep(3 * SCALE)
+checks.check(
+    f"a window opening meanwhile does not take it out of fullscreen ({kde.rect(blue)})",
+    kde.rect(blue) == whole,
+)
+kde.fullscreen(blue, on=False)
+
+
+def in_a_tile(r: Rect) -> bool:
+    """Smaller than the monitor, and inside it."""
+    return (
+        r.w < whole.w - 100
+        and r.x >= whole.x
+        and r.y >= whole.y
+        and r.x + r.w <= whole.x + whole.w
+        and r.y + r.h <= whole.y + whole.h
+    )
+
+
+checks.check(
+    "back from fullscreen it is in a tile",
+    kde.wait_for(lambda: in_a_tile(kde.rect(blue)), timeout=20),
+)
+back = kde.rect(blue)
+print(f"     blue is back at {back}")
+checks.check(
+    "and it does not sit on any other window",
+    not any(back.overlaps(kde.rect(kde.wid(other))) for other in ("red", "green", "yellow")),
+)
+checks.check("komorebi still has all four", kde.managed_all() == 4)
 
 checks.finish()

@@ -77,6 +77,9 @@ pub struct WindowInfo {
     pub rect: Rect,
     /// Whether the window is minimized.
     pub minimized: bool,
+    /// Whether the window is fullscreen: it covers its monitor, panels included, and the window
+    /// manager leaves it where it is.
+    pub fullscreen: bool,
     /// Whether the window is maximized, whether by the user (the title bar, a double click, a
     /// shortcut) or because komorebi asked ([`Backend::maximize`]).
     pub maximized: bool,

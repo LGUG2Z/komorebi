@@ -50,10 +50,10 @@ that is added has its place here.
   komorebi asked for it or the user did. It is in no container, so it has left the layout, until
   it is put back in a container of its own where it was ([`Workspace::maximized_window`]).
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
-  the focus, minimized or restored, maximized or restored from it, dragged by the user, put on
-  another workspace's desktop, or moved to another output; and that a monitor shows another
-  workspace ([`WindowManagerEvent`]). Two events come from komorebi itself: a command asks it to
-  manage the focused window, or to stop managing it.
+  the focus, minimized or restored, fullscreen or back from it, maximized or restored from it,
+  dragged by the user, put on another workspace's desktop, or moved to another output; and that a
+  monitor shows another workspace ([`WindowManagerEvent`]). Two events come from komorebi itself:
+  a command asks it to manage the focused window, or to stop managing it.
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
   (focus a window, move it, change the layout, resize it, show a workspace, retile, stop) or a
   question (the state, the monitors, one [`StateQuery`]).
@@ -113,10 +113,10 @@ the same logic runs against both. The reasons are in
 The desktop, as the window manager sees it, is two lists and a pointer:
 
 - **Windows**, each a [`WindowInfo`]: its id, process, title, `app_id`, executable, frame,
-  whether it is minimized, whether it is maximized, whether it is a normal application window
-  (as opposed to a dialog, a splash screen or a dock), and whether it is alive. A window that
-  has been destroyed stays in the table for a short time with `alive` false, so that the event
-  that mentions it can still be logged.
+  whether it is minimized, whether it is fullscreen, whether it is maximized, whether it is a
+  normal application window (as opposed to a dialog, a splash screen or a dock), and whether it is
+  alive. A window that has been destroyed stays in the table for a short time with `alive` false,
+  so that the event that mentions it can still be logged.
 - **Monitors**, each a [`MonitorInfo`]: its id, name, an identity that survives a
   hot-plug, its bounds and its work area.
 - **The pointer**, a position if the compositor says where it is, and the **focus**, the id
@@ -637,6 +637,14 @@ back as a tile, as it does after `ToggleMaximize`. komorebi's own maximize and r
 reported too, and find the workspace as they leave it, so they change nothing. A window that is
 already maximized when komorebi starts ([`load_workspace_information`]) or when it opens (a
 `Show`) is the maximized window the same way.
+
+A window that goes fullscreen needs no message and no model of its own. The compositor covers the
+monitor with it, the bridge reports a `fullscreen` event, and the table keeps
+[`WindowInfo::fullscreen`] for the window. The window stays in its container, and the layout keeps
+its tile, but [`Window::set_position`], which every move the window manager makes goes through,
+does nothing for a fullscreen window, so a retile, a centering or a window that opens moves it
+nowhere. A `FullscreenChange` back from fullscreen tiles the workspace again, because KWin gives
+the window the frame it had before, which may not be its tile any more.
 
 A workspace is on one of two layers ([`Workspace::layer`]), and the focus, move and resize
 messages go to the windows of that layer. `ToggleFloat` puts the workspace on the floating layer,
@@ -1281,6 +1289,10 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A change to a window komorebi does not have is ignored | framework path: [`WindowManager::adopt_maximize_change`] looks the window up in the index of managed windows first | `a_change_for_a_window_komorebi_has_not_taken_in_is_ignored` | none |
 | The bridge reports a window as maximized only when KWin has it maximized both ways | test: `isMaximized` in [`bridge.js`] reads KWin's `maximizeMode`, which is 3 for both ways | `bridge.test.js` ("a window maximized one way only is not maximized", "a window the user maximizes or restores is reported, and one maximized one way is not") | none |
 | In a real KWin, a window the user maximizes is komorebi's maximized window, the layout does nothing meanwhile, and the window goes back to its tile | VM test | `vm-user-maximize` | none |
+| A fullscreen window is never moved | framework path: [`Window::set_position`] returns before the backend when [`WindowInfo::fullscreen`] is set, and every tile, centering and float of the window manager goes through it | `a_fullscreen_window_is_left_covering_the_monitor_and_goes_back_to_its_tile_afterwards`, `a_fullscreen_window_is_not_moved_and_is_again_when_it_is_not_fullscreen` | none |
+| A window that leaves fullscreen is put in the tile the layout has for it | framework path: `handle_event` tiles the workspace in front again on a `FullscreenChange` back from fullscreen | `a_fullscreen_window_is_left_covering_the_monitor_and_goes_back_to_its_tile_afterwards` | none |
+| The bridge reports a fullscreen change with what the window is now | test: the bridge reads `fullScreen` when KWin raises `fullScreenChanged`, and the table keeps it | `bridge.test.js` ("a window that goes fullscreen or comes back from it is reported as it is now", and the session), `going_fullscreen_and_coming_back_are_events_and_are_remembered` | none |
+| In a real KWin, a fullscreen window covers the monitor, a window that opens does not take it out of fullscreen, and it goes back to a tile that overlaps no other | VM test | `vm-features` (section E) | none |
 | A window stays maximized through a retile | framework path: [`Workspace::update`] asks the backend to maximize it again, and moves no container | `a_retile_while_a_window_is_maximized_asks_the_compositor_to_maximize_it_again` | none |
 | A maximized window that closes takes the maximize with it | framework path: [`Workspace::remove_window`] looks at the maximized window first, which the index of managed windows lists | `a_maximized_window_that_closes_leaves_the_layout_whole` | none |
 | In a real KWin, the maximized window fills the work area, is on top, and goes back to its tile | VM test | `vm-features` ("the focused window fills the work area", "and is the one on top", "toggled back, it is in its tile again") | none |
@@ -1574,6 +1586,8 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/user_maximize.rs`](../../komorebi/tests/user_maximize.rs) and
   [`komorebi/tests/user_maximize_cases.rs`](../../komorebi/tests/user_maximize_cases.rs), a window
   the user maximizes;
+  [`komorebi/tests/fullscreen.rs`](../../komorebi/tests/fullscreen.rs), a window that goes
+  fullscreen and comes back;
   [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
   unmanaging and managing the focused window, and pausing;
   [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
@@ -1772,6 +1786,7 @@ A window is shown, and ends up on a tile:
 [`Workspace::adopt_maximized_window`]: ../../komorebi/src/workspace.rs
 [`WindowManager::adopt_maximize_change`]: ../../komorebi/src/window_manager.rs
 [`WindowInfo::maximized`]: ../../komorebi/src/backend/mod.rs
+[`WindowInfo::fullscreen`]: ../../komorebi/src/backend/mod.rs
 [`load_workspace_information`]: ../../komorebi/src/desktop.rs
 [`WindowManager::adjust_workspace_padding`]: ../../komorebi/src/window_manager.rs
 [`Workspace::apply_window_based_work_area_offset`]: ../../komorebi/src/workspace.rs

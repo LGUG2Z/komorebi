@@ -123,12 +123,13 @@ It connects to the session bus as `org.komorebi.Bridge`, writes the bridge to
 `$XDG_RUNTIME_DIR/komorebi/bridge.js`, and asks KWin to load it under the name
 `komorebi-bridge`, replacing a script of that name left by an earlier run. The script reports
 the windows and outputs it finds, and from then on every window that opens, closes, takes the
-focus, is minimized or brought back, is maximized or restored, moves or changes size, the start
-and the end of every drag of a window by the user, and every change of the outputs (one that
-changes resolution or scale, and the room a panel leaves). KWin has no signal for that room, so
-the script looks at the outputs again when a dock window opens, closes or moves, and once a
-second; it also compares KWin's active window with the one it last reported once a second. The
-daemon waits up to 10 seconds for the first report and does not start without it.
+focus, is minimized or brought back, goes fullscreen or comes back, is maximized or restored,
+moves or changes size, the start and the end of every drag of a window by the user, and every
+change of the outputs (one that changes resolution or scale, and the room a panel leaves). KWin
+has no signal for that room, so the script looks at the outputs again when a dock window opens,
+closes or moves, and once a second; it also compares KWin's active window with the one it last
+reported once a second. The daemon waits up to 10 seconds for the first report and does not
+start without it.
 
 It also watches for the machine waking up and the screen being unlocked, with two signals that
 are not KWin's ([D-Bus](#d-bus)): logind's `PrepareForSleep` on the system bus, and the lock
@@ -173,6 +174,12 @@ shortcut) alike, and the bridge reports a window as maximized only when it is ma
 ways (`maximizeMode` 3): a window maximized in one direction is a restored window to komorebi.
 The VM test `vm-user-maximize` maximizes windows with `kdotool windowstate`, in both directions,
 and passes against KWin 6.8.1 at time of writing (2026-10-27).
+A fullscreen window is reported by `fullScreenChanged`, and komorebi asks KWin for no frame for
+it while it is fullscreen. When it leaves fullscreen KWin gives it the frame it had before,
+whatever komorebi has done to the layout since. The VM test `vm-features` takes a window
+fullscreen with `kdotool windowstate`, and checks that it covers the output, that a window that
+opens meanwhile leaves it there, and that it is in a tile when it comes back. It passes against
+KWin 6.8.1 at time of writing (2026-10-27).
 
 #### When KWin restarts
 

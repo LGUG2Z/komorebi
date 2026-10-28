@@ -555,6 +555,14 @@ class Kde:
         for state in ("MAXIMIZED_VERT", "MAXIMIZED_HORZ"):
             self.sh(f"kdotool windowstate --remove {state} {shlex.quote(wid)}")
 
+    def fullscreen(self, wid: str, on: bool = True) -> None:
+        """Asks KWin to take the window fullscreen, or with `on` false to bring it back from it.
+
+        It is the user's fullscreen, as the program's own key does it: the daemon is not asked.
+        """
+        flag = "--add" if on else "--remove"
+        self.sh(f"kdotool windowstate {flag} FULLSCREEN {shlex.quote(wid)}")
+
     def close(self, wid: str) -> None:
         """Asks KWin to close the window, as its title bar button would."""
         self.sh(f"kdotool windowclose {shlex.quote(wid)}")

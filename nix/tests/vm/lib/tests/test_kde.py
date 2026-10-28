@@ -273,6 +273,8 @@ def test_window_actions_go_through_kdotool_inside_the_session(machine: FakeMachi
     kde.minimize("{a}")
     kde.maximize("{a}")
     kde.unmaximize("{a}")
+    kde.fullscreen("{a}")
+    kde.fullscreen("{a}", on=False)
     kde.close("{a}")
 
     assert [inner(command) for command in machine.commands] == [
@@ -282,6 +284,8 @@ def test_window_actions_go_through_kdotool_inside_the_session(machine: FakeMachi
         "kdotool windowstate --add MAXIMIZED_HORZ '{a}'",
         "kdotool windowstate --remove MAXIMIZED_VERT '{a}'",
         "kdotool windowstate --remove MAXIMIZED_HORZ '{a}'",
+        "kdotool windowstate --add FULLSCREEN '{a}'",
+        "kdotool windowstate --remove FULLSCREEN '{a}'",
         "kdotool windowclose '{a}'",
     ]
     assert all("WAYLAND_DISPLAY=wayland-main" in command for command in machine.commands)

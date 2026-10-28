@@ -610,6 +610,7 @@ impl Table {
             path,
             rect: rect(&w["geo"]),
             minimized: w["minimized"].as_bool().unwrap_or(false),
+            fullscreen: w["fullscreen"].as_bool().unwrap_or(false),
             maximized: w["maximized"].as_bool().unwrap_or(false),
             normal: false,
             alive: true,
@@ -675,6 +676,8 @@ impl Table {
     ///   with no `id`, took it away from every window.
     /// - `minimized`: a window was minimized or brought back ([`WindowManagerEvent::Minimize`],
     ///   [`WindowManagerEvent::Restore`]).
+    /// - `fullscreen`: a window went fullscreen or came back from it
+    ///   ([`WindowManagerEvent::FullscreenChange`]).
     /// - `maximized`: a window was maximized or restored, by the user or by komorebi's own
     ///   command ([`WindowManagerEvent::MaximizeChange`]).
     /// - `output`: a window is on another output. It carries the frame the window has now, which
@@ -721,6 +724,7 @@ impl Table {
             Some("removed") => self.on_removed(event, now),
             Some("activated") => self.on_activated(event),
             Some("minimized") => self.on_minimized(event),
+            Some("fullscreen") => self.on_fullscreen(event),
             Some("maximized") => self.on_maximized(event),
             Some("move_resize_step") => self.on_drag_step(event),
             Some("output") => self.on_output(event),
@@ -965,6 +969,28 @@ impl Table {
         } else {
             WindowManagerEvent::Restore(kwin(KWinNotification::WindowRestored), window)
         })]
+    }
+
+    fn on_fullscreen(&mut self, event: &Value) -> Vec<Output> {
+        let fullscreen = event["v"].as_bool().unwrap_or(false);
+        let Some(id) = self.id_of(event) else {
+            return vec![];
+        };
+
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return vec![];
+        };
+        entry.info.fullscreen = fullscreen;
+
+        if !entry.info.normal {
+            return vec![];
+        }
+
+        vec![Output::Event(WindowManagerEvent::FullscreenChange(
+            kwin(KWinNotification::WindowFullScreenChanged),
+            Window::from(id),
+            fullscreen,
+        ))]
     }
 
     fn on_output(&mut self, event: &Value) -> Vec<Output> {
@@ -1460,6 +1486,9 @@ mod tests {
                 "screens -> Monitor Resize",
                 // somebody moves the editor to another output
                 "output -> OutputChange 1",
+                // the user takes the editor fullscreen and back
+                "fullscreen -> FullscreenChange 1",
+                "fullscreen -> FullscreenChange 1",
             ]
         );
 
@@ -1661,6 +1690,33 @@ mod tests {
             events(&t.handle(&json!({ "type": "minimized", "id": "a", "v": false }), now)),
             vec!["Restore 1"]
         );
+    }
+
+    #[test]
+    fn going_fullscreen_and_coming_back_are_events_and_are_remembered() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
+
+        assert_eq!(
+            events(&t.handle(&json!({ "type": "fullscreen", "id": "a", "v": true }), now)),
+            vec!["FullscreenChange 1"]
+        );
+        assert!(t.window(1).unwrap().fullscreen);
+        assert_eq!(
+            events(&t.handle(&json!({ "type": "fullscreen", "id": "a", "v": false }), now)),
+            vec!["FullscreenChange 1"]
+        );
+        assert!(!t.window(1).unwrap().fullscreen);
+    }
+
+    #[test]
+    fn a_window_that_is_fullscreen_when_the_script_starts_is_fullscreen() {
+        let mut fullscreen = win("a", &["d1"]);
+        fullscreen["fullscreen"] = json!(true);
+        let t = table(vec![fullscreen, win("b", &["d1"])]);
+
+        assert!(t.window(1).unwrap().fullscreen);
+        assert!(!t.window(2).unwrap().fullscreen);
     }
 
     #[test]

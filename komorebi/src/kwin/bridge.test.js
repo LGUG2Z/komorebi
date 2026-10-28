@@ -61,8 +61,10 @@ function geometry(x, y, width, height) {
 // `closeWindow` closes it once it is in a KWin. `setMaximize` sets `maximizeMode` the way KWin's
 // does, raises `maximizedChanged` when the mode changes, and records what it was asked in
 // `maximizations`: the user's title bar calls it too, so a test maximizes a window for the user by
-// calling it. `place` is where KWin puts the window when it is asked for a frame: where it was
-// asked, unless a test says otherwise.
+// calling it. `fullScreen` is a plain property: nothing the bridge does changes it, so a test sets
+// it and raises `fullScreenChanged` as KWin does when the user takes a window fullscreen. `place`
+// is where KWin puts the window when it is asked for a frame: where it was asked, unless a test
+// says otherwise.
 function window({
     id,
     minimized = false,
@@ -101,6 +103,7 @@ function window({
         output: null,
         frameGeometryChanged: new Signal(),
         minimizedChanged: new Signal(),
+        fullScreenChanged: new Signal(),
         outputChanged: new Signal(),
         maximizedChanged: new Signal(),
         captionChanged: new Signal(),
@@ -411,6 +414,12 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     editor.output = { name: "DP-2" };
     editor.outputChanged.emit();
 
+    // the user takes the editor fullscreen and back
+    editor.fullScreen = true;
+    editor.fullScreenChanged.emit();
+    editor.fullScreen = false;
+    editor.fullScreenChanged.emit();
+
     assert.deepStrictEqual(k.events(), events);
     assert.deepStrictEqual(editor.frameGeometry, geometry(40, 30, 1040, 1050));
     assert.equal(k.workspace.activeWindow, editor);
@@ -640,6 +649,36 @@ test("a window maximized one way only is not maximized", () => {
     assert.deepStrictEqual(
         snapshot.windows.map((w) => w.maximized),
         [false, false, false, true],
+    );
+});
+
+test("a window that goes fullscreen or comes back from it is reported as it is now", () => {
+    const w = window({ id: "{w}" });
+    const k = kwin({ windows: [w] });
+
+    w.fullScreen = true;
+    w.fullScreenChanged.emit();
+    w.fullScreen = false;
+    w.fullScreenChanged.emit();
+
+    assert.deepStrictEqual(
+        k.events().slice(1).map((e) => [e.type, e.id, e.v]),
+        [
+            ["fullscreen", "{w}", true],
+            ["fullscreen", "{w}", false],
+        ],
+    );
+});
+
+test("a window that is fullscreen when the script starts is reported as fullscreen", () => {
+    const windows = [window({ id: "{a}" }), window({ id: "{b}", fullScreen: true })];
+    const k = kwin({ windows });
+
+    const [snapshot] = k.events();
+
+    assert.deepStrictEqual(
+        snapshot.windows.map((w) => w.fullscreen),
+        [false, true],
     );
 });
 

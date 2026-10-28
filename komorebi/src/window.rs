@@ -219,13 +219,27 @@ impl Window {
     ///
     /// A window whose edge the user is dragging ([`live_resize_begins`]) is not moved: it is the
     /// user's until they let go.
+    ///
+    /// A fullscreen window is left where it is, and the call succeeds.
     pub fn set_position(self, rect: &Rect) -> eyre::Result<()> {
         // the window the user is dragging an edge of is theirs until they let go
         if is_live_resized(self.id) {
             return Ok(());
         }
 
+        // A fullscreen window covers the monitor on purpose: moving it would take it out of
+        // fullscreen, or be ignored. It goes back to its tile when it leaves fullscreen.
+        if self.is_fullscreen() {
+            tracing::debug!("not moving window {}: it is fullscreen", self.id);
+            return Ok(());
+        }
+
         backend().set_rect(self.id, rect)
+    }
+
+    /// Returns true if and only if the window is fullscreen
+    pub fn is_fullscreen(self) -> bool {
+        backend().window(self.id).is_some_and(|w| w.fullscreen)
     }
 
     /// Asks the compositor to draw the window with this opacity, 255 being not see-through at all
@@ -1020,6 +1034,35 @@ mod tests {
             Window::from(210).restore();
             assert!(!HIDDEN_WINDOWS.lock().contains(&210));
         });
+    }
+
+    #[test]
+    fn a_fullscreen_window_is_not_moved_and_is_again_when_it_is_not_fullscreen() -> eyre::Result<()>
+    {
+        let fake = fake_with(211);
+        let tile = Rect {
+            left: 0,
+            top: 0,
+            right: 960,
+            bottom: 1050,
+        };
+
+        with_backend(fake.clone(), || {
+            let window = Window::from(211);
+            assert!(!window.is_fullscreen());
+
+            fake.set_fullscreen(211, true);
+            assert!(window.is_fullscreen());
+            window.set_position(&tile)?;
+            assert_ne!(window.rect()?, tile);
+            assert!(fake.commands().is_empty());
+
+            fake.set_fullscreen(211, false);
+            assert!(!window.is_fullscreen());
+            window.set_position(&tile)?;
+            assert_eq!(window.rect()?, tile);
+            Ok(())
+        })
     }
 
     #[test]

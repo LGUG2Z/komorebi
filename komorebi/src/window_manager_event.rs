@@ -41,6 +41,8 @@ pub enum KWinNotification {
     WindowMinimized,
     /// `window.minimizedChanged` to false
     WindowRestored,
+    /// `window.fullScreenChanged`
+    WindowFullScreenChanged,
     /// `window.maximizedChanged`
     WindowMaximizedChanged,
     /// `window.outputChanged`
@@ -79,6 +81,8 @@ pub enum WindowManagerEvent {
     Restore(SystemNotification, Window),
     /// The window's title changed
     TitleUpdate(SystemNotification, Window),
+    /// A window went fullscreen (`true`) or came back from it (`false`)
+    FullscreenChange(SystemNotification, Window, bool),
     /// A window is on another output than it was: the user moved it (a shortcut), or KWin did when
     /// an output went away or came back. Where it is now is what the window reports.
     OutputChange(SystemNotification, Window),
@@ -122,6 +126,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(_, window)
             | WindowManagerEvent::Restore(_, window)
             | WindowManagerEvent::TitleUpdate(_, window)
+            | WindowManagerEvent::FullscreenChange(_, window, _)
             | WindowManagerEvent::MaximizeChange(_, window, _)
             | WindowManagerEvent::OutputChange(_, window)
             | WindowManagerEvent::Manage(window)
@@ -153,6 +158,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(n, _)
             | WindowManagerEvent::Restore(n, _)
             | WindowManagerEvent::TitleUpdate(n, _)
+            | WindowManagerEvent::FullscreenChange(n, _, _)
             | WindowManagerEvent::MaximizeChange(n, _, _)
             | WindowManagerEvent::OutputChange(n, _)
             | WindowManagerEvent::MoveStart(n, _)
@@ -213,6 +219,23 @@ mod tests {
         assert_eq!(event.window(), None);
         assert_eq!(event.window_id(), None);
         assert_eq!(event.notification(), "WorkspaceChanged");
+    }
+
+    #[test]
+    fn a_fullscreen_change_says_whether_the_window_went_fullscreen_or_came_back() {
+        let event = WindowManagerEvent::FullscreenChange(
+            SystemNotification::KWin(KWinNotification::WindowFullScreenChanged),
+            Window::from(303),
+            false,
+        );
+
+        assert_eq!(event.window_id(), Some(303));
+        assert_eq!(event.notification(), "WindowFullScreenChanged");
+        assert_eq!(event.to_string(), "FullscreenChange");
+        assert!(matches!(
+            event,
+            WindowManagerEvent::FullscreenChange(_, _, false)
+        ));
     }
 
     #[test]

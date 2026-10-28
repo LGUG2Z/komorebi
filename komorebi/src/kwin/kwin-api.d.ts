@@ -96,6 +96,7 @@ interface KWinWindow {
     desktops: VirtualDesktop[];
     readonly frameGeometryChanged: Signal<[oldGeometry: QRectF]>;
     readonly minimizedChanged: Signal;
+    readonly fullScreenChanged: Signal;
     readonly outputChanged: Signal;
     readonly maximizedChanged: Signal;
     readonly captionChanged: Signal;

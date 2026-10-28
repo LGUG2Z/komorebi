@@ -30,6 +30,11 @@
 //! - **Minimize**: a window the user minimized leaves its workspace and the rest are tiled
 //!   again; **Restore** brings it back in a container of its own. A minimize of a window komorebi
 //!   hid ([`struct@HIDDEN_WINDOWS`]) is not the user's, and changes nothing.
+//! - **FullscreenChange**: a window that is fullscreen stays in its container but is left where it
+//!   is ([`Window::set_position`] does nothing for it), and the other windows are tiled as if it
+//!   were not fullscreen. When it comes back from fullscreen the compositor gives it the frame it
+//!   had before, which may not be the tile it has now, so the workspace is tiled again if it is
+//!   the one in front.
 //! - **MaximizeChange**: a window the compositor maximized, which komorebi did not ask for (the
 //!   title bar, a double click, a shortcut), becomes the workspace's maximized window, as
 //!   `ToggleMaximize` makes the focused window, and one the user restored goes back in a container
@@ -81,6 +86,7 @@
 //!
 //! [`Window::should_manage`]: crate::window::Window::should_manage
 //! [`Monitor::assign_windows_to_workspaces`]: crate::monitor::Monitor::assign_windows_to_workspaces
+//! [`Window::set_position`]: crate::window::Window::set_position
 
 use crate::FLOATING_APPLICATIONS;
 use crate::HIDDEN_WINDOWS;
@@ -304,6 +310,20 @@ impl WindowManager {
             }
             WindowManagerEvent::MaximizeChange(_, _, maximized) => {
                 self.adopt_maximize_change(window_id, maximized)?;
+            }
+            WindowManagerEvent::FullscreenChange(_, _, fullscreen) => {
+                // While it is fullscreen the window is left alone. Coming back, KWin gives it the
+                // frame it had before, which may not be the tile it has now.
+                if !fullscreen
+                    && let Some((m_idx, w_idx)) = self.known_window_ids.get(&window_id).cloned()
+                {
+                    let offset = self.work_area_offset;
+                    if let Some(monitor) = self.monitors_mut().get_mut(m_idx)
+                        && monitor.focused_workspace_idx() == w_idx
+                    {
+                        monitor.update_focused_workspace(offset)?;
+                    }
+                }
             }
             WindowManagerEvent::WorkspaceMove(_, _, idx) => {
                 // somebody put the window on another workspace's desktop: it belongs there now.

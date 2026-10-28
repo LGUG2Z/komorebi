@@ -658,3 +658,16 @@ the layout as `toggle-maximize` makes a window leave it, and what is asked of th
 nothing "until it is restored, by `toggle-maximize` or by the user" (the comment in
 `process_command`). Because the report is the same either way, one comparison serves both: a window
 that is, or is not, already the workspace's maximized window changes nothing.
+
+## Why does komorebi leave a fullscreen window alone, and tile the workspace when it comes back?
+
+Because the window covers the monitor on purpose. The comment in
+[`Window::set_position`](../../komorebi/src/window.rs) says that "moving it would take it out of
+fullscreen, or be ignored", and that "it goes back to its tile when it leaves fullscreen". The
+window stays in its container, so the other windows are tiled as if it were not fullscreen, and
+every move the window manager makes goes through `set_position`, which is where the window is
+skipped. When the window comes back, "KWin gives it the frame it had before, which may not be the
+tile it has now" (the comment in `handle_event`), so the workspace is tiled again. The bridge's
+second request for a position gives up after three tries for the same reason: so that a window that
+cannot go where it was asked, "a fullscreen one, say", is left alone rather than chased (the comment
+on `settle` in [`bridge.js`](../../komorebi/src/kwin/bridge.js)).

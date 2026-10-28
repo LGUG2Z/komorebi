@@ -44,6 +44,7 @@ the floating ones,
 [Monocle](usage/monocle.md) how to give one window the whole work area,
 [Maximizing windows](usage/maximizing-windows.md) how to have KWin maximize one, and what
 komorebi does when you maximize one yourself,
+[Fullscreen windows](usage/fullscreen-windows.md) what komorebi does with one,
 [Managing windows](usage/managing-windows.md) how to minimize, close and unmanage the focused
 window and pause the daemon, and
 [Padding and work area offsets](usage/padding-and-offsets.md) how to put gaps around the tiles

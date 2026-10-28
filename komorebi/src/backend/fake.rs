@@ -97,6 +97,8 @@ struct State {
     commands: Vec<Command>,
     /// windows the compositor has maximized, with the frame to give back
     maximized: HashMap<u32, Rect>,
+    /// windows that are fullscreen, with the frame they had before
+    fullscreen: HashMap<u32, Rect>,
     /// how many virtual desktops there are
     desktops: usize,
     /// the desktop every window is on
@@ -282,6 +284,7 @@ impl FakeBackend {
                     bottom: 600,
                 },
                 minimized: false,
+                fullscreen: false,
                 maximized: false,
                 normal: true,
                 alive: true,
@@ -352,6 +355,35 @@ impl FakeBackend {
     /// says so.
     pub fn user_maximize(&self, id: u32, maximize: bool) {
         self.state.lock().set_maximized(id, maximize);
+    }
+
+    /// Puts a window in or out of fullscreen as a compositor does, without the window manager
+    /// being asked, so no command is recorded: the window covers its monitor, and when it leaves
+    /// fullscreen it gets the frame it had before, which may not be where the window manager would
+    /// put it now. A test sends the event that says so.
+    pub fn set_fullscreen(&self, id: u32, fullscreen: bool) {
+        let mut state = self.state.lock();
+        let covers = state
+            .monitor_of(id)
+            .and_then(|m| state.monitors.iter().find(|monitor| monitor.id == m))
+            .map(|monitor| monitor.size);
+
+        if fullscreen {
+            let Some(window) = state.windows.get_mut(&id) else {
+                return;
+            };
+            let before = window.rect;
+            window.fullscreen = true;
+            if let Some(covers) = covers {
+                window.rect = covers;
+            }
+            state.fullscreen.insert(id, before);
+        } else if let Some(before) = state.fullscreen.remove(&id)
+            && let Some(window) = state.windows.get_mut(&id)
+        {
+            window.fullscreen = false;
+            window.rect = before;
+        }
     }
 
     /// Returns true if and only if the window is maximized, by a command or by
@@ -489,6 +521,7 @@ fn permissive_window(id: u32) -> WindowInfo {
         path: format!("/usr/bin/exe{id}"),
         rect: Rect::default(),
         minimized: false,
+        fullscreen: false,
         maximized: false,
         normal: true,
         alive: true,
@@ -823,6 +856,34 @@ mod tests {
         fake.user_maximize(1, false);
 
         assert!(!fake.window(1).expect("window 1 was opened").maximized);
+        assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
+    }
+
+    #[test]
+    fn a_fullscreen_window_covers_its_monitor_and_gets_its_frame_back() {
+        let fake = fake_with(&[1]);
+        fake.set_rect(1, &tile(100, 200)).unwrap();
+        fake.clear_commands();
+
+        fake.set_fullscreen(1, true);
+
+        assert!(fake.window(1).expect("window 1 was opened").fullscreen);
+        assert!(fake.windows()[0].fullscreen);
+        assert_eq!(
+            fake.rect_of(1),
+            Some(Rect {
+                left: 0,
+                top: 0,
+                right: 1920,
+                bottom: 1080,
+            }),
+            "the whole monitor, panel included"
+        );
+        assert!(fake.commands().is_empty());
+
+        fake.set_fullscreen(1, false);
+
+        assert!(!fake.window(1).expect("window 1 was opened").fullscreen);
         assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
     }
 
