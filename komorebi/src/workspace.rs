@@ -712,89 +712,115 @@ impl Workspace {
             } else if let Some(window) = &mut self.maximized_window {
                 window.maximize();
             } else if !self.containers().is_empty() {
-                let effective_layout_options = self.effective_layout_options();
-
-                tracing::debug!(
-                    "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",
-                    self.name.as_deref().unwrap_or("unnamed"),
-                    effective_layout_options,
-                    self.layout_options,
-                    self.layout_options_rules.len(),
-                );
-                let mut layouts = if self.is_scrolling() {
-                    self.layout_scrolling(&adjusted_work_area, container_padding)
-                        .into_iter()
-                        .map(|placement| placement.rect)
-                        .collect()
-                } else {
-                    self.layout.as_boxed_arrangement().calculate(
-                        &adjusted_work_area,
-                        NonZeroUsize::new(self.containers().len()).ok_or_eyre(
-                            "there must be at least one container to calculate a workspace layout",
-                        )?,
-                        Some(container_padding),
-                        self.layout_flip,
-                        &self.resize_dimensions,
-                        self.focused_container_idx(),
-                        effective_layout_options,
-                        &self.latest_layout,
-                    )
-                };
-
-                let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
-                let no_titlebar = NO_TITLEBAR.lock().clone();
-                let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
-
-                let containers = self.containers_mut();
-
-                for (i, container) in containers.iter_mut().enumerate() {
-                    let window_count = container.windows().len();
-
-                    if let Some(layout) = layouts.get_mut(i) {
-                        layout.add_padding(border_offset);
-                        layout.add_padding(border_width);
-
-                        if stackbar_manager::should_have_stackbar(window_count) {
-                            let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
-                            let total_height = tab_height + container_padding;
-
-                            layout.top += total_height;
-                            layout.bottom -= total_height;
-                        }
-
-                        for window in container.windows() {
-                            if container
-                                .focused_window()
-                                .is_some_and(|w| w.hwnd == window.hwnd)
-                            {
-                                let should_remove_titlebar_for_window = should_act(
-                                    &window.title().unwrap_or_default(),
-                                    &window.exe().unwrap_or_default(),
-                                    &window.class().unwrap_or_default(),
-                                    &window.path().unwrap_or_default(),
-                                    &no_titlebar,
-                                    &regex_identifiers,
-                                )
-                                .is_some();
-
-                                if should_remove_titlebars && should_remove_titlebar_for_window {
-                                    window.remove_title_bar()?;
-                                } else if should_remove_titlebar_for_window {
-                                    window.add_title_bar()?;
-                                }
-
-                                // If a window has been unmaximized via toggle-maximize, this block
-                                // will make sure that it is unmaximized via restore_window
-                                if window.is_maximized() && !managed_maximized_window {
-                                    WindowsApi::restore_window(window.hwnd);
-                                }
-                            }
-                            window.set_position(layout, false)?;
-                        }
-                    }
+                // windows that were not what they were told to be since the last layout, which
+                // is something that animations only show once they are done
+                let around_window = container_padding + border_offset + border_width;
+                if self.is_scrolling() && crate::scrolling::animations_enabled() {
+                    self.adopt_actual_widths(around_window, adjusted_work_area.right);
                 }
 
-                self.latest_layout = layouts;
+                let mut pass = 0;
+                loop {
+                    let effective_layout_options = self.effective_layout_options();
+
+                    tracing::debug!(
+                        "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",
+                        self.name.as_deref().unwrap_or("unnamed"),
+                        effective_layout_options,
+                        self.layout_options,
+                        self.layout_options_rules.len(),
+                    );
+                    let mut layouts = if self.is_scrolling() {
+                        self.layout_scrolling(&adjusted_work_area, container_padding)
+                            .into_iter()
+                            .map(|placement| placement.rect)
+                            .collect()
+                    } else {
+                        self.layout.as_boxed_arrangement().calculate(
+                            &adjusted_work_area,
+                            NonZeroUsize::new(self.containers().len()).ok_or_eyre(
+                                "there must be at least one container to calculate a workspace layout",
+                            )?,
+                            Some(container_padding),
+                            self.layout_flip,
+                            &self.resize_dimensions,
+                            self.focused_container_idx(),
+                            effective_layout_options,
+                            &self.latest_layout,
+                        )
+                    };
+
+                    let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
+                    let no_titlebar = NO_TITLEBAR.lock().clone();
+                    let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
+
+                    let containers = self.containers_mut();
+
+                    for (i, container) in containers.iter_mut().enumerate() {
+                        let window_count = container.windows().len();
+
+                        if let Some(layout) = layouts.get_mut(i) {
+                            layout.add_padding(border_offset);
+                            layout.add_padding(border_width);
+
+                            if stackbar_manager::should_have_stackbar(window_count) {
+                                let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+                                let total_height = tab_height + container_padding;
+
+                                layout.top += total_height;
+                                layout.bottom -= total_height;
+                            }
+
+                            for window in container.windows() {
+                                if container
+                                    .focused_window()
+                                    .is_some_and(|w| w.hwnd == window.hwnd)
+                                {
+                                    let should_remove_titlebar_for_window = should_act(
+                                        &window.title().unwrap_or_default(),
+                                        &window.exe().unwrap_or_default(),
+                                        &window.class().unwrap_or_default(),
+                                        &window.path().unwrap_or_default(),
+                                        &no_titlebar,
+                                        &regex_identifiers,
+                                    )
+                                    .is_some();
+
+                                    if should_remove_titlebars && should_remove_titlebar_for_window
+                                    {
+                                        window.remove_title_bar()?;
+                                    } else if should_remove_titlebar_for_window {
+                                        window.add_title_bar()?;
+                                    }
+
+                                    // If a window has been unmaximized via toggle-maximize, this block
+                                    // will make sure that it is unmaximized via restore_window
+                                    if window.is_maximized() && !managed_maximized_window {
+                                        WindowsApi::restore_window(window.hwnd);
+                                    }
+                                }
+                                window.set_position(layout, false)?;
+                            }
+                        }
+                    }
+
+                    self.latest_layout = layouts;
+
+                    // with animations off every window that changed width has been asked what it
+                    // is by now, so a window that refused is known, and everything after it is
+                    // placed again with room for it. Once is enough: a layout is never made to
+                    // chase the sizes that are read back this time round.
+                    if pass == 0
+                        && self.is_scrolling()
+                        && !crate::scrolling::animations_enabled()
+                        && self.adopt_actual_widths(around_window, adjusted_work_area.right)
+                    {
+                        pass += 1;
+                        continue;
+                    }
+
+                    break;
+                }
             }
         }
 

@@ -4,6 +4,11 @@
 //! `komorebi-scrolling` crate, so that every komorebi shares it. What is here is what needs a
 //! [`Workspace`]: a container is a tile in the strip, and is known to it by its id.
 
+use crate::WINDOW_HANDLING_BEHAVIOUR;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_MANAGER;
+use crate::animation::prefix::AnimationPrefix;
 use crate::container::Container;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
@@ -12,6 +17,8 @@ use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::ScrollingLayoutOptions;
 use crate::core::Sizing;
+use crate::core::WindowHandlingBehaviour;
+use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
 use color_eyre::eyre;
 use komorebi_layouts::scrolling;
@@ -25,7 +32,98 @@ pub(crate) fn scrolling_options(layout_options: Option<LayoutOptions>) -> Option
     scrolling::scrolling_options(layout_options)
 }
 
+/// How much wider than its column a window can be before it is taken to refuse to be narrower.
+const WIDTH_TOLERANCE: i32 = 16;
+
+/// Whether what windows say about their size can be trusted to be what they will stay at: their
+/// moves are done by the time they are asked, and none is being animated.
+fn window_sizes_are_settled() -> bool {
+    matches!(
+        WINDOW_HANDLING_BEHAVIOUR.load(),
+        WindowHandlingBehaviour::Sync
+    ) && ANIMATION_MANAGER.lock().count() == 0
+}
+
+/// Whether windows that are moved are animated to where they go.
+pub(crate) fn animations_enabled() -> bool {
+    ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
+        || ANIMATION_ENABLED_PER_ANIMATION
+            .lock()
+            .get(&AnimationPrefix::Movement)
+            .is_some_and(|enabled| *enabled)
+}
+
 impl Workspace {
+    /// Learn from what windows turned out to be when they were sent to where the layout put them,
+    /// which is that some of them are wider than the layout said and will not be any narrower.
+    ///
+    /// A column is never made narrower than the window in it needs, and everything after it is
+    /// placed where it ends. Only ever wider: what an app will not do is a fact about the app, and
+    /// a limit that came and went would make the strip bounce between two layouts.
+    ///
+    /// `around_window` is what a column takes up around its window on either side, and the strip
+    /// is `viewport_width` wide. Returns whether any column changed.
+    pub(crate) fn adopt_actual_widths(&mut self, around_window: i32, viewport_width: i32) -> bool {
+        // a window that is still on its way, or whose move was only asked for, is not what it
+        // is going to be, and taking its size for a minimum would make the column too wide for good
+        if !window_sizes_are_settled() {
+            return false;
+        }
+
+        let Some(space) = self.scrolling.as_mut() else {
+            return false;
+        };
+
+        let mut adopted = false;
+
+        for (idx, container) in self.containers.elements().iter().enumerate() {
+            let Some(placed) = self.latest_layout.get(idx) else {
+                continue;
+            };
+
+            // a stack is one tile and as wide as the widest of its windows needs
+            let excess = container
+                .windows()
+                .iter()
+                .filter_map(|window| WindowsApi::window_rect(window.hwnd).ok())
+                .map(|actual| actual.right - placed.right)
+                .max()
+                .unwrap_or_default();
+
+            // a window that is not wider than it was sent to be, give or take what rounding, the
+            // borders of the window and a terminal's grid of cells do to it, has nothing to say
+            if excess <= WIDTH_TOLERANCE {
+                continue;
+            }
+
+            let Some(width) = space.column_width(&container.id) else {
+                continue;
+            };
+            let Some((min, max)) = space.width_limits(&container.id) else {
+                continue;
+            };
+
+            let needed = ((width.round() as i32) + excess)
+                .min(viewport_width)
+                .max(around_window);
+
+            if min.is_some_and(|min| min >= needed) {
+                continue;
+            }
+
+            tracing::info!(
+                "a window in column {} is {excess}px wider than the {}px that it was placed at, so the column will not be narrower than {needed}px",
+                container.id,
+                placed.right
+            );
+
+            space.set_width_limits(&container.id, Some(needed), max);
+            adopted = true;
+        }
+
+        adopted
+    }
+
     /// Whether the workspace is laid out as a strip of columns.
     pub(crate) fn is_scrolling(&self) -> bool {
         matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
@@ -455,13 +553,21 @@ impl Workspace {
 
     /// Put every column back to the width that the `columns` option gives, which forgets every
     /// width that was set by resizing, by a preset, or by taking the full width, and every window
-    /// back to an equal share of the height of its column.
+    /// back to an equal share of the height of its column. The narrowest that windows were found
+    /// to accept is forgotten as well.
     ///
     /// The focused column stays where it is on screen unless it has to scroll to stay in view.
     pub(crate) fn reset_scrolling_sizes(&mut self) {
         if let Some(space) = self.scrolling.as_mut() {
             space.reset_widths();
             space.reset_heights();
+
+            // what windows were found to refuse is forgotten too, to be found out again if it is
+            // still so: a limit that was learned wrongly would otherwise survive the one command
+            // that is there to put everything back
+            for id in space.ids() {
+                space.set_width_limits(&id, None, None);
+            }
         }
     }
 
