@@ -159,6 +159,10 @@ cycle-focus next
 cycle-focus previous
 cycle-move next
 cycle-move previous
+stack left
+unstack
+stack-all
+unstack-all
 resize-edge left increase
 resize-edge right decrease
 resize-edge up increase
@@ -192,6 +196,14 @@ toggle-tiling
 toggle-tiling
 toggle-pause
 toggle-pause
+toggle-window-container-behaviour
+toggle-window-container-behaviour
+toggle-float-override
+toggle-float-override
+toggle-workspace-window-container-behaviour
+toggle-workspace-window-container-behaviour
+toggle-workspace-float-override
+toggle-workspace-float-override
 ensure-named-workspaces 0 one two three
 workspace-name 0 0 one
 ensure-workspaces 0 3

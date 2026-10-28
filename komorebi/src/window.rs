@@ -9,9 +9,14 @@
 //! [`Window::should_manage`] decides whether komorebi manages a window: it has to be a normal
 //! application window that is alive, and then the ignore and manage rules decide
 //! ([`should_act`], [`should_act_individual`]), writing what they found to a [`RuleDebug`].
+//!
+//! [`Window::hide`] takes a window out of sight, which is what a stack does with every window but
+//! the one in front, and records it in [`struct@HIDDEN_WINDOWS`] so that the window manager does
+//! not mistake what the compositor reports about it for the user's doing.
 
 use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
+use crate::HIDDEN_WINDOWS;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::PERMAIGNORE_CLASSES;
@@ -202,12 +207,37 @@ impl Window {
         backend().close(self.id)
     }
 
+    /// Minimizes the window, as the user asking for it would. [`Window::hide`] is what komorebi
+    /// does to keep the back of a stack out of the way.
     pub fn minimize(self) -> eyre::Result<()> {
         backend().minimize(self.id)
     }
 
     pub fn unminimize(self) -> eyre::Result<()> {
         backend().unminimize(self.id)
+    }
+
+    /// Takes the window out of sight ([`Backend::hide`](crate::backend::Backend::hide)): the back
+    /// of a stack, which on KDE goes to a virtual desktop nobody looks at
+    ///
+    /// The id is recorded in [`struct@HIDDEN_WINDOWS`] first, so that what the compositor reports
+    /// about the window because of this (a move to another desktop) is not mistaken for something
+    /// the user did. A backend that cannot hide the window is logged and not returned: the window
+    /// stays where it is, and stays recorded as hidden until [`Window::restore`].
+    pub fn hide(self) {
+        HIDDEN_WINDOWS.lock().insert(self.id);
+        if let Err(error) = backend().hide(self.id) {
+            tracing::warn!("failed to hide window {}: {error}", self.id);
+        }
+    }
+
+    /// Brings a window [hidden](Window::hide) back, and takes it out of
+    /// [`struct@HIDDEN_WINDOWS`]. A failure is logged, as for [`Window::hide`].
+    pub fn restore(self) {
+        HIDDEN_WINDOWS.lock().remove(&self.id);
+        if let Err(error) = backend().restore(self.id) {
+            tracing::warn!("failed to restore window {}: {error}", self.id);
+        }
     }
 
     /// Moves the window to the middle of `work_area`, keeping its size, or with `resize` making it
@@ -879,6 +909,8 @@ mod tests {
             window.raise()?;
             window.minimize()?;
             window.unminimize()?;
+            window.hide();
+            window.restore();
             window.close()
         })?;
 
@@ -890,10 +922,44 @@ mod tests {
                 Command::Raise(203),
                 Command::Minimize(203),
                 Command::Unminimize(203),
+                Command::Hide(203),
+                Command::Restore(203),
                 Command::Close(203),
             ]
         );
         Ok(())
+    }
+
+    #[test]
+    fn a_window_komorebi_hid_is_recorded_until_it_is_restored() {
+        let fake = fake_with(209);
+
+        with_backend(fake.clone(), || {
+            let window = Window::from(209);
+
+            window.hide();
+            assert!(HIDDEN_WINDOWS.lock().contains(&209));
+            assert!(fake.is_hidden(209));
+
+            window.restore();
+            assert!(!HIDDEN_WINDOWS.lock().contains(&209));
+            assert!(!fake.is_hidden(209));
+        });
+    }
+
+    #[test]
+    fn a_window_the_backend_cannot_hide_is_recorded_all_the_same() {
+        let fake = Arc::new(FakeBackend::with_one_monitor());
+
+        with_backend(fake.clone(), || {
+            Window::from(210).hide();
+
+            assert!(HIDDEN_WINDOWS.lock().contains(&210));
+            assert!(!fake.is_hidden(210));
+
+            Window::from(210).restore();
+            assert!(!HIDDEN_WINDOWS.lock().contains(&210));
+        });
     }
 
     #[test]

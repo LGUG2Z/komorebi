@@ -42,6 +42,13 @@
 //! When something other than komorebi does either, the script reports it, and the table turns it
 //! into a [`WorkspaceChange`] or a [`WorkspaceMove`] for the window manager to follow.
 //!
+//! Hiding a window ([`Backend::hide`]) moves it to one more desktop, `komorebi-park`, that nobody
+//! looks at and that is not a workspace; [`Backend::restore`] moves it back to the desktop of its
+//! workspace. KWin saves its desktops in `kwinrc` as soon as one is made, so a desktop that
+//! komorebi made and did not remove would be there for every later session: komorebi removes it
+//! when it stops, and one that an earlier run left (it was killed, or the session was torn down
+//! under it) is found in the first snapshot, its windows are sent home and it is removed.
+//!
 //! [`WorkspaceChange`]: crate::window_manager_event::WindowManagerEvent::WorkspaceChange
 //! [`WorkspaceMove`]: crate::window_manager_event::WindowManagerEvent::WorkspaceMove
 //!
@@ -67,7 +74,9 @@ use parking_lot::Mutex;
 use serde_json::Value;
 use serde_json::json;
 use state::NeedsDesktops;
+use state::NeedsPark;
 use state::Output;
+use state::PARK_DESKTOP_NAME;
 use state::Table;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -142,6 +151,7 @@ impl Shared {
         for output in outputs {
             match output {
                 Output::Event(event) => window_manager_event_listener::send_notification(event),
+                Output::Command(command) => self.push(command),
                 Output::Cursor { token, x, y } => {
                     if let Some(waiter) = self.cursor_waiters.lock().remove(&token) {
                         let _ = waiter.send((x, y));
@@ -188,6 +198,9 @@ impl Events {
 
         if is_snapshot {
             self.shared.mark_ready();
+            // a parking desktop in a snapshot is one nobody is using: from an earlier run, or one
+            // that KWin kept in its configuration when it restarted under this one
+            sweep_stale_park(&self.shared);
         }
     }
 }
@@ -526,6 +539,23 @@ async fn supervise(shared: Arc<Shared>) {
     }
 }
 
+/// Removes the parking desktop an earlier run left behind, once its windows have moved home: the
+/// snapshot that found it sent them, and they take a moment to get there
+fn sweep_stale_park(shared: &Arc<Shared>) {
+    let Some(stale) = shared.table.lock().stale_park().map(String::from) else {
+        return;
+    };
+
+    let shared = shared.clone();
+    shared.handle.clone().spawn(async move {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        if let Err(error) = remove_desktop(&shared, &stale).await {
+            tracing::warn!("could not remove the stale parking desktop: {error}");
+        }
+        shared.table.lock().clear_stale_park();
+    });
+}
+
 async fn desktop_manager(shared: &Shared) -> eyre::Result<Proxy<'static>> {
     let connection = shared.connection().await?;
     // uncached: a property read right after createDesktop must not return the list from before it
@@ -543,6 +573,33 @@ async fn desktops(manager: &Proxy<'static>) -> eyre::Result<Vec<(u32, String, St
     Ok(manager.get_property("desktops").await?)
 }
 
+/// The id of the desktop windows are hidden on, which is made when there is none: not the one an
+/// earlier run left, which is about to go and would take the windows with it
+async fn create_park_desktop(shared: &Shared) -> eyre::Result<String> {
+    let manager = desktop_manager(shared).await?;
+
+    let stale = shared.table.lock().stale_park().map(String::from);
+    let ours = |(_, id, name): &(u32, String, String)| {
+        name == PARK_DESKTOP_NAME && Some(id.as_str()) != stale.as_deref()
+    };
+
+    if let Some((_, id, _)) = desktops(&manager).await?.into_iter().find(ours) {
+        return Ok(id);
+    }
+
+    let count: u32 = manager.get_property("count").await?;
+    manager
+        .call_method("createDesktop", &(count, PARK_DESKTOP_NAME))
+        .await?;
+
+    desktops(&manager)
+        .await?
+        .into_iter()
+        .find(ours)
+        .map(|(_, id, _)| id)
+        .ok_or_eyre("KWin did not create the parking desktop")
+}
+
 /// "Desktop 2" is what KWin calls a desktop nobody named, and "Workspace 2" what komorebi calls one
 /// it made for a workspace that has no name: neither is anyone's choice.
 fn is_placeholder(name: &str) -> bool {
@@ -557,16 +614,23 @@ fn is_placeholder(name: &str) -> bool {
 async fn create_workspace_desktops(shared: &Shared, names: &[String]) -> eyre::Result<()> {
     let manager = desktop_manager(shared).await?;
     let existing = desktops(&manager).await?;
-    let have = existing.len();
+    let have = existing
+        .iter()
+        .filter(|(_, _, name)| name != PARK_DESKTOP_NAME)
+        .count();
 
     for (position, name) in names.iter().enumerate().skip(have) {
+        // by position, so that the parking desktop stays last
         manager
             .call_method("createDesktop", &(position as u32, name.as_str()))
             .await?;
     }
 
     // the ones nobody named take the workspaces' names; the ones somebody did keep theirs
-    for ((_, id, name), wanted) in existing.iter().zip(names) {
+    let nameable = existing
+        .iter()
+        .filter(|(_, _, name)| name != PARK_DESKTOP_NAME);
+    for ((_, id, name), wanted) in nameable.zip(names) {
         if is_placeholder(name) && !is_placeholder(wanted) {
             manager
                 .call_method("setDesktopName", &(id.as_str(), wanted.as_str()))
@@ -579,6 +643,12 @@ async fn create_workspace_desktops(shared: &Shared, names: &[String]) -> eyre::R
         .table
         .lock()
         .set_desktops(after.into_iter().map(|(_, id, name)| (id, name)).collect());
+    Ok(())
+}
+
+async fn remove_desktop(shared: &Shared, id: &str) -> eyre::Result<()> {
+    let manager = desktop_manager(shared).await?;
+    manager.call_method("removeDesktop", &(id,)).await?;
     Ok(())
 }
 
@@ -690,6 +760,47 @@ impl Backend for KWinBackend {
         self.command(id, |uuid| json!({ "op": "raise", "id": uuid }))
     }
 
+    fn hide(&self, id: u32) -> eyre::Result<()> {
+        self.shared
+            .table
+            .lock()
+            .uuid(id)
+            .ok_or_eyre("there is no such window")?;
+
+        let commands = loop {
+            let attempt = self.shared.table.lock().hide_commands(id);
+            match attempt {
+                Ok(commands) => break commands,
+                Err(NeedsPark) => {
+                    let shared = self.shared.clone();
+                    let park = self
+                        .shared
+                        .block_on(async move { create_park_desktop(&shared).await })??;
+                    self.shared.table.lock().set_park(park);
+                }
+            }
+        };
+
+        for command in commands {
+            self.shared.push(command);
+        }
+        Ok(())
+    }
+
+    fn restore(&self, id: u32) -> eyre::Result<()> {
+        self.shared
+            .table
+            .lock()
+            .uuid(id)
+            .ok_or_eyre("there is no such window")?;
+
+        let commands = self.shared.table.lock().restore_commands(id);
+        for command in commands {
+            self.shared.push(command);
+        }
+        Ok(())
+    }
+
     fn ensure_workspaces(&self, names: &[String]) -> eyre::Result<()> {
         let shared = self.shared.clone();
         let names = names.to_vec();
@@ -760,10 +871,28 @@ impl Backend for KWinBackend {
     }
 
     fn shutdown(&self) {
-        // the script goes with komorebi: KWin would otherwise keep running it, reporting to nobody
+        // the window manager has already restored every window it hid. What is left is the parking
+        // desktop, which KWin would otherwise keep in the user's configuration, and the script,
+        // which KWin would otherwise keep running, reporting to nobody
+        let park = self.shared.table.lock().park_desktop().map(String::from);
         let shared = self.shared.clone();
 
         let told_kwin = self.shared.block_on(async move {
+            // let the restoring commands reach the script before the desktop goes
+            for _ in 0..40 {
+                if shared.queue.lock().is_empty() {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+            tokio::time::sleep(Duration::from_millis(300)).await;
+
+            if let Some(park) = park
+                && let Err(error) = remove_desktop(&shared, &park).await
+            {
+                tracing::warn!("could not remove the parking desktop: {error}");
+            }
+
             // every setting of KWin's that komorebi changed
             if let Ok(connection) = shared.connection().await
                 && let Some(kwinrc) = &shared.kwinrc
@@ -902,6 +1031,55 @@ mod tests {
         let (runtime, backend) = offline();
 
         assert!(backend.focus(7, false).is_err());
+        assert!(backend.hide(7).is_err());
+        assert!(backend.restore(7).is_err());
+        assert_eq!(next_poll(&runtime, &backend), json!([]));
+    }
+
+    #[test]
+    fn hiding_a_window_sends_it_to_the_parking_desktop_and_restoring_it_sends_it_home() {
+        let (runtime, backend) = offline();
+        {
+            let mut table = backend.shared.table.lock();
+            table.handle(
+                &json!({
+                    "type": "snapshot",
+                    "windows": [{
+                        "id": "{a}", "pid": 0, "class": "foot", "caption": "a terminal",
+                        "normal": true, "minimized": false, "desktops": ["d1"],
+                        "geo": { "x": 0, "y": 0, "w": 800, "h": 600 },
+                    }],
+                    "screens": [],
+                    "desktops": [
+                        { "id": "d1", "name": "Desktop 1" },
+                        { "id": "p1", "name": PARK_DESKTOP_NAME },
+                    ],
+                    "current_desktops": [],
+                    "active": null,
+                    "cursor": { "x": 0, "y": 0 },
+                }),
+                Instant::now(),
+            );
+            // a snapshot that has the parking desktop has one left from an earlier run; this
+            // run's is the one it makes itself
+            table.clear_stale_park();
+            table.set_park(String::from("p1"));
+        }
+
+        backend.hide(1).unwrap();
+        assert_eq!(
+            next_poll(&runtime, &backend),
+            json!([{ "batch": 1, "cmds": [{ "op": "desktop", "id": "{a}", "v": "p1" }] }])
+        );
+
+        backend.restore(1).unwrap();
+        assert_eq!(
+            next_poll(&runtime, &backend),
+            json!([{ "batch": 2, "cmds": [{ "op": "desktop", "id": "{a}", "v": "d1" }] }])
+        );
+
+        // a window that is not hidden is not sent anywhere
+        backend.restore(1).unwrap();
         assert_eq!(next_poll(&runtime, &backend), json!([]));
     }
 

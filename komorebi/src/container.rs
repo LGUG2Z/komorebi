@@ -4,6 +4,10 @@
 //! the container is put on that tile. A new window gets a container of its own
 //! ([`Workspace::new_container_for_window`](crate::workspace::Workspace::new_container_for_window)).
 //!
+//! A container with more than one window is a stack: the focused window is the one in front, and
+//! the others are hidden ([`Window::hide`]) until they are given the tile
+//! ([`Container::load_focused_window`]).
+//!
 //! A container can be locked ([`Lockable`]): a locked container keeps its index in the workspace
 //! while others are inserted, removed or swapped around it.
 
@@ -100,9 +104,21 @@ impl Container {
         self.remove_window_by_idx(focused_idx)
     }
 
+    /// Puts a window at the back of the container and gives it the front, hiding every other
+    /// window of the container ([`Window::hide`])
+    ///
+    /// It never fails; the result is there so that callers can use `?`.
     pub fn add_window(&mut self, window: &Window) -> eyre::Result<()> {
         self.windows_mut().push_back(*window);
         self.focus_window(self.windows().len().saturating_sub(1));
+
+        let focused_window_idx = self.focused_window_idx();
+
+        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+            if i != focused_window_idx {
+                window.hide();
+            }
+        }
 
         Ok(())
     }
@@ -113,17 +129,73 @@ impl Container {
         self.windows.focus(idx);
     }
 
+    /// Hides the unfocused windows of the container and restores the focused one. This function
+    /// is used to make sure we update the window that should be shown on a stack. If the container
+    /// isn't a stack this function won't change anything.
+    ///
+    /// It never fails; the result is there so that callers can use `?`.
+    pub fn load_focused_window(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_window_idx();
+
+        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+            if i == focused_idx {
+                window.restore();
+            } else {
+                window.hide();
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
         let window = self.windows_mut().remove(idx);
         self.focus_window(idx.saturating_sub(1));
         window
+    }
+
+    /// Hides every window of the container but `omit`, or every window when it is `None`
+    ///
+    /// It never fails; the result is there so that callers can use `?`.
+    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
+        for window in self.windows_mut().iter_mut().rev() {
+            let mut should_hide = omit.is_none();
+
+            if !should_hide
+                && let Some(omit) = omit
+                && omit != window.id
+            {
+                should_hide = true
+            }
+
+            if should_hide {
+                window.hide();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Restores the focused window of the container, which is the one that is in front when the
+    /// container is a stack
+    ///
+    /// It never fails; the result is there so that callers can use `?`.
+    pub fn restore(&mut self) -> eyre::Result<()> {
+        if let Some(window) = self.focused_window_mut() {
+            window.restore();
+        }
+
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backend::fake::FakeBackend;
+    use crate::backend::with_backend;
     use serde_json;
+    use std::sync::Arc;
 
     #[test]
     fn test_contains_window() {
@@ -242,5 +314,66 @@ mod tests {
 
         assert!(deserialized.locked);
         assert_eq!(deserialized.id, container.id);
+    }
+
+    /// A container of the windows 701.. on a fake desktop, with the window at `focus` in front
+    fn stack_of(
+        fake: &Arc<FakeBackend>,
+        ids: std::ops::RangeInclusive<u32>,
+        focus: usize,
+    ) -> Container {
+        let mut container = Container::default();
+        for id in ids {
+            fake.open_window(id, "foot", "foot", &format!("window {id}"));
+            container.add_window(&Window::from(id)).unwrap();
+        }
+        container.focus_window(focus);
+        container
+    }
+
+    #[test]
+    fn a_window_added_to_a_container_is_in_front_and_the_others_are_hidden() {
+        let fake = Arc::new(FakeBackend::with_one_monitor());
+
+        with_backend(fake.clone(), || {
+            let container = stack_of(&fake, 701..=703, 2);
+
+            assert_eq!(container.focused_window().map(|w| w.id), Some(703));
+            assert!(fake.is_hidden(701) && fake.is_hidden(702));
+            assert!(!fake.is_hidden(703));
+        });
+    }
+
+    #[test]
+    fn loading_the_focused_window_shows_it_and_hides_the_rest() {
+        let fake = Arc::new(FakeBackend::with_one_monitor());
+
+        with_backend(fake.clone(), || {
+            let mut container = stack_of(&fake, 704..=706, 0);
+
+            container.load_focused_window().unwrap();
+
+            assert!(!fake.is_hidden(704));
+            assert!(fake.is_hidden(705) && fake.is_hidden(706));
+        });
+    }
+
+    #[test]
+    fn hiding_a_container_leaves_out_the_window_it_is_told_to_and_restoring_shows_the_focused_one()
+    {
+        let fake = Arc::new(FakeBackend::with_one_monitor());
+
+        with_backend(fake.clone(), || {
+            let mut container = stack_of(&fake, 707..=709, 1);
+
+            container.hide(Some(709)).unwrap();
+            assert!(fake.is_hidden(707) && fake.is_hidden(708) && !fake.is_hidden(709));
+
+            container.hide(None).unwrap();
+            assert!(fake.is_hidden(709));
+
+            container.restore().unwrap();
+            assert!(fake.is_hidden(707) && !fake.is_hidden(708) && fake.is_hidden(709));
+        });
     }
 }

@@ -122,6 +122,18 @@ fn stop_and_retile_send_their_message_and_print_nothing() {
 }
 
 #[test]
+fn stop_with_ignore_restore_sends_the_message_that_leaves_the_hidden_windows_hidden() {
+    let runtime = Runtime::new();
+    let daemon = runtime.serve("");
+
+    let output = runtime.komorebic(&["stop", "--ignore-restore"]);
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(daemon.join().unwrap(), r#"{"type":"StopIgnoreRestore"}"#);
+    assert_eq!(stdout(&output), "");
+}
+
+#[test]
 fn subscribe_socket_and_unsubscribe_socket_send_the_name_they_are_given() {
     for (subcommand, message) in [
         (
@@ -216,6 +228,41 @@ fn the_layout_subcommands_send_the_layout_axis_or_direction_they_are_given() {
         r#"{"type":"PreselectDirection","content":"Up"}"#,
     );
     sends(&["cancel-preselect"], r#"{"type":"CancelPreselect"}"#);
+}
+
+#[test]
+fn the_stack_subcommands_send_the_direction_they_are_given() {
+    sends(
+        &["stack", "left"],
+        r#"{"type":"StackWindow","content":"Left"}"#,
+    );
+    sends(
+        &["stack", "down"],
+        r#"{"type":"StackWindow","content":"Down"}"#,
+    );
+    sends(&["unstack"], r#"{"type":"UnstackWindow"}"#);
+    sends(&["stack-all"], r#"{"type":"StackAll"}"#);
+    sends(&["unstack-all"], r#"{"type":"UnstackAll"}"#);
+}
+
+#[test]
+fn the_subcommands_for_new_windows_send_their_message() {
+    sends(
+        &["toggle-window-container-behaviour"],
+        r#"{"type":"ToggleWindowContainerBehaviour"}"#,
+    );
+    sends(
+        &["toggle-workspace-window-container-behaviour"],
+        r#"{"type":"ToggleWorkspaceWindowContainerBehaviour"}"#,
+    );
+    sends(
+        &["toggle-float-override"],
+        r#"{"type":"ToggleFloatOverride"}"#,
+    );
+    sends(
+        &["toggle-workspace-float-override"],
+        r#"{"type":"ToggleWorkspaceFloatOverride"}"#,
+    );
 }
 
 #[test]
@@ -723,20 +770,28 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "send-to-workspace.md",
             "session-float-rule.md",
             "session-float-rules.md",
+            "stack-all.md",
+            "stack.md",
             "start.md",
             "state.md",
             "stop.md",
             "subscribe-socket.md",
             "swap-workspaces-with-monitor.md",
             "toggle-cross-monitor-move-behaviour.md",
+            "toggle-float-override.md",
             "toggle-float.md",
             "toggle-lock.md",
             "toggle-mouse-follows-focus.md",
             "toggle-pause.md",
             "toggle-tiling.md",
             "toggle-window-based-work-area-offset.md",
+            "toggle-window-container-behaviour.md",
+            "toggle-workspace-float-override.md",
+            "toggle-workspace-window-container-behaviour.md",
             "unmanage.md",
             "unmanaged-window-operation-behaviour.md",
+            "unstack-all.md",
+            "unstack.md",
             "unsubscribe-socket.md",
             "workspace-layout.md",
             "workspace-name.md",

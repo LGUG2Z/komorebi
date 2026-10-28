@@ -14,6 +14,12 @@
 //!   workspace, `scrolling-layout-columns` and `layout-ratios` tune it, `toggle-tiling` turns its
 //!   tiling off and on, and `preselect-direction` and `cancel-preselect` reserve the place of the
 //!   next window and give it up.
+//! - `stack` puts the focused window in one container with the window on one side of it, so that
+//!   they share a tile and only one is in sight, `unstack` takes it out again, and `stack-all` and
+//!   `unstack-all` do it for the whole workspace and for the focused stack.
+//!   `toggle-window-container-behaviour` and `toggle-workspace-window-container-behaviour` make a
+//!   window that opens join the focused container instead of getting a tile, and
+//!   `toggle-float-override` and `toggle-workspace-float-override` make it float.
 //! - `promote`, `promote-swap`, `promote-focus` and `promote-window` bring a window to the largest
 //!   tile, or the focus to it.
 //! - `toggle-float` takes the focused window out of the layout, or puts it back, and
@@ -141,6 +147,7 @@ gen_enum_subcommand_args! {
     CycleWorkspace: CycleDirection,
     CycleEmptyWorkspace: CycleDirection,
     CycleMoveWorkspaceToMonitor: CycleDirection,
+    Stack: OperationDirection,
     FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
     CycleLayout: CycleDirection,
@@ -497,7 +504,11 @@ struct Start {
 }
 
 #[derive(Parser)]
-struct Stop {}
+struct Stop {
+    /// Do not restore windows after stopping komorebi
+    #[clap(long, hide = true)]
+    ignore_restore: bool,
+}
 
 #[derive(Parser)]
 struct SaveResize {
@@ -635,6 +646,15 @@ enum SubCommand {
     /// Focus the first managed window matching the given executable
     #[clap(arg_required_else_help = true)]
     EagerFocus(EagerFocus),
+    /// Stack the focused window in the specified direction
+    #[clap(arg_required_else_help = true)]
+    Stack(Stack),
+    /// Unstack the focused window
+    Unstack,
+    /// Stack all windows on the focused workspace
+    StackAll,
+    /// Unstack all windows in the focused container
+    UnstackAll,
     /// Resize the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "resize")]
@@ -827,6 +847,18 @@ enum SubCommand {
     /// Set the workspace name for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceName(WorkspaceName),
+    /// Toggle the behavior for new windows (stacking or dynamic tiling)
+    ToggleWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    ToggleFloatOverride,
+    /// Toggle the behavior for new windows (stacking or dynamic tiling) for currently focused
+    /// workspace. If there was no behavior set for the workspace previously it takes the opposite
+    /// of the global value.
+    ToggleWorkspaceWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating
+    /// mode, for the currently focused workspace. If there was no override value set for the
+    /// workspace previously it takes the opposite of the global value.
+    ToggleWorkspaceFloatOverride,
     /// Toggle the paused state for all window tiling
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -963,8 +995,12 @@ fn main() -> eyre::Result<()> {
                 }
             }
         }
-        SubCommand::Stop(_) => {
-            send_message(&SocketMessage::Stop)?;
+        SubCommand::Stop(args) => {
+            if args.ignore_restore {
+                send_message(&SocketMessage::StopIgnoreRestore)?;
+            } else {
+                send_message(&SocketMessage::Stop)?;
+            }
         }
         SubCommand::DataDirectory => {
             let dir = &*komorebi_client::DATA_DIR;
@@ -1011,6 +1047,18 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::FlipLayout(args) => {
             send_message(&SocketMessage::FlipLayout(args.axis))?;
+        }
+        SubCommand::Stack(args) => {
+            send_message(&SocketMessage::StackWindow(args.operation_direction))?;
+        }
+        SubCommand::StackAll => {
+            send_message(&SocketMessage::StackAll)?;
+        }
+        SubCommand::Unstack => {
+            send_message(&SocketMessage::UnstackWindow)?;
+        }
+        SubCommand::UnstackAll => {
+            send_message(&SocketMessage::UnstackAll)?;
         }
         SubCommand::FocusWorkspace(args) => {
             send_message(&SocketMessage::FocusWorkspaceNumber(args.target))?;
@@ -1162,6 +1210,18 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ToggleWindowBasedWorkAreaOffset => {
             send_message(&SocketMessage::ToggleWindowBasedWorkAreaOffset)?;
+        }
+        SubCommand::ToggleWindowContainerBehaviour => {
+            send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleFloatOverride => {
+            send_message(&SocketMessage::ToggleFloatOverride)?;
+        }
+        SubCommand::ToggleWorkspaceWindowContainerBehaviour => {
+            send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleWorkspaceFloatOverride => {
+            send_message(&SocketMessage::ToggleWorkspaceFloatOverride)?;
         }
         SubCommand::ToggleTiling => {
             send_message(&SocketMessage::ToggleTiling)?;

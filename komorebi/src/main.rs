@@ -14,8 +14,10 @@
 //! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
 //! follows.
 //!
-//! When it stops, it connects to the socket of each subscriber and closes the connection without
-//! writing anything, so a subscriber sees the daemon stop as a connection with nothing on it.
+//! When it stops, it brings back the windows it hid (a stack's windows that were not in front,
+//! except after a `StopIgnoreRestore` message), then connects to the socket of each subscriber
+//! and closes the connection without writing anything, so a subscriber sees the daemon stop as a
+//! connection with nothing on it.
 
 use clap::Parser;
 use clap::ValueEnum;
@@ -194,6 +196,10 @@ fn main() -> eyre::Result<()> {
     let _ = quit_receiver.recv();
     tracing::info!("stop signal received");
 
+    {
+        let mut wm = wm.lock();
+        wm.restore_all_windows(false)?;
+    }
     backend::backend().shutdown();
 
     let sockets = komorebi::SUBSCRIPTION_SOCKETS.lock();

@@ -17,6 +17,7 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::Rect;
+use crate::core::WindowContainerBehaviour;
 use crate::core::config_generation::MatchingRule;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
@@ -124,6 +125,8 @@ pub struct State {
     pub monitor_usr_idx_map: HashMap<usize, usize>,
     pub is_paused: bool,
     pub resize_delta: i32,
+    pub new_window_behaviour: WindowContainerBehaviour,
+    pub float_override: bool,
     pub cross_monitor_move_behaviour: MoveBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub work_area_offset: Option<Rect>,
@@ -167,6 +170,8 @@ impl From<&WindowManager> for State {
                             work_area_offset: workspace.work_area_offset,
                             apply_window_based_work_area_offset: workspace
                                 .apply_window_based_work_area_offset,
+                            window_container_behaviour: workspace.window_container_behaviour,
+                            float_override: workspace.float_override,
                             globals: workspace.globals,
                             preselected_container_idx: None,
                             promotion_swap_container_idx: None,
@@ -189,6 +194,8 @@ impl From<&WindowManager> for State {
             is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
+            new_window_behaviour: wm.window_management_behaviour.current_behaviour,
+            float_override: wm.window_management_behaviour.float_override,
             cross_monitor_move_behaviour: wm.cross_monitor_move_behaviour,
             mouse_follows_focus: wm.mouse_follows_focus,
             unmanaged_window_operation_behaviour: wm.unmanaged_window_operation_behaviour,
@@ -198,8 +205,9 @@ impl From<&WindowManager> for State {
 
 impl State {
     /// Returns true if and only if the window manager's monitors (with their workspaces,
-    /// containers and windows), whether it is paused, its unmanaged window operation behavior, its
-    /// work area offset or its mouse follows focus setting differ from this state's
+    /// containers and windows), whether it is paused, its new window behavior, its float override,
+    /// its unmanaged window operation behavior, its work area offset or its mouse follows focus
+    /// setting differ from this state's
     ///
     /// A window is compared by its id only, so a window that moved or was renamed is not a
     /// change.
@@ -211,6 +219,14 @@ impl State {
         }
 
         if self.is_paused != new.is_paused {
+            return true;
+        }
+
+        if self.new_window_behaviour != new.new_window_behaviour {
+            return true;
+        }
+
+        if self.float_override != new.float_override {
             return true;
         }
 

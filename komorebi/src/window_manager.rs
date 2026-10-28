@@ -22,6 +22,16 @@
 //! ([`WindowManager::set_workspace_name`]) and found by its name on any monitor
 //! ([`WindowManager::monitor_workspace_index_by_name`]).
 //!
+//! A container with more than one window is a stack. The window in front is the container's focused
+//! window, and the others are hidden ([`Window::hide`]), on KDE on a virtual desktop nobody looks
+//! at. Windows are stacked and unstacked one at a time
+//! ([`WindowManager::add_window_to_container`], [`WindowManager::remove_window_from_container`])
+//! or all of a workspace together ([`WindowManager::stack_all`], [`WindowManager::unstack_all`]),
+//! and a window that opens joins the focused container instead of getting one of its own when the
+//! window container behavior says so ([`WindowManager::window_management_behaviour`]).
+//! [`WindowManager::stop`] brings back every window the window manager hid
+//! ([`WindowManager::restore_all_windows`]).
+//!
 //! With more than one monitor, the focus and a move at the edge of a monitor cross to the monitor
 //! in that direction ([`WindowManager::monitor_idx_in_direction`]), and a container or a workspace
 //! can be taken to another monitor ([`WindowManager::move_container_to_monitor`],
@@ -30,6 +40,7 @@
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
 use crate::DATA_DIR;
+use crate::HIDDEN_WINDOWS;
 use crate::LibraryError;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::UNMANAGED_WINDOW_IDS;
@@ -46,6 +57,7 @@ use crate::core::OperationBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::Sizing;
+use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
 use crate::desktop;
 use crate::lockable_sequence::Lockable;
@@ -60,6 +72,7 @@ use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
 use crossbeam_channel::Receiver;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::io::ErrorKind;
 use std::net::Shutdown;
 use std::num::NonZeroUsize;
@@ -611,6 +624,19 @@ impl WindowManager {
             .ok_or_eyre("there is no workspace")
     }
 
+    /// Returns the index of the workspace the monitor at `idx` shows
+    ///
+    /// # Errors
+    ///
+    /// There is no monitor at the index.
+    pub fn focused_workspace_idx_for_monitor_idx(&self, idx: usize) -> eyre::Result<usize> {
+        Ok(self
+            .monitors()
+            .get(idx)
+            .ok_or_eyre("there is no monitor at this index")?
+            .focused_workspace_idx())
+    }
+
     pub fn focused_workspace_for_monitor_idx(&self, idx: usize) -> eyre::Result<&Workspace> {
         self.monitors()
             .get(idx)
@@ -708,16 +734,124 @@ impl WindowManager {
         self.update_focused_workspace(false, false)
     }
 
-    /// Stops the daemon: connects to every subscriber and closes the connection without writing
-    /// anything, removes the command socket, lets the backend give up what it set up in the
-    /// compositor, and exits the process with status 0
+    /// Stacks the focused window with the window in the container next to it in `direction`: the
+    /// two end up in one container, which shows the window that moved and hides the other.
+    /// Nothing happens when the layout has no container in that direction. A container that is
+    /// left with no window is removed.
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or it has no container.
+    /// - The windows cannot be moved into one container, or the one in front cannot be focused.
+    /// - The workspace cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn add_window_to_container(&mut self, direction: OperationDirection) -> eyre::Result<()> {
+        tracing::info!("adding window to container");
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let workspace = self.focused_workspace_mut()?;
+        let len = NonZeroUsize::new(workspace.containers_mut().len())
+            .ok_or_eyre("there must be at least one container")?;
+        let current_container_idx = workspace.focused_container_idx();
+
+        let is_valid = direction
+            .destination(
+                workspace.layout.as_boxed_direction().as_ref(),
+                workspace.layout_flip,
+                workspace.focused_container_idx(),
+                len,
+                workspace.layout_options,
+            )
+            .is_some();
+
+        if is_valid {
+            let new_idx = workspace
+                .new_idx_for_direction(direction)
+                .ok_or_eyre("this is not a valid direction from the current position")?;
+
+            let mut changed_focus = false;
+
+            let adjusted_new_index = if new_idx > current_container_idx
+                && !matches!(
+                    workspace.layout,
+                    Layout::Default(DefaultLayout::Grid)
+                        | Layout::Default(DefaultLayout::UltrawideVerticalStack)
+                ) {
+                workspace.focus_container(new_idx);
+                changed_focus = true;
+                new_idx.saturating_sub(1)
+            } else {
+                new_idx
+            };
+
+            let mut target_container_is_stack = false;
+
+            if let Some(container) = workspace.containers().get(adjusted_new_index)
+                && container.windows().len() > 1
+            {
+                target_container_is_stack = true;
+            }
+
+            if let Some(current) = workspace.focused_container() {
+                if current.windows().len() > 1 && !target_container_is_stack {
+                    workspace.focus_container(adjusted_new_index);
+                    changed_focus = true;
+                    workspace.move_window_to_container(current_container_idx)?;
+                } else {
+                    workspace.move_window_to_container(adjusted_new_index)?;
+                }
+            }
+            if changed_focus && let Some(container) = workspace.focused_container_mut() {
+                container.load_focused_window()?;
+                if let Some(window) = container.focused_window() {
+                    window.focus(mouse_follows_focus)?;
+                }
+            }
+
+            self.update_focused_workspace(mouse_follows_focus, false)?;
+        }
+
+        Ok(())
+    }
+
+    /// Takes the focused window out of its stack into a container of its own, next to the stack,
+    /// and shows the stack's next window in its place
+    ///
+    /// # Errors
+    ///
+    /// - The focused container has only one window.
+    /// - There is no focused workspace, container or window.
+    /// - The workspace cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn remove_window_from_container(&mut self) -> eyre::Result<()> {
+        tracing::info!("removing window");
+
+        if self.focused_container()?.windows().len() == 1 {
+            bail!("a container must have at least one window");
+        }
+
+        let workspace = self.focused_workspace_mut()?;
+
+        workspace.new_container_for_focused_window()?;
+        self.update_focused_workspace(self.mouse_follows_focus, false)
+    }
+
+    /// Stops the daemon: brings back the windows it has hidden, unless `ignore_restore` is set
+    /// ([`WindowManager::restore_all_windows`]), connects to every subscriber and closes the
+    /// connection without writing anything, removes the command socket, lets the backend give up
+    /// what it set up in the compositor (the desktop hidden windows are parked on), and exits the
+    /// process with status 0
     ///
     /// # Errors
     ///
     /// A connection to a subscriber cannot be shut down. The daemon does not stop.
     #[tracing::instrument(skip(self))]
-    pub fn stop(&mut self) -> eyre::Result<()> {
-        tracing::info!("received stop command, terminating process");
+    pub fn stop(&mut self, ignore_restore: bool) -> eyre::Result<()> {
+        tracing::info!(
+            "received stop command, restoring all hidden windows and terminating process"
+        );
+
+        self.restore_all_windows(ignore_restore)?;
 
         let sockets = SUBSCRIPTION_SOCKETS.lock();
         for path in (*sockets).values() {
@@ -732,6 +866,25 @@ impl WindowManager {
         backend().shutdown();
 
         std::process::exit(0)
+    }
+
+    /// Brings back every window komorebi has hidden, wherever it is (in a stack, or on a workspace
+    /// that is not in front): they are exactly the ones it recorded when it hid them
+    /// ([`struct@HIDDEN_WINDOWS`]). With `ignore_restore` it brings back none.
+    ///
+    /// It never fails; the result is there so that callers can use `?`.
+    #[tracing::instrument(skip(self))]
+    pub fn restore_all_windows(&mut self, ignore_restore: bool) -> eyre::Result<()> {
+        tracing::info!("restoring all hidden windows");
+
+        if !ignore_restore {
+            let hidden: Vec<u32> = HIDDEN_WINDOWS.lock().iter().copied().collect();
+            for id in hidden {
+                Window::from(id).restore();
+            }
+        }
+
+        Ok(())
     }
 
     /// Shows workspace `idx` on the focused monitor, creating it (and the ones before it) if it
@@ -1666,7 +1819,14 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
-    /// Gives the focus to the window at `idx` in the focused container
+    /// Gives the focus to the window at `idx` in the focused container, and brings it to the front
+    /// when the container is a stack
+    ///
+    /// # Errors
+    ///
+    /// - The focused container has only one window and `idx` is not 0.
+    /// - The focused container has no window at `idx`.
+    /// - There is no focused container, or the workspace cannot be tiled again.
     #[tracing::instrument(skip(self))]
     pub fn focus_container_window(&mut self, idx: usize) -> eyre::Result<()> {
         tracing::info!("focusing container window at index {idx}");
@@ -1687,12 +1847,100 @@ impl WindowManager {
         }
 
         container.focus_window(idx);
+        container.load_focused_window()?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
         }
 
         self.update_focused_workspace(mouse_follows_focus, true)
+    }
+
+    /// Puts every window of the focused workspace in one container, in the order they had, with the
+    /// window that had the focus in front and the others hidden
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or it cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn stack_all(&mut self) -> eyre::Result<()> {
+        tracing::info!("stacking all windows on workspace");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let mut focused_hwnd = None;
+        if let Some(container) = workspace.focused_container()
+            && let Some(window) = container.focused_window()
+        {
+            focused_hwnd = Some(window.id);
+        }
+
+        let workspace_hwnds =
+            workspace
+                .containers()
+                .iter()
+                .fold(VecDeque::new(), |mut hwnds, c| {
+                    hwnds.extend(c.windows().clone());
+                    hwnds
+                });
+
+        let mut container = Container::default();
+        *container.windows_mut() = workspace_hwnds;
+        *workspace.containers_mut() = VecDeque::from([container]);
+        workspace.focus_container(0);
+
+        if let Some(hwnd) = focused_hwnd
+            && let Some(c) = workspace.focused_container_mut()
+            && let Some(w_idx_to_focus) = c.idx_for_window(hwnd)
+        {
+            c.focus_window(w_idx_to_focus);
+            c.load_focused_window()?;
+        }
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    /// Takes every window out of the focused container, each into a container of its own, and
+    /// gives the focus back to the window that had it. With `update_workspace` the workspace is
+    /// tiled again.
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or, with `update_workspace`, it cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn unstack_all(&mut self, update_workspace: bool) -> eyre::Result<()> {
+        tracing::info!("unstacking all windows in container");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let mut focused_window_id = None;
+        if let Some(container) = workspace.focused_container()
+            && let Some(window) = container.focused_window()
+        {
+            focused_window_id = Some(window.id);
+        }
+
+        let initial_focused_container_index = workspace.focused_container_idx();
+        let mut focused_container = workspace.focused_container().cloned();
+
+        while let Some(focused) = &focused_container {
+            if focused.windows().len() > 1 {
+                workspace.new_container_for_focused_window()?;
+                workspace.focus_container(initial_focused_container_index);
+                focused_container = workspace.focused_container().cloned();
+            } else {
+                focused_container = None;
+            }
+        }
+
+        if let Some(window_id) = focused_window_id {
+            workspace.focus_container_by_window(window_id)?;
+        }
+
+        if update_workspace {
+            self.update_focused_workspace(self.mouse_follows_focus, true)?;
+        }
+
+        Ok(())
     }
 
     /// With [`OperationBehaviour::NoOp`], refuses a message while the window that has the focus
@@ -1796,6 +2044,72 @@ impl WindowManager {
         if self.known_window_ids != known_window_ids {
             // Store new window_ids
             self.known_window_ids = known_window_ids;
+        }
+    }
+
+    /// Returns the [`WindowManagementBehaviour`] that applies to a window that opens on the
+    /// workspace at `workspace_idx` of the monitor at `monitor_idx`: the workspace's own
+    /// `window_container_behaviour` and `float_override` where it sets them, and the window
+    /// manager's where it does not
+    ///
+    /// An empty workspace has no container to append to, so `Append` is `Create` for it. A
+    /// workspace or a monitor that does not exist gets `Create`.
+    pub fn window_management_behaviour(
+        &self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> WindowManagementBehaviour {
+        if let Some(monitor) = self.monitors().get(monitor_idx)
+            && let Some(workspace) = monitor.workspaces().get(workspace_idx)
+        {
+            let current_behaviour = if let Some(behaviour) = workspace.window_container_behaviour {
+                if workspace.containers().is_empty()
+                    && matches!(behaviour, WindowContainerBehaviour::Append)
+                {
+                    // You can't append to an empty workspace
+                    WindowContainerBehaviour::Create
+                } else {
+                    behaviour
+                }
+            } else if workspace.containers().is_empty()
+                && matches!(
+                    self.window_management_behaviour.current_behaviour,
+                    WindowContainerBehaviour::Append
+                )
+            {
+                // You can't append to an empty workspace
+                WindowContainerBehaviour::Create
+            } else {
+                self.window_management_behaviour.current_behaviour
+            };
+
+            let float_override = if let Some(float_override) = workspace.float_override {
+                float_override
+            } else {
+                self.window_management_behaviour.float_override
+            };
+
+            return WindowManagementBehaviour {
+                current_behaviour,
+                float_override,
+                floating_layer_override: self.window_management_behaviour.floating_layer_override,
+                floating_layer_behaviour: self.window_management_behaviour.floating_layer_behaviour,
+                toggle_float_placement: self.window_management_behaviour.toggle_float_placement,
+                floating_layer_placement: self.window_management_behaviour.floating_layer_placement,
+                float_override_placement: self.window_management_behaviour.float_override_placement,
+                float_rule_placement: self.window_management_behaviour.float_rule_placement,
+            };
+        }
+
+        WindowManagementBehaviour {
+            current_behaviour: WindowContainerBehaviour::Create,
+            float_override: self.window_management_behaviour.float_override,
+            floating_layer_override: self.window_management_behaviour.floating_layer_override,
+            floating_layer_behaviour: self.window_management_behaviour.floating_layer_behaviour,
+            toggle_float_placement: self.window_management_behaviour.toggle_float_placement,
+            floating_layer_placement: self.window_management_behaviour.floating_layer_placement,
+            float_override_placement: self.window_management_behaviour.float_override_placement,
+            float_rule_placement: self.window_management_behaviour.float_rule_placement,
         }
     }
 
@@ -2887,6 +3201,104 @@ mod tests {
             let workspace = wm.focused_workspace_mut().unwrap();
             assert_eq!(workspace.containers().len(), 1);
         }
+    }
+
+    #[test]
+    fn test_remove_window_from_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDeviceID1".to_string(),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add three windows to the container
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 3);
+
+            // Focus last window
+            container.focus_window(2);
+
+            // Should be focused on the 2nd window
+            assert_eq!(container.focused_window_idx(), 2);
+
+            // Add the container to a workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Remove the focused window from the container
+        wm.remove_window_from_container().ok();
+
+        {
+            // Should have 2 containers in the workspace
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 2);
+
+            // Should contain 1 window in the new container
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 1);
+        }
+
+        {
+            // Switch to the old container
+            let workspace = wm.focused_workspace_mut().unwrap();
+            workspace.focus_container(0);
+
+            // Should contain 2 windows in the old container
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_remove_nonexistent_window_from_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDeviceID1".to_string(),
+            );
+
+            // Create a container
+            let container = Container::default();
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 0);
+
+            // Add the container to a workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should receive an error when trying to remove a window from an empty container
+        let result = wm.remove_window_from_container();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to remove a window from an empty container"
+        );
     }
 
     #[test]

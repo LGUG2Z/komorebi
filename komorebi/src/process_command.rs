@@ -28,6 +28,18 @@
 //!   the previous one, and tile the workspace again
 //!   ([`WindowManager::move_container_in_direction`],
 //!   [`WindowManager::move_container_in_cycle_direction`]).
+//! - **StackWindow** puts the focused window and the window in the container on one side of it in
+//!   one container, a stack that shows the window that moved and hides the other, and
+//!   **UnstackWindow** takes the focused window out of its stack again
+//!   ([`WindowManager::add_window_to_container`],
+//!   [`WindowManager::remove_window_from_container`]). **StackAll** puts every window of the
+//!   workspace in one stack, and **UnstackAll** takes every window out of the focused one
+//!   ([`WindowManager::stack_all`], [`WindowManager::unstack_all`]).
+//! - **ToggleWindowContainerBehaviour** and **ToggleWorkspaceWindowContainerBehaviour** set whether
+//!   a window that opens gets a container of its own or joins the focused container, for every
+//!   workspace or for the focused one, and **ToggleFloatOverride** and
+//!   **ToggleWorkspaceFloatOverride** whether it floats
+//!   ([`WindowManager::window_management_behaviour`]).
 //! - **Promote** moves the focused container to the largest tile, **PromoteSwap** swaps it with
 //!   the container there (and back), **PromoteFocus** gives that container the focus, and
 //!   **PromoteWindow** promotes the container on one side of the focused one
@@ -118,7 +130,8 @@
 //!   adjustments, and **RetileWithResizeDimensions** with them.
 //! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
 //!   of its socket in the data directory, and **RemoveSubscriberSocket** removes one.
-//! - **Stop** stops the daemon ([`WindowManager::stop`]).
+//! - **Stop** stops the daemon, after it has brought back the windows it hid, and
+//!   **StopIgnoreRestore** stops it without ([`WindowManager::stop`]).
 //!
 //! Once a message has been handled, every subscriber is sent a notification of it
 //! ([`notify_subscribers`]).
@@ -144,6 +157,7 @@ use crate::core::Rect;
 use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
+use crate::core::WindowContainerBehaviour;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -239,6 +253,11 @@ impl WindowManager {
     ///   `UnlockMonitorWorkspaceContainer` is not there (a container that is not there is ignored).
     /// - The focused window cannot be floated or put back, for one of the reasons
     ///   [`WindowManager::toggle_float`] gives.
+    /// - The focused window cannot be stacked or unstacked, for one of the reasons
+    ///   [`WindowManager::add_window_to_container`], [`WindowManager::remove_window_from_container`],
+    ///   [`WindowManager::stack_all`] and [`WindowManager::unstack_all`] give, or the focused
+    ///   workspace is not there for a behavior to be set on (`ToggleWorkspaceWindowContainerBehaviour`,
+    ///   `ToggleWorkspaceFloatOverride`).
     /// - The monitor a monitor command names is not there, or the compositor reports no window
     ///   with the focus to take to it ([`WindowManager::move_container_to_monitor`]).
     /// - The monitor or the workspace a message names by its index is not there
@@ -260,7 +279,7 @@ impl WindowManager {
     /// - The window manager fails to retile, for one of the reasons
     ///   [`WindowManager::retile_all`] gives.
     /// - The answer cannot be written to `reply`.
-    /// - `Stop` fails, for the reason [`WindowManager::stop`] gives.
+    /// - `Stop` or `StopIgnoreRestore` fails, for the reason [`WindowManager::stop`] gives.
     /// - The notification cannot be sent, for one of the reasons [`notify_subscribers`] gives.
     #[tracing::instrument(skip(self, reply, message))]
     pub fn process_command(
@@ -382,6 +401,18 @@ impl WindowManager {
             }
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
+            }
+            SocketMessage::StackWindow(direction) => {
+                self.add_window_to_container(direction)?;
+            }
+            SocketMessage::UnstackWindow => {
+                self.remove_window_from_container()?;
+            }
+            SocketMessage::StackAll => {
+                self.stack_all()?;
+            }
+            SocketMessage::UnstackAll => {
+                self.unstack_all(true)?;
             }
             SocketMessage::CycleFocusMonitor(direction) => {
                 let monitor_idx = direction.next_idx(
@@ -900,7 +931,52 @@ impl WindowManager {
             }
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
+            SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
+                let current_global_behaviour = self.window_management_behaviour.current_behaviour;
+                if let Some(behaviour) =
+                    &mut self.focused_workspace_mut()?.window_container_behaviour
+                {
+                    match behaviour {
+                        WindowContainerBehaviour::Create => {
+                            *behaviour = WindowContainerBehaviour::Append
+                        }
+                        WindowContainerBehaviour::Append => {
+                            *behaviour = WindowContainerBehaviour::Create
+                        }
+                    }
+                } else {
+                    self.focused_workspace_mut()?.window_container_behaviour =
+                        Some(match current_global_behaviour {
+                            WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
+                            WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
+                        });
+                };
+            }
+            SocketMessage::ToggleWorkspaceFloatOverride => {
+                let current_global_override = self.window_management_behaviour.float_override;
+                if let Some(float_override) = &mut self.focused_workspace_mut()?.float_override {
+                    *float_override = !*float_override;
+                } else {
+                    self.focused_workspace_mut()?.float_override = Some(!current_global_override);
+                };
+            }
             SocketMessage::ToggleLock => self.toggle_lock()?,
+            SocketMessage::ToggleWindowContainerBehaviour => {
+                match self.window_management_behaviour.current_behaviour {
+                    WindowContainerBehaviour::Create => {
+                        self.window_management_behaviour.current_behaviour =
+                            WindowContainerBehaviour::Append;
+                    }
+                    WindowContainerBehaviour::Append => {
+                        self.window_management_behaviour.current_behaviour =
+                            WindowContainerBehaviour::Create;
+                    }
+                }
+            }
+            SocketMessage::ToggleFloatOverride => {
+                self.window_management_behaviour.float_override =
+                    !self.window_management_behaviour.float_override;
+            }
             SocketMessage::ToggleWindowBasedWorkAreaOffset => {
                 let workspace = self.focused_workspace_mut()?;
                 workspace.apply_window_based_work_area_offset =
@@ -1279,7 +1355,10 @@ impl WindowManager {
                 sockets.remove(socket);
             }
             SocketMessage::Stop => {
-                self.stop()?;
+                self.stop(false)?;
+            }
+            SocketMessage::StopIgnoreRestore => {
+                self.stop(true)?;
             }
             SocketMessage::QuickSave => {
                 let workspace = self.focused_workspace()?;

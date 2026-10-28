@@ -34,6 +34,8 @@ anywhere else. [Running komorebi](usage/running-komorebi.md) explains how to sta
 daemon, ask it what it is doing and read its log.
 [Focusing windows](usage/focusing-windows.md) explains how to give the focus to another window,
 [Moving windows](usage/moving-windows.md) how to move the focused window to another tile,
+[Stacking windows](usage/stacking-windows.md) how to put windows on one tile and have the others
+wait out of sight,
 [Layouts](usage/layouts.md) how to change the arrangement of the tiles,
 [Resizing windows](usage/resizing-windows.md) how to change the size of one,
 [Floating windows](usage/floating-windows.md) how to take a window out of the layout,

@@ -44,6 +44,10 @@ pub enum Command {
     Focus(u32, bool),
     /// [`Backend::raise`].
     Raise(u32),
+    /// [`Backend::hide`].
+    Hide(u32),
+    /// [`Backend::restore`].
+    Restore(u32),
     /// [`Backend::minimize`].
     Minimize(u32),
     /// [`Backend::unminimize`].
@@ -66,6 +70,8 @@ struct State {
     /// [`FakeBackend::permissive`]).
     permissive: bool,
     windows: HashMap<u32, WindowInfo>,
+    /// the windows that are hidden, in the order they were
+    hidden: Vec<u32>,
     min_sizes: HashMap<u32, (i32, i32)>,
     monitors: Vec<MonitorInfo>,
     foreground: Option<u32>,
@@ -252,8 +258,14 @@ impl FakeBackend {
         self.state.lock().windows.get(&id).map(|w| w.rect)
     }
 
-    /// Returns true if and only if the window can be seen: it is alive, not minimized, and on the
-    /// workspace its monitor shows. This is what the compositor does with desktops.
+    /// Returns true if and only if the window is hidden ([`Backend::hide`]), as opposed to being
+    /// on a workspace that is not showing.
+    pub fn is_hidden(&self, id: u32) -> bool {
+        self.state.lock().hidden.contains(&id)
+    }
+
+    /// Returns true if and only if the window can be seen: it is alive, not minimized, not hidden
+    /// and on the workspace its monitor shows. This is what the compositor does with desktops.
     pub fn on_screen(&self, id: u32) -> bool {
         let state = self.state.lock();
         let Some(window) = state.windows.get(&id) else {
@@ -264,7 +276,10 @@ impl FakeBackend {
             .and_then(|m| state.shown.get(&m))
             .copied()
             .unwrap_or(0);
-        window.alive && !window.minimized && state.window_ws.get(&id).copied().unwrap_or(0) == shown
+        window.alive
+            && !window.minimized
+            && !state.hidden.contains(&id)
+            && state.window_ws.get(&id).copied().unwrap_or(0) == shown
     }
 
     /// Returns the workspace a window is on, if it was ever opened.
@@ -396,6 +411,20 @@ impl Backend for FakeBackend {
 
     fn raise(&self, id: u32) -> eyre::Result<()> {
         self.record(id, Command::Raise(id), |_| ())
+    }
+
+    fn hide(&self, id: u32) -> eyre::Result<()> {
+        self.record(id, Command::Hide(id), |state| {
+            if !state.hidden.contains(&id) {
+                state.hidden.push(id);
+            }
+        })
+    }
+
+    fn restore(&self, id: u32) -> eyre::Result<()> {
+        self.record(id, Command::Restore(id), |state| {
+            state.hidden.retain(|h| *h != id);
+        })
     }
 
     fn minimize(&self, id: u32) -> eyre::Result<()> {
@@ -678,6 +707,35 @@ mod tests {
 
         assert!(!fake.on_screen(1) && !fake.on_screen(2));
         Ok(())
+    }
+
+    #[test]
+    fn a_hidden_window_is_out_of_sight_on_its_workspace_until_it_is_restored() -> eyre::Result<()> {
+        let fake = fake_with(&[1]);
+
+        fake.hide(1)?;
+        fake.hide(1)?;
+
+        assert!(fake.is_hidden(1) && !fake.on_screen(1));
+        assert_eq!(fake.window_workspace(1), Some(0));
+        assert!(fake.window(1).is_some_and(|w| w.alive && !w.minimized));
+
+        fake.restore(1)?;
+
+        assert!(!fake.is_hidden(1) && fake.on_screen(1));
+        assert_eq!(
+            fake.commands(),
+            [Command::Hide(1), Command::Hide(1), Command::Restore(1)]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn hiding_or_restoring_a_window_nobody_opened_is_an_error() {
+        let fake = fake_with(&[1]);
+
+        assert!(fake.hide(9).is_err());
+        assert!(fake.restore(9).is_err());
     }
 
     #[test]

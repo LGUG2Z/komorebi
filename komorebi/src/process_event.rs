@@ -6,18 +6,23 @@
 //! `UnmanageFocusedWindow`, changes nothing either. Otherwise:
 //!
 //! - **Show**, and **Manage** (`ManageFocusedWindow`): the window gets a container of its own after
-//!   the focused one, and the workspace is tiled again. The first window on an empty workspace is
-//!   given the focus. A window a float rule matches goes into the workspace's floating windows
+//!   the focused one, or joins the focused container when the window container behavior is
+//!   `Append` ([`WindowManager::window_management_behaviour`]), and the workspace is tiled again.
+//!   The first window on an empty workspace is given the focus. With the float override on, the
+//!   window floats instead. A window that another workspace has already is hidden and left to
+//!   that workspace. A window a float rule matches goes into the workspace's floating windows
 //!   instead, on a Show (a Manage tiles it whatever the rules say).
 //! - **Destroy**, and **Unmanage** (`UnmanageFocusedWindow`): the window is taken out of whichever
-//!   workspace has it, and if that is the one in front it is tiled again. A window that is
+//!   workspace has it, and if that is the one in front it is tiled again. The window that was
+//!   behind it in a stack comes to the front. A window that is
 //!   unmanaged stays open, centered in the work area so that it is not left behind the tiles, and
 //!   komorebi leaves it alone until it is managed again.
 //! - **FocusChange**: the workspace is tiled again and the container of the window that has the
 //!   focus becomes the focused container. In the scrolling layout the workspace is tiled after
 //!   that instead, so that the strip scrolls to the window that has the focus.
 //! - **Minimize**: a window the user minimized leaves its workspace and the rest are tiled
-//!   again; **Restore** brings it back in a container of its own.
+//!   again; **Restore** brings it back in a container of its own. A minimize of a window komorebi
+//!   hid ([`struct@HIDDEN_WINDOWS`]) is not the user's, and changes nothing.
 //! - **TitleUpdate**: a window komorebi does not have, and that was not minimized, is announced
 //!   again as a Show, so that a rule that matches on the title it has now decides.
 //! - **WorkspaceChange**: a monitor shows another workspace, because something other than komorebi
@@ -42,6 +47,7 @@
 //! [`Monitor::assign_windows_to_workspaces`]: crate::monitor::Monitor::assign_windows_to_workspaces
 
 use crate::FLOATING_APPLICATIONS;
+use crate::HIDDEN_WINDOWS;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::REGEX_IDENTIFIERS;
@@ -49,6 +55,7 @@ use crate::UNMANAGED_WINDOW_IDS;
 use crate::backend::backend;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::WindowContainerBehaviour;
 use crate::notify_subscribers;
 use crate::state::State;
 use crate::window::RuleDebug;
@@ -59,6 +66,7 @@ use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
 use color_eyre::eyre;
+use color_eyre::eyre::OptionExt;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use tracing::instrument;
@@ -234,6 +242,10 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::Show(_, _) | WindowManagerEvent::Manage(_) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+                let focused_workspace_idx =
+                    self.focused_workspace_idx_for_monitor_idx(focused_monitor_idx)?;
+
                 let mut create = true;
 
                 if self.focused_workspace()?.contains_window(window_id) {
@@ -251,11 +263,13 @@ impl WindowManager {
                         "ignoring show event for window already associated with another workspace"
                     );
 
+                    window.hide();
                     create = false;
                 }
 
                 if create {
-                    let behaviour = self.window_management_behaviour;
+                    let behaviour = self
+                        .window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
                     let workspace = self.focused_workspace_mut()?;
 
                     let floating_applications = FLOATING_APPLICATIONS.lock();
@@ -306,8 +320,19 @@ impl WindowManager {
 
                         self.update_focused_workspace(false, false)?;
                     } else {
-                        workspace.new_container_for_window(&window)?;
-                        self.update_focused_workspace(false, false)?;
+                        match behaviour.current_behaviour {
+                            WindowContainerBehaviour::Create => {
+                                workspace.new_container_for_window(&window)?;
+                                self.update_focused_workspace(false, false)?;
+                            }
+                            WindowContainerBehaviour::Append => {
+                                workspace
+                                    .focused_container_mut()
+                                    .ok_or_eyre("there is no focused container")?
+                                    .add_window(&window)?;
+                                self.update_focused_workspace(true, false)?;
+                            }
+                        }
 
                         if self.focused_workspace()?.containers().len() == 1 {
                             // If after adding this window the workspace only contains 1 window, it
@@ -324,7 +349,7 @@ impl WindowManager {
                 let location = self.known_window_ids.get(&window_id).cloned();
 
                 if let Some((m_idx, w_idx)) = location {
-                    let behaviour = self.window_management_behaviour;
+                    let behaviour = self.window_management_behaviour(m_idx, w_idx);
                     let focused = m_idx == self.focused_monitor_idx()
                         && Some(w_idx) == self.focused_workspace_idx().ok();
 
@@ -362,6 +387,7 @@ impl WindowManager {
 
                 if destroyed {
                     self.minimized_windows.remove(&window_id);
+                    HIDDEN_WINDOWS.lock().remove(&window_id);
                     UNMANAGED_WINDOW_IDS.lock().retain(|id| *id != window_id);
                 } else {
                     // we only want to add the window ID after the window has been removed
@@ -369,8 +395,15 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::Minimize(_, _) => {
-                self.extract_minimized_window(window_id)?;
-                self.update_focused_workspace(false, false)?;
+                // A window komorebi took out of sight is not one the user minimized, whatever the
+                // compositor reports about it: it stays in its container, and only the user's own
+                // minimizes are acted on
+                if HIDDEN_WINDOWS.lock().contains(&window_id) {
+                    tracing::trace!("ignoring minimize of window {window_id}, hidden by komorebi");
+                } else {
+                    self.extract_minimized_window(window_id)?;
+                    self.update_focused_workspace(false, false)?;
+                }
             }
             WindowManagerEvent::Restore(_, _) => match self.minimized_windows.remove(&window_id) {
                 None => {}

@@ -227,6 +227,16 @@ class Kde:
         self.as_user(f"echo KOMOREBI_ARGS={words} > {self.runtime}/komorebi-{self.name}.env")
         self.systemctl("start", f"komorebi@{self.name}.service")
 
+    def kill_komorebi(self) -> None:
+        """Kills the daemon with `SIGKILL`, as a crash does, and waits for it to be gone.
+
+        Nothing of what the daemon had set up is put back: the user's `kwinrc`, the desktops it
+        made and the windows it hid are as it left them.
+        """
+        self.systemctl("kill", "--signal=KILL", f"komorebi@{self.name}.service")
+        if not self.wait_for(lambda: not self.komorebi_running()):
+            raise AssertionError("the daemon is still running after SIGKILL")
+
     def stop_komorebi(self) -> None:
         """Stops the daemon with `SIGTERM`, as a logout does, and waits for it to exit."""
         self.systemctl("stop", f"komorebi@{self.name}.service")
@@ -282,6 +292,18 @@ class Kde:
             return ""
         windows = containers["elements"][containers["focused"]]["windows"]
         return windows["elements"][windows["focused"]]["details"]["title"]
+
+    def containers(self, workspace: int = 0) -> list[list[str]]:
+        """The titles of the windows of each container of a workspace of the first monitor.
+
+        The containers are in the order of the layout, and the windows of a stack in the order of
+        the stack. A workspace with no container gives an empty list.
+        """
+        elements = self._workspace(workspace)["containers"]["elements"]
+        return [
+            [window["details"]["title"] for window in container["windows"]["elements"]]
+            for container in elements
+        ]
 
     def managed(self, workspace: int = 0) -> int:
         """The number of windows the daemon has on a workspace of the first monitor."""
@@ -421,6 +443,20 @@ class Kde:
             " org.kde.KWin.VirtualDesktopManager count"
         )[1].split()
         return int(out[-1]) if out and out[-1].isdigit() else 0
+
+    def desktop_names(self) -> list[str]:
+        """The names of the virtual desktops KWin has, in order.
+
+        The desktop at index `i` is the one `kdotool` calls `i + 1`.
+        """
+        out = self.run(
+            "busctl --user get-property org.kde.KWin /VirtualDesktopManager"
+            " org.kde.KWin.VirtualDesktopManager desktops"
+        )[1]
+        # `a(uss) 2 0 "id" "Desktop 1" 1 "id" "Desktop 2"`: the signature, how many, then a
+        # position, an id and a name for each
+        words = shlex.split(out)
+        return words[4::3]
 
     def kwinrc(self, group: str, key: str) -> str | None:
         """The value of `key` in `[group]` of the user's `kwinrc`, or None when it is not set."""

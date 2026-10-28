@@ -66,7 +66,8 @@ without a checkout of the toolchain.
   the vocabulary the window manager is written in (`core`), the `Backend` trait
   through which it reaches a compositor and the in-memory desktop the tests use
   (`backend`), the backend that reaches KWin through a script it runs and edits
-  the one setting of KWin's it needs in the user's `kwinrc` (`kwin`),
+  the one setting of KWin's it needs in the user's `kwinrc` and the parking desktop
+  it hides the back of a stack on (`kwin`),
   the model of what it tiles (`monitor`, `workspace`, `container`, `window`), the
   window manager that keeps the model (`window_manager`), loads it from the
   backend (`desktop`) and changes it when the compositor reports an event
@@ -139,6 +140,12 @@ reports that a window was shown, closed, focused, minimized or restored, and
 tiles the workspace in front again. A window open at startup goes to the
 workspace whose desktop it is on.
 
+A container with more than one window is a stack: the layout gives it one tile,
+and the window in front is in sight. The others are hidden, which on KWin means
+moved to one more virtual desktop, `komorebi-park`, that nobody looks at and that
+is not a workspace. The daemon makes it when it first needs it, removes it when
+it stops, and removes one that a run that did not stop left behind.
+
 Everything else reaches the daemon as a message on its socket: one JSON
 `SocketMessage` per line, handled one at a time with the window manager
 locked. A message that asks a question is answered on the same connection. A
@@ -171,6 +178,10 @@ the previous or the last workspace, `workspace-name` names a workspace for
 At the edge of a monitor, `focus` and `move` cross to the monitor on that side;
 `focus-monitor`, `move-to-monitor`, `send-to-monitor` and their kind work on the
 monitors, and `eager-focus` finds the window of an application wherever it is.
+`stack` puts the focused window and the one next to it in one stack, `unstack`
+takes it out again, and `stack-all` and `unstack-all` do it for a whole
+workspace. `toggle-window-container-behaviour` makes a window that opens join
+the focused stack, and `toggle-float-override` makes it float.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

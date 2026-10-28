@@ -259,3 +259,40 @@ plain ini, which komorebi changes line by line, and asks KWin to reload its conf
 It is the user's setting, so the value komorebi found is kept in a backup file and put back
 when komorebi stops; a backup a crash left behind keeps the value from before the first run,
 and the next run puts it back.
+
+## Why are the windows behind the front one of a stack moved to a parking desktop?
+
+Because a container has one tile, so the windows of a stack that are not in front have to be out
+of sight, and a virtual desktop nobody looks at was the one way to do that which the spikes found
+to cost no focus change. The first spike hid six tiled windows and showed them again three ways.
+Minimizing
+them gave the geometry back exactly, but KWin picked a new active window as each one minimized,
+two focus events nobody asked for. Moving them to a virtual desktop of their own gave no focus
+event and the geometry back exactly. Moving them off the screen worked too, since KWin does not
+clamp a scripted move, but the windows stay mapped on the current desktop, in the window switcher,
+the overview and the task manager, so it was not offered. KWin has nothing else: `Window.hidden`
+cannot be set by a script. The spike's source reading, KWin 6.8.1, is in
+[PLATFORM.md](PLATFORM.md#the-parking-desktop). The other platforms have a setting that chooses
+how windows are hidden; on KDE there is one way, and so no such setting.
+
+The cost is that KWin keeps a virtual desktop in `kwinrc` as soon as it is made. A run that failed
+after making the parking desktop left it there for every later session. So komorebi removes the
+desktop when it stops, after the commands that bring the windows back have reached the bridge, and
+the first snapshot of the next run finds a leftover, sends the windows on it to the first
+workspace's desktop and removes it. A leftover is never used as the parking desktop of the new
+run, since it is about to be removed and anything parked on it would go with it; the new run makes
+its own the first time it needs one. Before each hide the table also checks that the desktop it
+made is still listed, because somebody can remove it in System Settings, and a window sent to a
+desktop that is not there has nowhere to go and nothing says so.
+
+Activating a window that is on another desktop makes KWin switch that output to the window's
+desktop (see [PLATFORM.md](PLATFORM.md#per-output-virtual-desktops)), so a click on a hidden
+window in the task manager would leave the monitor showing the parking desktop, which has nothing
+on it but hidden windows. The table sends the monitor straight back to the desktop it showed
+before, and the window's own focus change then brings it to the front of its stack.
+
+komorebi keeps a table of the windows it hid, [`HIDDEN_WINDOWS`](../../komorebi/src/lib.rs), and
+records a window in it before it asks the backend to hide it. What the compositor reports about a
+hidden window (a minimize, a move to another desktop) is the echo of a command komorebi sent, and
+the window manager has to be able to tell that from the user's own: a window that the user
+minimizes leaves the layout, and one komorebi hid does not.

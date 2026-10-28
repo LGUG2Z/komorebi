@@ -13,6 +13,13 @@
 //! ([`Table::switch_commands`], [`Table::window_workspace_commands`]), so that the table knows what
 //! komorebi asked for and does not report it back as somebody else's doing.
 //!
+//! A window komorebi hides, the back of a stack, goes to one more desktop, the parking desktop
+//! ([`PARK_DESKTOP_NAME`]), which is not a workspace and which nobody looks at
+//! ([`Table::hide_commands`], [`Table::restore_commands`]). The table keeps the desktop the window
+//! came from, so that [`Table::window_workspace`] still names its workspace, and does not report
+//! the move to the parking desktop as somebody else's doing. A parking desktop that an earlier run
+//! left behind is found in the first snapshot, its windows are sent home, and it is removed.
+//!
 //! # Example
 //!
 //! The script's first report is a snapshot of the desktop. A window that opens after it is an
@@ -71,6 +78,9 @@ use std::collections::HashMap;
 use std::time::Duration;
 use std::time::Instant;
 
+/// The name of the virtual desktop komorebi hides windows on
+pub const PARK_DESKTOP_NAME: &str = "komorebi-park";
+
 /// How long a closed window can still be asked about, so that the `Destroy` event that names it
 /// can be logged and serialized
 const TOMBSTONE: Duration = Duration::from_secs(60);
@@ -81,6 +91,10 @@ struct Entry {
     /// What KWin says: a normal window, as opposed to a dialog, splash, panel, popup...
     kwin_normal: bool,
     desktops: Vec<String>,
+    /// komorebi put it on the parking desktop
+    parked: bool,
+    /// The desktop the window was on when it was parked
+    home: Option<String>,
     closed_at: Option<Instant>,
 }
 
@@ -89,6 +103,8 @@ struct Entry {
 pub enum Output {
     /// A window event for the window manager.
     Event(WindowManagerEvent),
+    /// A command for the script, to be queued with the others.
+    Command(Value),
     /// The answer to a cursor query.
     Cursor {
         /// The query this answers, as the daemon numbered it.
@@ -121,6 +137,13 @@ pub struct Table {
     /// KWin's per-output virtual desktops), which is what lets every monitor have a workspace of
     /// its own in front.
     current: HashMap<String, String>,
+    /// The workspace desktop an output showed before the parking desktop, so that it can be sent
+    /// back
+    previous: HashMap<String, String>,
+    /// The desktop this run hides windows on, once it has made one
+    park_desktop: Option<String>,
+    /// A parking desktop left behind by an earlier run, to be removed once it is empty
+    stale_park: Option<String>,
 }
 
 fn rect(v: &Value) -> Rect {
@@ -232,6 +255,23 @@ impl Table {
         self.windows.get(&id).map(|e| e.uuid.clone())
     }
 
+    /// Returns the desktop this run hides windows on, if it has made one. It is not in step with
+    /// the desktops KWin lists: [`Table::hide_commands`] checks that it is still there.
+    pub fn park_desktop(&self) -> Option<&str> {
+        self.park_desktop.as_deref()
+    }
+
+    /// Returns the parking desktop an earlier run left behind, until it has been removed. It is
+    /// never the parking desktop of this run: it goes as soon as the windows on it have moved home.
+    pub fn stale_park(&self) -> Option<&str> {
+        self.stale_park.as_deref()
+    }
+
+    /// Records that the stale parking desktop is gone.
+    pub fn clear_stale_park(&mut self) {
+        self.stale_park = None;
+    }
+
     /// Whether komorebi should have anything to do with this window: a normal window, as opposed
     /// to a dialog, a panel, a popup. Every desktop is a workspace of komorebi's.
     fn manageable(&self, entry: &Entry) -> bool {
@@ -240,9 +280,13 @@ impl Table {
 
     // ---- workspaces ------------------------------------------------------------------------
 
-    /// The ids of the desktops that are workspaces, in order: all of them
+    /// The ids of the desktops that are workspaces, in order: all of them but the parking desktop
     fn workspace_desktops(&self) -> Vec<&str> {
-        self.desktops.iter().map(|(id, _)| id.as_str()).collect()
+        self.desktops
+            .iter()
+            .filter(|(_, name)| name != PARK_DESKTOP_NAME)
+            .map(|(id, _)| id.as_str())
+            .collect()
     }
 
     /// Which workspace a desktop is
@@ -250,11 +294,21 @@ impl Table {
         self.workspace_desktops().iter().position(|d| *d == desktop)
     }
 
-    /// Returns the workspace a window is on: the first of its desktops. A window on every desktop
-    /// (KWin gives it no desktop) is on none.
+    /// Where windows go when nothing says otherwise: the first desktop
+    fn default_desktop(&self) -> Option<String> {
+        self.workspace_desktops().first().map(|d| d.to_string())
+    }
+
+    /// Returns the workspace a window is on: the first of its desktops. A window komorebi has
+    /// hidden is on the workspace it will come back to, and one on every desktop (KWin gives it no
+    /// desktop) is on none.
     pub fn window_workspace(&self, id: u32) -> Option<usize> {
         let entry = self.windows.get(&id)?;
-        let desktop = entry.desktops.first()?;
+        let desktop = if entry.parked {
+            entry.home.as_ref()
+        } else {
+            entry.desktops.first()
+        }?;
         self.workspace_index(desktop)
     }
 
@@ -311,7 +365,8 @@ impl Table {
 
     /// Returns the commands that put a window on workspace `idx`, and records the window there,
     /// so that the next query sees it at once and KWin's report of the move raises nothing. A
-    /// window the table does not know gets no command.
+    /// window the table does not know gets no command, and a window komorebi has hidden stays
+    /// hidden and comes back to the workspace.
     ///
     /// # Errors
     ///
@@ -331,16 +386,128 @@ impl Table {
             return Ok(vec![]);
         };
 
+        if entry.parked {
+            entry.home = Some(desktop);
+            return Ok(vec![]);
+        }
+
         entry.desktops = vec![desktop.clone()];
         Ok(vec![
             json!({ "op": "desktop", "id": entry.uuid, "v": desktop }),
         ])
     }
 
+    // ---- hiding ----------------------------------------------------------------------------
+
+    /// Returns the commands that hide a window: onto the parking desktop, which is where KDE puts
+    /// what should be out of the way. The window remembers the desktop it came from. A window the
+    /// table does not know, or that is hidden already, gets no command.
+    ///
+    /// # Errors
+    ///
+    /// [`NeedsPark`] when this run has no parking desktop, or KWin no longer lists the one it made
+    /// (somebody removed it, in System Settings, say, and windows sent to it would have nowhere to
+    /// go): make one, tell the table with [`Table::set_park`], then ask again.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::time::Instant;
+    ///
+    /// use komorebi::kwin::state::{NeedsPark, PARK_DESKTOP_NAME, Table};
+    /// use serde_json::json;
+    ///
+    /// let mut table = Table::new();
+    /// let now = Instant::now();
+    /// table.handle(
+    ///     &json!({
+    ///         "type": "snapshot",
+    ///         "windows": [{
+    ///             "id": "{a}", "pid": 0, "class": "foot", "caption": "a terminal",
+    ///             "normal": true, "minimized": false, "desktops": ["d1"],
+    ///             "geo": { "x": 0, "y": 0, "w": 800, "h": 600 },
+    ///         }],
+    ///         "screens": [],
+    ///         "desktops": [{ "id": "d1", "name": "Desktop 1" }],
+    ///         "current_desktops": [],
+    ///         "active": null,
+    ///         "cursor": { "x": 0, "y": 0 },
+    ///     }),
+    ///     now,
+    /// );
+    ///
+    /// // there is no parking desktop yet: the backend makes one, and says which it is
+    /// assert!(matches!(table.hide_commands(1), Err(NeedsPark)));
+    /// table.handle(
+    ///     &json!({ "type": "desktop_list", "desktops": [
+    ///         { "id": "d1", "name": "Desktop 1" },
+    ///         { "id": "p1", "name": PARK_DESKTOP_NAME },
+    ///     ] }),
+    ///     now,
+    /// );
+    /// table.set_park(String::from("p1"));
+    ///
+    /// assert_eq!(
+    ///     table.hide_commands(1).unwrap(),
+    ///     [json!({ "op": "desktop", "id": "{a}", "v": "p1" })]
+    /// );
+    /// // it is still on its workspace, which is where it goes back to
+    /// assert_eq!(table.window_workspace(1), Some(0));
+    /// assert_eq!(
+    ///     table.restore_commands(1),
+    ///     [json!({ "op": "desktop", "id": "{a}", "v": "d1" })]
+    /// );
+    /// ```
+    pub fn hide_commands(&mut self, id: u32) -> Result<Vec<Value>, NeedsPark> {
+        // the one this run made, if it is still there: whoever removed it (the user, in System
+        // Settings, say) leaves windows sent to it with nowhere to go, and nothing says so
+        let park = self
+            .park_desktop
+            .clone()
+            .filter(|park| self.desktops.iter().any(|(id, _)| id == park));
+        let current = self.default_desktop();
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return Ok(vec![]);
+        };
+
+        if entry.parked {
+            return Ok(vec![]);
+        }
+
+        let park = park.ok_or(NeedsPark)?;
+        // remember where it came from; a window on every desktop goes back to the current one
+        if entry.home.is_none() {
+            entry.home = entry.desktops.first().cloned().or(current);
+        }
+        entry.parked = true;
+        Ok(vec![
+            json!({ "op": "desktop", "id": entry.uuid, "v": park }),
+        ])
+    }
+
+    /// Returns the commands that undo [`Table::hide_commands`]: the window goes back to the desktop
+    /// it came from, or to the first desktop when that is not known. A window that is not hidden
+    /// gets no command.
+    pub fn restore_commands(&mut self, id: u32) -> Vec<Value> {
+        let fallback = self.default_desktop();
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return vec![];
+        };
+
+        if !std::mem::take(&mut entry.parked) {
+            return vec![];
+        }
+
+        let home = entry.home.take().or(fallback);
+        home.map(|home| vec![json!({ "op": "desktop", "id": entry.uuid, "v": home })])
+            .unwrap_or_default()
+    }
+
     /// KWin went away. Its windows go with it, and nothing will report them closing.
     ///
     /// Returns a [`WindowManagerEvent::Destroy`] for every window the window manager may manage,
-    /// as if each had been closed, and forgets which window has the focus. The windows stay in
+    /// as if each had been closed, and forgets which window has the focus and the parking desktop
+    /// (a new KWin may have kept it, and then finds it as a stale one). The windows stay in
     /// the table as closed ones, so their ids are not given out again. A KWin that comes back
     /// reports its desktop in a new snapshot.
     pub fn compositor_lost(&mut self, now: Instant) -> Vec<Output> {
@@ -358,7 +525,18 @@ impl Table {
         }
 
         self.foreground = None;
+        self.park_desktop = None;
         out
+    }
+
+    /// Records the desktop this run hides windows on, which the backend made
+    pub fn set_park(&mut self, id: String) {
+        self.park_desktop = Some(id);
+    }
+
+    /// Forgets the parking desktop, so that the next [`Table::hide_commands`] asks for one again
+    pub fn forget_park(&mut self) {
+        self.park_desktop = None;
     }
 
     /// Records the frame komorebi has just asked KWin to give a window, so that the window manager
@@ -406,6 +584,8 @@ impl Table {
             info,
             kwin_normal: w["normal"].as_bool().unwrap_or(false),
             desktops: strings(&w["desktops"]),
+            parked: false,
+            home: None,
             closed_at: None,
         };
 
@@ -448,7 +628,8 @@ impl Table {
     /// - `snapshot`: everything on the desktop (`windows`, `screens`, `desktops`,
     ///   `current_desktops`, `active`, `cursor`), sent once, when the script starts. It fills the
     ///   table and raises no event: the window manager reads the desktop from the table when it
-    ///   starts.
+    ///   starts. A parking desktop in it is one an earlier run left, and the windows on it are sent
+    ///   home with [`Output::Command`]s.
     /// - `added`, `removed`: a window opened or closed. For a window komorebi may manage, they are
     ///   a [`WindowManagerEvent::Show`] and a [`WindowManagerEvent::Destroy`].
     /// - `activated`: KWin gave a window the focus ([`WindowManagerEvent::FocusChange`]), or,
@@ -459,10 +640,13 @@ impl Table {
     /// - `geometry`: a window's frame changed. It raises no event.
     /// - `desktops`: a window is on other desktops. When it is now on another workspace than the
     ///   table had it on, this is a [`WindowManagerEvent::WorkspaceMove`]; komorebi's own move
-    ///   ([`Table::window_workspace_commands`]) is on it already, and raises nothing.
+    ///   ([`Table::window_workspace_commands`]) is on it already, and raises nothing, and neither
+    ///   does a window on the parking desktop.
     /// - `current_desktops`: the desktop each output shows. An output that shows another desktop
     ///   than the table had it showing is a [`WindowManagerEvent::WorkspaceChange`]; komorebi's own
-    ///   switch ([`Table::switch_commands`]) raises nothing.
+    ///   switch ([`Table::switch_commands`]) raises nothing. An output that shows the parking
+    ///   desktop (KWin followed an activation of a hidden window there) is sent back to the
+    ///   desktop it showed before, with an [`Output::Command`].
     /// - `desktop_list`: the virtual desktops, in order. It raises no event.
     /// - `cursor`: the answer to a cursor query ([`Output::Cursor`]).
     /// - `failed`: commands the script could not carry out. They are logged.
@@ -525,9 +709,22 @@ impl Table {
     }
 
     fn on_snapshot(&mut self, event: &Value) -> Vec<Output> {
+        let mut out = vec![];
+
         // desktops first: which workspace a window is on depends on them
         self.desktops = desktop_list(&event["desktops"]);
         self.current = current_map(&event["current_desktops"]);
+        self.previous = self.current.clone();
+
+        // a parking desktop at startup is left over from a run that did not clean up. It is not this
+        // run's: it is about to be removed, and anything parked on it would go with it. This run
+        // makes its own the first time it needs one.
+        self.park_desktop = None;
+        self.stale_park = self
+            .desktops
+            .iter()
+            .find(|(_, name)| name == PARK_DESKTOP_NAME)
+            .map(|(id, _)| id.clone());
 
         // rebuild the windows, keeping the ids of those we already knew
         let old = std::mem::take(&mut self.windows);
@@ -543,6 +740,17 @@ impl Table {
             }
         }
 
+        // windows an earlier run parked: put them back where the user will see them
+        if let (Some(park), Some(home)) = (self.stale_park.clone(), self.default_desktop()) {
+            for entry in self.windows.values() {
+                if entry.desktops == [park.clone()] {
+                    out.push(Output::Command(
+                        json!({ "op": "desktop", "id": entry.uuid, "v": home }),
+                    ));
+                }
+            }
+        }
+
         self.foreground = event["active"]
             .as_str()
             .and_then(|u| self.by_uuid.get(u))
@@ -553,7 +761,7 @@ impl Table {
         }
 
         self.set_monitors(&event["screens"]);
-        vec![]
+        out
     }
 
     fn set_monitors(&mut self, screens: &Value) {
@@ -594,6 +802,7 @@ impl Table {
             entry.info.alive = false;
             entry.info.normal = false;
             entry.closed_at = Some(now);
+            entry.parked = false;
         }
 
         if self.foreground == Some(id) {
@@ -686,13 +895,20 @@ impl Table {
 
         let before = self.window_workspace(id);
         let desktops = strings(&event["desktops"]);
+        // (or on the one an earlier run left, which they are being sent home from)
+        let parked_by_us = self
+            .park_desktop
+            .iter()
+            .chain(self.stale_park.iter())
+            .any(|park| desktops.contains(park));
 
         if let Some(entry) = self.windows.get_mut(&id) {
             entry.desktops = desktops;
         }
 
-        // A window that is on another workspace's desktop than it was: komorebi's own doing coming
-        // back (the window manager already has it there) or somebody else's, which it will adopt.
+        // A window komorebi parked is where it put it. Otherwise this is a window that is on
+        // another workspace's desktop than it was: komorebi's own doing coming back (the window
+        // manager already has it there) or somebody else's, which it will adopt.
         let after = self
             .windows
             .get(&id)
@@ -701,7 +917,7 @@ impl Table {
             .and_then(|d| self.workspace_index(d));
 
         match after {
-            Some(idx) if before != Some(idx) => {
+            Some(idx) if !parked_by_us && before != Some(idx) => {
                 vec![Output::Event(WindowManagerEvent::WorkspaceMove(
                     kwin(KWinNotification::WindowMovedToDesktop),
                     Window::from(id),
@@ -726,7 +942,22 @@ impl Table {
         changes.sort();
 
         for (output, desktop) in changes {
-            self.current.insert(output.clone(), desktop.clone());
+            let before = self.current.insert(output.clone(), desktop.clone());
+
+            // Activating a window komorebi has hidden (a taskbar click, an app raising itself) makes
+            // KWin follow it to the parking desktop, which has nothing on it but hidden windows. Go
+            // straight back; the window's own activation then tells komorebi to bring it forward.
+            if self.park_desktop.as_deref() == Some(desktop.as_str()) {
+                if let Some(back) = self.previous.get(&output).cloned().or(before) {
+                    self.current.insert(output.clone(), back.clone());
+                    out.push(Output::Command(
+                        json!({ "op": "output_desktop", "output": output, "v": back }),
+                    ));
+                }
+                continue;
+            }
+
+            self.previous.insert(output.clone(), desktop.clone());
 
             let (Some(idx), Some(monitor)) = (
                 self.workspace_index(&desktop),
@@ -775,6 +1006,14 @@ fn current_map(v: &Value) -> HashMap<String, String> {
         })
         .unwrap_or_default()
 }
+
+/// The error of a request to hide a window when there is no parking desktop to hide it on: it has
+/// to be made first.
+///
+/// [`Table::hide_commands`] returns it; the KWin backend makes the desktop, records it with
+/// [`Table::set_park`] and asks again.
+#[derive(Debug)]
+pub struct NeedsPark;
 
 /// The error of a request for a workspace that has no desktop yet: at least this many desktops
 /// are needed.
@@ -841,6 +1080,22 @@ mod tests {
         t
     }
 
+    /// The parking desktop as it is when it has been made: listed by the compositor, and the one
+    /// windows are hidden on
+    fn with_park(t: &mut Table) {
+        let mut desktops: Vec<Value> = t
+            .desktops
+            .iter()
+            .map(|(id, name)| json!({ "id": id, "name": name }))
+            .collect();
+        desktops.push(json!({ "id": "park", "name": PARK_DESKTOP_NAME }));
+        t.handle(
+            &json!({ "type": "desktop_list", "desktops": desktops }),
+            Instant::now(),
+        );
+        t.set_park("park".to_string());
+    }
+
     fn events(out: &[Output]) -> Vec<String> {
         out.iter()
             .filter_map(|o| match o {
@@ -872,6 +1127,7 @@ mod tests {
                         format!("WorkspaceChange to {idx}")
                     }
                     Output::Event(e) => format!("{e} {}", e.window_id().unwrap_or(0)),
+                    Output::Command(command) => format!("Command {command}"),
                     Output::Cursor { token, x, y } => format!("Cursor {token} at {x},{y}"),
                 })
                 .collect();
@@ -1190,6 +1446,20 @@ mod tests {
     }
 
     #[test]
+    fn the_parking_desktop_is_not_a_workspace() {
+        let mut t = Table::new();
+        let mut s = snapshot(vec![win("a", &["d1"])]);
+        s["desktops"] = json!([
+            { "id": "d1", "name": "Desktop 1" },
+            { "id": "d2", "name": "Desktop 2" },
+            { "id": "park", "name": PARK_DESKTOP_NAME },
+        ]);
+        t.handle(&s, Instant::now());
+
+        assert_eq!(t.workspace_count(), 2);
+    }
+
+    #[test]
     fn moving_a_window_to_another_desktop_is_reported_once_as_a_workspace_move() {
         let mut t = table(vec![win("a", &["d1"])]);
         let now = Instant::now();
@@ -1217,17 +1487,38 @@ mod tests {
     }
 
     #[test]
-    fn komorebis_own_move_coming_back_from_kwin_raises_nothing() {
+    fn komorebis_own_move_and_its_park_and_restore_raise_nothing_new() {
         let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
 
         // komorebi put it on workspace 1; kwin says so
         t.window_workspace_commands(1, 1).unwrap();
         let out = t.handle(
             &json!({ "type": "desktops", "id": "a", "desktops": ["d2"] }),
-            Instant::now(),
+            now,
         );
-
         assert!(out.is_empty(), "{out:?}");
+
+        // komorebi parked it; kwin says so, and then that it is back
+        with_park(&mut t);
+        t.hide_commands(1).unwrap();
+        let out = t.handle(
+            &json!({ "type": "desktops", "id": "a", "desktops": ["park"] }),
+            now,
+        );
+        assert!(out.is_empty(), "{out:?}");
+        t.restore_commands(1);
+        let out = t.handle(
+            &json!({ "type": "desktops", "id": "a", "desktops": ["d2"] }),
+            now,
+        );
+        assert!(
+            matches!(
+                &out[..],
+                [Output::Event(WindowManagerEvent::WorkspaceMove(_, _, 1))]
+            ),
+            "restoring reports the workspace it came back to; the window manager already has it there: {out:?}"
+        );
     }
 
     #[test]
@@ -1242,6 +1533,16 @@ mod tests {
             t.window_workspace(1),
             Some(1),
             "visible to the next query at once"
+        );
+
+        // a window komorebi has hidden stays hidden, and comes back to the new workspace
+        with_park(&mut t);
+        t.hide_commands(1).unwrap();
+        assert!(t.window_workspace_commands(1, 0).unwrap().is_empty());
+        assert_eq!(t.window_workspace(1), Some(0));
+        assert_eq!(
+            t.restore_commands(1),
+            vec![json!({ "op": "desktop", "id": "a", "v": "d1" })]
         );
     }
 
@@ -1270,6 +1571,170 @@ mod tests {
             t.window_workspace_commands(1, 2),
             Err(NeedsDesktops(3))
         ));
+    }
+
+    #[test]
+    fn parking_a_window_hides_it_without_unmanaging_it() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
+
+        assert!(
+            t.hide_commands(1).is_err(),
+            "there is no parking desktop yet"
+        );
+        with_park(&mut t);
+
+        let cmds = t.hide_commands(1).unwrap();
+        assert_eq!(
+            cmds,
+            vec![json!({ "op": "desktop", "id": "a", "v": "park" })]
+        );
+
+        // kwin reports the window now being on the parking desktop: still ours
+        let out = t.handle(
+            &json!({ "type": "desktops", "id": "a", "desktops": ["park"] }),
+            now,
+        );
+        assert!(events(&out).is_empty());
+        assert!(t.window(1).unwrap().normal);
+
+        // and restoring sends it home again, not to wherever the user is now
+        let cmds = t.restore_commands(1);
+        assert_eq!(cmds, vec![json!({ "op": "desktop", "id": "a", "v": "d1" })]);
+        assert!(
+            t.restore_commands(1).is_empty(),
+            "restoring twice is a no-op"
+        );
+    }
+
+    #[test]
+    fn a_window_on_every_desktop_is_parked_and_returned_to_the_home_desktop() {
+        let mut t = table(vec![win("a", &[])]);
+        with_park(&mut t);
+
+        t.hide_commands(1).unwrap();
+        assert_eq!(
+            t.restore_commands(1),
+            vec![json!({ "op": "desktop", "id": "a", "v": "d1" })]
+        );
+    }
+
+    #[test]
+    fn a_parking_desktop_left_by_a_crashed_run_is_swept() {
+        let mut t = Table::new();
+        let mut s = snapshot(vec![win("stuck", &["park"]), win("fine", &["d1"])]);
+        s["desktops"] = json!([
+            { "id": "d1", "name": "Desktop 1" },
+            { "id": "park", "name": PARK_DESKTOP_NAME },
+        ]);
+
+        let out = t.handle(&s, Instant::now());
+        let commands: Vec<&Value> = out
+            .iter()
+            .filter_map(|o| {
+                if let Output::Command(c) = o {
+                    Some(c)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(
+            commands,
+            vec![&json!({ "op": "desktop", "id": "stuck", "v": "d1" })]
+        );
+        assert_eq!(t.stale_park(), Some("park"));
+        t.clear_stale_park();
+        assert!(t.stale_park().is_none());
+    }
+
+    #[test]
+    fn a_stale_parking_desktop_is_not_the_one_windows_are_hidden_on() {
+        let mut t = Table::new();
+        let mut s = snapshot(vec![win("a", &["d1"])]);
+        s["desktops"] = json!([
+            { "id": "d1", "name": "Desktop 1" },
+            { "id": "stale", "name": PARK_DESKTOP_NAME },
+        ]);
+        t.handle(&s, Instant::now());
+
+        // the stale one goes; hiding now needs a parking desktop of its own, and is not sent to it
+        assert!(t.hide_commands(1).is_err());
+        assert_eq!(t.park_desktop(), None);
+    }
+
+    #[test]
+    fn a_parking_desktop_that_has_gone_is_made_again_not_sent_windows() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        t.set_park("park".to_string());
+        // nothing lists it: somebody removed it
+        assert!(
+            t.hide_commands(1).is_err(),
+            "a parking desktop that is not there is not one"
+        );
+
+        // once it is there, it is used
+        t.handle(
+            &json!({ "type": "desktop_list", "desktops": [
+                { "id": "d1", "name": "Desktop 1" },
+                { "id": "park", "name": PARK_DESKTOP_NAME },
+            ] }),
+            Instant::now(),
+        );
+        t.set_park("park".to_string());
+        assert_eq!(
+            t.hide_commands(1).unwrap(),
+            vec![json!({ "op": "desktop", "id": "a", "v": "park" })]
+        );
+    }
+
+    #[test]
+    fn forgetting_the_parking_desktop_makes_hiding_ask_for_one_again() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        with_park(&mut t);
+        assert_eq!(t.park_desktop(), Some("park"));
+
+        t.forget_park();
+
+        assert_eq!(t.park_desktop(), None);
+        assert!(t.hide_commands(1).is_err());
+    }
+
+    #[test]
+    fn a_window_the_table_does_not_know_is_neither_hidden_nor_restored() {
+        let mut t = table(vec![]);
+        with_park(&mut t);
+
+        assert!(t.hide_commands(9).unwrap().is_empty());
+        assert!(t.restore_commands(9).is_empty());
+    }
+
+    #[test]
+    fn a_window_that_closes_while_hidden_is_not_hidden_when_it_is_asked_about_again() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        with_park(&mut t);
+        t.hide_commands(1).unwrap();
+
+        t.handle(&json!({ "type": "removed", "id": "a" }), Instant::now());
+
+        assert!(t.restore_commands(1).is_empty());
+    }
+
+    #[test]
+    fn following_a_hidden_window_to_the_parking_desktop_sends_that_output_back() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        with_park(&mut t);
+
+        let out = t.handle(
+            &json!({ "type": "current_desktops", "current": [{ "output": "DP-1", "id": "park" }] }),
+            Instant::now(),
+        );
+        assert!(
+            matches!(&out[..], [Output::Command(c)]
+                if *c == json!({ "op": "output_desktop", "output": "DP-1", "v": "d1" })),
+            "{out:?}"
+        );
     }
 
     #[test]
@@ -1374,12 +1839,14 @@ mod tests {
     #[test]
     fn when_kwin_goes_away_every_window_it_had_is_destroyed() {
         let mut t = table(vec![win("a", &["d1"]), win("b", &["d1"])]);
+        with_park(&mut t);
         t.handle(&json!({ "type": "activated", "id": "a" }), Instant::now());
 
         let mut destroyed = events(&t.compositor_lost(Instant::now()));
         destroyed.sort();
         assert_eq!(destroyed, vec!["Destroy 1", "Destroy 2"]);
         assert_eq!(t.foreground(), None);
+        assert_eq!(t.park_desktop(), None);
         assert!(t.windows().is_empty());
         assert!(
             t.compositor_lost(Instant::now()).is_empty(),

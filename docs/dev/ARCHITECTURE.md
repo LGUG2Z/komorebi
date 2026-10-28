@@ -8,9 +8,9 @@ tested, without one.
 This page describes that trait, who implements and calls it, where each of its rules is
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
 how an event about a window becomes a tile, how workspaces are the compositor's desktops, how
-a message on the daemon's socket is answered, how subscribers are notified of both, what the
-orders a message gives do, and how the NixOS module runs the daemon. It grows with the code:
-each part of the daemon that is added has its place here.
+a stack hides its windows, how a message on the daemon's socket is answered, how subscribers
+are notified of both, what the orders a message gives do, and how the NixOS module runs the
+daemon. It grows with the code: each part of the daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -27,6 +27,13 @@ each part of the daemon that is added has its place here.
   desktop of its own.
 - **Container**: what a layout places. It gets one tile, and every window in it is put on
   that tile.
+- **Stack**: a container with more than one window. It has one tile, and the window in front
+  (the container's focused window) is in sight; the others are hidden.
+- **Hidden window**: a window of a stack that is not in front, which komorebi has taken out of
+  sight ([`Backend::hide`]) and recorded in [`HIDDEN_WINDOWS`]. It is alive, not minimized, and
+  on its workspace.
+- **Parking desktop**: the virtual desktop, named `komorebi-park`, that the KWin backend hides
+  windows on. It is not a workspace.
 - **Layout**: the arrangement (BSP, columns, rows, ...) that turns a work area and a
   number of containers into one rectangle, a **tile**, for each container.
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
@@ -87,9 +94,9 @@ The desktop, as the window manager sees it, is two lists and a pointer:
 - **The pointer**, a position if the compositor says where it is, and the **focus**, the id
   of the window that has it.
 
-A command is one of: move and resize a window, focus it, raise it, minimize it or bring it
-back, close it, put the pointer in the middle of a rectangle, make desktops for the
-workspaces, show a workspace on a monitor, and put a window on a workspace. The workspace a
+A command is one of: move and resize a window, focus it, raise it, hide it or restore it,
+minimize it or bring it back, close it, put the pointer in the middle of a rectangle, make
+desktops for the workspaces, show a workspace on a monitor, and put a window on a workspace. The workspace a
 window is on, and the one each monitor shows, are queries.
 
 The window manager tiles a tree of four levels, each level a [`Ring`]: a list with one
@@ -103,8 +110,10 @@ the same thing at every level.
   own, whether it takes the monitor's window-based offset, its containers, in order, and its
   floating windows, which are in no container and which the layout does not tile.
 - A **container** ([`Container`]) has its windows. A new window gets a container of its
-  own. A container can be locked, which keeps it at its index while others are inserted,
-  removed or swapped around it.
+  own, unless the window container behavior says to put it in the focused one. With more than
+  one window it is a stack: the focused window is in front and the others are hidden. A
+  container can be locked, which keeps it at its index while others are inserted, removed or
+  swapped around it.
 - A **window** ([`Window`]) is a `Copy` handle that carries only the compositor's id.
   Everything else about the window, and every change to it, goes through the backend.
 
@@ -223,6 +232,54 @@ window put on another desktop by something else (the window menu's "Move to Desk
 `WorkspaceMove`: the window manager moves the window to that workspace. komorebi's own switch
 and move come back from KWin as the same reports; the table records them when the command is
 sent ([`Table::switch_commands`], [`Table::window_workspace_commands`]), so they raise nothing.
+
+## Stacks
+
+A container has one tile, so when it has more than one window the others have to be out of
+sight, and out of the way of the pointer and the focus: the window manager hides them
+([`Window::hide`]). Minimizing them would not do. KWin reports a minimize as the user's, and
+the windows would be taken for ones the user does not want tiled. What komorebi uses is the one
+thing KWin has that hides a window and leaves it alone: a virtual desktop nobody looks at, the
+parking desktop. The reasons are in
+[DESIGN.md](DESIGN.md#why-are-the-windows-behind-the-front-one-of-a-stack-moved-to-a-parking-desktop).
+
+A container keeps its front window in sync with what is in sight ([`Container::add_window`],
+[`Container::load_focused_window`]): the window that is added or focused is shown, and every
+other one is hidden. Operations that change which window is in front, or which container a
+window is in, end with that call: stacking and unstacking ([`Workspace::move_window_to_container`],
+[`Workspace::new_container_for_focused_window`]), a window that closes
+([`Workspace::remove_window`], which brings the next one forward and focuses it), a window that
+is floated, and a focus change to a window that is behind ([`Workspace::focus_container_by_window`]).
+
+[`Window::hide`] puts the window's id in [`HIDDEN_WINDOWS`] before it asks the backend, and
+[`Window::restore`] takes it out, so that when the compositor reports something about the window
+because of the hide the window manager knows who did it. A `Minimize` for a window in the set is
+not the user's and changes nothing. On the way out, [`WindowManager::stop`] and the daemon's
+`SIGINT` and `SIGTERM` handler restore every window in the set before the backend shuts down
+([`WindowManager::restore_all_windows`]).
+
+The KWin backend hides a window by putting it on the parking desktop. The table keeps for each
+window whether it is parked and the desktop it came from ([`Table::hide_commands`],
+[`Table::restore_commands`]): a hidden window is still on its workspace for every query
+([`Table::window_workspace`]), a window put on another workspace while it is hidden is hidden
+still and comes back there ([`Table::window_workspace_commands`]), and KWin's report that the
+window moved to the parking desktop is not a `WorkspaceMove`. The parking desktop is made the
+first time it is needed ([`NeedsPark`], `create_park_desktop` in [`kwin`]), by position, so
+that it stays after the workspaces' desktops. The table checks that KWin still lists it before it
+sends a window there, and asks for a new one when somebody removed it.
+
+An application that raises a hidden window, or a click on it in the task manager, makes KWin
+switch that monitor to the parking desktop. The table notices that a monitor shows it, sends the
+monitor back to the desktop it showed before, and raises no `WorkspaceChange`; the window's own
+`FocusChange` then brings it to the front of its stack.
+
+KWin keeps its virtual desktops in `kwinrc` as soon as one is made, so a parking desktop that
+komorebi does not remove stays for every later session. The backend removes it in `shutdown`,
+after the restoring commands have reached the bridge. A daemon that was killed leaves it, with
+windows on it: the first snapshot the next daemon gets lists a desktop with that name, which the
+table treats as stale ([`Table::stale_park`]). It is never the parking desktop of the new run.
+The snapshot sends the windows on it to the first workspace's desktop, and half a second later
+the backend removes it (`sweep_stale_park`).
 
 ## The command socket
 
@@ -362,6 +419,24 @@ workspace's floating windows, and back into a container of its own at the focuse
 any other, so its events find it, and [`Workspace::update`] leaves it where it is. Where a
 floated window goes is [`WindowManagementBehaviour::toggle_float_placement`]: by default it
 stays where it is.
+
+`StackWindow` puts the focused window and the window of the container in a direction in one
+container ([`WindowManager::add_window_to_container`]): the focused window goes to the front of
+that container, or, when the focused container is a stack and the other is not, the other
+container's window goes into the stack. `UnstackWindow` takes the front window out of a stack
+into a container of its own after it ([`WindowManager::remove_window_from_container`]), `StackAll`
+puts every window of the workspace in one container ([`WindowManager::stack_all`]), and
+`UnstackAll` takes them out again ([`WindowManager::unstack_all`]). Each ends with the workspace
+tiled again, and the window that was in front has the focus.
+
+A window that opens gets the behavior [`WindowManager::window_management_behaviour`] says for
+its workspace: a container of its own (`Create`, the default), or a place in the focused
+container (`Append`), and a floating window with the float override on. A workspace's own
+[`Workspace::window_container_behaviour`] and [`Workspace::float_override`] win over the window
+manager's, and `Append` on an empty workspace is `Create`. `ToggleWindowContainerBehaviour` and
+`ToggleFloatOverride` flip the window manager's, and `ToggleWorkspaceWindowContainerBehaviour` and
+`ToggleWorkspaceFloatOverride` the focused workspace's, which starts from the opposite of the
+window manager's value the first time.
 
 `ToggleLock` locks the focused container, or unlocks it ([`WindowManager::toggle_lock`]), and
 `LockMonitorWorkspaceContainer` and `UnlockMonitorWorkspaceContainer` do the same for a
@@ -522,10 +597,10 @@ module's unit.
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
   promote the focused container, float a window, lock a container, set the padding of a
-  workspace, manage and unmanage a window, show a workspace, move a container to another
-  workspace, follow a workspace switch made by something else, name a workspace and find
-  it by its name, set the layout of a workspace that is not in front, focus another monitor,
-  and move containers and workspaces between monitors).
+  workspace, manage and unmanage a window, stack and unstack windows, show a workspace, move a
+  container to another workspace, follow a workspace switch made by something else, name a
+  workspace and find it by its name, set the layout of a workspace that is not in front, focus
+  another monitor, and move containers and workspaces between monitors).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -537,7 +612,8 @@ module's unit.
 - [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
   call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table;
   [`kwin::kwinrc`](../../komorebi/src/kwin/kwinrc.rs), the editor of the user's `kwinrc`, which
-  keeps the values it changes and puts them back; and
+  keeps the values it changes and puts them back; the parking desktop is made, swept and removed
+  in `kwin` and tracked in `kwin::state`; and
   [`bridge.js`](../../komorebi/src/kwin/bridge.js), the bridge.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
   socket, and what the window manager does with each message.
@@ -583,6 +659,10 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
   backend asked for a workspace that has no desktop makes the desktops up to it
   (`ensure_workspaces`). The compositor shows and hides the windows of the desktops, and a
   backend reports a switch or a move it did not make as an event.
+- A hidden window (`hide`) is out of sight, alive, not minimized, and on the workspace it was
+  on until `restore`: `window_workspace` still names that workspace, and
+  `set_window_workspace` changes where it comes back to, not where it is hidden. Only the back of
+  a stack is hidden: nothing is hidden to leave a workspace.
 - `shutdown`, `is_window`, `window_rect` and `monitor_from_point` have defaults, written in
   terms of the queries. An implementor should not need to override them, except `shutdown`
   when it created something in the compositor that has to be given up.
@@ -595,7 +675,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A backend can be shared between threads | type system: `Backend: Send + Sync + 'static` | `compile_fail,E0277` on [`Backend`] | none |
 | The window manager asks for a backend that was never installed | runtime error: [`backend`] panics, naming [`set_backend`] and [`with_backend`] | `# Panics` on [`backend`] | none |
 | A test's backend does not outlive the test | framework path: [`with_backend`] restores the previous one on drop | `with_backend_puts_the_previous_backend_back_when_the_closure_panics` | none |
-| A command about a missing window is an error, not a panic | test | `a_command_about_a_window_nobody_opened_is_an_error` and `a_command_about_a_closed_window_is_an_error` against the fake, `a_command_about_a_window_the_table_does_not_know_is_an_error_and_sends_nothing` against the KWin backend | none |
+| A command about a missing window is an error, not a panic | test | `a_command_about_a_window_nobody_opened_is_an_error`, `a_command_about_a_closed_window_is_an_error` and `hiding_or_restoring_a_window_nobody_opened_is_an_error` against the fake, `a_command_about_a_window_the_table_does_not_know_is_an_error_and_sends_nothing` against the KWin backend | none |
 | A locked container keeps its index | framework path: a [`Workspace`] inserts, removes and swaps its containers through `LockableSequence` | `test_locked_containers_with_new_window`, `test_locked_containers_remove_window`, `a_window_that_opens_does_not_push_a_locked_container_from_its_index` | `containers_mut()` is the `VecDeque` itself |
 | A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone`, `an_ignore_rule_keeps_a_window_unmanaged` | `ManageRule` |
 | A window the user unmanaged stays out of the layout until it is managed again | framework path: `handle_event` checks the list of unmanaged windows before it acts on any event but a removal | `unmanage_takes_the_focused_window_out_until_manage_takes_it_back` | none |
@@ -630,6 +710,15 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A workspace is closed only when it has no window and no name and is not the monitor's last | framework path: the `CloseWorkspace` arm of [`WindowManager::process_command`] checks all three | `new_workspace_adds_one_and_close_workspace_removes_it_when_it_is_empty_and_unnamed` | none |
 | The focus and a move at the edge of a monitor go to the monitor on that side, and fail only when there is none | framework path: the `None` arms of [`WindowManager::focus_container_in_direction`] and [`WindowManager::move_container_in_direction`] | `the_focus_crosses_to_the_monitor_on_that_side`, `a_move_at_the_edge_of_a_monitor_swaps_with_the_window_on_the_next_one_by_default`, `focus_towards_a_side_with_no_window_is_an_error_and_changes_nothing` | `NoOp` keeps a move on its monitor |
 | A window shown or focused on another monitor focuses that monitor, and nothing else does | framework path: `handle_event` focuses the monitor of a `Show` or `FocusChange` before it acts on it | `a_window_that_opens_on_the_monitor_that_is_not_focused_focuses_it`, `a_scrolling_strip_on_the_next_monitor_over_does_not_take_focus_with_it` | none |
+| Only the window in front of a stack is in sight | framework path: [`Container::add_window`] and [`Container::load_focused_window`] hide every window of the container but the focused one, and every operation that changes the front ends with the call | `a_window_added_to_a_container_is_in_front_and_the_others_are_hidden`, `loading_the_focused_window_shows_it_and_hides_the_rest`, `stacking_puts_two_windows_in_one_container_and_hides_the_one_behind`, `vm-stacks` ("exactly one window is on it") | none |
+| A hidden window is still on its workspace, and is not reported as moved | framework path: the table keeps the desktop a window came from, and a move to the parking desktop is its own | `parking_a_window_hides_it_without_unmanaging_it`, `komorebis_own_move_and_its_park_and_restore_raise_nothing_new`, `a_window_is_put_on_a_workspace_by_putting_it_on_its_desktop` | none |
+| What the compositor reports about a window komorebi hid is not taken for the user's doing | framework path: [`Window::hide`] records the window in [`HIDDEN_WINDOWS`] before it asks the backend, and the `Minimize` arm of `handle_event` checks it | `a_minimize_komorebi_asked_for_is_not_mistaken_for_the_user`, `a_minimize_the_user_asked_for_takes_the_window_out_of_the_layout` | none |
+| Closing the window in front of a stack brings the next one forward | framework path: [`Workspace::remove_window`] shows the container's new front window and focuses it | `closing_the_window_in_front_of_a_stack_brings_the_next_one_forward`, `vm-stacks` ("closing the window in view") | none |
+| The back of a stack stays hidden when its workspace is shown again | framework path: [`Workspace::restore`] restores the front window of each container and no other | `the_back_of_a_stack_stays_hidden_across_a_workspace_round_trip`, `vm-stacks` ("a workspace round trip") | none |
+| A window is never sent to a parking desktop that is not there | framework path: [`Table::hide_commands`] asks for a new one unless KWin lists the one it made | `a_parking_desktop_that_has_gone_is_made_again_not_sent_windows` | none |
+| A monitor raised onto the parking desktop is sent back | framework path: the table sends the monitor back to the desktop it showed before | `following_a_hidden_window_to_the_parking_desktop_sends_that_output_back` | none |
+| A clean stop leaves no window hidden and no parking desktop | framework path: [`WindowManager::stop`] and the signal handler restore every hidden window, and the backend's `shutdown` removes the desktop after the restoring commands have gone out | `restoring_every_window_brings_back_the_hidden_ones_unless_it_is_told_to_ignore_that`, `vm-stacks` ("a clean stop puts every window back") | `SIGKILL`, and `StopIgnoreRestore`, which restores nothing |
+| A parking desktop a dead daemon left is swept by the next one, and its windows go home | startup check: the first snapshot marks it stale, sends its windows to the first workspace's desktop, and the backend removes it | `a_parking_desktop_left_by_a_crashed_run_is_swept`, `a_stale_parking_desktop_is_not_the_one_windows_are_hidden_on`, `vm-stacks` ("a crash leaves a parking desktop") | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
@@ -767,6 +856,10 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/monitors.rs`](../../komorebi/tests/monitors.rs), two monitors: crossing from
   one to the other, the monitor commands and `EagerFocus`; [`komorebi/src/kwin/kwinrc.rs`](../../komorebi/src/kwin/kwinrc.rs), the
   `kwinrc` editor and its tests.
+- [`komorebi/tests/stacks.rs`](../../komorebi/tests/stacks.rs): stacking, unstacking and the windows
+  a stack hides, the behavior of new windows and the float override, against the fake;
+  [`nix/tests/vm/suites/stacks`](../../nix/tests/vm/suites/stacks/test.py), the same in a real
+  KWin, with the parking desktop, a crash and a stop.
 - [`nix/tests/vm/suites/workspace-switch`](../../nix/tests/vm/suites/workspace-switch/test.py):
   workspaces as a real KWin's desktops, switched by `komorebic` and by KWin;
   [`nix/tests/vm/suites/kwin-contract`](../../nix/tests/vm/suites/kwin-contract/test.py), the
@@ -798,6 +891,30 @@ A window is shown, and ends up on a tile:
 [`MatchingRule`]: ../../komorebi/src/core/config_generation.rs
 [`ApplicationIdentifier`]: ../../komorebi/src/core/mod.rs
 [`Window::set_position`]: ../../komorebi/src/window.rs
+[`Window::hide`]: ../../komorebi/src/window.rs
+[`Window::restore`]: ../../komorebi/src/window.rs
+[`HIDDEN_WINDOWS`]: ../../komorebi/src/lib.rs
+[`Container::add_window`]: ../../komorebi/src/container.rs
+[`Container::load_focused_window`]: ../../komorebi/src/container.rs
+[`Workspace::move_window_to_container`]: ../../komorebi/src/workspace.rs
+[`Workspace::new_container_for_focused_window`]: ../../komorebi/src/workspace.rs
+[`Workspace::remove_window`]: ../../komorebi/src/workspace.rs
+[`Workspace::focus_container_by_window`]: ../../komorebi/src/workspace.rs
+[`Workspace::restore`]: ../../komorebi/src/workspace.rs
+[`Workspace::window_container_behaviour`]: ../../komorebi/src/workspace.rs
+[`Workspace::float_override`]: ../../komorebi/src/workspace.rs
+[`WindowManager::add_window_to_container`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::remove_window_from_container`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::stack_all`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::unstack_all`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::restore_all_windows`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::window_management_behaviour`]: ../../komorebi/src/window_manager.rs
+[`Backend::hide`]: ../../komorebi/src/backend/mod.rs
+[`Table::hide_commands`]: ../../komorebi/src/kwin/state.rs
+[`Table::restore_commands`]: ../../komorebi/src/kwin/state.rs
+[`Table::window_workspace`]: ../../komorebi/src/kwin/state.rs
+[`Table::stale_park`]: ../../komorebi/src/kwin/state.rs
+[`NeedsPark`]: ../../komorebi/src/kwin/state.rs
 [`Workspace::new_container_for_window`]: ../../komorebi/src/workspace.rs
 [`WindowManager`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::process_event`]: ../../komorebi/src/process_event.rs

@@ -157,6 +157,23 @@ def test_the_log_is_the_file_of_the_session_and_empty_before_a_start(
     assert Kde(machine, "main").komorebi_log() == ""
 
 
+def test_kill_komorebi_sends_sigkill_and_waits_for_the_unit_to_be_inactive(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("is-active --quiet komorebi@main.service", status=3)
+    Kde(machine, "main").kill_komorebi()
+
+    commands = [inner(command) for command in machine.commands if " sh -c " in command]
+    assert "systemctl --user kill --signal=KILL komorebi@main.service" in commands
+
+
+def test_kill_komorebi_fails_the_test_when_the_daemon_survives(machine: FakeMachine) -> None:
+    kde = Kde(machine, "main", scale=0.01)
+
+    with pytest.raises(AssertionError, match="still running"):
+        kde.kill_komorebi()
+
+
 def test_komorebi_running_asks_the_user_manager(machine: FakeMachine) -> None:
     machine.reply("is-active --quiet komorebi@main.service", status=3)
     assert not Kde(machine, "main").komorebi_running()
@@ -373,6 +390,25 @@ def test_the_state_is_what_komorebic_state_prints(machine: FakeMachine) -> None:
     assert [inner(command) for command in machine.commands] == ["komorebic state"]
 
 
+def test_containers_are_the_titles_of_each_container_in_order(machine: FakeMachine) -> None:
+    machine.reply(
+        "komorebic state",
+        output=a_state(
+            workspace(container("a"), container("b", "c", focused=1)), workspace(container("d"))
+        ),
+    )
+    kde = Kde(machine, "main")
+
+    assert kde.containers() == [["a"], ["b", "c"]]
+    assert kde.containers(1) == [["d"]]
+
+
+def test_a_workspace_without_containers_has_no_titles(machine: FakeMachine) -> None:
+    machine.reply("komorebic state", output=a_state(workspace()))
+
+    assert Kde(machine, "main").containers() == []
+
+
 def test_managed_counts_the_windows_of_every_container_of_the_workspace(
     machine: FakeMachine,
 ) -> None:
@@ -449,6 +485,21 @@ def test_shown_and_desktops_ask_kwin(machine: FakeMachine) -> None:
 
     assert kde.shown() == 3
     assert kde.desktops() == 4
+
+
+def test_desktop_names_are_the_third_of_each_triple_kwin_prints(machine: FakeMachine) -> None:
+    machine.reply(
+        "VirtualDesktopManager desktops",
+        output='a(uss) 3 0 "a1" "Desktop 1" 1 "b2" "Mail and chat" 2 "c3" "komorebi-park"\n',
+    )
+
+    assert Kde(machine, "main").desktop_names() == ["Desktop 1", "Mail and chat", "komorebi-park"]
+
+
+def test_there_are_no_desktop_names_when_kwin_does_not_answer(machine: FakeMachine) -> None:
+    machine.reply("VirtualDesktopManager desktops", status=1, output="")
+
+    assert Kde(machine, "main").desktop_names() == []
 
 
 def test_kwinrc_reads_a_key_of_its_own_group(machine: FakeMachine) -> None:

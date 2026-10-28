@@ -21,6 +21,8 @@ was measured with KWin 6.8.1, Plasma 6.8.1 and Qt 6.12.0 from nixpkgs `d3b13ad`
 - **Output**: KWin's name for a monitor.
 - **Desktop**: one of KWin's virtual desktops. Each output shows one; komorebi's workspace `i`
   is desktop `i`.
+- **Parking desktop**: the desktop named `komorebi-park`, which komorebi makes to hide the back of
+  a stack on. It is not a workspace.
 - **Headless KWin**: `kwin_wayland --virtual`, a KWin with virtual outputs and no display,
   which the VM tests run ([vm-tests.md](vm-tests.md)).
 
@@ -57,6 +59,29 @@ outputs:
   `desktopsChanged`.
 - Desktops are global: every output has the same desktops, with the same names, and each output
   shows one of them. The ids of the desktops are UUIDs; the bridge names them by id.
+
+### The parking desktop
+
+Why komorebi hides windows on a desktop of its own is in
+[DESIGN.md](DESIGN.md#why-are-the-windows-behind-the-front-one-of-a-stack-moved-to-a-parking-desktop).
+What it relies on KWin for, at time of writing (2026-10-27), measured by the spikes on KWin
+6.8.1 (nixpkgs `d3b13ad`, 2026-10-24) unless it says otherwise. The VM test `vm-stacks` runs
+komorebi's use of them in a headless KWin:
+
+- A window on another desktop of its output is out of sight, and moving it there and back gives
+  its frame back exactly. Hiding six windows this way raised no `activated` event; minimizing
+  them raised two.
+- KWin saves a virtual desktop in `kwinrc` as soon as it is made. A desktop that komorebi made
+  and did not remove, because it was killed, is in every later session.
+- Activating a window that is on another desktop of its output switches that output to the
+  window's desktop (see [Per-output virtual desktops](#per-output-virtual-desktops)), which for a
+  hidden window is the parking desktop.
+- `Window.hidden` is read-only to a script, and the only thing in KWin's 6.8.1 sources that sets
+  it is a layer-shell window (an auto-hide panel). This is a reading of the sources, not a
+  measurement.
+- A window on the parking desktop is still a window of the session. Whether Plasma's task manager
+  lists it depends on the task manager's setting for showing the windows of the current desktop
+  only; the VM tests have no panel, so this is not measured.
 
 ### Wayland
 
@@ -107,8 +132,15 @@ reload its configuration. If a workspace has no desktop, it creates the missing 
 `org.kde.KWin.VirtualDesktopManager`, named "Workspace 1", "Workspace 2" and so on. A desktop
 that is already there keeps its name.
 
-Every command of the window manager (move and resize, focus, raise, minimize, bring back or
-close a window, show a workspace on an output, put a window on a workspace) is queued for the
+When a stack hides a window for the first time, it makes one more desktop, named `komorebi-park`,
+after the desktops of the workspaces (the missing workspace desktops are made by position, so that
+it stays last), and moves the window there. The desktop is not a workspace: komorebi counts the
+workspaces without it, and a window on it is on the workspace it will come back to. It checks that
+KWin still lists the desktop before it sends another window there.
+
+Every command of the window manager (move and resize, focus, raise, hide or restore, minimize,
+bring back or close a window, show a workspace on an output, put a window on a workspace) is
+queued for the
 bridge, which gets the queue as the answer to its held call and carries the commands out in
 KWin, in order. The script API cannot move the pointer, so
 when the pointer follows the focus komorebi invokes KWin's own "Move Mouse to Focus" shortcut,
@@ -128,15 +160,20 @@ an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a runnin
 
 #### What komorebi leaves behind
 
-When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it puts back
-the value `PerOutputVirtualDesktops` had in `kwinrc` (or removes the key, when the user had
-none) and asks KWin to reload its configuration, asks KWin to unload the script, closes an
-empty connection to each subscriber, and removes the socket. The desktops it created stay:
-they are the user's desktops from then on. The file `bridge.js` stays in the runtime
+When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it brings back
+the windows it hid, waits until the commands that do so have reached the bridge, removes the
+parking desktop, puts back the value `PerOutputVirtualDesktops` had in `kwinrc` (or removes the
+key, when the user had none) and asks KWin to reload its configuration, asks KWin to unload the
+script, closes an empty connection to each subscriber, and removes the socket. The desktops it
+created for workspaces stay: they are the user's desktops from then on. A `StopIgnoreRestore`
+message stops it the same way, except that it does not bring the windows back: the parking desktop
+is removed all the same. The file `bridge.js` stays in the runtime
 directory, which is removed at logout. A daemon that is killed leaves the script running in
-KWin, reporting to nobody, the socket file in the runtime directory, and per-output desktops
-on, until the next start replaces the script and the socket, and its stop puts the setting
-back (the backup in the runtime directory keeps the user's value), or the session ends.
+KWin, reporting to nobody, the socket file in the runtime directory, per-output desktops
+on, and the parking desktop with the hidden windows on it, until the next start replaces the
+script and the socket, sends the windows on the parking desktop to the first workspace's desktop
+and removes the desktop, and its stop puts the setting back (the backup in the runtime
+directory keeps the user's value), or the session ends.
 
 ### A headless KWin
 
@@ -182,7 +219,7 @@ What komorebi calls:
 | `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin leave the bus and come back |
 | `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
 | `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
-| `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the property `desktops`, `createDesktop(us)`, `setDesktopName(ss)` | when a workspace has no desktop, and at start |
+| `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the properties `desktops` and `count`, `createDesktop(us)`, `setDesktopName(ss)`, `removeDesktop(s)` | when a workspace has no desktop, and at start; `createDesktop` also for the parking desktop, the first time a window is hidden, and `removeDesktop` for it when komorebi stops and for one a killed run left |
 
 The property `desktops` is introspected as `a(iss)`, a position, an id and a name for each
 desktop, and the value on the wire is `a(uss)`: komorebi reads it as that. It is read uncached,

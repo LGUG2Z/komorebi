@@ -14,6 +14,7 @@ use crate::core::Layout;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::core::WindowContainerBehaviour;
 use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
 use crate::window::Window;
@@ -42,6 +43,12 @@ pub struct Workspace {
     pub work_area_offset: Option<Rect>,
     /// Whether this workspace takes its monitor's window-based offset (true by default)
     pub apply_window_based_work_area_offset: bool,
+    /// What a window that opens on this workspace gets, when it is not the window manager's
+    /// default: a container of its own, or a place in the focused container
+    pub window_container_behaviour: Option<WindowContainerBehaviour>,
+    /// Whether a window that opens on this workspace floats, when it is not the window manager's
+    /// default
+    pub float_override: Option<bool>,
     #[serde(skip)]
     pub globals: WorkspaceGlobals,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -69,7 +76,9 @@ impl Default for Workspace {
             globals: Default::default(),
             tile: true,
             apply_window_based_work_area_offset: true,
+            window_container_behaviour: None,
             floating_windows: Default::default(),
+            float_override: None,
             preselected_container_idx: None,
             promotion_swap_container_idx: None,
         }
@@ -181,6 +190,12 @@ impl Workspace {
         idx
     }
 
+    /// Focuses the container the window is in, and the window in it. When the window is in a stack
+    /// and was not the one in front, it is brought to the front ([`Container::load_focused_window`]).
+    ///
+    /// # Errors
+    ///
+    /// No container of the workspace has the window.
     pub fn focus_container_by_window(&mut self, window_id: u32) -> eyre::Result<()> {
         let container_idx = self
             .container_idx_for_window(window_id)
@@ -195,7 +210,17 @@ impl Workspace {
             .idx_for_window(window_id)
             .ok_or_eyre("there is no window")?;
 
+        let mut should_load = false;
+
+        if container.focused_window_idx() != window_idx {
+            should_load = true
+        }
+
         container.focus_window(window_idx);
+
+        if should_load {
+            container.load_focused_window()?;
+        }
 
         self.focus_container(container_idx);
 
@@ -320,6 +345,14 @@ impl Workspace {
         Ok(invalid_window_ids.len() + invalid_floating_window_ids.len())
     }
 
+    /// Takes the window out of its container, and returns it. A container that is left with no
+    /// window is removed. One that is left with windows shows the one in front of them now and
+    /// gives it the focus in the compositor, so that closing the window in front of a stack brings
+    /// the next one up.
+    ///
+    /// # Errors
+    ///
+    /// No container of the workspace has the window.
     pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
         let container_idx = self
             .container_idx_for_window(window_id)
@@ -343,6 +376,11 @@ impl Workspace {
         if container.windows().is_empty() {
             self.remove_container_by_idx(container_idx);
             self.focus_previous_container();
+        } else {
+            container.load_focused_window()?;
+            if let Some(window) = container.focused_window() {
+                window.focus(false)?;
+            }
         }
 
         Ok(window)
@@ -420,11 +458,139 @@ impl Workspace {
         false
     }
 
-    /// Gives the focus to the window of this workspace that had it: the focused window of the
+    /// Moves the focused window of the focused container into the container at
+    /// `target_container_idx`, which is how a window is stacked. The window is put in front of
+    /// the target's, and the container it left is removed when it has no window left, or shows its
+    /// next window.
+    ///
+    /// # Errors
+    ///
+    /// There is no focused container or window, or no container at the target's index (counted
+    /// after the container the window left has been removed, if it goes).
+    pub fn move_window_to_container(&mut self, target_container_idx: usize) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+
+        let container = self
+            .focused_container_mut()
+            .ok_or_eyre("there is no container")?;
+
+        let window = container
+            .remove_focused_window()
+            .ok_or_eyre("there is no window")?;
+
+        // This is a little messy
+        let adjusted_target_container_index = if container.windows().is_empty() {
+            self.remove_container_by_idx(focused_idx);
+
+            if focused_idx < target_container_idx {
+                target_container_idx.saturating_sub(1)
+            } else {
+                target_container_idx
+            }
+        } else {
+            container.load_focused_window()?;
+            target_container_idx
+        };
+
+        let target_container = self
+            .containers_mut()
+            .get_mut(adjusted_target_container_index)
+            .ok_or_eyre("there is no container")?;
+
+        target_container.add_window(&window)?;
+
+        self.focus_container(adjusted_target_container_index);
+        self.focused_container_mut()
+            .ok_or_eyre("there is no container")?
+            .load_focused_window()?;
+
+        Ok(())
+    }
+
+    /// Takes the focused window out of its container, which is how a window is unstacked, and puts
+    /// it in a container of its own after the focused one. The container it left is removed when
+    /// it has no window left, or shows its next window.
+    ///
+    /// # Errors
+    ///
+    /// There is no focused container or window.
+    pub fn new_container_for_focused_window(&mut self) -> eyre::Result<()> {
+        let focused_container_idx = self.focused_container_idx();
+
+        let container = self
+            .focused_container_mut()
+            .ok_or_eyre("there is no container")?;
+
+        let window = container
+            .remove_focused_window()
+            .ok_or_eyre("there is no window")?;
+
+        if container.windows().is_empty() {
+            self.remove_container_by_idx(focused_container_idx);
+        } else {
+            container.load_focused_window()?;
+        }
+
+        self.new_container_for_window(&window)?;
+
+        let mut container = Container::default();
+        container.add_window(&window)?;
+        Ok(())
+    }
+
+    /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
+    /// windows of every container. A scrolling workspace is tiled again first without its resize
+    /// adjustments, which are put back after, so that the windows are hidden where the layout
+    /// has them and not where they were dragged.
+    ///
+    /// # Errors
+    ///
+    /// Never: the result is there so that callers can use `?`.
+    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
+        for window in self.floating_windows_mut().iter_mut().rev() {
+            let mut should_hide = omit.is_none();
+
+            if !should_hide
+                && let Some(omit) = omit
+                && omit != window.id
+            {
+                should_hide = true
+            }
+
+            if should_hide {
+                window.hide();
+            }
+        }
+
+        let mut resize_dimensions = None;
+        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
+            && self.resize_dimensions.iter().any(|r| r.is_some())
+        {
+            resize_dimensions = Some(self.resize_dimensions.clone());
+            self.resize_dimensions = Vec::new();
+            if let Err(error) = self.update() {
+                tracing::error!("{error}");
+            }
+        }
+
+        for container in self.containers_mut() {
+            container.hide(omit)?;
+        }
+
+        if let Some(resize_dimensions) = resize_dimensions {
+            self.resize_dimensions = resize_dimensions;
+        }
+
+        Ok(())
+    }
+
+    /// Restores the window of every container that is in front, and the floating windows, and
+    /// gives the focus to the window of this workspace that had it: the focused window of the
     /// focused container, or the focused floating window when there is no container.
     ///
     /// The compositor shows a workspace's windows by itself when the workspace's desktop is shown;
-    /// this is what komorebi does after it has asked for that.
+    /// this is what komorebi does after it has asked for that, and it brings back what komorebi
+    /// itself has hidden (the back of a stack stays hidden).
     pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let idx = self.focused_container_idx();
         let mut to_focus = None;
@@ -437,8 +603,16 @@ impl Workspace {
             }
         }
 
+        for container in self.containers_mut() {
+            container.restore()?;
+        }
+
         if let Some(container) = self.focused_container_mut() {
             container.focus_window(container.focused_window_idx());
+        }
+
+        for window in self.floating_windows_mut() {
+            window.restore();
         }
 
         if let Some(window) = to_focus {
@@ -509,7 +683,8 @@ impl Workspace {
     }
 
     /// Takes the focused window out of its container, and out of the layout, into the floating
-    /// windows of the workspace; a container that is left with no window is removed
+    /// windows of the workspace; a container that is left with no window is removed, and one that
+    /// is left with windows shows the one in front now
     ///
     /// # Errors
     ///
@@ -532,6 +707,8 @@ impl Workspace {
                 if focused_idx == self.containers().len() {
                     self.focus_container(focused_idx.saturating_sub(1));
                 }
+            } else {
+                container.load_focused_window()?;
             }
 
             window
@@ -1168,6 +1345,43 @@ mod tests {
     }
 
     #[test]
+    fn test_locked_containers_stack() {
+        let mut ws = Workspace::default();
+
+        // add 6 containers
+        for i in 0..6 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            if i == 4 {
+                container.locked = true;
+            }
+            ws.add_container_to_back(container);
+        }
+        assert_eq!(ws.containers().len(), 6);
+
+        // set index 3 focused
+        ws.focus_container(3);
+
+        // stack index 3 on top of index 2
+        ws.move_window_to_container(2).unwrap();
+
+        assert_eq!(ws.containers()[0].focused_window().unwrap().id, 0);
+        assert_eq!(ws.containers()[1].focused_window().unwrap().id, 1);
+        assert_eq!(ws.containers()[2].windows().len(), 2);
+        assert_eq!(ws.containers()[3].focused_window().unwrap().id, 5);
+        // index 4 should still be the same
+        assert_eq!(ws.containers()[4].focused_window().unwrap().id, 4);
+
+        // unstack
+        ws.new_container_for_focused_window().unwrap();
+
+        // all indexes should be at their original position
+        for i in 0..6 {
+            assert_eq!(ws.containers()[i].focused_window().unwrap().id, i as u32)
+        }
+    }
+
+    #[test]
     fn test_contains_window() {
         // Create default workspace
         let mut workspace = Workspace::default();
@@ -1575,6 +1789,55 @@ mod tests {
     }
 
     #[test]
+    fn test_move_window_to_container() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 0 windows
+            let container = Container::default();
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            // Container with 3 windows
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        // Move A Window from container 1 to container 0
+        workspace.move_window_to_container(0).unwrap();
+
+        // Focus on container 0
+        workspace.focus_container(0);
+
+        // Container 0 should have 1 window
+        let container = workspace.focused_container_mut().unwrap();
+        assert_eq!(container.windows().len(), 1);
+    }
+
+    #[test]
+    fn test_move_window_to_non_existent_container() {
+        let mut workspace = Workspace::default();
+
+        // Add a container with one window
+        let mut container = Container::default();
+        container.windows_mut().push_back(Window::from(1));
+        workspace.add_container_to_back(container);
+
+        // Try to move window to a non-existent container
+        let result = workspace.move_window_to_container(8);
+
+        // Should return an error
+        assert!(
+            result.is_err(),
+            "Expected an error when moving a window to a non-existent container"
+        );
+    }
+
+    #[test]
     fn test_remove_window() {
         let mut workspace = Workspace::default();
 
@@ -1596,6 +1859,34 @@ mod tests {
 
         // Check that window 1 is removed
         assert!(!workspace.contains_window(1));
+    }
+
+    #[test]
+    fn test_new_container_for_focused_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 1 window
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        // Add focused window to new container
+        workspace.new_container_for_focused_window().ok();
+
+        // Should have 2 containers
+        assert_eq!(workspace.containers().len(), 2);
+
+        {
+            // Inspect new container. Should contain 1 window. Window name should be 0
+            workspace.focus_container(1);
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 1);
+            assert!(workspace.contains_window(0));
+        }
     }
 
     #[test]
@@ -1857,6 +2148,75 @@ mod tests {
         // the offset moves the top edge down by 40, the workspace padding takes 10 off every edge,
         // and the container padding 5 more
         assert_eq!(fake.rect_of(411), Some(tile(15, 55, 1890, 980)));
+        Ok(())
+    }
+
+    /// A workspace with the windows `ids` in containers of their own, and the last two of them
+    /// stacked: the last is in front, and the one before it hidden
+    fn workspace_with_a_stack(ids: &[u32]) -> (Arc<FakeBackend>, Workspace) {
+        let (fake, mut workspace) = workspace_with(ids);
+        let last = ids.len() - 1;
+        with_backend(fake.clone(), || {
+            workspace.focus_container(last);
+            workspace.move_window_to_container(last - 1).unwrap();
+        });
+        (fake, workspace)
+    }
+
+    #[test]
+    fn stacking_a_window_puts_it_in_front_and_hides_the_one_it_was_put_on() {
+        let (fake, workspace) = workspace_with_a_stack(&[431, 432, 433]);
+
+        assert_eq!(workspace.containers().len(), 2);
+        let stack = workspace.focused_container().unwrap();
+        assert_eq!(stack.focused_window().map(|w| w.id), Some(433));
+        assert!(fake.is_hidden(432) && !fake.is_hidden(433) && !fake.is_hidden(431));
+    }
+
+    #[test]
+    fn a_window_that_leaves_a_stack_shows_the_next_one() -> eyre::Result<()> {
+        let (fake, mut workspace) = workspace_with_a_stack(&[441, 442, 443]);
+
+        with_backend(fake.clone(), || workspace.remove_window(443))?;
+
+        assert!(!fake.is_hidden(442));
+        assert_eq!(workspace.containers().len(), 2);
+        assert_eq!(workspace.focused_container().unwrap().windows().len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn focusing_a_hidden_window_of_a_stack_brings_it_to_the_front() -> eyre::Result<()> {
+        let (fake, mut workspace) = workspace_with_a_stack(&[451, 452, 453]);
+        assert!(fake.is_hidden(452));
+
+        with_backend(fake.clone(), || workspace.focus_container_by_window(452))?;
+
+        assert!(!fake.is_hidden(452) && fake.is_hidden(453));
+        Ok(())
+    }
+
+    #[test]
+    fn showing_the_workspace_again_restores_the_front_of_each_stack_and_no_other()
+    -> eyre::Result<()> {
+        let (fake, mut workspace) = workspace_with_a_stack(&[461, 462, 463]);
+
+        with_backend(fake.clone(), || workspace.restore(false))?;
+
+        assert!(fake.is_hidden(462), "the back of the stack stays hidden");
+        assert!(!fake.is_hidden(463) && !fake.is_hidden(461));
+        Ok(())
+    }
+
+    #[test]
+    fn hiding_a_workspace_hides_every_window_but_the_one_it_is_told_to_leave() -> eyre::Result<()> {
+        let (fake, mut workspace) = workspace_with_a_stack(&[471, 472, 473]);
+
+        with_backend(fake.clone(), || workspace.hide(Some(471)))?;
+        assert!(!fake.is_hidden(471) && fake.is_hidden(472) && fake.is_hidden(473));
+
+        with_backend(fake.clone(), || workspace.hide(None))?;
+        assert!(fake.is_hidden(471));
         Ok(())
     }
 

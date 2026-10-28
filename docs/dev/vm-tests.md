@@ -118,17 +118,18 @@ the run.
   clients.
 - `start_komorebi(*args)` starts the daemon in the session, with the module's
   `execStart` and `args` after it (not `--log-level`, which `execStart` has),
-  `stop_komorebi()` stops it with `SIGTERM`, `komorebi_log()` returns its log
-  since it was last started, and `script_loaded()` asks KWin whether it runs
-  the bridge.
+  `stop_komorebi()` stops it with `SIGTERM`, `kill_komorebi()` kills it with
+  `SIGKILL`, as a crash does, `komorebi_log()` returns its log since it was
+  last started, and `script_loaded()` asks KWin whether it runs the bridge.
   `restart_kwin()` stops the session's KWin and starts a new one on the same
   bus, as when the compositor of a running session crashes, and waits for it.
 - `komorebic(*args)` runs `komorebic` in the session and returns what it
   printed, failing the test if it fails. `state()` is the daemon's state as
   `komorebic state` prints it, `managed(workspace)` the number of windows the
   daemon has on a workspace of the first monitor, `managed_all()` the number it
-  has on every workspace of every monitor (floating windows too), and
-  `focused_title(workspace)` the title of the window it has focused there.
+  has on every workspace of every monitor (floating windows too),
+  `containers(workspace)` the titles of the windows of each of its containers,
+  and `focused_title(workspace)` the title of the window it has focused there.
 - `daemon` reads the daemon's view of the desktop from that log, at the debug
   level the nodes set: `daemon.events(log)` lists the window events it handled,
   in order, `daemon.window_ids(log)` maps a window's title to the daemon's id
@@ -136,7 +137,9 @@ the run.
   for, for each window.
 - `desk(wid)` is the number of the desktop a window is on and `shown()` the one
   KWin shows, both counted from 1 as `kdotool` counts, `desktops()` how many
-  desktops KWin has, and `kwinrc(group, key)` a value of the user's `kwinrc`.
+  desktops KWin has, `desktop_names()` their names in order (the parking desktop
+  of a stack is the one named `komorebi-park`), and `kwinrc(group, key)` a value
+  of the user's `kwinrc`.
 - `kwin_script(name, source, keep=)` runs a KWin script and returns the lines it
   reported: the script calls `report(...)`, which `print`s a line marked with
   `name` to KWin's log, and ends with `report("done")`. A script that is kept

@@ -4,7 +4,8 @@
 //! show a workspace and to put a window on one. It follows a switch or a move that something else
 //! made without undoing it, and does nothing when the compositor reports what komorebi did itself.
 //!
-//! Window ids are in the 10_000s and unique per test.
+//! Window ids are in the 10_000s and unique per test, because the "hidden window" table is
+//! process-wide.
 
 use komorebi::backend::fake::Command;
 use komorebi::backend::fake::FakeBackend;
@@ -131,6 +132,14 @@ fn switching_workspace_asks_the_compositor_to_show_the_other_desktop() {
     assert!(
         !fake.on_screen(10_061),
         "the window on workspace 0 is still shown"
+    );
+    assert!(
+        !fake
+            .commands()
+            .iter()
+            .any(|c| matches!(c, Command::Hide(_))),
+        "komorebi hid a window for a workspace switch: {:?}",
+        fake.commands()
     );
 }
 
@@ -291,7 +300,7 @@ fn focus_going_to_a_window_on_the_workspace_in_front_changes_nothing() {
     .unwrap();
 
     assert_eq!(wm.focused_workspace_idx().unwrap(), 0);
-    assert!(fake.on_screen(10_411) && fake.on_screen(10_412));
+    assert!(!fake.is_hidden(10_411) && !fake.is_hidden(10_412));
 }
 
 fn moved_to_desktop(id: u32, idx: usize) -> WindowManagerEvent {

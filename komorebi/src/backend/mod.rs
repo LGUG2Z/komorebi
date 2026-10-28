@@ -28,6 +28,14 @@
 //! to be put on workspace `i` ([`Backend::set_window_workspace`]), and the compositor does the
 //! showing, the hiding and the focusing. When something else changes what a monitor shows, the
 //! backend raises an event and the window manager follows it.
+//!
+//! # Hiding
+//!
+//! The one thing the window manager hides itself is the back of a stack: a container tiles one
+//! window, so the others in it are taken out of sight ([`Backend::hide`]) and brought back
+//! ([`Backend::restore`]) when they are given the tile. A hidden window stays alive, stays on its
+//! workspace and is not minimized, so what the compositor reports about it is not taken for the
+//! user's doing (the window manager keeps a table of the windows it has hidden).
 
 #![deny(missing_docs)]
 
@@ -101,6 +109,9 @@ pub struct MonitorInfo {
 ///   one of them at a time ([`Backend::switch_workspace`]). The compositor shows the windows of the
 ///   workspace in front and hides the others; the window manager never hides a window to leave a
 ///   workspace.
+/// - A hidden window ([`Backend::hide`]) is still alive and still on its workspace: it is out of
+///   sight until [`Backend::restore`], and [`Backend::window_workspace`] names the workspace it
+///   comes back to.
 /// - A backend asked to show a workspace, or to put a window on one, that has no desktop yet makes
 ///   the desktops up to it first.
 ///
@@ -133,6 +144,8 @@ pub struct MonitorInfo {
 /// #     fn set_rect(&self, _: u32, _: &Rect) -> eyre::Result<()> { Ok(()) }
 /// #     fn focus(&self, _: u32, _: bool) -> eyre::Result<()> { Ok(()) }
 /// #     fn raise(&self, _: u32) -> eyre::Result<()> { Ok(()) }
+/// #     fn hide(&self, _: u32) -> eyre::Result<()> { Ok(()) }
+/// #     fn restore(&self, _: u32) -> eyre::Result<()> { Ok(()) }
 /// #     fn minimize(&self, _: u32) -> eyre::Result<()> { Ok(()) }
 /// #     fn unminimize(&self, _: u32) -> eyre::Result<()> { Ok(()) }
 /// #     fn close(&self, _: u32) -> eyre::Result<()> { Ok(()) }
@@ -191,6 +204,28 @@ pub trait Backend: Send + Sync + 'static {
     ///
     /// When the window does not exist or is no longer alive.
     fn raise(&self, id: u32) -> eyre::Result<()>;
+
+    /// Takes the window out of sight without closing or minimizing it, which is how the window
+    /// manager keeps the back of a stack out of the way. On KWin it goes to a virtual desktop that
+    /// nobody looks at.
+    ///
+    /// The window stays on its workspace ([`Backend::window_workspace`]), and
+    /// [`Backend::set_window_workspace`] changes the workspace it comes back to, not where it is
+    /// hidden. A window that is hidden already is left as it is.
+    ///
+    /// # Errors
+    ///
+    /// When the window does not exist or is no longer alive, or the compositor cannot make the
+    /// place the window is hidden in.
+    fn hide(&self, id: u32) -> eyre::Result<()>;
+
+    /// Brings a hidden window back, to the workspace it is on. A window that is not hidden is left
+    /// as it is.
+    ///
+    /// # Errors
+    ///
+    /// When the window does not exist or is no longer alive.
+    fn restore(&self, id: u32) -> eyre::Result<()>;
 
     /// Minimizes the window.
     ///
