@@ -20,6 +20,7 @@ use crate::REMOVE_TITLEBARS;
 use crate::SocketMessage;
 use crate::Wallpaper;
 use crate::WindowContainerBehaviour;
+use crate::animation::engine::AnimationBatch;
 use crate::border_manager;
 use crate::container::Container;
 use crate::core::Axis;
@@ -603,6 +604,9 @@ impl Workspace {
         if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
             return Ok(());
         }
+
+        // every window that moves in this pass is animated together
+        let _animations = AnimationBatch::begin();
 
         // make sure we are never holding on to empty containers
         self.containers_mut()

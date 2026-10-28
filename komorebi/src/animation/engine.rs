@@ -2,6 +2,7 @@ use color_eyre::eyre;
 
 use serde::Deserialize;
 use serde::Serialize;
+use std::cell::RefCell;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
@@ -10,6 +11,11 @@ use super::ANIMATION_DURATION_GLOBAL;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
 use super::RenderDispatcher;
+
+/// How often to check whether an animation that was asked to stop has done so.
+/// An animation notices that it was cancelled once per frame, so waiting much
+/// longer than that only delays the animation that replaces it.
+const CANCEL_POLL_INTERVAL_MS: u64 = 4;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -43,7 +49,7 @@ impl AnimationEngine {
                 ANIMATION_MANAGER.lock().end(animation_key);
             }
 
-            std::thread::sleep(Duration::from_millis(250 / 2));
+            std::thread::sleep(Duration::from_millis(CANCEL_POLL_INTERVAL_MS));
         }
 
         let latest_cancel_idx = ANIMATION_MANAGER.lock().latest_cancel_idx(animation_key);
@@ -53,70 +59,352 @@ impl AnimationEngine {
         latest_cancel_idx == cancel_idx
     }
 
-    #[allow(clippy::cast_precision_loss)]
+    /// Animate with `render_dispatcher` for `duration`.
+    ///
+    /// Inside an [`AnimationBatch`] the animation is held back and started
+    /// together with the other animations of the batch when it ends; outside
+    /// one it starts straight away.
     pub fn animate(
         render_dispatcher: impl RenderDispatcher + Send + 'static,
         duration: Duration,
     ) -> eyre::Result<()> {
-        std::thread::spawn(move || {
-            let animation_key = render_dispatcher.get_animation_key();
-            if ANIMATION_MANAGER.lock().in_progress(animation_key.as_str()) {
-                let should_animate = Self::cancel(animation_key.as_str());
+        let animation = Animation {
+            dispatcher: Box::new(render_dispatcher),
+            duration,
+        };
 
-                if !should_animate {
-                    return Ok(());
-                }
+        let batched = BATCH.with(|batch| match batch.borrow_mut().as_mut() {
+            Some(animations) => {
+                animations.push(animation);
+                None
             }
+            None => Some(animation),
+        });
 
-            render_dispatcher.pre_render()?;
+        if let Some(animation) = batched {
+            Self::run(vec![animation]);
+        }
 
-            ANIMATION_MANAGER.lock().start(animation_key.as_str());
+        Ok(())
+    }
+
+    /// Run animations together on one thread, one frame at a time.
+    ///
+    /// Every animation is prepared before the first frame is drawn, so that
+    /// they all start from the same moment, and every frame of all of them is
+    /// drawn before the compositor is asked to present it, so that they are
+    /// seen to move together. Animating the windows of a layout one thread at
+    /// a time lets each of them be a little ahead of or behind the others.
+    #[allow(clippy::cast_precision_loss)]
+    fn run(animations: Vec<Animation>) {
+        std::thread::spawn(move || {
+            // Preparing an animation can take a while (a ghost takes a picture
+            // of its window), and they are all prepared at once so that the
+            // time it takes is that of the slowest rather than of all of them.
+            let pending = std::thread::scope(|scope| {
+                animations
+                    .into_iter()
+                    .map(|animation| {
+                        scope.spawn(move || {
+                            let key = animation.dispatcher.get_animation_key();
+                            if ANIMATION_MANAGER.lock().in_progress(key.as_str()) {
+                                let should_animate = Self::cancel(key.as_str());
+
+                                if !should_animate {
+                                    return None;
+                                }
+                            }
+
+                            if let Err(error) = animation.dispatcher.pre_render() {
+                                tracing::warn!("animation {key} could not be prepared: {error}");
+                                return None;
+                            }
+
+                            Some((key, animation))
+                        })
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .filter_map(|prepared| prepared.join().ok().flatten())
+                    .collect::<Vec<_>>()
+            });
+            let mut pending = pending;
+
+            for (key, _) in &pending {
+                ANIMATION_MANAGER.lock().start(key.as_str());
+            }
 
             let target_frame_time =
                 Duration::from_millis(1000 / ANIMATION_FPS.load(Ordering::Relaxed));
-            let mut progress = 0.0;
             let animation_start = Instant::now();
 
-            // start animation
-            while progress < 1.0 {
-                // check if animation is cancelled
-                if ANIMATION_MANAGER
-                    .lock()
-                    .is_cancelled(animation_key.as_str())
-                {
-                    // cancel animation
-                    ANIMATION_MANAGER.lock().cancel(animation_key.as_str());
-                    render_dispatcher.cleanup_on_cancel();
-                    return Ok(());
-                }
+            while !pending.is_empty() {
+                // check if any animation is cancelled
+                pending.retain(|(key, animation)| {
+                    if ANIMATION_MANAGER.lock().is_cancelled(key.as_str()) {
+                        ANIMATION_MANAGER.lock().cancel(key.as_str());
+                        animation.dispatcher.cleanup_on_cancel();
+                        false
+                    } else {
+                        true
+                    }
+                });
 
                 let frame_start = Instant::now();
-                // calculate progress
-                progress =
-                    animation_start.elapsed().as_millis() as f64 / duration.as_millis() as f64;
-                render_dispatcher.render(progress).ok();
+                let elapsed = animation_start.elapsed().as_millis() as f64;
 
-                // sleep until next frame
+                let mut finished = Vec::new();
+                let mut remaining = Vec::with_capacity(pending.len());
+                for (key, animation) in pending {
+                    let progress = elapsed / animation.duration.as_millis() as f64;
+                    if progress.is_nan() || progress >= 1.0 {
+                        finished.push((key, animation));
+                    } else {
+                        animation.dispatcher.render(progress).ok();
+                        remaining.push((key, animation));
+                    }
+                }
+                pending = remaining;
+
+                Self::finish(finished);
+
+                // wait for the frame to be presented
+                if pending
+                    .iter()
+                    .any(|(_, animation)| animation.dispatcher.paces_with_compositor())
+                {
+                    unsafe {
+                        let _ = windows::Win32::Graphics::Dwm::DwmFlush();
+                    }
+                }
+
+                // then for the rest of the time the frame is meant to take
                 let frame_time_elapsed = frame_start.elapsed();
-
-                if frame_time_elapsed < target_frame_time {
+                if !pending.is_empty() && frame_time_elapsed < target_frame_time {
                     std::thread::sleep(target_frame_time - frame_time_elapsed);
                 }
             }
+        });
+    }
 
-            ANIMATION_MANAGER.lock().end(animation_key.as_str());
+    /// Land animations that have reached their end.
+    fn finish(animations: Vec<(String, Animation)>) {
+        for (key, animation) in &animations {
+            ANIMATION_MANAGER.lock().end(key.as_str());
 
-            // limit progress to 1.0 if animation took longer
-            if progress != 1.0 {
-                progress = 1.0;
+            // limit progress to 1.0 if animation took longer, and process
+            // the animation for 1.0 to set the target position
+            animation.dispatcher.render(1.0).ok();
+        }
 
-                // process animation for 1.0 to set target position
-                render_dispatcher.render(progress).ok();
+        // Landing an animation can take a while (a ghost fades out over
+        // several frames), and they are all landing at the same time.
+        std::thread::scope(|scope| {
+            for (_, animation) in animations {
+                scope.spawn(move || {
+                    if let Err(error) = animation.dispatcher.post_render() {
+                        tracing::warn!("animation could not be completed: {error}");
+                    }
+                });
             }
+        });
+    }
+}
 
-            render_dispatcher.post_render()
+struct Animation {
+    dispatcher: Box<dyn RenderDispatcher + Send>,
+    duration: Duration,
+}
+
+thread_local! {
+    static BATCH: RefCell<Option<Vec<Animation>>> = const { RefCell::new(None) };
+}
+
+/// Collects the animations started on this thread while it is alive, and
+/// starts them together once it is dropped.
+///
+/// Batches nest; the animations are started when the outermost one ends.
+pub struct AnimationBatch {
+    outermost: bool,
+}
+
+impl AnimationBatch {
+    pub fn begin() -> Self {
+        let outermost = BATCH.with(|batch| {
+            let mut batch = batch.borrow_mut();
+            if batch.is_none() {
+                *batch = Some(Vec::new());
+                true
+            } else {
+                false
+            }
         });
 
-        Ok(())
+        Self { outermost }
+    }
+}
+
+impl Drop for AnimationBatch {
+    fn drop(&mut self) {
+        if !self.outermost {
+            return;
+        }
+
+        let animations = BATCH.with(|batch| batch.borrow_mut().take().unwrap_or_default());
+        if !animations.is_empty() {
+            AnimationEngine::run(animations);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use parking_lot::Mutex;
+    use std::sync::Arc;
+
+    struct Recorder {
+        name: &'static str,
+        events: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl RenderDispatcher for Recorder {
+        fn get_animation_key(&self) -> String {
+            format!("engine-test-{}", self.name)
+        }
+
+        fn pre_render(&self) -> eyre::Result<()> {
+            self.events.lock().push(format!("pre {}", self.name));
+            Ok(())
+        }
+
+        fn render(&self, _progress: f64) -> eyre::Result<()> {
+            self.events.lock().push(format!("render {}", self.name));
+            Ok(())
+        }
+
+        fn post_render(&self) -> eyre::Result<()> {
+            self.events.lock().push(format!("post {}", self.name));
+            Ok(())
+        }
+
+        fn cleanup_on_cancel(&self) {
+            self.events.lock().push(format!("cancel {}", self.name));
+        }
+    }
+
+    fn recorder(name: &'static str, events: &Arc<Mutex<Vec<String>>>) -> Recorder {
+        Recorder {
+            name,
+            events: events.clone(),
+        }
+    }
+
+    fn wait_for(events: &Arc<Mutex<Vec<String>>>, event: &str) {
+        let start = Instant::now();
+        while !events.lock().iter().any(|e| e == event) {
+            assert!(
+                start.elapsed() < Duration::from_secs(5),
+                "timed out waiting for '{event}', saw {:?}",
+                events.lock()
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
+    fn batched_animations_are_prepared_before_any_is_drawn() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        {
+            let _batch = AnimationBatch::begin();
+            AnimationEngine::animate(recorder("batch-a", &events), Duration::from_millis(80))
+                .unwrap();
+            AnimationEngine::animate(recorder("batch-b", &events), Duration::from_millis(80))
+                .unwrap();
+
+            // nothing starts until the batch ends
+            std::thread::sleep(Duration::from_millis(50));
+            assert!(events.lock().is_empty());
+        }
+
+        wait_for(&events, "post batch-a");
+        wait_for(&events, "post batch-b");
+
+        let events = events.lock();
+        let first_render = events
+            .iter()
+            .position(|e| e.starts_with("render"))
+            .expect("the animations were drawn");
+        assert!(events[..first_render].contains(&"pre batch-a".to_string()));
+        assert!(events[..first_render].contains(&"pre batch-b".to_string()));
+
+        // both are drawn in every frame, not one after the other
+        let first_a = events.iter().position(|e| e == "render batch-a").unwrap();
+        let first_b = events.iter().position(|e| e == "render batch-b").unwrap();
+        assert!(first_a.abs_diff(first_b) <= 1);
+
+        // and both finish at their target
+        assert_eq!(events.iter().filter(|e| *e == "post batch-a").count(), 1);
+        assert_eq!(events.iter().filter(|e| *e == "post batch-b").count(), 1);
+    }
+
+    #[test]
+    fn nested_batches_start_when_the_outermost_one_ends() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        {
+            let _outer = AnimationBatch::begin();
+            {
+                let _inner = AnimationBatch::begin();
+                AnimationEngine::animate(recorder("nested", &events), Duration::from_millis(20))
+                    .unwrap();
+            }
+
+            std::thread::sleep(Duration::from_millis(50));
+            assert!(events.lock().is_empty());
+        }
+
+        wait_for(&events, "post nested");
+    }
+
+    #[test]
+    fn animations_outside_a_batch_start_straight_away() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        AnimationEngine::animate(recorder("alone", &events), Duration::from_millis(20)).unwrap();
+
+        wait_for(&events, "post alone");
+    }
+
+    #[test]
+    fn an_animation_without_a_duration_still_ends() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        AnimationEngine::animate(recorder("instant", &events), Duration::ZERO).unwrap();
+
+        wait_for(&events, "post instant");
+    }
+
+    #[test]
+    fn a_newer_animation_replaces_a_running_one_without_waiting_long() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        AnimationEngine::animate(recorder("replaced", &events), Duration::from_secs(30)).unwrap();
+        wait_for(&events, "pre replaced");
+
+        let replaced_at = Instant::now();
+        AnimationEngine::animate(recorder("replaced", &events), Duration::from_millis(20)).unwrap();
+
+        wait_for(&events, "cancel replaced");
+        wait_for(&events, "post replaced");
+
+        assert!(replaced_at.elapsed() < Duration::from_secs(2));
+
+        let events = events.lock();
+        let cancelled = events.iter().position(|e| e == "cancel replaced").unwrap();
+        let posted = events.iter().position(|e| e == "post replaced").unwrap();
+        assert!(cancelled < posted);
+        assert_eq!(events.iter().filter(|e| *e == "pre replaced").count(), 2);
     }
 }

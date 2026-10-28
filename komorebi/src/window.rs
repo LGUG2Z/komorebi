@@ -322,6 +322,10 @@ impl RenderDispatcher for MovementRenderDispatcher {
         Ok(())
     }
 
+    fn paces_with_compositor(&self) -> bool {
+        self.ghost.lock().is_some()
+    }
+
     fn render(&self, progress: f64) -> eyre::Result<()> {
         let logical = self.start_rect.lerp(self.target_rect, progress, self.style);
         *self.last_animated_rect.lock() = logical;
