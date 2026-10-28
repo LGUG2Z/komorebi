@@ -5,7 +5,9 @@
 # windows are inside the outputs and do not lie on each other. A command is also expected to be
 # understood (exit status 0). The Rust tests check what each command does against the fake; this
 # suite checks that none of them breaks the daemon in a real session, and that what the daemon
-# asks KWin for is what KWin carries out. Every command `komorebic` has is in the sweep.
+# asks KWin for is what KWin carries out. Every command `komorebic` has is in the sweep, but
+# `minimize` and `unmanage`, which take a window out of komorebi's hands and have a section of
+# their own.
 import shlex
 
 from komorebi_vm import Checks, Kde, daemon
@@ -188,10 +190,17 @@ toggle-lock
 toggle-lock
 toggle-tiling
 toggle-tiling
+toggle-pause
+toggle-pause
+unmanaged-window-operation-behaviour op
+unmanaged-window-operation-behaviour no-op
+unmanaged-window-operation-behaviour op
 mouse-follows-focus enable
 mouse-follows-focus disable
 toggle-mouse-follows-focus
 toggle-mouse-follows-focus
+manage
+close
 retile
 """
 for line in SWEEP.strip().splitlines():
@@ -203,6 +212,42 @@ for line in SWEEP.strip().splitlines():
         checks.bad(f"komorebic {line}: komorebi is not healthy afterwards ({healthy()})")
         continue
     checks.ok(f"komorebic {line}")
+
+print("== 3b. minimize, unmanage and manage the focused window")
+focused = kde.active()
+title = kde.title(focused)
+before = kde.managed()
+kde.wait_for(lambda: kde.focused_title() == title, timeout=10)
+kde.komorebic("minimize")
+checks.check(
+    f"minimize: komorebi lets go of {title} when KWin minimizes it",
+    kde.wait_for(lambda: kde.managed() == before - 1, timeout=10)
+    and kde.wid(title) != "",
+)
+kde.activate(focused)
+checks.check(
+    f"{title}, restored, is tiled again",
+    kde.wait_for(lambda: kde.managed() == before and healthy() == 0, timeout=10),
+)
+kde.wait_for(lambda: kde.focused_title() == title, timeout=10)
+kde.komorebic("unmanage")
+checks.check(
+    f"unmanage: komorebi lets go of {title}, which stays open",
+    kde.wait_for(lambda: kde.managed() == before - 1, timeout=10) and kde.wid(title) != "",
+)
+
+
+def centered() -> bool:
+    r = kde.rect(focused)
+    return abs(r.x + r.w // 2 - W // 2) <= CELL and abs(r.y + r.h // 2 - H // 2) <= CELL
+
+
+checks.check(f"{title} is in the middle of the work area", kde.wait_for(centered, timeout=10))
+kde.komorebic("manage")
+checks.check(
+    f"manage: {title} is tiled again",
+    kde.wait_for(lambda: kde.managed() == before and healthy() == 0, timeout=10),
+)
 
 print("== 4. what komorebic only prints")
 for args in ["state", "monitor-information", "data-directory"]:

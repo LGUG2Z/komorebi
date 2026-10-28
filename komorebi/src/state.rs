@@ -8,6 +8,7 @@
 //! [`SocketMessage::State`]: crate::core::SocketMessage::State
 //! [`Notification`]: crate::Notification
 
+use crate::core::OperationBehaviour;
 use crate::core::Rect;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
@@ -53,7 +54,9 @@ use std::collections::VecDeque;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub monitors: Ring<Monitor>,
+    pub is_paused: bool,
     pub resize_delta: i32,
+    pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub work_area_offset: Option<Rect>,
     pub mouse_follows_focus: bool,
 }
@@ -105,17 +108,19 @@ impl From<&WindowManager> for State {
 
         Self {
             monitors: stripped_monitors,
+            is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
             mouse_follows_focus: wm.mouse_follows_focus,
+            unmanaged_window_operation_behaviour: wm.unmanaged_window_operation_behaviour,
         }
     }
 }
 
 impl State {
     /// Returns true if and only if the window manager's monitors (with their workspaces,
-    /// containers and windows), its work area offset or its mouse follows focus setting differ
-    /// from this state's
+    /// containers and windows), whether it is paused, its unmanaged window operation behavior, its
+    /// work area offset or its mouse follows focus setting differ from this state's
     ///
     /// A window is compared by its id only, so a window that moved or was renamed is not a
     /// change.
@@ -123,6 +128,14 @@ impl State {
         let new = Self::from(wm);
 
         if self.monitors != new.monitors {
+            return true;
+        }
+
+        if self.is_paused != new.is_paused {
+            return true;
+        }
+
+        if self.unmanaged_window_operation_behaviour != new.unmanaged_window_operation_behaviour {
             return true;
         }
 

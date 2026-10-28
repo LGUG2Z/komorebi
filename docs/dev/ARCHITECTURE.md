@@ -25,7 +25,8 @@ its place here.
 - **Layout**: the arrangement (BSP, columns, rows, ...) that turns a work area and a
   number of containers into one rectangle, a **tile**, for each container.
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
-  the focus, minimized or restored ([`WindowManagerEvent`]).
+  the focus, minimized or restored ([`WindowManagerEvent`]). Two events come from komorebi
+  itself: a command asks it to manage the focused window, or to stop managing it.
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
   (focus a window, move it, change the layout, resize it, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
 - **Direction**: where an order goes from the focused container: a side of its tile
@@ -307,6 +308,26 @@ stays where it is.
 container given by its indices. A lock changes nothing until containers are inserted, removed or
 swapped around it, which the workspace does through `LockableSequence`.
 
+`Minimize` and `Close` ask the backend to minimize or close the window the compositor has
+focused, and change nothing else: the window leaves the layout when the compositor reports it,
+through the `Minimize` and `Destroy` events. `UnmanageFocusedWindow` and `ManageFocusedWindow`
+do not change the model either: they raise an `Unmanage` or a `Manage` event for the focused
+window on the channel the backend's events go through
+([`WindowManager::unmanage_focused_window`], [`WindowManager::manage_focused_window`]), and
+the window manager handles them in order with the compositor's. An `Unmanage` is handled like a
+`Destroy` of a window that stays open: the window leaves its workspace, is centered in the work
+area, and its id goes into a list of unmanaged windows that `handle_event` checks before it acts
+on any other event about a window; a `Manage` takes the id out of the list and is handled like a
+`Show`. A `Destroy` takes the id out of the list too.
+
+`TogglePause` sets [`WindowManager::is_paused`]: while it is set, `handle_event` returns at once
+for every event, and [`read_commands_uds`] hands only `TogglePause`, `State` and `Stop` to the
+window manager. `UnmanagedWindowOperationBehaviour` sets
+[`WindowManager::unmanaged_window_operation_behaviour`]: with `NoOp`,
+[`WindowManager::process_command`] refuses every message while the window the compositor has
+focused is in no container of the focused workspace
+([`WindowManager::handle_unmanaged_window_behaviour`]).
+
 `ResizeWindowEdge` and `ResizeWindowAxis` resize the focused container
 ([`WindowManager::resize_window`]). A resize is an adjustment of the container's tile, kept in
 [`Workspace::resize_dimensions`], one per container, which the layout applies when it calculates
@@ -375,7 +396,8 @@ module's unit.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
-  promote the focused container, float a window, lock a container).
+  promote the focused container, float a window, lock a container, manage and unmanage a
+  window).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -441,6 +463,8 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A command about a missing window is an error, not a panic | test | `a_command_about_a_window_nobody_opened_is_an_error` and `a_command_about_a_closed_window_is_an_error` against the fake, `a_command_about_a_window_the_table_does_not_know_is_an_error_and_sends_nothing` against the KWin backend | none |
 | A locked container keeps its index | framework path: a [`Workspace`] inserts, removes and swaps its containers through `LockableSequence` | `test_locked_containers_with_new_window`, `test_locked_containers_remove_window`, `a_window_that_opens_does_not_push_a_locked_container_from_its_index` | `containers_mut()` is the `VecDeque` itself |
 | A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone` | none |
+| A window the user unmanaged stays out of the layout until it is managed again | framework path: `handle_event` checks the list of unmanaged windows before it acts on any event but a removal | `unmanage_takes_the_focused_window_out_until_manage_takes_it_back` | none |
+| A paused window manager moves no window | framework path: `handle_event` returns before anything else, and [`read_commands_uds`] drops every message but `TogglePause`, `State` and `Stop` | `while_paused_no_event_changes_the_layout_and_manage_takes_in_a_window_it_missed`, `while_paused_only_toggle_pause_state_and_stop_are_handled` | none |
 | A destroyed window leaves whichever workspace has it | framework path: the destroy is looked up in the index of managed windows, which is rebuilt at startup and before and after every event | `a_window_that_was_open_before_komorebi_started_is_removed_when_it_closes` | none |
 | The daemon does not start without KWin, unless it is told to run against the fake | startup check: [`connect`] fails, and the daemon exits with the error, code 1 | `without_a_session_bus_komorebi_exits_with_an_error_naming_it` | `--fake-backend` |
 | One komorebi per session | startup check: the session bus gives `org.komorebi.Bridge` to one connection | none | none |
@@ -578,7 +602,9 @@ A window is shown, and ends up on a tile:
   scrolling layout; [`komorebi/tests/resize.rs`](../../komorebi/tests/resize.rs), resizing;
   [`komorebi/tests/promote.rs`](../../komorebi/tests/promote.rs), promoting;
   [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating;
-  [`komorebi/tests/lock.rs`](../../komorebi/tests/lock.rs), locking.
+  [`komorebi/tests/lock.rs`](../../komorebi/tests/lock.rs), locking;
+  [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
+  unmanaging and managing the focused window, and pausing.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
@@ -620,6 +646,11 @@ A window is shown, and ends up on a tile:
 [`WindowManager::resize_window`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_float`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_lock`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::manage_focused_window`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::unmanage_focused_window`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::is_paused`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::unmanaged_window_operation_behaviour`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::handle_unmanaged_window_behaviour`]: ../../komorebi/src/window_manager.rs
 [`WindowManagementBehaviour::toggle_float_placement`]: ../../komorebi/src/core/mod.rs
 [`WindowManager::promote_container_to_front`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::promote_container_swap`]: ../../komorebi/src/window_manager.rs

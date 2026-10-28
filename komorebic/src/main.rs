@@ -18,6 +18,10 @@
 //!   tile, or the focus to it.
 //! - `toggle-float` takes the focused window out of the layout, or puts it back, and
 //!   `toggle-lock` locks the focused container at its index, or unlocks it.
+//! - `minimize` and `close` minimize and close the focused window, `unmanage` takes it out of
+//!   the layout until `manage` takes it back, `unmanaged-window-operation-behaviour` sets whether
+//!   the daemon carries out an order while the focused window is not one it tiles, and
+//!   `toggle-pause` pauses the daemon and resumes it.
 //! - `resize-edge` and `resize-axis` resize the focused window by the `resize-delta`, and
 //!   `quick-save-resize`, `quick-load-resize`, `save-resize` and `load-resize` save the sizes of
 //!   the tiles of the focused workspace and load them back.
@@ -40,6 +44,7 @@ use fs_tail::TailedFile;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
+use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
@@ -99,6 +104,7 @@ gen_enum_subcommand_args! {
     // WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
+    UnmanagedWindowOperationBehaviour: OperationBehaviour,
     PromoteWindow: OperationDirection,
 }
 
@@ -260,6 +266,12 @@ enum SubCommand {
     PreselectDirection(PreselectDirection),
     /// Cancel a workspace preselect set by the preselect-direction command, if one exists
     CancelPreselect,
+    /// Minimize the focused window
+    Minimize,
+    /// Close the focused window
+    Close,
+    // /// Forcibly focus the window at the cursor with a left mouse click
+    // ForceFocus,
     /// Change focus to the window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleFocus(CycleFocus),
@@ -304,12 +316,21 @@ enum SubCommand {
     PromoteWindow(PromoteWindow),
     /// Force the retiling of all managed windows
     Retile,
+    /// Toggle the paused state for all window tiling
+    TogglePause,
     /// Toggle window tiling on the focused workspace
     ToggleTiling,
     /// Toggle floating mode for the focused window
     ToggleFloat,
     /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
     ToggleLock,
+    /// Force komorebi to manage the focused window
+    Manage,
+    /// Unmanage a window that was forcibly managed
+    Unmanage,
+    /// Set the operation behavior when the focused window is not managed
+    #[clap(arg_required_else_help = true)]
+    UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -450,6 +471,9 @@ fn main() -> eyre::Result<()> {
         SubCommand::CycleMove(args) => {
             send_message(&SocketMessage::CycleMoveWindow(args.cycle_direction))?;
         }
+        SubCommand::TogglePause => {
+            send_message(&SocketMessage::TogglePause)?;
+        }
         SubCommand::ChangeLayout(args) => {
             send_message(&SocketMessage::ChangeLayout(args.default_layout))?;
         }
@@ -470,6 +494,18 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
+        }
+        SubCommand::Close => {
+            send_message(&SocketMessage::Close)?;
+        }
+        SubCommand::Minimize => {
+            send_message(&SocketMessage::Minimize)?;
+        }
+        SubCommand::Manage => {
+            send_message(&SocketMessage::ManageFocusedWindow)?;
+        }
+        SubCommand::Unmanage => {
+            send_message(&SocketMessage::UnmanageFocusedWindow)?;
         }
         SubCommand::Promote => {
             send_message(&SocketMessage::Promote)?;
@@ -512,6 +548,11 @@ fn main() -> eyre::Result<()> {
             } else {
                 send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
             }
+        }
+        SubCommand::UnmanagedWindowOperationBehaviour(args) => {
+            send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
+                args.operation_behaviour,
+            ))?;
         }
         SubCommand::ToggleMouseFollowsFocus => {
             send_message(&SocketMessage::ToggleMouseFollowsFocus)?;

@@ -44,6 +44,17 @@
 //! - **ToggleFloat** takes the focused window out of the layout into the floating windows of the
 //!   workspace, which komorebi does not move, or puts a floating window back
 //!   ([`WindowManager::toggle_float`]).
+//! - **Minimize** and **Close** ask the compositor to minimize or close the window that has the
+//!   focus. The window leaves the layout when the compositor reports that it did.
+//! - **UnmanageFocusedWindow** takes the window that has the focus out of the layout and leaves it
+//!   alone until it closes, and **ManageFocusedWindow** takes it back
+//!   ([`WindowManager::unmanage_focused_window`], [`WindowManager::manage_focused_window`]).
+//! - **UnmanagedWindowOperationBehaviour** sets whether a message is carried out while the window
+//!   that has the focus is not tiled ([`WindowManager::handle_unmanaged_window_behaviour`]). With
+//!   `NoOp`, every message is refused then, this one included.
+//! - **TogglePause** pauses the window manager, or resumes it: while it is paused, it handles no
+//!   event, and of the messages only **TogglePause**, **State** and **Stop**
+//!   ([`read_commands_uds`]).
 //! - **ResizeWindowEdge** and **ResizeWindowAxis** resize the focused container by the
 //!   [`WindowManager::resize_delta`] that **ResizeDelta** sets ([`WindowManager::resize_window`]),
 //!   and **QuickSave**, **QuickLoad**, **Save** and **Load** write the resize adjustments of the
@@ -62,6 +73,7 @@ use crate::Notification;
 use crate::NotificationEvent;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
+use crate::backend::backend;
 use crate::core::Axis;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
@@ -73,6 +85,7 @@ use crate::core::StateQuery;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
 use crate::state::State;
+use crate::window::Window;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
 use color_eyre::eyre::Context;
@@ -142,6 +155,8 @@ impl WindowManager {
     ///
     /// # Errors
     ///
+    /// - The unmanaged window operation behavior is `NoOp` and the window that has the focus is not
+    ///   tiled, for one of the reasons [`WindowManager::handle_unmanaged_window_behaviour`] gives.
     /// - A query about the focused monitor, workspace or container when there is none.
     /// - The focus cannot be moved, for one of the reasons
     ///   [`WindowManager::focus_container_in_direction`] and
@@ -155,6 +170,8 @@ impl WindowManager {
     ///   `UnlockMonitorWorkspaceContainer` is not there (a container that is not there is ignored).
     /// - The focused window cannot be floated or put back, for one of the reasons
     ///   [`WindowManager::toggle_float`] gives.
+    /// - `Minimize`, `Close`, `ManageFocusedWindow` or `UnmanageFocusedWindow` when the compositor
+    ///   reports no focused window, or the backend refuses to minimize or close it.
     /// - The file of `QuickSave` or `Save` cannot be written, or the file of `QuickLoad` or
     ///   `Load` cannot be read or is not a list of resize adjustments.
     /// - The window manager fails to retile, for one of the reasons
@@ -173,6 +190,8 @@ impl WindowManager {
         #[allow(clippy::useless_asref)]
         // We don't have From implemented for &mut WindowManager
         let initial_state = State::from(self.as_ref());
+
+        self.handle_unmanaged_window_behaviour()?;
 
         match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
@@ -280,6 +299,24 @@ impl WindowManager {
 
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::Minimize => {
+                let foreground_window = backend()
+                    .foreground_window()
+                    .ok_or_eyre("there is no foreground window")?;
+                Window::from(foreground_window).minimize()?;
+            }
+            SocketMessage::Close => {
+                let foreground_window = backend()
+                    .foreground_window()
+                    .ok_or_eyre("there is no foreground window")?;
+                Window::from(foreground_window).close()?;
+            }
+            SocketMessage::ManageFocusedWindow => {
+                self.manage_focused_window()?;
+            }
+            SocketMessage::UnmanageFocusedWindow => {
+                self.unmanage_focused_window()?;
+            }
             SocketMessage::LockMonitorWorkspaceContainer(
                 monitor_idx,
                 workspace_idx,
@@ -321,6 +358,15 @@ impl WindowManager {
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
+            SocketMessage::TogglePause => {
+                if self.is_paused {
+                    tracing::info!("resuming");
+                } else {
+                    tracing::info!("pausing");
+                }
+
+                self.is_paused = !self.is_paused;
+            }
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
             SocketMessage::ToggleLock => self.toggle_lock()?,
@@ -450,6 +496,9 @@ impl WindowManager {
             SocketMessage::ToggleMouseFollowsFocus => {
                 self.mouse_follows_focus = !self.mouse_follows_focus;
             }
+            SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
+                self.unmanaged_window_operation_behaviour = behaviour;
+            }
             SocketMessage::AddSubscriberSocket(ref socket) => {
                 let mut sockets = SUBSCRIPTION_SOCKETS.lock();
                 let socket_path = DATA_DIR.join(socket);
@@ -544,7 +593,9 @@ impl WindowManager {
 /// [`WindowManager::process_command`] with the connection to answer on
 ///
 /// A message that arrives while the window manager has been locked for a second is logged and
-/// dropped.
+/// dropped. While the window manager is paused, the first message that is not `TogglePause`,
+/// `State` or `Stop` is dropped, and the first that is one of them is handled; either way, the
+/// lines after it are not read.
 ///
 /// # Errors
 ///
@@ -570,6 +621,18 @@ pub fn read_commands_uds(
                 );
             }
             Some(mut wm) => {
+                if wm.is_paused {
+                    return match message {
+                        SocketMessage::TogglePause | SocketMessage::State | SocketMessage::Stop => {
+                            Ok(wm.process_command(message, &mut stream)?)
+                        }
+                        _ => {
+                            tracing::trace!("ignoring while paused");
+                            Ok(())
+                        }
+                    };
+                }
+
                 wm.process_command(message.clone(), &mut stream)?;
             }
         }
@@ -764,6 +827,32 @@ mod tests {
 
         assert_eq!(reply, "Single");
         assert_ne!(daemon.fake.rect_of(731), Some(rect(300, 300, 400, 400)));
+        Ok(())
+    }
+
+    #[test]
+    fn while_paused_only_toggle_pause_state_and_stop_are_handled() -> eyre::Result<()> {
+        let daemon = Daemon::new(two_windows(741));
+        daemon.ask(SocketMessage::Retile)?;
+        let tile = daemon.fake.rect_of(741);
+        daemon.ask(SocketMessage::TogglePause)?;
+        daemon
+            .fake
+            .move_window_by_user(741, rect(300, 300, 400, 400));
+
+        assert_eq!(daemon.ask(SocketMessage::Retile)?, "");
+        assert_eq!(daemon.fake.rect_of(741), Some(rect(300, 300, 400, 400)));
+        // the message that is dropped is the last one read on its connection
+        assert_eq!(
+            daemon.send("{\"type\":\"Retile\"}\n{\"type\":\"State\"}\n")?,
+            ""
+        );
+        let state: serde_json::Value = serde_json::from_str(&daemon.ask(SocketMessage::State)?)?;
+        assert_eq!(state["is_paused"], true);
+
+        daemon.ask(SocketMessage::TogglePause)?;
+        daemon.ask(SocketMessage::Retile)?;
+        assert_eq!(daemon.fake.rect_of(741), tile);
         Ok(())
     }
 

@@ -19,6 +19,7 @@
 use crate::DATA_DIR;
 use crate::LibraryError;
 use crate::SUBSCRIPTION_SOCKETS;
+use crate::UNMANAGED_WINDOW_IDS;
 use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Arrangement;
@@ -26,6 +27,7 @@ use crate::core::Axis;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::OperationBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::Sizing;
@@ -36,6 +38,7 @@ use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::window_manager_event_listener;
 use crate::workspace::Workspace;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -58,8 +61,14 @@ pub struct WindowManager {
     /// The socket the daemon takes messages on, `komorebi.sock` in [`struct@DATA_DIR`] unless
     /// [`WindowManager::new`] was given another path
     pub command_listener: UnixListener,
+    /// Whether `TogglePause` has paused the window manager: while it is paused, it handles no
+    /// event, and of the messages only `TogglePause`, `State` and `Stop`
+    pub is_paused: bool,
     /// How many pixels `ResizeWindowEdge` and `ResizeWindowAxis` resize by
     pub resize_delta: i32,
+    /// Whether a message is carried out while the window that has the focus is not one komorebi
+    /// tiles ([`WindowManager::handle_unmanaged_window_behaviour`])
+    pub unmanaged_window_operation_behaviour: OperationBehaviour,
     /// How new and floated windows are placed: `ToggleFloat` reads its `toggle_float_placement`
     pub window_management_behaviour: WindowManagementBehaviour,
     /// Whether the pointer is moved to the window that is given the focus, which is the default
@@ -114,7 +123,9 @@ impl WindowManager {
         Ok(Self {
             monitors: Ring::default(),
             command_listener: listener,
+            is_paused: false,
             resize_delta: 50,
+            unmanaged_window_operation_behaviour: Default::default(),
             window_management_behaviour: WindowManagementBehaviour::default(),
             mouse_follows_focus: true,
             work_area_offset: None,
@@ -949,6 +960,36 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
+    /// With [`OperationBehaviour::NoOp`], refuses a message while the window that has the focus
+    /// in the compositor is not in a container of the focused workspace: a window komorebi does
+    /// not manage, one the user unmanaged, or a floating window
+    ///
+    /// With [`OperationBehaviour::Op`], the default, every message is carried out.
+    ///
+    /// # Errors
+    ///
+    /// With [`OperationBehaviour::NoOp`]:
+    ///
+    /// - There is no focused workspace, or the compositor reports no focused window.
+    /// - The focused window is not in a container of the focused workspace.
+    #[tracing::instrument(skip(self))]
+    pub fn handle_unmanaged_window_behaviour(&self) -> eyre::Result<()> {
+        if matches!(
+            self.unmanaged_window_operation_behaviour,
+            OperationBehaviour::NoOp
+        ) {
+            let workspace = self.focused_workspace()?;
+            let focused_hwnd = backend()
+                .foreground_window()
+                .ok_or_eyre("there is no foreground window")?;
+            if !workspace.contains_managed_window(focused_hwnd) {
+                bail!("ignoring commands while active window is not managed by komorebi");
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn update_known_window_ids(&mut self) {
         tracing::trace!("updating list of known window_ids");
         let mut known_window_ids = HashMap::new();
@@ -970,6 +1011,48 @@ impl WindowManager {
             // Store new window_ids
             self.known_window_ids = known_window_ids;
         }
+    }
+
+    /// Asks the window manager to manage the window that has the focus in the compositor again
+    /// after [`WindowManager::unmanage_focused_window`], by raising a
+    /// [`WindowManagerEvent::Manage`] for it, which is handled like a window that opens
+    ///
+    /// # Errors
+    ///
+    /// The compositor reports no focused window.
+    #[tracing::instrument(skip(self))]
+    pub fn manage_focused_window(&mut self) -> eyre::Result<()> {
+        let window_id = backend()
+            .foreground_window()
+            .ok_or_eyre("there is no foreground window")?;
+
+        UNMANAGED_WINDOW_IDS.lock().retain(|id| *id != window_id);
+
+        window_manager_event_listener::send_notification(WindowManagerEvent::Manage(Window::from(
+            window_id,
+        )));
+
+        Ok(())
+    }
+
+    /// Asks the window manager to stop managing the window that has the focus in the compositor,
+    /// by raising a [`WindowManagerEvent::Unmanage`] for it: the window leaves the layout, and
+    /// komorebi leaves it alone until [`WindowManager::manage_focused_window`] or until it closes
+    ///
+    /// # Errors
+    ///
+    /// The compositor reports no focused window.
+    #[tracing::instrument(skip(self))]
+    pub fn unmanage_focused_window(&mut self) -> eyre::Result<()> {
+        let window_id = backend()
+            .foreground_window()
+            .ok_or_eyre("there is no foreground window")?;
+
+        window_manager_event_listener::send_notification(WindowManagerEvent::Unmanage(
+            Window::from(window_id),
+        ));
+
+        Ok(())
     }
 }
 

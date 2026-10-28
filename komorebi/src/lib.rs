@@ -95,6 +95,9 @@ lazy_static! {
     static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
         AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
     ));
+    /// The windows `UnmanageFocusedWindow` took out of the layout: komorebi leaves them alone
+    /// until `ManageFocusedWindow` takes them back, or until they close
+    static ref UNMANAGED_WINDOW_IDS: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(vec![]));
 }
 
 /// The padding, in pixels, between the edge of a monitor's work area and the tiles of its
@@ -131,7 +134,7 @@ pub enum NotificationEvent {
 /// use komorebi::core::SocketMessage;
 /// use komorebi::window_manager_event::WindowManagerEvent;
 ///
-/// let state = r#"{"monitors":{"elements":[],"focused":0},"resize_delta":50,"work_area_offset":null,"mouse_follows_focus":true}"#;
+/// let state = r#"{"monitors":{"elements":[],"focused":0},"is_paused":false,"resize_delta":50,"unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#;
 ///
 /// let shown = format!(
 ///     r#"{{"event":{{"type":"Show","content":[{{"type":"KWin","content":"WindowAdded"}},{{"id":7}}]}},"state":{state}}}"#
@@ -206,7 +209,7 @@ pub struct Notification {
 /// ]);
 ///
 /// let state: State = serde_json::from_str(
-///     r#"{"monitors":{"elements":[],"focused":0},"resize_delta":50,"work_area_offset":null,"mouse_follows_focus":true}"#,
+///     r#"{"monitors":{"elements":[],"focused":0},"is_paused":false,"resize_delta":50,"unmanaged_window_operation_behaviour":"Op","work_area_offset":null,"mouse_follows_focus":true}"#,
 /// )?;
 /// let event = NotificationEvent::Socket(SocketMessage::Retile);
 /// notify_subscribers(Notification { event, state }, false)?;

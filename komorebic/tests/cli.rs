@@ -298,6 +298,23 @@ fn the_promote_subcommands_send_their_message() {
 }
 
 #[test]
+fn the_subcommands_about_the_focused_window_and_pausing_send_their_message() {
+    sends(&["minimize"], r#"{"type":"Minimize"}"#);
+    sends(&["close"], r#"{"type":"Close"}"#);
+    sends(&["manage"], r#"{"type":"ManageFocusedWindow"}"#);
+    sends(&["unmanage"], r#"{"type":"UnmanageFocusedWindow"}"#);
+    sends(&["toggle-pause"], r#"{"type":"TogglePause"}"#);
+    sends(
+        &["unmanaged-window-operation-behaviour", "no-op"],
+        r#"{"type":"UnmanagedWindowOperationBehaviour","content":"NoOp"}"#,
+    );
+    sends(
+        &["unmanaged-window-operation-behaviour", "op"],
+        r#"{"type":"UnmanagedWindowOperationBehaviour","content":"Op"}"#,
+    );
+}
+
+#[test]
 fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
     sends(
         &["mouse-follows-focus", "enable"],
@@ -354,6 +371,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
         [
             "cancel-preselect.md",
             "change-layout.md",
+            "close.md",
             "completions.md",
             "cycle-focus.md",
             "cycle-layout.md",
@@ -364,6 +382,8 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "layout-ratios.md",
             "load-resize.md",
             "log.md",
+            "manage.md",
+            "minimize.md",
             "monitor-information.md",
             "mouse-follows-focus.md",
             "move.md",
@@ -388,7 +408,10 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "toggle-float.md",
             "toggle-lock.md",
             "toggle-mouse-follows-focus.md",
+            "toggle-pause.md",
             "toggle-tiling.md",
+            "unmanage.md",
+            "unmanaged-window-operation-behaviour.md",
             "unsubscribe-socket.md",
         ]
     );

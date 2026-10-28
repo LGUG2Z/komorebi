@@ -143,7 +143,10 @@ another layout, `layout-ratios` and `scrolling-layout-columns` tune it,
 focused window to the largest tile, `toggle-float` takes it out of the
 layout, and `toggle-lock` keeps its container at its place. The scrolling layout
 is a strip of columns that runs past the edges of the monitor and scrolls to
-the window that has the focus.
+the window that has the focus. `minimize` and `close` ask KWin to minimize or
+close the focused window, `unmanage` takes it out of the layout until `manage`
+takes it back, and `toggle-pause` stops the daemon acting on events and orders
+until it is resumed.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

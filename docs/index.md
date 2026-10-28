@@ -35,8 +35,10 @@ daemon, ask it what it is doing and read its log.
 [Focusing windows](usage/focusing-windows.md) explains how to give the focus to another window,
 [Moving windows](usage/moving-windows.md) how to move the focused window to another tile,
 [Layouts](usage/layouts.md) how to change the arrangement of the tiles,
-[Resizing windows](usage/resizing-windows.md) how to change the size of one, and
-[Floating windows](usage/floating-windows.md) how to take a window out of the layout.
+[Resizing windows](usage/resizing-windows.md) how to change the size of one,
+[Floating windows](usage/floating-windows.md) how to take a window out of the layout, and
+[Managing windows](usage/managing-windows.md) how to minimize, close and unmanage the focused
+window and pause the daemon.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.

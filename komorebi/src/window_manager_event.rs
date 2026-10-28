@@ -3,19 +3,23 @@
 //! ([`WindowManager::process_event`](crate::window_manager::WindowManager::process_event)).
 //!
 //! An event is about one window and carries it, and the compositor signal it came from
-//! ([`SystemNotification`]), which is only for logging.
+//! ([`SystemNotification`]), which is only for logging. Two events come from komorebi itself
+//! rather than from the compositor: [`WindowManagerEvent::Manage`] and
+//! [`WindowManagerEvent::Unmanage`], which the commands that manage and unmanage the focused window
+//! raise.
 
 use crate::window::Window;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 
-/// The compositor signal a [`WindowManagerEvent`] came from
+/// Where a [`WindowManagerEvent`] came from: a compositor signal, or komorebi itself
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display, PartialEq, Eq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
 pub enum SystemNotification {
     KWin(KWinNotification),
+    Manual(ManualNotification),
 }
 
 /// The KWin script signals the bridge listens to
@@ -34,6 +38,14 @@ pub enum KWinNotification {
     WindowRestored,
 }
 
+/// Events komorebi raises itself, for example from a command
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Display, PartialEq, Eq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum ManualNotification {
+    Manage,
+    Unmanage,
+}
+
 /// Window events: each carries the window it is about.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -44,6 +56,10 @@ pub enum WindowManagerEvent {
     Destroy(SystemNotification, Window),
     Minimize(SystemNotification, Window),
     Restore(SystemNotification, Window),
+    /// The user asked komorebi to manage the window (`ManageFocusedWindow`)
+    Manage(Window),
+    /// The user asked komorebi to stop managing the window (`UnmanageFocusedWindow`)
+    Unmanage(Window),
 }
 
 impl WindowManagerEvent {
@@ -54,7 +70,9 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::Destroy(_, window)
             | WindowManagerEvent::Minimize(_, window)
-            | WindowManagerEvent::Restore(_, window) => *window,
+            | WindowManagerEvent::Restore(_, window)
+            | WindowManagerEvent::Manage(window)
+            | WindowManagerEvent::Unmanage(window) => *window,
         })
     }
 
@@ -75,7 +93,10 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(n, _)
             | WindowManagerEvent::Restore(n, _) => match n {
                 SystemNotification::KWin(k) => k.to_string(),
+                SystemNotification::Manual(m) => m.to_string(),
             },
+            WindowManagerEvent::Manage(_) => ManualNotification::Manage.to_string(),
+            WindowManagerEvent::Unmanage(_) => ManualNotification::Unmanage.to_string(),
         }
     }
 }

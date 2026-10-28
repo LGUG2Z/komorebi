@@ -368,6 +368,18 @@ impl Workspace {
         false
     }
 
+    /// Returns true if and only if the window is in one of the containers, which leaves out the
+    /// floating windows: the windows komorebi tiles
+    pub fn contains_managed_window(&self, window_id: u32) -> bool {
+        for container in self.containers() {
+            if container.contains_window(window_id) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub fn remove_focused_container(&mut self) -> Option<Container> {
         let focused_idx = self.focused_container_idx();
         let container = self.remove_container_by_idx(focused_idx);
@@ -1518,6 +1530,38 @@ mod tests {
         let focused_container = workspace.focused_container_mut().unwrap();
         assert_eq!(focused_container.focused_window().unwrap().id, 1);
         assert_eq!(focused_container.focused_window_idx(), 1);
+    }
+
+    #[test]
+    fn test_contains_managed_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 3 windows
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            // Container with 1 window
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(4));
+            workspace.add_container_to_back(container);
+        }
+
+        // Should return true, window is in container 1
+        assert!(workspace.contains_managed_window(4));
+
+        // Should return true, all the windows are in container 0
+        for i in 0..3 {
+            assert!(workspace.contains_managed_window(i));
+        }
+
+        // Should return false since window was never added
+        assert!(!workspace.contains_managed_window(5));
     }
 
     #[test]

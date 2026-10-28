@@ -1,12 +1,16 @@
 //! How the window manager answers what the compositor reports: [`WindowManager::process_event`].
 //!
-//! An event about a window komorebi does not manage ([`Window::should_manage`]) changes nothing.
-//! Otherwise:
+//! Nothing changes while the window manager is paused (`TogglePause`). An event about a window
+//! komorebi does not manage ([`Window::should_manage`]), or about one the user took out of the
+//! layout with `UnmanageFocusedWindow`, changes nothing either. Otherwise:
 //!
-//! - **Show**: the window gets a container of its own after the focused one, and the workspace is
-//!   tiled again. The first window on an empty workspace is given the focus.
-//! - **Destroy**: the window is taken out of whichever workspace has it, and if that is the one in
-//!   front it is tiled again.
+//! - **Show**, and **Manage** (`ManageFocusedWindow`): the window gets a container of its own after
+//!   the focused one, and the workspace is tiled again. The first window on an empty workspace is
+//!   given the focus.
+//! - **Destroy**, and **Unmanage** (`UnmanageFocusedWindow`): the window is taken out of whichever
+//!   workspace has it, and if that is the one in front it is tiled again. A window that is
+//!   unmanaged stays open, centered in the work area so that it is not left behind the tiles, and
+//!   komorebi leaves it alone until it is managed again.
 //! - **FocusChange**: the workspace is tiled again and the container of the window that has the
 //!   focus becomes the focused container. In the scrolling layout the workspace is tiled after
 //!   that instead, so that the strip scrolls to the window that has the focus.
@@ -23,6 +27,7 @@
 
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::UNMANAGED_WINDOW_IDS;
 use crate::backend::backend;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
@@ -86,16 +91,25 @@ impl WindowManager {
 
     #[instrument(skip_all)]
     fn handle_event(&mut self, event: WindowManagerEvent) -> eyre::Result<()> {
+        if self.is_paused {
+            tracing::trace!("ignoring while paused");
+            return Ok(());
+        }
+
         let Some(window) = event.window() else {
             return Ok(());
         };
         let window_id = window.id;
 
-        // A destroyed window can no longer be asked whether it should be managed, so a removal is
-        // let through without asking
-        let is_removal = matches!(event, WindowManagerEvent::Destroy(_, _));
+        // A destroyed window can no longer be asked whether it should be managed, and a window the
+        // user unmanaged is let go of whatever it is, so a removal is let through without asking
+        let is_removal = matches!(
+            event,
+            WindowManagerEvent::Destroy(_, _) | WindowManagerEvent::Unmanage(_)
+        );
 
-        let should_manage = is_removal || window.should_manage();
+        let should_manage = is_removal
+            || (window.should_manage() && !UNMANAGED_WINDOW_IDS.lock().contains(&window_id));
 
         if !should_manage {
             tracing::debug!("ignoring event as window should not be managed: {window}");
@@ -146,7 +160,7 @@ impl WindowManager {
                     self.update_focused_workspace(self.mouse_follows_focus, false)?;
                 }
             }
-            WindowManagerEvent::Show(_, _) => {
+            WindowManagerEvent::Show(_, _) | WindowManagerEvent::Manage(_) => {
                 let mut create = true;
 
                 if self.focused_workspace()?.contains_window(window_id) {
@@ -179,11 +193,14 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::Destroy(_, _) => {
+            WindowManagerEvent::Destroy(_, _) | WindowManagerEvent::Unmanage(_) => {
+                let destroyed = matches!(event, WindowManagerEvent::Destroy(_, _));
+
                 // the window may be on any workspace, not only the one in front
                 let location = self.known_window_ids.get(&window_id).cloned();
 
                 if let Some((m_idx, w_idx)) = location {
+                    let behaviour = self.window_management_behaviour;
                     let focused = m_idx == self.focused_monitor_idx()
                         && Some(w_idx) == self.focused_workspace_idx().ok();
 
@@ -192,7 +209,25 @@ impl WindowManager {
                         .get_mut(m_idx)
                         .and_then(|m| m.workspaces_mut().get_mut(w_idx))
                     {
-                        let _ = workspace.remove_window(window_id);
+                        let removed = workspace.remove_window(window_id);
+
+                        if !destroyed
+                            && focused
+                            && let Ok(mut window) = removed
+                        {
+                            // we stopped managing a window that is still open, so it should not end up
+                            // hidden behind the ones we do manage
+                            let placement = if behaviour.floating_layer_override {
+                                behaviour.floating_layer_placement
+                            } else if behaviour.float_override {
+                                behaviour.float_override_placement
+                            } else {
+                                behaviour.float_rule_placement
+                            };
+
+                            window
+                                .center(&workspace.globals.work_area, placement.should_resize())?;
+                        }
                     }
 
                     if focused {
@@ -201,7 +236,13 @@ impl WindowManager {
                     }
                 }
 
-                self.minimized_windows.remove(&window_id);
+                if destroyed {
+                    self.minimized_windows.remove(&window_id);
+                    UNMANAGED_WINDOW_IDS.lock().retain(|id| *id != window_id);
+                } else {
+                    // we only want to add the window ID after the window has been removed
+                    UNMANAGED_WINDOW_IDS.lock().push(window_id);
+                }
             }
             WindowManagerEvent::Minimize(_, _) => {
                 self.extract_minimized_window(window_id)?;
