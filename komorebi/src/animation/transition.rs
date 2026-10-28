@@ -8,6 +8,11 @@
 
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
+use std::collections::HashMap;
+use std::time::Duration;
+use std::time::Instant;
 
 /// Which side of the monitor the workspace that is entered comes in from. The
 /// workspace that is left goes out on the other side.
@@ -121,6 +126,222 @@ pub fn clip_thumbnail(dest: Rect, source: (i32, i32), clip: Rect) -> Option<(Rec
             bottom: source_bottom - source_top,
         },
     ))
+}
+
+/// What a window is about to be made to do by a workspace that is being
+/// switched, which it is not to be made to do any other way meanwhile
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Pending {
+    /// Slide out of the monitor, and be hidden when its ghost is up
+    Exit,
+    /// Slide into the monitor, and be shown when it has got there
+    Enter {
+        direction: SlideDirection,
+        clip: Rect,
+    },
+    /// Sliding into the monitor, which has been taken over by its animation:
+    /// the window is still not to be shown by anything else, as a layout of the
+    /// workspace that is done meanwhile would, until the animation shows it
+    Entering,
+}
+
+/// How long something that is pending can be: a transition that does not get
+/// round to what it is waiting to do must not leave a window hidden, or
+/// shown, because of it, so what is pending for longer than this is not.
+const PENDING_LIFETIME: Duration = Duration::from_secs(2);
+
+struct Entry {
+    pending: Pending,
+    since: Instant,
+    /// Whether an animation that is to do it has been made, which is not
+    /// finished by `finish_pending`: the animation does it when it starts
+    claimed: bool,
+}
+
+#[derive(Default)]
+struct Registry {
+    entries: HashMap<isize, Entry>,
+}
+
+impl Registry {
+    fn expect(&mut self, hwnd: isize, pending: Pending, now: Instant) {
+        self.entries.insert(
+            hwnd,
+            Entry {
+                pending,
+                since: now,
+                claimed: false,
+            },
+        );
+    }
+
+    fn claim(&mut self, hwnd: isize) {
+        if let Some(entry) = self.entries.get_mut(&hwnd) {
+            entry.claimed = true;
+        }
+    }
+
+    fn current(&self, hwnd: isize, now: Instant) -> Option<Pending> {
+        self.entries
+            .get(&hwnd)
+            .filter(|entry| now.saturating_duration_since(entry.since) < PENDING_LIFETIME)
+            .map(|entry| entry.pending)
+    }
+
+    /// Take what is pending for the window if it is something `wanted`, and
+    /// nothing otherwise: what is pending for it is anyone else's to take, and
+    /// is left as it is. What has been pending for too long is not pending, and
+    /// is got rid of whoever asks.
+    fn take_if(
+        &mut self,
+        hwnd: isize,
+        now: Instant,
+        wanted: impl FnOnce(&Pending) -> bool,
+    ) -> Option<Pending> {
+        let Some(pending) = self.current(hwnd, now) else {
+            self.entries.remove(&hwnd);
+            return None;
+        };
+
+        if !wanted(&pending) {
+            return None;
+        }
+
+        self.entries.remove(&hwnd);
+        Some(pending)
+    }
+
+    /// Everything that is pending and has no animation to do it, which is no
+    /// longer pending. What is claimed stays until the animation takes it, or
+    /// it has been pending for too long.
+    fn drain(&mut self, now: Instant) -> Vec<(isize, Pending)> {
+        let mut unclaimed = vec![];
+
+        self.entries.retain(|hwnd, entry| {
+            if entry.claimed {
+                return now.saturating_duration_since(entry.since) < PENDING_LIFETIME;
+            }
+
+            unclaimed.push((*hwnd, entry.pending));
+            false
+        });
+
+        unclaimed
+    }
+}
+
+lazy_static! {
+    static ref PENDING: Mutex<Registry> = Mutex::new(Registry::default());
+}
+
+/// The window is to slide out of the monitor: hiding it is left to the
+/// animation, which hides it when its ghost is up
+pub fn expect_exit(hwnd: isize) {
+    PENDING.lock().expect(hwnd, Pending::Exit, Instant::now());
+}
+
+/// The window is to slide into the monitor: showing it is left to the
+/// animation, which shows it when it has got there
+pub fn expect_enter(hwnd: isize, direction: SlideDirection, clip: Rect) {
+    PENDING
+        .lock()
+        .expect(hwnd, Pending::Enter { direction, clip }, Instant::now());
+}
+
+/// An animation has been made that is to do what is pending for the window
+pub fn claim(hwnd: isize) {
+    PENDING.lock().claim(hwnd);
+}
+
+/// Whether hiding the window is left to the animation that is to slide it out
+pub fn is_exiting(hwnd: isize) -> bool {
+    matches!(
+        PENDING.lock().current(hwnd, Instant::now()),
+        Some(Pending::Exit)
+    )
+}
+
+/// Whether showing the window is left to the animation that is to slide it in
+pub fn is_entering(hwnd: isize) -> bool {
+    matches!(
+        PENDING.lock().current(hwnd, Instant::now()),
+        Some(Pending::Enter { .. } | Pending::Entering)
+    )
+}
+
+/// Whether the window is on its way into the monitor, with its animation
+pub fn is_sliding_in(hwnd: isize) -> bool {
+    matches!(
+        PENDING.lock().current(hwnd, Instant::now()),
+        Some(Pending::Entering)
+    )
+}
+
+/// The animation takes over hiding the window: say whether it was to
+pub fn take_exit(hwnd: isize) -> bool {
+    PENDING
+        .lock()
+        .take_if(hwnd, Instant::now(), |pending| {
+            matches!(pending, Pending::Exit)
+        })
+        .is_some()
+}
+
+/// The animation takes over showing the window: which way it is to slide in
+/// from, and what it is not to be seen outside of
+///
+/// Showing the window is left to the animation from here on, until it calls
+/// `finish_enter`: a window is not shown by the layout of its workspace that
+/// is done while it slides in, which is done for every switch of workspaces
+/// when the focus change that follows it is handled.
+pub fn take_enter(hwnd: isize) -> Option<(SlideDirection, Rect)> {
+    let now = Instant::now();
+    let mut pending = PENDING.lock();
+
+    // only a window that is yet to slide in is taken: one that is already doing
+    // so is left sliding in, however many times the layout that follows the
+    // switch asks
+    match pending.take_if(hwnd, now, |pending| {
+        matches!(pending, Pending::Enter { .. })
+    }) {
+        Some(Pending::Enter { direction, clip }) => {
+            pending.expect(hwnd, Pending::Entering, now);
+            pending.claim(hwnd);
+            Some((direction, clip))
+        }
+        _ => None,
+    }
+}
+
+/// The animation of a window that slides in is about to show it
+pub fn finish_enter(hwnd: isize) {
+    PENDING.lock().take_if(hwnd, Instant::now(), |pending| {
+        matches!(pending, Pending::Enter { .. } | Pending::Entering)
+    });
+}
+
+/// Do now what was left to no animation: hide the windows that were to slide
+/// out and show the ones that were to slide in
+pub fn finish_pending() {
+    // out of the registry first, or what is done would be left to the animation
+    let pending = PENDING.lock().drain(Instant::now());
+
+    for (hwnd, pending) in pending {
+        let window = crate::window::Window { hwnd };
+        match pending {
+            Pending::Exit => window.hide(),
+            Pending::Enter { .. } | Pending::Entering => window.restore(),
+        }
+    }
+}
+
+/// Finishes what is pending when it goes out of scope, however that is
+pub struct PendingGuard;
+
+impl Drop for PendingGuard {
+    fn drop(&mut self) {
+        finish_pending();
+    }
 }
 
 #[cfg(test)]
@@ -317,5 +538,228 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn something_pending_is_pending_until_it_is_taken() {
+        let mut registry = Registry::default();
+        let now = Instant::now();
+        let enter = Pending::Enter {
+            direction: SlideDirection::FromRight,
+            clip: rect(0, 0, 1920, 1080),
+        };
+
+        registry.expect(1, Pending::Exit, now);
+        registry.expect(2, enter, now);
+
+        assert_eq!(registry.current(1, now), Some(Pending::Exit));
+        assert_eq!(registry.current(2, now), Some(enter));
+        assert_eq!(registry.current(3, now), None);
+
+        // looking does not take it
+        assert_eq!(registry.current(2, now), Some(enter));
+
+        assert_eq!(registry.take_if(2, now, |_| true), Some(enter));
+        assert_eq!(registry.take_if(2, now, |_| true), None);
+        assert_eq!(registry.current(2, now), None);
+
+        // the other is where it was
+        assert_eq!(registry.current(1, now), Some(Pending::Exit));
+    }
+
+    #[test]
+    fn something_pending_for_too_long_is_not_pending() {
+        let mut registry = Registry::default();
+        let then = Instant::now();
+
+        registry.expect(1, Pending::Exit, then);
+
+        let almost = then + PENDING_LIFETIME - Duration::from_millis(1);
+        let late = then + PENDING_LIFETIME;
+
+        assert_eq!(registry.current(1, almost), Some(Pending::Exit));
+        assert_eq!(registry.current(1, late), None);
+
+        // and taking it gets nothing, and gets rid of it
+        assert_eq!(registry.take_if(1, late, |_| true), None);
+        assert!(registry.drain(late).is_empty());
+    }
+
+    #[test]
+    fn expecting_again_starts_the_wait_again() {
+        let mut registry = Registry::default();
+        let then = Instant::now();
+        let later = then + Duration::from_secs(1);
+
+        registry.expect(1, Pending::Exit, then);
+        registry.expect(1, Pending::Exit, later);
+
+        assert_eq!(
+            registry.current(1, later + Duration::from_millis(1500)),
+            Some(Pending::Exit)
+        );
+    }
+
+    #[test]
+    fn draining_gives_everything_that_is_pending_once() {
+        let mut registry = Registry::default();
+        let now = Instant::now();
+
+        registry.expect(1, Pending::Exit, now);
+        registry.expect(2, Pending::Exit, now);
+
+        let mut drained = registry.drain(now);
+        drained.sort_by_key(|(hwnd, _)| *hwnd);
+
+        assert_eq!(drained, vec![(1, Pending::Exit), (2, Pending::Exit)]);
+        assert!(registry.drain(now).is_empty());
+        assert_eq!(registry.current(1, now), None);
+    }
+
+    #[test]
+    fn what_has_an_animation_to_do_it_is_left_pending_when_the_rest_is_finished() {
+        let mut registry = Registry::default();
+        let then = Instant::now();
+
+        registry.expect(1, Pending::Exit, then);
+        registry.expect(2, Pending::Exit, then);
+        registry.claim(2);
+        // nothing to claim is fine
+        registry.claim(3);
+
+        assert_eq!(registry.drain(then), vec![(1, Pending::Exit)]);
+        assert_eq!(registry.current(2, then), Some(Pending::Exit));
+
+        // until the animation takes it
+        assert_eq!(registry.take_if(2, then, |_| true), Some(Pending::Exit));
+        assert_eq!(registry.current(2, then), None);
+
+        // or it was not taken for too long, which is the end of it
+        registry.expect(4, Pending::Exit, then);
+        registry.claim(4);
+        assert!(registry.drain(then + PENDING_LIFETIME).is_empty());
+        assert!(registry.entries.is_empty());
+    }
+
+    #[test]
+    fn what_is_pending_for_a_window_is_taken_by_whoever_it_is_for() {
+        // windows nothing else in the tests uses
+        let (leaving, entering) = (0x7e57_1001, 0x7e57_1002);
+        let clip = rect(-1920, 0, 1920, 1080);
+
+        expect_exit(leaving);
+        expect_enter(entering, SlideDirection::FromLeft, clip);
+
+        assert!(is_exiting(leaving));
+        assert!(!is_entering(leaving));
+        assert!(is_entering(entering));
+        assert!(!is_exiting(entering));
+
+        assert!(take_exit(leaving));
+        assert!(!is_exiting(leaving));
+        assert_eq!(take_enter(entering), Some((SlideDirection::FromLeft, clip)));
+        finish_enter(entering);
+        assert!(!is_entering(entering));
+    }
+
+    #[test]
+    fn a_window_that_slides_in_is_not_shown_by_anything_else_until_its_animation_does() {
+        // a window nothing else in the tests uses
+        let hwnd = 0x7e57_1003;
+        let clip = rect(0, 0, 1920, 1080);
+
+        expect_enter(hwnd, SlideDirection::FromRight, clip);
+        assert!(is_entering(hwnd));
+        assert!(!is_sliding_in(hwnd));
+
+        assert_eq!(take_enter(hwnd), Some((SlideDirection::FromRight, clip)));
+
+        // the layout that is done after the switch finds it still hidden
+        assert!(is_entering(hwnd));
+        assert!(is_sliding_in(hwnd));
+        // and it is not slid in twice
+        assert_eq!(take_enter(hwnd), None);
+
+        finish_enter(hwnd);
+        assert!(!is_entering(hwnd));
+        assert!(!is_sliding_in(hwnd));
+    }
+
+    #[test]
+    fn a_window_that_is_sliding_in_has_its_animation_to_show_it_not_finish_pending() {
+        let mut registry = Registry::default();
+        let now = Instant::now();
+
+        registry.expect(1, Pending::Entering, now);
+        registry.claim(1);
+
+        assert!(registry.drain(now).is_empty());
+        assert_eq!(registry.current(1, now), Some(Pending::Entering));
+
+        // it is not for ever, if its animation never gets to it
+        assert_eq!(registry.current(1, now + PENDING_LIFETIME), None);
+    }
+
+    #[test]
+    fn taking_what_is_not_wanted_leaves_it_pending() {
+        let mut registry = Registry::default();
+        let now = Instant::now();
+
+        registry.expect(1, Pending::Entering, now);
+        registry.claim(1);
+
+        // asked for by something that is after another state
+        assert_eq!(
+            registry.take_if(1, now, |pending| matches!(pending, Pending::Exit)),
+            None
+        );
+        assert_eq!(
+            registry.take_if(1, now, |pending| matches!(pending, Pending::Enter { .. })),
+            None
+        );
+        assert_eq!(registry.current(1, now), Some(Pending::Entering));
+
+        // and by what is after it
+        assert_eq!(
+            registry.take_if(1, now, |pending| matches!(pending, Pending::Entering)),
+            Some(Pending::Entering)
+        );
+        assert_eq!(registry.current(1, now), None);
+    }
+
+    #[test]
+    fn what_is_pending_for_too_long_is_got_rid_of_by_anyone_asking() {
+        let mut registry = Registry::default();
+        let then = Instant::now();
+
+        registry.expect(1, Pending::Entering, then);
+
+        let late = then + PENDING_LIFETIME;
+        assert_eq!(registry.take_if(1, late, |_| false), None);
+        assert!(registry.entries.is_empty());
+    }
+
+    #[test]
+    fn a_window_stays_swallowed_however_many_layouts_look_at_it_while_it_slides_in() {
+        // a window nothing else in the tests uses
+        let hwnd = 0x7e57_1004;
+        let clip = rect(0, 0, 1920, 1080);
+
+        expect_enter(hwnd, SlideDirection::FromRight, clip);
+
+        // the layout of the switch takes it, and the layouts of the focus changes
+        // that follow it find it on its way in
+        assert!(take_enter(hwnd).is_some());
+        for _ in 0..3 {
+            assert_eq!(take_enter(hwnd), None);
+            assert!(!take_exit(hwnd));
+            assert!(is_entering(hwnd));
+            assert!(is_sliding_in(hwnd));
+        }
+
+        // until its animation shows it
+        finish_enter(hwnd);
+        assert!(!is_entering(hwnd));
+        assert!(!is_sliding_in(hwnd));
     }
 }

@@ -25,6 +25,7 @@ use crate::animation::ghost_dispatcher::GhostDispatcher;
 use crate::animation::lerp::Lerp;
 use crate::animation::prefix::AnimationPrefix;
 use crate::animation::prefix::new_animation_key;
+use crate::animation::transition;
 use crate::border_manager;
 use crate::cloaked;
 use crate::com::SetCloak;
@@ -415,6 +416,12 @@ impl Window {
     }
 
     pub fn hide_with_border(self, hide_border: bool) {
+        // a workspace that is sliding out hides its windows itself, when their
+        // ghosts are up
+        if transition::is_exiting(self.hwnd) {
+            return;
+        }
+
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if !programmatically_hidden_hwnds.contains(&self.hwnd) {
             programmatically_hidden_hwnds.push(self.hwnd);
@@ -441,6 +448,12 @@ impl Window {
     }
 
     pub fn restore_with_border(self, restore_border: bool) {
+        // a workspace that is sliding in shows its windows itself, when they have
+        // got there
+        if transition::is_entering(self.hwnd) {
+            return;
+        }
+
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()

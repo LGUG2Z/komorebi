@@ -606,11 +606,19 @@ impl WindowsApi {
         )
     }
 
-    pub fn set_border_pos(hwnd: isize, layout: &Rect, position: isize) -> eyre::Result<()> {
+    pub fn set_border_pos(
+        hwnd: isize,
+        layout: &Rect,
+        position: isize,
+        show: bool,
+    ) -> eyre::Result<()> {
         let mut flags = SetWindowPosition::NO_SEND_CHANGING
             | SetWindowPosition::NO_ACTIVATE
-            | SetWindowPosition::NO_REDRAW
-            | SetWindowPosition::SHOW_WINDOW;
+            | SetWindowPosition::NO_REDRAW;
+
+        if show {
+            flags |= SetWindowPosition::SHOW_WINDOW;
+        }
 
         if matches!(
             WINDOW_HANDLING_BEHAVIOUR.load(),

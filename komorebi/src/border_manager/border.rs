@@ -452,7 +452,10 @@ impl Border {
         rect.add_margin(self.width);
         rect.add_padding(-self.offset);
 
-        WindowsApi::set_border_pos(self.hwnd, &rect, reference_hwnd)?;
+        // a border that is held is put where it is to be and left hidden: it is
+        // shown along with its window, not when it is created
+        let show = !crate::border_manager::is_held(reference_hwnd);
+        WindowsApi::set_border_pos(self.hwnd, &rect, reference_hwnd, show)?;
 
         Ok(())
     }
@@ -521,7 +524,7 @@ impl Border {
                     // The window is hidden while a ghost stands in for it, and
                     // is not where the ghost is, which is where the border
                     // belongs: the animation moves it.
-                    if crate::border_manager::is_ghosted(reference_hwnd) {
+                    if crate::border_manager::leaves_border_alone(reference_hwnd) {
                         tracing::trace!(
                             "border: left the border of hwnd {reference_hwnd} to its ghost's animation"
                         );

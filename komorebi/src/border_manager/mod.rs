@@ -23,6 +23,7 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -133,6 +134,36 @@ pub fn set_ghosted(hwnd: isize, ghosted: bool) {
 
 pub(crate) fn is_ghosted(hwnd: isize) -> bool {
     GHOSTED.lock().contains_key(&hwnd)
+}
+
+lazy_static! {
+    /// The windows whose borders are not to be seen until they are let go of:
+    /// the border of a window that is sliding into a monitor cannot be cut off
+    /// at the edge of the monitor, as the picture of the window is, so it is
+    /// not shown until the window is.
+    static ref HELD: Mutex<HashSet<isize>> = Mutex::new(HashSet::new());
+}
+
+/// Hold, or let go of, the border of a window: while it is held it is hidden
+/// and nothing that happens to the window shows it or moves it. Letting go of
+/// it does not show it: showing the window does.
+pub fn set_held(hwnd: isize, held: bool) {
+    if held {
+        HELD.lock().insert(hwnd);
+        hide_border(hwnd);
+    } else {
+        HELD.lock().remove(&hwnd);
+    }
+}
+
+pub(crate) fn is_held(hwnd: isize) -> bool {
+    HELD.lock().contains(&hwnd)
+}
+
+/// Whether the border of a window is not to be moved to where the window is,
+/// because something else is putting it where it is to be seen
+pub(crate) fn leaves_border_alone(hwnd: isize) -> bool {
+    is_ghosted(hwnd) || is_held(hwnd)
 }
 
 pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
@@ -522,7 +553,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             // Update the border's monitor idx in case it changed
                             border.monitor_idx = Some(monitor_idx);
 
-                            let rect = if !new_border && is_ghosted(focused_window_hwnd) {
+                            let rect = if !new_border && leaves_border_alone(focused_window_hwnd) {
                                 tracing::trace!(
                                     "border: left the border of hwnd {focused_window_hwnd} to its ghost's animation"
                                 );
@@ -687,7 +718,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             // avoid getting into a thread restart loop if we try to look up
                             // rect info for a window that has been destroyed by the time
                             // we get here
-                            let rect = if !new_border && is_ghosted(focused_window_hwnd) {
+                            let rect = if !new_border && leaves_border_alone(focused_window_hwnd) {
                                 tracing::trace!(
                                     "border: left the border of hwnd {focused_window_hwnd} to its ghost's animation"
                                 );
@@ -788,7 +819,7 @@ fn handle_floating_borders(
         // Update the border's monitor idx in case it changed
         border.monitor_idx = Some(monitor_idx);
 
-        let rect = if !new_border && is_ghosted(window.hwnd) {
+        let rect = if !new_border && leaves_border_alone(window.hwnd) {
             tracing::trace!(
                 "border: left the border of hwnd {} to its ghost's animation",
                 window.hwnd
@@ -859,6 +890,16 @@ fn remove_border(
     borders: &mut HashMap<String, Box<Border>>,
     windows_borders: &mut HashMap<isize, String>,
 ) -> color_eyre::Result<()> {
+    // the border of a window that is about to slide out is the only one there is
+    // until its ghost, which has one drawn in it, is up: the window is hidden,
+    // and its border with it, when that is
+    if borders
+        .get(id)
+        .is_some_and(|border| crate::animation::transition::is_exiting(border.tracking_hwnd))
+    {
+        return Ok(());
+    }
+
     if let Some(removed_border) = borders.remove(id) {
         windows_borders.remove(&removed_border.tracking_hwnd);
         destroy_border(removed_border)?;
@@ -1009,5 +1050,28 @@ mod tests {
     #[test]
     fn nothing_is_waiting_for_a_border_that_was_not_ghosted() {
         assert!(take_animated_rect(0x7e57_0003).is_none());
+    }
+
+    #[test]
+    fn a_window_whose_border_is_held_has_it_left_alone_until_it_is_let_go_of() {
+        let hwnd = 0x7e57_0004;
+
+        assert!(!leaves_border_alone(hwnd));
+
+        set_held(hwnd, true);
+        assert!(is_held(hwnd));
+        assert!(leaves_border_alone(hwnd));
+        assert!(!leaves_border_alone(hwnd + 1));
+
+        set_held(hwnd, false);
+        assert!(!is_held(hwnd));
+        assert!(!leaves_border_alone(hwnd));
+
+        // a ghost leaves it alone too, which is not holding it
+        set_ghosted(hwnd, true);
+        assert!(leaves_border_alone(hwnd));
+        assert!(!is_held(hwnd));
+        set_ghosted(hwnd, false);
+        assert!(!leaves_border_alone(hwnd));
     }
 }
