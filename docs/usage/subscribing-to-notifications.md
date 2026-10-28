@@ -49,8 +49,8 @@ sent.
 
 A subscriber can ask to be sent a notification only when the event or the message changed
 the state, with the `filter_state_changes` option. It is still sent the notification of a
-window that is shown and of every new subscription, so it receives the state as soon as it
-subscribes. `komorebic subscribe-socket` has no option for it; a program writes the message
+window that is shown, of every new subscription, so it receives the state as soon as it
+subscribes, and of every reload of `komorebi.json`. `komorebic subscribe-socket` has no option for it; a program writes the message
 on the daemon's socket itself:
 
 ```sh

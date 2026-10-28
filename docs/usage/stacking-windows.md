@@ -93,6 +93,18 @@ komorebic toggle-workspace-window-container-behaviour
 The setting is in the daemon's state, as `new_window_behaviour` for every workspace and as
 `window_container_behaviour` in each workspace that has one of its own.
 
+In `komorebi.json`, `window_container_behaviour` is the setting for every workspace, `Create` or
+`Append`, and the entry of a workspace can have its own. The entry of a workspace can also have
+`window_container_behaviour_rules`, which give the behavior by the number of containers:
+
+```json
+{ "name": "chat", "layout": "Columns", "window_container_behaviour_rules": { "2": "Append" } }
+```
+
+A window opens in a tile of its own until the workspace has two containers, and joins the focused
+stack from then on. The [configuration](configuration.md) page says how the rules and the toggle
+for one workspace go together.
+
 ## Where the windows behind go
 
 komorebi does not minimize the windows behind the front one: it moves them to a virtual desktop

@@ -72,13 +72,19 @@
 //! daemon stops, `session-float-rules` shows those rules and `clear-session-float-rules` removes
 //! them, and `global-state` shows the rules the daemon has.
 //!
+//! `workspace-layout-rule` and `named-workspace-layout-rule` make a workspace change layout once
+//! it has so many windows, and `clear-workspace-layout-rules` and
+//! `clear-named-workspace-layout-rules` take those rules away. `generate-static-config` prints the
+//! settings of the daemon as a `komorebi.json`.
+//!
 //! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
 //! event and each message it handles.
 //!
-//! The others work without the daemon: `start` runs `komorebi` in the background, `log` follows
-//! its log, `data-directory` shows where its socket is, and `completions` prints a completion
-//! script for a shell. The hidden `docgen` writes the help of every subcommand as Markdown, wrapped
+//! The others work without the daemon: `start` runs `komorebi` in the background, with the
+//! `komorebi.json` it is given with `--config`, `configuration` shows the path of the
+//! `komorebi.json` the daemon reads, `log` follows its log, `data-directory` shows where its
+//! socket is, and `completions` prints a completion script for a shell. The hidden `docgen` writes the help of every subcommand as Markdown, wrapped
 //! at 100 columns whatever the width of the terminal, which is how `docs/cli` is made.
 
 use chrono::Utc;
@@ -94,6 +100,7 @@ use komorebi_client::DefaultLayout;
 use komorebi_client::MoveBehaviour;
 use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
+use komorebi_client::PathExt;
 use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
@@ -101,6 +108,7 @@ use komorebi_client::StateQuery;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
+use lazy_static::lazy_static;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::Write;
@@ -108,8 +116,30 @@ use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use sysinfo::ProcessesToUpdate;
+
+lazy_static! {
+    static ref HAS_CUSTOM_CONFIG_HOME: AtomicBool = AtomicBool::new(false);
+    static ref HOME_DIR: PathBuf = {
+        std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
+            |_| dirs::home_dir().expect("there is no home directory").join(".config").join("komorebi"),
+            |home_path| {
+                let home = home_path.replace_env();
+                if home.as_path().is_dir() {
+                    HAS_CUSTOM_CONFIG_HOME.store(true, Ordering::SeqCst);
+                    home
+                } else {
+                    panic!(
+                        "$KOMOREBI_CONFIG_HOME is set to \"{home_path}\", which is not a valid directory",
+                    );
+                }
+            },
+        )
+    };
+}
 
 #[derive(Copy, Clone, ValueEnum)]
 enum BooleanState {
@@ -219,6 +249,7 @@ gen_named_target_subcommand_args! {
     MoveToNamedWorkspace,
     SendToNamedWorkspace,
     FocusNamedWorkspace,
+    ClearNamedWorkspaceLayoutRules
 }
 
 // Thanks to @danielhenrymantilla for showing me how to use cfg_attr with an optional argument like
@@ -390,6 +421,15 @@ gen_application_target_subcommand_args! {
 }
 
 #[derive(Parser)]
+pub struct ClearWorkspaceLayoutRules {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
 struct Resize {
     #[clap(value_enum)]
     edge: OperationDirection,
@@ -490,6 +530,33 @@ pub struct MoveToMonitorWorkspace {
 }
 
 #[derive(Parser)]
+pub struct WorkspaceLayoutRule {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    at_container_count: usize,
+
+    #[clap(value_enum)]
+    layout: DefaultLayout,
+}
+
+#[derive(Parser)]
+pub struct NamedWorkspaceLayoutRule {
+    /// Target workspace name
+    workspace: String,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    at_container_count: usize,
+
+    #[clap(value_enum)]
+    layout: DefaultLayout,
+}
+
+#[derive(Parser)]
 struct DisplayIndexPreference {
     /// Preferred monitor index (zero-indexed)
     index_preference: usize,
@@ -516,6 +583,10 @@ struct EnsureNamedWorkspaces {
 #[derive(Parser)]
 #[allow(clippy::struct_excessive_bools)]
 struct Start {
+    /// Path to a static configuration JSON file
+    #[clap(short, long)]
+    #[clap(value_parser = replace_env_in_path)]
+    config: Option<PathBuf>,
     /// Arguments to pass to komorebi, after a `--`: `komorebic start -- --log-level debug`
     #[clap(last = true)]
     komorebi_args: Vec<String>,
@@ -595,6 +666,9 @@ enum SubCommand {
     Start(Start),
     /// Stop the komorebi process
     Stop(Stop),
+    /// Show the path to komorebi.json
+    #[clap(alias = "config")]
+    Configuration,
     /// Show the path to komorebi's data directory, which has its socket
     #[clap(alias = "datadir")]
     DataDirectory,
@@ -865,6 +939,26 @@ enum SubCommand {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // NamedWorkspaceCustomLayout(NamedWorkspaceCustomLayout),
+    /// Add a dynamic layout rule for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceLayoutRule(WorkspaceLayoutRule),
+    /// Add a dynamic layout rule for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceLayoutRule(NamedWorkspaceLayoutRule),
+    // /// Add a dynamic custom layout for the specified workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceCustomLayoutRule(WorkspaceCustomLayoutRule),
+    // /// Add a dynamic custom layout for the specified workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceCustomLayoutRule(NamedWorkspaceCustomLayoutRule),
+    /// Clear all dynamic layout rules for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    ClearWorkspaceLayoutRules(ClearWorkspaceLayoutRules),
+    /// Clear all dynamic layout rules for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    ClearNamedWorkspaceLayoutRules(ClearNamedWorkspaceLayoutRules),
     /// Enable or disable window tiling for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceTiling(WorkspaceTiling),
@@ -935,6 +1029,8 @@ enum SubCommand {
     MouseFollowsFocus(MouseFollowsFocus),
     /// Toggle mouse follows focus on all workspaces
     ToggleMouseFollowsFocus,
+    /// Generates a static configuration JSON file based on the current window manager state
+    GenerateStaticConfig,
 }
 
 fn print_query(message: &SocketMessage) {
@@ -989,6 +1085,10 @@ fn main() -> eyre::Result<()> {
         SubCommand::Start(args) => {
             let mut command = &mut Command::new("komorebi");
 
+            if let Some(config) = &args.config {
+                command = command.args(["--config", &config.display().to_string()])
+            };
+
             command = command
                 .args(&args.komorebi_args)
                 .stdout(Stdio::null())
@@ -1028,7 +1128,13 @@ fn main() -> eyre::Result<()> {
 
             if !running {
                 println!("\nRunning komorebi directly for detailed error output\n");
-                if let Ok(output) = Command::new("komorebi").args(&args.komorebi_args).output() {
+                let mut command = Command::new("komorebi");
+
+                if let Some(config) = &args.config {
+                    command.args(["--config", &config.display().to_string()]);
+                }
+
+                if let Ok(output) = command.args(&args.komorebi_args).output() {
                     println!("{}", String::from_utf8(output.stderr)?);
                 }
             }
@@ -1038,6 +1144,13 @@ fn main() -> eyre::Result<()> {
                 send_message(&SocketMessage::StopIgnoreRestore)?;
             } else {
                 send_message(&SocketMessage::Stop)?;
+            }
+        }
+        SubCommand::Configuration => {
+            let static_config = HOME_DIR.join("komorebi.json");
+
+            if static_config.exists() {
+                println!("{}", static_config.display());
             }
         }
         SubCommand::DataDirectory => {
@@ -1446,6 +1559,17 @@ fn main() -> eyre::Result<()> {
                 send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
             }
         }
+        SubCommand::ClearWorkspaceLayoutRules(args) => {
+            send_message(&SocketMessage::ClearWorkspaceLayoutRules(
+                args.monitor,
+                args.workspace,
+            ))?;
+        }
+        SubCommand::ClearNamedWorkspaceLayoutRules(args) => {
+            send_message(&SocketMessage::ClearNamedWorkspaceLayoutRules(
+                args.workspace,
+            ))?;
+        }
         SubCommand::CrossMonitorMoveBehaviour(args) => {
             send_message(&SocketMessage::CrossMonitorMoveBehaviour(
                 args.move_behaviour,
@@ -1469,6 +1593,21 @@ fn main() -> eyre::Result<()> {
                 args.names,
             ))?;
         }
+        SubCommand::WorkspaceLayoutRule(args) => {
+            send_message(&SocketMessage::WorkspaceLayoutRule(
+                args.monitor,
+                args.workspace,
+                args.at_container_count,
+                args.layout,
+            ))?;
+        }
+        SubCommand::NamedWorkspaceLayoutRule(args) => {
+            send_message(&SocketMessage::NamedWorkspaceLayoutRule(
+                args.workspace,
+                args.at_container_count,
+                args.layout,
+            ))?;
+        }
         SubCommand::MonocleFocusBehaviour(args) => {
             send_message(&SocketMessage::MonocleFocusBehaviour(args.behaviour))?;
         }
@@ -1488,6 +1627,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::UnsubscribeSocket(args) => {
             send_message(&SocketMessage::RemoveSubscriberSocket(args.socket))?;
+        }
+        SubCommand::GenerateStaticConfig => {
+            print_query(&SocketMessage::GenerateStaticConfig);
         }
         SubCommand::QuickSaveResize => {
             send_message(&SocketMessage::QuickSave)?;

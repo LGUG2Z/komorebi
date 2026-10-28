@@ -232,6 +232,7 @@ since a read right after `createDesktop` has to see the new desktop.
 
 | Path | What | Lifetime |
 |---|---|---|
+| `$KOMOREBI_CONFIG_HOME/komorebi.json` (`~/.config/komorebi/komorebi.json`) | komorebi's configuration, which komorebi never writes: read when the daemon starts, and again when it changes. `--config` names another file | the user's |
 | `$XDG_CONFIG_HOME/kwinrc` (`~/.config/kwinrc`) | KWin's configuration: komorebi sets `PerOutputVirtualDesktops=true` in `[Windows]`, changing that line or adding it and nothing else, and writes the file beside it first and renames it over it | put back as it was when the daemon stops |
 | `$XDG_RUNTIME_DIR/komorebi/kwinrc-backup.json` | the value each key of `kwinrc` had before komorebi first changed it | removed when the values are put back; one a crash left behind is used by the next run |
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
@@ -250,6 +251,13 @@ directory instead, with the logs (see [`XDG_DATA_HOME`](#xdg_data_home)).
 The address of the session bus. If it is not set, komorebi uses `$XDG_RUNTIME_DIR/bus`, where
 systemd puts the session bus, and `/run/user/<uid>/bus` when `XDG_RUNTIME_DIR` is not set
 either. An address with no bus behind it is the first error under [No KWin](#no-kwin).
+
+### `KOMOREBI_CONFIG_HOME`
+
+The config home, where komorebi looks for `komorebi.json`: a directory, in which `komorebic
+configuration` and the daemon look for the file. Without it the config home is
+`~/.config/komorebi`, whatever `XDG_CONFIG_HOME` is. When it is set and is not a directory, the
+daemon and `komorebic` panic when they first need the config home, and say so.
 
 ### `XDG_RUNTIME_DIR`
 
@@ -291,6 +299,15 @@ Whether an error carries a backtrace. komorebi sets it to `1` when it is not set
 When set to anything but the empty string, the log the daemon prints on its standard output
 has no ANSI colors, which is what standard output redirected to a file wants. The VM tests
 set it. The log files are not affected: one has colors and the other none.
+
+## Watching the configuration
+
+The daemon watches `komorebi.json` with `hotwatch` 0.5, over `notify` 6.1, which on Linux is
+inotify. At time of writing (2026-10-27) a change to the file reaches the daemon about two
+seconds later, the delay of `hotwatch`'s debouncer, whether an editor wrote the file in place or
+renamed a new file over it: `the_daemon_follows_the_file_it_is_given_when_the_file_changes` does
+both, on aarch64 Linux. A file the daemon cannot read after a change is logged and leaves the
+configuration it has.
 
 ## The bridge's environment
 

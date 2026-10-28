@@ -72,6 +72,17 @@ let
     }
   );
 
+  withConfigFile = eval (
+    { pkgs, ... }:
+    {
+      imports = [ plasma ];
+      services.komorebi = {
+        enable = true;
+        configFile = pkgs.writeText "komorebi.json" "{}";
+      };
+    }
+  );
+
   unknownLevel = eval {
     imports = [ plasma ];
     services.komorebi = {
@@ -176,6 +187,19 @@ let
         == "${otherPackage.services.komorebi.package}/bin/komorebi --log-level info"
         && lib.elem otherPackage.services.komorebi.package otherPackage.environment.systemPackages;
       got = (unit otherPackage).serviceConfig.ExecStart;
+    }
+    {
+      name = "without a configFile, the unit passes no --config";
+      ok = !(lib.hasInfix "--config" enabled.services.komorebi.execStart);
+      got = enabled.services.komorebi.execStart;
+    }
+    {
+      name = "configFile reaches execStart and the unit as --config, after the log level";
+      ok =
+        withConfigFile.services.komorebi.execStart
+        == "${withConfigFile.services.komorebi.package}/bin/komorebi --log-level info --config ${withConfigFile.services.komorebi.configFile}"
+        && (unit withConfigFile).serviceConfig.ExecStart == withConfigFile.services.komorebi.execStart;
+      got = (unit withConfigFile).serviceConfig.ExecStart;
     }
     {
       name = "a log level the daemon does not have does not evaluate";

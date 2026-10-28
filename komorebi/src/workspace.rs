@@ -4,6 +4,12 @@
 //! per container in the work area it was given, less its padding, and puts every window of each
 //! container on its tile with [`Window::set_position`]. The work area and the padding a workspace
 //! falls back to come from the monitor it is on ([`WorkspaceGlobals`]).
+//!
+//! A workspace takes its name, layout, padding, offsets and rules from its entry in
+//! `komorebi.json` ([`Workspace::load_static_config`]). Its layout and its offset can change with
+//! the number of containers it has ([`Workspace::layout_rules`],
+//! [`Workspace::work_area_offset_rules`]), and its layout options come from the workspace or from
+//! the defaults of its layout.
 
 use crate::backend::backend;
 use crate::container::Container;
@@ -12,12 +18,14 @@ use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::FloatingLayerBehaviour;
 use crate::core::Layout;
+use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::WindowContainerBehaviour;
 use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
+use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -50,6 +58,17 @@ pub struct Workspace {
     pub floating_windows: Ring<Window>,
     pub layout: Layout,
     pub layout_options: Option<LayoutOptions>,
+    /// The layout the workspace takes when it has this many containers or more, the highest
+    /// threshold that is reached winning, in ascending order of threshold
+    pub layout_rules: Vec<(usize, Layout)>,
+    /// Threshold-based layout options rules (container_count >= threshold -> use these options).
+    /// Sorted by threshold ascending at load time.
+    #[serde(default)]
+    pub layout_options_rules: Vec<(usize, LayoutOptions)>,
+    /// Cached per-layout defaults from the global `layout_defaults` config setting.
+    /// Pre-sorted at config load time; used as fallback when workspace has no overrides.
+    #[serde(skip)]
+    pub(crate) layout_defaults_cache: HashMap<DefaultLayout, CachedLayoutDefault>,
     pub layout_flip: Option<Axis>,
     pub workspace_padding: Option<i32>,
     pub container_padding: Option<i32>,
@@ -58,11 +77,19 @@ pub struct Workspace {
     pub tile: bool,
     /// The work area offset of this workspace, which it takes instead of its monitor's
     pub work_area_offset: Option<Rect>,
+    /// The work area offset the workspace takes when it has this many containers or more, the
+    /// highest threshold that is reached winning, in ascending order of threshold; it comes before
+    /// [`Workspace::work_area_offset`]
+    pub work_area_offset_rules: Vec<(usize, Rect)>,
     /// Whether this workspace takes its monitor's window-based offset (true by default)
     pub apply_window_based_work_area_offset: bool,
     /// What a window that opens on this workspace gets, when it is not the window manager's
     /// default: a container of its own, or a place in the focused container
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
+    /// What a window that opens on this workspace gets when the workspace has this many containers
+    /// or more, the highest threshold that is reached winning, in ascending order of threshold;
+    /// [`Workspace::update`] sets [`Workspace::window_container_behaviour`] from it
+    pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
     /// Whether a window that opens on this workspace floats, when it is not the window manager's
     /// default
     pub float_override: Option<bool>,
@@ -117,15 +144,20 @@ impl Default for Workspace {
             resize_dimensions: vec![],
             layout: Layout::Default(DefaultLayout::BSP),
             work_area_offset: None,
+            work_area_offset_rules: vec![],
             latest_layout: vec![],
             layout_flip: None,
             layout_options: None,
+            layout_rules: vec![],
+            layout_options_rules: vec![],
+            layout_defaults_cache: HashMap::new(),
             globals: Default::default(),
             layer: Default::default(),
             floating_layer_behaviour: None,
             tile: true,
             apply_window_based_work_area_offset: true,
             window_container_behaviour: None,
+            window_container_behaviour_rules: None,
             floating_windows: Default::default(),
             float_override: None,
             preselected_container_idx: None,
@@ -157,6 +189,43 @@ pub struct WorkspaceGlobals {
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Cached per-layout default options (pre-sorted rules) derived from the global `layout_defaults`.
+pub(crate) struct CachedLayoutDefault {
+    pub layout_options: Option<LayoutOptions>,
+    /// Threshold-based rules, sorted by threshold ascending at load time
+    pub layout_options_rules: Vec<(usize, LayoutOptions)>,
+}
+
+/// Convert an optional HashMap of threshold-based layout options rules into a Vec sorted by
+/// threshold ascending.
+fn sorted_layout_options_rules(
+    rules: Option<&HashMap<usize, LayoutOptions>>,
+) -> Vec<(usize, LayoutOptions)> {
+    match rules {
+        Some(rules) => {
+            let mut sorted: Vec<(usize, LayoutOptions)> =
+                rules.iter().map(|(t, o)| (*t, *o)).collect();
+            sorted.sort_by_key(|(t, _)| *t);
+            sorted
+        }
+        None => vec![],
+    }
+}
+
+/// Find the highest matching threshold rule for the given container count.
+/// Rules must be sorted by threshold ascending.
+fn resolve_threshold_match(
+    rules: &[(usize, LayoutOptions)],
+    container_count: usize,
+) -> Option<LayoutOptions> {
+    rules
+        .iter()
+        .rev()
+        .find(|(threshold, _)| container_count >= *threshold)
+        .map(|(_, opts)| *opts)
+}
+
 /// `komorebi_layouts::Rect::percentage_within_horizontal_bounds`, which that crate compiles only
 /// with its `darwin` feature
 trait HorizontalBounds {
@@ -181,6 +250,152 @@ impl HorizontalBounds for Rect {
 }
 
 impl Workspace {
+    /// Takes the settings of `config`, which `komorebi.json` has for this workspace: its name, its
+    /// layout and the rules that change it with the number of containers, its padding and offsets,
+    /// what a new window gets and whether it floats, whether it tiles, how its layout is flipped
+    /// and what a new window does on its floating layer
+    ///
+    /// `layout_defaults` is what `komorebi.json` says every layout has, for the layout options the
+    /// workspace sets none of: it is copied here, sorted, so that [`Workspace::update`] has it at
+    /// hand.
+    ///
+    /// A workspace that names no layout and does not say it tiles has tiling off, as the file gave
+    /// it no layout to tile with, and one that has layout rules tiles.
+    pub fn load_static_config(
+        &mut self,
+        config: &WorkspaceConfig,
+        layout_defaults: Option<&HashMap<DefaultLayout, LayoutDefaultEntry>>,
+    ) -> eyre::Result<()> {
+        self.name = Option::from(config.name.clone());
+
+        self.container_padding = config.container_padding;
+
+        self.workspace_padding = config.workspace_padding;
+
+        if let Some(layout) = &config.layout {
+            self.layout = Layout::Default(*layout);
+        }
+
+        self.tile = !(/* config.custom_layout.is_none() && */config.layout.is_none() && config.tile.is_none()
+            || config.tile.is_some_and(|tile| !tile));
+
+        let mut all_layout_rules = vec![];
+        if let Some(layout_rules) = &config.layout_rules {
+            for (count, rule) in layout_rules {
+                all_layout_rules.push((*count, Layout::Default(*rule)));
+            }
+
+            all_layout_rules.sort_by_key(|(i, _)| *i);
+            self.tile = true;
+        }
+
+        self.layout_rules = all_layout_rules.clone();
+
+        self.work_area_offset = config.work_area_offset;
+
+        let mut all_work_area_offset_rules = vec![];
+        if let Some(work_area_offset_rules) = &config.work_area_offset_rules {
+            for (count, rect) in work_area_offset_rules {
+                all_work_area_offset_rules.push((*count, *rect));
+            }
+
+            all_work_area_offset_rules.sort_by_key(|(i, _)| *i);
+        }
+
+        self.work_area_offset_rules = all_work_area_offset_rules;
+
+        self.apply_window_based_work_area_offset =
+            config.apply_window_based_work_area_offset.unwrap_or(true);
+
+        self.window_container_behaviour = config.window_container_behaviour;
+
+        if let Some(window_container_behaviour_rules) = &config.window_container_behaviour_rules {
+            if window_container_behaviour_rules.is_empty() {
+                self.window_container_behaviour_rules = None;
+            } else {
+                let mut all_rules = vec![];
+                for (count, behaviour) in window_container_behaviour_rules {
+                    all_rules.push((*count, *behaviour));
+                }
+
+                all_rules.sort_by_key(|(i, _)| *i);
+                self.window_container_behaviour_rules = Some(all_rules);
+            }
+        } else {
+            self.window_container_behaviour_rules = None;
+        }
+
+        self.float_override = config.float_override;
+        self.layout_flip = config.layout_flip;
+        self.floating_layer_behaviour = config.floating_layer_behaviour;
+        // Load layout options directly (LayoutOptions is used in both config and runtime)
+        self.layout_options = config.layout_options;
+
+        // Load threshold-based layout options rules, sorted by threshold ascending
+        self.layout_options_rules =
+            sorted_layout_options_rules(config.layout_options_rules.as_ref());
+
+        tracing::debug!(
+            "Workspace '{}' loaded layout_options: {:?}, layout_options_rules: {} entries",
+            self.name.as_deref().unwrap_or("unnamed"),
+            self.layout_options,
+            self.layout_options_rules.len(),
+        );
+
+        // Cache per-layout defaults from global layout_defaults, pre-sorting rules
+        self.layout_defaults_cache = if let Some(defaults) = layout_defaults {
+            defaults
+                .iter()
+                .map(|(layout, entry)| {
+                    (
+                        *layout,
+                        CachedLayoutDefault {
+                            layout_options: entry.layout_options,
+                            layout_options_rules: sorted_layout_options_rules(
+                                entry.layout_options_rules.as_ref(),
+                            ),
+                        },
+                    )
+                })
+                .collect()
+        } else {
+            HashMap::new()
+        };
+
+        Ok(())
+    }
+
+    /// Compute effective layout options using the complete-replacement cascade:
+    ///
+    /// If the workspace defines EITHER `layout_options` OR `layout_options_rules`,
+    /// it completely replaces the global `layout_defaults` for this layout.
+    /// Global defaults are only used when the workspace has NEITHER setting.
+    ///
+    /// Within the effective source (workspace or global):
+    ///   1. Try threshold match from rules (highest matching threshold wins)
+    ///   2. If a rule matches -> use it (full replacement of base)
+    ///   3. Else -> use the base `layout_options`
+    fn effective_layout_options(&self) -> Option<LayoutOptions> {
+        let container_count = self.containers().len();
+
+        let has_workspace_overrides =
+            self.layout_options.is_some() || !self.layout_options_rules.is_empty();
+
+        let (effective_base, effective_rules): (Option<LayoutOptions>, &[(usize, LayoutOptions)]) =
+            if has_workspace_overrides {
+                (self.layout_options, &self.layout_options_rules)
+            } else {
+                match &self.layout {
+                    Layout::Default(dl) => match self.layout_defaults_cache.get(dl) {
+                        Some(entry) => (entry.layout_options, &entry.layout_options_rules),
+                        None => (None, &[]),
+                    },
+                }
+            };
+
+        resolve_threshold_match(effective_rules, container_count).or(effective_base)
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn focus_container(&mut self, idx: usize) {
         tracing::info!("focusing container");
@@ -1211,6 +1426,15 @@ impl Workspace {
     /// [`Workspace::apply_window_based_work_area_offset`] is set, and the workspace padding, and
     /// puts every window of each container on its tile.
     ///
+    /// The offset of the highest of [`Workspace::work_area_offset_rules`] that the number of
+    /// containers reaches comes before the workspace's own, and a monocle container counts as one
+    /// container for it. The highest of [`Workspace::layout_rules`] that it reaches makes the
+    /// layout the workspace has from then on, and none that it does not reach changes it. The
+    /// highest of [`Workspace::window_container_behaviour_rules`] that it reaches is the workspace's
+    /// [`Workspace::window_container_behaviour`], which is none while it reaches none. The layout
+    /// options are the workspace's own or, when it has none, those `layout_defaults` gives the
+    /// layout, as [`Workspace::load_static_config`] copied them.
+    ///
     /// Containers that have no windows left are dropped first, except the one a preselection
     /// reserved, and so is a window that is in more than one container. A tile is clamped to the
     /// work area, so it cannot bleed onto a neighboring monitor, except in the scrolling layout,
@@ -1251,7 +1475,25 @@ impl Workspace {
             .or(self.globals.workspace_padding)
             .unwrap_or_default();
         let work_area = self.globals.work_area;
-        let work_area_offset = self.work_area_offset.or(self.globals.work_area_offset);
+        let mut rules_work_area_offset = None;
+
+        if !self.work_area_offset_rules.is_empty() {
+            let count = if self.monocle_container.is_some() {
+                1
+            } else {
+                self.containers().len()
+            };
+
+            for (threshold, work_area_offset_rule) in &self.work_area_offset_rules {
+                if count >= *threshold {
+                    rules_work_area_offset = Some(*work_area_offset_rule);
+                }
+            }
+        };
+
+        let work_area_offset = rules_work_area_offset
+            .or(self.work_area_offset)
+            .or(self.globals.work_area_offset);
         let window_based_work_area_offset = self.globals.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
 
@@ -1290,6 +1532,31 @@ impl Workspace {
 
         self.enforce_resize_constraints();
 
+        if !self.layout_rules.is_empty() {
+            let mut updated_layout = None;
+
+            for (threshold, layout) in &self.layout_rules {
+                if self.containers().len() >= *threshold {
+                    updated_layout = Option::from(layout.clone());
+                }
+            }
+
+            if let Some(updated_layout) = updated_layout {
+                self.layout = updated_layout;
+            }
+        }
+
+        if let Some(window_container_behaviour_rules) = &self.window_container_behaviour_rules {
+            let mut updated_behaviour = None;
+            for (threshold, behaviour) in window_container_behaviour_rules {
+                if self.containers().len() >= *threshold {
+                    updated_behaviour = Option::from(*behaviour);
+                }
+            }
+
+            self.window_container_behaviour = updated_behaviour;
+        }
+
         if self.tile {
             // the backend batches the commands this produces and sends them together
             let result = (|| -> eyre::Result<()> {
@@ -1302,6 +1569,15 @@ impl Workspace {
                     // the compositor's own maximize, which is the work area and not the padded one
                     window.maximize()?;
                 } else if !self.containers().is_empty() {
+                    let effective_layout_options = self.effective_layout_options();
+
+                    tracing::debug!(
+                        "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",
+                        self.name.as_deref().unwrap_or("unnamed"),
+                        effective_layout_options,
+                        self.layout_options,
+                        self.layout_options_rules.len(),
+                    );
                     let mut layouts = self.layout.as_boxed_arrangement().calculate(
                         &adjusted_work_area,
                         NonZeroUsize::new(self.containers().len()).ok_or_eyre(
@@ -1311,7 +1587,7 @@ impl Workspace {
                         self.layout_flip,
                         &self.resize_dimensions,
                         self.focused_container_idx(),
-                        self.layout_options,
+                        effective_layout_options,
                         &self.latest_layout,
                     );
 
@@ -2739,6 +3015,77 @@ mod tests {
         assert_eq!(workspace.containers().len(), 1);
         assert_eq!(workspace.focused_container_idx(), 0);
         assert_eq!(fake.rect_of(421), Some(tile(0, 0, 1920, 1050)));
+        Ok(())
+    }
+
+    fn loaded(json: &str) -> eyre::Result<Workspace> {
+        let config: WorkspaceConfig = serde_json::from_str(json)?;
+        let mut workspace = Workspace::default();
+        workspace.load_static_config(&config, None)?;
+        Ok(workspace)
+    }
+
+    #[test]
+    fn layout_rules_are_kept_in_the_order_of_their_thresholds_and_turn_tiling_on()
+    -> eyre::Result<()> {
+        let workspace = loaded(
+            r#"{ "name": "rules", "tile": false, "layout_rules": { "3": "Rows", "2": "Columns" } }"#,
+        )?;
+
+        assert_eq!(
+            workspace.layout_rules,
+            [
+                (2, Layout::Default(DefaultLayout::Columns)),
+                (3, Layout::Default(DefaultLayout::Rows))
+            ]
+        );
+        assert!(workspace.tile);
+        assert_eq!(workspace.name.as_deref(), Some("rules"));
+        Ok(())
+    }
+
+    #[test]
+    fn a_workspace_tiles_when_it_has_a_layout_or_is_told_to() -> eyre::Result<()> {
+        assert!(!loaded(r#"{ "name": "no layout" }"#)?.tile);
+        assert!(loaded(r#"{ "name": "layout", "layout": "Grid" }"#)?.tile);
+        assert!(loaded(r#"{ "name": "told to", "tile": true }"#)?.tile);
+        assert!(!loaded(r#"{ "name": "told not to", "layout": "Grid", "tile": false }"#)?.tile);
+
+        // the layout is the workspace's own when it names one, and what it had when it does not
+        assert_eq!(
+            loaded(r#"{ "name": "grid", "layout": "Grid" }"#)?.layout,
+            Layout::Default(DefaultLayout::Grid)
+        );
+        assert_eq!(
+            loaded(r#"{ "name": "none" }"#)?.layout,
+            Layout::Default(DefaultLayout::BSP)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_offset_of_the_highest_rule_the_containers_reach_comes_before_the_workspaces_own()
+    -> eyre::Result<()> {
+        let (fake, mut workspace) = workspace_with(&[431, 432]);
+        workspace.workspace_padding = Some(0);
+        workspace.container_padding = Some(0);
+        workspace.work_area_offset = Some(tile(0, 100, 0, 100));
+        workspace.work_area_offset_rules = vec![(1, tile(10, 0, 20, 0)), (2, tile(40, 0, 80, 0))];
+
+        with_backend(fake.clone(), || workspace.update())?;
+
+        // two containers reach both rules, and the second is the higher: 40 on the left, and 80
+        // narrower
+        assert_eq!(fake.rect_of(431), Some(tile(40, 0, 920, 1050)));
+        assert_eq!(fake.rect_of(432), Some(tile(960, 0, 920, 1050)));
+
+        workspace.remove_container_by_idx(1);
+        with_backend(fake.clone(), || workspace.update())?;
+        assert_eq!(fake.rect_of(431), Some(tile(10, 0, 1900, 1050)));
+
+        workspace.work_area_offset_rules.clear();
+        with_backend(fake.clone(), || workspace.update())?;
+        assert_eq!(fake.rect_of(431), Some(tile(0, 100, 1920, 950)));
         Ok(())
     }
 }

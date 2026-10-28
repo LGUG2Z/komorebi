@@ -39,21 +39,46 @@ in
       '';
     };
 
+    configFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      example = lib.literalExpression "./komorebi.json";
+      description = ''
+        The `komorebi.json` the daemon is configured by. The unit starts komorebi with it, as
+        `--config`, in place of the `komorebi.json` the daemon looks for in `~/.config/komorebi`
+        (`$KOMOREBI_CONFIG_HOME`). The file is in the Nix store, so it does not change under the
+        daemon: a new file is read when the daemon starts again. `komorebic configuration` still
+        shows the file of the config home, which the daemon does not read while this is set. With
+        no `configFile`, the daemon reads the file of the config home, if there is one.
+      '';
+    };
+
     execStart = lib.mkOption {
       type = lib.types.str;
       readOnly = true;
       description = ''
         The command line the unit starts komorebi with: `bin/komorebi` of `package`, with
-        `logLevel`. The module sets it, and setting it anywhere else is an error. A unit of your
-        own that runs komorebi somewhere else, as the VM tests do in their headless sessions,
-        starts it with this, the way the module does.
+        `logLevel`, and with `--config` and `configFile` when that is set. The module sets it,
+        and setting it anywhere else is an error. A unit of your own that runs komorebi somewhere
+        else, as the VM tests do in their headless sessions, starts it with this, the way the
+        module does.
       '';
     };
   };
 
   config = lib.mkMerge [
     {
-      services.komorebi.execStart = "${lib.getExe' cfg.package "komorebi"} --log-level ${cfg.logLevel}";
+      services.komorebi.execStart = lib.concatStringsSep " " (
+        [
+          (lib.getExe' cfg.package "komorebi")
+          "--log-level"
+          cfg.logLevel
+        ]
+        ++ lib.optionals (cfg.configFile != null) [
+          "--config"
+          "${cfg.configFile}"
+        ]
+      );
     }
 
     (lib.mkIf cfg.enable {

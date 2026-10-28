@@ -77,6 +77,7 @@ pub use komorebi::core::WindowKind;
 pub use komorebi::core::pathext::PathExt;
 pub use komorebi::core::pathext::replace_env_in_path;
 pub use komorebi::state::State;
+pub use komorebi::static_config::StaticConfig;
 pub use komorebi::window::Window;
 pub use komorebi::workspace::Workspace;
 pub use komorebi::workspace::WorkspaceLayer;
@@ -315,7 +316,8 @@ pub fn subscribe(name: &str) -> std::io::Result<UnixListener> {
 /// The same as [`subscribe`], with the [`SubscribeOptions`] the daemon applies to this subscriber
 ///
 /// With `filter_state_changes`, the daemon sends a notification only when the event or the message
-/// changed the [`State`], and always when a window is shown and when a subscriber is added.
+/// changed the [`State`], and always when a window is shown, when a subscriber is added and when
+/// the configuration is reloaded.
 ///
 /// # Errors
 ///

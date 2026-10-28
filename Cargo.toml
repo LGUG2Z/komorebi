@@ -18,6 +18,7 @@ clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = "0.6"
 crossbeam-channel = "0.5"
 dirs = "6"
+hotwatch = "0.5"
 lazy_static = "1"
 pastey = "0.2"
 schemars = "1.1"

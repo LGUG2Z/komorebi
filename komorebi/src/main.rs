@@ -5,8 +5,12 @@
 //!
 //! The backend is KWin's ([`komorebi::kwin`]): the daemon connects to the session bus, loads its
 //! script into KWin and waits for the script to report the desktop. `--fake-backend` replaces it
-//! with an in-memory desktop with one monitor and no windows, for development and testing. The
-//! daemon then loads the monitors and the windows that are open, tiles them, listens for
+//! with an in-memory desktop with one monitor and no windows, for development and testing.
+//!
+//! The daemon starts from `komorebi.json`: the file `--config` names, or else the one in
+//! [`struct@HOME_DIR`] when there is one ([`komorebi::static_config`]), which it reloads whenever
+//! it changes. Without a file it runs on its defaults. It loads the monitors and the windows
+//! that are open, gives each monitor the configuration the file has for it, tiles them, listens for
 //! messages on `komorebi.sock` in [`struct@DATA_DIR`], handles the events the backend reports on
 //! a thread of their own, and runs until it is stopped, with `SIGINT`, `SIGTERM` or a `Stop`
 //! message.
@@ -23,17 +27,21 @@ use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use komorebi::DATA_DIR;
+use komorebi::HOME_DIR;
 use komorebi::LOG_DIR;
 use komorebi::backend;
 use komorebi::backend::fake::FakeBackend;
+use komorebi::core::pathext::replace_env_in_path;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
+use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
@@ -150,6 +158,10 @@ struct Opts {
     /// Level of log output verbosity
     #[clap(long, value_enum, default_value_t=LogLevel::Info)]
     log_level: LogLevel,
+    /// Path to a static configuration JSON file
+    #[clap(short, long)]
+    #[clap(value_parser = replace_env_in_path)]
+    config: Option<PathBuf>,
     /// Run against an in-memory desktop instead of KWin, for development and testing of the
     /// socket interface. Windows and monitors are not real.
     #[clap(long, hide = true)]
@@ -175,12 +187,46 @@ fn main() -> eyre::Result<()> {
     #[cfg(feature = "deadlock_detection")]
     detect_deadlocks();
 
-    let wm = Arc::new(Mutex::new(WindowManager::new(
-        window_manager_event_listener::event_rx(),
-        None,
-    )?));
+    let static_config = opts.config.map_or_else(
+        || {
+            let komorebi_json = HOME_DIR.join("komorebi.json");
+            if komorebi_json.is_file() {
+                Option::from(komorebi_json)
+            } else {
+                None
+            }
+        },
+        Option::from,
+    );
+
+    let wm = if let Some(config) = &static_config {
+        tracing::info!(
+            "creating window manager from static configuration file: {}",
+            config.display()
+        );
+
+        Arc::new(Mutex::new(StaticConfig::preload(
+            config,
+            window_manager_event_listener::event_rx(),
+            None,
+        )?))
+    } else {
+        Arc::new(Mutex::new(WindowManager::new(
+            window_manager_event_listener::event_rx(),
+            None,
+        )?))
+    };
 
     wm.lock().init()?;
+
+    if let Some(config) = &static_config {
+        StaticConfig::postload(config, &wm)?;
+    }
+
+    // the configuration may have given monitors more workspaces than they started with (and named
+    // them): the compositor needs a desktop for each
+    wm.lock().sync_workspace_desktops();
+
     wm.lock().retile_all(false)?;
 
     listen_for_commands(wm.clone());

@@ -35,6 +35,13 @@ to KWin on the session bus and loads a script into it, so start it from a termin
 session. Outside a Plasma session it exits with an error that says what is missing, which
 `komorebic start` prints.
 
+`--config` gives the daemon the `komorebi.json` to read
+([Configuration](configuration.md) says where it looks otherwise):
+
+```sh
+komorebic start --config ~/mine.json
+```
+
 Everything after a `--` is passed to `komorebi`. `--fake-backend` runs it against an
 in-memory desktop with one monitor and no windows instead of KWin, which is a way to try the
 daemon and `komorebic` without a compositor:

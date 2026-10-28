@@ -9,8 +9,9 @@ This page describes that trait, who implements and calls it, where each of its r
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
 how an event about a window becomes a tile, how workspaces are the compositor's desktops, how
 a stack hides its windows, how a message on the daemon's socket is answered, how subscribers
-are notified of both, what the orders a message gives do, and how the NixOS module runs the
-daemon. It grows with the code: each part of the daemon that is added has its place here.
+are notified of both, what the orders a message gives do, how `komorebi.json` configures the
+daemon, and how the NixOS module runs the daemon. It grows with the code: each part of the
+daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -51,6 +52,9 @@ daemon. It grows with the code: each part of the daemon that is added has its pl
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
   (focus a window, move it, change the layout, resize it, show a workspace, retile, stop) or a
   question (the state, the monitors, one [`StateQuery`]).
+- **Configuration**: `komorebi.json`, which the daemon reads when it starts and again when it
+  changes ([`StaticConfig`]). It lives in the **config home**, [`HOME_DIR`], unless `--config`
+  names another.
 - **Rule**: a condition on a window's title, executable, class or path ([`MatchingRule`]), in
   one of the process-wide lists that decide whether a window is managed (the ignore and the
   manage rules) and whether it floats when it opens (the float rules).
@@ -638,14 +642,69 @@ gives a tile, and [`Workspace::new_container_for_window`] puts the next window i
 `CancelPreselect` removes it. A workspace reserves one place at a time, and the grid layout
 none.
 
+## Configuration
+
+The daemon is configured by `komorebi.json`, which [`StaticConfig`] reads. `main.rs` takes the
+file `--config` names, or else `komorebi.json` in [`HOME_DIR`] (`$KOMOREBI_CONFIG_HOME`, or
+`~/.config/komorebi`) if there is one; without a file, the daemon runs on its defaults. Loading
+has three steps, because the monitors are known only after the backend is asked:
+
+1. [`StaticConfig::preload`] reads the file, applies the settings that are process-wide (the
+   default paddings, [`LAYOUT_DEFAULTS`], the indices of the monitors, and the rules in
+   [`IGNORE_IDENTIFIERS`], [`MANAGE_IDENTIFIERS`] and [`FLOATING_APPLICATIONS`]) and makes the
+   [`WindowManager`], with the settings that are its own. It starts a watcher on the file.
+2. [`WindowManager::init`] loads the monitors and the windows from the backend, in the order the
+   indices of the monitors give.
+3. [`StaticConfig::postload`] gives each monitor the entry of the file that is its own, and each
+   workspace of the monitor the entry of its place ([`Workspace::load_static_config`]). A monitor
+   takes the entry at the index `display_index_preferences` gives its serial number id, or else
+   the first entry that no preference names and no monitor has taken. `main.rs` then asks the
+   backend for a desktop for each workspace ([`WindowManager::sync_workspace_desktops`]), and
+   tiles.
+
+When the file changes, the watcher (a [`hotwatch`] watcher, which waits two seconds for a file
+to settle) writes `ReloadStaticConfiguration` to the daemon's own socket, and the message is
+handled like any other, with the window manager locked: [`StaticConfig::reload`] reads the file
+first and applies it only when it parsed, so a file that is half written changes nothing. It does
+for the window manager that is running what the three steps do for one that starts, and tiles
+every monitor again.
+
+Three kinds of key reach the model. A **setting** of the window manager is a field of it
+([`WindowManager::resize_delta`] and the others). A **default** is a process-wide static that a
+monitor or a workspace falls back to when it has no value of its own: the paddings, the layout
+defaults. A **rule** is an entry of one of the process-wide lists. A workspace's own
+`layout_rules`, `work_area_offset_rules` and `window_container_behaviour_rules` are fields of the
+[`Workspace`], which [`Workspace::update`] reads each time it tiles.
+
+One `komorebi.json` is meant for every platform komorebi runs on, so [`StaticConfig`] has no
+`deny_unknown_fields`: a key it does not read is dropped, and the keys of other platforms that
+mean nothing on KDE Plasma are fields that nothing reads. `StaticConfig::from(&WindowManager)`
+goes the other way, for `GenerateStaticConfig`.
+
+| Rule | Enforced by | Proof | Escape hatch |
+|---|---|---|---|
+| A key komorebi does not read does not stop a configuration from loading | serde: [`StaticConfig`] ignores unknown keys, and a key of another platform is a field nothing reads | `the_keys_that_do_nothing_on_kde_are_accepted_and_ignored`, `fixtures_load_round_trip_and_only_lose_windows_only_keys` | none |
+| The keys the parity test ignores are keys `StaticConfig` does not read | test: the ignore lists are compared with the schema of [`StaticConfig`] | `the_lists_name_no_key_that_is_read` | none |
+| The example in the docs is the example file, which loads | test | `the_example_in_the_docs_is_the_example_file`, `fixtures_load_round_trip_and_only_lose_windows_only_keys` | none |
+| A file that cannot be read changes nothing | framework path: [`StaticConfig::reload`] reads and parses the file before it applies anything | `a_configuration_that_cannot_be_read_changes_nothing`, `the_daemon_follows_the_file_it_is_given_when_the_file_changes` | none |
+| The daemon applies a change to its file, written in place or replaced by a rename | framework path: the watcher sends `ReloadStaticConfiguration` to the daemon's own socket | `the_daemon_follows_the_file_it_is_given_when_the_file_changes`, `vm-module` | none: the file has to be the one the daemon was started with |
+| A monitor takes the entry its display index preference gives it, else the first nobody has | framework path: [`StaticConfig::postload`] and [`StaticConfig::reload`] choose the entry by serial number id first | `a_monitor_takes_the_configuration_its_display_index_preference_gives_it` | none |
+| A workspace that names no layout and does not say it tiles moves no window | framework path: [`Workspace::load_static_config`] sets [`Workspace::tile`] | `a_workspace_with_no_layout_does_not_tile`, `a_workspace_tiles_when_it_has_a_layout_or_is_told_to` | `"tile": true` |
+| A workspace's own layout options replace the defaults of its layout, whole | framework path: [`Workspace::update`] takes the workspace's options and rules when it has either, and else those of `layout_defaults` | `layout_options_of_a_workspace_replace_the_defaults_of_its_layout` | none |
+| The highest of the rules a count of containers reaches decides the layout, the offset and the container behavior | framework path: [`Workspace::update`] reads the rules, kept in the order of their thresholds | `layout_rules_change_the_layout_with_the_number_of_windows`, `work_area_offset_rules_change_the_offset_with_the_number_of_windows`, `window_container_behaviour_rules_change_the_behaviour_with_the_number_of_containers` | none |
+| A workspace's own container behavior and float override come before the one for every workspace, and its floating layer behavior before its monitor's, which comes before the one for every workspace | framework path: [`WindowManager::window_management_behaviour`] reads the workspace, then (for the floating layer) the monitor, then the window manager | `the_behaviour_of_a_workspace_comes_before_the_one_for_every_workspace`, `the_float_override_of_a_workspace_comes_before_the_one_for_every_workspace`, `the_floating_layer_behaviour_of_a_workspace_comes_before_a_monitors_and_that_before_the_default` | none |
+| The configuration the daemon generates loads and says the same | test | `a_configuration_comes_out_again_as_the_settings_of_the_window_manager` | none |
+| The daemon reads the file it is given or the one in the config home, not both | startup order: `main.rs` takes `--config` before the config home | `the_daemon_follows_the_file_it_is_given_when_the_file_changes`, `the_daemon_reads_komorebi_json_from_the_config_home` | none |
+
 ## The NixOS module
 
 The flake exports one module under two names, `nixosModules.default` and
 `nixosModules.komorebi`: [`nixos-module.nix`] and the flake's overlay, which builds
 `komorebi-full` (both programs) with the flake's nixpkgs and Rust toolchain. Its options are
-`enable`, `package` (by default `pkgs.komorebi-full`, from the overlay), `logLevel`, and
-`execStart`, which is read-only: the module sets it to `bin/komorebi` of the package with
-`--log-level`. With `services.komorebi.enable`, the module:
+`enable`, `package` (by default `pkgs.komorebi-full`, from the overlay), `logLevel`,
+`configFile`, and `execStart`, which is read-only: the module sets it to `bin/komorebi` of the
+package with `--log-level`, and `--config` with `configFile` when that is set. With
+`services.komorebi.enable`, the module:
 
 - installs the package in the system profile;
 - defines the user unit `komorebi.service`, which every user of the machine has. Plasma's
@@ -666,6 +725,7 @@ module's unit.
 | komorebi is enabled only on a machine with Plasma 6 | evaluation error: an assertion of the module | `nixos-module-eval` ("without Plasma 6, an assertion fails") | none |
 | The log level is one the daemon accepts | evaluation error: `logLevel` is an enum of the daemon's `--log-level` values | `nixos-module-eval` ("a log level the daemon does not have does not evaluate") | none |
 | The unit runs `execStart`, and nothing but the module sets it | evaluation error: the option is read-only | `nixos-module-eval` ("execStart cannot be set", "the unit runs execStart") | a unit of your own |
+| The daemon is configured by `configFile` when it is set | framework path: `execStart` passes it as `--config`, which comes before the config home | `nixos-module-eval` ("configFile reaches execStart and the unit as --config"), `vm-module` | none: with no `configFile` the daemon reads the file of the config home |
 | `komorebi` and `komorebic` are on every user's `PATH` | the module installs the package in the system profile | `nixos-module-eval`; every VM suite runs `komorebic` | none |
 | Every Plasma session starts komorebi, once KWin's service has started | systemd: the user unit is wanted by `plasma-workspace.target`, after `plasma-core.target` | `nixos-module-eval`, `vm-module` | `systemctl --user mask komorebi` |
 | A daemon that fails or is killed is started again | systemd: `Restart=on-failure` | `vm-module` (`SIGKILL`) | none |
@@ -710,6 +770,8 @@ module's unit.
   keeps the values it changes and puts them back; the parking desktop is made, swept and removed
   in `kwin` and tracked in `kwin::state`; and
   [`bridge.js`](../../komorebi/src/kwin/bridge.js), the bridge.
+- [`static_config`](../../komorebi/src/static_config.rs): `komorebi.json`, [`StaticConfig`], and
+  how it is loaded, reloaded and generated.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
   socket, and what the window manager does with each message.
 - [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with,
@@ -724,8 +786,8 @@ module's unit.
   daemon, `log` follows its log file in [`LOG_DIR`], and the hidden `docgen` writes
   `docs/cli`.
 - [`main.rs`](../../komorebi/src/main.rs): the daemon. It connects to KWin, or installs the
-  fake with `--fake-backend`, makes the window manager, which binds the socket, loads and
-  tiles the desktop, starts the threads that listen on the socket and handle events, and
+  fake with `--fake-backend`, makes the window manager from `komorebi.json` when there is one,
+  which binds the socket, loads the desktop, gives the monitors their configuration and tiles, starts the threads that listen on the socket and handle events, and
   waits to be stopped.
 - [`nixos-module.nix`]: the NixOS module, which installs komorebi and runs the daemon as a
   systemd user unit of every Plasma session.
@@ -919,6 +981,13 @@ A window is shown, and ends up on a tile:
   `Workspace::update`.
 - [`komorebi/src/monitor.rs`](../../komorebi/src/monitor.rs): the work area, padding and
   offset a monitor gives the workspace it shows.
+- [`komorebi/src/static_config.rs`](../../komorebi/src/static_config.rs): `komorebi.json`.
+  [`komorebi/tests/config.rs`](../../komorebi/tests/config.rs) loads files over the fake
+  desktop, [`komorebi/tests/config_displays.rs`](../../komorebi/tests/config_displays.rs) one
+  with several monitors, [`komorebi/tests/hot_reload.rs`](../../komorebi/tests/hot_reload.rs) the
+  daemon following a file, and
+  [`komorebi/tests/config_parity.rs`](../../komorebi/tests/config_parity.rs) the files of other
+  platforms and the example, which load.
 - [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
   does, and the thread that handles them.
 - [`komorebi/src/process_command.rs`](../../komorebi/src/process_command.rs): the socket, what
@@ -996,6 +1065,18 @@ A window is shown, and ends up on a tile:
   a Plasma session in which the module's unit runs the daemon.
 
 [`nixos-module.nix`]: ../../nix/nixos-module.nix
+[`StaticConfig`]: ../../komorebi/src/static_config.rs
+[`StaticConfig::preload`]: ../../komorebi/src/static_config.rs
+[`StaticConfig::postload`]: ../../komorebi/src/static_config.rs
+[`StaticConfig::reload`]: ../../komorebi/src/static_config.rs
+[`Workspace::load_static_config`]: ../../komorebi/src/workspace.rs
+[`HOME_DIR`]: ../../komorebi/src/lib.rs
+[`LAYOUT_DEFAULTS`]: ../../komorebi/src/lib.rs
+[`IGNORE_IDENTIFIERS`]: ../../komorebi/src/lib.rs
+[`MANAGE_IDENTIFIERS`]: ../../komorebi/src/lib.rs
+[`FLOATING_APPLICATIONS`]: ../../komorebi/src/lib.rs
+[`hotwatch`]: https://crates.io/crates/hotwatch
+[`WindowManager::init`]: ../../komorebi/src/window_manager.rs
 [`Backend`]: ../../komorebi/src/backend/mod.rs
 [`WindowInfo`]: ../../komorebi/src/backend/mod.rs
 [`MonitorInfo`]: ../../komorebi/src/backend/mod.rs

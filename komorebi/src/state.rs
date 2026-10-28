@@ -12,6 +12,8 @@
 //! [`Notification`]: crate::Notification
 
 use crate::DATA_DIR;
+use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::core::MonocleFocusBehaviour;
@@ -32,7 +34,7 @@ use std::path::PathBuf;
 
 /// What the daemon has that is not part of the window manager, as it answers
 /// [`SocketMessage::GlobalState`](crate::core::SocketMessage::GlobalState): the ignore and the manage
-/// rules, and the data directory
+/// rules, the indices the user gave the monitors, and the configuration and the data directories
 ///
 /// # Example
 ///
@@ -44,6 +46,8 @@ use std::path::PathBuf;
 /// let json = serde_json::to_string(&state.ignore_identifiers)?;
 /// assert!(json.contains(r#""id":"org.kde.plasmashell""#), "{json}");
 /// assert!(state.manage_identifiers.is_empty());
+/// assert!(state.display_index_preferences.is_empty());
+/// assert_eq!(state.configuration_dir, *komorebi::HOME_DIR);
 /// assert_eq!(state.data_dir, *komorebi::DATA_DIR);
 ///
 /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -71,8 +75,10 @@ pub struct GlobalState {
     // pub tray_and_multi_window_identifiers: Vec<MatchingRule>,
     // pub name_change_on_launch_identifiers: Vec<MatchingRule>,
     // pub monitor_index_preferences: HashMap<usize, Rect>,
+    pub display_index_preferences: HashMap<usize, String>,
     // pub ignored_duplicate_monitor_serial_ids: Vec<String>,
     // pub window_hiding_behaviour: HidingBehaviour,
+    pub configuration_dir: PathBuf,
     pub data_dir: PathBuf,
     // pub custom_ffm: bool,
 }
@@ -82,6 +88,8 @@ impl Default for GlobalState {
         Self {
             ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
+            display_index_preferences: DISPLAY_INDEX_PREFERENCES.read().clone(),
+            configuration_dir: HOME_DIR.clone(),
             data_dir: DATA_DIR.clone(),
         }
     }
@@ -167,6 +175,9 @@ impl From<&WindowManager> for State {
                             floating_windows: workspace.floating_windows.clone(),
                             layout: workspace.layout.clone(),
                             layout_options: workspace.layout_options,
+                            layout_rules: workspace.layout_rules.clone(),
+                            layout_options_rules: workspace.layout_options_rules.clone(),
+                            layout_defaults_cache: workspace.layout_defaults_cache.clone(),
                             layout_flip: workspace.layout_flip,
                             workspace_padding: workspace.workspace_padding,
                             container_padding: workspace.container_padding,
@@ -174,9 +185,13 @@ impl From<&WindowManager> for State {
                             resize_dimensions: workspace.resize_dimensions.clone(),
                             tile: workspace.tile,
                             work_area_offset: workspace.work_area_offset,
+                            work_area_offset_rules: workspace.work_area_offset_rules.clone(),
                             apply_window_based_work_area_offset: workspace
                                 .apply_window_based_work_area_offset,
                             window_container_behaviour: workspace.window_container_behaviour,
+                            window_container_behaviour_rules: workspace
+                                .window_container_behaviour_rules
+                                .clone(),
                             float_override: workspace.float_override,
                             layer: workspace.layer,
                             floating_layer_behaviour: workspace.floating_layer_behaviour,

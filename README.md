@@ -76,14 +76,15 @@ without a checkout of the toolchain.
   `Ring` that holds monitors, workspaces and containers, and the lists in which
   some elements are locked in place. It answers the messages on the daemon's
   socket (`core::SocketMessage`, `process_command`), shows its state (`state`),
-  and sends its subscribers a notification of each event and message it handles
-  (`notify_subscribers`).
+  sends its subscribers a notification of each event and message it handles
+  (`notify_subscribers`), and is configured by a `komorebi.json` that it reads
+  and reads again when it changes (`static_config`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
 - [`komorebic`](komorebic): the command line. A subcommand that asks something
-  of the daemon is one message on its socket; `start`, `log`, `data-directory`,
-  `completions` and the hidden `docgen` work without the daemon.
+  of the daemon is one message on its socket; `start`, `configuration`, `log`,
+  `data-directory`, `completions` and the hidden `docgen` work without the daemon.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -190,6 +191,19 @@ stack to the front, and `cycle-stack-index` moves the front one along it.
 `toggle-window-container-behaviour` makes a window that opens join
 the focused stack, and `toggle-float-override` makes it float.
 
+The daemon is configured by `komorebi.json`: the file `--config` names, or the
+one in `~/.config/komorebi`. It reads the file when it starts, once it has the
+monitors, and gives each monitor the workspaces the file lists for it, with their
+names, layouts, paddings and rules. It watches the file, and when it changes
+applies it again to the windows it has. It also sets what a window that opens
+gets (`window_container_behaviour`, `float_override`, `floating_layer_behaviour`,
+for a workspace or for all of them) and what focusing does in monocle
+(`monocle_focus_behaviour`). A key that komorebi for KDE does not read
+is ignored, so one file serves every platform. `workspace-layout-rule` makes a
+workspace change layout with the number of windows it has, as the file's
+`layout_rules` do, and `generate-static-config` prints the settings the daemon
+has as a `komorebi.json`.
+
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the
 daemon connects to it and writes the event or the message with the state of
@@ -203,6 +217,8 @@ starts it again if it fails.
 
 The user guide starts at [`docs/index.md`](docs/index.md),
 [`docs/installation.md`](docs/installation.md) says how to install komorebi,
+[`docs/usage/configuration.md`](docs/usage/configuration.md) explains `komorebi.json`,
+[`docs/example-configurations.md`](docs/example-configurations.md) has an example of it,
 and [`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
 `just docgen` writes from the subcommands' help.
 `cargo doc --workspace --no-deps --open` builds the API documentation.

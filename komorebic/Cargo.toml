@@ -12,7 +12,9 @@ clap = { workspace = true }
 clap_complete = "4"
 chrono = { workspace = true }
 color-eyre = { workspace = true }
+dirs = { workspace = true }
 fs-tail = "0.1"
+lazy_static = { workspace = true }
 pastey = { workspace = true }
 sysinfo = { workspace = true }
 

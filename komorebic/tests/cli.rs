@@ -50,6 +50,16 @@ impl Runtime {
             .output()
             .unwrap()
     }
+
+    /// Runs `komorebic` with `KOMOREBI_CONFIG_HOME` set to `home`
+    fn komorebic_with_config_home(&self, home: &Path, args: &[&str]) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_komorebic"))
+            .args(args)
+            .env("XDG_RUNTIME_DIR", &self.0)
+            .env("KOMOREBI_CONFIG_HOME", home)
+            .output()
+            .unwrap()
+    }
 }
 
 impl Drop for Runtime {
@@ -612,6 +622,77 @@ fn the_named_workspace_subcommands_send_the_names_they_are_given() {
 }
 
 #[test]
+fn the_layout_rule_subcommands_send_what_they_are_given() {
+    sends(
+        &["workspace-layout-rule", "0", "1", "3", "columns"],
+        r#"{"type":"WorkspaceLayoutRule","content":[0,1,3,"Columns"]}"#,
+    );
+    sends(
+        &["named-workspace-layout-rule", "mail", "2", "rows"],
+        r#"{"type":"NamedWorkspaceLayoutRule","content":["mail",2,"Rows"]}"#,
+    );
+    sends(
+        &["clear-workspace-layout-rules", "0", "1"],
+        r#"{"type":"ClearWorkspaceLayoutRules","content":[0,1]}"#,
+    );
+    sends(
+        &["clear-named-workspace-layout-rules", "mail"],
+        r#"{"type":"ClearNamedWorkspaceLayoutRules","content":"mail"}"#,
+    );
+}
+
+#[test]
+fn generate_static_config_prints_the_answer_of_the_daemon() {
+    let runtime = Runtime::new();
+    let daemon = runtime.serve(r#"{"resize_delta":50}"#);
+
+    let output = runtime.komorebic(&["generate-static-config"]);
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(daemon.join().unwrap(), r#"{"type":"GenerateStaticConfig"}"#);
+    assert_eq!(stdout(&output), "{\"resize_delta\":50}\n");
+}
+
+#[test]
+fn configuration_shows_the_path_of_komorebi_json_when_there_is_one() {
+    let runtime = Runtime::new();
+    let home = runtime.0.join("config");
+    std::fs::create_dir_all(&home).unwrap();
+
+    // `config` is another name for it
+    for name in ["configuration", "config"] {
+        let output = runtime.komorebic_with_config_home(&home, &[name]);
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(stdout(&output), "", "no file, nothing to show");
+    }
+
+    std::fs::write(home.join("komorebi.json"), "{}").unwrap();
+
+    for name in ["configuration", "config"] {
+        let output = runtime.komorebic_with_config_home(&home, &[name]);
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(
+            stdout(&output),
+            format!("{}\n", home.join("komorebi.json").display())
+        );
+    }
+}
+
+#[test]
+fn a_config_home_that_is_not_a_directory_is_refused() {
+    let runtime = Runtime::new();
+    let home = runtime.0.join("not-there");
+
+    let output = runtime.komorebic_with_config_home(&home, &["configuration"]);
+
+    assert!(!output.status.success(), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("which is not a valid directory"),
+        "{output:?}"
+    );
+}
+
+#[test]
 fn the_monitor_subcommands_send_what_they_are_given() {
     sends(
         &["focus-monitor", "1"],
@@ -734,10 +815,13 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "adjust-workspace-padding.md",
             "cancel-preselect.md",
             "change-layout.md",
+            "clear-named-workspace-layout-rules.md",
             "clear-session-float-rules.md",
+            "clear-workspace-layout-rules.md",
             "close-workspace.md",
             "close.md",
             "completions.md",
+            "configuration.md",
             "container-padding.md",
             "cross-monitor-move-behaviour.md",
             "cycle-empty-workspace.md",
@@ -770,6 +854,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "focus.md",
             "focused-workspace-container-padding.md",
             "focused-workspace-padding.md",
+            "generate-static-config.md",
             "global-state.md",
             "global-work-area-offset.md",
             "ignore-rule.md",
@@ -791,6 +876,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "move-workspace-to-monitor.md",
             "move.md",
             "named-workspace-container-padding.md",
+            "named-workspace-layout-rule.md",
             "named-workspace-layout.md",
             "named-workspace-padding.md",
             "named-workspace-tiling.md",
@@ -843,6 +929,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "unstack-all.md",
             "unstack.md",
             "unsubscribe-socket.md",
+            "workspace-layout-rule.md",
             "workspace-layout.md",
             "workspace-name.md",
             "workspace-padding.md",

@@ -14,6 +14,8 @@
 //! - **SessionFloatRules**: the float rules **SessionFloatRule** added, as JSON.
 //! - **DebugWindow**: what [`Window::should_manage`] read of a window and which rules matched it
 //!   ([`RuleDebug`]), as JSON, or nothing for a window that is not there.
+//! - **GenerateStaticConfig**: the window manager's settings as a `komorebi.json`
+//!   ([`StaticConfig`]), as JSON.
 //!
 //! The others answer nothing:
 //!
@@ -61,6 +63,14 @@
 //! - **ScrollingLayoutColumns** sets how many columns the scrolling layout shows on the focused
 //!   workspace, and **LayoutRatios** the share of the work area its first columns and rows take,
 //!   and both tile the workspace again.
+//! - **WorkspaceLayoutRule** and **NamedWorkspaceLayoutRule** make a workspace change to a layout
+//!   once it has so many containers, and **ClearWorkspaceLayoutRules** and
+//!   **ClearNamedWorkspaceLayoutRules** take its rules away
+//!   ([`WindowManager::add_workspace_layout_default_rule`],
+//!   [`WindowManager::clear_workspace_layout_rules`]).
+//! - **ReloadStaticConfiguration** applies a `komorebi.json` to the window manager
+//!   ([`WindowManager::reload_static_configuration`]). The daemon sends itself this message when
+//!   the file it was started with changes.
 //! - **PreselectDirection** reserves the place on one side of the focused container for the next
 //!   window ([`WindowManager::preselect_container_in_direction`]), unless a place is reserved
 //!   already, and **CancelPreselect** gives the reserved place up.
@@ -189,6 +199,7 @@ use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
 use crate::state::GlobalState;
 use crate::state::State;
+use crate::static_config::StaticConfig;
 use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
@@ -885,6 +896,9 @@ impl WindowManager {
 
                 self.move_workspace_to_monitor(monitor_idx)?;
             }
+            SocketMessage::ReloadStaticConfiguration(ref pathbuf) => {
+                self.reload_static_configuration(pathbuf)?;
+            }
             SocketMessage::ToggleCrossMonitorMoveBehaviour => {
                 match self.cross_monitor_move_behaviour {
                     MoveBehaviour::Swap => {
@@ -912,6 +926,19 @@ impl WindowManager {
             SocketMessage::WorkspaceLayout(monitor_idx, workspace_idx, layout) => {
                 self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
             }
+            SocketMessage::WorkspaceLayoutRule(
+                monitor_idx,
+                workspace_idx,
+                at_container_count,
+                layout,
+            ) => {
+                self.add_workspace_layout_default_rule(
+                    monitor_idx,
+                    workspace_idx,
+                    at_container_count,
+                    layout,
+                )?;
+            }
             SocketMessage::NamedWorkspaceTiling(ref workspace, tile) => {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
@@ -928,6 +955,9 @@ impl WindowManager {
                 {
                     self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
                 }
+            }
+            SocketMessage::ClearWorkspaceLayoutRules(monitor_idx, workspace_idx) => {
+                self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
             }
             SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
                 self.ensure_workspaces_for_monitor(monitor_idx, workspace_count)?;
@@ -1558,6 +1588,25 @@ impl WindowManager {
                 focused_workspace.layout_options = Some(options);
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::NamedWorkspaceLayoutRule(ref workspace, at_container_count, layout) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.add_workspace_layout_default_rule(
+                        monitor_idx,
+                        workspace_idx,
+                        at_container_count,
+                        layout,
+                    )?;
+                }
+            }
+            SocketMessage::ClearNamedWorkspaceLayoutRules(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
+                }
+            }
             SocketMessage::MouseFollowsFocus(enable) => {
                 self.mouse_follows_focus = enable;
             }
@@ -1598,6 +1647,11 @@ impl WindowManager {
             }
             SocketMessage::StopIgnoreRestore => {
                 self.stop(true)?;
+            }
+            SocketMessage::GenerateStaticConfig => {
+                let config = serde_json::to_string_pretty(&StaticConfig::from(&*self))?;
+
+                reply.write_all(config.as_bytes())?;
             }
             SocketMessage::QuickSave => {
                 let workspace = self.focused_workspace()?;

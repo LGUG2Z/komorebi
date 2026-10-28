@@ -72,7 +72,20 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
 | `services.komorebi.enable` | `false` | Installs komorebi and starts it with every Plasma session. |
 | `services.komorebi.package` | `pkgs.komorebi-full` | The package with `bin/komorebi` and `bin/komorebic`; the unit runs the first, and both are installed. |
 | `services.komorebi.logLevel` | `"info"` | The daemon's `--log-level`: `"error"`, `"warn"`, `"info"`, `"debug"` or `"trace"`. |
-| `services.komorebi.execStart` | read only | The command line the unit starts komorebi with, built from `package` and `logLevel`. A unit of your own that runs komorebi uses it to start komorebi the same way. |
+| `services.komorebi.configFile` | `null` | A `komorebi.json` for the daemon. The unit passes it to komorebi as `--config`, so the daemon reads it and not the `komorebi.json` of `~/.config/komorebi`. The file is in the Nix store: komorebi reads a new one when it starts again. |
+| `services.komorebi.execStart` | read only | The command line the unit starts komorebi with, built from `package`, `logLevel` and `configFile`. A unit of your own that runs komorebi uses it to start komorebi the same way. |
+
+The file for `configFile` is written like any other `komorebi.json`
+([Configuration](usage/configuration.md)):
+
+```nix
+{
+  services.komorebi = {
+    enable = true;
+    configFile = ./komorebi.json;
+  };
+}
+```
 
 ### Running it
 

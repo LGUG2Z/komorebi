@@ -22,6 +22,8 @@
 //! [`notify_subscribers`] sends every subscriber a [`Notification`] of it, with the state.
 
 use crate::core::ApplicationIdentifier;
+use crate::core::DefaultLayout;
+use crate::core::LayoutDefaultEntry;
 use crate::core::SocketMessage;
 use crate::core::SubscribeOptions;
 use crate::core::config_generation::IdWithIdentifier;
@@ -32,6 +34,7 @@ use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
+use core::pathext::PathExt;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use parking_lot::RwLock;
@@ -59,6 +62,7 @@ pub mod monitor;
 pub mod process_command;
 pub mod process_event;
 pub mod state;
+pub mod static_config;
 pub mod window;
 pub mod window_manager;
 pub mod window_manager_event;
@@ -70,6 +74,32 @@ pub mod workspace;
 pub type LibraryError = eyre::Report;
 
 lazy_static! {
+    /// Where komorebi looks for `komorebi.json` and the files next to it: `$KOMOREBI_CONFIG_HOME`
+    /// if that is set, else `~/.config/komorebi`
+    ///
+    /// # Panics
+    ///
+    /// `$KOMOREBI_CONFIG_HOME` is set and is not a directory, or there is no home directory.
+    pub static ref HOME_DIR: PathBuf = {
+        std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
+            |_| {
+                dirs::home_dir()
+                    .expect("there is no home directory")
+                    .join(".config")
+                    .join("komorebi")
+            },
+            |home_path| {
+                let home = home_path.replace_env();
+
+                assert!(
+                    home.is_dir(),
+                    "$KOMOREBI_CONFIG_HOME is set to \"{home_path}\", which is not a valid directory"
+                );
+
+                home
+            },
+        )
+    };
     /// Where komorebi keeps the files it needs while it runs, such as the script it loads into
     /// KWin, its command socket and the sockets of its subscribers: `$XDG_RUNTIME_DIR/komorebi`,
     /// which is per-user, on tmpfs and removed at logout. Without a runtime directory (a bare ssh
@@ -138,6 +168,10 @@ lazy_static! {
     /// The windows komorebi took out of sight (the back of a stack, on the parking desktop), so
     /// that what the compositor reports about them is not mistaken for something the user did
     pub static ref HIDDEN_WINDOWS: Arc<Mutex<HashSet<u32>>> = Arc::new(Mutex::new(HashSet::new()));
+    /// The layout options and the layout options rules that `layout_defaults` in `komorebi.json`
+    /// gives each layout, for a workspace that sets neither of its own
+    pub static ref LAYOUT_DEFAULTS: Arc<Mutex<HashMap<DefaultLayout, LayoutDefaultEntry>>> =
+        Arc::new(Mutex::new(HashMap::new()));
 }
 
 /// The padding, in pixels, between the edge of a monitor's work area and the tiles of its
@@ -146,6 +180,12 @@ pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
 /// The padding, in pixels, around each tile, for a monitor that sets none of its own. The default
 /// for this is 5.
 pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(5);
+/// How many pixels `ResizeWindowEdge` and `ResizeWindowAxis` resize by, when `komorebi.json` does
+/// not say
+pub static DEFAULT_RESIZE_DELTA: i32 = 50;
+/// Whether the pointer goes to the window that is given the focus, when `komorebi.json` does not
+/// say
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = true;
 
 /// The event or the message a [`Notification`] is about
 ///
@@ -209,8 +249,8 @@ pub struct Notification {
 ///
 /// Each subscriber is sent the notification as JSON on a new connection to its socket, which is
 /// closed after it. A subscriber with `filter_state_changes` in its [`SubscribeOptions`] is sent it
-/// only if `state_has_been_modified`, or if the notification is about a window being shown or a
-/// subscriber being added.
+/// only if `state_has_been_modified`, or if the notification is about a window being shown, a
+/// subscriber being added or the configuration being reloaded.
 ///
 /// A subscriber that cannot be connected to (its program has exited, or its socket was removed)
 /// is removed, with its socket file, and is not tried again: it has to subscribe again. The
@@ -270,6 +310,7 @@ pub fn notify_subscribers(
         notification.event,
         NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
             | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
+            | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_))
             | NotificationEvent::WindowManager(WindowManagerEvent::Show(_, _))
     );
 

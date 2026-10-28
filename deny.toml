@@ -21,6 +21,8 @@ ignore = [
 [licenses]
 allow = [
   "Apache-2.0",
+  "CC0-1.0",
+  "ISC",
   "MIT",
   "MPL-2.0",
   "Unicode-3.0",

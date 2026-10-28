@@ -36,8 +36,9 @@ does meanwhile is set with
   `right` or `up` the next one.
 
 [`komorebic toggle-monocle-focus-behaviour`](../cli/toggle-monocle-focus-behaviour.md) switches
-between the two. [`komorebic cycle-focus`](../cli/cycle-focus.md) always carries the monocle to
-the next or the previous container, whatever the behavior is.
+between the two, and `monocle_focus_behaviour` in `komorebi.json` (`NoOp` or `Cycle`) sets it from
+the file. [`komorebic cycle-focus`](../cli/cycle-focus.md) always carries the monocle to the next or
+the previous container, whatever the behavior is.
 
 ```sh
 komorebic monocle-focus-behaviour cycle

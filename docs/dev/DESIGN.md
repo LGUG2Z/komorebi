@@ -328,3 +328,22 @@ the window cannot be a container: a layout would give it a tile, less the paddin
 that index in a container of its own. It is restored before it is tiled again, because "it is its
 tile's size that it has to get back, not the compositor's idea of its old size" (the comment in
 `reintegrate_maximized_window`).
+
+## Why does one `komorebi.json` work on every platform?
+
+Spike 8 asked whether it could, and it can. With the `StaticConfig` of komorebi for Mac, the
+example of komorebi for Windows loaded and read back, and so did a file with every key that only
+Windows has, a real file of komorebi for Mac, and this repository's example; what serde dropped
+was the keys that mean nothing outside their platform. So a key that does nothing on KDE Plasma is accepted and
+ignored, and `config_parity` checks that the keys it ignores are the Windows-only ones and, until
+the features are in, the ones of features that are not. Where the Mac struct had no key that the
+native mapping needs (`focus_follows_mouse`, `transparency`), the KDE struct has the Windows one.
+
+## Why does komorebi reload its configuration when the file changes?
+
+It does what komorebi for Mac does: it watches `komorebi.json` and reloads it after about two
+seconds. On Windows, `watch-configuration` is about the legacy AutoHotkey and PowerShell files,
+which do not exist here. The watcher is `hotwatch`, whose default is to wait two seconds for the events of an
+editor to settle. An editor either writes a file in place or replaces it with a new one, so the
+daemon reloads on a modification and on a removal, and the test that follows a real daemon
+through both of them is `the_daemon_follows_the_file_it_is_given_when_the_file_changes`.

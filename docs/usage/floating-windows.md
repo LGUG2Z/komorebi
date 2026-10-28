@@ -31,6 +31,12 @@ komorebic toggle-workspace-float-override
 The override is in the daemon's state, as `float_override` for every workspace and in each
 workspace that has one of its own.
 
+In `komorebi.json` it is `float_override`, for every workspace and in the entry of a workspace.
+`float_override_placement` says what is done to the window the override floats: `None` leaves it
+where KWin put it, `Center` centers it in the work area and `CenterAndResize` also makes it half
+as tall as the work area, with the aspect ratio `floating_window_aspect_ratio` names. A window is
+centered only on a workspace that tiles.
+
 ## The two layers
 
 A workspace is on one of two layers: its tiles, or its floating windows. Which one decides what
@@ -68,3 +74,10 @@ On the floating layer:
 there, and when it is restored it is a tile, not a floating window.
 
 The layer is `layer` in the state of each workspace, `Tiling` or `Floating`.
+
+What a window that opens while a workspace is on its floating layer gets is
+`floating_layer_behaviour` in `komorebi.json`: `Tile`, the default, gives it a tile, and `Float`
+floats it, centered in the work area as `floating_layer_placement` says (`Center` by default; the
+values are those of `float_override_placement`). The entry of a monitor and the entry of a
+workspace can have a `floating_layer_behaviour` of their own: the workspace's comes before the
+monitor's, which comes before the one for every monitor.

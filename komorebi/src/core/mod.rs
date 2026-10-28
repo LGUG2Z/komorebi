@@ -285,8 +285,9 @@ pub enum StateQuery {
 /// A subscriber added with [`SocketMessage::AddSubscriberSocket`] has the default options, and is
 /// sent a notification for every event and message the window manager handles. With
 /// `filter_state_changes`, it is sent one only when the event or the message changed the
-/// [`State`](crate::state::State), and always when a window is shown and when a subscriber is
-/// added, so a new subscriber receives the state as soon as it subscribes.
+/// [`State`](crate::state::State), and always when a window is shown, when a subscriber is added
+/// (so a new subscriber receives the state as soon as it subscribes) and when the configuration is
+/// reloaded.
 ///
 /// # Example
 ///
@@ -448,7 +449,24 @@ pub enum SocketMessage {
     NamedWorkspaceLayout(String, DefaultLayout),
     // WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
     // NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
+    NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
+    // WorkspaceLayoutCustomRule(
+    //     usize,
+    //     usize,
+    //     usize,
+    //     #[serde_as(as = "ResolvedPathBuf")] PathBuf,
+    // ),
+    // NamedWorkspaceLayoutCustomRule(String, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    ClearWorkspaceLayoutRules(usize, usize),
+    ClearNamedWorkspaceLayoutRules(String),
     ToggleWorkspaceLayer,
+    // Configuration
+    // ReloadConfiguration,
+    ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    // WatchConfiguration(bool),
+    // CompleteConfiguration,
+    // AltFocusHack(bool),
     WorkAreaOffset(Rect),
     MonitorWorkAreaOffset(usize, Rect),
     WorkspaceWorkAreaOffset(usize, usize, Rect),
@@ -477,6 +495,7 @@ pub enum SocketMessage {
     RemoveSubscriberSocket(String),
     // AddSubscriberPipe(String),
     // RemoveSubscriberPipe(String),
+    GenerateStaticConfig,
     DebugWindow(u32),
 }
 

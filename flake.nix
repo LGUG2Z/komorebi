@@ -47,8 +47,12 @@
               (craneLib.filterCargoSources path type)
               # the script komorebi loads into KWin, which the daemon includes
               || (pkgs.lib.hasSuffix ".js" path)
-              # the messages the tests of the bridge and of the daemon share
-              || (pkgs.lib.hasSuffix ".json" path);
+              # the messages the tests of the bridge and of the daemon share, the configurations
+              # the tests load, and the schemas
+              || (pkgs.lib.hasSuffix ".json" path)
+              # the page of the docs that shows the example configuration, which a test compares
+              # with the example file
+              || (pkgs.lib.hasSuffix "docs/example-configurations.md" path);
           };
 
           commonArgs = {

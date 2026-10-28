@@ -251,6 +251,12 @@ workspace-layout 0 0 columns
 workspace-layout 0 0 bsp
 named-workspace-layout one columns
 named-workspace-layout one bsp
+workspace-layout-rule 0 0 2 rows
+workspace-layout-rule 0 0 3 columns
+clear-workspace-layout-rules 0 0
+named-workspace-layout-rule one 3 columns
+clear-named-workspace-layout-rules one
+workspace-layout 0 0 bsp
 focus-monitor 1
 focus-monitor 0
 cycle-monitor next
@@ -418,6 +424,8 @@ for args in [
     "global-state",
     "monitor-information",
     "data-directory",
+    "configuration",
+    "generate-static-config",
     "session-float-rules",
 ]:
     checks.check(f"komorebic {args}", kde.run(f"komorebic {args}")[0] == 0)

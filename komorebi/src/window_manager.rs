@@ -40,6 +40,12 @@
 //! can be taken to another monitor ([`WindowManager::move_container_to_monitor`],
 //! [`WindowManager::move_workspace_to_monitor`]).
 //!
+//! A `komorebi.json` ([`StaticConfig`]) can make the window manager
+//! ([`StaticConfig::preload`]), and [`WindowManager::reload_static_configuration`] applies one to a
+//! window manager that is running. A workspace's layout rules are added and cleared with
+//! [`WindowManager::add_workspace_layout_default_rule`] and
+//! [`WindowManager::clear_workspace_layout_rules`].
+//!
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
 use crate::DATA_DIR;
@@ -67,6 +73,7 @@ use crate::desktop;
 use crate::lockable_sequence::Lockable;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::static_config::StaticConfig;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
@@ -76,6 +83,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
 use crossbeam_channel::Receiver;
+use hotwatch::Hotwatch;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::ErrorKind;
@@ -102,6 +110,9 @@ pub struct WindowManager {
     pub is_paused: bool,
     /// How many pixels `ResizeWindowEdge` and `ResizeWindowAxis` resize by
     pub resize_delta: i32,
+    /// Watches `komorebi.json`, when the window manager was made from it
+    /// ([`StaticConfig::preload`]): a change to the file makes the daemon reload it
+    pub hotwatch: Hotwatch,
     /// Whether a message is carried out while the window that has the focus is not one komorebi
     /// tiles ([`WindowManager::handle_unmanaged_window_behaviour`])
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
@@ -148,6 +159,7 @@ impl WindowManager {
     ///
     /// - The leftover socket file is there but cannot be removed.
     /// - The socket cannot be bound, for example because its directory does not exist.
+    /// - The file watcher cannot be made.
     pub fn new(
         incoming: Receiver<WindowManagerEvent>,
         custom_socket_path: Option<PathBuf>,
@@ -172,6 +184,7 @@ impl WindowManager {
             command_listener: listener,
             is_paused: false,
             resize_delta: 50,
+            hotwatch: Hotwatch::new()?,
             unmanaged_window_operation_behaviour: Default::default(),
             window_management_behaviour: WindowManagementBehaviour::default(),
             cross_monitor_move_behaviour: Default::default(),
@@ -2800,6 +2813,19 @@ impl WindowManager {
         Ok(())
     }
 
+    /// Applies the `komorebi.json` at `pathbuf` to the window manager and tiles it again
+    /// ([`StaticConfig::reload`])
+    ///
+    /// # Errors
+    ///
+    /// The file cannot be read, or is not a configuration, or has a rule with a regular expression
+    /// that is not valid, or the workspaces cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn reload_static_configuration(&mut self, pathbuf: &PathBuf) -> eyre::Result<()> {
+        tracing::info!("reloading static configuration");
+        StaticConfig::reload(pathbuf, self)
+    }
+
     /// With [`OperationBehaviour::NoOp`], refuses a message while the window that has the focus
     /// in the compositor is not in a container of the focused workspace: a window komorebi does
     /// not manage, one the user unmanaged, or a floating window
@@ -3106,6 +3132,92 @@ impl WindowManager {
         workspace.tile = tile;
 
         self.update_focused_workspace(false, false)
+    }
+
+    /// Makes the workspace change to `layout` once it has `at_container_count` containers or more
+    /// ([`Workspace::layout_rules`]), replacing the rule it had for that count, and tiles it again
+    ///
+    /// # Errors
+    ///
+    /// There is no monitor or no workspace with those indices, or the workspaces cannot be tiled
+    /// again.
+    #[tracing::instrument(skip(self))]
+    pub fn add_workspace_layout_default_rule(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        at_container_count: usize,
+        layout: DefaultLayout,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting workspace layout");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let rules: &mut Vec<(usize, Layout)> = &mut workspace.layout_rules;
+        rules.retain(|pair| pair.0 != at_container_count);
+        rules.push((at_container_count, Layout::Default(layout)));
+        rules.sort_by_key(|a| a.0);
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update()?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false, false)?)
+        }
+    }
+
+    /// Takes the layout rules of the workspace away, which leaves it with the layout it has now,
+    /// and tiles it again
+    ///
+    /// # Errors
+    ///
+    /// There is no monitor or no workspace with those indices, or the workspaces cannot be tiled
+    /// again.
+    #[tracing::instrument(skip(self))]
+    pub fn clear_workspace_layout_rules(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> eyre::Result<()> {
+        tracing::info!("clearing workspace layout rules");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let rules: &mut Vec<(usize, Layout)> = &mut workspace.layout_rules;
+        rules.clear();
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update()?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false, false)?)
+        }
     }
 
     /// Makes the workspace padding of the focused workspace `adjustment` pixels larger or smaller,
