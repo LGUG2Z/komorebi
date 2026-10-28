@@ -138,6 +138,9 @@ impl AnimationEngine {
                 Duration::from_millis(1000 / ANIMATION_FPS.load(Ordering::Relaxed));
             let animation_start = Instant::now();
 
+            let mut stats = FrameStats::default();
+            let mut previous_frame_start: Option<Instant> = None;
+
             while !pending.is_empty() {
                 // check if any animation is cancelled
                 pending.retain(|(key, animation)| {
@@ -152,6 +155,8 @@ impl AnimationEngine {
 
                 let frame_start = Instant::now();
                 let elapsed = animation_start.elapsed().as_millis() as f64;
+                let interval = previous_frame_start.map(|previous| frame_start - previous);
+                previous_frame_start = Some(frame_start);
 
                 let mut finished = Vec::new();
                 let mut remaining = Vec::with_capacity(pending.len());
@@ -165,6 +170,8 @@ impl AnimationEngine {
                     }
                 }
                 pending = remaining;
+
+                stats.add(frame_start.elapsed(), interval, target_frame_time);
 
                 Self::finish(finished);
 
@@ -184,6 +191,8 @@ impl AnimationEngine {
                     std::thread::sleep(target_frame_time - frame_time_elapsed);
                 }
             }
+
+            tracing::debug!("animations: {stats}");
         });
     }
 
@@ -208,6 +217,61 @@ impl AnimationEngine {
                 });
             }
         });
+    }
+}
+
+/// What the frames of a group of animations cost, to see whether they keep up
+#[derive(Default)]
+struct FrameStats {
+    frames: u32,
+    work: Duration,
+    longest_work: Duration,
+    intervals: u32,
+    interval: Duration,
+    longest_interval: Duration,
+    late: u32,
+    target: Duration,
+}
+
+impl FrameStats {
+    /// `work` is what drawing the frame took, `interval` the time from the
+    /// start of the frame before it
+    fn add(&mut self, work: Duration, interval: Option<Duration>, target: Duration) {
+        self.frames += 1;
+        self.work += work;
+        self.longest_work = self.longest_work.max(work);
+        self.target = target;
+
+        if let Some(interval) = interval {
+            self.intervals += 1;
+            self.interval += interval;
+            self.longest_interval = self.longest_interval.max(interval);
+
+            if interval > target + target / 2 {
+                self.late += 1;
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for FrameStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ms = |duration: Duration| duration.as_secs_f64() * 1000.0;
+        let average = |total: Duration, count: u32| ms(total) / f64::from(count.max(1));
+
+        write!(
+            f,
+            "{} frames, drawing took {:.2} ms on average and {:.2} ms at most, frames came \
+             every {:.2} ms on average and {:.2} ms at most, {} of them more than half as \
+             late again as the {:.0} ms they are meant to take",
+            self.frames,
+            average(self.work, self.frames),
+            ms(self.longest_work),
+            average(self.interval, self.intervals),
+            ms(self.longest_interval),
+            self.late,
+            ms(self.target),
+        )
     }
 }
 

@@ -476,7 +476,9 @@ impl GhostWindow {
     /// Take a picture of the window and show it where the window is. The
     /// picture is taken before the window is touched.
     pub fn create(src_hwnd: isize, start_rect: Rect) -> eyre::Result<Self> {
+        let start = std::time::Instant::now();
         let snapshot = Snapshot::capture(src_hwnd)?;
+        let captured = start.elapsed();
 
         let (reply_tx, reply_rx) = bounded::<eyre::Result<(isize, (i32, i32))>>(1);
         ghost_owner()
@@ -488,6 +490,12 @@ impl GhostWindow {
             })
             .map_err(|e| eyre::eyre!("ghost owner channel send failed: {e}"))?;
         let (hthumb, origin) = reply_rx.recv()??;
+
+        tracing::trace!(
+            "ghost: created for hwnd {src_hwnd} in {:.1} ms ({:.1} ms of it the picture)",
+            start.elapsed().as_secs_f64() * 1000.0,
+            captured.as_secs_f64() * 1000.0,
+        );
 
         Ok(Self {
             hthumb,

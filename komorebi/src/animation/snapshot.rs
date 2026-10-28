@@ -168,7 +168,12 @@ fn round_corners(pixels: &mut [u32], width: i32, height: i32, radius: i32) {
 /// way to have a window that has just been resized lay itself out at its new
 /// size, without waiting for it to get round to it.
 pub fn paint_now(hwnd: isize) {
+    let start = std::time::Instant::now();
     let _ = Snapshot::capture(hwnd);
+    tracing::trace!(
+        "snapshot: hwnd {hwnd} painted itself in {:.1} ms",
+        start.elapsed().as_secs_f64() * 1000.0
+    );
 }
 
 impl Snapshot {
@@ -194,15 +199,19 @@ impl Snapshot {
             eyre::bail!("hwnd {hwnd} has no visible area to take a picture of");
         }
 
+        let start = std::time::Instant::now();
+
         unsafe {
             let screen = GetDC(None);
             let dc = CreateCompatibleDC(Some(screen));
 
             let result = (|| {
                 let (full, full_pixels) = create_dib(dc, window_width, window_height)?;
+                let allocated = start.elapsed();
                 let previous = SelectObject(dc, full.into());
                 let printed = PrintWindow(handle, dc, PRINT_WINDOW_FLAGS(PW_RENDERFULLCONTENT));
                 SelectObject(dc, previous);
+                let rendered = start.elapsed();
 
                 let result = if printed.as_bool() {
                     create_dib(dc, width, height).map(|(bitmap, pixels)| {
@@ -219,6 +228,15 @@ impl Snapshot {
                 };
 
                 let _ = DeleteObject(full.into());
+
+                tracing::trace!(
+                    "snapshot: hwnd {hwnd} {window_width}x{window_height}: allocate {:.1} ms, \
+                     PrintWindow {:.1} ms, picture {:.1} ms",
+                    allocated.as_secs_f64() * 1000.0,
+                    (rendered - allocated).as_secs_f64() * 1000.0,
+                    (start.elapsed() - rendered).as_secs_f64() * 1000.0,
+                );
+
                 result
             })();
 
