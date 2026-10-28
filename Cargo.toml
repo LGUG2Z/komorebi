@@ -59,6 +59,7 @@ features = [
   "Win32_Globalization",
   "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",
+  "Win32_Storage_Xps",
   "Win32_Graphics_Direct2D",
   "Win32_Graphics_Direct2D_Common",
   "Win32_Graphics_Dxgi_Common",

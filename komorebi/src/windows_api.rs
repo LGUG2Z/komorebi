@@ -148,7 +148,6 @@ use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
-use windows::Win32::UI::WindowsAndMessaging::WS_EX_TRANSPARENT;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
@@ -1363,26 +1362,6 @@ impl WindowsApi {
             )?;
             Ok(alpha)
         }
-    }
-
-    pub fn create_ghost_host_window(name: PCWSTR, instance: isize) -> eyre::Result<isize> {
-        unsafe {
-            CreateWindowExW(
-                WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT,
-                name,
-                name,
-                WS_POPUP,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                None,
-                None,
-                Option::from(HINSTANCE(as_ptr!(instance))),
-                None,
-            )?
-        }
-        .process()
     }
 
     pub fn dwm_register_thumbnail(dest_hwnd: isize, src_hwnd: isize) -> eyre::Result<isize> {

@@ -22,10 +22,12 @@ use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::animation::AnimationEngine;
 use crate::animation::GHOST_MOVEMENT_ENABLED;
 use crate::animation::RenderDispatcher;
+use crate::animation::ghost;
 use crate::animation::ghost::GhostWindow;
 use crate::animation::lerp::Lerp;
 use crate::animation::prefix::AnimationPrefix;
 use crate::animation::prefix::new_animation_key;
+use crate::animation::snapshot;
 use crate::border_manager;
 use crate::cloaked;
 use crate::com::SetCloak;
@@ -178,10 +180,14 @@ struct MovementRenderDispatcher {
     /// Last lerped logical rect actually applied; used by cleanup_on_cancel to
     /// snap the real window to the position the user was last seeing.
     last_animated_rect: Mutex<Rect>,
-    /// True when pre_render successfully repositioned the source to target_rect
-    /// before registering the thumbnail. In that case post_render must skip
-    /// the final position_window since the source is already there.
-    pre_painted: AtomicBool,
+    /// Resizing the cloaked source to its target, which is done while the
+    /// animation runs because it can take a while.
+    resize: Mutex<Option<thread::JoinHandle<eyre::Result<()>>>>,
+    /// Whether the source has been shown again, under the fading ghost
+    revealed: AtomicBool,
+    /// How far through the animation the source was shown again, which is
+    /// when the ghost starts to fade
+    revealed_at: Mutex<f64>,
 }
 
 impl MovementRenderDispatcher {
@@ -203,27 +209,17 @@ impl MovementRenderDispatcher {
             ghost: Mutex::new(None),
             cloaked: AtomicBool::new(false),
             last_animated_rect: Mutex::new(start_rect),
-            pre_painted: AtomicBool::new(false),
+            resize: Mutex::new(None),
+            revealed: AtomicBool::new(false),
+            revealed_at: Mutex::new(ghost::REVEAL_AT),
         }
     }
 
     fn use_ghost(&self) -> bool {
+        // DWM has no thumbnail to show of a window that is minimized or gone
         GHOST_MOVEMENT_ENABLED.load(Ordering::Relaxed)
-    }
-
-    /// Chromium / Electron windows expose a top-level class beginning with
-    /// `Chrome_WidgetWin_`. Their renderer pipeline is suspended whenever
-    /// `NativeWindowOcclusionTrackerWin` reads any non-zero `DWMWA_CLOAKED`
-    /// state on the HWND, so the pre-paint trick (cloak → SetWindowPos →
-    /// capture) leaves the DComp swap chain stale and the post-uncloak frame
-    /// shows half-painted / black regions. For these apps we fall back to
-    /// capture-at-start: keep the source cloaked at start_rect for the whole
-    /// animation and only move it to target in post_render, where the
-    /// uncloak is the visibility flip that wakes Viz back up.
-    fn source_is_chromium_shell(&self) -> bool {
-        WindowsApi::real_window_class_w(self.hwnd)
-            .map(|class| class.starts_with("Chrome_WidgetWin_"))
-            .unwrap_or(false)
+            && WindowsApi::is_window(self.hwnd)
+            && !WindowsApi::is_iconic(self.hwnd)
     }
 
     fn finalise_managers(&self) {
@@ -242,6 +238,85 @@ impl MovementRenderDispatcher {
             transparency_manager::send_notification();
         }
     }
+
+    fn uncloak(&self) {
+        if self.cloaked.swap(false, Ordering::SeqCst) {
+            SetCloak(Window { hwnd: self.hwnd }.hwnd(), 1, 0);
+        }
+    }
+
+    /// Start resizing the cloaked source to its target rect, on a thread of
+    /// its own: a window that is slow to take a new size would otherwise hold
+    /// up the animation, and the ghost is on screen in its place meanwhile.
+    fn start_resize(&self) {
+        let hwnd = self.hwnd;
+        let target = self.target_rect;
+        let top = self.top;
+
+        *self.resize.lock() = Some(thread::spawn(move || {
+            let resized = WindowsApi::position_window(hwnd, &target, top, false);
+
+            // A window that is hidden has no reason to lay itself out again
+            // before it is shown, and Explorer takes its time over it when it
+            // is: have it do it now, while the ghost is on screen.
+            if resized.is_ok() {
+                snapshot::paint_now(hwnd);
+            }
+
+            resized
+        }));
+    }
+
+    /// Whether the resize started by `start_resize` is done, or never was
+    fn resize_is_done(&self) -> bool {
+        self.resize
+            .lock()
+            .as_ref()
+            .is_none_or(thread::JoinHandle::is_finished)
+    }
+
+    /// Wait for the resize started by `start_resize` to be done
+    fn finish_resize(&self) -> eyre::Result<()> {
+        match self.resize.lock().take() {
+            Some(resize) => resize
+                .join()
+                .unwrap_or_else(|_| Err(eyre::eyre!("the resize of hwnd {} panicked", self.hwnd))),
+            None => Ok(()),
+        }
+    }
+
+    /// Show the source again, at its target, under the ghost, which fades out
+    /// over it from here on. By now it has had part of the animation to lay
+    /// itself out at its new size, which is why this is not done at the end.
+    ///
+    /// Windows that render through a swap chain are given a real size change
+    /// on the way (see `ghost::nudge_swap_chain_window`) so that their
+    /// compositor rebuilds its render target at the final size.
+    fn reveal(&self, progress: f64) {
+        if self.revealed.swap(true, Ordering::SeqCst) {
+            return;
+        }
+
+        *self.revealed_at.lock() = progress.clamp(ghost::REVEAL_AT, 1.0);
+
+        match self.finish_resize() {
+            Ok(()) => {
+                if ghost::is_swap_chain_window(self.hwnd) {
+                    ghost::nudge_swap_chain_window(self.hwnd, &self.target_rect, self.top);
+                }
+            }
+            Err(error) => {
+                // the window cannot be left hidden, and the next layout pass
+                // puts it where it belongs
+                tracing::warn!(
+                    "ghost movement: failed to resize hwnd {} to its target: {error}",
+                    self.hwnd
+                );
+            }
+        }
+
+        self.uncloak();
+    }
 }
 
 impl RenderDispatcher for MovementRenderDispatcher {
@@ -254,67 +329,34 @@ impl RenderDispatcher for MovementRenderDispatcher {
         stackbar_manager::send_notification();
 
         if self.use_ghost() {
-            let is_chromium = self.source_is_chromium_shell();
-
-            // The ghost host is sized to the LOGICAL rect (visible content
-            // area). DWM thumbnails capture the source at its
-            // DWMWA_EXTENDED_FRAME_BOUNDS extents (visible content), not
-            // GetWindowRect outer extents that include the drop-shadow
-            // margin. Sizing the host to outer dims would stretch the
-            // visible-content texture by the shadow ratio.
-            //
-            // Place the ghost in z-order immediately above the source so
-            // multiple simultaneously animating windows (workspace switches,
-            // layout flips) keep the same relative stacking as their
-            // sources rather than all piling up at HWND_TOP in creation
-            // order.
-            //
-            // For non-Chromium sources we ALSO pre-position the source to
-            // target_rect *before* registering the thumbnail, so the
-            // captured pixels reflect target-dimensioned content. The ghost
-            // dest then animates start → target with the texture
-            // downscaling to native 1:1 at the end — crisp final frame
-            // instead of an upscaled blur. For Chromium we skip pre-paint
-            // (see `source_is_chromium_shell`).
-            //
-            // DwmSetWindowAttribute(DWMWA_CLOAK) is rejected with
-            // E_ACCESSDENIED for foreign HWNDs; the undocumented
-            // IApplicationView::SetCloak path used elsewhere does not have
-            // that restriction.
-            SetCloak(Window { hwnd: self.hwnd }.hwnd(), 1, 2);
-            self.cloaked.store(true, Ordering::SeqCst);
-
-            if !is_chromium {
-                if let Err(error) =
-                    WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)
-                {
-                    tracing::warn!(
-                        "ghost movement: failed to pre-position hwnd {}: {error}",
-                        self.hwnd
-                    );
-                } else {
-                    // No DwmFlush here. DWM thumbnails are live: once
-                    // registered, the thumbnail surface updates as the
-                    // source paints, so the texture catches up to
-                    // target-dim content within the first frame or two of
-                    // the animation. Skipping the flush avoids a ~16ms
-                    // pre-render stall on every non-Chromium animation.
-                    self.pre_painted.store(true, Ordering::SeqCst);
-                }
-            }
-
-            match GhostWindow::create(self.hwnd, self.start_rect, Some(self.hwnd)) {
+            // The ghost is a snapshot of the window as it is now, which is
+            // taken before anything is done to the window, and shown at the
+            // LOGICAL rect (visible content area) the window is in. It does
+            // not follow the window, so it shows the old frame for as long as
+            // the window takes to lay itself out again, which is what the
+            // animation is for.
+            match GhostWindow::create(self.hwnd, self.start_rect) {
                 Ok(ghost) => {
                     *self.ghost.lock() = Some(ghost);
+
+                    // DwmSetWindowAttribute(DWMWA_CLOAK) is rejected with
+                    // E_ACCESSDENIED for foreign HWNDs; the undocumented
+                    // IApplicationView::SetCloak path used elsewhere does not
+                    // have that restriction.
+                    SetCloak(Window { hwnd: self.hwnd }.hwnd(), 1, 2);
+                    self.cloaked.store(true, Ordering::SeqCst);
+
+                    // The window is resized now rather than when the animation
+                    // is over, so that it has the animation to paint at its new
+                    // size in, while it cannot be seen.
+                    self.start_resize();
                 }
                 Err(error) => {
                     tracing::warn!(
                         "ghost movement: failed to create ghost for hwnd {}: {error}; \
-                         uncloaking and falling back to legacy path",
+                         falling back to legacy path",
                         self.hwnd
                     );
-                    SetCloak(Window { hwnd: self.hwnd }.hwnd(), 1, 0);
-                    self.cloaked.store(false, Ordering::SeqCst);
                 }
             }
         }
@@ -332,10 +374,26 @@ impl RenderDispatcher for MovementRenderDispatcher {
 
         let ghost_active = self.ghost.lock().is_some();
         if ghost_active {
-            if let Some(ghost) = self.ghost.lock().as_ref()
-                && let Err(error) = ghost.update_rect(logical)
+            // A window that is slow to take its new size is not waited for: the
+            // animation goes on with the ghost as it is, and the window is
+            // shown when it is ready, or once the animation is over.
+            if progress >= ghost::REVEAL_AT
+                && !self.revealed.load(Ordering::SeqCst)
+                && self.resize_is_done()
             {
-                tracing::trace!("ghost update_rect failed: {error}");
+                self.reveal(progress);
+            }
+
+            let opacity = if self.revealed.load(Ordering::SeqCst) {
+                ghost::ghost_opacity(progress, *self.revealed_at.lock())
+            } else {
+                255
+            };
+
+            if let Some(ghost) = self.ghost.lock().as_ref()
+                && let Err(error) = ghost.update(logical, opacity)
+            {
+                tracing::trace!("ghost update failed: {error}");
             }
             border_manager::animate_to(self.hwnd, logical);
         } else {
@@ -349,69 +407,28 @@ impl RenderDispatcher for MovementRenderDispatcher {
     }
 
     fn post_render(&self) -> eyre::Result<()> {
-        let used_ghost = self.ghost.lock().is_some();
-        let pre_painted = self.pre_painted.load(Ordering::SeqCst);
-
-        // Final single SetWindowPos. For the pre-paint ghost path the source
-        // has already been moved to target_rect in pre_render and we skip
-        // this. For the Chromium ghost path (no pre-paint) the source is
-        // still cloaked at start_rect and needs to be moved here. For the
-        // legacy non-ghost path this is the original final reposition.
-        if !pre_painted {
-            WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
-        }
-
-        // Uncloak BEFORE crossfade so the real window's first post-resize
-        // frame is being composed underneath the still-visible ghost while
-        // we fade. This gives Chromium/Electron renderers time to produce a
-        // CompositorFrame at the new size — the visibility flip from
-        // cloaked-to-uncloaked is what nudges Viz to resume frame
-        // production.
-        if self.cloaked.swap(false, Ordering::SeqCst) {
-            SetCloak(Window { hwnd: self.hwnd }.hwnd(), 1, 0);
-        }
-
-        if used_ghost {
-            // Crossfade the ghost out over several DWM frames. This masks the
-            // texture mismatch (start-dim bitmap stretched vs. crisp
-            // target-dim repaint) and gives slow-to-repaint apps time to
-            // present their first post-resize frame before the overlay is
-            // removed. Mirrors KWin's geometry-effect crossfade.
-            //
-            // Ease-in curve (1 - t^3): opacity holds high for most of the
-            // fade and only drops sharply at the end. The ghost stays
-            // prominent while the real window's first few frames land
-            // underneath, so the user perceives a smooth reveal rather than
-            // a snap.
-            //
-            // We call set_opacity directly (synchronous DwmUpdateThumbnailProperties
-            // on this thread) rather than via the ghost owner channel, so
-            // each step is guaranteed to be visible before the following
-            // DwmFlush waits for the next vblank.
-            if let Some(ghost) = self.ghost.lock().as_ref() {
-                const FADE_STEPS: u32 = 8;
-                for step in 1..=FADE_STEPS {
-                    let t = step as f32 / FADE_STEPS as f32;
-                    let progress = t * t * t;
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    let opacity_u8 = ((1.0 - progress) * 255.0).round().clamp(0.0, 255.0) as u8;
-                    let _ = ghost.set_opacity(opacity_u8);
-                    unsafe {
-                        let _ = windows::Win32::Graphics::Dwm::DwmFlush();
-                    }
-                }
-            }
-        } else {
-            // Legacy path: still benefit from one DWM frame's wait so the
-            // app's first post-move paint lands.
+        let Some(ghost) = self.ghost.lock().take() else {
+            // Legacy path: the final reposition, then one DWM frame's wait so
+            // the app's first post-move paint lands.
+            let landed = WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false);
+            self.uncloak();
             unsafe {
                 let _ = windows::Win32::Graphics::Dwm::DwmFlush();
             }
+            self.finalise_managers();
+            return landed;
+        };
+
+        // Normally done a good while ago, but not for a window that was slow to
+        // take its new size, which is waited for now, with the ghost on screen
+        // over it, and then faded out of the way a little more quickly than
+        // it otherwise would be.
+        if !self.revealed.load(Ordering::SeqCst) {
+            self.reveal(1.0);
+            ghost.fade_out(self.target_rect);
         }
 
-        if let Some(ghost) = self.ghost.lock().take() {
-            let _ = ghost.dispose();
-        }
+        let _ = ghost.dispose();
 
         self.finalise_managers();
 
@@ -421,18 +438,21 @@ impl RenderDispatcher for MovementRenderDispatcher {
     fn cleanup_on_cancel(&self) {
         // Snap the real window to wherever the ghost was last drawn so the next
         // dispatcher can capture an accurate start_rect. Then uncloak and tear
-        // down the ghost. Mirrors post_render but uses last_animated_rect.
-        let target = *self.last_animated_rect.lock();
+        // down the ghost.
+        let _ = self.finish_resize();
 
-        if let Err(error) = WindowsApi::position_window(self.hwnd, &target, false, false) {
-            tracing::warn!(
-                "ghost movement cancel: failed to snap hwnd {} to last rect: {error}",
-                self.hwnd
-            );
-        }
+        if WindowsApi::is_window(self.hwnd) {
+            let target = *self.last_animated_rect.lock();
 
-        if self.cloaked.swap(false, Ordering::SeqCst) {
-            SetCloak(Window { hwnd: self.hwnd }.hwnd(), 1, 0);
+            if let Err(error) = WindowsApi::position_window(self.hwnd, &target, false, false) {
+                tracing::warn!(
+                    "ghost movement cancel: failed to snap hwnd {} to last rect: {error}",
+                    self.hwnd
+                );
+            }
+
+            self.revealed.store(true, Ordering::SeqCst);
+            self.uncloak();
         }
 
         if let Some(ghost) = self.ghost.lock().take() {
