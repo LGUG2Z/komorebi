@@ -44,7 +44,8 @@
 //! sees that it is drawn ([`Backend::apply_look`]); the window manager is told whether the
 //! compositor draws a border, because a border that is drawn takes room around each window, which
 //! the layout leaves. The color of each window's border is another request
-//! ([`Backend::set_border_colours`]), which a compositor may not be able to honor.
+//! ([`Backend::set_border_colours`]), which a compositor may not be able to honor. The wallpaper
+//! of a monitor is a request of the same kind ([`Backend::set_wallpaper`]).
 
 #![deny(missing_docs)]
 
@@ -52,6 +53,7 @@ use crate::core::Rect;
 use color_eyre::eyre;
 use parking_lot::RwLock;
 use std::cell::RefCell;
+use std::path::Path;
 use std::sync::Arc;
 
 pub mod fake;
@@ -488,6 +490,39 @@ pub trait Backend: Send + Sync + 'static {
     /// # Ok::<(), color_eyre::eyre::Report>(())
     /// ```
     fn set_focus_follows_mouse(&self, _enable: bool) -> eyre::Result<()> {
+        Ok(())
+    }
+
+    /// Shows this picture as the wallpaper of a monitor, filling the screen. The window manager
+    /// asks for it every time a workspace of the monitor comes into view, since the user may have
+    /// changed the wallpaper by hand since, so a backend does nothing when the monitor already
+    /// shows the picture. The picture may take a moment to appear: this returns once it has been
+    /// asked for. The default does nothing.
+    ///
+    /// # Errors
+    ///
+    /// When the monitor is not one the compositor has, or the path is not a file.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi::backend::Backend;
+    /// use komorebi::backend::fake::Command;
+    /// use komorebi::backend::fake::FakeBackend;
+    /// use std::path::Path;
+    ///
+    /// let fake = FakeBackend::with_one_monitor();
+    /// assert_eq!(fake.wallpaper_of(1), None);
+    ///
+    /// fake.set_wallpaper(1, Path::new("/pictures/dunes.png"))?;
+    /// assert_eq!(fake.wallpaper_of(1), Some("/pictures/dunes.png".into()));
+    /// assert_eq!(
+    ///     fake.commands(),
+    ///     [Command::SetWallpaper(1, "/pictures/dunes.png".into())]
+    /// );
+    /// # Ok::<(), color_eyre::eyre::Report>(())
+    /// ```
+    fn set_wallpaper(&self, _monitor_id: u32, _path: &Path) -> eyre::Result<()> {
         Ok(())
     }
 

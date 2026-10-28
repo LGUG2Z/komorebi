@@ -233,6 +233,7 @@ What komorebi calls:
 | `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.komorebi.BorderColours1` | `SetColours(asau)`: the UUID of each window and its color, `0xRRGGBB` | when the color of a window's border changes; the object is komorebi's build of the border effect ([The patches](#the-patches)) |
 | `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
 | `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the properties `desktops` and `count`, `createDesktop(us)`, `setDesktopName(ss)`, `removeDesktop(s)` | when a workspace has no desktop, and at start; `createDesktop` also for the parking desktop, the first time a window is hidden, and `removeDesktop` for it when komorebi stops and for one a killed run left |
+| `org.kde.plasmashell` | `/PlasmaShell` | `org.kde.PlasmaShell` | `evaluateScript(s) -> s`, `wallpaper(u) -> a{sv}`, `setWallpaper(sa{sv}u)` | when a workspace with a wallpaper comes into view ([The Plasma shell](#the-plasma-shell)) |
 
 The property `desktops` is introspected as `a(iss)`, a position, an id and a name for each
 desktop, and the value on the wire is `a(uss)`: komorebi reads it as that. It is read uncached,
@@ -252,6 +253,7 @@ since a read right after `createDesktop` has to see the new desktop.
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
 | `$XDG_RUNTIME_DIR/komorebi/komorebi.sock` | the command socket | bound once the daemon is connected to KWin, after a file left there is removed; removed when the daemon stops |
 | `$XDG_RUNTIME_DIR/komorebi/NAME` | the socket of a subscriber, which the subscriber binds and names in its subscription | removed by the daemon, with the subscriber, when it cannot connect to it |
+| `$XDG_CACHE_HOME/komorebi` (`~/.cache/komorebi`) | the palettes made from wallpapers, a file for each picture and variant, `NAME-HASH.base16.VARIANT.json` | never removed by komorebi; made again when the picture's path, size or time of last change differ |
 | `$XDG_DATA_HOME/komorebi/komorebi.log.YYYY-MM-DD` | the daemon's log, with colors, which `komorebic log` follows | a file a day (the UTC date), never removed by komorebi |
 | `$XDG_DATA_HOME/komorebi/komorebi_plaintext.log.YYYY-MM-DD` | the same log without colors | as above |
 
@@ -545,6 +547,29 @@ next animation. An animation cannot be seen in a screenshot of a short one: the 
 seconds, and the effect eases out exponentially, nearly over after a third of its duration. A
 screenshot of a session a few seconds into a 30 s animation shows a window that has not got to its
 place, and the same move with animation off is there at once.
+
+## The Plasma shell
+
+The wallpaper of a screen is the Plasma shell's, not KWin's: the shell, `plasmashell` on the
+session bus as `org.kde.plasmashell`, keeps one wallpaper for each screen, not for each virtual
+desktop. At time of writing (2026-10-27) komorebi asks it three things over `/PlasmaShell`, in
+`org.kde.PlasmaShell`, for the output a workspace's monitor is (the name KWin gives it, `DP-1`):
+
+1. `evaluateScript("print(screenForConnector(\"DP-1\"))")`: the number the shell gives the
+   screen, which it numbers itself and names by connector; `-1` when it has none. The name goes
+   into the script as a JSON string.
+2. `wallpaper(screen)`: what the screen shows, as `a{sv}`, in which `wallpaperPlugin` is the
+   plugin (`org.kde.image` for a picture), `Image` the picture's URL and `FillMode` a Qt
+   `Image.fillMode` (2 is `PreserveAspectCrop`: the picture fills the screen and is cropped where it
+   does not fit).
+3. `setWallpaper("org.kde.image", {Image: URL, FillMode: 2}, screen)`: what
+   `plasma-apply-wallpaperimage` calls, for one screen. It is made only when the answer to 2 is
+   not already the picture, in that plugin, with that fill.
+
+The URL is `file://` and the path, with every byte but an ASCII letter or digit, `-`, `.`, `_`, `~`
+and `/` percent-encoded, so a path with a space in it works. A session with no Plasma shell (a
+headless one, or one with another shell) has no such name on the bus: every call fails, and komorebi
+tries again, then leaves wallpapers alone ([DESIGN.md](DESIGN.md#why-is-the-wallpaper-set-in-the-background-and-tried-again)).
 
 ## Rendering in virtual machines and over RDP
 

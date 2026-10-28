@@ -3159,6 +3159,17 @@
           ],
           "default": "Tile"
         },
+        "wallpaper": {
+          "description": "Specify a wallpaper for this monitor",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wallpaper"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "window_based_work_area_offset": {
           "description": "Window based work area offset",
           "anyOf": [
@@ -3459,6 +3470,155 @@
         "columns"
       ]
     },
+    "ThemeOptions": {
+      "description": "Theme options",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Komorebi status bar accent",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "floating_border": {
+          "description": "Border color when the window is floating",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base09"
+        },
+        "monocle_border": {
+          "description": "Border color when the container is in monocle mode",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0F"
+        },
+        "single_border": {
+          "description": "Border color when the container contains a single window",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "stack_border": {
+          "description": "Border color when the container contains multiple windows",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "theme_variant": {
+          "description": "Specify Light or Dark variant for theme generation",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeVariant"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Dark"
+        },
+        "unfocused_border": {
+          "description": "Border color when the container is unfocused",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "unfocused_locked_border": {
+          "description": "Border color when the container is unfocused and locked",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base08"
+        }
+      }
+    },
+    "ThemeVariant": {
+      "description": "Theme variant",
+      "oneOf": [
+        {
+          "description": "Dark variant",
+          "type": "string",
+          "const": "Dark"
+        },
+        {
+          "description": "Light variant",
+          "type": "string",
+          "const": "Light"
+        }
+      ]
+    },
+    "Wallpaper": {
+      "description": "Wallpaper configuration",
+      "type": "object",
+      "properties": {
+        "generate_theme": {
+          "description": "Generate and apply Base16 theme for this wallpaper",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "path": {
+          "description": "Path to the wallpaper image file",
+          "$ref": "#/$defs/PathBuf"
+        },
+        "theme_options": {
+          "description": "Specify theme options",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
     "WindowContainerBehaviour": {
       "description": "Window container behavior when a new window is opened",
       "oneOf": [
@@ -3610,6 +3770,17 @@
             "null"
           ],
           "default": true
+        },
+        "wallpaper": {
+          "description": "Specify a wallpaper for this workspace",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wallpaper"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "window_container_behaviour": {
           "description": "Determine what happens when a new window is opened",

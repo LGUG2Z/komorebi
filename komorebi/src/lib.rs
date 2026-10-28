@@ -13,8 +13,11 @@
 //!
 //! On KDE Plasma the backend is [`kwin::KWinBackend`], which talks to a script it loads into KWin.
 //! The compositor also draws what the windows look like: [`border_manager`] asks the backend for
-//! the borders, [`theme_manager`] colors them from a theme, [`animation`] holds how windows are animated going to their places, and
-//! [`transparency_manager`] makes the windows that do not have the focus see-through.
+//! the borders, [`theme_manager`] colors them from a theme, [`animation`] holds how windows are
+//! animated going to their places, and [`transparency_manager`] makes the windows that do not have
+//! the focus see-through. A monitor or a workspace can also have a wallpaper
+//! ([`static_config::Wallpaper`]), which the backend has the Plasma shell show when the
+//! workspace comes into view ([`backend::Backend::set_wallpaper`]).
 //!
 //! The daemon also listens on a socket, `komorebi.sock` in [`struct@DATA_DIR`], for the messages
 //! in [`core::SocketMessage`]: [`process_command`] reads them and answers, with the window

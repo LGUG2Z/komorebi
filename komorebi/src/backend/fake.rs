@@ -35,6 +35,8 @@ use crate::core::Rect;
 use color_eyre::eyre;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
 
 /// A command the window manager sent to the backend.
 #[derive(Clone, Debug, PartialEq)]
@@ -74,6 +76,8 @@ pub enum Command {
     SetOpacity(u32, u8),
     /// [`Backend::set_focus_follows_mouse`]: whether it was turned on or off.
     FocusFollowsMouse(bool),
+    /// [`Backend::set_wallpaper`]: the monitor, and the picture it was asked to show.
+    SetWallpaper(u32, PathBuf),
 }
 
 #[derive(Default)]
@@ -101,6 +105,8 @@ struct State {
     opacity: HashMap<u32, u8>,
     /// the border color each window was last given, `0xRRGGBB`
     border_colours: HashMap<u32, u32>,
+    /// the wallpaper the WM last asked for on each monitor
+    wallpapers: HashMap<u32, PathBuf>,
     /// the look last applied, so that asking for it again is not a command
     last_look: Option<Look>,
     /// whether the compositor has an effect that draws borders
@@ -386,6 +392,11 @@ impl FakeBackend {
         self.state.lock().border_colours.get(&id).copied()
     }
 
+    /// Returns the wallpaper the window manager last asked this monitor to show, if it asked.
+    pub fn wallpaper_of(&self, monitor_id: u32) -> Option<PathBuf> {
+        self.state.lock().wallpapers.get(&monitor_id).cloned()
+    }
+
     /// Says whether the compositor has an effect that draws borders. Without one, which is how a
     /// fake starts, [`Backend::apply_look`] answers false however much of a border it is asked
     /// for, as it does on a machine where the effect is not installed.
@@ -621,6 +632,15 @@ impl Backend for FakeBackend {
             .lock()
             .commands
             .push(Command::FocusFollowsMouse(enable));
+        Ok(())
+    }
+
+    fn set_wallpaper(&self, monitor_id: u32, path: &Path) -> eyre::Result<()> {
+        let mut state = self.state.lock();
+        state.wallpapers.insert(monitor_id, path.to_path_buf());
+        state
+            .commands
+            .push(Command::SetWallpaper(monitor_id, path.to_path_buf()));
         Ok(())
     }
 

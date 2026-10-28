@@ -19,6 +19,8 @@ grows with the code: each part of the daemon that is added has its place here.
   compositor's `u32` id.
 - **Monitor**: a connected output, with its bounds and its work area (its bounds minus
   the panels).
+- **Wallpaper**: the picture a monitor shows while one of its workspaces is in front, and the theme
+  made of it. A workspace's own wins over its monitor's.
 - **Workspace**: the containers a monitor shows, in order, and the layout that tiles
   them. A monitor has a ring of workspaces and shows one of them. Workspace `i` is the
   compositor's desktop `i` on that monitor. A workspace can have a name, which the named
@@ -842,6 +844,31 @@ name in another folder, has a palette of its own. A picture it cannot make a pal
 cannot be read, or has fewer than eight colors) has none, and the borders keep their colors.
 [DESIGN.md](DESIGN.md#why-is-a-palette-kept-by-the-hash-of-its-picture) has the reason.
 
+## Wallpapers
+
+A [`Monitor`] has a [`Wallpaper`] and so can each of its workspaces: the `wallpaper` of an entry of
+`monitors` and of `workspaces` in `komorebi.json`, which [`StaticConfig::postload`] and
+[`StaticConfig::reload`] give them. [`Workspace::apply_wallpaper`] asks the backend to show the workspace's own wallpaper
+or else its monitor's ([`Backend::set_wallpaper`]), and, unless the wallpaper says
+`generate_theme: false`, makes a theme of the palette of the picture
+([`theme_manager::wallpaper_palette`]), with the variant and the colors of its `theme_options`, and
+hands it to [`theme_manager::send_notification`]: the colors are the borders' before the
+workspace is shown. It is called wherever a workspace comes into view. [`Workspace::restore`], which
+[`Monitor::load_focused_workspace`] calls for komorebi's own switches, calls it;
+[`WindowManager::adopt_workspace_change`] calls it for a switch something else made, and
+[`WindowManager::retile_all`] for the workspace in front at the start, and
+[`WindowManager::apply_wallpaper_for_monitor_workspace`], which [`StaticConfig::reload`] calls for the
+workspace each monitor shows, has a reloaded file's wallpapers shown at once. A monitor and a
+workspace without a wallpaper are not asked about.
+
+Plasma has one wallpaper for each screen, which the shell, a process of its own, keeps. The KWin
+backend does not set it from the thread of the window manager: [`Backend::set_wallpaper`] notes the
+wish for the output (by name, which is how the shell tells screens apart) and starts a task on the
+runtime, which asks the shell what the screen shows and sets the picture only if it differs, with
+the plugin that shows a picture, filling the screen ([`kwin::wallpaper`]). A shell that is not
+there yet is tried again for about half a minute, with longer waits, and the failure is said once.
+[PLATFORM.md](PLATFORM.md#the-plasma-shell) has what the shell is asked.
+
 ## Transparency
 
 The opacity of a window is a property KWin has, so komorebi sets it ([`Backend::set_opacity`],
@@ -973,6 +1000,8 @@ module's unit.
 - [`animation`](../../komorebi/src/animation/mod.rs): the animation settings, which the look has.
 - [`theme_manager`](../../komorebi/src/theme_manager.rs): a theme's colors for the borders, and the
   palettes made from pictures.
+- [`kwin::wallpaper`](../../komorebi/src/kwin/wallpaper.rs): the Plasma shell's side of a
+  wallpaper: the screen of an output, what it shows, and the picture set.
 - [`transparency_manager`](../../komorebi/src/transparency_manager.rs): which windows are
   see-through, and the opacity they are given.
 - [`kwin::effects`](../../komorebi/src/kwin/effects.rs): the KWin effect that draws the border,
@@ -1129,6 +1158,12 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A theme gives every kind of border a color, the one it names or the theme's default | framework path: [`theme_manager::send_notification`] stores a color for each of the six kinds, from the theme's own defaults for the ones the message does not name | `a_named_theme_colours_every_kind_of_border` | none |
 | The `border_colours` of the file are the border colors, and a theme in the file wins over them | framework path: `StaticConfig::apply_globals` stores each color the file names, and then calls [`theme_manager::send_notification`] for the `theme` | `the_colour_and_theme_keys_of_the_file_are_the_border_colours` | none |
 | A picture's palette is made again when the picture changes, and is not mistaken for another picture's | framework path: [`theme_manager::palette_file`] names the file by a hash of the picture's path, size and time of last change, and the variant | the doctest of `palette_file` | the hash is not a proof of identity |
+| A workspace that comes into view has its wallpaper set, its own before its monitor's, however it came into view; none is touched for a workspace and a monitor without one | framework path: [`Workspace::restore`], [`WindowManager::adopt_workspace_change`] and [`WindowManager::retile_all`] call [`Workspace::apply_wallpaper`], which takes `self.wallpaper` before the monitor's | `a_wallpaper_is_set_when_its_workspace_comes_into_view_by_whoever_brings_it`, `no_wallpaper_is_touched_that_was_not_asked_for`, `vm-wallpaper` (sections A and B) | none |
+| The borders have the colors of the wallpaper in front, and keep theirs when it asks for no theme or has no palette | framework path: [`Workspace::apply_wallpaper`] sends a theme only for a wallpaper that does not say `generate_theme: false` and has a palette | `the_borders_take_their_colours_from_the_wallpaper_and_follow_it`, `a_wallpaper_that_asks_for_no_theme_leaves_the_borders_alone`, `a_wallpaper_that_is_not_a_picture_still_sets_and_does_not_break_the_window_manager`, `theme_options_choose_the_variant_and_the_colour_each_border_takes`, `vm-wallpaper` (section C) | none |
+| A wallpaper the screen shows already is not set again, and one the user changed by hand is set back | framework path: [`kwin::wallpaper`]`::apply` compares what the shell answers with the picture, the fill and the plugin | `vm-wallpaper` (section D) | the comparison alone has no test |
+| Any path is a URL the shell can read, and the name of an output cannot end the string it is in in the shell's script | framework path: `kwin::wallpaper::file_url` percent-encodes every byte but a few ASCII ones, and the script writes the name as a JSON string | `a_path_becomes_a_url_the_shell_can_read`, `the_name_of_an_output_cannot_end_the_string_it_is_in`, `vm-wallpaper` (a path with a space in it) | none |
+| Setting a wallpaper never holds up the window manager | framework path: [`Backend::set_wallpaper`] of the KWin backend notes the wish and spawns the request on the runtime | none | the monitor and the path are checked before it returns |
+| The KWin backend refuses a wallpaper for a monitor it does not have and for a path that is no file | framework path: `set_wallpaper` of the KWin backend looks the monitor up in its table and checks the path | `a_wallpaper_is_refused_for_a_monitor_kwin_lacks_and_for_a_path_that_is_no_file` | none |
 | A window komorebi made see-through is opaque again when komorebi exits | framework path: [`WindowManager::stop`] and `main.rs` call [`transparency_manager::restore`] | `what_komorebi_made_see_through_is_opaque_again_when_it_exits` | `SIGKILL`: the windows stay as they were drawn |
 | What the backend sends for an opacity is what the bridge sets | tests: the `opacity` command of [`fixtures`] is what the backend's test sends and what the bridge's test answers with, checking the window's `opacity` | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a window is given the opacity it is asked for, and one KWin has not got is given back` | none |
 | The user's focus policy is put back when focus follows mouse is turned off and when komorebi exits | framework path: [`Kwinrc`] records the first value of each key it sets, `set_focus_follows_mouse(false)` puts the two keys back with [`Kwinrc::restore_keys`] and `shutdown` puts back all | `one_key_can_be_put_back_while_the_others_in_its_group_stay_changed`, `what_komorebi_changed_is_put_back_exactly_and_what_it_added_is_removed`, `vm-focus-follows-mouse` | `SIGKILL`: the next run puts it back when it stops |
@@ -1283,7 +1318,10 @@ A window is shown, and ends up on a tile:
   [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py), the colors of the
   kinds of window; [`nix/tests/vm/suites/focus-follows-mouse`](../../nix/tests/vm/suites/focus-follows-mouse/test.py),
   focus follows mouse with a real pointer, which [`Pointer`](../../nix/tests/vm/lib/komorebi_vm/pointer.py)
-  moves from inside the guest.
+  moves from inside the guest; [`komorebi/tests/wallpaper.rs`](../../komorebi/tests/wallpaper.rs), the
+  wallpapers and the colors made of them, against the fake; and
+  [`nix/tests/vm/suites/wallpaper`](../../nix/tests/vm/suites/wallpaper/test.py), against the
+  real Plasma shell.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
   driven end to end against the fake.
 - [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
@@ -1373,6 +1411,11 @@ A window is shown, and ends up on a tile:
 [`theme_manager::CURRENT_THEME`]: ../../komorebi/src/theme_manager.rs
 [`theme_manager::wallpaper_palette`]: ../../komorebi/src/theme_manager.rs
 [`theme_manager::palette_file`]: ../../komorebi/src/theme_manager.rs
+[`Wallpaper`]: ../../komorebi/src/static_config.rs
+[`Workspace::apply_wallpaper`]: ../../komorebi/src/workspace.rs
+[`Workspace::restore`]: ../../komorebi/src/workspace.rs
+[`Backend::set_wallpaper`]: ../../komorebi/src/backend/mod.rs
+[`kwin::wallpaper`]: ../../komorebi/src/kwin/wallpaper.rs
 [`komorebi_themes::generate_base16_palette`]: https://github.com/LGUG2Z/komorebi/tree/f08aa55511d77ca56ab0e789efabeb0a237a463e/komorebi-themes
 [`WindowManager::focus_follows_mouse`]: ../../komorebi/src/window_manager.rs
 [`Backend::set_focus_follows_mouse`]: ../../komorebi/src/backend/mod.rs
@@ -1513,6 +1556,7 @@ A window is shown, and ends up on a tile:
 [`Monitor::load_focused_workspace`]: ../../komorebi/src/monitor.rs
 [`WindowManager::sync_workspace_desktops`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::adopt_workspace_change`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::apply_wallpaper_for_monitor_workspace`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::focus_workspace`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::move_container_to_workspace`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::monitor_workspace_index_by_name`]: ../../komorebi/src/window_manager.rs

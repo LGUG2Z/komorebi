@@ -35,8 +35,8 @@
 //! - **WorkspaceChange**: a monitor shows another workspace, because something other than komorebi
 //!   switched it (a pager, a shortcut, an app raising a window of another desktop). The window
 //!   manager follows ([`WindowManager::adopt_workspace_change`]) and asks the compositor for
-//!   nothing: it has already shown the windows and chosen which to focus. komorebi's own switch
-//!   comes back as one too, and changes nothing.
+//!   nothing but the wallpaper of the workspace: it has already shown the windows and chosen which
+//!   to focus. komorebi's own switch comes back as one too, and changes nothing.
 //! - **WorkspaceMove**: a window was put on the desktop of another workspace by something other
 //!   than komorebi. It moves to that workspace, and whichever of the two is in front is tiled
 //!   again.
@@ -144,7 +144,7 @@ impl WindowManager {
         if let WindowManagerEvent::WorkspaceChange(_, monitor_id, idx) = event {
             let result = self.adopt_workspace_change(monitor_id, idx);
 
-            // other windows are in view
+            // the workspace may have a wallpaper, and so a theme, and other windows are in view
             border_manager::send_notification();
             border_manager::update_colours(self);
             transparency_manager::apply(self);

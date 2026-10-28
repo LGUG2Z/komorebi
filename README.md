@@ -71,8 +71,9 @@ without a checkout of the toolchain.
   hides the back of a stack and the windows behind a monocle on, and the borders
   and animations it has KWin draw (`kwin`), the border and animation settings and
   the look they make (`border_manager`, `animation`), the colors a theme gives the
-  borders (`theme_manager`), the opacity of the windows that do not have the focus
-  (`transparency_manager`),
+  borders (`theme_manager`), the wallpapers of monitors and workspaces, which it has
+  the Plasma shell show (`kwin::wallpaper`), the opacity of the windows that do not
+  have the focus (`transparency_manager`),
   the model of what it tiles (`monitor`, `workspace`, `container`, `window`), the
   window manager that keeps the model (`window_manager`), loads it from the
   backend (`desktop`) and changes it when the compositor reports an event
@@ -265,7 +266,9 @@ animated by another effect, Geometry Change, which `animation`,
 the windows that do not have the focus see-through, by the opacity KWin gives a
 window, and `focus-follows-mouse` has KWin give the focus to the window under the
 pointer, by its own focus policy. A theme gives the borders their colors, and
-the palette of a picture is made and kept in the cache directory.
+the palette of a picture is made and kept in the cache directory. A monitor or a workspace
+can have a wallpaper, which the Plasma shell is asked to show when the workspace comes into view,
+and which gives the borders the colors of its palette.
 
 ## Documentation
 

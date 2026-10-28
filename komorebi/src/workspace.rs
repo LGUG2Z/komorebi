@@ -25,11 +25,15 @@ use crate::core::Rect;
 use crate::core::WindowContainerBehaviour;
 use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
+use crate::static_config::Wallpaper;
 use crate::static_config::WorkspaceConfig;
+use crate::theme_manager;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_themes::KomorebiTheme;
+use komorebi_themes::KomorebiThemeCustom;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -101,6 +105,8 @@ pub struct Workspace {
     /// Whether a window that opens while this workspace is on its floating layer floats, when it
     /// is not the monitor's or the window manager's default
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    /// The wallpaper this workspace shows instead of its monitor's
+    pub wallpaper: Option<Wallpaper>,
     /// The entry of `komorebi.json` this workspace was loaded from, which keeps the rules that
     /// send windows to it
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -165,6 +171,7 @@ impl Default for Workspace {
             window_container_behaviour_rules: None,
             floating_windows: Default::default(),
             float_override: None,
+            wallpaper: None,
             workspace_config: None,
             preselected_container_idx: None,
             promotion_swap_container_idx: None,
@@ -338,6 +345,7 @@ impl Workspace {
         self.float_override = config.float_override;
         self.layout_flip = config.layout_flip;
         self.floating_layer_behaviour = config.floating_layer_behaviour;
+        self.wallpaper = config.wallpaper.clone();
         // Load layout options directly (LayoutOptions is used in both config and runtime)
         self.layout_options = config.layout_options;
 
@@ -993,7 +1001,13 @@ impl Workspace {
     /// itself has hidden (the back of a stack stays hidden). While there is a monocle container
     /// only its window is restored and focused, for the other containers are out of sight behind
     /// it. A maximized window is restored and given the focus ahead of the containers' windows.
-    pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+    /// It sets the wallpaper the monitor is to show ([`Workspace::apply_wallpaper`]).
+    pub fn restore(
+        &mut self,
+        mouse_follows_focus: bool,
+        monitor_id: u32,
+        monitor_wp: &Option<Wallpaper>,
+    ) -> eyre::Result<()> {
         if let Some(container) = &mut self.monocle_container {
             container.restore()?;
 
@@ -1001,7 +1015,7 @@ impl Workspace {
                 window.focus(mouse_follows_focus)?;
             }
 
-            return Ok(());
+            return self.apply_wallpaper(monitor_id, monitor_wp);
         }
 
         let idx = self.focused_container_idx();
@@ -1046,7 +1060,7 @@ impl Workspace {
             floating_window.focus(mouse_follows_focus)?;
         }
 
-        Ok(())
+        self.apply_wallpaper(monitor_id, monitor_wp)
     }
 
     pub fn remove_focused_container(&mut self) -> Option<Container> {
@@ -1758,6 +1772,46 @@ impl Workspace {
         }
 
         vec
+    }
+
+    /// Has the monitor show this workspace's wallpaper, or else the monitor's `monitor_wp`, and
+    /// gives the borders the colors of the palette of the picture unless the wallpaper asks for no
+    /// theme. Nothing is done for a workspace and a monitor that have no wallpaper.
+    ///
+    /// A failure to set the wallpaper is logged and does not make this fail, and the colors are
+    /// still changed: the picture may be shown a moment later, when the Plasma shell is up. The
+    /// colors are changed before this returns, so the borders drawn for the workspace that comes
+    /// into view are right at once.
+    pub fn apply_wallpaper(
+        &self,
+        monitor_id: u32,
+        monitor_wp: &Option<Wallpaper>,
+    ) -> eyre::Result<()> {
+        if let Some(wallpaper) = self.wallpaper.as_ref().or(monitor_wp.as_ref()) {
+            if let Err(error) = backend().set_wallpaper(monitor_id, &wallpaper.path) {
+                tracing::error!("failed to set wallpaper: {error}");
+            }
+
+            if wallpaper.generate_theme.unwrap_or(true) {
+                let options = wallpaper.theme_options.as_ref();
+                let variant = options.and_then(|o| o.theme_variant).unwrap_or_default();
+
+                if let Some(palette) = theme_manager::wallpaper_palette(&wallpaper.path, variant) {
+                    theme_manager::send_notification(KomorebiTheme::Custom(KomorebiThemeCustom {
+                        colours: Box::new(palette),
+                        single_border: options.and_then(|o| o.single_border),
+                        stack_border: options.and_then(|o| o.stack_border),
+                        monocle_border: options.and_then(|o| o.monocle_border),
+                        floating_border: options.and_then(|o| o.floating_border),
+                        unfocused_border: options.and_then(|o| o.unfocused_border),
+                        unfocused_locked_border: options.and_then(|o| o.unfocused_locked_border),
+                        bar_accent: options.and_then(|o| o.bar_accent),
+                    }));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -3058,7 +3112,7 @@ mod tests {
     -> eyre::Result<()> {
         let (fake, mut workspace) = workspace_with_a_stack(&[461, 462, 463]);
 
-        with_backend(fake.clone(), || workspace.restore(false))?;
+        with_backend(fake.clone(), || workspace.restore(false, 0, &None))?;
 
         assert!(fake.is_hidden(462), "the back of the stack stays hidden");
         assert!(!fake.is_hidden(463) && !fake.is_hidden(461));
@@ -3101,7 +3155,7 @@ mod tests {
             "leaving the workspace hides the monocle window too"
         );
 
-        with_backend(fake.clone(), || workspace.restore(false))?;
+        with_backend(fake.clone(), || workspace.restore(false, 0, &None))?;
 
         assert!(!fake.is_hidden(483), "the window in monocle is shown");
         assert!(

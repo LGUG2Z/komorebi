@@ -490,6 +490,36 @@ outlives a login; the runtime directory, where the socket is, does not. The file
 picture, a hash of its path, size and time of last change, and the variant. A palette that cannot
 be kept is made again the next time. komorebi for Windows keeps them by file name alone.
 
+## Why does komorebi set the wallpaper when a workspace comes into view?
+
+Because Plasma keeps one wallpaper for each screen, not for each virtual desktop, and a
+workspace is a virtual desktop. The shell shows what it was last told, whatever desktop is shown,
+so komorebi tells it again as the workspace changes, as komorebi does on Windows and macOS. It does
+so wherever a workspace comes into view (its own switches, a pager's, an application raising a
+window of another workspace, and the start), since all of them change what the screen should show.
+The picture fills the screen, as komorebi's wallpapers do on Windows.
+
+## Why does komorebi ask the shell what the screen shows before it sets a wallpaper?
+
+Because the workspace's wallpaper is asked for every time the workspace comes into view, and the
+user may have changed the wallpaper by hand since: a wallpaper that is not the one komorebi wants
+is put back, and one that already is, in the same plugin and fill mode, is not touched, so a
+switch between two workspaces with the same picture changes nothing on the screen.
+
+## Why is the wallpaper set in the background, and tried again?
+
+Because the shell is another process, which may be slow, and may still be starting when komorebi is
+(a session that has just logged in). Switching workspaces never waits for it: the backend notes the
+wish for the output and a task on the runtime does the asking, so the request that runs last finds
+the newest wish. A shell that is not there is asked again for about half a minute, with longer
+waits, and then komorebi says once that it leaves wallpapers alone until the shell answers.
+
+## Why does a wallpaper hand its theme to the borders by a call, and not by a message?
+
+Because on Windows the theme of a wallpaper is sent to komorebi's own socket, and a message to
+itself does nothing a call does not do. The call is made before the workspace is shown, so the
+colors are the borders' by the time the first window of the workspace is given one.
+
 ## Why are the effects patched?
 
 Because the stock effects lack what komorebi needs of them. Each patch leaves the effect

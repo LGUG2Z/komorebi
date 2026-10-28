@@ -41,8 +41,8 @@ These stay as they were when the file leaves them out: `default_workspace_paddin
 `default_container_padding`, `display_index_preferences`, the four settings of the borders, each
 color of `border_colours` the file does not name, the theme and the animation, when the file has no
 `animation`. The rules add up, as
-[Rules](#rules) says. A workspace the file lists gets its name, padding, offsets and rules from
-its entry, and its layout when the entry names one; a workspace the file does not list is left as
+[Rules](#rules) says. A workspace the file lists gets its name, padding, offsets, rules and
+wallpaper from its entry, and its layout when the entry names one; a workspace the file does not list is left as
 it is.
 
 [`komorebic generate-static-config`](../cli/generate-static-config.md) prints the settings the
@@ -165,7 +165,9 @@ A monitor that has no preference takes the first entry nobody's preference names
 other monitor has taken.
 
 A monitor entry can also have a `floating_layer_behaviour`, which is the one its workspaces take
-unless they have their own, and which comes before the one for every monitor.
+unless they have their own, and which comes before the one for every monitor, and a `wallpaper`,
+the picture the monitor shows while one of its workspaces is in front, unless that workspace has
+one of its own ([Wallpapers](wallpapers.md)).
 
 A monitor takes as many workspaces as its entry lists, and KWin gets a virtual desktop for each,
 named for it. A workspace has these keys:
@@ -189,6 +191,7 @@ named for it. A workspace has these keys:
 | `window_container_behaviour_rules` | none | `{ "2": "Append" }`: the behavior the workspace has once it has 2 containers or more |
 | `float_override` | the default | Whether every window that opens on this workspace floats |
 | `floating_layer_behaviour` | the default | What a window that opens while this workspace is on its floating layer gets: `Tile` or `Float` |
+| `wallpaper` | none | The picture the monitor shows while this workspace is in front, instead of its monitor's: `{ "path": "~/Pictures/sea.png" }`, and `generate_theme` and `theme_options` for the borders' colors ([Wallpapers](wallpapers.md)) |
 
 A workspace that names no `layout` and does not say `"tile": true` does not tile: its windows
 stay where they open. A workspace with `layout_rules` tiles. Otherwise a workspace tiles.

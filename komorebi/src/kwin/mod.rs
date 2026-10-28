@@ -58,6 +58,11 @@
 //! (`nix/kde-rounded-corners.nix`) also takes a color for each window, which the backend gives it
 //! by KWin's UUID of the window ([`Backend::set_border_colours`]).
 //!
+//! Wallpapers are not KWin's: the Plasma shell, another process, keeps them, one for each screen
+//! and not for each desktop. The backend asks the shell over D-Bus to show a monitor's wallpaper
+//! ([`Backend::set_wallpaper`]), without holding up the window manager, and tries again for a
+//! while when the shell is not there yet.
+//!
 //! `docs/dev/PLATFORM.md` has the D-Bus names, the files and the environment variables involved,
 //! and `docs/dev/DESIGN.md` the reasons for this design.
 
@@ -66,6 +71,7 @@
 mod effects;
 mod kwinrc;
 pub mod state;
+mod wallpaper;
 
 use crate::DATA_DIR;
 use crate::backend::Backend;
@@ -139,6 +145,13 @@ struct Shared {
     kwinrc: Option<kwinrc::Kwinrc>,
     /// what komorebi has told the border effect, and has to undo when it exits
     effects: tokio::sync::Mutex<effects::EffectsState>,
+    /// the wallpaper last asked for on each output (by name), which is what the shell is made to
+    /// show whenever it gets round to it
+    wallpapers: Mutex<HashMap<String, std::path::PathBuf>>,
+    /// one request to the Plasma shell at a time, so that the last one asked for is the last done
+    wallpaper_turn: tokio::sync::Mutex<()>,
+    /// whether a failure to set a wallpaper has been said (it is said once)
+    wallpaper_failed: AtomicBool,
 }
 
 impl Shared {
@@ -342,6 +355,9 @@ pub fn connect() -> eyre::Result<Arc<KWinBackend>> {
         connection: Mutex::new(None),
         kwinrc: kwinrc::Kwinrc::user(&DATA_DIR),
         effects: tokio::sync::Mutex::new(effects::EffectsState::default()),
+        wallpapers: Mutex::new(HashMap::new()),
+        wallpaper_turn: tokio::sync::Mutex::new(()),
+        wallpaper_failed: AtomicBool::new(false),
     });
 
     let (started_tx, started_rx) = std::sync::mpsc::channel::<eyre::Result<()>>();
@@ -565,6 +581,56 @@ fn sweep_stale_park(shared: &Arc<Shared>) {
         }
         shared.table.lock().clear_stale_park();
     });
+}
+
+/// Have the Plasma shell show the wallpaper wanted on an output. If the shell is not there (yet),
+/// try again for a while: komorebi may well have started before it.
+async fn keep_wallpaper(shared: Arc<Shared>, output: String) {
+    // once the shell has been found missing it is not waited for again on every request
+    let attempts = if shared.wallpaper_failed.load(Ordering::SeqCst) {
+        1
+    } else {
+        8
+    };
+    let mut wait = Duration::from_millis(500);
+
+    for attempt in 1..=attempts {
+        let Some(wanted) = shared.wallpapers.lock().get(&output).cloned() else {
+            return;
+        };
+
+        let result = {
+            let _turn = shared.wallpaper_turn.lock().await;
+            match shared.connection().await {
+                Ok(connection) => wallpaper::apply(&connection, &output, &wanted).await,
+                Err(error) => Err(error),
+            }
+        };
+
+        match result {
+            Ok(changed) => {
+                if changed {
+                    tracing::info!("the wallpaper of {output} is {}", wanted.display());
+                }
+                shared.wallpaper_failed.store(false, Ordering::SeqCst);
+                return;
+            }
+            Err(error) if attempt == attempts => {
+                if !shared.wallpaper_failed.swap(true, Ordering::SeqCst) {
+                    tracing::warn!(
+                        "gave up setting the wallpaper of {output} ({error}): is the Plasma shell \
+                         running? Wallpapers are left alone until it answers"
+                    );
+                }
+                return;
+            }
+            Err(error) => {
+                tracing::debug!("could not set the wallpaper of {output} yet: {error}");
+                tokio::time::sleep(wait).await;
+                wait = (wait * 2).min(Duration::from_secs(8));
+            }
+        }
+    }
 }
 
 async fn desktop_manager(shared: &Shared) -> eyre::Result<Proxy<'static>> {
@@ -935,6 +1001,42 @@ impl Backend for KWinBackend {
         })?
     }
 
+    fn set_wallpaper(&self, monitor_id: u32, path: &std::path::Path) -> eyre::Result<()> {
+        if !self.shared.alive.load(Ordering::SeqCst) {
+            eyre::bail!("KWin is gone");
+        }
+
+        let output = self
+            .shared
+            .table
+            .lock()
+            .monitors()
+            .into_iter()
+            .find(|m| m.id == monitor_id)
+            .map(|m| m.name)
+            .ok_or_eyre("there is no such monitor")?;
+
+        if !path.is_file() {
+            eyre::bail!("{} is not a file", path.display());
+        }
+
+        self.shared
+            .wallpapers
+            .lock()
+            .insert(output.clone(), path.to_path_buf());
+
+        // Plasma's shell is another process, and may be slow, or still starting: do not hold up
+        // the window manager for it. The request that runs last finds the newest wish. (Asked
+        // for every time a workspace comes into view, because the user may have changed the
+        // wallpaper by hand since: the shell is asked what it shows, and only told if it differs.)
+        let shared = self.shared.clone();
+        self.shared
+            .handle
+            .spawn(async move { keep_wallpaper(shared, output).await });
+
+        Ok(())
+    }
+
     fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
         let shared = self.shared.clone();
 
@@ -1045,6 +1147,9 @@ mod tests {
             connection: Mutex::new(None),
             kwinrc: None,
             effects: tokio::sync::Mutex::new(effects::EffectsState::default()),
+            wallpapers: Mutex::new(HashMap::new()),
+            wallpaper_turn: tokio::sync::Mutex::new(()),
+            wallpaper_failed: AtomicBool::new(false),
         });
 
         (runtime, KWinBackend { shared })
@@ -1178,6 +1283,28 @@ mod tests {
         // a window that is not hidden is not sent anywhere
         backend.restore(1).unwrap();
         assert_eq!(next_poll(&runtime, &backend), json!([]));
+    }
+
+    #[test]
+    fn a_wallpaper_is_refused_for_a_monitor_kwin_lacks_and_for_a_path_that_is_no_file() {
+        let (_runtime, backend) = offline();
+
+        // no snapshot yet: there is no monitor
+        let nowhere = backend.set_wallpaper(1, std::path::Path::new("/nonexistent/a.png"));
+        assert!(nowhere.unwrap_err().to_string().contains("no such monitor"));
+
+        let events: Vec<Value> =
+            serde_json::from_str(include_str!("fixtures/events.json")).unwrap();
+        backend
+            .shared
+            .table
+            .lock()
+            .handle(&events[0], Instant::now());
+        let monitor = backend.monitors().unwrap()[0].id;
+
+        let missing = backend.set_wallpaper(monitor, std::path::Path::new("/nonexistent/a.png"));
+        assert!(missing.unwrap_err().to_string().contains("is not a file"));
+        assert!(backend.shared.wallpapers.lock().is_empty());
     }
 
     /// zbus does not end a held call when its caller leaves the bus, so the `Poll` of the bridge of

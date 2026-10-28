@@ -1,4 +1,4 @@
-# schema-sha256: 475a8bc02a8f0e0e68cc0fbb41bd949ff7743feda00fac5c4bf02565d2848561
+# schema-sha256: be9289ac70f6f47d7d8aebee0d7c67a2fa0d54456d9306ce6c634ef6e7748ddf
 { lib, ... }:
 let
   animationStyle = (
@@ -262,6 +262,80 @@ let
         top = lib.mkOption {
           type = lib.types.int;
           description = "Top point of the rectangle";
+        };
+      };
+    }
+  );
+  wallpaper = (
+    lib.types.submodule {
+      options = {
+        generate_theme = lib.mkOption {
+          type = (lib.types.nullOr lib.types.bool);
+          default = true;
+          description = "Generate and apply Base16 theme for this wallpaper";
+        };
+        path = lib.mkOption {
+          type = pathBuf;
+          description = "Path to the wallpaper image file";
+        };
+        theme_options = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.submodule {
+                options = {
+                  bar_accent = lib.mkOption {
+                    type = (lib.types.nullOr base16Value);
+                    default = "Base0D";
+                    description = "Komorebi status bar accent";
+                  };
+                  floating_border = lib.mkOption {
+                    type = (lib.types.nullOr base16Value);
+                    default = "Base09";
+                    description = "Border color when the window is floating";
+                  };
+                  monocle_border = lib.mkOption {
+                    type = (lib.types.nullOr base16Value);
+                    default = "Base0F";
+                    description = "Border color when the container is in monocle mode";
+                  };
+                  single_border = lib.mkOption {
+                    type = (lib.types.nullOr base16Value);
+                    default = "Base0D";
+                    description = "Border color when the container contains a single window";
+                  };
+                  stack_border = lib.mkOption {
+                    type = (lib.types.nullOr base16Value);
+                    default = "Base0B";
+                    description = "Border color when the container contains multiple windows";
+                  };
+                  theme_variant = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.enum [
+                          "Dark"
+                          "Light"
+                        ]
+                      )
+                    );
+                    default = "Dark";
+                    description = "Specify Light or Dark variant for theme generation";
+                  };
+                  unfocused_border = lib.mkOption {
+                    type = (lib.types.nullOr base16Value);
+                    default = "Base01";
+                    description = "Border color when the container is unfocused";
+                  };
+                  unfocused_locked_border = lib.mkOption {
+                    type = (lib.types.nullOr base16Value);
+                    default = "Base08";
+                    description = "Border color when the container is unfocused and locked";
+                  };
+                };
+              }
+            )
+          );
+          default = null;
+          description = "Specify theme options";
         };
       };
     }
@@ -573,6 +647,11 @@ in
                       default = "Tile";
                       description = "Determine what happens to a new window when the Floating workspace layer is active";
                     };
+                    wallpaper = lib.mkOption {
+                      type = (lib.types.nullOr wallpaper);
+                      default = null;
+                      description = "Specify a wallpaper for this monitor";
+                    };
                     window_based_work_area_offset = lib.mkOption {
                       type = (lib.types.nullOr rect);
                       default = null;
@@ -677,6 +756,11 @@ in
                                 default = true;
                                 description = "Enable or disable tiling for the workspace";
                               };
+                              wallpaper = lib.mkOption {
+                                type = (lib.types.nullOr wallpaper);
+                                default = null;
+                                description = "Specify a wallpaper for this workspace";
+                              };
                               window_container_behaviour = lib.mkOption {
                                 type = (lib.types.nullOr windowContainerBehaviour);
                                 default = "Create";
@@ -761,114 +845,6 @@ in
                         "Custom"
                       ]
                     );
-                  };
-                  monocle_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  colours = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.submodule {
-                          options = {
-                            base_00 = lib.mkOption {
-                              type = colour;
-                              description = "Base00";
-                            };
-                            base_01 = lib.mkOption {
-                              type = colour;
-                              description = "Base01";
-                            };
-                            base_02 = lib.mkOption {
-                              type = colour;
-                              description = "Base02";
-                            };
-                            base_03 = lib.mkOption {
-                              type = colour;
-                              description = "Base03";
-                            };
-                            base_04 = lib.mkOption {
-                              type = colour;
-                              description = "Base04";
-                            };
-                            base_05 = lib.mkOption {
-                              type = colour;
-                              description = "Base05";
-                            };
-                            base_06 = lib.mkOption {
-                              type = colour;
-                              description = "Base06";
-                            };
-                            base_07 = lib.mkOption {
-                              type = colour;
-                              description = "Base07";
-                            };
-                            base_08 = lib.mkOption {
-                              type = colour;
-                              description = "Base08";
-                            };
-                            base_09 = lib.mkOption {
-                              type = colour;
-                              description = "Base09";
-                            };
-                            base_0a = lib.mkOption {
-                              type = colour;
-                              description = "Base0A";
-                            };
-                            base_0b = lib.mkOption {
-                              type = colour;
-                              description = "Base0B";
-                            };
-                            base_0c = lib.mkOption {
-                              type = colour;
-                              description = "Base0C";
-                            };
-                            base_0d = lib.mkOption {
-                              type = colour;
-                              description = "Base0D";
-                            };
-                            base_0e = lib.mkOption {
-                              type = colour;
-                              description = "Base0E";
-                            };
-                            base_0f = lib.mkOption {
-                              type = colour;
-                              description = "Base0F";
-                            };
-                          };
-                        }
-                      )
-                    );
-                    default = null;
-                  };
-                  unfocused_locked_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  unfocused_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
                   };
                   name = lib.mkOption {
                     type = (
@@ -1167,7 +1143,104 @@ in
                     );
                     default = null;
                   };
+                  colours = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.submodule {
+                          options = {
+                            base_00 = lib.mkOption {
+                              type = colour;
+                              description = "Base00";
+                            };
+                            base_01 = lib.mkOption {
+                              type = colour;
+                              description = "Base01";
+                            };
+                            base_02 = lib.mkOption {
+                              type = colour;
+                              description = "Base02";
+                            };
+                            base_03 = lib.mkOption {
+                              type = colour;
+                              description = "Base03";
+                            };
+                            base_04 = lib.mkOption {
+                              type = colour;
+                              description = "Base04";
+                            };
+                            base_05 = lib.mkOption {
+                              type = colour;
+                              description = "Base05";
+                            };
+                            base_06 = lib.mkOption {
+                              type = colour;
+                              description = "Base06";
+                            };
+                            base_07 = lib.mkOption {
+                              type = colour;
+                              description = "Base07";
+                            };
+                            base_08 = lib.mkOption {
+                              type = colour;
+                              description = "Base08";
+                            };
+                            base_09 = lib.mkOption {
+                              type = colour;
+                              description = "Base09";
+                            };
+                            base_0a = lib.mkOption {
+                              type = colour;
+                              description = "Base0A";
+                            };
+                            base_0b = lib.mkOption {
+                              type = colour;
+                              description = "Base0B";
+                            };
+                            base_0c = lib.mkOption {
+                              type = colour;
+                              description = "Base0C";
+                            };
+                            base_0d = lib.mkOption {
+                              type = colour;
+                              description = "Base0D";
+                            };
+                            base_0e = lib.mkOption {
+                              type = colour;
+                              description = "Base0E";
+                            };
+                            base_0f = lib.mkOption {
+                              type = colour;
+                              description = "Base0F";
+                            };
+                          };
+                        }
+                      )
+                    );
+                    default = null;
+                  };
+                  bar_accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                   floating_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  monocle_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1189,7 +1262,18 @@ in
                     );
                     default = null;
                   };
-                  bar_accent = lib.mkOption {
+                  unfocused_locked_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [

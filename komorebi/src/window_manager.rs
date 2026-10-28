@@ -1950,8 +1950,9 @@ impl WindowManager {
     }
 
     /// Tiles the focused workspace of every monitor, without the resize adjustments of its
-    /// containers unless `preserve_resize_dimensions` is set, and asks the backend for the look
-    /// again ([`border_manager::destroy_all_borders`])
+    /// containers unless `preserve_resize_dimensions` is set, sets the wallpaper each of them is
+    /// to show ([`Workspace::apply_wallpaper`]), and asks the backend for the look again
+    /// ([`border_manager::destroy_all_borders`])
     #[tracing::instrument(skip(self))]
     pub fn retile_all(&mut self, preserve_resize_dimensions: bool) -> eyre::Result<()> {
         let offset = self.work_area_offset;
@@ -1966,6 +1967,8 @@ impl WindowManager {
             let focused_workspace_idx = monitor.focused_workspace_idx();
             monitor.update_workspace_globals(focused_workspace_idx, offset);
 
+            let monitor_id = monitor.id;
+            let monitor_wp = monitor.wallpaper.clone();
             let workspace = monitor
                 .focused_workspace_mut()
                 .ok_or_eyre("there is no workspace")?;
@@ -1973,6 +1976,12 @@ impl WindowManager {
             // Reset any resize adjustments if we want to force a retile
             if !preserve_resize_dimensions {
                 workspace.resize_dimensions.fill(None);
+            }
+
+            if (workspace.wallpaper.is_some() || monitor_wp.is_some())
+                && let Err(error) = workspace.apply_wallpaper(monitor_id, &monitor_wp)
+            {
+                tracing::error!("failed to apply wallpaper: {}", error);
             }
 
             workspace.update()?;
@@ -3213,6 +3222,16 @@ impl WindowManager {
         monitor.focus_workspace(idx)?;
         monitor.update_focused_workspace(offset)?;
 
+        // komorebi's own switches set the wallpaper as the workspace is restored; somebody else's
+        // (a pager, a shortcut) comes here instead
+        let monitor_wp = monitor.wallpaper.clone();
+        if let Some(workspace) = monitor.workspaces().get(idx)
+            && (workspace.wallpaper.is_some() || monitor_wp.is_some())
+            && let Err(error) = workspace.apply_wallpaper(monitor_id, &monitor_wp)
+        {
+            tracing::error!("failed to apply wallpaper: {error}");
+        }
+
         self.update_known_window_ids();
 
         Ok(())
@@ -3914,6 +3933,36 @@ impl WindowManager {
         target_workspace.focus_container(target_container_idx);
 
         Ok(())
+    }
+
+    /// Sets the wallpaper the monitor at `monitor_idx` is to show for its workspace at
+    /// `workspace_idx`, and gives the borders the colors of its theme ([`Workspace::apply_wallpaper`]).
+    /// A reloaded configuration calls it for the workspace each monitor shows, so that the
+    /// wallpapers it gives are shown at once.
+    ///
+    /// # Errors
+    ///
+    /// There is no monitor at `monitor_idx` or no workspace at `workspace_idx`.
+    #[tracing::instrument(skip(self))]
+    pub fn apply_wallpaper_for_monitor_workspace(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> eyre::Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let monitor_id = monitor.id;
+        let monitor_wp = monitor.wallpaper.clone();
+
+        let workspace = monitor
+            .workspaces()
+            .get(workspace_idx)
+            .ok_or_eyre("there is no workspace")?;
+
+        workspace.apply_wallpaper(monitor_id, &monitor_wp)
     }
 }
 

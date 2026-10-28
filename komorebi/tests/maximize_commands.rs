@@ -322,7 +322,7 @@ fn a_maximized_window_is_hidden_with_its_workspace_and_shown_and_focused_with_it
     assert!(fake.is_hidden(36_071) && fake.is_hidden(36_072));
 
     fake.clear_commands();
-    with_backend(fake.clone(), || workspace.restore(true)).unwrap();
+    with_backend(fake.clone(), || workspace.restore(true, 0, &None)).unwrap();
     assert!(!fake.is_hidden(36_072), "the maximized window is shown");
     assert!(
         fake.window_commands()
