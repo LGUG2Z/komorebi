@@ -7,11 +7,12 @@
 //!
 //! - **Show**, and **Manage** (`ManageFocusedWindow`): the window gets a container of its own after
 //!   the focused one, or joins the focused container when the window container behavior is
-//!   `Append` ([`WindowManager::window_management_behaviour`]), and the workspace is tiled again.
-//!   The first window on an empty workspace is given the focus. With the float override on, the
-//!   window floats instead. A window that another workspace has already is hidden and left to
-//!   that workspace. A window a float rule matches goes into the workspace's floating windows
-//!   instead, on a Show (a Manage tiles it whatever the rules say).
+//!   `Append` ([`WindowManager::window_management_behaviour`]), and the workspace is tiled again
+//!   and is on its tiling layer. The first window on an empty workspace is given the focus. With
+//!   the float override on, the window floats instead. A window that another workspace has
+//!   already is hidden and left to that workspace. A window a float rule matches goes into the
+//!   workspace's floating windows instead, on a Show (a Manage tiles it whatever the rules say),
+//!   and the workspace is on its floating layer.
 //! - **Destroy**, and **Unmanage** (`UnmanageFocusedWindow`): the window is taken out of whichever
 //!   workspace has it, and if that is the one in front it is tiled again. The window that was
 //!   behind it in a stack comes to the front. A window that is
@@ -21,7 +22,8 @@
 //!   focus becomes the focused container. In the scrolling layout the workspace is tiled after
 //!   that instead, so that the strip scrolls to the window that has the focus. While the
 //!   workspace has a monocle container, the focus goes back to its window instead, no matter
-//!   which window was given it.
+//!   which window was given it. The workspace is on its floating layer when the window is one of
+//!   its floating windows, and on its tiling layer otherwise.
 //! - **Minimize**: a window the user minimized leaves its workspace and the rest are tiled
 //!   again; **Restore** brings it back in a container of its own. A minimize of a window komorebi
 //!   hid ([`struct@HIDDEN_WINDOWS`]) is not the user's, and changes nothing.
@@ -67,6 +69,7 @@ use crate::window_manager_event::KWinNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
+use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use parking_lot::Mutex;
@@ -185,7 +188,8 @@ impl WindowManager {
                 let mut is_on_current_workspace = false;
 
                 // don't want to trigger the full workspace updates when there are no managed
-                // containers
+                // containers - this makes floating windows on empty workspaces go into very
+                // annoying focus change loops which prevents users from interacting with them
                 if !matches!(
                     self.focused_workspace()?.layout,
                     Layout::Default(DefaultLayout::Scrolling)
@@ -199,20 +203,36 @@ impl WindowManager {
                     is_on_current_workspace = true;
                 }
 
-                if let Some(monocle) = &workspace.monocle_container {
-                    if let Some(window) = monocle.focused_window() {
-                        window.focus(false)?;
-                    }
-                } else if is_on_current_workspace {
-                    workspace.focus_container_by_window(window_id)?;
-                }
+                let floating_window_idx = workspace
+                    .floating_windows()
+                    .iter()
+                    .position(|w| w.id == window_id);
 
-                if matches!(
-                    self.focused_workspace()?.layout,
-                    Layout::Default(DefaultLayout::Scrolling)
-                ) && !self.focused_workspace()?.containers().is_empty()
-                {
-                    self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                match floating_window_idx {
+                    None => {
+                        if let Some(monocle) = &workspace.monocle_container {
+                            if let Some(window) = monocle.focused_window() {
+                                window.focus(false)?;
+                            }
+                        } else if is_on_current_workspace {
+                            workspace.focus_container_by_window(window_id)?;
+                        }
+
+                        workspace.layer = WorkspaceLayer::Tiling;
+
+                        if matches!(
+                            self.focused_workspace()?.layout,
+                            Layout::Default(DefaultLayout::Scrolling)
+                        ) && !self.focused_workspace()?.containers().is_empty()
+                        {
+                            self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                        }
+                    }
+                    Some(idx) => {
+                        if let Some(_window) = workspace.floating_windows().get(idx) {
+                            workspace.layer = WorkspaceLayer::Floating;
+                        }
+                    }
                 }
 
                 // A window of another workspace being activated (an app raising itself) makes
@@ -320,6 +340,7 @@ impl WindowManager {
                         // on a floating workspace
                         let center_spawned_floats = placement.should_center() && workspace.tile;
                         workspace.floating_windows_mut().push_back(window);
+                        workspace.layer = WorkspaceLayer::Floating;
                         if center_spawned_floats {
                             let mut floating_window = window;
                             floating_window
@@ -331,6 +352,7 @@ impl WindowManager {
                         match behaviour.current_behaviour {
                             WindowContainerBehaviour::Create => {
                                 workspace.new_container_for_window(&window)?;
+                                workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(false, false)?;
                             }
                             WindowContainerBehaviour::Append => {
@@ -338,11 +360,16 @@ impl WindowManager {
                                     .focused_container_mut()
                                     .ok_or_eyre("there is no focused container")?
                                     .add_window(&window)?;
+                                workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(true, false)?;
                             }
                         }
 
-                        if self.focused_workspace()?.containers().len() == 1 {
+                        if (self.focused_workspace()?.containers().len() == 1
+                            && self.focused_workspace()?.floating_windows().is_empty())
+                            || (self.focused_workspace()?.containers().is_empty()
+                                && self.focused_workspace()?.floating_windows().len() == 1)
+                        {
                             // If after adding this window the workspace only contains 1 window, it
                             // was previously empty, so give this window the focus
                             window.focus(self.mouse_follows_focus)?;
@@ -358,7 +385,10 @@ impl WindowManager {
                             monocle_window_event = true;
                         }
 
-                        if !monocle_window_event && monocle_container.is_some() {
+                        let workspace = self.focused_workspace()?;
+                        if !(monocle_window_event || workspace.layer != WorkspaceLayer::Tiling)
+                            && monocle_container.is_some()
+                        {
                             window.hide();
                         }
                     }

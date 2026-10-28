@@ -178,6 +178,8 @@ impl From<&WindowManager> for State {
                                 .apply_window_based_work_area_offset,
                             window_container_behaviour: workspace.window_container_behaviour,
                             float_override: workspace.float_override,
+                            layer: workspace.layer,
+                            floating_layer_behaviour: workspace.floating_layer_behaviour,
                             globals: workspace.globals,
                             preselected_container_idx: None,
                             promotion_swap_container_idx: None,
@@ -190,6 +192,7 @@ impl From<&WindowManager> for State {
                 // workspace_names: monitor.workspace_names.clone(),
                 container_padding: monitor.container_padding,
                 workspace_padding: monitor.workspace_padding,
+                floating_layer_behaviour: monitor.floating_layer_behaviour,
             })
             .collect::<VecDeque<_>>();
         stripped_monitors.focus(wm.monitors.focused_idx());

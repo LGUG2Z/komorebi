@@ -222,6 +222,10 @@ fn the_layout_subcommands_send_the_layout_axis_or_direction_they_are_given() {
     );
     sends(&["toggle-tiling"], r#"{"type":"ToggleTiling"}"#);
     sends(&["toggle-float"], r#"{"type":"ToggleFloat"}"#);
+    sends(
+        &["toggle-workspace-layer"],
+        r#"{"type":"ToggleWorkspaceLayer"}"#,
+    );
     sends(&["toggle-lock"], r#"{"type":"ToggleLock"}"#);
     sends(
         &["preselect-direction", "up"],
@@ -832,6 +836,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "toggle-window-based-work-area-offset.md",
             "toggle-window-container-behaviour.md",
             "toggle-workspace-float-override.md",
+            "toggle-workspace-layer.md",
             "toggle-workspace-window-container-behaviour.md",
             "unmanage.md",
             "unmanaged-window-operation-behaviour.md",

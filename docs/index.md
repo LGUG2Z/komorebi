@@ -38,7 +38,8 @@ daemon, ask it what it is doing and read its log.
 out of sight and bring one of them to the front,
 [Layouts](usage/layouts.md) how to change the arrangement of the tiles,
 [Resizing windows](usage/resizing-windows.md) how to change the size of one,
-[Floating windows](usage/floating-windows.md) how to take a window out of the layout,
+[Floating windows](usage/floating-windows.md) how to take a window out of the layout and work with
+the floating ones,
 [Monocle](usage/monocle.md) how to give one window the whole work area,
 [Maximizing windows](usage/maximizing-windows.md) how to have KWin maximize one,
 [Managing windows](usage/managing-windows.md) how to minimize, close and unmanage the focused

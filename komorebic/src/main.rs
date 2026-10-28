@@ -25,8 +25,9 @@
 //!   `toggle-workspace-float-override` make it float.
 //! - `promote`, `promote-swap`, `promote-focus` and `promote-window` bring a window to the largest
 //!   tile, or the focus to it.
-//! - `toggle-float` takes the focused window out of the layout, or puts it back, and
-//!   `toggle-lock` locks the focused container at its index, or unlocks it.
+//! - `toggle-float` takes the focused window out of the layout, or puts it back,
+//!   `toggle-workspace-layer` switches the focused workspace between its tiled windows and its
+//!   floating ones, and `toggle-lock` locks the focused container at its index, or unlocks it.
 //! - `toggle-monocle` gives the focused container the whole work area, or puts it back, and
 //!   `monocle-focus-behaviour` and `toggle-monocle-focus-behaviour` set what focusing in a
 //!   direction does meanwhile. `toggle-maximize` has KWin maximize the focused window, which
@@ -885,6 +886,8 @@ enum SubCommand {
     /// mode, for the currently focused workspace. If there was no override value set for the
     /// workspace previously it takes the opposite of the global value.
     ToggleWorkspaceFloatOverride,
+    /// Toggle between the Tiling and Floating layers on the focused workspace
+    ToggleWorkspaceLayer,
     /// Toggle the paused state for all window tiling
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -1156,6 +1159,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ToggleFloat => {
             send_message(&SocketMessage::ToggleFloat)?;
+        }
+        SubCommand::ToggleWorkspaceLayer => {
+            send_message(&SocketMessage::ToggleWorkspaceLayer)?;
         }
         SubCommand::ResizeEdge(args) => {
             send_message(&SocketMessage::ResizeWindowEdge(args.edge, args.sizing))?;

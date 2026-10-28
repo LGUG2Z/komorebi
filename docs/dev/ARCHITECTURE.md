@@ -39,6 +39,8 @@ daemon. It grows with the code: each part of the daemon that is added has its pl
 - **Monocle**: a workspace's one container that has the whole work area. It is held out of the
   workspace's containers, so the layout gives no container a tile, and the windows of the
   containers are hidden, until it is put back where it was ([`Workspace::monocle_container`]).
+- **Layer**: which of a workspace's two kinds of windows the focus, move and resize commands
+  act on: its tiles (`Tiling`) or its floating windows (`Floating`) ([`WorkspaceLayer`]).
 - **Maximized window**: a workspace's one window that the compositor has maximized. It is in no
   container, so it has left the layout, until it is put back in a container of its own where it
   was ([`Workspace::maximized_window`]).
@@ -116,7 +118,7 @@ the same thing at every level.
 - A **workspace** ([`Workspace`]) has a layout, its padding, an optional work area offset of its
   own, whether it takes the monitor's window-based offset, its containers, in order, its
   monocle container and its maximized window, if it has them, and its floating windows, which
-  are in no container and which the layout does not tile.
+  are in no container and which the layout does not tile, and which layer it is on.
 - A **container** ([`Container`]) has its windows. A new window gets a container of its
   own, unless the window container behavior says to put it in the focused one. With more than
   one window it is a stack: the focused window is in front and the others are hidden. A
@@ -505,6 +507,30 @@ container's window (the code has a TODO for what it should do). A maximized wind
 with the rest of its workspace, and restored and focused ahead of the containers' windows when
 the workspace is shown again ([`Workspace::hide`], [`Workspace::restore`]).
 
+A workspace is on one of two layers ([`Workspace::layer`]), and the focus, move and resize
+messages go to the windows of that layer. `ToggleFloat` puts the workspace on the floating layer,
+and putting the window back, or a `FocusChange` to a window that is not floating, a new tiled
+window or a focus message that reaches a container, puts it on the tiling layer, which is where
+a workspace starts; a `FocusChange` to a floating window, and a window that a float rule floats
+when it opens, put it on the floating layer. `ToggleWorkspaceLayer` switches it by hand and raises
+the windows of the layer it goes to, the focused one last, and gives the focus to one of them.
+On the floating layer `FocusWindow` gives the focus to the nearest floating window on that side
+of the focused one, by where the compositor has them, and where there is none the focus crosses
+as it does for tiles, to the monitor on that side, and fails where there is none
+([`WindowManager::focus_floating_window_in_direction`]); `CycleFocusWindow` goes round the
+floating windows in the order they were floated
+([`WindowManager::focus_floating_window_in_cycle_direction`]); `MoveWindow` moves the focused
+floating window by [`WindowManager::resize_delta`], not out of the work area of the monitor
+([`WindowManager::move_floating_window_in_direction`]); the resize messages change its frame,
+and nothing is tiled ([`WindowManager::resize_window`]); and `PreselectDirection` does nothing.
+`ToggleMaximize` maximizes the focused floating window there, which then leaves the floating
+windows. `ToggleWorkspaceLayer` hides the floating windows when it goes to the tiling layer, and
+shows them when it goes to the floating layer. A window that opens while the workspace is on its floating layer floats
+(`floating_layer_override`) when the floating layer behaviour says to float: the workspace's own
+([`Workspace::floating_layer_behaviour`]), else its monitor's, else the window manager's
+([`WindowManager::window_management_behaviour`]). All three tile by default, and nothing sets
+the first two until the configuration does.
+
 `ToggleLock` locks the focused container, or unlocks it ([`WindowManager::toggle_lock`]), and
 `LockMonitorWorkspaceContainer` and `UnlockMonitorWorkspaceContainer` do the same for a
 container given by its indices. A lock changes nothing until containers are inserted, removed or
@@ -663,12 +689,13 @@ module's unit.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
-  promote the focused container, float a window, put a container in monocle, maximize a
-  window, lock a container, set the padding of a workspace, manage and unmanage a window,
-  stack and unstack windows and choose the one in front, show a workspace, move a container
-  to another workspace, follow a workspace switch made by something else, name a workspace
-  and find it by its name, set the layout of a workspace that is not in front, focus another
-  monitor, and move containers and workspaces between monitors).
+  promote the focused container, float a window, switch the layer, put a container in
+  monocle, maximize a window, lock a container, set the padding of a workspace, manage and
+  unmanage a window, stack and unstack windows and choose the one in front, show a
+  workspace, move a container to another workspace, follow a workspace switch made by
+  something else, name a workspace and find it by its name, set the layout of a workspace
+  that is not in front, focus another monitor, and move containers and workspaces between
+  monitors).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -758,6 +785,12 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A window stays maximized through a retile | framework path: [`Workspace::update`] asks the backend to maximize it again, and moves no container | `a_retile_while_a_window_is_maximized_asks_the_compositor_to_maximize_it_again` | none |
 | A maximized window that closes takes the maximize with it | framework path: [`Workspace::remove_window`] looks at the maximized window first, which the index of managed windows lists | `a_maximized_window_that_closes_leaves_the_layout_whole` | none |
 | In a real KWin, the maximized window fills the work area, is on top, and goes back to its tile | VM test | `vm-features` ("the focused window fills the work area", "and is the one on top", "toggled back, it is in its tile again") | none |
+| The focus, move and resize messages act on the windows of the layer a workspace is on | framework path: [`WindowManager::process_command`] matches on [`Workspace::layer`] for `FocusWindow`, `CycleFocusWindow` and `MoveWindow`, [`WindowManager::resize_window`] for the resize messages, and `PreselectDirection` checks it | `focusing_in_a_direction_on_the_floating_layer_goes_to_the_nearest_floating_window`, `moving_on_the_floating_layer_moves_the_floating_window_by_the_resize_delta`, `resizing_on_the_floating_layer_changes_the_frame_of_the_floating_window`, `a_direction_to_preselect_is_ignored_on_the_floating_layer`, `focusing_a_floating_window_towards_a_monitor_crosses_to_it_and_to_its_monocle_window` | none |
+| The layer follows the window that has the focus | framework path: `handle_event` sets [`Workspace::layer`] on a `FocusChange`, a `Show` and [`WindowManager::toggle_float`], and [`Monitor::move_container_to_workspace`] on the workspace a window is moved to | `floating_a_window_puts_the_workspace_on_the_floating_layer_and_focusing_a_tile_takes_it_back`, `a_window_sent_to_another_workspace_puts_that_workspace_on_the_layer_it_arrived_on` | none |
+| A window that opens on the floating layer floats only when its floating layer behaviour says so | framework path: [`WindowManager::window_management_behaviour`] takes the workspace's behaviour, else its monitor's, else its own, and `handle_event` floats the window on `floating_layer_override` | `the_floating_layer_behaviour_of_the_workspace_wins_over_the_monitors_and_the_window_managers`, `a_window_that_opens_on_the_floating_layer_floats_when_the_behaviour_says_so` | none |
+| The windows of the layer a workspace is not on are out of sight | framework path: `ToggleWorkspaceLayer` hides the floating windows when it goes to the tiling layer and restores them when it goes to the floating one | `going_back_to_the_tiles_hides_the_floating_windows_and_going_to_them_shows_them_again` | none |
+| Cycling the focus on the floating layer visits every floating window | test | `cycling_the_focus_on_the_floating_layer_goes_round_the_floating_windows_in_order` | none |
+| A floating window is never moved out of the work area by `move` | framework path: [`WindowManager::move_floating_window_in_direction`] keeps the frame inside the focused monitor's work area | `moving_on_the_floating_layer_moves_the_floating_window_by_the_resize_delta` | none |
 | A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone`, `an_ignore_rule_keeps_a_window_unmanaged` | `ManageRule` |
 | A window the user unmanaged stays out of the layout until it is managed again | framework path: `handle_event` checks the list of unmanaged windows before it acts on any event but a removal | `unmanage_takes_the_focused_window_out_until_manage_takes_it_back` | none |
 | A paused window manager moves no window | framework path: `handle_event` returns before anything else, and [`read_commands_uds`] drops every message but `TogglePause`, `State`, `GlobalState` and `Stop` | `while_paused_no_event_changes_the_layout_and_manage_takes_in_a_window_it_missed`, `while_paused_only_toggle_pause_state_and_stop_are_handled` | none |
@@ -925,6 +958,7 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/promote.rs`](../../komorebi/tests/promote.rs), promoting;
   [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating;
   [`komorebi/tests/lock.rs`](../../komorebi/tests/lock.rs), locking;
+  [`komorebi/tests/floating_layer.rs`](../../komorebi/tests/floating_layer.rs), the layers;
   [`komorebi/tests/monocle.rs`](../../komorebi/tests/monocle.rs), the monocle;
   [`komorebi/tests/maximize.rs`](../../komorebi/tests/maximize.rs) and
   [`komorebi/tests/maximize_commands.rs`](../../komorebi/tests/maximize_commands.rs), maximizing;
@@ -1029,6 +1063,12 @@ A window is shown, and ends up on a tile:
 [`WindowManager::toggle_float`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_lock`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_monocle`]: ../../komorebi/src/window_manager.rs
+[`WorkspaceLayer`]: ../../komorebi/src/workspace.rs
+[`Workspace::layer`]: ../../komorebi/src/workspace.rs
+[`Workspace::floating_layer_behaviour`]: ../../komorebi/src/workspace.rs
+[`WindowManager::focus_floating_window_in_direction`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::focus_floating_window_in_cycle_direction`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::move_floating_window_in_direction`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_maximize`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::monocle_on`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::monocle_off`]: ../../komorebi/src/window_manager.rs

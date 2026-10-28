@@ -204,6 +204,8 @@ toggle-tiling
 toggle-tiling
 toggle-pause
 toggle-pause
+toggle-workspace-layer
+toggle-workspace-layer
 toggle-window-container-behaviour
 toggle-window-container-behaviour
 toggle-float-override

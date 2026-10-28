@@ -163,12 +163,13 @@ another layout, `layout-ratios` and `scrolling-layout-columns` tune it,
 focused window to the largest tile, `toggle-float` takes it out of the
 layout, `toggle-monocle` gives its container the whole work area, hiding the
 others, and puts it back, `toggle-maximize` has KWin maximize the focused window
-and restore it, and `toggle-lock` keeps its container at its place. The
-scrolling layout is a strip of columns that runs past the edges of the monitor
-and scrolls to the window that has the focus. `minimize` and `close` ask KWin to minimize or
-close the focused window, `unmanage` takes it out of the layout until `manage`
-takes it back, and `toggle-pause` stops the daemon acting on events and orders
-until it is resumed. The padding commands set the gaps around the tiles, and
+and restore it, `toggle-workspace-layer` switches the focus commands between the
+tiles and the floating windows, and `toggle-lock` keeps its container at its
+place. The scrolling layout is a strip of columns that runs past the edges of
+the monitor and scrolls to the window that has the focus. `minimize` and `close`
+ask KWin to minimize or close the focused window, `unmanage` takes it out of the
+layout until `manage` takes it back, and `toggle-pause` stops the daemon acting
+on events and orders until it is resumed. The padding commands set the gaps around the tiles, and
 the work area offsets keep parts of a monitor free of tiles. Rules decide which
 windows are managed at all: `ignore-rule` keeps an application out of the
 layout, `manage-rule` tiles it whatever the ignore rules say, and

@@ -71,6 +71,7 @@ use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
@@ -196,6 +197,248 @@ impl WindowManager {
         // the windows that were open already are in containers now; an event about one of them
         // (the first thing to happen may be that it closes) has to find it
         self.update_known_window_ids();
+        Ok(())
+    }
+
+    /// Gives the focus to the floating window whose frame is on the `direction` side of the focused
+    /// one, the nearest of them, and the pointer follows it if [`WindowManager::mouse_follows_focus`]
+    /// is set
+    ///
+    /// The floating windows are compared by where the compositor has them, not by the order they
+    /// are kept in, and only when there is more than one. Where no floating window is on that
+    /// side, the focus crosses as [`WindowManager::focus_container_in_direction`] does: to the
+    /// next workspace with `CrossBoundaryBehaviour::Workspace`, else to the monitor on that side.
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or the compositor reports no focused window.
+    /// - No floating window is on that side of the focused one, and no monitor either.
+    /// - The backend refuses to focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn focus_floating_window_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let focused_workspace = self.focused_workspace_mut()?;
+
+        let mut target_idx = None;
+        let len = focused_workspace.floating_windows().len();
+
+        if len > 1 {
+            let focused_window_id = backend()
+                .foreground_window()
+                .ok_or_eyre("no foreground window")?;
+            let focused_rect = Window::from(focused_window_id).rect()?;
+
+            match direction {
+                OperationDirection::Left => {
+                    let mut windows_in_direction = focused_workspace
+                        .floating_windows()
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(idx, w)| {
+                            (w.id != focused_window_id).then_some(w.rect().ok().map(|r| (idx, r)))
+                        })
+                        .flatten()
+                        .flat_map(|(idx, r)| {
+                            (r.left < focused_rect.left)
+                                .then_some((idx, i32::abs(r.left - focused_rect.left)))
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Sort by distance to focused
+                    windows_in_direction.sort_by_key(|(_, d)| (*d as f32 * 1000.0).trunc() as i32);
+
+                    if let Some((idx, _)) = windows_in_direction.first() {
+                        target_idx = Some(*idx);
+                    }
+                }
+                OperationDirection::Right => {
+                    let mut windows_in_direction = focused_workspace
+                        .floating_windows()
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(idx, w)| {
+                            (w.id != focused_window_id).then_some(w.rect().ok().map(|r| (idx, r)))
+                        })
+                        .flatten()
+                        .flat_map(|(idx, r)| {
+                            (r.left > focused_rect.left)
+                                .then_some((idx, i32::abs(r.left - focused_rect.left)))
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Sort by distance to focused
+                    windows_in_direction.sort_by_key(|(_, d)| (*d as f32 * 1000.0).trunc() as i32);
+
+                    if let Some((idx, _)) = windows_in_direction.first() {
+                        target_idx = Some(*idx);
+                    }
+                }
+                OperationDirection::Up => {
+                    let mut windows_in_direction = focused_workspace
+                        .floating_windows()
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(idx, w)| {
+                            (w.id != focused_window_id).then_some(w.rect().ok().map(|r| (idx, r)))
+                        })
+                        .flatten()
+                        .flat_map(|(idx, r)| {
+                            (r.top < focused_rect.top)
+                                .then_some((idx, i32::abs(r.top - focused_rect.top)))
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Sort by distance to focused
+                    windows_in_direction.sort_by_key(|(_, d)| (*d as f32 * 1000.0).trunc() as i32);
+
+                    if let Some((idx, _)) = windows_in_direction.first() {
+                        target_idx = Some(*idx);
+                    }
+                }
+                OperationDirection::Down => {
+                    let mut windows_in_direction = focused_workspace
+                        .floating_windows()
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(idx, w)| {
+                            (w.id != focused_window_id).then_some(w.rect().ok().map(|r| (idx, r)))
+                        })
+                        .flatten()
+                        .flat_map(|(idx, r)| {
+                            (r.top > focused_rect.top)
+                                .then_some((idx, i32::abs(r.top - focused_rect.top)))
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Sort by distance to focused
+                    windows_in_direction.sort_by_key(|(_, d)| (*d as f32 * 1000.0).trunc() as i32);
+
+                    if let Some((idx, _)) = windows_in_direction.first() {
+                        target_idx = Some(*idx);
+                    }
+                }
+            };
+        }
+
+        if let Some(idx) = target_idx {
+            focused_workspace.floating_windows.focus(idx);
+            if let Some(window) = focused_workspace.floating_windows().get(idx) {
+                window.focus(mouse_follows_focus)?;
+            }
+            return Ok(());
+        }
+
+        let mut cross_monitor_monocle_or_max = false;
+
+        let workspace_idx = self.focused_workspace_idx()?;
+
+        // this is for when we are scrolling across workspaces like PaperWM
+        if matches!(
+            self.cross_boundary_behaviour,
+            CrossBoundaryBehaviour::Workspace
+        ) && matches!(
+            direction,
+            OperationDirection::Left | OperationDirection::Right
+        ) {
+            let workspace_count = if let Some(monitor) = self.focused_monitor() {
+                monitor.workspaces().len()
+            } else {
+                1
+            };
+
+            let next_idx = match direction {
+                OperationDirection::Left => match workspace_idx {
+                    0 => workspace_count - 1,
+                    n => n - 1,
+                },
+                OperationDirection::Right => match workspace_idx {
+                    n if n == workspace_count - 1 => 0,
+                    n => n + 1,
+                },
+                _ => workspace_idx,
+            };
+
+            self.focus_workspace(next_idx)?;
+
+            if let Ok(focused_workspace) = self.focused_workspace_mut()
+                && focused_workspace.monocle_container.is_none()
+            {
+                match direction {
+                    OperationDirection::Left => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.rightmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    OperationDirection::Right => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.leftmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    _ => {}
+                };
+            }
+
+            return Ok(());
+        }
+
+        // if there is no floating_window in that direction for this workspace
+        let monitor_idx = self
+            .monitor_idx_in_direction(direction)
+            .ok_or_eyre("there is no container or monitor in this direction")?;
+
+        self.focus_monitor(monitor_idx)?;
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        if let Ok(focused_workspace) = self.focused_workspace_mut() {
+            if let Some(monocle) = &focused_workspace.monocle_container {
+                if let Some(window) = monocle.focused_window() {
+                    window.focus(mouse_follows_focus)?;
+                    cross_monitor_monocle_or_max = true;
+                }
+            } else if focused_workspace.layer == WorkspaceLayer::Tiling {
+                match direction {
+                    OperationDirection::Left => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.rightmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    OperationDirection::Right => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.leftmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    _ => {}
+                };
+            }
+        }
+
+        if !cross_monitor_monocle_or_max {
+            let ws = self.focused_workspace_mut()?;
+            if !ws.is_empty() {
+                if ws.layer == WorkspaceLayer::Floating && !ws.floating_windows().is_empty() {
+                    if let Some(window) = ws.focused_floating_window() {
+                        window.focus(mouse_follows_focus)?;
+                    }
+                } else {
+                    ws.layer = WorkspaceLayer::Tiling;
+                    if let Ok(focused_window) = self.focused_window() {
+                        focused_window.focus(mouse_follows_focus)?;
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -382,7 +625,7 @@ impl WindowManager {
                             window.focus(mouse_follows_focus)?;
                             cross_monitor_monocle_or_max = true;
                         }
-                    } else {
+                    } else if focused_workspace.layer == WorkspaceLayer::Tiling {
                         match direction {
                             OperationDirection::Left => match focused_workspace.layout {
                                 Layout::Default(layout) => {
@@ -411,10 +654,105 @@ impl WindowManager {
 
         if !cross_monitor_monocle_or_max {
             let ws = self.focused_workspace_mut()?;
-            if !ws.is_empty()
-                && let Ok(focused_window) = self.focused_window()
-            {
-                focused_window.focus(mouse_follows_focus)?;
+            if !ws.is_empty() {
+                if ws.layer == WorkspaceLayer::Floating && !ws.floating_windows().is_empty() {
+                    if let Some(window) = ws.focused_floating_window() {
+                        window.focus(mouse_follows_focus)?;
+                    }
+                } else {
+                    ws.layer = WorkspaceLayer::Tiling;
+                    if let Ok(focused_window) = self.focused_window() {
+                        focused_window.focus(mouse_follows_focus)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Moves the focused floating window by [`WindowManager::resize_delta`] pixels towards the
+    /// `direction` side, but not out of the work area of the focused monitor, and the pointer
+    /// follows it if [`WindowManager::mouse_follows_focus`] is set
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused monitor or workspace, or the compositor reports no focused window.
+    /// - The backend refuses to move the window.
+    #[tracing::instrument(skip(self))]
+    pub fn move_floating_window_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let mut focused_monitor_work_area = self.focused_monitor_work_area()?;
+        let border_offset = 0;
+        let border_width = 0;
+        focused_monitor_work_area.left += border_offset;
+        focused_monitor_work_area.left += border_width;
+        focused_monitor_work_area.top += border_offset;
+        focused_monitor_work_area.top += border_width;
+        focused_monitor_work_area.right -= border_offset * 2;
+        focused_monitor_work_area.right -= border_width * 2;
+        focused_monitor_work_area.bottom -= border_offset * 2;
+        focused_monitor_work_area.bottom -= border_width * 2;
+
+        let focused_workspace = self.focused_workspace()?;
+        let delta = self.resize_delta;
+
+        let focused_window_id = backend()
+            .foreground_window()
+            .ok_or_eyre("no foreground window")?;
+        for window in focused_workspace.floating_windows().iter() {
+            if window.id == focused_window_id {
+                let mut rect = window.rect()?;
+                match direction {
+                    OperationDirection::Left => {
+                        if rect.left - delta < focused_monitor_work_area.left {
+                            rect.left = focused_monitor_work_area.left;
+                        } else {
+                            rect.left -= delta;
+                        }
+                    }
+                    OperationDirection::Right => {
+                        if rect.left + delta + rect.right
+                            > focused_monitor_work_area.left + focused_monitor_work_area.right
+                        {
+                            rect.left = focused_monitor_work_area.left
+                                + focused_monitor_work_area.right
+                                - rect.right;
+                        } else {
+                            rect.left += delta;
+                        }
+                    }
+                    OperationDirection::Up => {
+                        if rect.top - delta < focused_monitor_work_area.top {
+                            rect.top = focused_monitor_work_area.top;
+                        } else {
+                            rect.top -= delta;
+                        }
+                    }
+                    OperationDirection::Down => {
+                        if rect.top + delta + rect.bottom
+                            > focused_monitor_work_area.top + focused_monitor_work_area.bottom
+                        {
+                            rect.top = focused_monitor_work_area.top
+                                + focused_monitor_work_area.bottom
+                                - rect.bottom;
+                        } else {
+                            rect.top += delta;
+                        }
+                    }
+                }
+
+                window.set_position(&rect)?;
+
+                if mouse_follows_focus {
+                    backend().center_cursor_in(&rect)?;
+                }
+
+                break;
             }
         }
 
@@ -1197,8 +1535,9 @@ impl WindowManager {
     /// workspace, or puts it back when it is one of its floating windows and `force_float` is not
     /// set, and tiles the workspace again
     ///
-    /// While the workspace has a monocle container nothing is done: the message is logged and
-    /// ignored.
+    /// A window that is floated puts the workspace on its floating layer, and one that is put back
+    /// puts it on its tiling layer ([`Workspace::layer`]). While the workspace has a monocle
+    /// container nothing is done: the message is logged and ignored.
     ///
     /// # Errors
     ///
@@ -1227,8 +1566,10 @@ impl WindowManager {
         }
 
         if is_floating_window && !force_float {
+            workspace.layer = WorkspaceLayer::Tiling;
             self.unfloat_window()?;
         } else {
+            workspace.layer = WorkspaceLayer::Floating;
             self.float_window()?;
         }
 
@@ -1285,6 +1626,12 @@ impl WindowManager {
     /// Resizes the focused container by `delta` pixels on its `direction` side, by giving it a
     /// resize adjustment that the layout applies, and tiles the workspace again if `update` is set
     ///
+    /// On the floating layer it is the frame of the focused floating window that changes, and no
+    /// adjustment is made and nothing is tiled. With `Sizing::Increase` on the left or the upper
+    /// side the frame moves by `delta` pixels that way, and on the right or the lower side the
+    /// window gets wider or taller by twice `delta`, never out of the work area of the monitor;
+    /// `Sizing::Decrease` does the opposite.
+    ///
     /// The neighbors on that side give up the room, and none of the tiles may end up smaller than
     /// a tenth of the monitor's work area, measured before the paddings are taken off, or than it
     /// already is: a resize that would make one smaller is granted as far as it can be. Where
@@ -1302,149 +1649,237 @@ impl WindowManager {
         delta: i32,
         update: bool,
     ) -> eyre::Result<()> {
-        let focused_monitor_work_area = self.focused_monitor_work_area()?;
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let mut focused_monitor_work_area = self.focused_monitor_work_area()?;
         let workspace = self.focused_workspace_mut()?;
 
-        match workspace.layout {
-            Layout::Default(layout) => {
-                tracing::debug!("resizing window");
-                let len = NonZeroUsize::new(workspace.containers().len())
-                    .ok_or_eyre("there must be at least one container")?;
-                let focused_idx = workspace.focused_container_idx();
-                let focused_idx_resize = workspace
-                    .resize_dimensions
-                    .get(focused_idx)
-                    .ok_or_eyre("there is no resize adjustment for this container")?;
+        match workspace.layer {
+            WorkspaceLayer::Floating => {
+                let workspace = self.focused_workspace()?;
+                let focused_window_id = backend()
+                    .foreground_window()
+                    .ok_or_eyre("no foreground window")?;
 
-                if direction
-                    .destination(
-                        workspace.layout.as_boxed_direction().as_ref(),
-                        workspace.layout_flip,
-                        focused_idx,
-                        len,
-                        workspace.layout_options,
-                    )
-                    .is_some()
-                {
-                    let unaltered = layout.calculate(
-                        &focused_monitor_work_area,
-                        len,
-                        workspace.container_padding,
-                        workspace.layout_flip,
-                        &[],
-                        workspace.focused_container_idx(),
-                        workspace.layout_options,
-                        &workspace.latest_layout,
-                    );
+                let border_offset = 0;
+                let border_width = 0;
+                focused_monitor_work_area.left += border_offset;
+                focused_monitor_work_area.left += border_width;
+                focused_monitor_work_area.top += border_offset;
+                focused_monitor_work_area.top += border_width;
+                focused_monitor_work_area.right -= border_offset * 2;
+                focused_monitor_work_area.right -= border_width * 2;
+                focused_monitor_work_area.bottom -= border_offset * 2;
+                focused_monitor_work_area.bottom -= border_width * 2;
 
-                    let mut direction = direction;
-
-                    // We only ever want to operate on the unflipped Rect positions when resizing, then we
-                    // can flip them however they need to be flipped once the resizing has been done
-                    if let Some(flip) = workspace.layout_flip {
-                        match flip {
-                            Axis::Horizontal => {
-                                if matches!(direction, OperationDirection::Left)
-                                    || matches!(direction, OperationDirection::Right)
-                                {
-                                    direction = direction.opposite();
+                for window in workspace.floating_windows().iter() {
+                    if window.id == focused_window_id {
+                        let mut rect = window.rect()?;
+                        match (direction, sizing) {
+                            (OperationDirection::Left, Sizing::Increase) => {
+                                if rect.left - delta < focused_monitor_work_area.left {
+                                    rect.left = focused_monitor_work_area.left;
+                                } else {
+                                    rect.left -= delta;
                                 }
                             }
-                            Axis::Vertical => {
-                                if matches!(direction, OperationDirection::Up)
-                                    || matches!(direction, OperationDirection::Down)
+                            (OperationDirection::Left, Sizing::Decrease) => {
+                                rect.left += delta;
+                            }
+                            (OperationDirection::Right, Sizing::Increase) => {
+                                if rect.left + rect.right + delta * 2
+                                    > focused_monitor_work_area.left
+                                        + focused_monitor_work_area.right
                                 {
-                                    direction = direction.opposite();
+                                    rect.right = focused_monitor_work_area.left
+                                        + focused_monitor_work_area.right
+                                        - rect.left;
+                                } else {
+                                    rect.right += delta * 2;
                                 }
                             }
-                            Axis::HorizontalAndVertical => direction = direction.opposite(),
-                        }
-                    }
-
-                    let unaltered_tile = *unaltered
-                        .get(focused_idx)
-                        .ok_or_eyre("there is no last layout")?;
-
-                    // How much of what was asked for the layout can take. The layout crate no
-                    // longer turns a resize down by the size of the container being resized
-                    // (the wrong measure: the room is in the neighbours, and a narrow tile
-                    // could not be dragged by more than half its own width, however much its
-                    // neighbours had to give); the right one is what every tile looks like
-                    // afterwards. None may end up smaller than a tenth of the work area, or
-                    // than it already is, and a request that would is granted as far as it
-                    // can be rather than dropped.
-                    let min_width = focused_monitor_work_area.right / MINIMUM_TILE_FRACTION;
-                    let min_height = focused_monitor_work_area.bottom / MINIMUM_TILE_FRACTION;
-
-                    let calculate = |dimensions: &[Option<Rect>]| {
-                        layout.calculate(
-                            &focused_monitor_work_area,
-                            len,
-                            workspace.container_padding,
-                            workspace.layout_flip,
-                            dimensions,
-                            focused_idx,
-                            workspace.layout_options,
-                            &workspace.latest_layout,
-                        )
-                    };
-                    let now = calculate(&workspace.resize_dimensions);
-                    let candidate = |amount: i32| {
-                        layout.resize(
-                            &unaltered_tile,
-                            focused_idx_resize,
-                            direction,
-                            sizing,
-                            amount,
-                        )
-                    };
-                    let fits = |amount: i32| {
-                        let mut dimensions = workspace.resize_dimensions.clone();
-                        dimensions[focused_idx] = candidate(amount);
-                        calculate(&dimensions)
-                            .iter()
-                            .zip(now.iter())
-                            .all(|(tile, before)| {
-                                tile.right >= min_width.min(before.right)
-                                    && tile.bottom >= min_height.min(before.bottom)
-                            })
-                    };
-
-                    let granted = if fits(delta) {
-                        delta
-                    } else {
-                        // the tiles only ever get smaller as the amount grows
-                        let (mut fits_at, mut fails_at) = (0, delta);
-                        while fails_at - fits_at > 1 {
-                            let middle = fits_at + (fails_at - fits_at) / 2;
-                            if fits(middle) {
-                                fits_at = middle;
-                            } else {
-                                fails_at = middle;
+                            (OperationDirection::Right, Sizing::Decrease) => {
+                                rect.right -= delta * 2;
+                            }
+                            (OperationDirection::Up, Sizing::Increase) => {
+                                if rect.top - delta < focused_monitor_work_area.top {
+                                    rect.top = focused_monitor_work_area.top;
+                                } else {
+                                    rect.top -= delta;
+                                }
+                            }
+                            (OperationDirection::Up, Sizing::Decrease) => {
+                                rect.top += delta;
+                            }
+                            (OperationDirection::Down, Sizing::Increase) => {
+                                if rect.top + rect.bottom + delta * 2
+                                    > focused_monitor_work_area.top
+                                        + focused_monitor_work_area.bottom
+                                {
+                                    rect.bottom = focused_monitor_work_area.top
+                                        + focused_monitor_work_area.bottom
+                                        - rect.top;
+                                } else {
+                                    rect.bottom += delta * 2;
+                                }
+                            }
+                            (OperationDirection::Down, Sizing::Decrease) => {
+                                rect.bottom -= delta * 2;
                             }
                         }
-                        fits_at
-                    };
 
-                    if granted != delta {
-                        tracing::debug!(
-                            "granting {granted} of the {delta} asked for: a tile would get smaller than {min_width}x{min_height}"
-                        );
+                        window.set_position(&rect)?;
+
+                        if mouse_follows_focus {
+                            backend().center_cursor_in(&rect)?;
+                        }
+
+                        break;
                     }
-
-                    if granted > 0 {
-                        let resize = candidate(granted);
-                        workspace.resize_dimensions[focused_idx] = resize;
-                    }
-
-                    return if update {
-                        self.update_focused_workspace(false, false)
-                    } else {
-                        Ok(())
-                    };
                 }
+            }
+            WorkspaceLayer::Tiling => {
+                match workspace.layout {
+                    Layout::Default(layout) => {
+                        tracing::debug!("resizing window");
+                        let len = NonZeroUsize::new(workspace.containers().len())
+                            .ok_or_eyre("there must be at least one container")?;
+                        let focused_idx = workspace.focused_container_idx();
+                        let focused_idx_resize = workspace
+                            .resize_dimensions
+                            .get(focused_idx)
+                            .ok_or_eyre("there is no resize adjustment for this container")?;
 
-                tracing::debug!("cannot resize container in this direction");
+                        if direction
+                            .destination(
+                                workspace.layout.as_boxed_direction().as_ref(),
+                                workspace.layout_flip,
+                                focused_idx,
+                                len,
+                                workspace.layout_options,
+                            )
+                            .is_some()
+                        {
+                            let unaltered = layout.calculate(
+                                &focused_monitor_work_area,
+                                len,
+                                workspace.container_padding,
+                                workspace.layout_flip,
+                                &[],
+                                workspace.focused_container_idx(),
+                                workspace.layout_options,
+                                &workspace.latest_layout,
+                            );
+
+                            let mut direction = direction;
+
+                            // We only ever want to operate on the unflipped Rect positions when resizing, then we
+                            // can flip them however they need to be flipped once the resizing has been done
+                            if let Some(flip) = workspace.layout_flip {
+                                match flip {
+                                    Axis::Horizontal => {
+                                        if matches!(direction, OperationDirection::Left)
+                                            || matches!(direction, OperationDirection::Right)
+                                        {
+                                            direction = direction.opposite();
+                                        }
+                                    }
+                                    Axis::Vertical => {
+                                        if matches!(direction, OperationDirection::Up)
+                                            || matches!(direction, OperationDirection::Down)
+                                        {
+                                            direction = direction.opposite();
+                                        }
+                                    }
+                                    Axis::HorizontalAndVertical => direction = direction.opposite(),
+                                }
+                            }
+
+                            let unaltered_tile = *unaltered
+                                .get(focused_idx)
+                                .ok_or_eyre("there is no last layout")?;
+
+                            // How much of what was asked for the layout can take. The layout crate no
+                            // longer turns a resize down by the size of the container being resized
+                            // (the wrong measure: the room is in the neighbours, and a narrow tile
+                            // could not be dragged by more than half its own width, however much its
+                            // neighbours had to give); the right one is what every tile looks like
+                            // afterwards. None may end up smaller than a tenth of the work area, or
+                            // than it already is, and a request that would is granted as far as it
+                            // can be rather than dropped.
+                            let min_width = focused_monitor_work_area.right / MINIMUM_TILE_FRACTION;
+                            let min_height =
+                                focused_monitor_work_area.bottom / MINIMUM_TILE_FRACTION;
+
+                            let calculate = |dimensions: &[Option<Rect>]| {
+                                layout.calculate(
+                                    &focused_monitor_work_area,
+                                    len,
+                                    workspace.container_padding,
+                                    workspace.layout_flip,
+                                    dimensions,
+                                    focused_idx,
+                                    workspace.layout_options,
+                                    &workspace.latest_layout,
+                                )
+                            };
+                            let now = calculate(&workspace.resize_dimensions);
+                            let candidate = |amount: i32| {
+                                layout.resize(
+                                    &unaltered_tile,
+                                    focused_idx_resize,
+                                    direction,
+                                    sizing,
+                                    amount,
+                                )
+                            };
+                            let fits = |amount: i32| {
+                                let mut dimensions = workspace.resize_dimensions.clone();
+                                dimensions[focused_idx] = candidate(amount);
+                                calculate(&dimensions).iter().zip(now.iter()).all(
+                                    |(tile, before)| {
+                                        tile.right >= min_width.min(before.right)
+                                            && tile.bottom >= min_height.min(before.bottom)
+                                    },
+                                )
+                            };
+
+                            let granted = if fits(delta) {
+                                delta
+                            } else {
+                                // the tiles only ever get smaller as the amount grows
+                                let (mut fits_at, mut fails_at) = (0, delta);
+                                while fails_at - fits_at > 1 {
+                                    let middle = fits_at + (fails_at - fits_at) / 2;
+                                    if fits(middle) {
+                                        fits_at = middle;
+                                    } else {
+                                        fails_at = middle;
+                                    }
+                                }
+                                fits_at
+                            };
+
+                            if granted != delta {
+                                tracing::debug!(
+                                    "granting {granted} of the {delta} asked for: a tile would get smaller than {min_width}x{min_height}"
+                                );
+                            }
+
+                            if granted > 0 {
+                                let resize = candidate(granted);
+                                workspace.resize_dimensions[focused_idx] = resize;
+                            }
+
+                            return if update {
+                                self.update_focused_workspace(false, false)
+                            } else {
+                                Ok(())
+                            };
+                        }
+
+                        tracing::debug!("cannot resize container in this direction");
+                    }
+                }
             }
         }
 
@@ -1903,9 +2338,12 @@ impl WindowManager {
         if let Some(window) = floating_window {
             window.move_to_area(&current_area, &target_monitor_work_area_size)?;
             target_workspace.floating_windows_mut().push_back(window);
+            target_workspace.layer = WorkspaceLayer::Floating;
         } else if let Some(container) = container {
             let _container_window_ids =
                 container.windows().iter().map(|w| w.id).collect::<Vec<_>>();
+
+            target_workspace.layer = WorkspaceLayer::Tiling;
 
             if let Some(direction) = move_direction {
                 target_monitor.add_container_with_direction(container, workspace_idx, direction)?;
@@ -2124,6 +2562,67 @@ impl WindowManager {
         workspace.swap_containers(current_idx, new_idx);
         workspace.focus_container(new_idx);
         self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    /// Gives the focus to the next (or the previous) floating window of the focused workspace,
+    /// wrapping around at the ends, and the pointer follows it if
+    /// [`WindowManager::mouse_follows_focus`] is set
+    ///
+    /// When the focused window is not one of the floating windows, the first is given the focus.
+    /// With no more than one floating window nothing changes.
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or the compositor reports no focused window.
+    /// - The backend refuses to focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn focus_floating_window_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let focused_workspace = self.focused_workspace()?;
+
+        let mut target_idx = None;
+        let len = focused_workspace.floating_windows().len();
+
+        if len > 1 {
+            let focused_window_id = backend()
+                .foreground_window()
+                .ok_or_eyre("no foreground window")?;
+            for (idx, window) in focused_workspace.floating_windows().iter().enumerate() {
+                if window.id == focused_window_id {
+                    match direction {
+                        CycleDirection::Previous => {
+                            if idx == 0 {
+                                target_idx = Some(len - 1)
+                            } else {
+                                target_idx = Some(idx - 1)
+                            }
+                        }
+                        CycleDirection::Next => {
+                            if idx == len - 1 {
+                                target_idx = Some(0)
+                            } else {
+                                target_idx = Some(idx + 1)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if target_idx.is_none() {
+                target_idx = Some(0);
+            }
+        }
+
+        if let Some(idx) = target_idx
+            && let Some(window) = focused_workspace.floating_windows().get(idx)
+        {
+            window.focus(mouse_follows_focus)?;
+        }
+
+        Ok(())
     }
 
     /// Moves the front window of the focused stack one place along the stack, which wraps around
@@ -2420,6 +2919,10 @@ impl WindowManager {
     /// `window_container_behaviour` and `float_override` where it sets them, and the window
     /// manager's where it does not
     ///
+    /// A workspace on its floating layer ([`WorkspaceLayer::Floating`]) makes new windows float
+    /// (`floating_layer_override`) when its floating layer behaviour says to float: the
+    /// workspace's own, else its monitor's, else the window manager's.
+    ///
     /// An empty workspace has no container to append to, so `Append` is `Create` for it. A
     /// workspace or a monitor that does not exist gets `Create`.
     pub fn window_management_behaviour(
@@ -2457,11 +2960,26 @@ impl WindowManager {
                 self.window_management_behaviour.float_override
             };
 
+            let floating_layer_behaviour =
+                if let Some(behaviour) = workspace.floating_layer_behaviour {
+                    behaviour
+                } else {
+                    monitor
+                        .floating_layer_behaviour
+                        .unwrap_or(self.window_management_behaviour.floating_layer_behaviour)
+                };
+
+            // If the workspace layer is `Floating` and the floating layer behaviour should
+            // float then change floating_layer_override to true so that new windows spawn
+            // as floating
+            let floating_layer_override = matches!(workspace.layer, WorkspaceLayer::Floating)
+                && floating_layer_behaviour.should_float();
+
             return WindowManagementBehaviour {
                 current_behaviour,
                 float_override,
-                floating_layer_override: self.window_management_behaviour.floating_layer_override,
-                floating_layer_behaviour: self.window_management_behaviour.floating_layer_behaviour,
+                floating_layer_override,
+                floating_layer_behaviour,
                 toggle_float_placement: self.window_management_behaviour.toggle_float_placement,
                 floating_layer_placement: self.window_management_behaviour.floating_layer_placement,
                 float_override_placement: self.window_management_behaviour.float_override_placement,
@@ -3328,6 +3846,7 @@ mod tests {
         );
 
         let workspace = m.focused_workspace_mut().unwrap();
+        workspace.layer = WorkspaceLayer::Tiling;
 
         for i in 0..4 {
             let mut container = Container::default();
@@ -4262,7 +4781,9 @@ mod tests {
                 "TestDeviceID".to_string(),
             );
 
+            // Set Workspace Layer to Tiling
             let workspace = m.focused_workspace_mut().unwrap();
+            workspace.layer = WorkspaceLayer::Tiling;
 
             // Tiling state should be true
             assert!(workspace.tile);

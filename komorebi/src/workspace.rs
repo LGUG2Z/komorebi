@@ -10,6 +10,7 @@ use crate::container::Container;
 use crate::core::Axis;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
+use crate::core::FloatingLayerBehaviour;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
@@ -23,6 +24,8 @@ use color_eyre::eyre::OptionExt;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::num::NonZeroUsize;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -65,10 +68,36 @@ pub struct Workspace {
     pub float_override: Option<bool>,
     #[serde(skip)]
     pub globals: WorkspaceGlobals,
+    /// Which of the workspace's two kinds of windows the focus commands act on
+    pub layer: WorkspaceLayer,
+    /// Whether a window that opens while this workspace is on its floating layer floats, when it
+    /// is not the monitor's or the window manager's default
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preselected_container_idx: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub promotion_swap_container_idx: Option<usize>,
+}
+
+/// Which of a workspace's two kinds of windows the focus, move and resize commands act on: the
+/// tiles of its layout, or its floating windows
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum WorkspaceLayer {
+    /// The containers of the layout
+    #[default]
+    Tiling,
+    /// The floating windows
+    Floating,
+}
+
+impl Display for WorkspaceLayer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WorkspaceLayer::Tiling => write!(f, "Tiling"),
+            WorkspaceLayer::Floating => write!(f, "Floating"),
+        }
+    }
 }
 
 impl_ring_elements!(Workspace, Container);
@@ -92,6 +121,8 @@ impl Default for Workspace {
             layout_flip: None,
             layout_options: None,
             globals: Default::default(),
+            layer: Default::default(),
+            floating_layer_behaviour: None,
             tile: true,
             apply_window_based_work_area_offset: true,
             window_container_behaviour: None,
@@ -122,6 +153,8 @@ pub struct WorkspaceGlobals {
     pub work_area_offset: Option<Rect>,
     pub window_based_work_area_offset: Option<Rect>,
     pub window_based_work_area_offset_limit: isize,
+    /// The floating layer behaviour of the monitor, which the workspace's own overrides
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 /// `komorebi_layouts::Rect::percentage_within_horizontal_bounds`, which that crate compiles only
@@ -771,7 +804,7 @@ impl Workspace {
         // Maximized windows and floating windows should always be drawn at the top of the Z order
         // when switching to a workspace
         if let Some(window) = to_focus {
-            if self.maximized_window.is_none() {
+            if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
                 window.focus(mouse_follows_focus)?;
             } else if let Some(maximized_window) = self.maximized_window {
                 maximized_window.restore();
@@ -949,8 +982,9 @@ impl Workspace {
 
     /// Takes the focused window out of its container, and so out of the layout, and has the
     /// compositor maximize it: the work area, panels respected, and a restore that goes back to
-    /// where the window was. The window of the monocle container is the focused one while there
-    /// is a monocle container.
+    /// where the window was. On the floating layer it is the focused floating window that is
+    /// maximized, and the window of the monocle container is the focused one while there is a
+    /// monocle container.
     ///
     /// # Errors
     ///
@@ -958,6 +992,18 @@ impl Workspace {
     /// to maximize the window.
     pub fn new_maximized_window(&mut self) -> eyre::Result<()> {
         let focused_idx = self.focused_container_idx();
+
+        if matches!(self.layer, WorkspaceLayer::Floating) {
+            let window = self
+                .remove_focused_floating_window()
+                .ok_or_eyre("there is no floating window")?;
+
+            self.maximized_window = Option::from(window);
+            self.maximized_window_restore_idx = Option::from(focused_idx);
+            window.maximize()?;
+
+            return Ok(());
+        }
 
         let monocle_restore_idx = self.monocle_container_restore_idx;
         if let Some(monocle_container) = &mut self.monocle_container {

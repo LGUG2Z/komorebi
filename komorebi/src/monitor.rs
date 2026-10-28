@@ -16,12 +16,14 @@ use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::backend::backend;
 use crate::container::Container;
 use crate::core::DefaultLayout;
+use crate::core::FloatingLayerBehaviour;
 use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
+use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use serde::Deserialize;
@@ -70,6 +72,9 @@ pub struct Monitor {
     /// shows again
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_focused_workspace: Option<usize>,
+    /// Whether a window that opens on a workspace on its floating layer floats, for the
+    /// workspaces of this monitor that have no behaviour of their own
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 /// Returns a monitor with one empty workspace, the way [`Monitor::new`] makes one, from owned
@@ -97,6 +102,7 @@ pub fn new(
         last_focused_workspace: None,
         container_padding: None,
         workspace_padding: None,
+        floating_layer_behaviour: None,
     }
 }
 
@@ -125,6 +131,7 @@ impl Monitor {
             container_padding: None,
             workspace_padding: None,
             last_focused_workspace: None,
+            floating_layer_behaviour: None,
         }
     }
 
@@ -145,6 +152,7 @@ impl Monitor {
             last_focused_workspace: None,
             container_padding: None,
             workspace_padding: None,
+            floating_layer_behaviour: None,
         }
     }
 
@@ -179,6 +187,7 @@ impl Monitor {
         let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
+        let floating_layer_behaviour = self.floating_layer_behaviour;
 
         if let Some(workspace) = self.workspaces_mut().get_mut(workspace_idx) {
             workspace.globals = WorkspaceGlobals {
@@ -188,6 +197,7 @@ impl Monitor {
                 work_area_offset,
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
+                floating_layer_behaviour,
             }
         }
     }
@@ -275,7 +285,9 @@ impl Monitor {
     ///
     /// With a `direction`, the container goes where a container moved across a boundary in that
     /// direction goes ([`Monitor::add_container_with_direction`]). A container that moves to a
-    /// workspace with a monocle container first turns the monocle off there.
+    /// workspace with a monocle container first turns the monocle off there. The target workspace
+    /// is on the floating layer after a floating window moved to it, and on the tiling layer after
+    /// a container did.
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(
         &mut self,
@@ -313,6 +325,7 @@ impl Monitor {
                 };
 
                 target_workspace.floating_windows_mut().push_back(window);
+                target_workspace.layer = WorkspaceLayer::Floating;
             }
         } else {
             let container = workspace
@@ -341,6 +354,8 @@ impl Monitor {
 
                 target_workspace.reintegrate_monocle_container()?;
             }
+
+            target_workspace.layer = WorkspaceLayer::Tiling;
 
             if let Some(direction) = direction {
                 self.add_container_with_direction(
@@ -441,6 +456,7 @@ impl Monitor {
         let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
+        let floating_layer_behaviour = self.floating_layer_behaviour;
 
         for workspace in self.workspaces_mut() {
             workspace.globals = WorkspaceGlobals {
@@ -450,6 +466,7 @@ impl Monitor {
                 work_area_offset,
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
+                floating_layer_behaviour,
             }
         }
     }

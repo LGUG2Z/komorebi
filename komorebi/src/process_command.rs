@@ -21,13 +21,17 @@
 //!   focused one (or of the monitor on that side, at the edge of a monitor), or to the next or the
 //!   previous one in the workspace
 //!   ([`WindowManager::focus_container_in_direction`],
-//!   [`WindowManager::focus_container_in_cycle_direction`]).
+//!   [`WindowManager::focus_container_in_cycle_direction`]). On the floating layer they give it
+//!   to a floating window instead ([`WindowManager::focus_floating_window_in_direction`],
+//!   [`WindowManager::focus_floating_window_in_cycle_direction`]).
 //! - **MoveWindow** and **CycleMoveWindow** swap the focused container with the one on one side
 //!   of it (or take it to the monitor on that side, at the edge of a monitor, as
 //!   **CrossMonitorMoveBehaviour** and **ToggleCrossMonitorMoveBehaviour** set), or with the next or
 //!   the previous one, and tile the workspace again
 //!   ([`WindowManager::move_container_in_direction`],
-//!   [`WindowManager::move_container_in_cycle_direction`]).
+//!   [`WindowManager::move_container_in_cycle_direction`]). On the floating layer **MoveWindow**
+//!   moves the focused floating window instead
+//!   ([`WindowManager::move_floating_window_in_direction`]).
 //! - **StackWindow** puts the focused window and the window in the container on one side of it in
 //!   one container, a stack that shows the window that moved and hides the other, and
 //!   **UnstackWindow** takes the focused window out of its stack again
@@ -69,6 +73,9 @@
 //! - **ToggleFloat** takes the focused window out of the layout into the floating windows of the
 //!   workspace, which komorebi does not move, or puts a floating window back
 //!   ([`WindowManager::toggle_float`]).
+//! - **ToggleWorkspaceLayer** switches the focused workspace between its tiling layer and its
+//!   floating layer, which brings the windows of that layer to the front and gives the focus to
+//!   one of them.
 //! - **ToggleMonocle** gives the focused container the whole work area, with the others out of
 //!   the layout and out of sight, or puts it back ([`WindowManager::toggle_monocle`]).
 //!   **MonocleFocusBehaviour** sets what focusing in a direction does meanwhile, cycle the
@@ -111,8 +118,9 @@
 //!   ([`read_commands_uds`]).
 //! - **ResizeWindowEdge** and **ResizeWindowAxis** resize the focused container by the
 //!   [`WindowManager::resize_delta`] that **ResizeDelta** sets ([`WindowManager::resize_window`]),
-//!   and **QuickSave**, **QuickLoad**, **Save** and **Load** write the resize adjustments of the
-//!   focused workspace's containers to a file and read them back.
+//!   or on the floating layer the focused floating window, and **QuickSave**, **QuickLoad**,
+//!   **Save** and **Load** write the resize adjustments of the focused workspace's containers to
+//!   a file and read them back.
 //! - **FocusWorkspaceNumber** shows a workspace of the focused monitor, by its index
 //!   ([`WindowManager::focus_workspace`]): the compositor is asked to show its desktop on that
 //!   monitor. **MoveContainerToWorkspaceNumber** moves the focused container to a workspace and
@@ -184,6 +192,7 @@ use crate::state::State;
 use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
+use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
 use color_eyre::eyre::Context;
@@ -456,7 +465,15 @@ impl WindowManager {
                 }
             }
             SocketMessage::FocusWindow(direction) => {
-                self.focus_container_in_direction(direction)?;
+                let focused_workspace = self.focused_workspace()?;
+                match focused_workspace.layer {
+                    WorkspaceLayer::Tiling => {
+                        self.focus_container_in_direction(direction)?;
+                    }
+                    WorkspaceLayer::Floating => {
+                        self.focus_floating_window_in_direction(direction)?;
+                    }
+                }
             }
             SocketMessage::PreselectDirection(direction) => {
                 let focused_workspace = self.focused_workspace()?;
@@ -466,7 +483,7 @@ impl WindowManager {
                     tracing::warn!(
                         "ignoring command as this workspace already has a direction preselect set"
                     );
-                } else {
+                } else if matches!(focused_workspace.layer, WorkspaceLayer::Tiling) {
                     self.preselect_container_in_direction(direction)?;
                     update = true;
                 }
@@ -481,10 +498,26 @@ impl WindowManager {
                 focused_workspace.update()?;
             }
             SocketMessage::MoveWindow(direction) => {
-                self.move_container_in_direction(direction)?;
+                let focused_workspace = self.focused_workspace()?;
+                match focused_workspace.layer {
+                    WorkspaceLayer::Tiling => {
+                        self.move_container_in_direction(direction)?;
+                    }
+                    WorkspaceLayer::Floating => {
+                        self.move_floating_window_in_direction(direction)?;
+                    }
+                }
             }
             SocketMessage::CycleFocusWindow(direction) => {
-                self.focus_container_in_cycle_direction(direction)?;
+                let focused_workspace = self.focused_workspace()?;
+                match focused_workspace.layer {
+                    WorkspaceLayer::Tiling => {
+                        self.focus_container_in_cycle_direction(direction)?;
+                    }
+                    WorkspaceLayer::Floating => {
+                        self.focus_floating_window_in_cycle_direction(direction)?;
+                    }
+                }
             }
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
@@ -905,6 +938,96 @@ impl WindowManager {
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleMaximize => self.toggle_maximize()?,
             SocketMessage::ToggleFloat => self.toggle_float(false)?,
+            SocketMessage::ToggleWorkspaceLayer => {
+                let mouse_follows_focus = self.mouse_follows_focus;
+                let workspace = self.focused_workspace_mut()?;
+
+                let mut to_focus = None;
+                match workspace.layer {
+                    WorkspaceLayer::Tiling => {
+                        workspace.layer = WorkspaceLayer::Floating;
+                        tracing::info!("WorkspaceLayer is now Floating");
+
+                        let focused_idx = workspace.focused_floating_window_idx();
+                        let mut window_idx_pairs = workspace
+                            .floating_windows_mut()
+                            .make_contiguous()
+                            .iter_mut()
+                            .enumerate()
+                            .collect::<Vec<_>>();
+
+                        // Sort by window area
+                        window_idx_pairs.sort_by_key(|(_, w)| {
+                            let rect = w.rect().unwrap_or_default();
+                            rect.right * rect.bottom
+                        });
+                        window_idx_pairs.reverse();
+
+                        for (i, window) in window_idx_pairs {
+                            if i == focused_idx {
+                                to_focus = Some(*window);
+                            } else {
+                                window.restore();
+                                window.raise()?;
+                            }
+                        }
+
+                        if let Some(focused_window) = &mut to_focus {
+                            // The focused window should be the last one raised to make sure it is
+                            // on top
+                            focused_window.restore();
+                            focused_window.raise()?;
+                        }
+                    }
+                    WorkspaceLayer::Floating => {
+                        workspace.layer = WorkspaceLayer::Tiling;
+                        tracing::info!("WorkspaceLayer is now Tiling");
+
+                        if let Some(monocle) = &workspace.monocle_container {
+                            if let Some(window) = monocle.focused_window() {
+                                to_focus = Some(*window);
+                                window.raise()?;
+                            }
+
+                            for window in workspace.floating_windows_mut() {
+                                window.hide();
+                            }
+                        } else {
+                            let focused_container_idx = workspace.focused_container_idx();
+                            for (i, container) in workspace.containers_mut().iter_mut().enumerate()
+                            {
+                                if let Some(window) = container.focused_window() {
+                                    if i == focused_container_idx {
+                                        to_focus = Some(*window);
+                                    }
+
+                                    window.raise()?;
+                                }
+                            }
+
+                            let mut window_idx_pairs = workspace
+                                .floating_windows_mut()
+                                .make_contiguous()
+                                .iter_mut()
+                                .collect::<Vec<_>>();
+
+                            // Sort by window area
+                            window_idx_pairs.sort_by_key(|w| {
+                                let rect = w.rect().unwrap_or_default();
+                                rect.right * rect.bottom
+                            });
+
+                            for window in window_idx_pairs {
+                                window.hide();
+                            }
+                        }
+                    }
+                };
+
+                if let Some(window) = to_focus {
+                    window.focus(mouse_follows_focus)?;
+                }
+            }
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }

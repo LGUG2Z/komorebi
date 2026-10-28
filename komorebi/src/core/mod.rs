@@ -448,6 +448,7 @@ pub enum SocketMessage {
     NamedWorkspaceLayout(String, DefaultLayout),
     // WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
     // NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    ToggleWorkspaceLayer,
     WorkAreaOffset(Rect),
     MonitorWorkAreaOffset(usize, Rect),
     WorkspaceWorkAreaOffset(usize, usize, Rect),

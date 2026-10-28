@@ -79,6 +79,7 @@ pub use komorebi::core::pathext::replace_env_in_path;
 pub use komorebi::state::State;
 pub use komorebi::window::Window;
 pub use komorebi::workspace::Workspace;
+pub use komorebi::workspace::WorkspaceLayer;
 use std::borrow::Borrow;
 use std::io::BufReader;
 use std::io::Read;
