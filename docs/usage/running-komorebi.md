@@ -33,7 +33,8 @@ running already, `komorebic start` does nothing.
 `komorebi` manages the windows of the Plasma Wayland session it is started in: it connects
 to KWin on the session bus and loads a script into it, so start it from a terminal in that
 session. Outside a Plasma session it exits with an error that says what is missing, which
-`komorebic start` prints.
+`komorebic start` prints. [`komorebic check`](checking-the-setup.md) says what is missing from the
+session, and what is wrong with the configuration, without starting anything.
 
 `--config` gives the daemon the `komorebi.json` to read
 ([Configuration](configuration.md) says where it looks otherwise), and

@@ -1,17 +1,21 @@
 # Checking the setup
 
-[`komorebic check`](../cli/check.md) reads your configuration the way the daemon does, and says in
-words what is wrong with it. It does not need the daemon to be running, and it changes nothing.
+[`komorebic check`](../cli/check.md) reads your configuration the way the daemon does, looks at the
+desktop komorebi has to run on, and says in words what is wrong. It does not need the daemon to be
+running, and it changes nothing.
 
 ```sh
 komorebic check
 komorebic check --komorebi-config ~/mine.json
+komorebic check --configuration-only
 ```
 
 It reads `komorebi.json` in the [config home](configuration.md#where-the-file-is), or the file
 `--komorebi-config` names (`-k`; environment variables in the path are replaced). It prints a
-section of findings, then the number of errors and warnings, and exits with status 1 if and only if
-a finding is an error, so a script can run it before it starts the daemon.
+section of findings for the configuration and one for the desktop, then the number of errors and
+warnings, and exits with status 1 if and only if a finding is an error, so a script can run it
+before it starts the daemon. `--configuration-only` leaves the desktop out, for a machine that is
+not the one komorebi will run on: a build that checks a file, say.
 
 ## What a finding says
 
@@ -77,3 +81,58 @@ The first section says where komorebi looks, and then what it finds in the file:
 
 The check takes the keys it knows from the schema of the types the daemon reads the file with, at
 every level, so it knows every setting komorebi reads.
+
+## The desktop
+
+The second section is about the desktop `komorebic check` runs in, which has to be the session
+komorebi runs in: it asks the session bus of the environment it is run from, so run it in a
+terminal of the Plasma session, not over ssh. It looks, in this order, at:
+
+- **The session.** A `warning` when `XDG_CURRENT_DESKTOP` does not name KDE, and one when the
+  session is not Wayland (`XDG_SESSION_TYPE` is not `wayland` and there is no `WAYLAND_DISPLAY`):
+  komorebi is made for KWin on Wayland and tried on nothing else.
+- **The session bus, and KWin on it.** An `error` when it cannot connect to the session bus (the
+  hint says that `DBUS_SESSION_BUS_ADDRESS` has to be that of the desktop session, which it is not
+  over ssh), when the bus does not answer, and when KWin is not on it, since komorebi works through
+  KWin and nothing else. The check goes no further after one of them, because nothing after it can
+  be answered.
+- **KWin's version.** `ok` for KWin 6 or newer, an `error` for an older one, and a `note` when
+  KWin does not say what version it is.
+- **komorebi and its script.** komorebi is running when its socket takes a connection, and its
+  script is in KWin when KWin says it has loaded `komorebi-bridge`:
+
+  | komorebi | script | Finding |
+  |---|---|---|
+  | running | in KWin | `ok` |
+  | running | not in KWin | `error`: it cannot see a window; `komorebic log` says why, and restarting komorebi loads the script again |
+  | not running | in KWin | `warning`: a script of a daemon that is gone is still in KWin, and starting komorebi replaces it |
+  | not running | not in KWin | `note`: `komorebic start` |
+
+- **The border effect.** The borders are drawn by an effect of KWin, KDE Rounded Corners, and
+  only komorebi's build of it has a color for each kind of window (the stock one has a color for the
+  active window and one for the others). `ok` when the effect is komorebi's build; a `warning` when
+  `border` is on and the effect is not installed, or is the stock one, and a `note` when `border` is
+  off. The build is told by what it contains (the name of its D-Bus interface in the plugin file,
+  or its object on the bus), not by its name.
+- **The animation effect.** Windows are animated by Geometry Change, a script effect, and only
+  komorebi's build reads its curve from a setting (the stock one eases out exponentially and
+  nothing else). `ok` when the copy KWin uses is komorebi's build. A `warning` when `animation` is
+  on and the effect is not installed, and when it is the stock one and `animation.style` is any
+  other than `EaseOutExpo` (the style is ignored, and the default is `Linear`); a `note` when
+  animation is off. A `warning` too when a copy in your own data directory, which KWin takes before
+  the system's, is not the same build as the system's and hides it.
+- **The Plasma shell.** Only when a monitor or a workspace has a
+  [wallpaper](wallpapers.md): `ok` when the shell is on the bus, a `warning` when it is not
+  (wallpapers will not be set; komorebi asks again for half a minute after it starts, for a shell
+  that is late).
+- **What starts komorebi at login.** `ok` with the file that does it: the autostart entry
+  [`enable-autostart`](quickstart-and-autostart.md#starting-komorebi-with-plasma) writes, or a
+  systemd user unit (`~/.config/systemd/user`, `/etc/systemd/user`, or the one of the NixOS module).
+  A `note` when there is none. It is looked for after the rest, whatever the rest found.
+
+Effects are looked for where KWin looks: the check reads the environment of the process that owns
+`org.kde.KWin` (`/proc/PID/environ`) for the plugin and data directories, so the answer is KWin's
+and not that of the shell the command is typed in.
+
+Every question to the bus has two seconds to be answered, so a bus that never answers is an `error`
+like one that is not there.

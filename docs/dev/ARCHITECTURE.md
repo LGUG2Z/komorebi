@@ -967,6 +967,28 @@ file's when it has none). [`check_configuration`] also returns the [`Wants`] of 
 it draws borders, which animation style it asks for and whether it has wallpapers. `komorebic`
 prints [`Report::render`] and exits with status 1 if [`Report::has_errors`].
 
+[`check_environment`] looks at the desktop, with D-Bus calls of its own on the session bus (they
+are in the table of [PLATFORM.md](PLATFORM.md#d-bus)), and `komorebic check --configuration-only`
+leaves it out. It looks in this order at the session (`XDG_CURRENT_DESKTOP` and
+`XDG_SESSION_TYPE`, each a warning when it is not what komorebi is made for), the session bus, KWin
+on it (`NameHasOwner`), KWin's version (the line `KWin version:` of `supportInformation`), the daemon
+(a connection to `komorebi.sock`) and its script (`isScriptLoaded`), the two effects, the Plasma
+shell when the file has wallpapers (`NameHasOwner` of `org.kde.plasmashell`), and last at what
+starts komorebi at login. A bus that cannot be connected to or does not answer, and no KWin on it,
+are errors, and the looking stops there: everything after depends on them. Every call has two
+seconds to answer, so a bus that never does cannot hold the check.
+
+The two effects are not part of KWin, and only komorebi's builds of them do everything komorebi
+asks: a color for each kind of window (KDE Rounded Corners) and every `animation.style` (Geometry
+Change). The stock builds have a color for the active window and one for the others, and one curve,
+an exponential ease out. The check tells a build by what it contains: the plugin file of the border
+effect has the name of the interface `org.komorebi.BorderColours1` (or its object is on the bus),
+and the script of the animation effect reads a `Curve` setting. It looks for them where KWin looks,
+which it reads from KWin's own environment (`/proc/PID/environ`, PID being the owner of
+`org.kde.KWin`), because the shell the command is typed in has other directories than a session.
+What the file asks of the effects is its [`Wants`]: a stock effect is a warning only when the file
+asks for what it cannot do.
+
 | Rule | Enforced by | Proof | Escape hatch |
 |---|---|---|---|
 | A key komorebi does not read does not stop a configuration from loading | serde: [`StaticConfig`] ignores unknown keys, and a key of another platform is a field nothing reads | `the_keys_that_do_nothing_on_kde_are_accepted_and_ignored`, `fixtures_load_round_trip_and_only_lose_windows_only_keys` | none |
@@ -978,6 +1000,12 @@ prints [`Report::render`] and exits with status 1 if [`Report::has_errors`].
 | The keys the check knows are the ones komorebi reads, at every level | framework path: [`known_keys`] reads them from the schema of [`StaticConfig`] | `the_keys_come_from_the_schema_at_every_level`, `a_whole_example_configuration_has_nothing_the_check_does_not_know` | built without the `schemars` feature, the check does not look at keys |
 | Placement rules that are not used while windows are appended are a note, and a workspace that creates containers is not told so whatever the file says | framework path: [`check_configuration`] reads the workspace's `window_container_behaviour` before the file's | `placement_rules_that_are_not_used_while_windows_are_appended_are_noted` | none |
 | A wallpaper that is not a file is an error, and a picture no theme can be made from is a warning | framework path: [`check_configuration`] looks at the wallpaper of each monitor and workspace once, and asks the theme generator for a palette when the wallpaper does not turn it off | `a_wallpaper_that_is_not_there_and_a_rules_file_that_is_not_there_are_found`, the `vm-check` VM suite for the warning | none |
+| No session bus, or no KWin on it, is an error, and the desktop is looked at no further | framework path: [`check_environment`] returns at the first finding the rest depends on | `without_a_session_bus_the_desktop_is_an_error`, `vm-check` | none |
+| An effect is komorebi's build because of what it contains, not because of its name | framework path: [`check_environment`] looks for the colors interface in the border effect's plugin file (or its object on the bus) and for a `Curve` setting in the animation effect's script | `the_border_effect_is_komorebis_when_it_has_the_colours_interface`, `the_effects_are_told_apart_by_what_they_contain` | none |
+| Effects are looked for where KWin looks, not where the shell that runs the command would | framework path: [`check_environment`] reads KWin's environment from `/proc` | `vm-check` | none |
+| A daemon that is running without its script in KWin is an error | framework path: [`check_environment`] compares the connection to the daemon's socket with KWin's answer to `isScriptLoaded` | `vm-check` | none |
+| No call of the desktop check delays it by more than two seconds | convention: every call goes through one timeout (`within`) | `a_session_bus_that_never_answers_is_given_up_on` | none |
+| `--configuration-only` leaves the desktop out | framework path: the section is pushed only without it | `configuration_only_leaves_the_desktop_out` | none |
 | `komorebic check` exits with status 1 if and only if a finding is an error | framework path: `komorebic` exits through [`Report::has_errors`] | `a_good_configuration_passes`, `a_typo_is_a_warning_with_the_word_that_was_meant_and_does_not_fail`, `a_file_that_is_not_json_fails_and_shows_the_line` | none |
 | The rules of an applications file and of the configuration add up | framework path: both are appended to the process-wide lists | `the_rules_of_the_configuration_and_of_the_file_add_up`, `every_file_of_a_list_is_read` | none |
 | `schema.json` and `schema.asc.json` are what the Rust types print | Nix check `schema-fresh`, and a test that compares them with `komorebic`'s output | `schema-fresh`, `the_schema_files_of_the_repository_are_what_the_subcommands_print` | `just jsonschema` |
@@ -1251,8 +1279,9 @@ module's unit.
   see-through, and the opacity they are given.
 - [`kwin::effects`](../../komorebi/src/kwin/effects.rs): the KWin effect that draws the border,
   its settings and the state komorebi keeps of it.
-- [`check`](../../komorebi/src/check.rs): the checks behind `komorebic check`, the [`Finding`]s
-  they return and the [`Report`] `komorebic` gathers them in.
+- [`check`](../../komorebi/src/check.rs): the checks behind `komorebic check` (the configuration,
+  and the desktop it runs on), the [`Finding`]s they return and the [`Report`] `komorebic` gathers
+  them in.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
   socket, and what the window manager does with each message.
 - [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with,
@@ -1566,7 +1595,9 @@ A window is shown, and ends up on a tile:
   format.
 - [`komorebi/src/check.rs`](../../komorebi/src/check.rs): the checks of `komorebic check`, with
   their tests; [`komorebic/tests/check.rs`](../../komorebic/tests/check.rs) runs the command on
-  configurations and reads what it prints and its exit status.
+  configurations and on buses that are not there, and reads what it prints and its exit status;
+  [`nix/tests/vm/suites/check`](../../nix/tests/vm/suites/check/test.py), the desktop check against
+  a real KWin, with the daemon running, with its script gone, with no daemon and with no KWin.
 - [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
   does, and the thread that handles them.
 - [`komorebi/src/process_command.rs`](../../komorebi/src/process_command.rs): the socket, what
@@ -1727,6 +1758,7 @@ A window is shown, and ends up on a tile:
 [`Report::render`]: ../../komorebi/src/check.rs
 [`Report::has_errors`]: ../../komorebi/src/check.rs
 [`check_configuration`]: ../../komorebi/src/check.rs
+[`check_environment`]: ../../komorebi/src/check.rs
 [`check_keys`]: ../../komorebi/src/check.rs
 [`known_keys`]: ../../komorebi/src/check.rs
 [`snippet`]: ../../komorebi/src/check.rs

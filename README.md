@@ -86,8 +86,8 @@ without a checkout of the toolchain.
   unlocked (`monitor_reconciliator`, `reconcile`, `kwin::power`), sends its
   subscribers a notification of each event, message and change of the monitors
   it handles (`notify_subscribers`), and is configured by a `komorebi.json` that
-  it reads and reads again when it changes (`static_config`), and checks it for
-  mistakes without the daemon (`check`).
+  it reads and reads again when it changes (`static_config`), and checks it, and
+  the desktop it runs on, for mistakes without the daemon (`check`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
@@ -280,7 +280,9 @@ module's `config` option is typed from that schema (`nix/komorebi-options.nix`, 
 `check` reads the file the way the daemon does and says in words what is wrong with it: JSON that
 does not parse, with the line, a value komorebi does not read, a key that is not a setting (with
 the nearest one that is), a workspace that is not tiled, and an applications file that is not
-there. It exits with status 1 if something is an error.
+there. It also looks at the desktop (a Plasma session on Wayland, KWin 6 on the session bus, the
+daemon and its script in KWin, and what starts komorebi at login), unless `--configuration-only`
+leaves that out. It exits with status 1 if something is an error.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event, each message and each

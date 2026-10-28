@@ -275,6 +275,23 @@ The property `desktops` is introspected as `a(iss)`, a position, an id and a nam
 desktop, and the value on the wire is `a(uss)`: komorebi reads it as that. It is read uncached,
 since a read right after `createDesktop` has to see the new desktop.
 
+What `komorebic check` calls, in this order, each with two seconds to answer:
+
+| Name | Object | Interface | Member | For |
+|---|---|---|---|---|
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `NameHasOwner(s) -> b` | whether `org.kde.KWin` is on the bus |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `GetConnectionUnixProcessID(s) -> u` | the process that owns `org.kde.KWin`, whose environment says where KWin looks for effects |
+| `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `supportInformation() -> s` | KWin's version: the line `KWin version: X.Y.Z` of the text |
+| `org.kde.KWin` | `/Scripting` | `org.kde.kwin.Scripting` | `isScriptLoaded(s) -> b` | whether the script `komorebi-bridge` is loaded |
+| `org.kde.KWin` | `/Effects` | `org.kde.kwin.Effects` | `isEffectSupported(s) -> b` | whether the border effect (`kwin4_effect_shapecorners`) and the animation effect (`kwin4_effect_geometry_change`) are installed |
+| `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.freedesktop.DBus.Introspectable` | `Introspect() -> s` | whether komorebi's build of the border effect is loaded: its object has the interface `org.komorebi.BorderColours1` |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `NameHasOwner(s) -> b` | whether `org.kde.plasmashell` is on the bus, when there are wallpapers |
+
+At time of writing (2026-10-27), the headless KWin of the VM tests (Plasma 6.8) answers
+`supportInformation` with a text that has that line, and `vm-check` has `komorebic check` read the
+major version from it. The check does not need the answer: without the line it says that KWin is
+there and its version could not be read.
+
 ## Files and directories
 
 | Path | What | Lifetime |
@@ -296,13 +313,35 @@ since a read right after `createDesktop` has to see the new desktop.
 Without `XDG_RUNTIME_DIR` the bridge and the socket are in `komorebi` in the local data
 directory instead, with the logs (see [`XDG_DATA_HOME`](#xdg_data_home)).
 
+## What `komorebic check` looks at
+
+Apart from the bus, it looks at the files that start komorebi at login, in this order, and says which
+it found first: `$XDG_CONFIG_HOME/autostart/komorebi.desktop` (the autostart entry),
+`$XDG_CONFIG_HOME/systemd/user/komorebi.service`, `/etc/systemd/user/komorebi.service` and
+`/run/current-system/etc/systemd/user/komorebi.service`, where the NixOS module's unit is. Whether
+the daemon is running is whether `komorebi.sock` in the runtime directory takes a connection, and
+the session is the environment of the command itself: `XDG_CURRENT_DESKTOP` has to name KDE, and
+`XDG_SESSION_TYPE` or `WAYLAND_DISPLAY` Wayland.
+
+The effects are looked for where KWin looks, which is not where the shell that runs the command
+looks: KWin is started by the session, with a `QT_PLUGIN_PATH`, an `XDG_DATA_HOME` and an
+`XDG_DATA_DIRS` of its own. `komorebic check` reads them from `/proc/PID/environ`, PID being what
+the bus says owns `org.kde.KWin`, and falls back to its own environment and to the places NixOS and
+the common distributions put plugins and data. The border effect is a plugin file,
+`kwin/effects/plugins/kwin4_effect_shapecorners.so`, in a Qt plugin directory, and the animation
+effect a script, `kwin/effects/kwin4_effect_geometry_change/contents/code/main.js`, in a data
+directory, where KWin takes the user's before the system's. A build is komorebi's by what it
+contains: the plugin file has the name of the interface `org.komorebi.BorderColours1` (or its object
+is on the bus), and the script reads a setting called `Curve`.
+
 ## Environment variables
 
 ### `DBUS_SESSION_BUS_ADDRESS`
 
 The address of the session bus. If it is not set, komorebi uses `$XDG_RUNTIME_DIR/bus`, where
 systemd puts the session bus, and `/run/user/<uid>/bus` when `XDG_RUNTIME_DIR` is not set
-either. An address with no bus behind it is the first error under [No KWin](#no-kwin).
+either. An address with no bus behind it is the first error under [No KWin](#no-kwin), and the one
+`komorebic check` reports as "could not connect to the session bus".
 
 ### `KOMOREBI_CONFIG_HOME`
 

@@ -103,7 +103,8 @@
 //! remove the entry that has Plasma start komorebi at login, `start` runs `komorebi` in the
 //! background, with the
 //! `komorebi.json` it is given with `--config`, `check` reads the `komorebi.json` the daemon would
-//! and reports what is wrong with it, exiting with status 1 if something is an error,
+//! and looks at the desktop, and reports what is wrong, exiting with status 1 if something is an
+//! error,
 //! `configuration` shows the path of the
 //! `komorebi.json` the daemon reads, `log` follows its log, `data-directory` shows where its
 //! socket is, `completions` prints a completion script for a shell, and `static-config-schema`,
@@ -835,6 +836,9 @@ struct Check {
     #[clap(action, short, long)]
     #[clap(value_parser = replace_env_in_path)]
     komorebi_config: Option<PathBuf>,
+    /// Look at the configuration only, not at the desktop
+    #[clap(long)]
+    configuration_only: bool,
 }
 
 #[derive(Parser)]
@@ -863,7 +867,7 @@ enum SubCommand {
     Start(Start),
     /// Stop the komorebi process
     Stop(Stop),
-    /// Check komorebi configuration for common errors
+    /// Check komorebi configuration and the desktop it runs on for common errors
     Check(Check),
     /// Show the path to komorebi.json
     #[clap(alias = "config")]
@@ -1488,9 +1492,16 @@ fn main() -> eyre::Result<()> {
                 None => HOME_DIR.join("komorebi.json"),
             };
 
-            let (findings, _) = komorebi_client::check::check_configuration(&static_config);
+            let (findings, wants) = komorebi_client::check::check_configuration(&static_config);
             place.extend(findings);
             report.push("Configuration", place);
+
+            if !args.configuration_only {
+                report.push(
+                    "The desktop",
+                    komorebi_client::check::check_environment(&wants),
+                );
+            }
 
             print!("{}", report.render());
 

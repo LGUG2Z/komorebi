@@ -367,6 +367,15 @@ read the file (a daemon that is running keeps what it had), so the check shows t
 with status 1. A workspace that is only a name is a warning too: it is not tiled, which is easy to
 do without meaning to.
 
+## Why is a daemon that runs without its script in KWin an error, and one that does not run a note?
+
+A daemon without its script in KWin cannot see a window, so it tiles nothing while it runs: that
+is an error, the one finding of the desktop check that says a daemon which is running is broken.
+A daemon that is not running is not broken, so it is a note, with the command that starts it. A
+script that is still in KWin when its daemon is gone is a warning, since starting the daemon
+replaces it. The check tells which of the three it is by connecting to the daemon's socket and by
+asking KWin whether it has loaded `komorebi-bridge`.
+
 ## Why does `nix/komorebi-options.nix` start with the hash of the schema?
 
 Because the check that the options are fresh cannot make them again. `schemars-nixgen` makes

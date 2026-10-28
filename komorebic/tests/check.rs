@@ -15,7 +15,12 @@ fn check(config: Option<&str>, extra: &[&str]) -> (Output, String) {
     std::fs::create_dir_all(&dir).unwrap();
 
     let mut command = Command::new(env!("CARGO_BIN_EXE_komorebic"));
-    command.arg("check").env("KOMOREBI_CONFIG_HOME", &dir);
+    command
+        .arg("check")
+        .arg("--configuration-only")
+        .env("KOMOREBI_CONFIG_HOME", &dir)
+        // there is no desktop to ask about, and nothing from this one to leak in
+        .env_remove("DBUS_SESSION_BUS_ADDRESS");
 
     if let Some(config) = config {
         let path = dir.join("komorebi.json");
@@ -93,4 +98,109 @@ fn no_file_is_not_an_error() {
 
     assert!(output.status.success(), "{text}");
     assert!(text.contains("starts with its defaults"), "{text}");
+}
+
+#[test]
+fn configuration_only_leaves_the_desktop_out() {
+    let (output, text) = check(None, &[]);
+
+    assert!(output.status.success(), "{text}");
+    assert!(!text.contains("The desktop"), "{text}");
+}
+
+/// Runs `komorebic check` with no `--configuration-only`, in a config home and a config directory
+/// of its own, against the session bus at `bus`.
+fn check_desktop(dir: &Path, bus: &Path) -> (Output, String) {
+    let output = Command::new(env!("CARGO_BIN_EXE_komorebic"))
+        .arg("check")
+        .env("KOMOREBI_CONFIG_HOME", dir)
+        .env("XDG_CONFIG_HOME", dir.join("config"))
+        // a bus that is not where the address says, whatever the environment has to offer: with
+        // no address, a connection looks for the user's bus in the runtime directory
+        .env(
+            "DBUS_SESSION_BUS_ADDRESS",
+            format!("unix:path={}", bus.display()),
+        )
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&output.stdout).into_owned();
+    (output, text)
+}
+
+fn scratch(name: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("kmc-cli-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+#[test]
+fn without_a_session_bus_the_desktop_is_an_error() {
+    let dir = scratch("desktop");
+
+    let (output, text) = check_desktop(&dir, &dir.join("no-bus"));
+
+    assert_eq!(output.status.code(), Some(1), "{text}");
+    assert!(text.contains("The desktop"), "{text}");
+    assert!(
+        text.contains("could not connect to the session bus"),
+        "{text}"
+    );
+
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_session_bus_that_never_answers_is_given_up_on() {
+    let dir = scratch("stuck");
+    let bus = dir.join("stuck.bus");
+    // it takes the connection and says nothing, so the handshake never ends
+    let listener = std::os::unix::net::UnixListener::bind(&bus).unwrap();
+    let holder = std::thread::spawn(move || listener.accept().map(|(stream, _)| stream));
+
+    let started = std::time::Instant::now();
+    let (output, text) = check_desktop(&dir, &bus);
+
+    assert_eq!(output.status.code(), Some(1), "{text}");
+    assert!(
+        text.contains("could not connect to the session bus"),
+        "{text}"
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "{:?}",
+        started.elapsed()
+    );
+
+    let _ = holder.join();
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn what_starts_komorebi_at_login_is_said_whether_or_not_the_desktop_is_there() {
+    let dir = scratch("login");
+    let no_bus = dir.join("no-bus");
+
+    let (_, text) = check_desktop(&dir, &no_bus);
+    assert!(text.contains("komorebi is not started at login"), "{text}");
+
+    let enabled = Command::new(env!("CARGO_BIN_EXE_komorebic"))
+        .arg("enable-autostart")
+        .env("KOMOREBI_CONFIG_HOME", &dir)
+        .env("XDG_CONFIG_HOME", dir.join("config"))
+        .output()
+        .unwrap();
+    assert!(enabled.status.success(), "{enabled:?}");
+
+    let (_, text) = check_desktop(&dir, &no_bus);
+    let entry = dir.join("config/autostart/komorebi.desktop");
+    assert!(
+        text.contains(&format!(
+            "komorebi is started at login by {}",
+            entry.display()
+        )),
+        "{text}"
+    );
+
+    let _ = std::fs::remove_dir_all(dir);
 }

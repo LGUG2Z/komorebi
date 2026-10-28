@@ -1,4 +1,4 @@
-//! The checks behind `komorebic check`: the configuration komorebi reads.
+//! The checks behind `komorebic check`: the configuration, and the desktop komorebi has to run on.
 //!
 //! Each check is a function that returns [`Finding`]s, so that each can be tested on its own.
 //! `komorebic` gathers them in a [`Report`], one [`Section`] at a time, prints
@@ -10,10 +10,19 @@
 //! - [`check_keys`] tells a key for another platform from a typo. One `komorebi.json` can be shared
 //!   with komorebi on Windows and macOS, so a key that only they read is accepted and listed once
 //!   as ignored; a key that no platform has is a warning, with the nearest key komorebi has.
+//! - [`check_environment`] looks at the desktop: a KDE Plasma session on Wayland, KWin 6 on the
+//!   session bus, komorebi and its script in KWin, the border and animation effects, the Plasma
+//!   shell when there are wallpapers, and what starts komorebi at login.
+//!
+//! The two effects are not part of KWin, and only komorebi's builds of them do everything komorebi
+//! asks: a color for each kind of window (KDE Rounded Corners) and every `animation.style`
+//! (Geometry Change). The stock builds have a color for the active window and one for the others,
+//! and one curve, an exponential ease out. The check tells a build by what it contains.
 //!
 //! A [`Finding`] has a [`Level`]: an error is something that stops komorebi, or a part of it, from
-//! working (a file that is not JSON); a warning is something that will not do what was meant (a
-//! typo, a workspace that is not tiled); a note is something to know.
+//! working (a file that is not JSON, no KWin on the bus); a warning is something that will not do
+//! what was meant (a typo, a stock effect asked for a curve it does not have, a workspace that is
+//! not tiled); a note is something to know.
 //!
 //! # Example
 //!
@@ -54,14 +63,21 @@
 //! | The keys are the ones komorebi reads, at every level | [`known_keys`] reads them from the JSON schema of [`StaticConfig`] | `check::tests::the_keys_come_from_the_schema_at_every_level`, `check::tests::a_whole_example_configuration_has_nothing_the_check_does_not_know` |
 //! | Placement rules that no window can use are a note | [`check_configuration`] compares the `initial_window_placement_rules` of a workspace with its `window_container_behaviour`, or the file's when it has none: windows that are appended to a container have no place of their own | `check::tests::placement_rules_that_are_not_used_while_windows_are_appended_are_noted` |
 //! | A wallpaper that is not a file is an error, and a picture no theme can be made from is a warning | [`check_configuration`] looks at the wallpaper of each monitor and workspace once, and asks the theme generator for a palette when the wallpaper does not turn it off | `check::tests::a_wallpaper_that_is_not_there_and_a_rules_file_that_is_not_there_are_found` for the error, the `vm-check` VM suite for the warning |
+//! | No session bus, or no KWin on it, is an error, and the desktop is looked at no further | [`check_environment`] stops at the first finding the rest depends on | `komorebic/tests/check.rs::without_a_session_bus_the_desktop_is_an_error`, the `vm-check` VM suite |
+//! | komorebi running without its script in KWin is an error | [`check_environment`] compares the daemon's socket with KWin's answer to `isScriptLoaded` | the `vm-check` VM suite |
+//! | An effect is komorebi's build because of what it contains, not because of its name | [`check_environment`] looks for the colors interface in the border effect, and for a `Curve` setting in the animation effect's script | `check::tests::the_border_effect_is_komorebis_when_it_has_the_colours_interface`, `check::tests::the_effects_are_told_apart_by_what_they_contain` |
+//! | Effects are looked for where KWin looks, not where the shell that runs the command would | [`check_environment`] reads KWin's environment from `/proc` | the `vm-check` VM suite |
+//! | No D-Bus call delays the check by more than two seconds | convention: every call [`check_environment`] makes goes through a timeout | `komorebic/tests/check.rs::a_session_bus_that_never_answers_is_given_up_on` |
 //! | `komorebic check` exits with status 1 if and only if a finding is an error | `komorebic`, through [`Report::has_errors`] | `komorebic/tests/check.rs` |
 
 #![deny(missing_docs)]
 
+use crate::DATA_DIR;
 use crate::static_config::StaticConfig;
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 
 /// How much a [`Finding`] matters.
 ///
@@ -235,8 +251,7 @@ impl Report {
     }
 }
 
-/// What a configuration asks of the desktop: the parts of it that have to be there for the file to
-/// do what it says.
+/// The parts of the desktop a configuration needs, which [`check_environment`] checks are there.
 ///
 /// Returned by [`check_configuration`]. The default asks for nothing.
 #[derive(Clone, Debug, Default)]
@@ -859,9 +874,601 @@ fn check_meaning(
     findings
 }
 
+// ---- the desktop ------------------------------------------------------------------------------
+
+/// Returns true if and only if the file can be read and contains these bytes.
+fn file_contains(path: &Path, needle: &[u8]) -> bool {
+    std::fs::read(path)
+        .map(|bytes| bytes.windows(needle.len()).any(|w| w == needle))
+        .unwrap_or(false)
+}
+
+/// Returns the environment of a process, from `/proc/<pid>/environ`, or an empty map when it cannot
+/// be read. The processes of the user who runs the check can be read.
+fn environment_of(pid: u32) -> std::collections::HashMap<String, String> {
+    std::fs::read(format!("/proc/{pid}/environ"))
+        .map(|bytes| {
+            bytes
+                .split(|b| *b == 0)
+                .filter_map(|entry| {
+                    let entry = String::from_utf8_lossy(entry);
+                    let (key, value) = entry.split_once('=')?;
+                    Some((key.to_string(), value.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Returns the directories of a colon-separated list, such as `QT_PLUGIN_PATH`, without the empty
+/// entries.
+fn split_paths(value: Option<&String>) -> Vec<PathBuf> {
+    value
+        .map(|v| {
+            v.split(':')
+                .filter(|p| !p.is_empty())
+                .map(PathBuf::from)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Returns the paths at which KWin may find the plugin file of an effect, in the order they are
+/// looked at.
+///
+/// The directories are those of `QT_PLUGIN_PATH` in KWin's environment (`kwin_env`), then those of
+/// `QT_PLUGIN_PATH` in this process's environment, then the places NixOS and the common
+/// distributions put Qt 6 plugins, then `~/.local/lib/qt6/plugins`. Each path is
+/// `<dir>/kwin/effects/plugins/<file>`.
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use std::path::Path;
+///
+/// let kwin_env = HashMap::from([("QT_PLUGIN_PATH".to_string(), "/opt/qt/plugins".to_string())]);
+/// let candidates = komorebi::check::plugin_candidates(&kwin_env, "kwin4_effect_shapecorners.so");
+///
+/// let first = Path::new("/opt/qt/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so");
+/// assert_eq!(candidates[0], first);
+///
+/// let nixos = Path::new("/run/current-system/sw/lib/qt-6/plugins")
+///     .join("kwin/effects/plugins/kwin4_effect_shapecorners.so");
+/// assert!(candidates.contains(&nixos));
+/// ```
+pub fn plugin_candidates(
+    kwin_env: &std::collections::HashMap<String, String>,
+    file: &str,
+) -> Vec<PathBuf> {
+    let mut dirs = split_paths(kwin_env.get("QT_PLUGIN_PATH"));
+    dirs.extend(split_paths(std::env::var("QT_PLUGIN_PATH").ok().as_ref()));
+    for fixed in [
+        "/run/current-system/sw/lib/qt-6/plugins",
+        "/usr/lib/qt6/plugins",
+        "/usr/lib64/qt6/plugins",
+        "/usr/lib/x86_64-linux-gnu/qt6/plugins",
+        "/usr/lib/aarch64-linux-gnu/qt6/plugins",
+    ] {
+        dirs.push(PathBuf::from(fixed));
+    }
+    if let Some(home) = dirs::home_dir() {
+        dirs.push(home.join(".local/lib/qt6/plugins"));
+    }
+
+    dirs.into_iter()
+        .map(|dir| dir.join("kwin/effects/plugins").join(file))
+        .collect()
+}
+
+/// Returns the paths at which KWin may find the script of a scripted effect, in the order KWin
+/// looks: the user's data directory, then each of the system's.
+///
+/// The user's directory is `XDG_DATA_HOME` in KWin's environment (`kwin_env`), else this process's
+/// data directory; the system's are `XDG_DATA_DIRS` in KWin's environment, else `/usr/local/share`
+/// and `/usr/share`. The places Nix installs to follow, which a process started outside a login
+/// does not have in its `XDG_DATA_DIRS` but KWin, started by the session, does. A directory named
+/// twice is looked at once. Each path is `<dir>/kwin/effects/<effect>/contents/code/main.js`.
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use std::path::Path;
+///
+/// let kwin_env = HashMap::from([
+///     ("XDG_DATA_HOME".to_string(), "/home/me/.local/share".to_string()),
+///     ("XDG_DATA_DIRS".to_string(), "/usr/share".to_string()),
+/// ]);
+/// let candidates =
+///     komorebi::check::script_effect_candidates(&kwin_env, "kwin4_effect_geometry_change");
+///
+/// let script = "kwin/effects/kwin4_effect_geometry_change/contents/code/main.js";
+/// assert_eq!(candidates[0], Path::new("/home/me/.local/share").join(script));
+/// assert_eq!(candidates[1], Path::new("/usr/share").join(script));
+/// ```
+pub fn script_effect_candidates(
+    kwin_env: &std::collections::HashMap<String, String>,
+    effect: &str,
+) -> Vec<PathBuf> {
+    let mut dirs = vec![];
+
+    match kwin_env.get("XDG_DATA_HOME").filter(|d| !d.is_empty()) {
+        Some(home) => dirs.push(PathBuf::from(home)),
+        None => dirs.extend(dirs::data_dir()),
+    }
+
+    let system = split_paths(kwin_env.get("XDG_DATA_DIRS"));
+    if system.is_empty() {
+        dirs.push(PathBuf::from("/usr/local/share"));
+        dirs.push(PathBuf::from("/usr/share"));
+    } else {
+        dirs.extend(system);
+    }
+
+    // where Nix puts what is installed, which a process started outside a login does not have in
+    // its XDG_DATA_DIRS but KWin, started by the session, does
+    dirs.push(PathBuf::from("/run/current-system/sw/share"));
+    dirs.push(PathBuf::from("/nix/var/nix/profiles/default/share"));
+    if let Some(home) = dirs::home_dir() {
+        dirs.push(home.join(".nix-profile/share"));
+    }
+    if let Ok(user) = std::env::var("USER") {
+        dirs.push(PathBuf::from(format!(
+            "/etc/profiles/per-user/{user}/share"
+        )));
+    }
+
+    // one copy is one copy, however many ways there are to name where it is
+    let mut seen = BTreeSet::new();
+    dirs.retain(|dir| seen.insert(dir.clone()));
+
+    dirs.into_iter()
+        .map(|dir| {
+            dir.join("kwin/effects")
+                .join(effect)
+                .join("contents/code/main.js")
+        })
+        .collect()
+}
+
+/// The plugin id of KDE Rounded Corners, the border effect.
+const BORDER_EFFECT: &str = "kwin4_effect_shapecorners";
+/// The plugin id of Geometry Change, the animation effect.
+const ANIMATION_EFFECT: &str = "kwin4_effect_geometry_change";
+/// The D-Bus interface of komorebi's build of the border effect, whose name is in its plugin file.
+const COLOURS_INTERFACE: &[u8] = b"org.komorebi.BorderColours1";
+
+/// Returns the findings about the border effect, KDE Rounded Corners: whether KWin has it, and
+/// whether it is komorebi's build, which takes a color for each window.
+///
+/// `supported` is KWin's answer to `isEffectSupported` (`None` when there was none). The build is
+/// komorebi's when its object is on the bus (`on_bus`, true once the effect is loaded) or when the
+/// plugin file KWin would load ([`plugin_candidates`]) contains the name of its interface. The
+/// stock one has a color for the active window and one for the others. What is missing is a
+/// [`Level::Warning`] when the configuration asks for borders, and a [`Level::Note`] when it does
+/// not.
+fn border_effect_findings(
+    supported: Option<bool>,
+    kwin_env: &std::collections::HashMap<String, String>,
+    wants: &Wants,
+    on_bus: bool,
+) -> Vec<Finding> {
+    let mut findings = vec![];
+    let installed = supported.unwrap_or(false);
+
+    if !installed {
+        let finding = if wants.borders {
+            Finding::warning(
+                "the border effect (KDE Rounded Corners) is not installed: no borders will be drawn",
+            )
+        } else {
+            Finding::note(
+                "the border effect (KDE Rounded Corners) is not installed (borders are off anyway)",
+            )
+        };
+        findings.push(
+            finding.hint("komorebi's nix/kde-rounded-corners.nix builds the one it is made for"),
+        );
+        return findings;
+    }
+
+    let candidates = plugin_candidates(kwin_env, "kwin4_effect_shapecorners.so");
+    let plugin = candidates.iter().find(|p| p.exists());
+
+    let patched = on_bus || plugin.is_some_and(|plugin| file_contains(plugin, COLOURS_INTERFACE));
+
+    if patched {
+        findings.push(Finding::ok(
+            "the border effect is komorebi's build: every kind of window has its own color",
+        ));
+    } else if plugin.is_some() || wants.borders {
+        let finding = if wants.borders {
+            Finding::warning(
+                "the border effect is the stock one: borders have two colors, one for the focused window and one for the rest",
+            )
+        } else {
+            Finding::note(
+                "the border effect is the stock one (borders are off, so it does not matter)",
+            )
+        };
+        findings.push(
+            finding.hint(
+                "single, stack, monocle, floating and locked-container colors need komorebi's build of KDE Rounded Corners (nix/kde-rounded-corners.nix)",
+            ),
+        );
+    } else {
+        findings.push(Finding::note("the border effect is installed"));
+    }
+
+    findings
+}
+
+/// Returns the findings about the animation effect, Geometry Change: whether KWin has it, and
+/// whether the copy KWin uses is komorebi's build, which reads its curve from a `Curve` setting.
+///
+/// `supported` is KWin's answer to `isEffectSupported` (`None` when there was none). The copy KWin
+/// uses is the first of [`script_effect_candidates`] that exists, and it is komorebi's build when
+/// its script reads `Curve`. The stock one eases out exponentially and nothing else, which is a
+/// [`Level::Warning`] only when the configuration asks for another `animation.style`. A later
+/// copy that is not the same build as the one KWin uses is a warning too: the user's copy hides
+/// the system's.
+fn animation_effect_findings(
+    supported: Option<bool>,
+    kwin_env: &std::collections::HashMap<String, String>,
+    wants: &Wants,
+) -> Vec<Finding> {
+    let mut findings = vec![];
+
+    if !supported.unwrap_or(false) {
+        let finding = if wants.animation.is_some() {
+            Finding::warning(
+                "the animation effect (Geometry Change) is not installed: windows will not be animated",
+            )
+        } else {
+            Finding::note(
+                "the animation effect (Geometry Change) is not installed (animations are off anyway)",
+            )
+        };
+        findings.push(finding.hint(
+            "it is a KWin script effect: install the `kwin4_effect_geometry_change` package",
+        ));
+        return findings;
+    }
+
+    let candidates = script_effect_candidates(kwin_env, ANIMATION_EFFECT);
+    let found: Vec<&PathBuf> = candidates.iter().filter(|p| p.exists()).collect();
+    let curve = |path: &Path| file_contains(path, b"readConfig(\"Curve\"");
+
+    match found.first() {
+        None => findings.push(Finding::note("the animation effect is installed")),
+        Some(first) => {
+            let patched = curve(first);
+
+            if patched {
+                findings.push(Finding::ok(
+                    "the animation effect is komorebi's build: every `animation.style` is a curve of its own",
+                ));
+            } else if wants
+                .animation
+                .as_deref()
+                .is_some_and(|s| s != "EaseOutExpo")
+            {
+                findings.push(
+                    Finding::warning(format!(
+                        "the animation effect is the stock one: `animation.style` \"{}\" is ignored, windows ease out exponentially",
+                        wants.animation.clone().unwrap_or_default()
+                    ))
+                    .hint("komorebi's build (nix/kwin-effect-geometry-change.nix) reads the curve"),
+                );
+            } else {
+                findings.push(Finding::note(
+                    "the animation effect is the stock one: it eases out exponentially",
+                ));
+            }
+
+            // KWin takes the first copy it finds, and the user's own comes before the system's
+            if let Some(shadowed) = found.iter().skip(1).find(|p| curve(p) != patched) {
+                findings.push(
+                    Finding::warning(format!(
+                        "{} is used, and shadows {}, which is not the same build",
+                        first.display(),
+                        shadowed.display()
+                    ))
+                    .hint("delete the copy in your home directory if it is not meant to be there, and log in again"),
+                );
+            }
+        }
+    }
+
+    findings
+}
+
+/// Returns the output of the future, or `None` when it does not finish within two seconds.
+async fn within<T>(future: impl std::future::Future<Output = T>) -> Option<T> {
+    tokio::time::timeout(Duration::from_secs(2), future)
+        .await
+        .ok()
+}
+
+/// Returns the findings about the session, KWin, komorebi and its script, the effects and, when
+/// there are wallpapers, the Plasma shell.
+///
+/// It stops at the first finding everything after it depends on: no session bus, a bus that does
+/// not answer, or no KWin on it. Every D-Bus call has two seconds to answer ([`within`]).
+async fn desktop_findings(wants: &Wants) -> Vec<Finding> {
+    use zbus::Connection;
+    use zbus::proxy::Proxy;
+
+    let mut findings = vec![];
+
+    // the session
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
+    if desktop.to_uppercase().contains("KDE") {
+        findings.push(Finding::ok("this is a KDE Plasma session"));
+    } else {
+        findings.push(Finding::warning(format!(
+            "this does not look like a KDE Plasma session (XDG_CURRENT_DESKTOP is \"{desktop}\")"
+        )));
+    }
+
+    let wayland = std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t == "wayland")
+        || std::env::var_os("WAYLAND_DISPLAY").is_some();
+    if wayland {
+        findings.push(Finding::ok("it is a Wayland session"));
+    } else {
+        findings.push(
+            Finding::warning("this is not a Wayland session")
+                .hint("komorebi is made for and tried on KWin on Wayland"),
+        );
+    }
+
+    // the bus, and KWin on it
+    let connection = match within(Connection::session()).await {
+        Some(Ok(connection)) => connection,
+        _ => {
+            findings.push(Finding::error("could not connect to the session bus").hint(
+                "DBUS_SESSION_BUS_ADDRESS has to be that of the desktop session (not so over ssh)",
+            ));
+            return findings;
+        }
+    };
+
+    let Ok(dbus) = zbus::fdo::DBusProxy::new(&connection).await else {
+        findings.push(Finding::error("the session bus does not answer"));
+        return findings;
+    };
+
+    let has_owner = |name: &'static str| {
+        let dbus = dbus.clone();
+        async move {
+            let name = zbus::names::BusName::try_from(name).ok()?;
+            within(dbus.name_has_owner(name)).await?.ok()
+        }
+    };
+
+    if has_owner("org.kde.KWin").await != Some(true) {
+        findings.push(
+            Finding::error("KWin is not on the session bus")
+                .hint("komorebi works through KWin and nothing else"),
+        );
+        return findings;
+    }
+
+    // KWin: which, and the environment it looks for effects in
+    let kwin_name = zbus::names::BusName::try_from("org.kde.KWin").ok();
+    let kwin_pid = match kwin_name {
+        Some(name) => within(dbus.get_connection_unix_process_id(name))
+            .await
+            .and_then(Result::ok),
+        None => None,
+    };
+    let kwin_env = kwin_pid.map(environment_of).unwrap_or_default();
+
+    let kwin = Proxy::new(&connection, "org.kde.KWin", "/KWin", "org.kde.KWin")
+        .await
+        .ok();
+    let information = match &kwin {
+        Some(kwin) => within(kwin.call::<_, _, String>("supportInformation", &()))
+            .await
+            .and_then(Result::ok)
+            .unwrap_or_default(),
+        None => String::new(),
+    };
+    let version = information
+        .lines()
+        .find_map(|l| l.strip_prefix("KWin version: "))
+        .map(str::trim);
+
+    match version.and_then(|v| v.split('.').next()?.parse::<u32>().ok()) {
+        Some(major) if major >= 6 => findings.push(Finding::ok(format!(
+            "KWin {} is there",
+            version.unwrap_or_default()
+        ))),
+        Some(_) => findings.push(
+            Finding::error(format!("KWin {} is too old", version.unwrap_or_default()))
+                .hint("komorebi needs KWin 6 (Plasma 6)"),
+        ),
+        None => findings.push(Finding::note(
+            "KWin is there (its version could not be read)",
+        )),
+    }
+
+    // komorebi itself, and its script in KWin
+    let running = std::os::unix::net::UnixStream::connect(DATA_DIR.join("komorebi.sock")).is_ok();
+    let scripting = Proxy::new(
+        &connection,
+        "org.kde.KWin",
+        "/Scripting",
+        "org.kde.kwin.Scripting",
+    )
+    .await
+    .ok();
+    let script_loaded = match &scripting {
+        Some(scripting) => {
+            within(scripting.call::<_, _, bool>("isScriptLoaded", &("komorebi-bridge",)))
+                .await
+                .and_then(Result::ok)
+        }
+        None => None,
+    };
+
+    match (running, script_loaded) {
+        (true, Some(true)) => findings.push(Finding::ok(
+            "komorebi is running, and its script is in KWin",
+        )),
+        (true, _) => findings.push(
+            Finding::error("komorebi is running but its script is not in KWin")
+                .hint("see `komorebic log`; restarting komorebi loads it again"),
+        ),
+        (false, Some(true)) => findings.push(
+            Finding::warning("komorebi is not running, but a script of it is still in KWin")
+                .hint("starting komorebi replaces it"),
+        ),
+        (false, _) => {
+            findings.push(Finding::note("komorebi is not running").hint("`komorebic start`"))
+        }
+    }
+
+    // the effects
+    let effects = Proxy::new(
+        &connection,
+        "org.kde.KWin",
+        "/Effects",
+        "org.kde.kwin.Effects",
+    )
+    .await
+    .ok();
+    let supported = |name: &'static str| {
+        let effects = effects.clone();
+        async move {
+            let effects = effects?;
+            within(effects.call::<_, _, bool>("isEffectSupported", &(name,)))
+                .await
+                .and_then(Result::ok)
+        }
+    };
+
+    // komorebi's border effect puts an object on KWin's name once it is loaded
+    let colours_on_bus = match Proxy::new(
+        &connection,
+        "org.kde.KWin",
+        "/org/komorebi/BorderColours",
+        "org.freedesktop.DBus.Introspectable",
+    )
+    .await
+    {
+        Ok(proxy) => within(proxy.call::<_, _, String>("Introspect", &()))
+            .await
+            .and_then(Result::ok)
+            .is_some_and(|xml| xml.contains("org.komorebi.BorderColours1")),
+        Err(_) => false,
+    };
+
+    findings.extend(border_effect_findings(
+        supported(BORDER_EFFECT).await,
+        &kwin_env,
+        wants,
+        colours_on_bus,
+    ));
+    findings.extend(animation_effect_findings(
+        supported(ANIMATION_EFFECT).await,
+        &kwin_env,
+        wants,
+    ));
+
+    // the shell, for wallpapers
+    if wants.wallpapers {
+        if has_owner("org.kde.plasmashell").await == Some(true) {
+            findings.push(Finding::ok("the Plasma shell is there, for the wallpapers"));
+        } else {
+            findings.push(
+                Finding::warning("the Plasma shell is not on the bus: wallpapers will not be set")
+                    .hint("komorebi asks for them again for half a minute after it starts, for a shell that is late"),
+            );
+        }
+    }
+
+    findings
+}
+
+/// Returns what starts komorebi at login: an autostart entry
+/// (`~/.config/autostart/komorebi.desktop`), else a systemd user unit (the user's, then
+/// `/etc/systemd/user`, then NixOS's), else a [`Level::Note`] that nothing does.
+fn autostart_findings() -> Vec<Finding> {
+    let entry = dirs::config_dir().map(|d| d.join("autostart/komorebi.desktop"));
+    let unit = [
+        dirs::config_dir().map(|d| d.join("systemd/user/komorebi.service")),
+        Some(PathBuf::from("/etc/systemd/user/komorebi.service")),
+        Some(PathBuf::from(
+            "/run/current-system/etc/systemd/user/komorebi.service",
+        )),
+    ];
+
+    if let Some(entry) = entry.filter(|e| e.exists()) {
+        vec![Finding::ok(format!(
+            "komorebi is started at login by {}",
+            entry.display()
+        ))]
+    } else if let Some(unit) = unit.into_iter().flatten().find(|u| u.exists()) {
+        vec![Finding::ok(format!(
+            "komorebi is started at login by {}",
+            unit.display()
+        ))]
+    } else {
+        vec![Finding::note("komorebi is not started at login").hint("`komorebic enable-autostart`")]
+    }
+}
+
+/// Returns the findings about the desktop komorebi runs on, for a configuration that asks for
+/// `wants`.
+///
+/// It looks, in this order, at: the session (KDE Plasma, Wayland); the session bus and KWin on it,
+/// and KWin's version (KWin 6 is needed); whether komorebi is running and its script is in KWin;
+/// the border and animation effects, and whether each is komorebi's build; the Plasma shell, when
+/// there are wallpapers; and what starts komorebi at login. No session bus, or no KWin on it, is a
+/// [`Level::Error`], and the findings about the desktop stop there; the one about what starts
+/// komorebi comes last in any case.
+///
+/// Where KWin looks for effects is read from KWin's environment (`/proc/<pid>/environ` of the
+/// process that owns `org.kde.KWin`), so the answer is KWin's and not that of the shell the command
+/// is typed in. Every D-Bus call has two seconds to answer.
+///
+/// # Panics
+///
+/// Panics when called from within a tokio runtime: it builds a runtime and blocks on it.
+/// `komorebic` calls it from its synchronous `main`.
+///
+/// # Example
+///
+/// Covered by `komorebic/tests/check.rs::without_a_session_bus_the_desktop_is_an_error` and the
+/// `vm-check` VM suite. The example needs a desktop session, so it is compiled and not run here:
+///
+/// ```rust,no_run
+/// use komorebi::check::Level;
+/// use komorebi::check::Report;
+/// use komorebi::check::Wants;
+/// use komorebi::check::check_environment;
+///
+/// let mut report = Report::default();
+/// report.push("The desktop", check_environment(&Wants::default()));
+///
+/// assert_eq!(report.has_errors(), report.count(Level::Error) > 0);
+/// ```
+pub fn check_environment(wants: &Wants) -> Vec<Finding> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build();
+
+    let mut findings = match runtime {
+        Ok(runtime) => runtime.block_on(desktop_findings(wants)),
+        Err(error) => vec![Finding::error(format!("could not start to look: {error}"))],
+    };
+
+    findings.extend(autostart_findings());
+    findings
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     fn texts(findings: &[Finding]) -> String {
         findings
@@ -1210,6 +1817,106 @@ mod tests {
             .filter(|f| f.level >= Level::Warning)
             .collect();
         assert!(mistakes.is_empty(), "{}", texts(&findings));
+    }
+
+    #[test]
+    fn the_effects_are_told_apart_by_what_they_contain() {
+        let dir = std::env::temp_dir().join(format!("kmc-effects-{}", std::process::id()));
+        let stock = dir.join("system/kwin/effects/kwin4_effect_geometry_change/contents/code");
+        let user = dir.join("home/kwin/effects/kwin4_effect_geometry_change/contents/code");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&stock).unwrap();
+        std::fs::create_dir_all(&user).unwrap();
+        std::fs::write(
+            stock.join("main.js"),
+            "this.curve = QEasingCurve[effect.readConfig(\"Curve\", \"OutExpo\")];",
+        )
+        .unwrap();
+        std::fs::write(user.join("main.js"), "curve: QEasingCurve.OutExpo").unwrap();
+
+        let env: HashMap<String, String> = [
+            (
+                "XDG_DATA_HOME".to_string(),
+                dir.join("home").display().to_string(),
+            ),
+            (
+                "XDG_DATA_DIRS".to_string(),
+                dir.join("system").display().to_string(),
+            ),
+        ]
+        .into();
+
+        let wants = Wants {
+            animation: Some("Linear".into()),
+            ..Wants::default()
+        };
+        let findings = animation_effect_findings(Some(true), &env, &wants);
+        let text = texts(&findings);
+
+        // the user's copy comes first, is the stock effect, and hides the one that has the curve
+        assert!(text.contains("Warning: the animation effect is the stock one: `animation.style` \"Linear\" is ignored"), "{text}");
+        assert!(
+            text.contains("shadows") && text.contains("system/kwin/effects"),
+            "{text}"
+        );
+
+        // without the user's copy it is komorebi's build
+        std::fs::remove_file(user.join("main.js")).unwrap();
+        let findings = animation_effect_findings(Some(true), &env, &wants);
+        assert_eq!(findings.len(), 1, "{}", texts(&findings));
+        assert_eq!(findings[0].level, Level::Ok);
+
+        // not installed: a warning when animations are on, a note when they are not
+        assert_eq!(
+            animation_effect_findings(Some(false), &env, &wants)[0].level,
+            Level::Warning
+        );
+        assert_eq!(
+            animation_effect_findings(None, &env, &Wants::default())[0].level,
+            Level::Note
+        );
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_border_effect_is_komorebis_when_it_has_the_colours_interface() {
+        let dir = std::env::temp_dir().join(format!("kmc-border-{}", std::process::id()));
+        let plugins = dir.join("kwin/effects/plugins");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&plugins).unwrap();
+
+        let env: HashMap<String, String> =
+            [("QT_PLUGIN_PATH".to_string(), dir.display().to_string())].into();
+        let wants = Wants {
+            borders: true,
+            ..Wants::default()
+        };
+
+        std::fs::write(
+            plugins.join("kwin4_effect_shapecorners.so"),
+            b"\x7fELF stock effect",
+        )
+        .unwrap();
+        let findings = border_effect_findings(Some(true), &env, &wants, false);
+        assert_eq!(findings[0].level, Level::Warning, "{}", texts(&findings));
+
+        std::fs::write(
+            plugins.join("kwin4_effect_shapecorners.so"),
+            b"\x7fELF org.komorebi.BorderColours1 more",
+        )
+        .unwrap();
+        let findings = border_effect_findings(Some(true), &env, &wants, false);
+        assert_eq!(findings[0].level, Level::Ok, "{}", texts(&findings));
+
+        // or it is on the bus
+        std::fs::remove_file(plugins.join("kwin4_effect_shapecorners.so")).unwrap();
+        assert_eq!(
+            border_effect_findings(Some(true), &HashMap::new(), &wants, true)[0].level,
+            Level::Ok
+        );
+
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
