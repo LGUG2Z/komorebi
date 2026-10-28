@@ -10,6 +10,6 @@
 
   # The newest KWin that every VM suite has passed against. A commit that raises it says which
   # suites ran, and against which nixpkgs (CONTRIBUTING.md).
-  # 2026-10-27: every VM suite, nixpkgs-unstable d3b13ad (2026-10-24), KWin 6.8.1.
-  testedMax = "6.8.1";
+  # 2026-10-28: every VM suite, nixpkgs-unstable f05535a (2026-10-27), KWin 6.8.2.
+  testedMax = "6.8.2";
 }

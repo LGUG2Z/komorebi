@@ -8,7 +8,9 @@ missing.
 
 Facts that change with KWin and Plasma releases are dated. Unless a fact says otherwise, it
 was measured with KWin 6.8.1, Plasma 6.8.1 and Qt 6.12.0 from nixpkgs `d3b13ad`
-(2026-10-24), in NixOS virtual machines under QEMU on an Apple silicon Mac (HVF).
+(2026-10-24), in NixOS virtual machines under QEMU on an Apple silicon Mac (HVF). The VM
+tests of this repository run against the nixpkgs that `flake.lock` pins: at time of writing
+(2026-10-28), `f05535a` (2026-10-27), with KWin 6.8.2, Plasma 6.8.2 and Qt 6.12.0.
 
 ## Vocabulary
 
@@ -40,9 +42,9 @@ was measured with KWin 6.8.1, Plasma 6.8.1 and Qt 6.12.0 from nixpkgs `d3b13ad`
 KWin 6.8 is the oldest KWin komorebi supports. komorebi's workspaces are KWin's virtual
 desktops, one shown on each output, which needs the per-output virtual desktops KWin 6.8
 introduced (`workspace.currentDesktopForScreen`, `workspace.setCurrentDesktopForScreen`, and
-the setting `[Windows] PerOutputVirtualDesktops` in `kwinrc`). At time of writing (2026-10-27)
-KWin 6.8.1 is the only version komorebi has been run against; 6.7 and older have not been
-tried.
+the setting `[Windows] PerOutputVirtualDesktops` in `kwinrc`). At time of writing (2026-10-28)
+komorebi has been run against KWin 6.8.1 (the spikes) and 6.8.2 (every VM suite); 6.7 and older
+have not been tried.
 
 ### Per-output virtual desktops
 
@@ -92,7 +94,7 @@ komorebi's use of them in a headless KWin:
 
 [`nix/supported-kwin.nix`](../../nix/supported-kwin.nix) records both ends: `min`, the oldest
 KWin komorebi supports (6.8), and `testedMax`, the newest KWin every VM suite has passed against
-(6.8.1, with nixpkgs-unstable `d3b13ad`). The NixOS module reads the file. A system whose KWin
+(6.8.2, with nixpkgs-unstable `f05535a`). The NixOS module reads the file. A system whose KWin
 is older than `min` does not evaluate; one whose KWin is newer than `testedMax` builds with a
 warning, unless `services.komorebi.kwin.untestedIsError` is set, which makes it an error. Outside
 NixOS nothing checks the version.
@@ -193,13 +195,13 @@ Some of what the bridge reports is the user's doing, not the answer to a command
 shortcut) alike, and the bridge reports a window as maximized only when it is maximized both
 ways (`maximizeMode` 3): a window maximized in one direction is a restored window to komorebi.
 The VM test `vm-user-maximize` maximizes windows with `kdotool windowstate`, in both directions,
-and passes against KWin 6.8.1 at time of writing (2026-10-27).
+and passes against KWin 6.8.2 at time of writing (2026-10-28).
 A fullscreen window is reported by `fullScreenChanged`, and komorebi asks KWin for no frame for
 it while it is fullscreen. When it leaves fullscreen KWin gives it the frame it had before,
 whatever komorebi has done to the layout since. The VM test `vm-features` takes a window
 fullscreen with `kdotool windowstate`, and checks that it covers the output, that a window that
 opens meanwhile leaves it there, and that it is in a tile when it comes back. It passes against
-KWin 6.8.1 at time of writing (2026-10-27).
+KWin 6.8.2 at time of writing (2026-10-28).
 
 #### When KWin restarts
 
@@ -665,11 +667,12 @@ At time of writing (2026-10-27):
   is true, and `loadEffect` with `kwin4_effect_shapecorners` on `org.kde.KWin`'s `/Effects`
   loads it. The metadata is compiled into the plugin, which is where the check reads the
   flag, with `qtplugininfo`.
-- **KDE Rounded Corners 0.10.0, the version in nixpkgs, draws the outline about 24 px too low
-  on KWin 6.8**: across the title bar at the top, the same distance below the frame at the
-  bottom, and in the right place at the sides. KWin 6.8 inverted the texture coordinates of
-  the offscreen window, and Breeze's shadow is deeper below a window than above it; the error
-  is the difference of the two. 0.11.0 is the release that handles it.
+- **KDE Rounded Corners 0.10.0 draws the outline about 24 px too low on KWin 6.8**: across
+  the title bar at the top, the same distance below the frame at the bottom, and in the right
+  place at the sides. KWin 6.8 inverted the texture coordinates of the offscreen window, and
+  Breeze's shadow is deeper below a window than above it; the error is the difference of the
+  two. 0.11.0 is the release that handles it. nixpkgs `d3b13ad` (2026-10-24) has 0.10.0 and
+  `f05535a` (2026-10-27) has 0.11.0, which the package here sets as well.
 - **KDE Rounded Corners links `libkwin.so.6`**, so it is built against the KWin that loads
   it. With the package in a NixOS system's `environment.systemPackages`, KWin finds the
   plugin in `/run/current-system/sw/lib/qt-6/plugins/kwin/effects/plugins/`, and the plugin
@@ -840,7 +843,7 @@ and KRDP 6.8.1 and FreeRDP 3.32.2:
 At time of writing (2026-10-28) these are gaps, not findings. Nothing on this page says that
 they work or that they do not.
 
-- KWin before 6.8: only 6.8.1 was run ([KWin 6.8 or newer](#kwin-68-or-newer)).
+- KWin before 6.8: only 6.8.1 and 6.8.2 were run ([KWin 6.8 or newer](#kwin-68-or-newer)).
 - Activities.
 - More outputs than a second one to the right of the first: the geometry was checked, the
   pixels were not.

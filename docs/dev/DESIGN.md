@@ -400,14 +400,16 @@ ordered after `plasma-workspace` (`X-KDE-autostart-after`), as the module's unit
 `plasma-core.target`: the daemon exits when KWin is not on the session bus. The entry and the
 unit do not go together, since the session bus gives its name to one komorebi.
 
-## Why is KDE Rounded Corners built from source, and not taken from nixpkgs?
+## Why does the flake set the version of KDE Rounded Corners?
 
-Because the version in nixpkgs draws its outline in the wrong place on KWin 6.8, the oldest
-KWin komorebi supports. At time of writing (2026-10-27, nixpkgs `d3b13ad`) nixpkgs has
-0.10.0, which puts the outline about 24 px too low, across the title bar. 0.11.0 is the
-release that handles the texture coordinates KWin 6.8 inverted, so
-[`nix/kde-rounded-corners.nix`](../../nix/kde-rounded-corners.nix) overrides the nixpkgs
-package with it ([PLATFORM.md](PLATFORM.md#kwin-effects)).
+Because 0.10.0 draws its outline in the wrong place on KWin 6.8, the oldest KWin komorebi
+supports: about 24 px too low, across the title bar. 0.11.0 is the release that handles the
+texture coordinates KWin 6.8 inverted, so
+[`nix/kde-rounded-corners.nix`](../../nix/kde-rounded-corners.nix) sets the version and the
+source of the nixpkgs package to it ([PLATFORM.md](PLATFORM.md#kwin-effects)). nixpkgs `d3b13ad`
+(2026-10-24) has 0.10.0 and `f05535a` (2026-10-27) has 0.11.0, so at time of writing
+(2026-10-28) setting them changes nothing. The package still sets them, because the patch that
+gives each window its own color is written for the 0.11.0 source.
 
 ## Why are the effects built disabled by default?
 

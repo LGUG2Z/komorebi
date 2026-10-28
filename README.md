@@ -71,7 +71,7 @@ per architecture, with a `checksums.txt` of SHA-256 sums. The `nightly`
 prerelease is built from `master` every week. CI builds the binaries;
 [`CONTRIBUTING.md`](CONTRIBUTING.md#releases) says how. They use the glibc of
 the system they run on, which has to be 2.39 or newer at time of writing
-(2026-10-27). NixOS cannot run them without
+(2026-10-28). NixOS cannot run them without
 [nix-ld](https://github.com/nix-community/nix-ld); on NixOS, build komorebi
 from this flake instead.
 

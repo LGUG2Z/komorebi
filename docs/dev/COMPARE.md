@@ -585,7 +585,8 @@ This has consequences that are measured, or read from KWin's sources:
   its floating windows and its monocle) when they leave it, so a window they do not manage stays
   visible across workspaces.
 - The floor is KWin 6.8, because per-output desktops arrived there. Older KWin versions were not
-  tested. At time of writing (2026-10-27) the version measured is 6.8.1, in Plasma 6.8.1.
+  tested. At time of writing (2026-10-28) the versions run are 6.8.1 (the spikes) and 6.8.2 (the VM
+  suites), in Plasma 6.8.1 and 6.8.2.
 - komorebi turns `PerOutputVirtualDesktops` on in `kwinrc` when it starts and puts it back when it
   exits. It edits the file itself: `kwriteconfig6` was not on the path of the user service in the
   first live run.
@@ -631,8 +632,8 @@ The limits, as of 2026-10-27:
   of kfw's rules: `single`, `stack`, `monocle`, `floating`, `unfocused` and `unfocused_locked`.
   Without that build, every kind falls back to `single` and `unfocused`, and komorebi says so once in
   its log.
-- At time of writing (2026-10-27) nixpkgs has KDE Rounded Corners 0.10.0, which draws the ring about
-  24 px too low on KWin 6.8 (measured on screenshots of KWin 6.8.1). kfde builds 0.11.0 instead.
+- KDE Rounded Corners 0.10.0 draws the ring about 24 px too low on KWin 6.8 (measured on screenshots
+  of KWin 6.8.1). kfde builds 0.11.0, which nixpkgs has too at time of writing (2026-10-28).
 - KWin finds effects when it starts, so an effect installed later is not loaded until the next
   login.
 

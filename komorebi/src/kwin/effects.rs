@@ -33,8 +33,9 @@
 //! | An effect the user had loaded stays loaded, with the user's settings | [`EffectsState::finish`] unloads only the effects komorebi loaded, and puts the settings back | no test |
 //! | The user's settings of an effect are put back when komorebi stops using it or exits, even after a crash | [`Kwinrc`], which keeps the first value of every key it sets in a backup file | `kwin::kwinrc::tests::a_backup_left_by_a_crash_keeps_the_values_from_before_the_first_run` |
 //!
-//! At time of writing (2026-10-27) the stock KDE Rounded Corners in nixpkgs is 0.10.0, which draws
-//! the border about 24 pixels too low on KWin 6.8; `nix/kde-rounded-corners.nix` builds 0.11.0.
+//! KDE Rounded Corners 0.10.0 draws the border about 24 pixels too low on KWin 6.8, and
+//! `nix/kde-rounded-corners.nix` builds 0.11.0, which does not. At time of writing (2026-10-28)
+//! nixpkgs has 0.11.0 as well.
 
 #![deny(missing_docs)]
 
