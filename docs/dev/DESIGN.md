@@ -355,6 +355,18 @@ one that another platform has: a configuration written for macOS names `applicat
 which a KDE desktop does not have. The daemon warns and goes on. A file that exists and is not an
 applications.json is a mistake in something the user wrote, and is an error.
 
+## Why is a key komorebi does not know a warning, and a value it cannot read an error?
+
+Because one `komorebi.json` is meant to work on every platform, and a key that komorebi for KDE
+does not read may be one that another platform does. serde drops a key the types do not have, so
+loading never fails because of one, and `komorebic check` does not fail for one either: the keys
+only Windows or macOS reads are listed once as a note, and only a key that no platform has is a
+warning, with the nearest key that exists, since it is most likely a typo and komorebi will not
+have done what was meant. A value of the wrong kind is a different matter: the daemon does not
+read the file (a daemon that is running keeps what it had), so the check shows the line and exits
+with status 1. A workspace that is only a name is a warning too: it is not tiled, which is easy to
+do without meaning to.
+
 ## Why does `nix/komorebi-options.nix` start with the hash of the schema?
 
 Because the check that the options are fresh cannot make them again. `schemars-nixgen` makes

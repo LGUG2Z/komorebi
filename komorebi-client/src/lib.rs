@@ -14,7 +14,7 @@
 //! after each event and each message the window manager handles.
 //!
 //! The crate also re-exports the types the messages and the answers are made of, so that a client
-//! needs nothing else.
+//! needs nothing else, and [`check`], the checks `komorebic check` runs.
 //!
 //! # Example
 //!
@@ -58,6 +58,7 @@ pub use komorebi::LOG_DIR;
 pub use komorebi::Notification;
 pub use komorebi::NotificationEvent;
 pub use komorebi::animation::AnimationPrefix;
+pub use komorebi::check;
 pub use komorebi::container::Container;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::Axis;

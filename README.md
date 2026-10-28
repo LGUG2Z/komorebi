@@ -86,14 +86,15 @@ without a checkout of the toolchain.
   unlocked (`monitor_reconciliator`, `reconcile`, `kwin::power`), sends its
   subscribers a notification of each event, message and change of the monitors
   it handles (`notify_subscribers`), and is configured by a `komorebi.json` that
-  it reads and reads again when it changes (`static_config`).
+  it reads and reads again when it changes (`static_config`), and checks it for
+  mistakes without the daemon (`check`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
 - [`komorebic`](komorebic): the command line. A subcommand that asks something
   of the daemon is one message on its socket; `quickstart`, `enable-autostart`,
-  `disable-autostart`, `start`, `configuration`, `log`, `data-directory`, `completions` and
-  the hidden `docgen` work without the daemon.
+  `disable-autostart`, `start`, `check`, `configuration`, `log`, `data-directory`,
+  `completions` and the hidden `docgen` work without the daemon.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -276,6 +277,10 @@ autostart entry that has Plasma start komorebi at login. The Rust types that rea
 (`schema.json`, written by `just jsonschema` and printed by `static-config-schema`), and the
 module's `config` option is typed from that schema (`nix/komorebi-options.nix`, written by
 `just nixgen`), so a configuration written in Nix is checked when it is evaluated.
+`check` reads the file the way the daemon does and says in words what is wrong with it: JSON that
+does not parse, with the line, a value komorebi does not read, a key that is not a setting (with
+the nearest one that is), a workspace that is not tiled, and an applications file that is not
+there. It exits with status 1 if something is an error.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event, each message and each

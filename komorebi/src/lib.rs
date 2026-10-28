@@ -32,6 +32,9 @@
 //! [`struct@DATA_DIR`]: after each event, each message and each change of the monitors the window
 //! manager handles, [`notify_subscribers`] sends every subscriber a [`Notification`] of it, with
 //! the state.
+//!
+//! The checks of `komorebic check`, which read `komorebi.json` without starting the daemon, are in
+//! [`check`].
 
 use crate::core::ApplicationIdentifier;
 use crate::core::DefaultLayout;
@@ -69,6 +72,7 @@ pub mod ring;
 pub mod animation;
 pub mod backend;
 pub mod border_manager;
+pub mod check;
 pub mod container;
 pub mod core;
 pub mod desktop;

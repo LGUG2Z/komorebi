@@ -1110,6 +1110,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "border.md",
             "cancel-preselect.md",
             "change-layout.md",
+            "check.md",
             "clear-all-workspace-rules.md",
             "clear-named-workspace-layout-rules.md",
             "clear-named-workspace-rules.md",

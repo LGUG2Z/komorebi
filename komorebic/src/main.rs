@@ -102,7 +102,9 @@
 //! `applications.json` in the config home, `enable-autostart` and `disable-autostart` write and
 //! remove the entry that has Plasma start komorebi at login, `start` runs `komorebi` in the
 //! background, with the
-//! `komorebi.json` it is given with `--config`, `configuration` shows the path of the
+//! `komorebi.json` it is given with `--config`, `check` reads the `komorebi.json` the daemon would
+//! and reports what is wrong with it, exiting with status 1 if something is an error,
+//! `configuration` shows the path of the
 //! `komorebi.json` the daemon reads, `log` follows its log, `data-directory` shows where its
 //! socket is, `completions` prints a completion script for a shell, and `static-config-schema`,
 //! `application-specific-configuration-schema`, `notification-schema` and `socket-schema` print
@@ -828,6 +830,14 @@ struct Docgen {
 }
 
 #[derive(Parser)]
+struct Check {
+    /// Path to a static configuration JSON file
+    #[clap(action, short, long)]
+    #[clap(value_parser = replace_env_in_path)]
+    komorebi_config: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 struct Completions {
     #[clap(value_enum)]
     shell: clap_complete::Shell,
@@ -853,6 +863,8 @@ enum SubCommand {
     Start(Start),
     /// Stop the komorebi process
     Stop(Stop),
+    /// Check komorebi configuration for common errors
+    Check(Check),
     /// Show the path to komorebi.json
     #[clap(alias = "config")]
     Configuration,
@@ -1443,6 +1455,47 @@ fn main() -> eyre::Result<()> {
                 println!("Deleted {}", target.display());
             } else {
                 println!("There is no autostart entry at {}", target.display());
+            }
+        }
+        SubCommand::Check(args) => {
+            use komorebi_client::check::Finding;
+            use komorebi_client::check::Report;
+
+            let mut report = Report::default();
+
+            // where komorebi looks
+            let mut place = vec![];
+            if std::env::var_os("KOMOREBI_CONFIG_HOME").is_some() {
+                place.push(Finding::note(format!(
+                    "KOMOREBI_CONFIG_HOME is set: looking in {}",
+                    HOME_DIR.display()
+                )));
+            } else {
+                place.push(Finding::note(format!(
+                    "KOMOREBI_CONFIG_HOME is not set: looking in {}",
+                    HOME_DIR.display()
+                )));
+            }
+
+            let static_config = match args.komorebi_config {
+                Some(path) => {
+                    place.push(Finding::note(format!(
+                        "using the configuration file given with --komorebi-config: {}",
+                        path.display()
+                    )));
+                    path
+                }
+                None => HOME_DIR.join("komorebi.json"),
+            };
+
+            let (findings, _) = komorebi_client::check::check_configuration(&static_config);
+            place.extend(findings);
+            report.push("Configuration", place);
+
+            print!("{}", report.render());
+
+            if report.has_errors() {
+                std::process::exit(1);
             }
         }
         SubCommand::Start(args) => {

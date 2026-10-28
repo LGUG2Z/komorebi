@@ -951,12 +951,34 @@ One `komorebi.json` is meant for every platform komorebi runs on, so [`StaticCon
 mean nothing on KDE Plasma are fields that nothing reads. `StaticConfig::from(&WindowManager)`
 goes the other way, for `GenerateStaticConfig`.
 
+Because a key that is not read is dropped without a word, `komorebic check` is how a typo is
+found. The checks are in [`check`], and they return [`Finding`]s (a [`Level`], a message, and a hint)
+that `komorebic` gathers in a [`Report`]: [`check_configuration`] reads the file as JSON, then as a
+[`StaticConfig`], as the daemon does, and an error from either shows the line serde stopped at,
+with the two lines before it ([`snippet`]). [`check_keys`] then compares the keys of the file
+with [`known_keys`], which are read from the schema of [`StaticConfig`] at the root, in a monitor
+and in a workspace: a key that is in the lists of the other platforms' keys is a note, and any
+other that is not in the schema is a warning with the nearest key (the edit distance, at most
+three). The settings that mean something are looked at too: an application specific
+configuration or a wallpaper that is not there, a wallpaper no theme can be made from, a workspace
+that is only a name, which is not tiled, and a workspace that appends windows to a container and
+has placement rules, which are not used then (the workspace's `window_container_behaviour`, or the
+file's when it has none). [`check_configuration`] also returns the [`Wants`] of the file: whether
+it draws borders, which animation style it asks for and whether it has wallpapers. `komorebic`
+prints [`Report::render`] and exits with status 1 if [`Report::has_errors`].
+
 | Rule | Enforced by | Proof | Escape hatch |
 |---|---|---|---|
 | A key komorebi does not read does not stop a configuration from loading | serde: [`StaticConfig`] ignores unknown keys, and a key of another platform is a field nothing reads | `the_keys_that_do_nothing_on_kde_are_accepted_and_ignored`, `fixtures_load_round_trip_and_only_lose_windows_only_keys` | none |
 | The keys the parity test ignores are keys `StaticConfig` does not read | test: the ignore lists are compared with the schema of [`StaticConfig`] | `the_lists_name_no_key_that_is_read` | none |
 | The example in the docs is the example file, which loads | test | `the_example_in_the_docs_is_the_example_file`, `fixtures_load_round_trip_and_only_lose_windows_only_keys` | none |
 | A path to an applications file that is not there is skipped, and one that is there and is broken is an error | framework path: `handle_asc_file` returns early when the path does not exist, and parses the file otherwise | `a_missing_application_specific_configuration_is_skipped_not_fatal`, `an_application_specific_configuration_that_exists_but_is_broken_is_still_an_error`, `a_file_that_is_not_there_is_skipped_and_one_that_is_broken_is_an_error` | none |
+| A file that is not JSON, or has a value komorebi does not read, is an error that shows the line | framework path: [`check_configuration`] reads the file as JSON, then as a [`StaticConfig`], and an error from either goes through [`snippet`] | `a_file_that_is_not_json_is_an_error_with_the_line`, `a_value_komorebi_does_not_know_is_an_error_with_the_line`, `a_file_that_is_not_json_fails_and_shows_the_line` | none |
+| A key for another platform is a note, and a key that no platform has is a warning with the nearest key | framework path: [`check_keys`] sorts the keys of the file by [`known_keys`] and the lists of the other platforms' keys | `keys_for_another_platform_are_told_apart_from_mistakes`, `a_typo_is_a_warning_with_the_word_that_was_meant_and_does_not_fail` | none |
+| The keys the check knows are the ones komorebi reads, at every level | framework path: [`known_keys`] reads them from the schema of [`StaticConfig`] | `the_keys_come_from_the_schema_at_every_level`, `a_whole_example_configuration_has_nothing_the_check_does_not_know` | built without the `schemars` feature, the check does not look at keys |
+| Placement rules that are not used while windows are appended are a note, and a workspace that creates containers is not told so whatever the file says | framework path: [`check_configuration`] reads the workspace's `window_container_behaviour` before the file's | `placement_rules_that_are_not_used_while_windows_are_appended_are_noted` | none |
+| A wallpaper that is not a file is an error, and a picture no theme can be made from is a warning | framework path: [`check_configuration`] looks at the wallpaper of each monitor and workspace once, and asks the theme generator for a palette when the wallpaper does not turn it off | `a_wallpaper_that_is_not_there_and_a_rules_file_that_is_not_there_are_found`, the `vm-check` VM suite for the warning | none |
+| `komorebic check` exits with status 1 if and only if a finding is an error | framework path: `komorebic` exits through [`Report::has_errors`] | `a_good_configuration_passes`, `a_typo_is_a_warning_with_the_word_that_was_meant_and_does_not_fail`, `a_file_that_is_not_json_fails_and_shows_the_line` | none |
 | The rules of an applications file and of the configuration add up | framework path: both are appended to the process-wide lists | `the_rules_of_the_configuration_and_of_the_file_add_up`, `every_file_of_a_list_is_read` | none |
 | `schema.json` and `schema.asc.json` are what the Rust types print | Nix check `schema-fresh`, and a test that compares them with `komorebic`'s output | `schema-fresh`, `the_schema_files_of_the_repository_are_what_the_subcommands_print` | `just jsonschema` |
 | The options the module is typed with are made from the committed schema | the hash of `schema.json` in the first line of `nix/komorebi-options.nix`, compared by `schema-fresh` | `schema-fresh` | `just nixgen` |
@@ -1229,6 +1251,8 @@ module's unit.
   see-through, and the opacity they are given.
 - [`kwin::effects`](../../komorebi/src/kwin/effects.rs): the KWin effect that draws the border,
   its settings and the state komorebi keeps of it.
+- [`check`](../../komorebi/src/check.rs): the checks behind `komorebic check`, the [`Finding`]s
+  they return and the [`Report`] `komorebic` gathers them in.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
   socket, and what the window manager does with each message.
 - [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with,
@@ -1540,6 +1564,9 @@ A window is shown, and ends up on a tile:
   and the example it evaluates them against; [`komorebi/tests/asc.rs`](../../komorebi/tests/asc.rs)
   the applications files; [`komorebi/src/core/asc.rs`](../../komorebi/src/core/asc.rs) their
   format.
+- [`komorebi/src/check.rs`](../../komorebi/src/check.rs): the checks of `komorebic check`, with
+  their tests; [`komorebic/tests/check.rs`](../../komorebic/tests/check.rs) runs the command on
+  configurations and reads what it prints and its exit status.
 - [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
   does, and the thread that handles them.
 - [`komorebi/src/process_command.rs`](../../komorebi/src/process_command.rs): the socket, what
@@ -1692,6 +1719,17 @@ A window is shown, and ends up on a tile:
 [`StaticConfig::reload`]: ../../komorebi/src/static_config.rs
 [`Workspace::load_static_config`]: ../../komorebi/src/workspace.rs
 [`HOME_DIR`]: ../../komorebi/src/lib.rs
+[`check`]: ../../komorebi/src/check.rs
+[`Finding`]: ../../komorebi/src/check.rs
+[`Level`]: ../../komorebi/src/check.rs
+[`Report`]: ../../komorebi/src/check.rs
+[`Wants`]: ../../komorebi/src/check.rs
+[`Report::render`]: ../../komorebi/src/check.rs
+[`Report::has_errors`]: ../../komorebi/src/check.rs
+[`check_configuration`]: ../../komorebi/src/check.rs
+[`check_keys`]: ../../komorebi/src/check.rs
+[`known_keys`]: ../../komorebi/src/check.rs
+[`snippet`]: ../../komorebi/src/check.rs
 [`WORKSPACE_MATCHING_RULES`]: ../../komorebi/src/lib.rs
 [`WindowManager::enforce_workspace_rules`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::already_moved_window_handles`]: ../../komorebi/src/window_manager.rs

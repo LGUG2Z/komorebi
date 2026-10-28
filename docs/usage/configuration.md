@@ -267,5 +267,7 @@ check-jsonschema --schemafile schema.json ~/.config/komorebi/komorebi.json
 
 `check-jsonschema` reads plain JSON, so comments in the file have to come out first. The schema
 does not stop komorebi from reading a file that does not follow it: a key it does not have is
-dropped, as [above](#one-file-for-every-platform).
+dropped, as [above](#one-file-for-every-platform). [`komorebic check`](checking-the-setup.md)
+reads the file the way the daemon does, and names a key that is not a setting, with the nearest
+one that is.
 
