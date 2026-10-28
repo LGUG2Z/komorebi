@@ -58,6 +58,12 @@
       }
     },
     {
+      "DateLocalized": {
+        "enable": false,
+        "format": "DayDateMonthYear"
+      }
+    },
+    {
       "Time": {
         "enable": true,
         "format": "TwentyFourHour"

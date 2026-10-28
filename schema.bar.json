@@ -2655,6 +2655,74 @@
         }
       ]
     },
+    "DateLocalizedConfig": {
+      "description": "Windows-localized date widget configuration.",
+      "type": "object",
+      "properties": {
+        "enable": {
+          "description": "Enable the DateLocalized widget.",
+          "type": "boolean"
+        },
+        "format": {
+          "description": "Windows date-picture format.",
+          "$ref": "#/$defs/DateLocalizedFormat"
+        },
+        "label_prefix": {
+          "description": "Display label prefix.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LabelPrefix"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "enable",
+        "format"
+      ]
+    },
+    "DateLocalizedFormat": {
+      "description": "Windows date-picture format.",
+      "oneOf": [
+        {
+          "description": "Month/Date/Year format.",
+          "type": "string",
+          "const": "MonthDateYear"
+        },
+        {
+          "description": "Year-Month-Date format.",
+          "type": "string",
+          "const": "YearMonthDate"
+        },
+        {
+          "description": "Date-Month-Year format.",
+          "type": "string",
+          "const": "DateMonthYear"
+        },
+        {
+          "description": "Day Date Month Year format.",
+          "type": "string",
+          "const": "DayDateMonthYear"
+        },
+        {
+          "title": "Custom",
+          "description": "Custom Windows date-picture format, not a Chrono/strftime format.",
+          "type": "object",
+          "properties": {
+            "Custom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Custom"
+          ]
+        }
+      ]
+    },
     "DefaultLayout": {
       "description": "A predefined komorebi layout",
       "oneOf": [
@@ -9562,6 +9630,20 @@
           "additionalProperties": false,
           "required": [
             "Date"
+          ]
+        },
+        {
+          "title": "DateLocalized",
+          "description": "Windows-localized date widget configuration",
+          "type": "object",
+          "properties": {
+            "DateLocalized": {
+              "$ref": "#/$defs/DateLocalizedConfig"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "DateLocalized"
           ]
         },
         {
