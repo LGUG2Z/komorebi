@@ -73,7 +73,9 @@ use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core::pathext::ResolvedPathBuf;
+use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor_reconciliator;
 use crate::ring::Ring;
 use crate::theme_manager;
 use crate::transparency_manager;
@@ -1364,6 +1366,13 @@ impl StaticConfig {
                     }
                 }
 
+                // Check if this monitor config is the preferred config for this monitor and store
+                // a copy of the monitor itself on the monitor cache if it is.
+                if idx == preferred_config_idx {
+                    let id = &monitor.serial_number_id;
+                    monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
+                }
+
                 let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
                 for (j, ws) in monitor_config.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
@@ -1387,6 +1396,53 @@ impl StaticConfig {
                             });
                         }
                     }
+                }
+            }
+        }
+
+        // Check for configs that should be tied to a specific display that isn't loaded right now
+        // and cache a monitor with those configs with the specific `serial_number_id` so that when
+        // those devices are connected later we can use the correct config from the cache.
+        if configs_with_preference.len() > configs_used.len() {
+            for i in configs_with_preference
+                .iter()
+                .filter(|i| !configs_used.contains(i))
+            {
+                let id = {
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                    display_index_preferences.get(i).cloned()
+                };
+                if let (Some(id), Some(monitor_config)) =
+                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                {
+                    // The device and serial_number_id can be empty here since once the monitor
+                    // with this preferred index actually connects the `load_monitor_information`
+                    // function will update these fields.
+                    let mut m =
+                        monitor::new(0, Rect::default(), Rect::default(), "".into(), "".into());
+
+                    m.ensure_workspace_count(monitor_config.workspaces.len());
+                    m.work_area_offset = monitor_config.work_area_offset;
+                    m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
+                    m.window_based_work_area_offset_limit = monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1);
+                    m.container_padding = monitor_config.container_padding;
+                    m.workspace_padding = monitor_config.workspace_padding;
+                    m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
+
+                    m.update_workspaces_globals(offset);
+
+                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
+                        if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                            ws.load_static_config(
+                                workspace_config,
+                                value.layout_defaults.as_ref(),
+                            )?;
+                        }
+                    }
+
+                    monitor_reconciliator::insert_in_monitor_cache(&id, m);
                 }
             }
         }
@@ -1489,6 +1545,13 @@ impl StaticConfig {
                     }
                 }
 
+                // Check if this monitor config is the preferred config for this monitor and store
+                // a copy of the monitor itself on the monitor cache if it is.
+                if idx == preferred_config_idx {
+                    let id = monitor.serial_number_id.clone();
+                    monitor_reconciliator::insert_in_monitor_cache(&id, monitor.clone());
+                }
+
                 let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
                 for (j, ws) in monitor_config.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
@@ -1512,6 +1575,53 @@ impl StaticConfig {
                             });
                         }
                     }
+                }
+            }
+        }
+
+        // Check for configs that should be tied to a specific display that isn't loaded right now
+        // and cache a monitor with those configs with the specific `serial_number_id` so that when
+        // those devices are connected later we can use the correct config from the cache.
+        if configs_with_preference.len() > configs_used.len() {
+            for i in configs_with_preference
+                .iter()
+                .filter(|i| !configs_used.contains(i))
+            {
+                let id = {
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                    display_index_preferences.get(i).cloned()
+                };
+                if let (Some(id), Some(monitor_config)) =
+                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                {
+                    // The device and serial_number_id can be empty here since once the monitor
+                    // with this preferred index actually connects the `load_monitor_information`
+                    // function will update these fields.
+                    let mut m =
+                        monitor::new(0, Rect::default(), Rect::default(), "".into(), "".into());
+
+                    m.ensure_workspace_count(monitor_config.workspaces.len());
+                    m.work_area_offset = monitor_config.work_area_offset;
+                    m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
+                    m.window_based_work_area_offset_limit = monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1);
+                    m.container_padding = monitor_config.container_padding;
+                    m.workspace_padding = monitor_config.workspace_padding;
+                    m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
+
+                    m.update_workspaces_globals(offset);
+
+                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
+                        if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                            ws.load_static_config(
+                                workspace_config,
+                                value.layout_defaults.as_ref(),
+                            )?;
+                        }
+                    }
+
+                    monitor_reconciliator::insert_in_monitor_cache(&id, m);
                 }
             }
         }

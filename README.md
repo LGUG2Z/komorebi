@@ -82,10 +82,11 @@ without a checkout of the toolchain.
   some elements are locked in place. It answers the messages on the daemon's
   socket (`core::SocketMessage`, `process_command`), shows its state (`state`),
   keeps the monitors in step with the compositor's outputs as they change size
-  (`monitor_reconciliator`), sends its subscribers a notification of each
-  event, message and change of the monitors it handles (`notify_subscribers`),
-  and is configured by a `komorebi.json` that it reads and reads again when it
-  changes (`static_config`).
+  and are unplugged and plugged in (`monitor_reconciliator`, `reconcile`),
+  sends its subscribers a notification of each event, message and change of
+  the monitors it handles (`notify_subscribers`), and is configured by a
+  `komorebi.json` that it reads and reads again when it changes
+  (`static_config`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
@@ -168,7 +169,11 @@ another desktop, the window manager follows.
 When a monitor changes size (a resolution, a scale, a panel that takes more room),
 the bridge reports the outputs again and the monitor reconciliator, a thread of
 the daemon, reads the size and the work area of every monitor and tiles the
-workspace in front of the focused monitor in the area it now has.
+workspace in front of the focused monitor in the area it now has. When an output
+is unplugged, KWin takes its windows to the outputs that are left, and the
+daemon takes the monitor's containers over to the monitors the windows are on,
+tiles them there, and keeps the monitor, with its settings, for when it is
+plugged in again.
 
 The window manager models the desktop as monitors, each with a ring of
 workspaces, each with a ring of containers, each with a ring of windows. A

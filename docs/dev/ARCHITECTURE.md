@@ -335,6 +335,32 @@ reads the size and the work area of every monitor from the backend again
 it has now, and notifies the subscribers ([`NotificationEvent::Monitor`]). Another monitor's
 windows keep their tiles until something tiles them again, such as `Retile`.
 
+A monitor that is unplugged or plugged in changes the set of outputs, and the table announces
+that as a [`MonitorNotification::DisplayConnectionChange`], by the ids of the monitors. KWin has
+already taken the windows of the output that went to the outputs that are left, so komorebi's
+tiles for them are on a screen that is gone and the windows sit untiled where they landed. The
+reconciliator ([`reconcile_display_change`]) reads the monitors from the backend and compares
+them with the window manager's by their serial number ids. For each monitor that went it keeps a
+copy, with its workspaces and settings, in a cache that lives as long as the daemon
+([`insert_in_monitor_cache`]), and has the window manager move what was on it to the monitors
+that are left ([`WindowManager::evacuate_monitor`]). Each container and floating window goes to
+the workspace of the same number on the monitor that now holds the middle of its window's frame,
+or on the first monitor that is left when the window is on none; a stack goes as the container it
+is, and a monocle and a maximized window come as ordinary containers. The monitor is then removed.
+A monitor that is new to the window manager is added by [`load_monitor_information`], and when
+the cache has a monitor with its serial number id, the new monitor takes the cached workspaces and
+settings, less the windows that have closed or that the window manager has elsewhere now, and the
+cache entry is used once. Every monitor then shows the workspace in front again. The
+focused monitor and workspace are focused again, since adding a monitor can take the focus. When
+KWin reports no output at all, nothing is done.
+
+A monitor that goes takes its workspace rules (the entries of [`WORKSPACE_MATCHING_RULES`] that
+name its index) out of the list, and those of the workspaces a cached monitor brings back are
+added again. The configuration fills the cache as well: [`StaticConfig::postload`] and
+[`StaticConfig::reload`] keep a copy of each monitor that has the entry its display index
+preference names, and make a monitor from the entry of each preference whose monitor is not
+connected, so that the monitor takes its entry when it is plugged in.
+
 ## The command socket
 
 The daemon takes messages on a Unix socket, `komorebi.sock` in [`DATA_DIR`]
@@ -1079,8 +1105,11 @@ module's unit.
   channel that carries events from the backend to the window manager, and
   [`listen_for_events`], the thread that takes them off it.
 - [`monitor_reconciliator`](../../komorebi/src/monitor_reconciliator.rs): the channel the KWin
-  backend sends [`MonitorNotification`]s on, and [`listen_for_notifications`], the thread that
-  takes them and has the window manager read the monitors again.
+  backend sends [`MonitorNotification`]s on, [`listen_for_notifications`], the thread that
+  takes them, and [`reconcile_display_change`], which brings the window manager's monitors in
+  line with the outputs;
+  [`reconcile`](../../komorebi/src/reconcile.rs): moves what was on a monitor that went to the
+  monitors that are left.
 - [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
   call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table;
   [`kwin::kwinrc`](../../komorebi/src/kwin/kwinrc.rs), the editor of the user's `kwinrc`, which
@@ -1245,8 +1274,15 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A monitor raised onto the parking desktop is sent back | framework path: the table sends the monitor back to the desktop it showed before | `following_a_hidden_window_to_the_parking_desktop_sends_that_output_back` | none |
 | A clean stop leaves no window hidden and no parking desktop | framework path: [`WindowManager::stop`] and the signal handler restore every hidden window, and the backend's `shutdown` removes the desktop after the restoring commands have gone out | `restoring_every_window_brings_back_the_hidden_ones_unless_it_is_told_to_ignore_that`, `vm-stacks` ("a clean stop puts every window back") | `SIGKILL`, and `StopIgnoreRestore`, which restores nothing |
 | A parking desktop a dead daemon left is swept by the next one, and its windows go home | startup check: the first snapshot marks it stale, sends its windows to the first workspace's desktop, and the backend removes it | `a_parking_desktop_left_by_a_crashed_run_is_swept`, `a_stale_parking_desktop_is_not_the_one_windows_are_hidden_on`, `vm-stacks` ("a crash leaves a parking desktop") | none |
-| A monitor that changes size has the windows of the workspace in front tiled in the size it has now | framework path: the table reports a changed size or work area as a `Resize`, and the reconciliator reads the monitors again and tiles the focused monitor | `a_new_panel_is_a_resize_and_the_same_screens_again_are_nothing`, `a_change_of_resolution_is_tiled_again`, `vm-hotplug` ("tiled again inside the monitor as it is now") | `Retile` tiles every monitor |
+| A monitor that changes size has the windows of the workspace in front tiled in the size it has now | framework path: the table reports a changed size or work area as a `Resize`, and the reconciliator reads the monitors again and tiles the focused monitor | `plugging_in_a_monitor_is_a_connection_change_and_a_new_panel_is_a_resize`, `a_change_of_resolution_is_tiled_again`, `vm-hotplug` ("tiled again inside the monitor as it is now") | `Retile` tiles every monitor |
 | The outputs are sent when they are not what the bridge last sent, and the room a panel leaves is found within a second | convention in the bridge: it sends after `screensChanged`, after a dock window opens, closes or moves, and in its watchdog, which runs every second | `a change of the outputs is sent as the screens, once, and the panel is looked at again`, `a panel that opens, moves or closes has the area of the outputs looked at again`, `the outputs are looked at once a second, which finds a panel that starts after the bridge` | none |
+| The windows of a monitor that is unplugged are tiled on the monitors that are left | framework path: [`reconcile_display_change`] has [`WindowManager::evacuate_monitor`] move each container and floating window to the monitor that holds it, before it removes the monitor | `the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left`, `vm-hotplug` ("tiled inside the screen that is left") | none |
+| A stack moves with its monitor as a stack | framework path: [`WindowManager::evacuate_monitor`] moves whole containers | `a_stack_goes_with_the_monitor_as_a_stack` | none |
+| A monocle or a maximized window of a monitor that goes is not lost | framework path: [`WindowManager::evacuate_monitor`] takes both out of the workspace and puts each in a container on the monitor that is left | `a_monocle_of_a_monitor_that_goes_comes_back_as_a_container_with_the_windows_it_hid`, `a_maximized_window_of_a_monitor_that_goes_is_not_lost` | none |
+| A monitor that is plugged in again has the settings it had, and none of the windows it had | framework path: [`reconcile_display_change`] keeps the monitor in a cache when it goes, and applies it, less the windows the window manager has elsewhere, when a monitor with its serial number id comes | `a_monitor_that_comes_back_gets_what_was_kept_of_it_and_none_of_the_windows_it_had` | none |
+| A monitor komorebi has not seen gets workspaces of its own | framework path: [`load_monitor_information`] adds the monitors the window manager does not have | `a_monitor_that_was_never_there_gets_windows_of_its_own` | none |
+| When KWin reports no output, the window manager keeps the monitors it has | framework path: [`reconcile_display_change`] returns before it removes any | `a_desktop_that_reports_no_monitor_is_left_as_it_was` | none |
+| A monitor is only removed once its windows are on the monitors that are left | framework path: [`reconcile_display_change`] evacuates every monitor that went before it removes any | `the_windows_of_a_monitor_that_goes_are_tiled_on_the_one_that_is_left` | none |
 | A subscriber that wants only changes of the state is sent every change of the monitors | framework path: [`notify_subscribers`] treats a monitor notification as an override of the filter | `a_change_of_the_monitors_is_sent_to_a_subscriber_that_filters_state_changes_too` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
@@ -1472,9 +1508,11 @@ A window is shown, and ends up on a tile:
   corners dragged with a pointer in a Plasma session;
   [`nix/tests/vm/suites/live-resize`](../../nix/tests/vm/suites/live-resize/test.py), the
   neighbors read while the edge is held.
-- [`komorebi/tests/monitor_resize.rs`](../../komorebi/tests/monitor_resize.rs): a monitor that
-  changes size, against the fake; [`nix/tests/vm/suites/hotplug`](../../nix/tests/vm/suites/hotplug/test.py),
-  the same against a real KWin with two outputs.
+- [`komorebi/tests/monitor_resize.rs`](../../komorebi/tests/monitor_resize.rs) and
+  [`komorebi/tests/hotplug.rs`](../../komorebi/tests/hotplug.rs): a monitor that changes size,
+  and monitors that are unplugged and plugged in, against the fake;
+  [`nix/tests/vm/suites/hotplug`](../../nix/tests/vm/suites/hotplug/test.py), both against a real
+  KWin with two outputs.
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
   fake's desktops;
   [`komorebi/tests/workspace_commands.rs`](../../komorebi/tests/workspace_commands.rs), naming,
@@ -1709,6 +1747,11 @@ A window is shown, and ends up on a tile:
 [`MonitorNotification::Resize`]: ../../komorebi/src/monitor_reconciliator.rs
 [`listen_for_notifications`]: ../../komorebi/src/monitor_reconciliator.rs
 [`update_monitor_work_areas`]: ../../komorebi/src/desktop.rs
+[`load_monitor_information`]: ../../komorebi/src/desktop.rs
+[`MonitorNotification::DisplayConnectionChange`]: ../../komorebi/src/monitor_reconciliator.rs
+[`reconcile_display_change`]: ../../komorebi/src/monitor_reconciliator.rs
+[`insert_in_monitor_cache`]: ../../komorebi/src/monitor_reconciliator.rs
+[`WindowManager::evacuate_monitor`]: ../../komorebi/src/reconcile.rs
 [`NotificationEvent::Monitor`]: ../../komorebi/src/lib.rs
 [`bridge.js`]: ../../komorebi/src/kwin/bridge.js
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts

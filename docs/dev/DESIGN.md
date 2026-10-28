@@ -600,3 +600,14 @@ signal is not the final one. The bridge keeps the outputs it last sent and sends
 they are not the same, so a second that changed nothing sends nothing. The cost is that a panel
 that changes its room with no dock window event is found up to a second late, and that the
 bridge does a little work every second.
+
+## Why does komorebi take the windows of an unplugged monitor over itself?
+
+Because nothing else can tile them. When an output goes, KWin takes its windows to the outputs
+that are left and puts them where it likes. komorebi has them in the containers of the monitor
+that went, whose tiles are on a screen that is gone, so the windows sit untiled wherever KWin
+put them. komorebi moves each container to the monitor that now holds the middle of its window,
+and tiles the monitors that changed. It keeps the
+monitor that went, with its workspaces and settings, so that an output that is plugged in again
+gets them back: the windows the monitor had are tiled elsewhere by then, and it comes back
+without them.

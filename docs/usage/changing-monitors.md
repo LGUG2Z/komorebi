@@ -18,12 +18,41 @@ KWin has no signal for the room a panel leaves, so komorebi looks at it when a p
 closes or moves, and once a second. A panel that is laid out a moment after komorebi starts is
 found within a second.
 
-A monitor that is unplugged or plugged in is not followed: komorebi keeps the monitors it
-started with until it is started again.
+## A monitor is unplugged
+
+KWin takes the windows of an output that goes (it is unplugged, or disabled with
+`kscreen-doctor output.<name>.disable`) to the outputs that are left, and puts them where it
+likes. komorebi takes the monitor's workspaces over there: every container, and every floating
+window, goes to the workspace with the same number on the monitor KWin put its window on, and
+the workspaces that changed are tiled again. A [stack](stacking-windows.md) goes as a stack. A
+monocle window and a maximized window come as tiles of their own, and the windows the monocle hid
+are shown again.
+
+komorebi keeps the monitor that went, with its workspaces, layouts, paddings and offsets, for
+when it comes back, and forgets the [workspace rules](workspace-rules.md) of its workspaces until
+then. When no output is left at all, komorebi does nothing.
+
+## A monitor is plugged in
+
+komorebi knows a monitor by the manufacturer, the model and the serial number KWin reports for
+the output, or by the output's name when it has no serial number. A monitor komorebi has kept
+comes back with what was kept: its workspaces and their settings, and the wallpaper of the
+monitor, less the windows that have closed or that are somewhere else now. Its windows were tiled
+on other monitors when it went, so it comes back with none of them. The monitor that had the focus
+keeps it, and every monitor shows its workspace in front.
+
+A monitor that komorebi has not seen gets workspaces of its own, and the windows that open on it
+are tiled there. When `komorebi.json` has an entry for the monitor in
+[`display_index_preferences`](configuration.md#monitors-and-workspaces) and the monitor was not
+connected when the file was read, it takes the entry when it is plugged in. The monitors are put
+at the index the user gave them with
+[`komorebic display-index-preference`](../cli/display-index-preference.md), and after the other
+monitors otherwise.
 
 ## Following it from a program
 
 A [subscriber](subscribing-to-notifications.md) is sent a notification each time komorebi has
-read the monitors again, whether or not anything changed in the state. Its `event` is
-`{"Resize":0}`, where the number is the id of the monitor that changed, or 0 when KWin does not
-say which.
+dealt with a change of the monitors, whether or not anything changed in the state. Its `event` is
+`{"Resize":0}` for a change of size, where the number is the id of the monitor that changed, or 0
+when KWin does not say which, and `{"DisplayConnectionChange":0}` for a monitor that was
+unplugged or plugged in.

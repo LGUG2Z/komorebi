@@ -438,6 +438,10 @@ with two outputs of 1920x1080:
   the script reports and komorebi tiles in: every coordinate komorebi uses is KWin's logical
   one. At that scale `kdotool` prints window frames in fractions of a pixel (a width of
   695.3333), which the VM library rounds.
+- `kscreen-doctor output.<name>.disable` is how a headless KWin loses an output, and `enable`
+  how it gets it back. The script reports the outputs that are left after the first and all of
+  them after the second, and komorebi follows both. A disabled output is enabled again by the
+  name it had.
 
 ## How long a retile takes
 

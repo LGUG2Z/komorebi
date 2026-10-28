@@ -233,6 +233,13 @@ impl FakeBackend {
         fake
     }
 
+    /// Unplugs a monitor. The compositor takes its windows to the others by itself: a test moves
+    /// them (`move_window_by_user`) as it sees fit. Nothing is done when there is no monitor with
+    /// this id.
+    pub fn remove_monitor(&self, id: u32) {
+        self.state.lock().monitors.retain(|m| m.id != id);
+    }
+
     /// Gives a monitor another size and work area, as a change of resolution or scale, or a panel
     /// that moves, does. Nothing is done when there is no monitor with this id.
     pub fn resize_monitor(&self, id: u32, size: Rect, work_area: Rect) {

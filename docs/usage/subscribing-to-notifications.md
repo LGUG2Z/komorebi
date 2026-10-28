@@ -38,9 +38,10 @@ A notification has two fields:
   with the signal it came from and the window, such as
   `{"type":"Show","content":[{"type":"KWin","content":"WindowAdded"},{"id":...}]}`. A
   message is written the way a client writes it on the daemon's socket, such as
-  `{"type":"Retile"}`. A change of the monitors is the name of the change with its content,
-  such as `{"Resize":0}`: the id of the monitor that changed, or 0 when KWin does not say
-  which. [Changing monitors](changing-monitors.md) says when each is sent.
+  `{"type":"Retile"}`. A change of the monitors is the name of the change with its content:
+  `{"Resize":0}` for a monitor that changed size, with the id of the monitor, or 0 when KWin
+  does not say which, and `{"DisplayConnectionChange":0}` for a monitor that was unplugged or
+  plugged in. [Changing monitors](changing-monitors.md) says when each is sent.
 - `state`: the state of the window manager after it, with the same fields as what
   [`komorebic state`](../cli/state.md) prints, on one line.
 

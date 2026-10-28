@@ -68,7 +68,7 @@ to the window under the pointer, [Themes](usage/themes.md) how a theme gives the
 colors, and [Wallpapers](usage/wallpapers.md) how a monitor or a workspace shows a picture of its own,
 and what it does to the borders.
 [Changing monitors](usage/changing-monitors.md) explains what komorebi does when a monitor
-changes size.
+changes size, is unplugged or is plugged in.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.

@@ -698,8 +698,9 @@ impl Table {
     ///   desktop it showed before, with an [`Output::Command`].
     /// - `desktop_list`: the virtual desktops, in order. It raises no event.
     /// - `screens`: the outputs, with their geometry and work area, sent when they are not what
-    ///   was last sent. A monitor whose size or work area changed is a
-    ///   [`MonitorNotification::Resize`] ([`Output::Monitor`]).
+    ///   was last sent. A monitor that came or went is a
+    ///   [`MonitorNotification::DisplayConnectionChange`], and one whose size or work area changed
+    ///   a [`MonitorNotification::Resize`] ([`Output::Monitor`]).
     /// - `cursor`: the answer to a cursor query ([`Output::Cursor`]).
     /// - `failed`: commands the script could not carry out. They are logged.
     ///
@@ -821,8 +822,10 @@ impl Table {
     }
 
     /// Replaces the monitors with `screens`. When `announce` is set and they are not what the
-    /// table had, the monitor that changed is announced as a resize: the id of the first monitor
-    /// whose size or work area is not what it was, or 0 when there is no such monitor.
+    /// table had, the change is announced: as a [`MonitorNotification::DisplayConnectionChange`]
+    /// when the monitors are not the same (a monitor came or went), and otherwise as a
+    /// [`MonitorNotification::Resize`] of the first monitor whose size or work area is not what it
+    /// was.
     fn set_monitors(&mut self, screens: &Value, announce: bool) -> Vec<Output> {
         let monitors: Vec<MonitorInfo> = screens
             .as_array()
@@ -834,13 +837,25 @@ impl Table {
             return vec![];
         }
 
-        // same monitors, different geometry or work area
-        let changed = self
-            .monitors
-            .iter()
-            .find(|m| previous.iter().any(|p| p.id == m.id && p != *m))
-            .map_or(0, |m| m.id);
-        vec![Output::Monitor(MonitorNotification::Resize(changed))]
+        let ids = |m: &[MonitorInfo]| {
+            let mut ids: Vec<u32> = m.iter().map(|m| m.id).collect();
+            ids.sort_unstable();
+            ids
+        };
+
+        if ids(&previous) != ids(&self.monitors) {
+            vec![Output::Monitor(
+                MonitorNotification::DisplayConnectionChange(0),
+            )]
+        } else {
+            // same monitors, different geometry or work area
+            let changed = self
+                .monitors
+                .iter()
+                .find(|m| previous.iter().any(|p| p.id == m.id && p != *m))
+                .map_or(0, |m| m.id);
+            vec![Output::Monitor(MonitorNotification::Resize(changed))]
+        }
     }
 
     fn on_screens(&mut self, event: &Value) -> Vec<Output> {
@@ -2190,7 +2205,7 @@ mod tests {
     }
 
     #[test]
-    fn a_new_panel_is_a_resize_and_the_same_screens_again_are_nothing() {
+    fn plugging_in_a_monitor_is_a_connection_change_and_a_new_panel_is_a_resize() {
         let mut t = table(vec![]);
         let now = Instant::now();
         let mut screens = snapshot(vec![])["screens"].clone();
@@ -2210,20 +2225,45 @@ mod tests {
         // a resolution change
         screens[0]["geo"]["w"] = json!(1280);
         screens[0]["geo"]["h"] = json!(720);
-        let out = t.handle(&json!({ "type": "screens", "screens": screens }), now);
+        let out = t.handle(
+            &json!({ "type": "screens", "screens": screens.clone() }),
+            now,
+        );
         assert!(matches!(
             &out[..],
             [Output::Monitor(MonitorNotification::Resize(_))]
         ));
         assert_eq!(t.monitors()[0].size.right, 1280);
 
+        // a second monitor appears
+        let mut two = screens.clone();
+        two.as_array_mut().unwrap().push(json!({
+            "name": "DP-2", "manufacturer": "ACME", "model": "M1", "serial": "S2",
+            "geo": { "x": 1920, "y": 0, "w": 1920, "h": 1080 }, "area": { "x": 1920, "y": 0, "w": 1920, "h": 1080 },
+        }));
+        let two_screens = two.clone();
+        let out = t.handle(&json!({ "type": "screens", "screens": two }), now);
+        assert!(matches!(
+            &out[..],
+            [Output::Monitor(
+                MonitorNotification::DisplayConnectionChange(_)
+            )]
+        ));
+        assert_eq!(t.monitors().len(), 2);
+
         // the same screens again change nothing
-        let same = json!({ "type": "screens", "screens": [{
-            "name": "DP-1", "manufacturer": "ACME", "model": "M1", "serial": "S1",
-            "geo": { "x": 0, "y": 0, "w": 1280, "h": 720 },
-            "area": { "x": 0, "y": 0, "w": 1920, "h": 1000 },
-        }] });
-        assert!(t.handle(&same, now).is_empty());
+        let again = json!({ "type": "screens", "screens": two_screens });
+        assert!(t.handle(&again, now).is_empty());
+
+        // and one goes
+        let out = t.handle(&json!({ "type": "screens", "screens": screens }), now);
+        assert!(matches!(
+            &out[..],
+            [Output::Monitor(
+                MonitorNotification::DisplayConnectionChange(_)
+            )]
+        ));
+        assert_eq!(t.monitors().len(), 1);
     }
 
     #[test]
