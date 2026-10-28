@@ -347,3 +347,10 @@ which do not exist here. The watcher is `hotwatch`, whose default is to wait two
 editor to settle. An editor either writes a file in place or replaces it with a new one, so the
 daemon reloads on a modification and on a removal, and the test that follows a real daemon
 through both of them is `the_daemon_follows_the_file_it_is_given_when_the_file_changes`.
+
+## Why is an applications file that is not there skipped, and one that is broken an error?
+
+Because one `komorebi.json` is meant to work on every platform, and the file it points to may be
+one that another platform has: a configuration written for macOS names `applications.mac.json`,
+which a KDE desktop does not have. The daemon warns and goes on. A file that exists and is not an
+applications.json is a mistake in something the user wrote, and is an error.

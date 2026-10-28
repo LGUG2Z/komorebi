@@ -13,6 +13,10 @@
 //! nothing on KDE Plasma is accepted and ignored, and a key that is not known at all is ignored
 //! too, as serde does.
 //!
+//! The rules for particular applications are kept in files of their own, which the configuration
+//! names with `app_specific_configuration_path` ([`ApplicationSpecificConfiguration`]); their
+//! rules are added to the ones the configuration itself has.
+//!
 //! Settings that have no key are left to their defaults ([`DEFAULT_RESIZE_DELTA`],
 //! [`DEFAULT_WORKSPACE_PADDING`] and the others in [`crate`]), and an optional key set to `null`
 //! is the same as one that is left out.
@@ -45,8 +49,11 @@ use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowHidingPosition;
 use crate::core::WindowManagementBehaviour;
+use crate::core::asc::ApplicationSpecificConfiguration;
+use crate::core::asc::AscApplicationRulesOrSchema;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
+use crate::core::pathext::ResolvedPathBuf;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window::AspectRatio;
@@ -303,6 +310,18 @@ impl From<&Monitor> for MonitorConfig {
 }
 
 #[serde_with::serde_as]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+/// Path(s) to application-specific configuration file(s)
+pub enum AppSpecificConfigurationPath {
+    /// A single applications.json file
+    Single(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    /// Multiple applications.json files
+    Multiple(#[serde_as(as = "Vec<ResolvedPathBuf>")] Vec<PathBuf>),
+}
+
+#[serde_with::serde_as]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.json` static configuration file reference for komorebi for KDE Plasma
@@ -365,6 +384,10 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_MOUSE_FOLLOWS_FOCUS)))]
     pub mouse_follows_focus: Option<bool>,
+    /// Path to an applications.json, or a list of them, with rules for the applications that
+    /// need them: which windows to ignore, to manage and to float
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_specific_configuration_path: Option<AppSpecificConfigurationPath>,
     /// Global default workspace padding
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_WORKSPACE_PADDING)))]
@@ -515,6 +538,7 @@ impl From<&WindowManager> for StaticConfig {
             // minimum_window_height: Some(window::MINIMUM_HEIGHT.load(Ordering::SeqCst)),
             // minimum_window_width: Some(window::MINIMUM_WIDTH.load(Ordering::SeqCst)),
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
+            app_specific_configuration_path: None,
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
@@ -711,6 +735,29 @@ impl StaticConfig {
         //     }
         // }
         //
+        if let Some(path) = &self.app_specific_configuration_path {
+            match path {
+                AppSpecificConfigurationPath::Single(path) => handle_asc_file(
+                    path,
+                    &mut ignore_identifiers,
+                    &mut manage_identifiers,
+                    &mut floating_applications,
+                    &mut regex_identifiers,
+                )?,
+                AppSpecificConfigurationPath::Multiple(paths) => {
+                    for path in paths {
+                        handle_asc_file(
+                            path,
+                            &mut ignore_identifiers,
+                            &mut manage_identifiers,
+                            &mut floating_applications,
+                            &mut regex_identifiers,
+                        )?
+                    }
+                }
+            }
+        }
+
         // if let Some(behaviour) = self.window_handling_behaviour {
         //     WINDOW_HANDLING_BEHAVIOUR.store(behaviour);
         // }
@@ -1101,6 +1148,63 @@ fn populate_rules(
     Ok(())
 }
 
+/// Adds the rules of the applications.json at `path` to the lists the window manager decides by
+///
+/// A file that is not there is skipped with a warning: one `komorebi.json` is meant to work on
+/// every platform, and the file it points to may be one that another platform has
+/// (`applications.mac.json` on a KDE desktop). A file that is there and is not an applications.json
+/// is an error. Only a file with the extension `json` is read. The rules to ignore, to manage and
+/// to float of every application in the file are added; the other kinds of rule that file can
+/// have (`titleless` and `tabbed`) are about how another platform exposes windows, and are
+/// ignored.
+#[allow(clippy::too_many_arguments)]
+fn handle_asc_file(
+    path: &PathBuf,
+    ignore_identifiers: &mut Vec<MatchingRule>,
+    manage_identifiers: &mut Vec<MatchingRule>,
+    floating_applications: &mut Vec<MatchingRule>,
+    regex_identifiers: &mut HashMap<String, Regex>,
+) -> eyre::Result<()> {
+    // One komorebi.json is meant to work on every platform, and the file it points to is one that
+    // another platform has (applications.mac.json on a KDE desktop): warn and carry on
+    if !path.exists() {
+        tracing::warn!(
+            "the application specific configuration {} does not exist, ignoring it",
+            path.display()
+        );
+        return Ok(());
+    }
+
+    match path.extension() {
+        Some(ext) if ext.to_string_lossy().to_string().as_str() == "json" => {
+            tracing::info!("loading applications.json from: {}", path.display());
+            let mut asc = ApplicationSpecificConfiguration::load(path)?;
+
+            for entry in asc.values_mut() {
+                match entry {
+                    AscApplicationRulesOrSchema::Schema(_) => {}
+                    AscApplicationRulesOrSchema::AscApplicationRules(entry) => {
+                        if let Some(rules) = &mut entry.ignore {
+                            populate_rules(rules, ignore_identifiers, regex_identifiers)?;
+                        }
+
+                        if let Some(rules) = &mut entry.manage {
+                            populate_rules(rules, manage_identifiers, regex_identifiers)?;
+                        }
+
+                        if let Some(rules) = &mut entry.floating {
+                            populate_rules(rules, floating_applications, regex_identifiers)?;
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1158,5 +1262,44 @@ mod tests {
         let path = PathBuf::from("/nonexistent/komorebi.json");
 
         assert!(StaticConfig::read(&path).is_err());
+    }
+
+    #[test]
+    fn a_missing_application_specific_configuration_is_skipped_not_fatal() {
+        let (mut ignore, mut manage, mut floating) = (Vec::new(), Vec::new(), Vec::new());
+        let mut regexes = HashMap::new();
+
+        handle_asc_file(
+            &PathBuf::from(
+                "/nonexistent/komorebi-application-specific-configuration/applications.mac.json",
+            ),
+            &mut ignore,
+            &mut manage,
+            &mut floating,
+            &mut regexes,
+        )
+        .unwrap();
+
+        assert!(ignore.is_empty() && manage.is_empty() && floating.is_empty());
+    }
+
+    #[test]
+    fn an_application_specific_configuration_that_exists_but_is_broken_is_still_an_error() {
+        let path = PathBuf::from(format!(
+            "/tmp/komorebi-asc-test-{}.json",
+            std::process::id()
+        ));
+        std::fs::write(&path, "{ not json").unwrap();
+
+        let result = handle_asc_file(
+            &path,
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut Vec::new(),
+            &mut HashMap::new(),
+        );
+        let _ = std::fs::remove_file(&path);
+
+        assert!(result.is_err());
     }
 }

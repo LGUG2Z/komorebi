@@ -669,6 +669,13 @@ first and applies it only when it parsed, so a file that is half written changes
 for the window manager that is running what the three steps do for one that starts, and tiles
 every monitor again.
 
+`app_specific_configuration_path` names files of rules for particular applications, which
+[`StaticConfig`] reads after the rules of its own (`apply_globals`): the `ignore`, `manage` and
+`floating` rules of each application in each file are appended to the same lists, once each (a
+rule that is in the list already is not added again). A path with no file is skipped with a
+warning, since one `komorebi.json` may name a file that only another platform has; a file that is
+there and is not an applications.json is an error.
+
 Three kinds of key reach the model. A **setting** of the window manager is a field of it
 ([`WindowManager::resize_delta`] and the others). A **default** is a process-wide static that a
 monitor or a workspace falls back to when it has no value of its own: the paddings, the layout
@@ -686,6 +693,8 @@ goes the other way, for `GenerateStaticConfig`.
 | A key komorebi does not read does not stop a configuration from loading | serde: [`StaticConfig`] ignores unknown keys, and a key of another platform is a field nothing reads | `the_keys_that_do_nothing_on_kde_are_accepted_and_ignored`, `fixtures_load_round_trip_and_only_lose_windows_only_keys` | none |
 | The keys the parity test ignores are keys `StaticConfig` does not read | test: the ignore lists are compared with the schema of [`StaticConfig`] | `the_lists_name_no_key_that_is_read` | none |
 | The example in the docs is the example file, which loads | test | `the_example_in_the_docs_is_the_example_file`, `fixtures_load_round_trip_and_only_lose_windows_only_keys` | none |
+| A path to an applications file that is not there is skipped, and one that is there and is broken is an error | framework path: `handle_asc_file` returns early when the path does not exist, and parses the file otherwise | `a_missing_application_specific_configuration_is_skipped_not_fatal`, `an_application_specific_configuration_that_exists_but_is_broken_is_still_an_error`, `a_file_that_is_not_there_is_skipped_and_one_that_is_broken_is_an_error` | none |
+| The rules of an applications file and of the configuration add up | framework path: both are appended to the process-wide lists | `the_rules_of_the_configuration_and_of_the_file_add_up`, `every_file_of_a_list_is_read` | none |
 | A file that cannot be read changes nothing | framework path: [`StaticConfig::reload`] reads and parses the file before it applies anything | `a_configuration_that_cannot_be_read_changes_nothing`, `the_daemon_follows_the_file_it_is_given_when_the_file_changes` | none |
 | The daemon applies a change to its file, written in place or replaced by a rename | framework path: the watcher sends `ReloadStaticConfiguration` to the daemon's own socket | `the_daemon_follows_the_file_it_is_given_when_the_file_changes`, `vm-module` | none: the file has to be the one the daemon was started with |
 | A monitor takes the entry its display index preference gives it, else the first nobody has | framework path: [`StaticConfig::postload`] and [`StaticConfig::reload`] choose the entry by serial number id first | `a_monitor_takes_the_configuration_its_display_index_preference_gives_it` | none |
@@ -987,7 +996,9 @@ A window is shown, and ends up on a tile:
   with several monitors, [`komorebi/tests/hot_reload.rs`](../../komorebi/tests/hot_reload.rs) the
   daemon following a file, and
   [`komorebi/tests/config_parity.rs`](../../komorebi/tests/config_parity.rs) the files of other
-  platforms and the example, which load.
+  platforms and the example, which load; [`komorebi/tests/asc.rs`](../../komorebi/tests/asc.rs)
+  the applications files; [`komorebi/src/core/asc.rs`](../../komorebi/src/core/asc.rs) their
+  format.
 - [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
   does, and the thread that handles them.
 - [`komorebi/src/process_command.rs`](../../komorebi/src/process_command.rs): the socket, what

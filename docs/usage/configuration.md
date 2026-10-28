@@ -96,6 +96,7 @@ can have values of their own, which come before the default.
 | `ignore_rules` | Windows komorebi leaves alone (`float_rules` is the same key under its old name) |
 | `manage_rules` | Windows komorebi tiles whatever the ignore rules say |
 | `floating_applications` | Windows that open floating |
+| `app_specific_configuration_path` | One `applications.json`, or a list of them, whose rules are added to these ([Application specific configuration](application-specific-configuration.md)) |
 
 Each is a list of rules, which [Rules](rules.md) explains. A rule is an object with `kind` (`Exe`,
 `Class`, `Title` or `Path`), `id` and `matching_strategy` (`Equals`, `StartsWith`, `EndsWith`,

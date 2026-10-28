@@ -74,6 +74,7 @@ pub use komorebi::core::SocketMessage;
 pub use komorebi::core::StateQuery;
 pub use komorebi::core::SubscribeOptions;
 pub use komorebi::core::WindowKind;
+pub use komorebi::core::asc::ApplicationSpecificConfiguration;
 pub use komorebi::core::pathext::PathExt;
 pub use komorebi::core::pathext::replace_env_in_path;
 pub use komorebi::state::State;

@@ -45,6 +45,7 @@ pub use komorebi_layouts::Sizing;
 pub use komorebi_layouts::validate_ratios;
 
 // Keep local modules that aren't in komorebi-layouts
+pub mod asc;
 pub mod config_generation;
 pub mod pathext;
 

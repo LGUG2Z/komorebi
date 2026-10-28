@@ -199,7 +199,9 @@ applies it again to the windows it has. It also sets what a window that opens
 gets (`window_container_behaviour`, `float_override`, `floating_layer_behaviour`,
 for a workspace or for all of them) and what focusing does in monocle
 (`monocle_focus_behaviour`). A key that komorebi for KDE does not read
-is ignored, so one file serves every platform. `workspace-layout-rule` makes a
+is ignored, so one file serves every platform. Rules for particular applications
+can be in files of their own, which `app_specific_configuration_path` names.
+`workspace-layout-rule` makes a
 workspace change layout with the number of windows it has, as the file's
 `layout_rules` do, and `generate-static-config` prints the settings the daemon
 has as a `komorebi.json`.

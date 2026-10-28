@@ -12,6 +12,7 @@ different layout. This page has the file as it is:
 
 ```json
 {
+  "app_specific_configuration_path": "$HOME/.config/komorebi/applications.json",
   "cross_monitor_move_behaviour": "Insert",
   "default_workspace_padding": 15,
   "default_container_padding": 15,
@@ -66,6 +67,15 @@ Put it where the daemon looks for it, `~/.config/komorebi/komorebi.json`, or giv
 with `komorebic start --config`. [Configuration](usage/configuration.md) explains every key and
 where the daemon looks. The settings of a monitor with more than one entry in `monitors`, and of
 each workspace, are there too.
+
+### Application specific configuration
+
+`app_specific_configuration_path` names a file of rules for the applications that need them, which
+the repository has a start of in
+[`komorebic/applications.json`](../komorebic/applications.json). Put a copy where the example
+says, `~/.config/komorebi/applications.json`; a path with no file behind it is skipped.
+[Application specific configuration](usage/application-specific-configuration.md) explains the
+format.
 
 ### Padding
 

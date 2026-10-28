@@ -43,8 +43,6 @@ const WINDOWS_ONLY: &[&str] = &[
 /// ignored until then. Each comment says which commit of the plan brings the feature, and takes
 /// the key off this list.
 const NOT_YET: &[&str] = &[
-    // application specific configuration (39)
-    "app_specific_configuration_path",
     // borders drawn by the compositor (43)
     "border",
     "border_colours",

@@ -1,4 +1,5 @@
 {
+  "app_specific_configuration_path": "$HOME/.config/komorebi/applications.json",
   "cross_monitor_move_behaviour": "Insert",
   "default_workspace_padding": 15,
   "default_container_padding": 15,

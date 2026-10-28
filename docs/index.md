@@ -51,8 +51,9 @@ float its windows.
 [Workspaces](usage/workspaces.md) explains how each monitor shows one of its workspaces, which
 are KWin's virtual desktops, and how to show another or move a window to one.
 [Configuration](usage/configuration.md) explains `komorebi.json`, where komorebi looks for it and
-how it is reloaded when it changes, and [Example configurations](example-configurations.md) has
-one to start from.
+how it is reloaded when it changes, [Example configurations](example-configurations.md) has one to
+start from, and [Application specific configuration](usage/application-specific-configuration.md)
+explains the files of rules for particular applications it can name.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.
