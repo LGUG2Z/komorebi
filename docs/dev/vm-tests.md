@@ -88,6 +88,9 @@ display device: the `virtio-gpu-pci` that the test driver adds to every aarch64
 guest, and the default VGA of an x86_64 one. The node sets
 `komorebi.vm.renderNode` to false, so that an x86_64 guest does not get a second
 device: KWin would draw on it, and the screenshot would show the other one.
+The node also has uinput, with the test user in the group `uinput`, and the
+program `komorebi-pointer`, which makes a pointer device with it: a test drives
+the pointer from inside the guest, and KWin takes it as a tablet.
 
 On aarch64 under HVF, at time of writing (2026-10-27), the session has the
 Wayland socket after 11 to 19 seconds and a painted desktop after 35 seconds.
@@ -166,6 +169,15 @@ the run.
 - `monitor_bridge(path)` records the bridge's traffic on the session bus with
   `dbus-monitor`, and `latency.rounds` times each batch of commands in it, from
   the daemon's answer to the last frame KWin reports for the windows it moved.
+- `Pointer.start(machine, (width, height), scale=)` starts `komorebi-pointer` on
+  a session node, for a screen of that size, and `move(x, y)`, `down()`, `up()`,
+  `glide(x, y, steps, ms)` and `drag(start, end)` move and click it. Each
+  returns once the program has done it, and a glide's moves are made in the
+  guest, milliseconds apart: moves that each wait for the test are seconds
+  apart, and KWin was seen to lose the horizontal part of such a drag. The
+  pointer lands within a pixel of where it is asked. The program itself is
+  [`komorebi_vm/uinput.py`](../../nix/tests/vm/lib/komorebi_vm/uinput.py),
+  whose arithmetic the `vm-lib` check tests.
 
 Poll for what the test needs with `wait_for`. A fixed sleep is too long on
 KVM and too short on TCG.

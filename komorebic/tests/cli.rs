@@ -513,6 +513,27 @@ fn the_border_subcommands_send_what_they_are_given() {
 }
 
 #[test]
+fn the_focus_follows_mouse_subcommands_send_what_they_are_given() {
+    sends(
+        &["focus-follows-mouse", "enable"],
+        r#"{"type":"FocusFollowsMouse","content":["Windows",true]}"#,
+    );
+    sends(
+        &[
+            "focus-follows-mouse",
+            "--implementation",
+            "komorebi",
+            "disable",
+        ],
+        r#"{"type":"FocusFollowsMouse","content":["Komorebi",false]}"#,
+    );
+    sends(
+        &["toggle-focus-follows-mouse"],
+        r#"{"type":"ToggleFocusFollowsMouse","content":"Windows"}"#,
+    );
+}
+
+#[test]
 fn the_transparency_subcommands_send_what_they_are_given() {
     sends(
         &["transparency", "enable"],

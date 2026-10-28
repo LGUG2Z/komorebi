@@ -45,8 +45,6 @@ const WINDOWS_ONLY: &[&str] = &[
 const NOT_YET: &[&str] = &[
     // a color for each kind of window's border, whose type is komorebi-themes' (49)
     "border_colours",
-    // focus follows mouse (48)
-    "focus_follows_mouse",
     // themes (49)
     "theme",
 ];

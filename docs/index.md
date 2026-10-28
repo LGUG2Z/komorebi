@@ -62,7 +62,8 @@ configuration of a running daemon.
 [Borders](usage/borders.md) explains how komorebi has KWin draw a border around each window,
 [Animation](usage/animation.md) how it has KWin animate the windows going to their places, and
 [Transparency](usage/transparency.md) how it makes the windows that do not have the focus
-see-through.
+see-through, and [Focus follows mouse](usage/focus-follows-mouse.md) how it has KWin give the focus
+to the window under the pointer.
 [Subscribing to notifications](usage/subscribing-to-notifications.md) explains how a program
 such as a status bar follows what komorebi does. The [CLI reference](cli/start.md) has a page
 for every `komorebic` command, generated from its help.

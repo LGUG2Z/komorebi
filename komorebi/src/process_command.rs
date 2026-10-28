@@ -176,6 +176,10 @@
 //!   **CycleMoveWorkspaceToMonitor** and **SwapWorkspacesToMonitorNumber** move workspaces
 //!   between monitors. **DisplayIndexPreference** gives a monitor an index, and **EagerFocus**
 //!   focuses the first window of an executable on any workspace of any monitor.
+//! - **FocusFollowsMouse** and **ToggleFocusFollowsMouse** set whether the compositor gives the
+//!   focus to the window under the pointer, as the pointer moves: KWin's own focus policy, whichever
+//!   of the two implementations is named, put back when it is turned off and when komorebi exits
+//!   ([`Backend::set_focus_follows_mouse`](crate::backend::Backend::set_focus_follows_mouse)).
 //! - **Border** sets whether the compositor draws a border around each window, and **BorderWidth**
 //!   and **BorderOffset** the room the layout leaves for it: each asks the backend for the look
 //!   again ([`border_manager::send_notification`]), as does every message once it has been
@@ -1062,6 +1066,16 @@ impl WindowManager {
             }
             SocketMessage::EnsureNamedWorkspaces(monitor_idx, ref names) => {
                 self.ensure_named_workspaces_for_monitor(monitor_idx, names)?;
+            }
+            SocketMessage::FocusFollowsMouse(implementation, enable) => {
+                // KWin does this, whichever of the two was asked for
+                self.focus_follows_mouse = enable.then_some(implementation);
+                backend().set_focus_follows_mouse(enable)?;
+            }
+            SocketMessage::ToggleFocusFollowsMouse(implementation) => {
+                let enable = self.focus_follows_mouse.is_none();
+                self.focus_follows_mouse = enable.then_some(implementation);
+                backend().set_focus_follows_mouse(enable)?;
             }
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleMaximize => self.toggle_maximize()?,

@@ -66,6 +66,7 @@ how another platform draws or hides windows, are accepted: `titleless_applicatio
 | Key | Default | What it does |
 |---|---|---|
 | `resize_delta` | `50` | How many pixels `resize-edge` and `resize-axis` resize by |
+| `focus_follows_mouse` | none | `Windows` or `Komorebi` to have KWin give the focus to the window under the pointer ([Focus follows mouse](focus-follows-mouse.md)); the two are the same on KDE. Left out, KWin's focus policy is the user's own |
 | `mouse_follows_focus` | `true` | Whether the pointer goes to the window that is given the focus |
 | `cross_monitor_move_behaviour` | `Swap` | What `move` does at the edge of a monitor: `Swap`, `Insert` or `NoOp` |
 | `cross_boundary_behaviour` | `Monitor` | Where `focus` and `move` go at the edge of a monitor: to the next `Monitor` or the next `Workspace` |

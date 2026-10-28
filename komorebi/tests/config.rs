@@ -96,7 +96,7 @@ fn load(json: &str) -> Loaded {
     })
     .unwrap();
     let wm = Arc::new(Mutex::new(wm));
-    StaticConfig::postload(&path, &wm).unwrap();
+    with_backend(fake.clone(), || StaticConfig::postload(&path, &wm)).unwrap();
     with_backend(fake.clone(), || wm.lock().retile_all(false)).unwrap();
 
     let _ = std::fs::remove_file(&socket);

@@ -72,6 +72,8 @@ pub enum Command {
     BorderColours(Vec<(u32, u32)>),
     /// [`Backend::set_opacity`]: the window, and how opaque it was asked to be.
     SetOpacity(u32, u8),
+    /// [`Backend::set_focus_follows_mouse`]: whether it was turned on or off.
+    FocusFollowsMouse(bool),
 }
 
 #[derive(Default)]
@@ -612,6 +614,14 @@ impl Backend for FakeBackend {
             state.last_look = Some(look.clone());
         }
         Ok(state.borders_drawn && look.border.is_some())
+    }
+
+    fn set_focus_follows_mouse(&self, enable: bool) -> eyre::Result<()> {
+        self.state
+            .lock()
+            .commands
+            .push(Command::FocusFollowsMouse(enable));
+        Ok(())
     }
 
     fn set_opacity(&self, id: u32, alpha: u8) -> eyre::Result<()> {

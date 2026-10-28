@@ -47,11 +47,13 @@ use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::animation::DEFAULT_ANIMATION_FPS;
 use crate::animation::PerAnimationPrefixConfig;
+use crate::backend::backend;
 use crate::border_manager;
 use crate::core::Axis;
 use crate::core::CrossBoundaryBehaviour;
 use crate::core::DefaultLayout;
 use crate::core::FloatingLayerBehaviour;
+use crate::core::FocusFollowsMouseImplementation;
 use crate::core::Layout;
 use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
@@ -412,6 +414,10 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = OperationBehaviour::Op)))]
     pub unmanaged_window_operation_behaviour: Option<OperationBehaviour>,
+    /// Focus the window under the pointer. On KDE this is KWin's own focus policy, whichever
+    /// implementation is named
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     /// Enable or disable mouse follows focus
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_MOUSE_FOLLOWS_FOCUS)))]
@@ -629,6 +635,7 @@ impl From<&WindowManager> for StaticConfig {
             ),
             // minimum_window_height: Some(window::MINIMUM_HEIGHT.load(Ordering::SeqCst)),
             // minimum_window_width: Some(window::MINIMUM_WIDTH.load(Ordering::SeqCst)),
+            focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
             border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
@@ -1083,6 +1090,7 @@ impl StaticConfig {
                 .unmanaged_window_operation_behaviour
                 .unwrap_or(OperationBehaviour::Op),
             resize_delta: value.resize_delta.unwrap_or(DEFAULT_RESIZE_DELTA),
+            focus_follows_mouse: value.focus_follows_mouse,
             opacity_applied: HashMap::new(),
             mouse_follows_focus: value
                 .mouse_follows_focus
@@ -1221,6 +1229,12 @@ impl StaticConfig {
 
         if value.border == Some(true) {
             border_manager::BORDER_ENABLED.store(true, Ordering::SeqCst);
+        }
+
+        // the window manager was made from the configuration, before KWin could be asked anything
+        wm.focus_follows_mouse = value.focus_follows_mouse;
+        if let Err(error) = backend().set_focus_follows_mouse(wm.focus_follows_mouse.is_some()) {
+            tracing::warn!("could not set focus follows mouse: {error}");
         }
 
         Ok(())
@@ -1366,6 +1380,10 @@ impl StaticConfig {
             .mouse_follows_focus
             .unwrap_or(DEFAULT_MOUSE_FOLLOWS_FOCUS);
         wm.work_area_offset = value.global_work_area_offset;
+        wm.focus_follows_mouse = value.focus_follows_mouse;
+        if let Err(error) = backend().set_focus_follows_mouse(wm.focus_follows_mouse.is_some()) {
+            tracing::warn!("could not set focus follows mouse: {error}");
+        }
 
         let monitor_count = wm.monitors().len();
 

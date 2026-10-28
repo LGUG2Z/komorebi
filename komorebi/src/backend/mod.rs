@@ -467,6 +467,30 @@ pub trait Backend: Send + Sync + 'static {
         Ok(())
     }
 
+    /// Asks the compositor to give the focus to the window under the pointer, as the pointer moves
+    /// (`true`), or to stop doing that and go back to the focus policy the user had (`false`). The
+    /// default does nothing.
+    ///
+    /// # Errors
+    ///
+    /// When the compositor's configuration cannot be changed.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi::backend::Backend;
+    /// use komorebi::backend::fake::Command;
+    /// use komorebi::backend::fake::FakeBackend;
+    ///
+    /// let fake = FakeBackend::with_one_monitor();
+    /// fake.set_focus_follows_mouse(true)?;
+    /// assert_eq!(fake.commands(), [Command::FocusFollowsMouse(true)]);
+    /// # Ok::<(), color_eyre::eyre::Report>(())
+    /// ```
+    fn set_focus_follows_mouse(&self, _enable: bool) -> eyre::Result<()> {
+        Ok(())
+    }
+
     // ---- provided ------------------------------------------------------------------------------
 
     /// Called once as komorebi exits, after the window manager has put back what it moved, so that

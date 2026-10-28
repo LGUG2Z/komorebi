@@ -142,7 +142,9 @@ sends another window there.
 When borders are on, it also asks KWin to load KDE Rounded Corners, the effect that draws them,
 after writing the effect's settings into `kwinrc`, and asks it to read them again
 ([KWin effects](#kwin-effects)). It does the same with Geometry Change, the effect that animates
-windows, when animation is on. An effect KWin did not find is reported once in the log.
+windows, when animation is on. An effect KWin did not find is reported once in the log. When focus
+follows mouse is turned on, it sets KWin's focus policy in `kwinrc` (`[Windows] FocusPolicy=1`,
+`DelayFocusInterval=0`) and asks KWin to reload its configuration.
 
 Every command of the window manager (move and resize, focus, raise, hide or restore, minimize,
 bring back, maximize, unmaximize or close a window, show a workspace on an output, put a window
@@ -171,12 +173,12 @@ an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a runnin
 When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it brings back
 the windows it hid, waits until the commands that do so have reached the bridge, removes the
 parking desktop, unloads the effects it loaded, puts back the values the keys it set in `kwinrc`
-had (`PerOutputVirtualDesktops`, and the keys of the effects), or removes a key the user had not
-set, and asks KWin to reload its configuration, asks KWin to unload the script, closes an empty
-connection to each subscriber, and removes the socket. The desktops it created for workspaces
-stay: they are the user's desktops from then on. A `StopIgnoreRestore` message stops it the same
-way, except that it does not bring the windows back: the parking desktop is removed all the same.
-The file `bridge.js` stays in the runtime
+had (`PerOutputVirtualDesktops`, the focus policy, and the keys of the effects), or removes a key
+the user had not set, and asks KWin to reload its configuration, asks KWin to unload the script,
+closes an empty connection to each subscriber, and removes the socket. The desktops it created for
+workspaces stay: they are the user's desktops from then on. A `StopIgnoreRestore` message stops it
+the same way, except that it does not bring the windows back: the parking desktop is removed all
+the same. The file `bridge.js` stays in the runtime
 directory, which is removed at logout. A daemon that is killed leaves the script running in
 KWin, reporting to nobody, the socket file in the runtime directory, per-output desktops
 on, and the parking desktop with the hidden windows on it, until the next start replaces the
@@ -243,6 +245,7 @@ since a read right after `createDesktop` has to see the new desktop.
 | `$KOMOREBI_CONFIG_HOME/komorebi.json` (`~/.config/komorebi/komorebi.json`) | komorebi's configuration, which komorebi never writes: read when the daemon starts, and again when it changes. `--config` names another file | the user's |
 | `$XDG_CONFIG_HOME/autostart/komorebi.desktop` (`~/.config/autostart/komorebi.desktop`) | the XDG autostart entry `komorebic enable-autostart` writes: `Exec=komorebi`, or `komorebi --config "FILE"`, and `X-KDE-autostart-after=plasma-workspace`, which a Plasma session starts komorebi from at login | the user's; `komorebic disable-autostart` removes it |
 | `$XDG_CONFIG_HOME/kwinrc` (`~/.config/kwinrc`) | KWin's configuration: komorebi sets `PerOutputVirtualDesktops=true` in `[Windows]`, changing that line or adding it and nothing else, and writes the file beside it first and renames it over it | put back as it was when the daemon stops |
+| `$XDG_CONFIG_HOME/kwinrc`, group `[Windows]`, keys `FocusPolicy` and `DelayFocusInterval` | `1` and `0` while focus follows mouse is on: KWin's "focus follows mouse" policy, which KWin takes when it is asked to reconfigure | put back, without the other keys of the group, when focus follows mouse is turned off, and with everything else when the daemon stops |
 | `$XDG_CONFIG_HOME/kwinrc`, group `[Round-Corners]` | the settings of the border effect, written when borders are on ([KWin effects](#kwin-effects)) | put back, with the rest of `kwinrc`, when borders are turned off and when the daemon stops |
 | `$XDG_CONFIG_HOME/kwinrc`, group `[Effect-kwin4_effect_geometry_change]` | the settings of the animation effect, written when animation is on | put back as above, when animation is turned off and when the daemon stops |
 | `$XDG_RUNTIME_DIR/komorebi/kwinrc-backup.json` | the value each key of `kwinrc` had before komorebi first changed it | removed when the values are put back; one a crash left behind is used by the next run |

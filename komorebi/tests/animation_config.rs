@@ -45,7 +45,7 @@ fn the_animation_key_of_the_file_is_the_animation_settings() {
     })
     .unwrap();
     let wm = Arc::new(Mutex::new(wm));
-    StaticConfig::postload(&path, &wm).unwrap();
+    with_backend(fake.clone(), || StaticConfig::postload(&path, &wm)).unwrap();
     let _ = std::fs::remove_file(&socket);
 
     // one value for every kind of animation

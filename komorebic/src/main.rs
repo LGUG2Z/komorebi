@@ -69,6 +69,8 @@
 //! - `border` sets whether the compositor draws a border around each window, `border-colour` the
 //!   color of the border of a kind of window, and `border-width` and `border-offset` the room the
 //!   layout leaves for it.
+//! - `focus-follows-mouse` and `toggle-focus-follows-mouse` set whether KWin gives the focus to the
+//!   window under the pointer, as the pointer moves.
 //! - `transparency` and `toggle-transparency` set whether the windows that do not have the focus
 //!   are see-through, and `transparency-alpha` how opaque they are.
 //! - `animation`, `animation-duration` and `animation-style` set whether windows are animated going
@@ -118,6 +120,7 @@ use komorebi_client::ApplicationIdentifier;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
+use komorebi_client::FocusFollowsMouseImplementation;
 use komorebi_client::MoveBehaviour;
 use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
@@ -768,6 +771,22 @@ struct TransparencyAlpha {
 }
 
 #[derive(Parser)]
+struct FocusFollowsMouse {
+    /// On KDE both are KWin's own focus policy
+    #[clap(value_enum, short, long, default_value = "windows")]
+    implementation: FocusFollowsMouseImplementation,
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+}
+
+#[derive(Parser)]
+struct ToggleFocusFollowsMouse {
+    /// On KDE both are KWin's own focus policy
+    #[clap(value_enum, short, long, default_value = "windows")]
+    implementation: FocusFollowsMouseImplementation,
+}
+
+#[derive(Parser)]
 struct Animation {
     #[clap(value_enum)]
     boolean_state: BooleanState,
@@ -1258,6 +1277,11 @@ enum SubCommand {
     /// Set the ease function for movement animations
     #[clap(arg_required_else_help = true)]
     AnimationStyle(AnimationStyle),
+    /// Enable or disable focus follows mouse (KWin's own focus policy)
+    #[clap(arg_required_else_help = true)]
+    FocusFollowsMouse(FocusFollowsMouse),
+    /// Toggle focus follows mouse (KWin's own focus policy)
+    ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -2090,6 +2114,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ToggleTransparency => {
             send_message(&SocketMessage::ToggleTransparency)?;
+        }
+        SubCommand::FocusFollowsMouse(args) => {
+            send_message(&SocketMessage::FocusFollowsMouse(
+                args.implementation,
+                args.boolean_state.into(),
+            ))?;
+        }
+        SubCommand::ToggleFocusFollowsMouse(args) => {
+            send_message(&SocketMessage::ToggleFocusFollowsMouse(args.implementation))?;
         }
         SubCommand::Animation(args) => {
             send_message(&SocketMessage::Animation(

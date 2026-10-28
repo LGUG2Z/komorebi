@@ -12,15 +12,18 @@ A suite imports what it needs from here:
   the ring around a window.
 * [`latency`](komorebi_vm.latency) times the daemon's commands from a recording
   of the session bus.
+* [`Pointer`](komorebi_vm.pointer.Pointer) moves and clicks the pointer of a
+  session node, through [`uinput`](komorebi_vm.uinput), a program the node runs.
 
 The library depends on the small [`Machine`](komorebi_vm.machine.Machine)
 protocol, not on the test driver, so `nix/tests/vm/lib/tests` can run it
 against a fake machine (the `vm-lib` check does).
 """
 
-from komorebi_vm import daemon, latency, pixels
+from komorebi_vm import daemon, latency, pixels, uinput
 from komorebi_vm.checks import Checks
 from komorebi_vm.kde import Kde, Rect
 from komorebi_vm.machine import Machine
+from komorebi_vm.pointer import Pointer
 
-__all__ = ["Checks", "Kde", "Machine", "Rect", "daemon", "latency", "pixels"]
+__all__ = ["Checks", "Kde", "Machine", "Pointer", "Rect", "daemon", "latency", "pixels", "uinput"]

@@ -62,7 +62,7 @@ fn a_monitor_takes_the_configuration_its_display_index_preference_gives_it() {
         wm
     });
     let wm = Arc::new(Mutex::new(wm));
-    StaticConfig::postload(&path, &wm).unwrap();
+    with_backend(fake.clone(), || StaticConfig::postload(&path, &wm)).unwrap();
     let _ = std::fs::remove_file(&socket);
     let _ = std::fs::remove_file(&path);
 

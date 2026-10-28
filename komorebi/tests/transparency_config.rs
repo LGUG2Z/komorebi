@@ -57,7 +57,7 @@ fn the_transparency_keys_of_the_file_are_the_transparency_settings() {
     })
     .unwrap();
     let wm = Arc::new(Mutex::new(wm));
-    StaticConfig::postload(&path, &wm).unwrap();
+    with_backend(fake.clone(), || StaticConfig::postload(&path, &wm)).unwrap();
     let _ = std::fs::remove_file(&socket);
 
     assert!(transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst));

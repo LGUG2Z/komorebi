@@ -46,7 +46,18 @@
     AutoSuspendAction=0
   '';
 
-  environment.systemPackages = [ pkgs.kdePackages.konsole ];
+  # A pointer device the test drives from inside the guest (`komorebi_vm.Pointer`): the program
+  # makes it with uinput, which the test user may open.
+  hardware.uinput.enable = true;
+  users.users.komorebi.extraGroups = [ "uinput" ];
+
+  environment.systemPackages = [
+    pkgs.kdePackages.konsole
+    (pkgs.writeScriptBin "komorebi-pointer" ''
+      #!${pkgs.python3.interpreter}
+      ${builtins.readFile ../lib/komorebi_vm/uinput.py}
+    '')
+  ];
 
   # KWin loads no effect that animates under software rendering, which is all a guest has, unless
   # it is told to: with this it loads Geometry Change, which komorebi asks it to load

@@ -1,5 +1,5 @@
 //! KWin's configuration file, `kwinrc`, for the few settings komorebi changes: per-output virtual
-//! desktops and the settings of the border and animation effects.
+//! desktops, the focus policy, and the settings of the border and animation effects.
 //!
 //! These are the user's settings, changed on their behalf, so [`Kwinrc::set`] records the value of
 //! every key the first time komorebi changes it, in a backup file, and [`Kwinrc::restore`] puts the
@@ -23,6 +23,7 @@
 //! | A crash loses none of the recorded values | the backup file, read by the next run | `kwin::kwinrc::tests::a_backup_left_by_a_crash_keeps_the_values_from_before_the_first_run` |
 //! | Only the line of the key changes; the rest of the file is left as it was | [`ini_set`], [`ini_unset`] | `kwin::kwinrc::tests::a_key_is_set_in_place_added_to_its_group_or_given_a_group`, `kwin::kwinrc::tests::a_key_is_removed_from_its_own_group_only` |
 //! | One group can be put back while the others stay changed | [`Kwinrc::restore_group`] | `kwin::kwinrc::tests::one_group_can_be_put_back_while_the_others_stay_changed` |
+//! | Some keys of a group can be put back while the others stay changed | [`Kwinrc::restore_keys`] | `kwin::kwinrc::tests::one_key_can_be_put_back_while_the_others_in_its_group_stay_changed` |
 //! | KWin never reads a half-written file | [`Kwinrc`] writes a file beside `kwinrc` and renames it over it | no test |
 
 #![deny(missing_docs)]
@@ -172,6 +173,52 @@ impl Kwinrc {
 
         let mut text = std::fs::read_to_string(&self.path).unwrap_or_default();
         for (key, original) in &keys {
+            text = match original {
+                Some(value) => ini_set(&text, group, key, value),
+                None => ini_unset(&text, group, key),
+            };
+        }
+        self.write_file(&text)?;
+
+        if backup.originals.is_empty() {
+            let _ = std::fs::remove_file(&self.backup);
+        } else {
+            self.write_backup(&backup)?;
+        }
+        Ok(true)
+    }
+
+    /// Puts back these keys of one group, leaving the rest of what [`Kwinrc::set`] changed as it
+    /// is, and returns true if and only if [`Kwinrc::set`] changed any of them.
+    ///
+    /// `[Windows]` has both the focus policy and per-output desktops, which are turned off at
+    /// different times.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `kwinrc` or the backup cannot be written.
+    pub fn restore_keys(&self, group: &str, wanted: &[&str]) -> io::Result<bool> {
+        let mut backup = self.read_backup();
+        let Some(keys) = backup.originals.get_mut(group) else {
+            return Ok(false);
+        };
+
+        let taken: Vec<(String, Option<String>)> = wanted
+            .iter()
+            .filter_map(|key| {
+                keys.remove(*key)
+                    .map(|original| ((*key).to_string(), original))
+            })
+            .collect();
+        if taken.is_empty() {
+            return Ok(false);
+        }
+        if keys.is_empty() {
+            backup.originals.remove(group);
+        }
+
+        let mut text = std::fs::read_to_string(&self.path).unwrap_or_default();
+        for (key, original) in &taken {
             text = match original {
                 Some(value) => ini_set(&text, group, key, value),
                 None => ini_unset(&text, group, key),
@@ -477,6 +524,36 @@ mod tests {
         assert!(!rc.restore_group("Round-Corners").unwrap());
         assert!(d.join("backup.json").exists());
         assert!(rc.restore().unwrap());
+        assert!(!d.join("backup.json").exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn one_key_can_be_put_back_while_the_others_in_its_group_stay_changed() {
+        let d = dir("keys");
+        let rc = Kwinrc::new(d.join("kwinrc"), d.join("backup.json"));
+        std::fs::write(d.join("kwinrc"), "[Windows]\nFocusPolicy=0\n").unwrap();
+
+        rc.set("Windows", &[("FocusPolicy", "1".into())]).unwrap();
+        rc.set("Windows", &[("PerOutputVirtualDesktops", "true".into())])
+            .unwrap();
+
+        assert!(rc.restore_keys("Windows", &["FocusPolicy"]).unwrap());
+        let text = std::fs::read_to_string(d.join("kwinrc")).unwrap();
+        assert_eq!(
+            ini_value(&text, "Windows", "FocusPolicy").as_deref(),
+            Some("0")
+        );
+        assert!(rc.is_on("Windows", "PerOutputVirtualDesktops"));
+
+        // nothing of it left to put back, and the other key still can be
+        assert!(!rc.restore_keys("Windows", &["FocusPolicy"]).unwrap());
+        assert!(rc.restore().unwrap());
+        let text = std::fs::read_to_string(d.join("kwinrc")).unwrap();
+        assert_eq!(
+            ini_value(&text, "Windows", "PerOutputVirtualDesktops"),
+            None
+        );
         assert!(!d.join("backup.json").exists());
         let _ = std::fs::remove_dir_all(&d);
     }

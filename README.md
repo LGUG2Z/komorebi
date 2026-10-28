@@ -262,7 +262,8 @@ window, the others, a locked container, a floating window. `border`, `border-col
 animated by another effect, Geometry Change, which `animation`,
 `animation-duration` and `animation-style` turn on and set. `transparency` makes
 the windows that do not have the focus see-through, by the opacity KWin gives a
-window.
+window, and `focus-follows-mouse` has KWin give the focus to the window under the
+pointer, by its own focus policy.
 
 ## Documentation
 

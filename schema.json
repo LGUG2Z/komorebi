@@ -191,6 +191,17 @@
         }
       ]
     },
+    "focus_follows_mouse": {
+      "description": "Focus the window under the pointer. On KDE this is KWin's own focus policy, whichever\nimplementation is named",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FocusFollowsMouseImplementation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "global_work_area_offset": {
       "description": "Global work area (space used for tiling) offset",
       "anyOf": [
@@ -763,6 +774,21 @@
           "description": "Float new windows",
           "type": "string",
           "const": "Float"
+        }
+      ]
+    },
+    "FocusFollowsMouseImplementation": {
+      "description": "Focus follows mouse implementation\n\nThe two exist on Windows. On KDE the compositor does it, so both ask KWin for its\n\"focus follows mouse\" focus policy.",
+      "oneOf": [
+        {
+          "description": "Custom FFM implementation (slightly more CPU-intensive)",
+          "type": "string",
+          "const": "Komorebi"
+        },
+        {
+          "description": "Native (legacy) Windows FFM implementation",
+          "type": "string",
+          "const": "Windows"
         }
       ]
     },

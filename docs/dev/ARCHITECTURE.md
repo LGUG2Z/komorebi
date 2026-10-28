@@ -843,6 +843,20 @@ stops, [`transparency_manager::restore`] makes every window it changed opaque ag
 effect draws a window from a texture that has its opacity in it, and the build komorebi installs
 draws it again when the opacity changes ([PLATFORM.md](PLATFORM.md#the-patches)).
 
+## Focus follows mouse
+
+The window under the pointer has the focus when the compositor's focus policy says so, and the
+compositor does it. `FocusFollowsMouse` and `ToggleFocusFollowsMouse` set
+[`WindowManager::focus_follows_mouse`] (the implementation that was asked for, or none) and ask the
+backend ([`Backend::set_focus_follows_mouse`]); whichever of the two implementations is named, on
+KDE it is the compositor's own policy. The KWin backend writes `FocusPolicy=1` and
+`DelayFocusInterval=0` into the `[Windows]` group of the user's `kwinrc` through [`Kwinrc`], which
+records the first value of each key, and asks KWin to reload; turning it off puts those two keys
+back ([`Kwinrc::restore_keys`]) and leaves `PerOutputVirtualDesktops`, which is in the same group,
+as it is. `shutdown` puts back everything. The focus the compositor gives is an event like the
+others: the window manager follows it, and [`State`] says whether focus follows mouse is on.
+[DESIGN.md](DESIGN.md#why-is-focus-follows-mouse-kwins-own-focus-policy) has the reasons.
+
 ## The NixOS module
 
 The flake exports one module under two names, `nixosModules.default` and
@@ -1094,6 +1108,10 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | The `transparency` keys of the file are the settings, and a key the file leaves out has the default | framework path: `StaticConfig::apply_globals` stores `transparency` and `transparency_alpha` whether the file has them or not, and adds the ignore rules to `TRANSPARENCY_BLACKLIST` | `the_transparency_keys_of_the_file_are_the_transparency_settings` | none |
 | A window komorebi made see-through is opaque again when komorebi exits | framework path: [`WindowManager::stop`] and `main.rs` call [`transparency_manager::restore`] | `what_komorebi_made_see_through_is_opaque_again_when_it_exits` | `SIGKILL`: the windows stay as they were drawn |
 | What the backend sends for an opacity is what the bridge sets | tests: the `opacity` command of [`fixtures`] is what the backend's test sends and what the bridge's test answers with, checking the window's `opacity` | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a window is given the opacity it is asked for, and one KWin has not got is given back` | none |
+| The user's focus policy is put back when focus follows mouse is turned off and when komorebi exits | framework path: [`Kwinrc`] records the first value of each key it sets, `set_focus_follows_mouse(false)` puts the two keys back with [`Kwinrc::restore_keys`] and `shutdown` puts back all | `one_key_can_be_put_back_while_the_others_in_its_group_stay_changed`, `what_komorebi_changed_is_put_back_exactly_and_what_it_added_is_removed`, `vm-focus-follows-mouse` | `SIGKILL`: the next run puts it back when it stops |
+| Focus follows mouse is the compositor's, whichever implementation is named | framework path: the `FocusFollowsMouse` and `ToggleFocusFollowsMouse` arms ask the backend the same thing for both | `focus_follows_mouse_is_asked_of_the_compositor_and_toggles` | none |
+| The `focus_follows_mouse` key of the file turns it on, and a file that leaves it out turns it off | framework path: `StaticConfig::postload` and `StaticConfig::reload` set the window manager's field from the file and ask the backend for it | `the_file_turns_focus_follows_mouse_on_and_a_file_that_leaves_it_out_turns_it_off` | none |
+| The window under the pointer has the focus, and komorebi follows | the compositor's focus policy; the window manager follows the focus event as any other | `vm-focus-follows-mouse` (a real pointer over each window) | none |
 | The effect komorebi loaded is unloaded, and the user's settings of it are put back, when komorebi stops using it or exits | framework path: the effect's state unloads what komorebi loaded, and [`Kwinrc`] puts the group back | `one_group_can_be_put_back_while_the_others_stay_changed`, `vm-look` | `SIGKILL`: the next run puts the settings back when it stops |
 | Queries never block on the compositor | convention only | none | the KWin backend's `cursor_pos` waits up to 250 ms |
 | Only the backend module reaches the compositor | convention only | none | none |
@@ -1229,7 +1247,8 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/animation.rs`](../../komorebi/tests/animation.rs), the messages that set the
   animation, [`komorebi/tests/animation_config.rs`](../../komorebi/tests/animation_config.rs), its
   key of the file, and [`komorebi/tests/animation_stack.rs`](../../komorebi/tests/animation_stack.rs),
-  the stack commands that turn it off; [`komorebi/tests/transparency.rs`](../../komorebi/tests/transparency.rs)
+  the stack commands that turn it off; [`komorebi/tests/focus_follows_mouse.rs`](../../komorebi/tests/focus_follows_mouse.rs),
+  focus follows mouse; [`komorebi/tests/transparency.rs`](../../komorebi/tests/transparency.rs)
   and [`komorebi/tests/transparency_config.rs`](../../komorebi/tests/transparency_config.rs),
   transparency and its keys of the file; [`komorebi/tests/border_colours.rs`](../../komorebi/tests/border_colours.rs) and
   [`komorebi/tests/borders_off.rs`](../../komorebi/tests/borders_off.rs), the color of each
@@ -1237,7 +1256,9 @@ A window is shown, and ends up on a tile:
   [`nix/tests/vm/suites/look`](../../nix/tests/vm/suites/look/test.py), the border in a real
   Plasma session, read from the pixels of a screenshot, and
   [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py), the colors of the
-  kinds of window.
+  kinds of window; [`nix/tests/vm/suites/focus-follows-mouse`](../../nix/tests/vm/suites/focus-follows-mouse/test.py),
+  focus follows mouse with a real pointer, which [`Pointer`](../../nix/tests/vm/lib/komorebi_vm/pointer.py)
+  moves from inside the guest.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
   driven end to end against the fake.
 - [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
@@ -1322,6 +1343,9 @@ A window is shown, and ends up on a tile:
 [`border_manager::send_notification`]: ../../komorebi/src/border_manager/mod.rs
 [`BORDER_DRAWN`]: ../../komorebi/src/border_manager/mod.rs
 [`animation`]: ../../komorebi/src/animation/mod.rs
+[`WindowManager::focus_follows_mouse`]: ../../komorebi/src/window_manager.rs
+[`Backend::set_focus_follows_mouse`]: ../../komorebi/src/backend/mod.rs
+[`Kwinrc::restore_keys`]: ../../komorebi/src/kwin/kwinrc.rs
 [`transparency_manager`]: ../../komorebi/src/transparency_manager.rs
 [`transparency_manager::apply`]: ../../komorebi/src/transparency_manager.rs
 [`transparency_manager::transparent_windows`]: ../../komorebi/src/transparency_manager.rs

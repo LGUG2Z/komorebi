@@ -469,6 +469,18 @@ the opacity it gave each window that is not opaque (`WindowManager::opacity_appl
 difference, makes a window opaque again when it should no longer be see-through (and only if it is
 still there), and makes every one opaque when it stops.
 
+## Why is focus follows mouse KWin's own focus policy?
+
+Because KWin has one, and gives the focus to the window under the pointer by itself. komorebi
+asks for it by changing the user's `FocusPolicy` and follows the focus, as it follows any change
+of focus, and puts the policy back when focus follows mouse is turned off and when it exits
+([PLATFORM.md](PLATFORM.md#files-and-directories)). Both implementations komorebi for Windows
+names, `Windows` and `Komorebi`, ask KWin for the same thing. Upstream marks the Windows key
+end-of-life in favor of masir, a separate program. The code also sets `DelayFocusInterval` to 0,
+which is KWin's setting for no delay between the pointer entering a window and the window being
+given the focus; why 0 and not the delay KWin has by default is not written down, and needs a
+reason.
+
 ## Why are the effects patched?
 
 Because the stock effects lack what komorebi needs of them. Each patch leaves the effect

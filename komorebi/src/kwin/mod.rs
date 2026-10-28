@@ -909,6 +909,32 @@ impl Backend for KWinBackend {
         )
     }
 
+    fn set_focus_follows_mouse(&self, enable: bool) -> eyre::Result<()> {
+        let shared = self.shared.clone();
+
+        self.shared.block_on(async move {
+            let Some(kwinrc) = &shared.kwinrc else {
+                eyre::bail!("there is no configuration directory to find kwinrc in");
+            };
+
+            if enable {
+                kwinrc.set(
+                    "Windows",
+                    &[
+                        ("FocusPolicy", "1".to_string()),
+                        ("DelayFocusInterval", "0".to_string()),
+                    ],
+                )?;
+            } else {
+                kwinrc.restore_keys("Windows", &["FocusPolicy", "DelayFocusInterval"])?;
+            }
+
+            let connection = shared.connection().await?;
+            kwin_reconfigure(&connection).await;
+            Ok(())
+        })?
+    }
+
     fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
         let shared = self.shared.clone();
 

@@ -63,6 +63,7 @@ use crate::core::Axis;
 use crate::core::CrossBoundaryBehaviour;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
+use crate::core::FocusFollowsMouseImplementation;
 use crate::core::Layout;
 use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
@@ -138,6 +139,9 @@ pub struct WindowManager {
     pub monocle_focus_behaviour: MonocleFocusBehaviour,
     /// Whether the pointer is moved to the window that is given the focus, which is the default
     pub mouse_follows_focus: bool,
+    /// Whether the compositor gives the focus to the window under the pointer, and the
+    /// implementation that was asked for: on KDE both are the compositor's own focus policy
+    pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     /// The opacity each window was last given by [`crate::transparency_manager`], for the ones that
     /// are not opaque
     pub opacity_applied: HashMap<u32, u8>,
@@ -230,6 +234,7 @@ impl WindowManager {
             cross_monitor_move_behaviour: Default::default(),
             cross_boundary_behaviour: Default::default(),
             monocle_focus_behaviour: MonocleFocusBehaviour::default(),
+            focus_follows_mouse: None,
             opacity_applied: HashMap::new(),
             mouse_follows_focus: true,
             work_area_offset: None,

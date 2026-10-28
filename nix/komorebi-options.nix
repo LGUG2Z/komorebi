@@ -1,4 +1,4 @@
-# schema-sha256: f46c8e0d1557a1e36d2bd123a2d02a4238b28f07146beafb9b5c5fb5825b09df
+# schema-sha256: c001e5dc47908d250a272d3be32faaccd8e0b57629a62a0537d7880a53183ae5
 { lib, ... }:
 let
   animationStyle = (
@@ -392,6 +392,18 @@ in
           );
           default = null;
           description = "Aspect ratio to resize with when toggling floating mode for a window";
+        };
+        focus_follows_mouse = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.enum [
+                "Komorebi"
+                "Windows"
+              ]
+            )
+          );
+          default = null;
+          description = "Focus the window under the pointer. On KDE this is KWin's own focus policy, whichever\nimplementation is named";
         };
         global_work_area_offset = lib.mkOption {
           type = (lib.types.nullOr rect);

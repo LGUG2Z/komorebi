@@ -325,6 +325,10 @@ mouse-follows-focus enable
 mouse-follows-focus disable
 toggle-mouse-follows-focus
 toggle-mouse-follows-focus
+focus-follows-mouse enable
+focus-follows-mouse disable
+toggle-focus-follows-mouse
+toggle-focus-follows-mouse
 transparency enable
 transparency-alpha 150
 toggle-transparency
