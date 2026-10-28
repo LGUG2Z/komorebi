@@ -63,7 +63,10 @@ komorebi-recorder trace ./repro event:7  # one event, from the handler that ran 
 ```
 
 A script that drives the repro can name its steps on the timeline while recording, with
-`komorebi-recorder mark "step 3: move window right"`; they show up as notes.
+`komorebi-recorder mark "step 3: move window right"`; they show up as notes. And the same script can end with a
+pass or fail: `komorebi-recorder assert ./repro --check "findings kind=layout-mismatch count<=0" --check "log \"level=ERROR\" count==0"`
+exits 0 when every check holds and 6 when one does not (checks over findings, the log, motion, blank regions and
+notes; see the guide).
 
 For example, a four second recording of a Mac with komorebi running:
 

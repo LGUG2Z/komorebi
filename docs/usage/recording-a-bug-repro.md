@@ -144,6 +144,31 @@ It marks the session named by `--session DIR`, else by the environment variable 
 still running. A recording that has finished is refused: it has no "now" to mark; use `annotate <session> add` with a
 time instead. `--json` prints the `mark/1` envelope.
 
+### Checking the result from a script
+
+`assert` turns the recording into a pass or fail, so the same script that reproduces the bug can end by saying whether
+it happened. The exit status is the result: 0 when every check holds, 6 when one does not, 4 when one could not be
+measured (for example `motion` on a recording without video) and 2 when a check is malformed.
+
+```
+komorebi-recorder record --until-exit --out ./repro -- ./repro.sh   # repro.sh calls `komorebi-recorder mark` between steps
+komorebi-recorder assert ./repro   --check "annotations kind=note count>=3"   --check "findings kind=layout-mismatch count<=0"   --check "log \"level=ERROR\" count==0"   --check "blank region=0,0,800,600 color=white ms<=100"
+```
+
+```
+PASS annotations kind=note count>=3 (observed 4)
+FAIL findings kind=layout-mismatch count<=0 (observed 2)
+     f-3a9c1e invariant:layout-mismatch at 00:03.280: ...
+PASS log "level=ERROR" count==0 (observed 0)
+PASS blank region=0,0,800,600 color=white ms<=100 (observed 0)
+1 of 4 check(s): 1 failed
+```
+
+The first check confirms the script's `mark`s were recorded. A check is a kind, its arguments and a comparison
+(`==  !=  <=  >=  <  >`); the kinds are `findings`, `log` (a `logq` query), `motion`, `blank` and `annotations`, and
+times in `from=` and `to=` are any time the other commands take, including `event:N` and `bug:<id>`. `--json` prints the
+`assert/1` envelope. `assert` only reads the session.
+
 ### Without video
 
 `komorebi-recorder record --no-video` records everything but the screen: komorebi's events and log, the OS trace and

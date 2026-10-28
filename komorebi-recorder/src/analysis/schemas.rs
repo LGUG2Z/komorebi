@@ -175,6 +175,11 @@ pub const ALL: &[Entry] = &[
         schema: of::<super::findings::FindingsData>,
     },
     Entry {
+        name: "assert/1",
+        about: "`assert`: pass, fail or error for each scripted check, with what was observed",
+        schema: of::<super::assertions::AssertData>,
+    },
+    Entry {
         name: "record/1",
         about: "`record --json`: the finished session, its displays and frames, warnings and the --until-exit command's status",
         schema: of::<crate::cli::outputs::RecordData>,

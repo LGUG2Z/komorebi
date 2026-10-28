@@ -7,6 +7,7 @@
 
 mod agent;
 mod annotate;
+mod assert;
 mod doctor;
 mod findings;
 mod investigate;
@@ -38,6 +39,7 @@ pub use agent::SchemaArgs;
 pub use agent::SearchArgs;
 pub use annotate::AnnotateArgs;
 pub use annotate::AnnotationsArgs;
+pub use assert::AssertArgs;
 pub use doctor::DoctorArgs;
 pub use findings::FindingsArgs;
 pub use investigate::CodeArgs;
@@ -148,6 +150,8 @@ pub enum Command {
     Annotate(AnnotateArgs),
     /// List a session's bug regions, notes and findings
     Annotations(AnnotationsArgs),
+    /// Pass/fail checks over a recording (findings, log, motion, blank, notes); exit 6 if one fails
+    Assert(AssertArgs),
     /// Drop a named marker onto the timeline of a recording that is still going
     Mark(mark::MarkArgs),
     /// Rebuild a session's timeline from its raw files, recovering it first if the recorder died
@@ -226,6 +230,7 @@ impl Command {
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
             Self::Mark(args) => args.json,
+            Self::Assert(args) => args.json,
             Self::Doctor(args) => args.json,
             Self::Record(args) => args.json,
             Self::Displays(args) => args.json,
@@ -248,6 +253,10 @@ pub fn execute(command: Command) -> std::process::ExitCode {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
             let kind = crate::analysis::envelope::exit_kind(&error);
+            if crate::analysis::envelope::is_reported(&error) {
+                // the command printed its own answer; only the exit status is left to set
+                return std::process::ExitCode::from(kind.code());
+            }
             if json {
                 let envelope = crate::analysis::envelope::Envelope::failed(&error);
                 if let Ok(text) = serde_json::to_string_pretty(&envelope) {
@@ -299,6 +308,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
         Command::Mark(args) => mark::mark(&args),
+        Command::Assert(args) => assert::assert(&args),
         Command::Reindex(args) => reindex(&args),
         Command::Selftest(args) => crate::selftest::run(&args),
         Command::SelftestClock => crate::selftest::run_clock(),

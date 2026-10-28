@@ -14,7 +14,7 @@ komorebi-recorder guide               # the playbook, for an agent
 Every command takes `--json`, which prints an envelope `{ok, schema, data, warnings, truncated, next_cursor, error}`;
 `komorebi-recorder schema` lists the schemas and `komorebi-recorder schema brief/1` prints one. Exit codes: 0 ok, 1
 error, 2 usage, 3 not found, 4 the session cannot answer (still recording, or the recorder died: `reindex` it), 5 over
-budget.
+budget, 6 an `assert` check did not hold.
 
 ## The viewer
 
@@ -127,6 +127,7 @@ and `event:12.end` when it finished.
 | `framediff A B [--region ..] [--png FILE] [--against SESSION]` | How two frames differ: changed share, mean and peak brightness delta, the box of change, and a PNG with the changed pixels in red |
 | `blank --region x,y,w,h` | When a region was blank (one colour, named: `white`, `black`, a hex code) or frozen (identical to the frame before): "the window went white for 200 ms" |
 | `compare A B` | Two recordings side by side: duration, frames, effective fps, worst frame gap, motion, findings by kind, annotations, and the difference |
+| `assert --check "KIND ARGS METRIC<=N"` | Pass/fail checks for a scripted scenario, repeatable. Kinds: `findings kind=K [severity=S] count<=N`, `log "<logq query>" count==N`, `motion [region=x,y,w,h] [from=T] [to=T] segments\|active_ms\|peak_share<=N`, `blank region=x,y,w,h [from=T] [to=T] [color=white] ms<=N`, `annotations kind=note\|bug\|finding count>=N`. Operators `==  !=  <=  >=  <  >`. Prints `PASS`/`FAIL` per check; exit 0 if all pass, 6 if one fails, 4 if one cannot be measured (no video), 2 if malformed. `--json` gives `assert/1` |
 | `annotate`, `annotations` | Add, change and list bug regions, notes and findings |
 | `mark TEXT` | While recording: drop a named point note (author `script`) onto the timeline from a script; it then appears in `annotations`, `brief` and the viewer like any note |
 

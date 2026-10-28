@@ -10,7 +10,7 @@ what *produces* the bug the user described, from the recording, and then propose
 what it shows. Every command takes `--json`; its output is an envelope
 `{ok, schema, data, warnings, truncated, next_cursor, error}` whose `data` is described by
 `komorebi-recorder schema <schema>`. Exit codes: 0 ok, 1 error, 2 usage, 3 not found, 4 unusable
-session, 5 over budget.
+session, 5 over budget, 6 an `assert` check failed.
 
 ## 1. Start with the brief
 
@@ -129,6 +129,18 @@ event number, log line, video time and state difference. A log line can be cited
 the command prints the line it resolved to, so check it is the statement you meant; an ambiguous
 text lists the candidates and is refused. Never claim a cause without a reference,
 and say what you could not verify.
+
+### Scripted checks
+
+To turn a scenario into pass or fail, `komorebi-recorder assert <session> --check "<check>" ...` evaluates checks with
+the same analyses and answers with its exit code (0 all pass, 6 one failed, 4 one could not be measured, 2 malformed).
+A check is `<kind> <args> <metric><op><number>`, with `==  !=  <=  >=  <  >`:
+
+    findings kind=layout-mismatch count<=0
+    log "level=ERROR and message~\"ghost\"" count==0      (the logq language)
+    motion region=0,0,800,600 from=bug:a-1.start segments<=2     (also active_ms, peak_share)
+    blank region=0,0,800,600 color=white ms<=100
+    annotations kind=note count>=3                            (did the script's `mark`s land?)
 
 ## 5. Propose the fix
 

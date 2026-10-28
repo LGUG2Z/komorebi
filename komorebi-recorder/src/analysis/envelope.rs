@@ -21,6 +21,7 @@
 //! | 3 | [`NotFound`](ExitKind::NotFound) | the session, or something asked for in it, does not exist |
 //! | 4 | [`Unusable`](ExitKind::Unusable) | the session exists but cannot answer: still recording, or it recorded nothing |
 //! | 5 | [`Budget`](ExitKind::Budget) | the answer would have exceeded the time or size budget |
+//! | 6 | [`Assertion`](ExitKind::Assertion) | `assert` measured the recording and a check did not hold |
 //!
 //! The codes are stable. [`ENVELOPE_VERSION`] is bumped when the envelope's own fields change;
 //! the shape of each command's `data` is versioned by its `schema` (`brief/1`), and the
@@ -66,7 +67,8 @@ pub const ENVELOPE_VERSION: u32 = 1;
 
 /// How the process exits: the kind of a failure, and the exit code that goes with it.
 ///
-/// Serialized in kebab case (`ok`, `error`, `usage`, `not-found`, `unusable`, `budget`) in an
+/// Serialized in kebab case (`ok`, `error`, `usage`, `not-found`, `unusable`, `budget`,
+/// `assertion`) in an
 /// envelope's `error.kind`. [`ExitKind::code`] gives the exit code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
@@ -86,10 +88,13 @@ pub enum ExitKind {
     /// The answer would have exceeded the time or size budget: exit code 5. Narrowing the request
     /// is the way forward.
     Budget,
+    /// `assert` measured the recording and a check did not hold: exit code 6. Not a failure of the
+    /// command: the answer is "no".
+    Assertion,
 }
 
 impl ExitKind {
-    /// Returns the process exit code of this kind: 0 for [`ExitKind::Ok`], then 1 to 5 in the order
+    /// Returns the process exit code of this kind: 0 for [`ExitKind::Ok`], then 1 to 6 in the order
     /// the variants are declared.
     ///
     /// The mapping is stable, so a script may rely on the numbers (`exit_codes_are_stable` pins
@@ -104,6 +109,7 @@ impl ExitKind {
     /// assert_eq!(ExitKind::Usage.code(), 2);
     /// assert_eq!(ExitKind::NotFound.code(), 3);
     /// assert_eq!(ExitKind::Budget.code(), 5);
+    /// assert_eq!(ExitKind::Assertion.code(), 6);
     /// ```
     #[must_use]
     pub fn code(self) -> u8 {
@@ -114,6 +120,7 @@ impl ExitKind {
             Self::NotFound => 3,
             Self::Unusable => 4,
             Self::Budget => 5,
+            Self::Assertion => 6,
         }
     }
 }
@@ -248,6 +255,32 @@ pub fn exit_kind(report: &eyre::Report) -> ExitKind {
         .map_or(ExitKind::Error, |error| error.kind)
 }
 
+/// Marks a failure whose answer the command has already printed, so that
+/// `crate::cli::execute` only sets the exit code and prints nothing more (no second envelope).
+///
+/// Made by [`reported`]; the kind is still read with [`exit_kind`].
+#[derive(Debug)]
+pub struct Reported;
+
+impl fmt::Display for Reported {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("the answer was already printed")
+    }
+}
+
+impl std::error::Error for Reported {}
+
+/// Returns an error of this kind whose answer the command has already printed (see [`Reported`]).
+pub fn reported(kind: ExitKind, message: impl Into<String>) -> eyre::Report {
+    failure(kind, message).wrap_err(Reported)
+}
+
+/// Returns whether `report` was made by [`reported`].
+#[must_use]
+pub fn is_reported(report: &eyre::Report) -> bool {
+    report.downcast_ref::<Reported>().is_some()
+}
+
 /// The `error` of a failed [`Envelope`]: the kind of failure and what to do about it.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct ErrorBody {
@@ -330,6 +363,21 @@ impl<T> Envelope<T> {
             next_cursor: None,
             error: None,
         }
+    }
+
+    /// Returns the envelope as a failed one that still carries its `data`: `ok` is `false` and
+    /// `error` has `kind` and its exit code. For a command whose answer is the point even when it
+    /// is "no" (`assert`).
+    #[must_use]
+    pub fn with_error(mut self, kind: ExitKind, message: impl Into<String>) -> Self {
+        self.ok = false;
+        self.error = Some(ErrorBody {
+            kind,
+            code: kind.code(),
+            message: message.into(),
+            hint: None,
+        });
+        self
     }
 
     /// Returns the envelope with `warnings` as its warnings. They replace any that were there.
@@ -415,11 +463,12 @@ mod tests {
             ExitKind::NotFound,
             ExitKind::Unusable,
             ExitKind::Budget,
+            ExitKind::Assertion,
         ]
         .iter()
         .map(|kind| kind.code())
         .collect();
-        assert_eq!(codes, [0, 1, 2, 3, 4, 5]);
+        assert_eq!(codes, [0, 1, 2, 3, 4, 5, 6]);
     }
 
     #[test]
