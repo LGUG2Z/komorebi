@@ -12,6 +12,7 @@ own architecture:
 | `plasma-utm` | Apple silicon Mac | [UTM](https://mac.getutm.app), with a GPU | the session guest as a disk image that boots by UEFI |
 | `plasma-vm-x86_64`, `plasma-vm-session-x86_64` | Linux on x86_64 | QEMU from nixpkgs, with KVM | the first two, as `x86_64-linux` guests |
 | `plasma-vm-aarch64`, `plasma-vm-session-aarch64` | Linux on aarch64 | QEMU from nixpkgs, with KVM | the first two, as `aarch64-linux` guests |
+| `run-kde-x86_64`, `run-kde-aarch64` | Linux on x86_64, on aarch64 | QEMU from nixpkgs, with KVM | the session guest with a demo on it, which `run-kde` starts ([below](#the-demo-guest)) |
 
 The guests of a Mac are `aarch64-linux`. A guest of a Linux host that has no KVM does not start:
 the runner refuses, because Plasma under software emulation is too slow to try anything.
@@ -110,6 +111,61 @@ A guest has one display device, a virtio-gpu, so that KWin has a DRM device to d
 of an x86_64 guest has a VGA of its own, which would be a second display next to the virtio-gpu,
 so the guest has `virtio-vga` (a virtio-gpu that is also a VGA) in its place and `-vga none`. The
 session guest shows nothing on the host, as on a Mac: it is reached over RDP ([below](#rdp)).
+
+## The demo guest
+
+`run-kde-x86_64` and `run-kde-aarch64` are the session guest with a demo on it, made by
+[`nix/dev/run-kde.nix`](../../nix/dev/run-kde.nix) on top of `plasma-vm.nix`. komorebi is
+configured by the module's typed `config` (eight workspaces with a layout each, borders and
+animation) and by the sample key bindings, `docs/skhdrc.sample`, in the module's default mode. At
+login the guest opens two Konsole windows, Kate and Dolphin, which komorebi tiles, and a cheat sheet
+that it leaves alone: the main key bindings, `komorebic` commands to try, what KWin draws with, and
+the output of `komorebic check` for the configuration the daemon runs. The VM suite `run-kde` boots
+the same module on the session node.
+
+The closure is the same for everyone. No password, key or configuration of a person is in it, and
+what a person's run needs comes from the environment of the runner:
+
+| Variable | What the guest does with it |
+|---|---|
+| `KOMOREBI_REPO` | the directory mounted at `/repo` |
+| `RUN_KDE_STATE` | the directory mounted at `/run/run-kde`, with `rdp-password` (the password for RDP) and `ssh_key.pub` (the public key that may log in over ssh) |
+| `RUN_KDE_MEMORY` | the memory in MiB, which has to be the `-m` of the same run |
+| `QEMU_NET_OPTS` | the port forwards, as `hostfwd=tcp:127.0.0.1:2223-:22,hostfwd=tcp:127.0.0.1:3389-:3389` |
+| `QEMU_OPTS` | the display device: `-vga none -device virtio-vga,xres=1280,yres=800`, or `-display gtk,gl=on -vga none -device virtio-vga-gl,xres=1280,yres=800` for a GPU |
+| `NIX_DISK_IMAGE` | the disk image, which the runner makes when it is not there |
+
+`run-kde` sets them; to start the guest by hand, on a Linux machine:
+
+```sh
+nix build .#nixosConfigurations.run-kde-x86_64.config.system.build.vm -o .vm/result-run-kde
+mkdir -m 700 .vm/state && cd .vm
+ssh-keygen -q -t ed25519 -N '' -f state/ssh_key
+printf %s "a password" > state/rdp-password
+KOMOREBI_REPO=$PWD/.. RUN_KDE_STATE=$PWD/state RUN_KDE_MEMORY=6144 \
+  QEMU_NET_OPTS=hostfwd=tcp:127.0.0.1:2223-:22,hostfwd=tcp:127.0.0.1:3389-:3389 \
+  QEMU_OPTS='-cpu host -vga none -device virtio-vga,xres=1280,yres=800' \
+  ./result-run-kde/bin/run-komorebi-demo-vm -m 6144 -smp 4
+```
+
+The guest differs from `plasma-vm-session` in what the runner of nixpkgs would otherwise fix when
+the closure is built:
+
+- The display device is not part of the guest (`komorebi.plasmaVm.display` is false). The same
+  closure and the same disk run with the software `virtio-vga` or with `virtio-vga-gl`, which
+  renders on the host's GPU through VirGL, as the runner's environment says.
+- The ports are not forwarded by the guest, so that a person can choose them.
+- The runner does not insist on KVM (`qemu.forceAccel` is false): `run-kde` checks for it and
+  lets `--tcg` start a guest without.
+- The shared memory that virtiofs needs is a memory backend of the guest's memory size, which
+  nixpkgs fixes at `memorySize` in the command line of the runner. The guest makes its own, from
+  `RUN_KDE_MEMORY`, so that a run can have less memory than the closure's 8 GB.
+- The directory `/run/run-kde` is mounted after the boot and not in the initrd, where a mount
+  under `/run` is hidden by the `/run` that the booted system mounts.
+- The files in it can belong to a user of the host who is not the guest's user, and the guest
+  cannot read the directory then. The unit `run-kde-credentials` copies the two files as root, to
+  `/run/run-kde-guest`, where the RDP unit (`komorebi.krdp.passwordFile`) and sshd
+  (`AuthorizedKeysFile`) read them.
 
 ## The UTM disk
 
@@ -215,8 +271,10 @@ At time of writing (2026-10-28), the guests of a Mac, made from these files, hav
 evaluates them. The `x86_64` pair for a Linux host was built and started under KVM on an `x86_64`
 machine. Both guests reached the login on their serial console and had one DRM device with a render
 node, and the session guest drew the Plasma desktop on its display (a screenshot taken through
-QEMU's monitor) with komorebi running in the session. The `aarch64` pair for a Linux host was
-evaluated and not built. The RDP server is the exception to all of this: the VM suite `rdp` runs the
-same unit in the test session. That KWin 6.8 runs well on VirGL under UTM is not known either: the
-UTM and Mesa notes say VirGL is the way to render a Linux desktop, and Plasma works on it for other
-people, but it has not been measured here.
+QEMU's monitor) with komorebi running in the session. The demo guest, `run-kde-x86_64`, was
+started under KVM with a state directory: ssh took the key from it, the RDP unit started with the
+password from it, komorebi tiled the four windows, and the cheat sheet opened. The `aarch64` guests
+for a Linux host were evaluated and not built. The RDP server is the exception to all of this: the
+VM suite `rdp` runs the same unit in the test session. That KWin 6.8 runs well on VirGL under UTM
+is not known either: the UTM and Mesa notes say VirGL is the way to render a Linux desktop, and
+Plasma works on it for other people, but it has not been measured here.

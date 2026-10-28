@@ -806,6 +806,15 @@ At time of writing (2026-10-27):
 - KRDP 6.8.1, Plasma's RDP server, does not start without a TLS certificate and key, although
   its `--help` says it generates one; it logs the error and keeps running with nothing
   listening. `xrdp` is not an option, since there is no X11 session to start.
+- A guest can have OpenGL through the host's GPU. At time of writing (2026-10-28), the demo guest
+  started under KVM with `-display gtk,gl=on -device virtio-vga-gl` on an X server (Xvfb) whose
+  OpenGL is Mesa's llvmpipe, with QEMU 11.1.2 and Mesa 26.2.5 from nixpkgs: KWin drew with the
+  driver `virgl`, and the guest's renderer string was `virgl (LLVMPIPE (LLVM 21.1.8, 256 bits))`.
+  The guest names its own driver whatever the host renders with, so it cannot tell a host GPU
+  from a host software renderer. QEMU's `screendump` answers "no surface" with `virtio-vga-gl`: the picture
+  has to be read from the window. `-display egl-headless` needs a DRM render node and stops at
+  startup without one ("egl: no drm render node available", on the machine of these runs, which has
+  none). A GPU that renders is not measured here.
 
 ### RDP into the session
 
@@ -814,7 +823,8 @@ The session guests to develop in ([utm.md](utm.md)) run KRDP as a user unit of t
 screen and for input through its own Wayland protocols (KRDP's desktop file lists
 `zkde_screencast_unstable_v1` and `org_kde_kwin_fake_input`), so no portal asks the user first. The
 unit makes a self-signed certificate, and logs in the session's user with a password the user
-writes to a file; without the file it does not start. At time of writing (2026-10-27), with KWin
+writes to a file, or that a guest takes from the host (the demo guest); without a password file it
+does not start. At time of writing (2026-10-27), with KWin
 and KRDP 6.8.1 and FreeRDP 3.32.2:
 
 - KRDP sends the screen as H.264 only, encoded with x264 in software when there is no VAAPI device

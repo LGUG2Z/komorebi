@@ -182,8 +182,10 @@ To try komorebi by hand in a real Plasma session, the flake has Plasma guests
 to develop in. For an Apple silicon Mac there are two that QEMU runs, one with a
 session that can be reached over RDP, and a disk image for UTM, which renders on
 the Mac's GPU. For a Linux machine with KVM there are the same two QEMU guests,
-for `x86_64` and for `aarch64`. [`docs/dev/utm.md`](docs/dev/utm.md) says how to
-build and run them; `plasma-guests-eval` evaluates them on every system.
+for `x86_64` and for `aarch64`, and a demo guest of the session guest, which
+shows komorebi tiling a few windows in the first minute.
+[`docs/dev/utm.md`](docs/dev/utm.md) says how to build and run them;
+`plasma-guests-eval` evaluates them on every system.
 
 ## How it fits together
 

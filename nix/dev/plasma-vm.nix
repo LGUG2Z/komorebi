@@ -49,6 +49,18 @@ in
       a full autologin Plasma Wayland session (sddm + plasmashell), in addition to the headless
       `kwin_wayland --virtual` workflow that is always available from the console and over ssh
     '';
+
+    display = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether the runner gives the guest its display device, a virtio-gpu. A guest that sets this
+        to false is started with a display device of its own choosing, which can then differ from
+        one start to the next: `run-kde` starts the demo guest (run-kde.nix) with a software
+        `virtio-vga` or with a `virtio-vga-gl` that renders on the host's GPU, from one closure and
+        one disk.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -146,7 +158,7 @@ in
           diskSize = 20 * 1024;
           graphics = false;
           # no display, but a gpu so there is a drm render node
-          qemu.options = lib.mkIf (!cfg.session) (gpu "");
+          qemu.options = lib.mkIf (cfg.display && !cfg.session) (gpu "");
           forwardPorts = [
             {
               from = "host";
@@ -182,7 +194,9 @@ in
       # kwin drives virtio-gpu through drm on the primary node; that is the only place mesa's software
       # rasterizer can allocate buffers (see docs/dev/PLATFORM.md: the headless --virtual backend
       # cannot)
-      virtualisation.vmVariant.virtualisation.qemu.options = gpu ",xres=1920,yres=1080";
+      virtualisation.vmVariant.virtualisation.qemu.options = lib.mkIf cfg.display (
+        gpu ",xres=1920,yres=1080"
+      );
       # an idle lock screen or dimmed display changes how kwin animates and what screenshots show
       environment.etc."xdg/kscreenlockerrc".text = ''
         [Daemon]

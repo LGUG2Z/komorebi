@@ -292,38 +292,37 @@
             plasma-guests-eval =
               let
                 guests = self.nixosConfigurations;
-                machines = {
-                  plasma-vm = {
-                    guest = "aarch64-linux";
-                    host = "aarch64-darwin";
+                machines =
+                  let
+                    mac = {
+                      guest = "aarch64-linux";
+                      host = "aarch64-darwin";
+                    };
+                    linux = system: {
+                      guest = system;
+                      host = system;
+                    };
+                    # the runner of the demo is given its display device, its ports and whether to
+                    # insist on KVM when it starts, by `run-kde`
+                    demo = machine: machine // { demo = true; };
+                  in
+                  {
+                    plasma-vm = mac;
+                    plasma-vm-session = mac;
+                    plasma-vm-x86_64 = linux "x86_64-linux";
+                    plasma-vm-session-x86_64 = linux "x86_64-linux";
+                    plasma-vm-aarch64 = linux "aarch64-linux";
+                    plasma-vm-session-aarch64 = linux "aarch64-linux";
+                    run-kde-x86_64 = demo (linux "x86_64-linux");
+                    run-kde-aarch64 = demo (linux "aarch64-linux");
                   };
-                  plasma-vm-session = {
-                    guest = "aarch64-linux";
-                    host = "aarch64-darwin";
-                  };
-                  plasma-vm-x86_64 = {
-                    guest = "x86_64-linux";
-                    host = "x86_64-linux";
-                  };
-                  plasma-vm-session-x86_64 = {
-                    guest = "x86_64-linux";
-                    host = "x86_64-linux";
-                  };
-                  plasma-vm-aarch64 = {
-                    guest = "aarch64-linux";
-                    host = "aarch64-linux";
-                  };
-                  plasma-vm-session-aarch64 = {
-                    guest = "aarch64-linux";
-                    host = "aarch64-linux";
-                  };
-                };
                 isDisplay =
                   option: lib.hasPrefix "-device virtio-vga" option || lib.hasPrefix "-device virtio-gpu" option;
                 qemuGuest =
                   name:
                   let
                     machine = machines.${name};
+                    demo = machine.demo or false;
                     vm = guests.${name}.config.virtualisation.vmVariant.virtualisation;
                   in
                   assert lib.assertMsg (
@@ -332,15 +331,19 @@
                   assert lib.assertMsg (
                     vm.host.pkgs.stdenv.hostPlatform.system == machine.host
                   ) "${name} does not run on a ${machine.host} host";
-                  assert lib.assertMsg (vm.qemu.forceAccel
+                  assert lib.assertMsg (
+                    vm.qemu.forceAccel != demo
                   ) "${name} would run without KVM or HVF, which is too slow to use";
                   assert lib.assertMsg (
-                    builtins.length (builtins.filter isDisplay vm.qemu.options) == 1
-                  ) "${name} does not have exactly one display device";
+                    builtins.length (builtins.filter isDisplay vm.qemu.options) == (if demo then 0 else 1)
+                  ) "${name} does not have the display devices it should have";
                   assert lib.assertMsg
                     # an x86_64 machine has a VGA of its own, which would be a second display
-                    ((machine.guest == "x86_64-linux") == builtins.elem "-vga none" vm.qemu.options)
-                    "${name} has `-vga none` if and only if it is an x86_64 guest";
+                    ((machine.guest == "x86_64-linux" && !demo) == builtins.elem "-vga none" vm.qemu.options)
+                    "${name} has `-vga none` if and only if it is an x86_64 guest with a display device";
+                  assert lib.assertMsg (
+                    demo -> (vm.forwardPorts == [ ] && vm.sharedDirectories.run-kde.target == "/run/run-kde")
+                  ) "${name} does not leave its ports and its shared directory to the runner's environment";
                   {
                     ${name} = guests.${name}.config.virtualisation.vmVariant.system.build.toplevel;
                     "${name}, its runner" = guests.${name}.config.system.build.vm;
@@ -508,7 +511,8 @@
         # Plasma guests to develop against (docs/dev/utm.md). For an Apple silicon Mac, QEMU runs
         # the first two under HVF, and UTM boots the third from a disk image. For a Linux machine
         # with KVM, QEMU runs the other four: the same two guests for an x86_64 host and for an
-        # aarch64 one, each of which runs the guest of its own architecture.
+        # aarch64 one, each of which runs the guest of its own architecture. The last two are the
+        # demo that `run-kde` starts.
         nixosConfigurations =
           let
             # `guest` is the system of the guest, and `host` the pkgs of the machine that runs QEMU
@@ -537,6 +541,19 @@
               ./nix/dev/plasma-vm.nix
               { komorebi.plasmaVm.session = true; }
             ];
+            # the session guest with the demo of `run-kde` (nix/dev/run-kde.nix) and no display
+            # device, which the command gives it when it starts the guest
+            demo = [
+              ./nix/dev/plasma-vm.nix
+              {
+                komorebi.plasmaVm = {
+                  session = true;
+                  display = false;
+                };
+              }
+              ./nix/dev/run-kde.nix
+              ({ lib, ... }: { networking.hostName = lib.mkOverride 40 "komorebi-demo"; })
+            ];
           in
           {
             plasma-vm = onMac [ ./nix/dev/plasma-vm.nix ];
@@ -547,6 +564,9 @@
             plasma-vm-session-x86_64 = onLinux "x86_64-linux" session;
             plasma-vm-aarch64 = onLinux "aarch64-linux" [ ./nix/dev/plasma-vm.nix ];
             plasma-vm-session-aarch64 = onLinux "aarch64-linux" session;
+
+            run-kde-x86_64 = onLinux "x86_64-linux" demo;
+            run-kde-aarch64 = onLinux "aarch64-linux" demo;
           };
       };
     };
