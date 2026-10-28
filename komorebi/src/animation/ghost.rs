@@ -35,6 +35,7 @@ use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Dwm::DWM_THUMBNAIL_PROPERTIES;
 use windows::Win32::Graphics::Dwm::DWM_TNP_OPACITY;
 use windows::Win32::Graphics::Dwm::DWM_TNP_RECTDESTINATION;
+use windows::Win32::Graphics::Dwm::DWM_TNP_RECTSOURCE;
 use windows::Win32::Graphics::Dwm::DWM_TNP_VISIBLE;
 use windows::Win32::Graphics::Gdi::AC_SRC_ALPHA;
 use windows::Win32::Graphics::Gdi::AC_SRC_OVER;
@@ -81,6 +82,7 @@ use windows::core::PCWSTR;
 use crate::WindowsApi;
 use crate::animation::snapshot::Snapshot;
 use crate::animation::snapshot::SnapshotWindow;
+use crate::animation::transition::clip_thumbnail;
 use crate::core::Rect;
 
 const GHOST_CLASS_NAME: &[u16] = &[
@@ -296,7 +298,11 @@ impl GhostHost {
         let origin = self.origin();
         let registered =
             WindowsApi::dwm_register_thumbnail(self.hwnd, source.hwnd).and_then(|hthumb| {
-                let props = thumbnail_properties(destination(start_rect, origin), 255);
+                let props = thumbnail_properties(
+                    destination(start_rect, origin),
+                    full_source(snapshot.width, snapshot.height),
+                    255,
+                );
                 WindowsApi::dwm_update_thumbnail_properties(hthumb, &props)
                     .inspect_err(|_| {
                         let _ = WindowsApi::dwm_unregister_thumbnail(hthumb);
@@ -471,13 +477,45 @@ fn destination(rect: Rect, origin: (i32, i32)) -> RECT {
     }
 }
 
-fn thumbnail_properties(destination: RECT, opacity: u8) -> DWM_THUMBNAIL_PROPERTIES {
+/// The whole of a picture, in pixels of it
+fn full_source(width: i32, height: i32) -> RECT {
+    RECT {
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: height,
+    }
+}
+
+/// A rect, in pixels of the picture, as the part of it that is shown
+fn part_of_source(part: Rect) -> RECT {
+    RECT {
+        left: part.left,
+        top: part.top,
+        right: part.left + part.right,
+        bottom: part.top + part.bottom,
+    }
+}
+
+fn thumbnail_properties(destination: RECT, source: RECT, opacity: u8) -> DWM_THUMBNAIL_PROPERTIES {
     DWM_THUMBNAIL_PROPERTIES {
-        dwFlags: DWM_TNP_VISIBLE | DWM_TNP_RECTDESTINATION | DWM_TNP_OPACITY,
+        dwFlags: DWM_TNP_VISIBLE | DWM_TNP_RECTDESTINATION | DWM_TNP_RECTSOURCE | DWM_TNP_OPACITY,
         rcDestination: destination,
-        rcSource: RECT::default(),
+        rcSource: source,
         opacity,
         fVisible: true.into(),
+        fSourceClientAreaOnly: false.into(),
+    }
+}
+
+/// A thumbnail that is not shown, because none of it is where it may be
+fn hidden_thumbnail_properties() -> DWM_THUMBNAIL_PROPERTIES {
+    DWM_THUMBNAIL_PROPERTIES {
+        dwFlags: DWM_TNP_VISIBLE,
+        rcDestination: RECT::default(),
+        rcSource: RECT::default(),
+        opacity: 0,
+        fVisible: false.into(),
         fSourceClientAreaOnly: false.into(),
     }
 }
@@ -491,9 +529,19 @@ pub struct GhostWindow {
     hthumb: isize,
     /// Where the host's client area starts in screen coordinates
     origin: (i32, i32),
-    /// Where the ghost was last put, and how opaque it was made
-    shown: Mutex<Option<(Rect, u8)>>,
+    /// How big the picture is, in pixels
+    source_size: (i32, i32),
+    /// What the ghost was last made to show
+    shown: Mutex<Option<Shown>>,
     disposed: bool,
+}
+
+/// What a ghost shows: where it is drawn and which part of its picture goes
+/// there, or nothing, and how opaque it is
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Shown {
+    drawn: Option<(Rect, Rect)>,
+    opacity: u8,
 }
 
 impl GhostWindow {
@@ -503,6 +551,7 @@ impl GhostWindow {
         let start = std::time::Instant::now();
         let snapshot = Snapshot::capture(src_hwnd)?;
         let captured = start.elapsed();
+        let source_size = (snapshot.width, snapshot.height);
 
         let (reply_tx, reply_rx) = bounded::<eyre::Result<(isize, (i32, i32))>>(1);
         ghost_owner()
@@ -524,8 +573,21 @@ impl GhostWindow {
         Ok(Self {
             hthumb,
             origin,
-            // it is registered where the window is, and opaque
-            shown: Mutex::new(Some((start_rect, 255))),
+            source_size,
+            // it is registered where the window is, with all of its picture,
+            // and opaque
+            shown: Mutex::new(Some(Shown {
+                drawn: Some((
+                    start_rect,
+                    Rect {
+                        left: 0,
+                        top: 0,
+                        right: source_size.0,
+                        bottom: source_size.1,
+                    },
+                )),
+                opacity: 255,
+            })),
             disposed: false,
         })
     }
@@ -537,13 +599,22 @@ impl GhostWindow {
     /// A ghost that is already there is left alone: asking DWM for what is
     /// already so still has it compose the frame again.
     pub fn update(&self, rect: Rect, opacity: u8) -> eyre::Result<()> {
-        if !needs_update(&mut self.shown.lock(), rect, opacity) {
+        self.update_clipped(rect, opacity, None)
+    }
+
+    /// Like `update`, but nothing of the ghost is drawn outside `clip`: the
+    /// part of it that is outside is cut off, and it is not shown at all when
+    /// all of it is.
+    pub fn update_clipped(&self, rect: Rect, opacity: u8, clip: Option<Rect>) -> eyre::Result<()> {
+        let drawn = drawn_part(rect, self.source_size, clip);
+
+        if !needs_update(&mut self.shown.lock(), Shown { drawn, opacity }) {
             return Ok(());
         }
 
         WindowsApi::dwm_update_thumbnail_properties(
             self.hthumb,
-            &thumbnail_properties(destination(rect, self.origin), opacity),
+            &properties_for(drawn, self.origin, opacity),
         )
     }
 
@@ -583,14 +654,47 @@ impl Drop for GhostWindow {
     }
 }
 
-/// Whether putting a ghost at `rect` with `opacity` changes anything, given
-/// where it was last put, which is remembered if it does
-fn needs_update(shown: &mut Option<(Rect, u8)>, rect: Rect, opacity: u8) -> bool {
-    if *shown == Some((rect, opacity)) {
+/// Where a ghost of a picture of `source_size` that is to be at `rect` is to be
+/// drawn and which part of the picture goes there, when nothing of it is to be
+/// drawn outside `clip`, if there is one. Nothing if none of it is inside.
+fn drawn_part(rect: Rect, source_size: (i32, i32), clip: Option<Rect>) -> Option<(Rect, Rect)> {
+    match clip {
+        Some(clip) => clip_thumbnail(rect, source_size, clip),
+        None => Some((
+            rect,
+            Rect {
+                left: 0,
+                top: 0,
+                right: source_size.0,
+                bottom: source_size.1,
+            },
+        )),
+    }
+}
+
+/// What to ask DWM for to show what `drawn_part` says, on a host whose client
+/// area starts at `origin` on the screen
+fn properties_for(
+    drawn: Option<(Rect, Rect)>,
+    origin: (i32, i32),
+    opacity: u8,
+) -> DWM_THUMBNAIL_PROPERTIES {
+    match drawn {
+        Some((rect, part)) => {
+            thumbnail_properties(destination(rect, origin), part_of_source(part), opacity)
+        }
+        None => hidden_thumbnail_properties(),
+    }
+}
+
+/// Whether showing what a ghost is to show changes anything, given what it
+/// was last made to show, which is remembered if it does
+fn needs_update(shown: &mut Option<Shown>, next: Shown) -> bool {
+    if *shown == Some(next) {
         return false;
     }
 
-    *shown = Some((rect, opacity));
+    *shown = Some(next);
     true
 }
 
@@ -710,23 +814,59 @@ mod tests {
             right: 100,
             bottom: 50,
         };
-        let mut shown = Some((rect(0), 255));
+        let picture = rect(0);
+        let at = |left, opacity| Shown {
+            drawn: Some((rect(left), picture)),
+            opacity,
+        };
+        let mut shown = Some(at(0, 255));
 
         // where it is already
-        assert!(!needs_update(&mut shown, rect(0), 255));
+        assert!(!needs_update(&mut shown, at(0, 255)));
 
         // moved, or faded, or both
-        assert!(needs_update(&mut shown, rect(10), 255));
-        assert!(!needs_update(&mut shown, rect(10), 255));
-        assert!(needs_update(&mut shown, rect(10), 200));
-        assert!(needs_update(&mut shown, rect(20), 100));
+        assert!(needs_update(&mut shown, at(10, 255)));
+        assert!(!needs_update(&mut shown, at(10, 255)));
+        assert!(needs_update(&mut shown, at(10, 200)));
+        assert!(needs_update(&mut shown, at(20, 100)));
 
         // and back, which is a change from where it was last
-        assert!(needs_update(&mut shown, rect(10), 200));
+        assert!(needs_update(&mut shown, at(10, 200)));
 
         // one that was never put anywhere is put somewhere
         let mut never = None;
-        assert!(needs_update(&mut never, rect(0), 255));
+        assert!(needs_update(&mut never, at(0, 255)));
+    }
+
+    #[test]
+    fn a_ghost_is_updated_when_the_part_of_it_that_is_drawn_changes() {
+        let rect = |left, width| Rect {
+            left,
+            top: 0,
+            right: width,
+            bottom: 50,
+        };
+        let drawn = |part_left, part_width| Shown {
+            drawn: Some((rect(0, part_width), rect(part_left, part_width))),
+            opacity: 255,
+        };
+        let nothing = Shown {
+            drawn: None,
+            opacity: 255,
+        };
+
+        let mut shown = Some(drawn(0, 100));
+
+        // the same place, but a different part of the picture
+        assert!(needs_update(&mut shown, drawn(20, 100)));
+        assert!(!needs_update(&mut shown, drawn(20, 100)));
+
+        // not drawn at all, which is asked for once
+        assert!(needs_update(&mut shown, nothing));
+        assert!(!needs_update(&mut shown, nothing));
+
+        // and drawn again
+        assert!(needs_update(&mut shown, drawn(20, 100)));
     }
 
     #[test]
@@ -769,5 +909,212 @@ mod tests {
         // shown at the very end there is nothing left to fade over
         assert_eq!(ghost_opacity(1.0, 1.0), 0);
         assert_eq!(ghost_opacity(0.99, 1.0), 255);
+    }
+
+    /// Needs a desktop to put windows on, so it is only run when asked to:
+    /// `cargo test -p komorebi ghost -- --ignored`
+    ///
+    /// What is asked of DWM to clip a ghost to a rect, as if the rect were the
+    /// edge of a monitor with another one next to it, draws none of it outside
+    /// the rect, and all of the rest of it where it belongs.
+    ///
+    /// (The host of the ghosts is a layered window, whose thumbnails the screen
+    /// cannot be read back from, so this is done on a host that is not.)
+    #[test]
+    #[ignore = "needs an interactive desktop"]
+    fn dwm_draws_a_clipped_thumbnail_only_inside_its_clip() {
+        use windows::Win32::Graphics::Gdi::BitBlt;
+        use windows::Win32::Graphics::Gdi::CAPTUREBLT;
+        use windows::Win32::Graphics::Gdi::CreateCompatibleBitmap;
+        use windows::Win32::Graphics::Gdi::CreateSolidBrush;
+        use windows::Win32::Graphics::Gdi::DeleteDC;
+        use windows::Win32::Graphics::Gdi::DeleteObject;
+        use windows::Win32::Graphics::Gdi::GetPixel;
+        use windows::Win32::Graphics::Gdi::ROP_CODE;
+        use windows::Win32::Graphics::Gdi::SRCCOPY;
+        use windows::Win32::Graphics::Gdi::SelectObject;
+        use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
+        use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
+        use windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
+        use windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE;
+        use windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
+        use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
+        use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
+        use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
+        use windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
+        use windows::core::w;
+
+        // windows of two colours nothing else on the desktop is: the one that
+        // is thumbnailed (magenta) and the host that it is drawn on (green)
+        let instance = WindowsApi::module_handle_w().unwrap();
+        let window = |class: windows::core::PCWSTR, colour: u32, x, y, width, height| {
+            let window_class = WNDCLASSW {
+                hInstance: instance.into(),
+                lpszClassName: class,
+                lpfnWndProc: Some(ghost_wnd_proc),
+                hbrBackground: unsafe { CreateSolidBrush(COLORREF(colour)) },
+                ..Default::default()
+            };
+            let _ = WindowsApi::register_class_w(&window_class);
+
+            unsafe {
+                CreateWindowExW(
+                    WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                    class,
+                    class,
+                    WS_POPUP | WS_VISIBLE,
+                    x,
+                    y,
+                    width,
+                    height,
+                    None,
+                    None,
+                    Some(instance.into()),
+                    None,
+                )
+                .unwrap()
+            }
+        };
+
+        let source = window(
+            w!("komorebi-ghost-test-source"),
+            0x00FF_00FF,
+            100,
+            100,
+            300,
+            200,
+        );
+        let host = window(
+            w!("komorebi-ghost-test-host"),
+            0x0000_FF00,
+            600,
+            300,
+            800,
+            600,
+        );
+        unsafe {
+            SetWindowPos(host, Some(HWND_TOPMOST), 600, 300, 800, 600, SWP_NOACTIVATE).unwrap();
+        }
+        // paint them now: nothing is pumping the messages of this thread
+        for hwnd in [source, host] {
+            unsafe {
+                use windows::Win32::Graphics::Gdi::RDW_ERASE;
+                use windows::Win32::Graphics::Gdi::RDW_INVALIDATE;
+                use windows::Win32::Graphics::Gdi::RDW_UPDATENOW;
+                use windows::Win32::Graphics::Gdi::RedrawWindow;
+
+                let _ = RedrawWindow(
+                    Some(hwnd),
+                    None,
+                    None,
+                    RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW,
+                );
+            }
+        }
+        std::thread::sleep(Duration::from_millis(300));
+
+        let hthumb = WindowsApi::dwm_register_thumbnail(host.0 as isize, source.0 as isize)
+            .expect("a thumbnail of the window");
+        let size = unsafe { windows::Win32::Graphics::Dwm::DwmQueryThumbnailSourceSize(hthumb) }
+            .expect("the size of what is thumbnailed");
+        let size = (size.cx, size.cy);
+
+        // shown 400 wide, from 600 on the screen, of which what is right of 800
+        // is inside the clip
+        let dest = Rect {
+            left: 600,
+            top: 400,
+            right: 400,
+            bottom: 300,
+        };
+        let clip = Rect {
+            left: 800,
+            top: 0,
+            right: 1000,
+            bottom: 1500,
+        };
+        let drawn = drawn_part(dest, size, Some(clip));
+        assert!(drawn.is_some());
+        WindowsApi::dwm_update_thumbnail_properties(
+            hthumb,
+            &properties_for(drawn, (600, 300), 255),
+        )
+        .expect("show it clipped");
+        std::thread::sleep(Duration::from_millis(400));
+
+        // the screen is read in pixels, and the windows were put where they are in
+        // the units of a process that the display's scaling is applied to
+        let scale = WindowsApi::window_rect(host.0 as isize)
+            .map(|rect| f64::from(rect.right) / 800.0)
+            .unwrap_or(1.0);
+
+        let screen = unsafe { windows::Win32::Graphics::Gdi::GetDC(None) };
+        let sample = |x: i32, y: i32| unsafe {
+            let (x, y) = (
+                (f64::from(x) * scale).round() as i32,
+                (f64::from(y) * scale).round() as i32,
+            );
+            let dc = CreateCompatibleDC(Some(screen));
+            let bitmap = CreateCompatibleBitmap(screen, 1, 1);
+            let previous = SelectObject(dc, bitmap.into());
+            let _ = BitBlt(
+                dc,
+                0,
+                0,
+                1,
+                1,
+                Some(screen),
+                x,
+                y,
+                ROP_CODE(SRCCOPY.0 | CAPTUREBLT.0),
+            );
+            let pixel = GetPixel(dc, 0, 0).0 & 0xFF_FFFF;
+            SelectObject(dc, previous);
+            let _ = DeleteObject(bitmap.into());
+            let _ = DeleteDC(dc);
+            pixel
+        };
+
+        // left of the clip, but in the destination: what the host is
+        let outside = sample(650, 450);
+        // right of the edge of the clip, in the destination: the window
+        let inside = sample(950, 450);
+        // in the host and not in the destination at all: what the host is
+        let elsewhere = sample(650, 350);
+
+        // all of it moved out of the clip: hidden
+        let hidden = drawn_part(Rect { left: 100, ..dest }, size, Some(clip));
+        assert!(hidden.is_none());
+        WindowsApi::dwm_update_thumbnail_properties(
+            hthumb,
+            &properties_for(hidden, (600, 300), 255),
+        )
+        .expect("hide it");
+        std::thread::sleep(Duration::from_millis(400));
+        let moved_out = sample(950, 450);
+
+        unsafe {
+            ReleaseDC(None, screen);
+            let _ = WindowsApi::dwm_unregister_thumbnail(hthumb);
+            let _ = DestroyWindow(source);
+            let _ = DestroyWindow(host);
+        }
+
+        assert_eq!(
+            outside, 0x00FF00,
+            "the host outside the clip, got {outside:#08x}"
+        );
+        assert_eq!(
+            inside, 0xFF00FF,
+            "the window inside the clip, got {inside:#08x}"
+        );
+        assert_eq!(
+            elsewhere, 0x00FF00,
+            "the host outside the destination, got {elsewhere:#08x}"
+        );
+        assert_eq!(
+            moved_out, 0x00FF00,
+            "nothing drawn when all of it is outside, got {moved_out:#08x}"
+        );
     }
 }
