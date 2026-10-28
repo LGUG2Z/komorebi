@@ -48,6 +48,8 @@ On macOS the terminal needs the Screen Recording permission, as `komorebi` does.
 with `--log-level trace` first: the recorder never changes komorebi's log level, it only warns. A session made with
 `--no-video` has everything but the screen. [Recording a bug repro](docs/usage/recording-a-bug-repro.md) has the rest:
 what is captured on each OS, docking, sleep and lock, and recovering a recording after a crash.
+`record --window-track` also samples where every window is at video rate, and `sheet --windows` draws those rects on
+the frames.
 
 ## Investigate it
 

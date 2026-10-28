@@ -14,6 +14,12 @@ pub mod apps {
     pub fn window_owners() -> HashMap<u32, WindowOwner> {
         HashMap::new()
     }
+
+    /// Returns no windows: this host has no window server to ask.
+    #[must_use]
+    pub fn window_list() -> Vec<crate::sources::windowtrack::WindowSample> {
+        Vec::new()
+    }
 }
 
 /// Screen capture, which this host cannot do.

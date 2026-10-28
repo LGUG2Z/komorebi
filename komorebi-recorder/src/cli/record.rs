@@ -76,6 +76,19 @@ pub struct RecordArgs {
     /// Windows has hidden, such as a ghost tile
     #[arg(long)]
     pub no_probe_windows: bool,
+    /// Also sample every top-level window's rect, visibility and minimized (and, on Windows,
+    /// cloaked) state at HZ samples a second [default when given without a value: 30; 1 to 120]
+    /// into `windows.jsonl`, so that "which window was where in this frame" has an answer for
+    /// every frame; `sheet --windows` draws it. Written only when something changed, plus a full
+    /// row each second, so a still desktop costs almost nothing. Off unless asked for
+    #[arg(
+        long,
+        value_name = "HZ",
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "30"
+    )]
+    pub window_track: Option<u32>,
     /// Do not capture the screen: record everything else (komorebi's events and log, the OS
     /// trace and incidents) on the same clock
     #[arg(long, conflicts_with = "displays")]
@@ -122,6 +135,7 @@ impl Default for RecordArgs {
             no_video: false,
             probe_windows: false,
             no_probe_windows: false,
+            window_track: None,
             no_oslog: false,
             oslog_apps: AppsMode::Managed,
             oslog_all: false,
@@ -187,6 +201,7 @@ impl RecordArgs {
             no_komorebi: self.no_komorebi,
             no_video: self.no_video,
             probe_windows: self.probes_windows(),
+            window_track: self.window_track,
         }
     }
 

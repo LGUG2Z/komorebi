@@ -103,6 +103,10 @@ pub struct SheetArgs {
     /// Frames per row
     #[arg(long, default_value_t = 4)]
     pub columns: usize,
+    /// Draw each window's rect on every frame, from the window track (`record --window-track`);
+    /// a session without one says so and gets a plain sheet
+    #[arg(long)]
+    pub windows: bool,
     /// Where to write the PNG [default: in the session's sheets/ directory, named by the range]
     #[arg(long, value_name = "FILE")]
     pub out: Option<PathBuf>,
@@ -326,6 +330,21 @@ pub(super) fn sheet(args: &SheetArgs) -> eyre::Result<()> {
         ))
     });
 
+    let mut warnings = analysis.warnings();
+    let windows = if args.windows {
+        let track = analysis.window_track()?;
+        if track.is_none() {
+            warnings.push(
+                "--windows was asked for but the session has no window track (it was recorded \
+                 without --window-track), so no windows are drawn"
+                    .to_string(),
+            );
+        }
+        track
+    } else {
+        None
+    };
+
     let data = analysis.sheet(
         &video,
         &SheetOptions {
@@ -334,13 +353,17 @@ pub(super) fn sheet(args: &SheetArgs) -> eyre::Result<()> {
             cell_width: args.width,
             columns: args.columns,
             regions,
+            windows,
             out,
         },
     )?;
     if args.json {
-        return print_json(&Envelope::ok(SCHEMA_SHEET, data).warnings(analysis.warnings()));
+        return print_json(&Envelope::ok(SCHEMA_SHEET, data).warnings(warnings));
     }
 
+    for warning in &warnings {
+        eprintln!("note: {warning}");
+    }
     print!("{}", report::sheet_text(&data));
     Ok(())
 }

@@ -16,6 +16,7 @@
 //! per-event probe (`crate::sources::winprobe`), and is `None` on every other host.
 
 use crate::komorebi_link;
+use crate::sources::windowtrack::WindowSample;
 use crate::sources::winprobe::WindowFacts;
 use std::time::Duration;
 use std::time::Instant;
@@ -64,6 +65,38 @@ pub fn inspect(hwnd: u32) -> Option<WindowFacts> {
         let _ = hwnd;
         None
     }
+}
+
+/// Whether this host can list its windows (see [`list`]). Where it cannot, `--window-track` is
+/// refused rather than recording nothing.
+pub const CAN_LIST: bool = cfg!(any(windows, target_os = "macos"));
+
+/// Returns every top-level window an ordinary user could see, front to back, as generic facts
+/// for the sampled window track (`crate::sources::windowtrack`). The recorder's own windows are
+/// left out.
+///
+/// | | Windows | macOS |
+/// |---|---|---|
+/// | `id` | the window handle, as komorebi's `hwnd` | the window server's window number |
+/// | `rect` | visible frame in pixels | `kCGWindowBounds` in display points |
+/// | `visible` | `IsWindowVisible`, always true here | `kCGWindowIsOnscreen` |
+/// | `cloaked` | `Some(_)` from DWM | `None` |
+///
+/// It is empty on a host that cannot list windows ([`CAN_LIST`]).
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::platform::window::{CAN_LIST, list};
+///
+/// // without windows to ask, there is nothing listed (a desktop session lists something)
+/// if !CAN_LIST {
+///     assert!(list().is_empty());
+/// }
+/// ```
+#[must_use]
+pub fn list() -> Vec<WindowSample> {
+    super::apps::window_list()
 }
 
 /// Per-window housekeeping for a window's update loop. Call [`tick`](Chrome::tick) on every frame:

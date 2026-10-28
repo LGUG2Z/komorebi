@@ -44,5 +44,6 @@ pub mod timespec;
 pub mod trace;
 pub mod video;
 pub mod views;
+pub mod window_track;
 
 pub use facade::Analysis;

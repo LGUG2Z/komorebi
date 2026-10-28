@@ -11,12 +11,16 @@
 //! | [`exclude_from_capture`] | asking for this process's windows to be left out of captures |
 //! | [`own_window_handles`] | the handles of those windows, as komorebi knows windows |
 //! | [`inspect`] | what Windows says about any window, for the per-event probe |
+//! | [`list`] | every window an ordinary user sees, for the sampled window track |
 //!
 //! This module is not part of the facade: [`crate::platform::window`], which is shared by every
 //! host, calls it. Nothing tests it automatically; it acts on real windows, and is checked on a
 //! real machine (see `docs/dev/windows-checkpoints.md`).
 
+use crate::sources::windowtrack::WindowSample;
 use crate::sources::winprobe::WindowFacts;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ffi::c_void;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
@@ -26,13 +30,17 @@ use windows::Win32::Graphics::Dwm::DWMWA_EXTENDED_FRAME_BOUNDS;
 use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
+use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowLongW;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowTextW;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 use windows::Win32::UI::WindowsAndMessaging::IsIconic;
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowDisplayAffinity;
 use windows::Win32::UI::WindowsAndMessaging::WDA_EXCLUDEFROMCAPTURE;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 use windows::core::BOOL;
 
 unsafe extern "system" fn collect(window: HWND, found: LPARAM) -> BOOL {
@@ -141,4 +149,105 @@ pub fn inspect(hwnd: u32) -> Option<WindowFacts> {
     }
 
     Some(facts)
+}
+
+unsafe extern "system" fn collect_all(window: HWND, found: LPARAM) -> BOOL {
+    // SAFETY: `found` is the address of the vector `list` passed to `EnumWindows`
+    let found = unsafe { &mut *(found.0 as *mut Vec<HWND>) };
+    found.push(window);
+    BOOL(1)
+}
+
+thread_local! {
+    /// Program names by process id, so that sampling many times a second does not open every
+    /// window's process every time. Emptied when it grows large, which also forgets reused ids.
+    static PROGRAMS: RefCell<HashMap<u32, String>> = RefCell::new(HashMap::new());
+}
+
+fn program_of(pid: u32) -> String {
+    PROGRAMS.with(|programs| {
+        let mut programs = programs.borrow_mut();
+        if programs.len() > 512 {
+            programs.clear();
+        }
+        programs
+            .entry(pid)
+            .or_insert_with(|| super::apps::process_name(pid).unwrap_or_default())
+            .clone()
+    })
+}
+
+/// Returns the top-level windows a user could see, front to back, as [`WindowSample`]s: one
+/// `EnumWindows` pass, then a few cheap reads of each window.
+///
+/// Left out: windows that are not visible (`IsWindowVisible`), tool windows (`WS_EX_TOOLWINDOW`:
+/// tooltips, toasts, floating palettes), windows with an empty frame, and this process's own
+/// windows (the recorder and the viewer are not in the video either). The rect is the visible
+/// frame, as [`inspect`] reads it. A cloaked window (another virtual desktop, or hidden by
+/// komorebi) is listed with `cloaked` true. The program name is looked up once for each process
+/// and kept for the thread's life. It is reached through [`crate::platform::window::list`].
+#[must_use]
+pub fn list() -> Vec<WindowSample> {
+    let mut handles: Vec<HWND> = Vec::new();
+    // SAFETY: `handles` outlives the call and `collect_all` only touches it during it
+    let _ = unsafe { EnumWindows(Some(collect_all), LPARAM(&raw mut handles as isize)) };
+    // SAFETY: no preconditions
+    let own = unsafe { GetCurrentProcessId() };
+
+    let mut samples = Vec::new();
+    for window in handles {
+        // SAFETY: queries about a handle that may have gone since it was listed, which they
+        // report as a failure; every out pointer is valid for its call
+        unsafe {
+            if !IsWindowVisible(window).as_bool() {
+                continue;
+            }
+            if GetWindowLongW(window, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW.0 != 0 {
+                continue;
+            }
+            let mut pid = 0_u32;
+            GetWindowThreadProcessId(window, Some(&raw mut pid));
+            if pid == 0 || pid == own {
+                continue;
+            }
+
+            let mut frame = RECT::default();
+            let framed = DwmGetWindowAttribute(
+                window,
+                DWMWA_EXTENDED_FRAME_BOUNDS,
+                (&raw mut frame).cast(),
+                size_of::<RECT>() as u32,
+            )
+            .is_ok();
+            if !framed && GetWindowRect(window, &raw mut frame).is_err() {
+                continue;
+            }
+            if frame.right <= frame.left || frame.bottom <= frame.top {
+                continue;
+            }
+
+            let mut cloaked = 0_u32;
+            let _ = DwmGetWindowAttribute(
+                window,
+                DWMWA_CLOAKED,
+                (&raw mut cloaked).cast(),
+                size_of::<u32>() as u32,
+            );
+
+            let mut buffer = [0_u16; 256];
+            let length = GetWindowTextW(window, &mut buffer).max(0) as usize;
+            let title = String::from_utf16_lossy(&buffer[..length.min(buffer.len())]);
+
+            samples.push(WindowSample {
+                id: window.0 as usize as u32,
+                owner: program_of(pid),
+                title: (!title.is_empty()).then_some(title),
+                rect: [frame.left, frame.top, frame.right, frame.bottom],
+                visible: true,
+                minimized: IsIconic(window).as_bool(),
+                cloaked: Some(cloaked != 0),
+            });
+        }
+    }
+    samples
 }

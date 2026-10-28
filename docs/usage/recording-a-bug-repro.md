@@ -92,6 +92,7 @@ Useful options:
 | `--oslog-all`                              | One extra unfiltered system-wide stream (very large)                                    |
 | `--no-oslog`, `--no-komorebi`              | Skip the OS trace, or skip touching komorebi entirely                                   |
 | `--no-video`                               | Do not capture the screen; record everything else on the same clock (see below)         |
+| `--window-track[=HZ]`                      | Also sample every window's rect and state alongside the video (30 Hz by default, 1 to 120; see below) |
 | `--no-probe-windows`                       | Windows: do not record what Windows says about each window event, which is on by default (see below) |
 | `--fps N`, `--retina`, `--codec hevc\|h264` | Video settings (display-rate capture (`--fps 0`, the default; N caps it), logical points, HEVC by default)                           |
 
@@ -125,6 +126,19 @@ calls per event and a query to komorebi the first time a window is seen, and it 
 those facts. `--no-probe-windows` turns it off, and without it `overview` cannot say whether a window is
 really hidden, nor find a ghost tile. It does nothing on a Mac, where a hidden window is parked in a
 corner and the state says so, and asking for `--probe-windows` there is an error.
+
+### Tracking where every window is
+
+The per-event probe above says what one window looked like when something happened. The recurring
+question is different: _which window was where, in this frame_. `record --window-track` (or
+`--window-track=60`) lists every top-level window many times a second, with its rect, whether it is
+visible or minimized and, on Windows, whether it is cloaked, front to back, into `windows.jsonl`. A
+row is written only when something changed, plus a full row each second, so a still desktop costs
+about one row a second and a busy one a few kilobytes a second. The recorder's own windows and tool
+windows (tooltips, toasts) are left out. It is off unless asked for. `komorebi-recorder sheet
+<session> --windows` then draws each window's rect, labelled with its program and id, on every
+frame of the sheet; a session with no track says so and gets a plain sheet. A recording that cannot
+keep the rate says so in its warnings.
 
 ### Checking your setup
 
@@ -223,6 +237,7 @@ frames-<displayID>[-<n>].csv    every frame's host-clock timestamp
 komorebi.log            exact slice of komorebi's own log
 events.jsonl, states/   subscriber notifications; full State stored only when it changed
 state-start.json, state-end.json
+windows.jsonl           window track (only with --window-track): every window's rect, on change and once a second
 recorder.jsonl          what happened to the recording environment (displays, sleep/wake, lock, restarts)
 annotations.jsonl       bug regions, notes and findings (appended, never rewritten)
 oslog/komorebi.ndjson   unified log, komorebi's process (oslog/komorebi-<pid>.ndjson after a restart)

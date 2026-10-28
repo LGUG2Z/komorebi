@@ -109,6 +109,22 @@ macOS decodes with AVFoundation's `AVAssetReader`, Windows with Media Foundation
 host with nothing: it says so when asked to open a file. Both real hosts are asked for BGRA frames at a chosen size, so
 that a contact sheet never decodes more pixels than it shows.
 
+### The window track
+
+`record --window-track[=HZ]` samples every top-level window into `windows.jsonl` (see
+`src/sources/windowtrack.rs`), listed by `platform::window::list`.
+
+| | macOS | Windows |
+|---|---|---|
+| source | `CGWindowListCopyWindowInfo(OptionAll)`, layer 0 windows | `EnumWindows` once per tick, then cheap reads of each window |
+| `id` | the window server's window number | the window handle (komorebi's `hwnd`) |
+| `rect` | `kCGWindowBounds`, in display points | the visible frame (`DWMWA_EXTENDED_FRAME_BOUNDS`), in pixels |
+| `visible` | `kCGWindowIsOnscreen` (false for windows on other spaces) | `IsWindowVisible`; invisible windows and tool windows are not listed |
+| `minimized` | always false: the window server does not say | `IsIconic` |
+| `cloaked` | absent | `DWMWA_CLOAKED` |
+| `title` | `kCGWindowName` | `GetWindowTextW` |
+| status | written against the `objc2` sources and not built or run | built and run |
+
 ### The program's own windows
 
 The recorder window and the viewer must not be in the video they are recording, and komorebi must not tile them.

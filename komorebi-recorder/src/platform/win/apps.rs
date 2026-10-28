@@ -100,3 +100,10 @@ pub fn window_owners() -> HashMap<u32, WindowOwner> {
         })
         .collect()
 }
+
+/// Returns the top-level windows a user could see, front to back (see
+/// [`crate::platform::window::list`], which is how the rest of the crate reaches this).
+#[must_use]
+pub fn window_list() -> Vec<crate::sources::windowtrack::WindowSample> {
+    super::window::list()
+}

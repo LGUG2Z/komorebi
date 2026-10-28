@@ -14,6 +14,7 @@
 //! | `oslog` | `oslog/*.ndjson`, one `log stream` per seam (komorebi, the system, each managed app) | macOS |
 //! | `wintrace` | `oslog/system.ndjson` (`WinEvents`) and `oslog/eventlog.ndjson` (Event Log) | Windows |
 //! | `winprobe` | no file of its own: a `probe` key on rows of `events.jsonl` | Windows, with `--probe-windows` |
+//! | `windowtrack` | `windows.jsonl`: every window's rect, sampled at video rate | both hosts, with `--window-track` |
 //! | `komorebi_version` | no file: asks komorebi's binary what it is, for the manifest | both hosts |
 //! | `managed_apps` | no file: decides which processes get a trace of their own | macOS |
 //!
@@ -42,5 +43,6 @@ pub mod komorebi_log;
 pub mod komorebi_version;
 pub mod managed_apps;
 pub mod oslog;
+pub mod windowtrack;
 pub mod winprobe;
 pub mod wintrace;

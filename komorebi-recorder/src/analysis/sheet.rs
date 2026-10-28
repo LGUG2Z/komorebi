@@ -31,6 +31,17 @@
 //! 8192 pixels wide and 16384 tall; a sheet that would be larger is refused (see
 //! [`Analysis::sheet`]).
 //!
+//! # Windows
+//!
+//! With [`SheetOptions::windows`] (the `--windows` flag), each frame also has the rect of every
+//! window drawn on it, from the session's window track (see [`super::window_track`]): a 2 pixel
+//! border in a colour taken from the window's id and a label of the owner and id, front windows
+//! drawn last. Windows that are minimized or not visible are not drawn; a cloaked window (Windows
+//! only: hidden but still "visible") has a thin dim border, so that a window komorebi has hidden
+//! can be told from one that is shown. The windows are those of the moment of the picture
+//! shown, which is how [`SheetFrame::windows`] names them. [`rect_in_cell`] is the conversion from
+//! the display's units (the `frame` of the display in `session.json`) to the pixels of a cell.
+//!
 //! # Example
 //!
 //! Needs `ffmpeg` to make a test video, and a host that can decode it, so it is only compiled here;
@@ -55,6 +66,7 @@
 //!     cell_width: 240,
 //!     columns: 3,
 //!     regions: Vec::new(),
+//!     windows: None,
 //!     out: session.path("sheets/example.png"),
 //! })?;
 //!
@@ -66,7 +78,9 @@
 use super::Analysis;
 use super::envelope;
 use super::video::SessionVideo;
+use super::window_track::WindowTrack;
 use crate::av::Scale;
+use crate::sources::windowtrack::WindowSample;
 use crate::timecode;
 use ab_glyph::Font;
 use ab_glyph::FontRef;
@@ -125,6 +139,8 @@ pub struct SheetOptions {
     pub columns: usize,
     /// The bug regions to mark: a frame whose moment is inside one has a red border.
     pub regions: Vec<Region>,
+    /// The window track to draw on each frame (see the module docs); `None` draws no windows.
+    pub windows: Option<WindowTrack>,
     /// Where to write the PNG. Its parent directories are created, and a file already there is
     /// replaced.
     pub out: PathBuf,
@@ -153,6 +169,10 @@ pub struct SheetFrame {
     pub events: Vec<u64>,
     /// The ids of the bug regions it is inside.
     pub bugs: Vec<String>,
+    /// The ids of the windows drawn on it (see the module docs), front to back; empty when the
+    /// sheet draws no windows.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub windows: Vec<u32>,
 }
 
 /// A moment of a display that the sheet has no frame for.
@@ -293,6 +313,123 @@ impl Canvas {
     }
 }
 
+/// Maps a window's `rect` (`[left, top, right, bottom]`, in the units of a display's `frame`) onto
+/// a cell that shows that display `cell_width` by `cell_height` pixels, and returns where it is in
+/// the cell as `[x, y, width, height]` in pixels from the cell's top left. The part of the window
+/// outside the display is cut off, and a window with nothing inside the display is `None`. What is
+/// left is at least one pixel each way.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::sheet::rect_in_cell;
+///
+/// // a 1000 by 800 display at (100, 0), drawn 250 by 200: a quarter size
+/// let frame = [100.0, 0.0, 1000.0, 800.0];
+/// assert_eq!(rect_in_cell([200, 40, 600, 440], frame, 250, 200), Some([25, 10, 100, 100]));
+/// // sticking out of the left edge is cut off; wholly on another display is not drawn
+/// assert_eq!(rect_in_cell([0, 0, 300, 80], frame, 250, 200), Some([0, 0, 50, 20]));
+/// assert_eq!(rect_in_cell([-900, 0, -100, 80], frame, 250, 200), None);
+/// ```
+#[must_use]
+pub fn rect_in_cell(
+    rect: [i32; 4],
+    frame: [f64; 4],
+    cell_width: u32,
+    cell_height: u32,
+) -> Option<[u32; 4]> {
+    let [frame_x, frame_y, frame_width, frame_height] = frame;
+    if frame_width <= 0.0 || frame_height <= 0.0 || cell_width == 0 || cell_height == 0 {
+        return None;
+    }
+
+    let scale_x = f64::from(cell_width) / frame_width;
+    let scale_y = f64::from(cell_height) / frame_height;
+    let left = ((f64::from(rect[0]) - frame_x) * scale_x).max(0.0);
+    let top = ((f64::from(rect[1]) - frame_y) * scale_y).max(0.0);
+    let right = ((f64::from(rect[2]) - frame_x) * scale_x).min(f64::from(cell_width));
+    let bottom = ((f64::from(rect[3]) - frame_y) * scale_y).min(f64::from(cell_height));
+    if right <= left || bottom <= top {
+        return None;
+    }
+
+    let (x, y) = (left.round() as u32, top.round() as u32);
+    let width = ((right.round() as u32).saturating_sub(x)).max(1);
+    let height = ((bottom.round() as u32).saturating_sub(y)).max(1);
+    Some([x, y, width, height])
+}
+
+/// A colour for a window, the same every time: its id spread over the colour wheel.
+fn window_color(id: u32) -> [u8; 3] {
+    let hue = f32::from((id.wrapping_mul(2_654_435_761) >> 8) as u16 % 360) / 60.0;
+    let channel = |offset: f32| -> u8 {
+        let k = (offset + hue) % 6.0;
+        (255.0 * (1.0 - k.min(4.0 - k).clamp(0.0, 1.0)) * 0.75 + 64.0) as u8
+    };
+    [channel(5.0), channel(3.0), channel(1.0)]
+}
+
+impl Canvas {
+    /// Darken a rectangle, to make text on top of a picture readable.
+    fn shade(&mut self, x: u32, y: u32, width: u32, height: u32) {
+        for row in y..y + height {
+            for column in x..x + width {
+                self.put(i64::from(column), i64::from(row), BACKGROUND, 0.7);
+            }
+        }
+    }
+
+    /// Draw `windows` (front to back) on the cell at `x`, `y` that is `width` by `height` pixels
+    /// and shows `frame`, and return the ids of those drawn.
+    #[allow(clippy::too_many_arguments)]
+    fn windows(
+        &mut self,
+        font: &FontRef,
+        windows: &[WindowSample],
+        frame: [f64; 4],
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> Vec<u32> {
+        let mut drawn = Vec::new();
+        for window in windows.iter().rev() {
+            if !window.visible || window.minimized {
+                continue;
+            }
+            let Some([left, top, w, h]) = rect_in_cell(window.rect, frame, width, height) else {
+                continue;
+            };
+
+            let cloaked = window.cloaked == Some(true);
+            let thickness = if cloaked { 1 } else { 2 }.min(w / 2).min(h / 2).max(1);
+            let color = if cloaked {
+                DIM
+            } else {
+                window_color(window.id)
+            };
+            self.border(x + left, y + top, w, h, thickness, color);
+
+            if w >= 48 && h >= 14 {
+                let label = truncate(&format!("{} {}", window.owner, window.id), (w / 6) as usize);
+                let label_width = (label.chars().count() as u32 * 6 + 4).min(w);
+                self.shade(x + left + thickness, y + top + thickness, label_width, 13);
+                self.text(
+                    font,
+                    10.0,
+                    x + left + thickness + 2,
+                    y + top + thickness,
+                    &label,
+                    color,
+                );
+            }
+            drawn.push(window.id);
+        }
+        drawn.reverse();
+        drawn
+    }
+}
+
 fn truncate(text: &str, limit: usize) -> String {
     let single: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
     if single.chars().count() <= limit {
@@ -302,6 +439,22 @@ fn truncate(text: &str, limit: usize) -> String {
         cut.push('…');
         cut
     }
+}
+
+/// The frame (position and size in the display's own units) of `display` at `video_s`.
+fn display_frame(analysis: &Analysis, display: u32, video_s: f64) -> Option<[f64; 4]> {
+    analysis
+        .manifest
+        .segment_at(display, video_s)
+        .map(|entry| entry.result.display.frame)
+        .or_else(|| {
+            analysis
+                .manifest
+                .displays
+                .iter()
+                .find(|entry| entry.result.display.id == display)
+                .map(|entry| entry.result.display.frame)
+        })
 }
 
 impl Analysis {
@@ -472,6 +625,26 @@ impl Analysis {
                         })
                         .map(|region| region.id.clone())
                         .collect();
+                    let windows = match (
+                        &options.windows,
+                        display_frame(self, *display, cell_frame.shown),
+                    ) {
+                        (Some(track), Some(frame)) => track
+                            .at(self.manifest.mach_at_video_seconds(cell_frame.shown))
+                            .map(|row| {
+                                canvas.windows(
+                                    &font,
+                                    &row.windows,
+                                    frame,
+                                    x,
+                                    y,
+                                    cell_frame.width,
+                                    cell_frame.height,
+                                )
+                            })
+                            .unwrap_or_default(),
+                        _ => Vec::new(),
+                    };
                     if !bugs.is_empty() {
                         canvas.border(x, y, cell_frame.width, cell_frame.height, 3, BUG);
                     }
@@ -539,6 +712,7 @@ impl Analysis {
                         height: cell_frame.height,
                         events,
                         bugs,
+                        windows,
                     });
                 }
                 y += row_height + LABEL_HEIGHT + MARGIN;

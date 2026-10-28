@@ -52,6 +52,7 @@ use crate::sources::oslog;
 use crate::sources::oslog::OsLogLevel;
 use crate::sources::oslog::StreamLive;
 use crate::sources::oslog::StreamSet;
+use crate::sources::windowtrack::WindowTracker;
 use crate::sources::winprobe::EventProber;
 use crate::sources::wintrace::TraceSet;
 use crate::system_state;
@@ -171,6 +172,9 @@ pub struct RecordOptions {
     /// cloaked, minimized, where) and, now and then, ask komorebi whether it manages it. komorebi
     /// for Windows hides windows by cloaking them in place, which `State` cannot show.
     pub probe_windows: bool,
+    /// Sample every window's rect at this many hertz into `windows.jsonl` (see
+    /// `crate::sources::windowtrack`). `None` records no window track.
+    pub window_track: Option<u32>,
 }
 
 /// Where a recording is in its life.
@@ -708,6 +712,7 @@ struct Recording<'a> {
     apps: AppStreams,
     tailer: Option<LogTailer>,
     events: Option<EventRecorder>,
+    window_track: Option<WindowTracker>,
     discovery_rx: Receiver<Discovery>,
     displays: DisplayManager<Capture>,
     komorebi: KomorebiWatch,
@@ -973,6 +978,24 @@ impl<'a> Recording<'a> {
             }
         };
 
+        let window_track = match options.window_track {
+            None => None,
+            Some(_) if !crate::platform::window::CAN_LIST => {
+                warnings.push("the window track is not available on this host".to_string());
+                None
+            }
+            Some(hz) => match WindowTracker::start(&session.dir, hz) {
+                Ok(tracker) => {
+                    manifest.window_track = Some(tracker.initial_info());
+                    Some(tracker)
+                }
+                Err(error) => {
+                    warnings.push(format!("the window track is not being recorded: {error:#}"));
+                    None
+                }
+            },
+        };
+
         let tailer = if options.no_komorebi {
             None
         } else {
@@ -1044,6 +1067,7 @@ impl<'a> Recording<'a> {
             apps,
             tailer,
             events,
+            window_track,
             discovery_rx,
             displays,
             komorebi: KomorebiWatch::new(!options.no_komorebi, komorebi_process.as_ref()),
@@ -1436,6 +1460,7 @@ impl<'a> Recording<'a> {
             .take()
             .map(EventRecorder::stop)
             .unwrap_or_default();
+        let window_track = self.window_track.take().map(WindowTracker::stop);
         let mut stream_infos = self.apps.streams.stop();
         if let Some(trace) = &mut self.apps.trace {
             stream_infos.extend(trace.stop());
@@ -1481,6 +1506,10 @@ impl<'a> Recording<'a> {
         }
 
         self.manifest.events = event_summary;
+        if let Some(info) = window_track {
+            warnings.extend(info.warning());
+            self.manifest.window_track = Some(info);
+        }
         self.manifest.apps = self.app_records(&stream_infos);
 
         for window in self.apps.tracker.unresolved() {

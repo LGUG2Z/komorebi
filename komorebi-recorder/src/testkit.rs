@@ -35,6 +35,10 @@ pub fn wall_us(video_s: f64) -> i64 {
     WALL_AT_MACH_ZERO_US + (mach_ns(video_s) / 1_000) as i64
 }
 
+/// A window of a [`SessionBuilder::window_track`] row: its id, owner and
+/// `[left, top, right, bottom]`.
+pub type TrackedWindow = (u32, &'static str, [i32; 4]);
+
 struct PendingVideo {
     display: u32,
     start_s: f64,
@@ -72,6 +76,7 @@ pub struct SessionBuilder {
     komorebi_commit: Option<String>,
     subscriber: Option<String>,
     videos: Vec<PendingVideo>,
+    window_track: Vec<crate::sources::windowtrack::TrackRow>,
 }
 
 impl SessionBuilder {
@@ -95,7 +100,37 @@ impl SessionBuilder {
             komorebi_commit: None,
             subscriber: None,
             videos: Vec::new(),
+            window_track: Vec::new(),
         }
+    }
+
+    /// A window track (`windows.jsonl`): at each `video_s`, these windows, as `(id, owner, rect)`
+    /// with `rect` as `[left, top, right, bottom]`, front to back. Every window is visible, not
+    /// minimized and not cloaked. Call it once; a second call adds more rows.
+    #[must_use]
+    pub fn window_track(mut self, rows: &[(f64, &[TrackedWindow])]) -> Self {
+        for (video_s, windows) in rows {
+            self.window_track
+                .push(crate::sources::windowtrack::TrackRow {
+                    mach_ns: mach_ns(*video_s),
+                    key: false,
+                    windows: windows
+                        .iter()
+                        .map(
+                            |(id, owner, rect)| crate::sources::windowtrack::WindowSample {
+                                id: *id,
+                                owner: (*owner).to_string(),
+                                title: None,
+                                rect: *rect,
+                                visible: true,
+                                minimized: false,
+                                cloaked: Some(false),
+                            },
+                        )
+                        .collect(),
+                });
+        }
+        self
     }
 
     /// A display's video file starting `start_s` into the recording: `frames` frames at `fps`,
@@ -292,6 +327,30 @@ impl SessionBuilder {
             rows.push('\n');
         }
         std::fs::write(session.path("events.jsonl"), rows).expect("events");
+
+        if !self.window_track.is_empty() {
+            self.window_track.sort_by_key(|row| row.mach_ns);
+            let text: String = self
+                .window_track
+                .iter()
+                .map(|row| {
+                    serde_json::to_string(row).expect("row")
+                        + "
+"
+                })
+                .collect();
+            std::fs::write(
+                session.path(crate::sources::windowtrack::WINDOWS_FILE),
+                text,
+            )
+            .expect("window track");
+            manifest.window_track = Some(crate::sources::windowtrack::WindowTrackInfo {
+                file: crate::sources::windowtrack::WINDOWS_FILE.to_string(),
+                hz: 30,
+                rows: self.window_track.len() as u64,
+                ..Default::default()
+            });
+        }
 
         self.log.sort_by(|a, b| a.0.total_cmp(&b.0));
         // tracing_subscriber right-aligns the level in five columns

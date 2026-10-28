@@ -118,7 +118,7 @@ and `event:12.end` when it finished.
 | `logq QUERY` | Query komorebi's log by field, with no escape codes or span prefixes to strip: `level=ERROR and message~ghost`, `hwnd=0x77179C` (decimal and hex are the same window), `command=MoveWindow`; `--count`, `--group-by FIELD`, `--from`/`--to`, `--spans` |
 | `search TEXT` | Where a word appears: komorebi's log, events, incidents, annotations (and `--oslog` for the macOS trace) |
 | `changes` | When and where on each display the picture changed, and which events fall inside |
-| `sheet` | A contact sheet image of frames with times, events and the bug region marked |
+| `sheet` | A contact sheet image of frames with times, events and the bug region marked; `--windows` also draws each window's rect on the frames when the session has a window track |
 | `motion [--region x,y,w,h]` | When, and how hard, a display or a region of it was moving: segments with start, duration, frame count, peak share of pixels changed and peak mean brightness delta (replaces scripting ffmpeg `tblend`) |
 | `framediff A B [--region ..] [--png FILE] [--against SESSION]` | How two frames differ: changed share, mean and peak brightness delta, the box of change, and a PNG with the changed pixels in red |
 | `blank --region x,y,w,h` | When a region was blank (one colour, named: `white`, `black`, a hex code) or frozen (identical to the frame before): "the window went white for 200 ms" |

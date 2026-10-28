@@ -464,3 +464,94 @@ fn compare_sets_two_recordings_side_by_side() {
     assert!(text.status.success());
     assert!(String::from_utf8_lossy(&text.stdout).contains("worst frame gap"));
 }
+
+/// The RGB of one pixel of a PNG.
+fn pixel(png_path: &str, x: usize, y: usize) -> [u8; 3] {
+    let decoder = png::Decoder::new(std::io::BufReader::new(
+        std::fs::File::open(png_path).expect("png"),
+    ));
+    let mut reader = decoder.read_info().expect("info");
+    let mut pixels = vec![0; reader.output_buffer_size().expect("size")];
+    let info = reader.next_frame(&mut pixels).expect("frame");
+    let at = (y * info.width as usize + x) * 4;
+    [pixels[at], pixels[at + 1], pixels[at + 2]]
+}
+
+#[test]
+fn a_sheet_draws_the_windows_of_the_moment_and_says_so_when_there_is_no_track() {
+    if !testkit::ffmpeg_available() {
+        eprintln!("skipped: ffmpeg is not available to make a test video");
+        return;
+    }
+
+    // the display is 1000 by 800 points: one window fills its left half, and from 2 s another
+    // is in front of the right
+    let (session, _) = SessionBuilder::new("video-sheet-windows")
+        .video(1, 0.0, 90, 30)
+        .window_track(&[
+            (0.0, &[(7, "term", [0, 0, 500, 800])]),
+            (
+                2.0,
+                &[
+                    (9, "browser", [500, 0, 1000, 800]),
+                    (7, "term", [0, 0, 500, 800]),
+                ],
+            ),
+        ])
+        .build();
+    let dir = session.dir.display().to_string();
+    let plain_out = session.path("plain.png").display().to_string();
+    let drawn_out = session.path("drawn.png").display().to_string();
+
+    let run = |windows: bool, out: &str| {
+        let mut full: Vec<String> = [
+            "sheet", &dir, "--at", "1", "--at", "2.5", "--width", "200", "--json", "--out", out,
+        ]
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+        if windows {
+            full.push("--windows".to_string());
+        }
+        let refs: Vec<&str> = full.iter().map(String::as_str).collect();
+        json(&refs)
+    };
+
+    let plain = run(false, &plain_out);
+    assert!(plain["data"]["frames"][0].get("windows").is_none());
+    let drawn = run(true, &drawn_out);
+    let frames = drawn["data"]["frames"].as_array().expect("frames");
+    assert_eq!(frames[0]["windows"], json!([7]));
+    // front to back
+    assert_eq!(frames[1]["windows"], json!([9, 7]));
+    assert_eq!(drawn["warnings"], plain["warnings"]);
+
+    // the border of the left window runs down the middle of the first cell, and is not in a sheet
+    // without windows
+    let (x, y, width, height) = (
+        frames[0]["x"].as_u64().expect("x") as usize,
+        frames[0]["y"].as_u64().expect("y") as usize,
+        frames[0]["width"].as_u64().expect("width") as usize,
+        frames[0]["height"].as_u64().expect("height") as usize,
+    );
+    let edge = (x + width / 2 - 1, y + height / 2);
+    assert_ne!(
+        pixel(&drawn_out, edge.0, edge.1),
+        pixel(&plain_out, edge.0, edge.1)
+    );
+    let inside = (x + width / 4, y + height / 2);
+    assert_eq!(
+        pixel(&drawn_out, inside.0, inside.1),
+        pixel(&plain_out, inside.0, inside.1)
+    );
+
+    // a session recorded without a track draws nothing, and says why
+    let (bare, _) = SessionBuilder::new("video-sheet-no-windows")
+        .video(1, 0.0, 90, 30)
+        .build();
+    let bare_dir = bare.dir.display().to_string();
+    let answer = json(&["sheet", &bare_dir, "--at", "1", "--windows", "--json"]);
+    let warnings = answer["warnings"].to_string();
+    assert!(warnings.contains("no window track"), "{warnings}");
+    assert!(answer["data"]["frames"][0].get("windows").is_none());
+}

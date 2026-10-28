@@ -14,6 +14,7 @@ use crate::sources::komorebi_log::LogSegment;
 use crate::sources::komorebi_version::KomorebiVersion;
 use crate::sources::managed_apps::AppRecord;
 use crate::sources::oslog::StreamInfo;
+use crate::sources::windowtrack::WindowTrackInfo;
 use chrono::DateTime;
 use chrono::Utc;
 use color_eyre::eyre;
@@ -212,6 +213,9 @@ pub struct Manifest {
     pub apps: Vec<AppRecord>,
     /// What was recorded of komorebi's subscriber events.
     pub events: EventSummary,
+    /// The sampled window track (`windows.jsonl`), if `--window-track` was asked for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_track: Option<WindowTrackInfo>,
     /// `host-clock` when frame timestamps were verified to be on the mach clock.
     pub sync_quality: String,
     /// The result of `selftest`, if it was run on this session.
@@ -247,6 +251,7 @@ impl Manifest {
             oslog: Vec::new(),
             apps: Vec::new(),
             events: EventSummary::default(),
+            window_track: None,
             sync_quality: "host-clock".to_string(),
             calibration: None,
             warnings: Vec::new(),
@@ -540,6 +545,10 @@ pub fn readme(dir: &Path, manifest: &Manifest) -> String {
     out.push_str(
         "| `state-start.json`, `state-end.json` | `State` when recording started / stopped |\n",
     );
+    if manifest.window_track.is_some() {
+        out.push_str("| `windows.jsonl` | The window track: every top-level window's rect and state, front to back, written when something changed and in full once a second: `{mach_ns, key?, windows: [{id, owner, title?, rect: [l,t,r,b], visible, minimized, cloaked?}]}`. `sheet --windows` draws it on frames |
+");
+    }
     out.push_str(os_trace_rows(&host));
     out.push_str("| `timeline.jsonl` | Merged index of every record, sorted by time, pointing into the raw files |\n\n");
 

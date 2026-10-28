@@ -101,6 +101,11 @@ locations as hints.
   `blank --region x,y,w,h` (when a region went one colour, such as white, or froze) and
   `compare <a> <b>` (two recordings' frames, motion and findings side by side). Regions are in display
   points, the same as the `bbox_points` of `changes`. They need a host that can decode the video.
+- A session recorded with `--window-track` has `windows.jsonl`: every top-level window's rect,
+  visibility and minimized state (and `cloaked` on Windows) sampled at video rate, front to back,
+  so "which window was where in this frame" has an answer. `sheet --windows` draws the rects on
+  each frame (`windows` in the answer names the ones drawn). Rects are in the display's own units
+  (pixels on Windows, points on a Mac). Without it only the sparse per-event probes exist.
 - Video time `00:00.000` is the first frame of any display. A display that was unplugged, asleep
   or whose capture failed has a gap, and `incident` records say why.
 
