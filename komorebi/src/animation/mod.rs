@@ -14,6 +14,7 @@ pub use engine::AnimationEngine;
 pub mod animation_manager;
 pub mod engine;
 pub mod ghost;
+pub mod ghost_dispatcher;
 pub mod lerp;
 pub mod prefix;
 pub mod render_dispatcher;
