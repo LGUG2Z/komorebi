@@ -62,6 +62,7 @@ nav:
           - usage/stacking-windows.md
           - usage/focusing-workspaces.md
           - usage/moving-windows-across-workspaces.md
+          - usage/scrolling-layout.md
       - Komorebi Configuration:
           - Schema: https://komorebi.lgug2z.com/schema
       - Komorebi Bar Configuration:
@@ -172,6 +173,12 @@ nav:
       - cli/change-layout.md
       - cli/cycle-layout.md
       - cli/scrolling-layout-columns.md
+      - cli/scrolling-layout-full-width.md
+      - cli/center-focus.md
+      - cli/expand.md
+      - cli/consume.md
+      - cli/expel.md
+      - cli/toggle-column-stack.md
       - cli/flip-layout.md
       - cli/promote.md
       - cli/promote-swap.md
