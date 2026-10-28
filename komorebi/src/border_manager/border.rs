@@ -539,6 +539,17 @@ impl Border {
                     }
 
                     let reference_hwnd = (*border_pointer).tracking_hwnd;
+
+                    // The window is hidden while a ghost stands in for it, and
+                    // is not where the ghost is, which is where the border
+                    // belongs: the animation moves it.
+                    if crate::border_manager::is_ghosted(reference_hwnd) {
+                        tracing::trace!(
+                            "border: left the border of hwnd {reference_hwnd} to its ghost's animation"
+                        );
+                        return LRESULT(0);
+                    }
+
                     let rect = WindowsApi::window_rect(reference_hwnd).unwrap_or_default();
                     apply_tracked_rect(border_pointer, rect);
                     LRESULT(0)

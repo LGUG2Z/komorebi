@@ -338,6 +338,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
             match GhostWindow::create(self.hwnd, self.start_rect) {
                 Ok(ghost) => {
                     *self.ghost.lock() = Some(ghost);
+                    border_manager::set_ghosted(self.hwnd, true);
 
                     // DwmSetWindowAttribute(DWMWA_CLOAK) is rejected with
                     // E_ACCESSDENIED for foreign HWNDs; the undocumented
@@ -428,6 +429,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
             ghost.fade_out(self.target_rect);
         }
 
+        border_manager::set_ghosted(self.hwnd, false);
         let _ = ghost.dispose();
 
         self.finalise_managers();
@@ -455,6 +457,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
             self.uncloak();
         }
 
+        border_manager::set_ghosted(self.hwnd, false);
         if let Some(ghost) = self.ghost.lock().take() {
             let _ = ghost.dispose();
         }

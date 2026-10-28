@@ -23,6 +23,7 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -74,6 +75,7 @@ impl Deref for RenderTarget {
     }
 }
 
+#[derive(Debug)]
 pub enum Notification {
     Update(Option<isize>),
     ForceUpdate,
@@ -103,6 +105,27 @@ fn event_tx() -> Sender<Notification> {
 
 fn event_rx() -> Receiver<Notification> {
     channel().1.clone()
+}
+
+lazy_static! {
+    /// The windows that a ghost is standing in for, which are hidden and not
+    /// where the ghost is. The animation moves their borders.
+    static ref GHOSTED: Mutex<HashSet<isize>> = Mutex::new(HashSet::new());
+}
+
+/// Say that a ghost is, or has stopped being, what is seen of a window: from
+/// then until then the border of the window follows the animation of the ghost
+/// (see `animate_to`) and not the window, which is not where it is seen.
+pub fn set_ghosted(hwnd: isize, ghosted: bool) {
+    if ghosted {
+        GHOSTED.lock().insert(hwnd);
+    } else {
+        GHOSTED.lock().remove(&hwnd);
+    }
+}
+
+pub(crate) fn is_ghosted(hwnd: isize) -> bool {
+    GHOSTED.lock().contains(&hwnd)
 }
 
 pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
@@ -457,7 +480,14 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             // Update the border's monitor idx in case it changed
                             border.monitor_idx = Some(monitor_idx);
 
-                            let rect = WindowsApi::window_rect(focused_window_hwnd)?;
+                            let rect = if !new_border && is_ghosted(focused_window_hwnd) {
+                                tracing::trace!(
+                                    "border: left the border of hwnd {focused_window_hwnd} to its ghost's animation"
+                                );
+                                border.window_rect
+                            } else {
+                                WindowsApi::window_rect(focused_window_hwnd)?
+                            };
                             border.window_rect = rect;
 
                             if new_border {
@@ -615,11 +645,18 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             // avoid getting into a thread restart loop if we try to look up
                             // rect info for a window that has been destroyed by the time
                             // we get here
-                            let rect = match WindowsApi::window_rect(focused_window_hwnd) {
-                                Ok(rect) => rect,
-                                Err(_) => {
-                                    remove_border(&c.id, &mut borders, &mut windows_borders)?;
-                                    continue 'containers;
+                            let rect = if !new_border && is_ghosted(focused_window_hwnd) {
+                                tracing::trace!(
+                                    "border: left the border of hwnd {focused_window_hwnd} to its ghost's animation"
+                                );
+                                border.window_rect
+                            } else {
+                                match WindowsApi::window_rect(focused_window_hwnd) {
+                                    Ok(rect) => rect,
+                                    Err(_) => {
+                                        remove_border(&c.id, &mut borders, &mut windows_borders)?;
+                                        continue 'containers;
+                                    }
                                 }
                             };
                             border.window_rect = rect;
@@ -709,7 +746,15 @@ fn handle_floating_borders(
         // Update the border's monitor idx in case it changed
         border.monitor_idx = Some(monitor_idx);
 
-        let rect = WindowsApi::window_rect(window.hwnd)?;
+        let rect = if !new_border && is_ghosted(window.hwnd) {
+            tracing::trace!(
+                "border: left the border of hwnd {} to its ghost's animation",
+                window.hwnd
+            );
+            border.window_rect
+        } else {
+            WindowsApi::window_rect(window.hwnd)?
+        };
         border.window_rect = rect;
 
         let should_invalidate =
@@ -868,5 +913,31 @@ impl From<ZOrder> for isize {
             ZOrder::Bottom => 1,
             ZOrder::TopMost => -1,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_window_is_ghosted_from_when_it_is_said_to_be_until_it_is_not() {
+        // a window handle nothing else in the tests uses
+        let hwnd = 0x7e57_0001;
+
+        assert!(!is_ghosted(hwnd));
+
+        set_ghosted(hwnd, true);
+        assert!(is_ghosted(hwnd));
+        assert!(!is_ghosted(hwnd + 1));
+
+        // saying it twice does not make it take two to undo
+        set_ghosted(hwnd, true);
+        set_ghosted(hwnd, false);
+        assert!(!is_ghosted(hwnd));
+
+        // and undoing what was never done is fine
+        set_ghosted(hwnd, false);
+        assert!(!is_ghosted(hwnd));
     }
 }
