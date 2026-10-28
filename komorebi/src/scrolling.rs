@@ -631,6 +631,10 @@ impl Workspace {
         container.windows_mut().extend(windows);
         container.focus_window(0);
 
+        // the window that stays was one of the tabs, and may be the one that was out of sight, so
+        // it is put where it is shown as well, or its column is left empty until focus reaches it
+        container.restore();
+
         // the strip is about to be told that there are more containers than it has columns for,
         // and so each of them is a column, until they are put in this one
         let mut count = 0;
@@ -639,14 +643,16 @@ impl Workspace {
             container.add_window(window);
 
             // it was one of the tabs that were out of sight, and has to be put where it is shown
-            if !cfg!(test) {
-                container.restore();
-            }
+            container.restore();
 
             self.insert_container_at_idx(idx + 1 + offset, container);
             count += 1;
         }
 
+        // inserting a container gives it focus, and the strip scrolls to bring the focused column
+        // into view, which it would do for a column that is only there until it is put in this
+        // one, and then not scroll back. Focus stays on the column that they are put in.
+        self.focus_container(idx);
         self.sync_scrolling_containers();
 
         if let Some(space) = self.scrolling.as_mut() {
@@ -739,6 +745,7 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::HIDDEN_HWNDS;
     use crate::window::Window;
 
     const AREA: Rect = Rect {
@@ -749,13 +756,18 @@ mod tests {
     };
 
     fn workspace(columns: usize, count: isize) -> Workspace {
+        workspace_from(columns, 1, count)
+    }
+
+    /// A workspace of containers of one window each, with window handles from `first` on.
+    fn workspace_from(columns: usize, first: isize, count: isize) -> Workspace {
         let mut workspace = Workspace {
             layout: Layout::Default(DefaultLayout::Scrolling),
             ..Workspace::default()
         };
         workspace.set_scrolling_columns(columns);
 
-        for hwnd in 1..=count {
+        for hwnd in first..first + count {
             let mut container = Container::default();
             container.add_window(Window::from(hwnd));
             let idx = workspace.containers().len();
@@ -939,6 +951,66 @@ mod tests {
         assert!(!should_restore_when_placed(12, Some(12), &hidden));
         // and a container with no window in front shows none
         assert!(!should_restore_when_placed(10, None, &hidden));
+    }
+
+    fn lefts(placements: &[ScrollingPlacement]) -> Vec<i32> {
+        placements.iter().map(|p| p.rect.left).collect()
+    }
+
+    #[test]
+    fn stacking_a_column_and_spreading_it_out_again_leaves_everything_where_it_was() {
+        // three columns fit across, and the strip is exactly as wide as the screen, as in a
+        // column of two windows that is the last of three
+        let mut workspace = workspace(3, 4);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(0);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(2);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.consume_scrolling(OperationDirection::Right);
+
+        let before = lefts(&workspace.layout_scrolling(&AREA, 0));
+        let focused = workspace.focused_container_idx();
+
+        assert!(workspace.toggle_scrolling_column_stack().unwrap());
+        assert_eq!(workspace.containers().len(), 3);
+        workspace.layout_scrolling(&AREA, 0);
+
+        assert!(workspace.toggle_scrolling_column_stack().unwrap());
+        assert_eq!(workspace.containers().len(), 4);
+
+        assert_eq!(lefts(&workspace.layout_scrolling(&AREA, 0)), before);
+        assert_eq!(workspace.focused_container_idx(), focused);
+    }
+
+    #[test]
+    fn every_window_of_a_stack_that_is_spread_out_is_shown() {
+        // handles of their own, since the list of what is hidden is shared with every test
+        let mut workspace = workspace_from(3, 9001, 3);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(1);
+        workspace.consume_scrolling(OperationDirection::Right);
+        workspace.layout_scrolling(&AREA, 0);
+
+        assert!(workspace.toggle_scrolling_column_stack().unwrap());
+
+        // the tab at the back is the one that is hidden, whichever of the two it is
+        for (focused, hidden) in [(1, 9002), (0, 9003)] {
+            let idx = workspace.focused_container_idx();
+            let container = workspace.containers_mut().get_mut(idx).unwrap();
+            container.focus_window(focused);
+            container.load_focused_window();
+            assert!(HIDDEN_HWNDS.lock().contains(&hidden));
+
+            assert!(workspace.toggle_scrolling_column_stack().unwrap());
+            assert_eq!(workspace.containers().len(), 3);
+            assert!(
+                !HIDDEN_HWNDS.lock().contains(&hidden),
+                "window {hidden} was left hidden by spreading the stack out"
+            );
+
+            assert!(workspace.toggle_scrolling_column_stack().unwrap());
+        }
     }
 
     #[test]
