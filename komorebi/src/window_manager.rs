@@ -223,11 +223,12 @@ impl WindowManager {
 
         tracing::info!("preselecting container");
 
-        let new_idx = if workspace.monocle_container.is_some() {
-            None
-        } else {
-            workspace.new_idx_for_direction(direction)
-        };
+        let new_idx =
+            if workspace.maximized_window.is_some() || workspace.monocle_container.is_some() {
+                None
+            } else {
+                workspace.new_idx_for_direction(direction)
+            };
 
         match new_idx {
             Some(new_idx) => {
@@ -298,11 +299,12 @@ impl WindowManager {
             return self.cycle_monocle(cycle_direction);
         }
 
-        let new_idx = if workspace.monocle_container.is_some() {
-            None
-        } else {
-            workspace.new_idx_for_direction(direction)
-        };
+        let new_idx =
+            if workspace.maximized_window.is_some() || workspace.monocle_container.is_some() {
+                None
+            } else {
+                workspace.new_idx_for_direction(direction)
+            };
 
         let mut cross_monitor_monocle_or_max = false;
 
@@ -372,7 +374,10 @@ impl WindowManager {
                 self.focus_monitor(monitor_idx)?;
 
                 if let Ok(focused_workspace) = self.focused_workspace_mut() {
-                    if let Some(monocle) = &focused_workspace.monocle_container {
+                    if let Some(window) = &focused_workspace.maximized_window {
+                        window.focus(mouse_follows_focus)?;
+                        cross_monitor_monocle_or_max = true;
+                    } else if let Some(monocle) = &focused_workspace.monocle_container {
                         if let Some(window) = monocle.focused_window() {
                             window.focus(mouse_follows_focus)?;
                             cross_monitor_monocle_or_max = true;
@@ -1069,6 +1074,55 @@ impl WindowManager {
         self.update_focused_workspace(true, true)?;
 
         Ok(())
+    }
+
+    /// Toggles the compositor's own maximize for the focused window: it leaves the layout, fills
+    /// the work area, and goes back to its tile, where it was, when toggled again
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused workspace, or nothing to maximize on it.
+    /// - The compositor refuses to maximize or to restore the window.
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_maximize(&mut self) -> eyre::Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
+        let workspace = self.focused_workspace_mut()?;
+
+        match workspace.maximized_window {
+            None => self.maximize_window()?,
+            Some(_) => self.unmaximize_window()?,
+        }
+
+        self.update_focused_workspace(true, false)
+    }
+
+    /// Takes the focused window out of the layout of the focused workspace and has the compositor
+    /// maximize it ([`Workspace::new_maximized_window`])
+    ///
+    /// # Errors
+    ///
+    /// See [`Workspace::new_maximized_window`].
+    #[tracing::instrument(skip(self))]
+    pub fn maximize_window(&mut self) -> eyre::Result<()> {
+        tracing::info!("maximizing window");
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.new_maximized_window()
+    }
+
+    /// Puts the maximized window of the focused workspace back in the layout, where it was
+    /// ([`Workspace::reintegrate_maximized_window`])
+    ///
+    /// # Errors
+    ///
+    /// See [`Workspace::reintegrate_maximized_window`].
+    #[tracing::instrument(skip(self))]
+    pub fn unmaximize_window(&mut self) -> eyre::Result<()> {
+        tracing::info!("unmaximizing window");
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.reintegrate_maximized_window()
     }
 
     /// Takes the focused container out of the layout of the focused workspace and makes it the
@@ -1791,6 +1845,10 @@ impl WindowManager {
             .focused_workspace_mut()
             .ok_or_eyre("there is no workspace")?;
 
+        if workspace.maximized_window.is_some() {
+            eyre::bail!("cannot move native maximized window to another monitor or workspace");
+        }
+
         let foreground_window_id = backend()
             .foreground_window()
             .ok_or_eyre("no foreground window")?;
@@ -1999,9 +2057,16 @@ impl WindowManager {
         direction: CycleDirection,
     ) -> eyre::Result<()> {
         tracing::info!("focusing container");
+        // let mut maximize_next = false;
         let mut monocle_next = false;
 
         let mouse_follows_focus = self.mouse_follows_focus;
+
+        if self.focused_workspace_mut()?.maximized_window.is_some() {
+            // TODO: maximized window stuff
+            // maximize_next = true;
+            // self.unmaximize_window()?;
+        }
 
         if self.focused_workspace_mut()?.monocle_container.is_some() {
             monocle_next = true;
@@ -2016,6 +2081,9 @@ impl WindowManager {
 
         workspace.focus_container(new_idx);
 
+        // if maximize_next {
+        //     self.toggle_maximize()?;
+        // } else
         if monocle_next {
             self.toggle_monocle()?;
         } else {
@@ -2326,6 +2394,10 @@ impl WindowManager {
                 }
 
                 for window in workspace.floating_windows() {
+                    known_window_ids.insert(window.id, (m_idx, w_idx));
+                }
+
+                if let Some(window) = &workspace.maximized_window {
                     known_window_ids.insert(window.id, (m_idx, w_idx));
                 }
 
@@ -2780,6 +2852,14 @@ impl WindowManager {
                     ),
                 )?;
             }
+        } else if origin_workspace
+            .maximized_window
+            .as_ref()
+            .map(|max| max.id == window_id)
+            .unwrap_or_default()
+        {
+            // A maximized window is in no container, so there is none to transfer: it stays where
+            // it is
         }
         Ok(())
     }
@@ -4483,6 +4563,185 @@ mod tests {
             "Expected an error when trying to float a non-existent window"
         );
     }
+
+    // #[test]
+    // fn test_maximize_and_unmaximize_window() {
+    //     let (mut wm, _context) = setup_window_manager();
+    //
+    //     {
+    //         // Create a monitor
+    //         let mut m = monitor::new(
+    //             0,
+    //             Rect::default(),
+    //             Rect::default(),
+    //             "TestMonitor".to_string(),
+    //             "TestDeviceID".to_string(),
+    //         );
+    //
+    //         // Create a container
+    //         let mut container = Container::default();
+    //
+    //         // Add three windows to the container
+    //         for i in 0..3 {
+    //             container.windows_mut().push_back(Window::from(i));
+    //         }
+    //
+    //         // Should have 3 windows in the container
+    //         assert_eq!(container.windows().len(), 3);
+    //
+    //         // Add the container to the workspace
+    //         let workspace = m.focused_workspace_mut().unwrap();
+    //         workspace.add_container_to_back(container);
+    //
+    //         // Add monitor to the window manager
+    //         wm.monitors_mut().push_back(m);
+    //     }
+    //
+    //     {
+    //         // No windows should be maximized
+    //         let workspace = wm.focused_workspace().unwrap();
+    //         let maximized_window = workspace.maximized_window;
+    //         assert_eq!(maximized_window, None);
+    //     }
+    //
+    //     // Maximize the focused window
+    //     wm.maximize_window().ok();
+    //
+    //     {
+    //         // Window 0 should be maximized
+    //         let workspace = wm.focused_workspace().unwrap();
+    //         let maximized_window = workspace.maximized_window;
+    //         assert_eq!(maximized_window, Some(Window::from(0)));
+    //     }
+    //
+    //     wm.unmaximize_window().ok();
+    //
+    //     {
+    //         // No windows should be maximized
+    //         let workspace = wm.focused_workspace().unwrap();
+    //         let maximized_window = workspace.maximized_window;
+    //         assert_eq!(maximized_window, None);
+    //     }
+    //
+    //     // Focus container at index 1
+    //     wm.focused_workspace_mut().unwrap().focus_container(1);
+    //
+    //     {
+    //         // Focus the window at index 1
+    //         let container = wm.focused_container_mut().unwrap();
+    //         container.focus_window(1);
+    //     }
+    //
+    //     // Maximize the focused window
+    //     wm.maximize_window().ok();
+    //
+    //     {
+    //         // Window 2 should be maximized
+    //         let workspace = wm.focused_workspace().unwrap();
+    //         let maximized_window = workspace.maximized_window;
+    //         assert_eq!(maximized_window, Some(Window::from(2)));
+    //     }
+    //
+    //     wm.unmaximize_window().ok();
+    //
+    //     {
+    //         // No windows should be maximized
+    //         let workspace = wm.focused_workspace().unwrap();
+    //         let maximized_window = workspace.maximized_window;
+    //         assert_eq!(maximized_window, None);
+    //     }
+    // }
+
+    // #[test]
+    // fn test_toggle_maximize() {
+    //     let (mut wm, _context) = setup_window_manager();
+    //
+    //     {
+    //         // Create a monitor
+    //         let mut m = monitor::new(
+    //             0,
+    //             Rect::default(),
+    //             Rect::default(),
+    //             "TestMonitor".to_string(),
+    //             "TestDevice".to_string(),
+    //             "TestDeviceID".to_string(),
+    //             Some("TestMonitorID".to_string()),
+    //         );
+    //
+    //         // Create a container
+    //         let mut container = Container::default();
+    //
+    //         // Add three windows to the container
+    //         for i in 0..3 {
+    //             container.windows_mut().push_back(Window::from(i));
+    //         }
+    //
+    //         // Should have 3 windows in the container
+    //         assert_eq!(container.windows().len(), 3);
+    //
+    //         // Add the container to the workspace
+    //         let workspace = m.focused_workspace_mut().unwrap();
+    //         workspace.add_container_to_back(container);
+    //
+    //         // Add monitor to the window manager
+    //         wm.monitors_mut().push_back(m);
+    //     }
+    //
+    //     // Toggle maximize on
+    //     wm.toggle_maximize().ok();
+    //
+    //     {
+    //         // Window 0 should be maximized
+    //         let workspace = wm.focused_workspace().unwrap();
+    //         let maximized_window = workspace.maximized_window;
+    //         assert_eq!(maximized_window, Some(Window::from(0)));
+    //     }
+    //
+    //     // Toggle maximize off
+    //     wm.toggle_maximize().ok();
+    //
+    //     {
+    //         // No windows should be maximized
+    //         let workspace = wm.focused_workspace().unwrap();
+    //         let maximized_window = workspace.maximized_window;
+    //         assert_eq!(maximized_window, None);
+    //     }
+    // }
+
+    // #[test]
+    // fn test_toggle_maximize_nonexistent_window() {
+    //     let (mut wm, _context) = setup_window_manager();
+    //
+    //     {
+    //         // Create a monitor
+    //         let mut m = monitor::new(
+    //             0,
+    //             Rect::default(),
+    //             Rect::default(),
+    //             "TestMonitor".to_string(),
+    //             "TestDevice".to_string(),
+    //             "TestDeviceID".to_string(),
+    //             Some("TestMonitorID".to_string()),
+    //         );
+    //
+    //         // Create a container
+    //         let container = Container::default();
+    //
+    //         // Add the container to the workspace
+    //         let workspace = m.focused_workspace_mut().unwrap();
+    //         workspace.add_container_to_back(container);
+    //
+    //         // Add monitor to the window manager
+    //         wm.monitors_mut().push_back(m);
+    //     }
+    //
+    //     // Should return an error when trying to toggle maximize on a non-existent window
+    //     let result = wm.toggle_maximize();
+    //     assert!(
+    //         result.is_err(),
+    //         "Expected an error when trying to toggle maximize on a non-existent window"
+    //     );
+    // }
 
     #[test]
     fn test_monocle_on_and_monocle_off() {

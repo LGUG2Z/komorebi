@@ -249,7 +249,8 @@ impl Monitor {
                         .monocle_container
                         .iter()
                         .flat_map(|c| c.windows().iter()),
-                );
+                )
+                .chain(workspace.maximized_window.iter());
 
             for window in windows {
                 if backend().window_workspace(window.id) != Some(idx)

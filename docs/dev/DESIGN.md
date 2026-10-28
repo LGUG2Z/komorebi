@@ -315,3 +315,16 @@ the same reason `update` does not shorten the list of adjustments while there is
 container: with two containers, one of them in monocle, the list would be cut to one, and the
 adjustment of the container in monocle would be lost when it came back (the comments in
 `new_monocle_container` and `update`).
+
+## Why does a maximized window leave the layout, instead of being given the work area?
+
+Because KWin has a maximize of its own, and komorebi asks for it. The window gets the work area of
+its output with the panels left alone, and a restore goes back to where the window was
+(`docs/kde.md`, and the comment in the bridge where it carries the command out). It is the work
+area and not the padded one that [`Workspace::update`](../../komorebi/src/workspace.rs) maximizes
+a window to ("the compositor's own maximize, which is the work area and not the padded one"), so
+the window cannot be a container: a layout would give it a tile, less the padding. It is held in
+`maximized_window` instead, with the index it came from, and when it is restored it goes back to
+that index in a container of its own. It is restored before it is tiled again, because "it is its
+tile's size that it has to get back, not the compositor's idea of its old size" (the comment in
+`reintegrate_maximized_window`).

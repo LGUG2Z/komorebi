@@ -58,6 +58,8 @@ pub enum Command {
     CenterCursor(Rect),
     /// [`Backend::ensure_workspaces`]: how many workspaces were asked for.
     EnsureWorkspaces(usize),
+    /// [`Backend::maximize`]: the window, and whether it was to be maximized or restored.
+    Maximize(u32, bool),
     /// [`Backend::switch_workspace`]: the monitor, and the workspace it was asked to show.
     SwitchWorkspace(u32, usize),
     /// [`Backend::set_window_workspace`]: the window, and the workspace it was put on.
@@ -77,6 +79,8 @@ struct State {
     foreground: Option<u32>,
     cursor: Option<(i32, i32)>,
     commands: Vec<Command>,
+    /// windows the compositor has maximized, with the frame to give back
+    maximized: HashMap<u32, Rect>,
     /// how many virtual desktops there are
     desktops: usize,
     /// the desktop every window is on
@@ -86,6 +90,46 @@ struct State {
 }
 
 impl State {
+    /// Maximizes a window to the work area of its monitor, or gives it back the frame it had
+    fn set_maximized(&mut self, id: u32, maximize: bool) {
+        let Some(window) = self.windows.get(&id) else {
+            return;
+        };
+        let current = window.rect;
+
+        if maximize {
+            // the work area of the monitor the window is on (the first one if none is)
+            let center = (
+                current.left + current.right / 2,
+                current.top + current.bottom / 2,
+            );
+            let area = self
+                .monitors
+                .iter()
+                .find(|m| {
+                    center.0 >= m.size.left
+                        && center.0 < m.size.left + m.size.right
+                        && center.1 >= m.size.top
+                        && center.1 < m.size.top + m.size.bottom
+                })
+                .or_else(|| self.monitors.first())
+                .map(|m| m.work_area);
+
+            if let Some(area) = area
+                && !self.maximized.contains_key(&id)
+            {
+                self.maximized.insert(id, current);
+                if let Some(window) = self.windows.get_mut(&id) {
+                    window.rect = area;
+                }
+            }
+        } else if let Some(before) = self.maximized.remove(&id)
+            && let Some(window) = self.windows.get_mut(&id)
+        {
+            window.rect = before;
+        }
+    }
+
     /// The monitor a window is on: the one that holds the middle of it, else the first
     fn monitor_of(&self, id: u32) -> Option<u32> {
         let w = self.windows.get(&id)?;
@@ -251,6 +295,12 @@ impl FakeBackend {
     /// Puts the pointer somewhere.
     pub fn set_cursor(&self, x: i32, y: i32) {
         self.state.lock().cursor = Some((x, y));
+    }
+
+    /// Returns true if and only if the window has been maximized by a command and not restored
+    /// since.
+    pub fn is_maximized(&self, id: u32) -> bool {
+        self.state.lock().maximized.contains_key(&id)
     }
 
     /// Returns where a window is, if it was ever opened.
@@ -490,6 +540,12 @@ impl Backend for FakeBackend {
         state.window_ws.get(&id).copied()
     }
 
+    fn maximize(&self, id: u32, maximize: bool) -> eyre::Result<()> {
+        self.record(id, Command::Maximize(id, maximize), |state| {
+            state.set_maximized(id, maximize);
+        })
+    }
+
     fn current_workspaces(&self) -> Vec<(u32, usize)> {
         let state = self.state.lock();
         state
@@ -565,6 +621,34 @@ mod tests {
         );
         fake.clear_commands();
         assert!(fake.commands().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn a_maximized_window_has_the_work_area_and_gets_its_frame_back() -> eyre::Result<()> {
+        let fake = fake_with(&[1]);
+        fake.set_rect(1, &tile(100, 200))?;
+
+        fake.maximize(1, true)?;
+        // a second maximize does not make the maximized frame the one to give back
+        fake.maximize(1, true)?;
+
+        assert!(fake.is_maximized(1));
+        assert_eq!(fake.rect_of(1), Some(tile(0, 1920)));
+
+        fake.maximize(1, false)?;
+
+        assert!(!fake.is_maximized(1));
+        assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
+        assert_eq!(
+            fake.commands(),
+            [
+                Command::SetRect(1, tile(100, 200)),
+                Command::Maximize(1, true),
+                Command::Maximize(1, true),
+                Command::Maximize(1, false),
+            ]
+        );
         Ok(())
     }
 

@@ -58,8 +58,9 @@ function geometry(x, y, width, height) {
 
 // A window. `id` becomes its `internalId`, which is a QUuid in KWin: an object, not a string.
 // Setting `minimized`, `frameGeometry` or `desktops` raises the signal KWin raises, and
-// `closeWindow` closes it once it is in a KWin. `place` is where KWin puts the window when it is
-// asked for a frame: where it was asked, unless a test says otherwise.
+// `closeWindow` closes it once it is in a KWin. `setMaximize` sets `maximizeMode` the way KWin's
+// does and records what it was asked in `maximizations`. `place` is where KWin puts the window
+// when it is asked for a frame: where it was asked, unless a test says otherwise.
 function window({
     id,
     minimized = false,
@@ -82,6 +83,11 @@ function window({
         fullScreen: false,
         maximizeMode: 0,
         minSize: { width: 0, height: 0 },
+        maximizations: [],
+        setMaximize: (vertically, horizontally) => {
+            w.maximizations.push([vertically, horizontally]);
+            w.maximizeMode = (vertically ? 1 : 0) | (horizontally ? 2 : 0);
+        },
         move: false,
         resize: false,
         frameGeometryChanged: new Signal(),
@@ -311,8 +317,8 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
 
     k.close(terminal);
 
-    // the editor is tiled, focused, raised, minimized and brought back, the dialog closed, and the
-    // terminal, which has closed, is asked for a frame
+    // the editor is tiled, focused, raised, minimized and brought back, maximized and restored,
+    // the dialog closed, and the terminal, which has closed, is asked for a frame
     assert.equal(k.events().at(-1).seq, windowCommands.after_seq);
     k.answer([windowCommands.batch]);
 
@@ -334,6 +340,11 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     assert.equal(k.workspace.activeWindow, editor);
     assert.deepStrictEqual(k.raised, [editor]);
     assert.equal(editor.minimized, false);
+    assert.deepStrictEqual(editor.maximizations, [
+        [true, true],
+        [false, false],
+    ]);
+    assert.equal(editor.maximizeMode, 0);
     assert.deepStrictEqual(k.workspace.windowList(), [editor]);
 });
 
@@ -636,4 +647,20 @@ test("a window the user is moving or resizing is not asked for its position agai
     w.frameGeometry = geometry(-700, 0, 800, 600);
 
     assert.deepStrictEqual(w.frameGeometry, geometry(-700, 0, 800, 600));
+});
+
+test("a window maximized right after it was given a frame is not put back at that frame", () => {
+    const w = window({ id: "{w}" });
+    const maximize = w.setMaximize;
+    // KWin gives a maximized window the work area, which moves its frame
+    w.setMaximize = (vertically, horizontally) => {
+        maximize(vertically, horizontally);
+        w.frameGeometry = geometry(0, 0, 1920, 1050);
+    };
+    const k = kwin({ windows: [w] });
+    k.answer([{ batch: 1, cmds: [{ op: "geo", id: "{w}", x: 480, y: 270, w: 960, h: 540 }] }]);
+
+    k.answer([{ batch: 2, cmds: [{ op: "maximize", id: "{w}", v: true }] }]);
+
+    assert.deepStrictEqual(w.frameGeometry, geometry(0, 0, 1920, 1050));
 });

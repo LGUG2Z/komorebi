@@ -386,6 +386,8 @@ pub enum SocketMessage {
     ToggleLock,
     ToggleFloat,
     ToggleMonocle,
+    ToggleMaximize,
+    // ToggleMaximize,
     ToggleWindowContainerBehaviour,
     ToggleFloatOverride,
     ToggleCrossMonitorMoveBehaviour,

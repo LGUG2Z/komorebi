@@ -858,6 +858,13 @@ impl Backend for KWinBackend {
         self.command(id, |uuid| json!({ "op": "close", "id": uuid }))
     }
 
+    fn maximize(&self, id: u32, maximize: bool) -> eyre::Result<()> {
+        self.command(
+            id,
+            |uuid| json!({ "op": "maximize", "id": uuid, "v": maximize }),
+        )
+    }
+
     fn center_cursor_in(&self, _rect: &Rect) -> eyre::Result<()> {
         // KWin can center the pointer on the active window and nothing else; the WM calls this
         // right after focusing the window in question
@@ -997,6 +1004,8 @@ mod tests {
                 backend.raise(1).unwrap();
                 backend.minimize(1).unwrap();
                 backend.unminimize(1).unwrap();
+                backend.maximize(1, true).unwrap();
+                backend.maximize(1, false).unwrap();
                 backend.close(3).unwrap();
                 // the terminal has closed, and the table still knows it: the bridge gives it back
                 backend.set_rect(2, &left(960)).unwrap();

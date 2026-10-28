@@ -79,7 +79,8 @@ user in by itself, as in nixpkgs' own `plasma6` test, and Plasma draws on the
 machine's display device. The login starts the module's unit, so komorebi runs
 in the session from the start, as on a user's machine; `render-smoke`, which
 checks that the session draws, turns it off. It is the node for anything that
-needs pixels. The choice of login manager is made in
+needs pixels: `features` reads what komorebi does from screenshots of it. The
+choice of login manager is made in
 [`nodes/session.nix`](../../nix/tests/vm/nodes/session.nix) and nowhere else;
 the file says how to switch to sddm, the other one that has been seen to work.
 Its display is 1280x800, because screenshots are taken of the machine's one
@@ -127,10 +128,11 @@ the run.
   printed, failing the test if it fails. `state()` is the daemon's state as
   `komorebic state` prints it, `managed(workspace)` the number of windows the
   daemon has on a workspace of the first monitor, `managed_all()` the number it
-  has on every workspace of every monitor (floating windows and monocle
-  containers too), `containers(workspace)` the titles of the windows of each of
-  its containers, `monocle(workspace)` those of its monocle container, and
-  `focused_title(workspace)` the title of the window it has focused there.
+  has on every workspace of every monitor (floating windows, monocle containers
+  and maximized windows too), `containers(workspace)` the titles of the windows
+  of each of its containers, `monocle(workspace)` those of its monocle
+  container, and `focused_title(workspace)` the title of the window it has
+  focused there.
 - `daemon` reads the daemon's view of the desktop from that log, at the debug
   level the nodes set: `daemon.events(log)` lists the window events it handled,
   in order, `daemon.window_ids(log)` maps a window's title to the daemon's id

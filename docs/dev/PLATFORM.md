@@ -140,11 +140,13 @@ it is on the workspace it will come back to. It checks that KWin still lists the
 sends another window there.
 
 Every command of the window manager (move and resize, focus, raise, hide or restore, minimize,
-bring back or close a window, show a workspace on an output, put a window on a workspace) is
-queued for the
-bridge, which gets the queue as the answer to its held call and carries the commands out in
-KWin, in order. The script API cannot move the pointer, so
-when the pointer follows the focus komorebi invokes KWin's own "Move Mouse to Focus" shortcut,
+bring back, maximize, unmaximize or close a window, show a workspace on an output, put a window
+on a workspace) is queued for the bridge, which gets the queue as the answer to its held call and
+carries the commands out in KWin, in order. A maximize is KWin's own, `setMaximize(true, true)`:
+the window gets the work area of its output with the panels left alone, komorebi sets no frame
+for it meanwhile, and unmaximizing it gives it back the frame it had. The VM test `vm-features`
+checks that the window fills the work area and is on top. The script API cannot move the pointer,
+so when the pointer follows the focus komorebi invokes KWin's own "Move Mouse to Focus" shortcut,
 which puts the pointer in the middle of the window KWin has focused.
 
 #### When KWin restarts
@@ -343,8 +345,9 @@ with the columns out of view, is pulled back onto the screen a moment later; so 
 client rounds the size, as `foot` does. The bridge therefore remembers the position it was asked
 for, for a second, and when the window's frame changes to another position in that time, asks
 for the position again, which is a plain move. It tries three times at most, so a window that
-cannot go where it was asked is left alone. The VM test `vm-scrolling` checks that the columns
-out of view stay where komorebi put them.
+cannot go where it was asked is left alone. A maximize makes the bridge forget the position: the
+window's frame then changes to the work area, which is not where it was last asked to be. The VM
+test `vm-scrolling` checks that the columns out of view stay where komorebi put them.
 
 ## How long a retile takes
 

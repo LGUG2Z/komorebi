@@ -199,6 +199,24 @@ impl Window {
         backend().focus(self.id, mouse_follows_focus)
     }
 
+    /// Have the compositor maximize the window (the work area, panels respected)
+    ///
+    /// # Errors
+    ///
+    /// The backend does not know the window, or refuses to maximize it.
+    pub fn maximize(self) -> eyre::Result<()> {
+        backend().maximize(self.id, true)
+    }
+
+    /// Have the compositor give the window back the frame it had before it was maximized
+    ///
+    /// # Errors
+    ///
+    /// The backend does not know the window, or refuses to restore it.
+    pub fn unmaximize(self) -> eyre::Result<()> {
+        backend().maximize(self.id, false)
+    }
+
     pub fn raise(self) -> eyre::Result<()> {
         backend().raise(self.id)
     }
@@ -911,6 +929,8 @@ mod tests {
             window.unminimize()?;
             window.hide();
             window.restore();
+            window.maximize()?;
+            window.unmaximize()?;
             window.close()
         })?;
 
@@ -924,6 +944,8 @@ mod tests {
                 Command::Unminimize(203),
                 Command::Hide(203),
                 Command::Restore(203),
+                Command::Maximize(203, true),
+                Command::Maximize(203, false),
                 Command::Close(203),
             ]
         );

@@ -29,7 +29,8 @@
 //!   `toggle-lock` locks the focused container at its index, or unlocks it.
 //! - `toggle-monocle` gives the focused container the whole work area, or puts it back, and
 //!   `monocle-focus-behaviour` and `toggle-monocle-focus-behaviour` set what focusing in a
-//!   direction does meanwhile.
+//!   direction does meanwhile. `toggle-maximize` has KWin maximize the focused window, which
+//!   leaves the layout, and restores it.
 //! - `focused-workspace-padding`, `focused-workspace-container-padding`, `workspace-padding`,
 //!   `container-padding` and the two `adjust-*-padding` set the padding around the tiles and
 //!   between them, and `global-work-area-offset`, `monitor-work-area-offset`,
@@ -892,6 +893,8 @@ enum SubCommand {
     ToggleFloat,
     /// Toggle monocle mode for the focused container
     ToggleMonocle,
+    /// Toggle the compositor's maximization for the focused window
+    ToggleMaximize,
     /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
     ToggleLock,
     /// Force komorebi to manage the focused window
@@ -1147,6 +1150,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ToggleMonocle => {
             send_message(&SocketMessage::ToggleMonocle)?;
+        }
+        SubCommand::ToggleMaximize => {
+            send_message(&SocketMessage::ToggleMaximize)?;
         }
         SubCommand::ToggleFloat => {
             send_message(&SocketMessage::ToggleFloat)?;

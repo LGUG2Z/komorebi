@@ -324,7 +324,8 @@ class Kde:
     def managed_all(self) -> int:
         """The number of windows the daemon has, on every workspace of every monitor.
 
-        That is the windows of the containers, the monocle container and the floating windows.
+        That is the windows of the containers, the monocle container, the maximized window and
+        the floating windows.
         """
         total = 0
         for monitor in self.state()["monitors"]["elements"]:
@@ -333,6 +334,8 @@ class Kde:
                     total += len(container["windows"]["elements"])
                 if workspace["monocle_container"] is not None:
                     total += len(workspace["monocle_container"]["windows"]["elements"])
+                if workspace["maximized_window"] is not None:
+                    total += 1
                 total += len(workspace["floating_windows"]["elements"])
         return total
 

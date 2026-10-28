@@ -38,8 +38,8 @@ While it runs, the daemon takes messages on a Unix socket, `komorebi.sock` in
 directory): a message can ask for the state of the window manager, ask which
 monitor, workspace or container has the focus, give the focus to another
 window, move the focused window to another tile, change the layout, resize a
-tile, float a window, give one window the whole work area, retile every monitor, or stop the
-daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
+tile, float a window, give one window the whole work area or have KWin maximize it, retile every
+monitor, or stop the daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
 the command line, is how a person sends them. `komorebic start` runs the
 `komorebi` on the `PATH`, and passes it what follows a `--`. In a Plasma
 session:
@@ -162,9 +162,10 @@ another layout, `layout-ratios` and `scrolling-layout-columns` tune it,
 `resize-axis` move the edges of the focused tile, `promote` brings the
 focused window to the largest tile, `toggle-float` takes it out of the
 layout, `toggle-monocle` gives its container the whole work area, hiding the
-others, and puts it back, and `toggle-lock` keeps its container at its place. The scrolling layout
-is a strip of columns that runs past the edges of the monitor and scrolls to
-the window that has the focus. `minimize` and `close` ask KWin to minimize or
+others, and puts it back, `toggle-maximize` has KWin maximize the focused window
+and restore it, and `toggle-lock` keeps its container at its place. The
+scrolling layout is a strip of columns that runs past the edges of the monitor
+and scrolls to the window that has the focus. `minimize` and `close` ask KWin to minimize or
 close the focused window, `unmanage` takes it out of the layout until `manage`
 takes it back, and `toggle-pause` stops the daemon acting on events and orders
 until it is resumed. The padding commands set the gaps around the tiles, and

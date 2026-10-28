@@ -79,19 +79,21 @@
 /**
  * What the daemon sends: the answer to `Poll` is a list of batches, each a list of commands. A
  * window command names the window by its `id`: `geo` sets its frame, `min` minimizes it (`v`) or
- * brings it back, `desktop` puts it on the desktop `v` (and on no other), and `activate`, `raise`
- * and `close` do what they say. `output_desktop` shows the desktop `v` on one output, leaving the
- * others as they are. A cursor query is numbered by `token` so that its answer can be matched.
+ * brings it back, `maximize` maximizes it (`v`) or restores it, `desktop` puts it on the desktop
+ * `v` (and on no other), and `activate`, `raise` and `close` do what they say. `output_desktop`
+ * shows the desktop `v` on one output, leaving the others as they are. A cursor query is
+ * numbered by `token` so that its answer can be matched.
  *
  * @typedef {{ op: "cursor", token: number }} CursorQuery
  * @typedef {{ op: "output_desktop", output: string, v: string }} OutputDesktop
  * @typedef {{ op: "geo", id: string, x: number, y: number, w: number, h: number }} SetFrame
  * @typedef {{ op: "min", id: string, v: boolean }} SetMinimized
+ * @typedef {{ op: "maximize", id: string, v: boolean }} SetMaximized
  * @typedef {{ op: "activate", id: string }} Activate
  * @typedef {{ op: "raise", id: string }} Raise
  * @typedef {{ op: "close", id: string }} Close
  * @typedef {{ op: "desktop", id: string, v: string }} SetDesktop
- * @typedef {SetFrame | SetMinimized | Activate | Raise | Close | SetDesktop} WindowCommand
+ * @typedef {SetFrame | SetMinimized | SetMaximized | Activate | Raise | Close | SetDesktop} WindowCommand
  * @typedef {CursorQuery | OutputDesktop | WindowCommand} Command
  * @typedef {{ batch: number, cmds: Command[] }} Batch
  */
@@ -443,6 +445,13 @@ function applyOne(c) {
             break;
         case "min":
             w.minimized = !!c.v;
+            break;
+        case "maximize":
+            // KWin's own: the whole work area, panels left alone, and a restore that goes back to
+            // where the window was. The position asked for last is not wanted any more: `settle`
+            // would put the window back there, on the work area's size
+            delete want[c.id];
+            w.setMaximize(!!c.v, !!c.v);
             break;
         case "activate":
             workspace.activeWindow = w;

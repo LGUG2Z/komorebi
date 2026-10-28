@@ -39,6 +39,9 @@ daemon. It grows with the code: each part of the daemon that is added has its pl
 - **Monocle**: a workspace's one container that has the whole work area. It is held out of the
   workspace's containers, so the layout gives no container a tile, and the windows of the
   containers are hidden, until it is put back where it was ([`Workspace::monocle_container`]).
+- **Maximized window**: a workspace's one window that the compositor has maximized. It is in no
+  container, so it has left the layout, until it is put back in a container of its own where it
+  was ([`Workspace::maximized_window`]).
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
   the focus, minimized or restored, or put on another workspace's desktop; and that a monitor
   shows another workspace ([`WindowManagerEvent`]). Two events come from komorebi itself: a
@@ -98,9 +101,10 @@ The desktop, as the window manager sees it, is two lists and a pointer:
   of the window that has it.
 
 A command is one of: move and resize a window, focus it, raise it, hide it or restore it,
-minimize it or bring it back, close it, put the pointer in the middle of a rectangle, make
-desktops for the workspaces, show a workspace on a monitor, and put a window on a workspace. The workspace a
-window is on, and the one each monitor shows, are queries.
+minimize it or bring it back, maximize it or unmaximize it, close it, put the pointer in the
+middle of a rectangle, make desktops for the workspaces, show a workspace on a monitor, and put
+a window on a workspace. The workspace a window is on, and the one each monitor shows, are
+queries.
 
 The window manager tiles a tree of four levels, each level a [`Ring`]: a list with one
 element focused, so that "the focused workspace" or "the focused container" means
@@ -111,8 +115,8 @@ the same thing at every level.
   windows up to which it applies, and its workspaces. It shows the focused one.
 - A **workspace** ([`Workspace`]) has a layout, its padding, an optional work area offset of its
   own, whether it takes the monitor's window-based offset, its containers, in order, its
-  monocle container, if it has one, and its floating windows, which are in no container and
-  which the layout does not tile.
+  monocle container and its maximized window, if it has them, and its floating windows, which
+  are in no container and which the layout does not tile.
 - A **container** ([`Container`]) has its windows. A new window gets a container of its
   own, unless the window container behavior says to put it in the focused one. With more than
   one window it is a stack: the focused window is in front and the others are hidden. A
@@ -413,7 +417,8 @@ columns out of view are off the screen; a window whose tile is out of view while
 in view is centered in the work area first. A `FocusChange` tiles a scrolling workspace after the
 focused container has changed, which scrolls the strip to it. KWin keeps part of a window it
 resizes on an output, so the bridge asks again for the position of a window KWin pulled back
-within a second of the command, three times at most ([`bridge.js`]'s `settle`).
+within a second of the command, three times at most ([`bridge.js`]'s `settle`), unless the window
+is maximized meanwhile.
 
 `Promote` moves the focused container to index 0, the largest tile of every layout but the grid,
 through `LockableSequence`, so the containers before it move one index on
@@ -478,6 +483,27 @@ is none. `CycleFocusWindow` always carries the monocle to the next or the previo
 `MonocleFocusBehaviour` sets the behavior, and `ToggleMonocleFocusBehaviour` switches it. A focus
 that crosses to a monitor whose workspace has a monocle container gives the focus to its window,
 and a container moved to a workspace with one turns that monocle off first.
+
+`ToggleMaximize` takes the focused window out of its container, and the container with it when
+it was the last window in it, remembers the index, and asks the backend to maximize it: KWin's
+own maximize, to the work area with the panels left alone ([`WindowManager::toggle_maximize`],
+[`Workspace::new_maximized_window`]). From then on the workspace has a maximized window, in no
+container, and [`Workspace::update`] asks the backend to maximize it again and moves nothing
+else, so the containers stay where they were behind it. Toggled again, the window is restored
+(the backend gives it back the frame it had), put in a container of its own at the index it came
+from, and the workspace is tiled again ([`Workspace::reintegrate_maximized_window`]). A window in
+monocle that is maximized leaves the monocle. While a window is maximized, the messages that are
+about the tiles are dropped before they are handled: `MoveWindow`, `CycleMoveWindow`, the stack
+messages, the resize, promote and preselect messages, `ToggleLock`, `ToggleFloat`,
+`ToggleMonocle`, and the messages that send a container to another monitor or workspace
+(`is_layout_command` in [`process_command`](../../komorebi/src/process_command.rs)). A window that
+closes while it is maximized leaves the workspace like any other. `FocusWindow` finds no
+container on any side of the maximized window, so the focus goes to the monitor on that side and
+fails where there is none, and a maximized window, or a monocle, on the workspace it reaches is
+given the focus whole. `CycleFocusWindow` is not dropped: it gives the focus to the next
+container's window (the code has a TODO for what it should do). A maximized window is hidden
+with the rest of its workspace, and restored and focused ahead of the containers' windows when
+the workspace is shown again ([`Workspace::hide`], [`Workspace::restore`]).
 
 `ToggleLock` locks the focused container, or unlocks it ([`WindowManager::toggle_lock`]), and
 `LockMonitorWorkspaceContainer` and `UnlockMonitorWorkspaceContainer` do the same for a
@@ -637,12 +663,12 @@ module's unit.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
-  promote the focused container, float a window, put a container in monocle, lock a
-  container, set the padding of a workspace, manage and unmanage a window, stack and unstack
-  windows and choose the one in front, show a workspace, move a container to another
-  workspace, follow a workspace switch made by something else, name a workspace and find it
-  by its name, set the layout of a workspace that is not in front, focus another monitor, and
-  move containers and workspaces between monitors).
+  promote the focused container, float a window, put a container in monocle, maximize a
+  window, lock a container, set the padding of a workspace, manage and unmanage a window,
+  stack and unstack windows and choose the one in front, show a workspace, move a container
+  to another workspace, follow a workspace switch made by something else, name a workspace
+  and find it by its name, set the layout of a workspace that is not in front, focus another
+  monitor, and move containers and workspaces between monitors).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -714,7 +740,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 
 | Rule | Enforced by | Proof | Escape hatch |
 |---|---|---|---|
-| A backend implements every query and command | type system: the methods have no defaults | `compile_fail,E0046` on [`Backend`] | none |
+| A backend implements every query and command but `maximize` | type system: the methods have no defaults, except `maximize`, which does nothing until a backend implements it | `compile_fail,E0046` on [`Backend`] | none |
 | A backend can be shared between threads | type system: `Backend: Send + Sync + 'static` | `compile_fail,E0277` on [`Backend`] | none |
 | The window manager asks for a backend that was never installed | runtime error: [`backend`] panics, naming [`set_backend`] and [`with_backend`] | `# Panics` on [`backend`] | none |
 | A test's backend does not outlive the test | framework path: [`with_backend`] restores the previous one on drop | `with_backend_puts_the_previous_backend_back_when_the_closure_panics` | none |
@@ -727,6 +753,11 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A window in monocle that closes takes the monocle with it | framework path: [`Workspace::remove_window`] looks in the monocle container, which the index of managed windows lists | `closing_the_window_in_monocle_tiles_the_others_again` | none |
 | In a real KWin, the window in monocle fills the work area and goes back to its tile | VM test | `vm-core-e2e` ("in monocle the focused window fills the work area", "toggling back puts it on its tile") | none |
 | A clean stop, and the next start after a crash, bring back the windows a monocle hid | VM test | `vm-core-e2e` ("and every window is on a workspace's desktop", "after a crash and a restart a monocle still hides the other window") | none |
+| A maximized window goes back in a container of its own at the index it came from, and the tiles are where they were | framework path: [`Workspace::new_maximized_window`] keeps the index and [`Workspace::reintegrate_maximized_window`] inserts at it, after asking the backend to restore the window, and nothing else moves in between | `toggle_maximize_takes_the_window_out_of_the_layout_and_back`, `maximizing_works_in_every_layout`, `a_window_goes_back_in_a_container_of_its_own_at_the_index_it_came_from` | none |
+| What is about the tiles does nothing while a window is maximized | framework path: `is_layout_command` in [`WindowManager::process_command`] drops the message before it is handled | `while_a_window_is_maximized_what_is_about_the_tiles_does_nothing` | none |
+| A window stays maximized through a retile | framework path: [`Workspace::update`] asks the backend to maximize it again, and moves no container | `a_retile_while_a_window_is_maximized_asks_the_compositor_to_maximize_it_again` | none |
+| A maximized window that closes takes the maximize with it | framework path: [`Workspace::remove_window`] looks at the maximized window first, which the index of managed windows lists | `a_maximized_window_that_closes_leaves_the_layout_whole` | none |
+| In a real KWin, the maximized window fills the work area, is on top, and goes back to its tile | VM test | `vm-features` ("the focused window fills the work area", "and is the one on top", "toggled back, it is in its tile again") | none |
 | A window komorebi does not manage is never moved | framework path: `handle_event` asks [`Window::should_manage`] before it acts on any event but a destroy | `dialogs_and_other_non_normal_windows_are_left_alone`, `an_ignore_rule_keeps_a_window_unmanaged` | `ManageRule` |
 | A window the user unmanaged stays out of the layout until it is managed again | framework path: `handle_event` checks the list of unmanaged windows before it acts on any event but a removal | `unmanage_takes_the_focused_window_out_until_manage_takes_it_back` | none |
 | A paused window manager moves no window | framework path: `handle_event` returns before anything else, and [`read_commands_uds`] drops every message but `TogglePause`, `State`, `GlobalState` and `Stop` | `while_paused_no_event_changes_the_layout_and_manage_takes_in_a_window_it_missed`, `while_paused_only_toggle_pause_state_and_stop_are_handled` | none |
@@ -895,6 +926,8 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating;
   [`komorebi/tests/lock.rs`](../../komorebi/tests/lock.rs), locking;
   [`komorebi/tests/monocle.rs`](../../komorebi/tests/monocle.rs), the monocle;
+  [`komorebi/tests/maximize.rs`](../../komorebi/tests/maximize.rs) and
+  [`komorebi/tests/maximize_commands.rs`](../../komorebi/tests/maximize_commands.rs), maximizing;
   [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
   unmanaging and managing the focused window, and pausing;
   [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
@@ -903,6 +936,8 @@ A window is shown, and ends up on a tile:
   messages that add and show them.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
+- [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py): what is on the
+  screen of a real compositing session, read from screenshots.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
@@ -994,6 +1029,7 @@ A window is shown, and ends up on a tile:
 [`WindowManager::toggle_float`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_lock`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::toggle_monocle`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::toggle_maximize`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::monocle_on`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::monocle_off`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::cycle_monocle`]: ../../komorebi/src/window_manager.rs
@@ -1001,6 +1037,9 @@ A window is shown, and ends up on a tile:
 [`Workspace::monocle_container`]: ../../komorebi/src/workspace.rs
 [`Workspace::new_monocle_container`]: ../../komorebi/src/workspace.rs
 [`Workspace::reintegrate_monocle_container`]: ../../komorebi/src/workspace.rs
+[`Workspace::maximized_window`]: ../../komorebi/src/workspace.rs
+[`Workspace::new_maximized_window`]: ../../komorebi/src/workspace.rs
+[`Workspace::reintegrate_maximized_window`]: ../../komorebi/src/workspace.rs
 [`WindowManager::adjust_workspace_padding`]: ../../komorebi/src/window_manager.rs
 [`Workspace::apply_window_based_work_area_offset`]: ../../komorebi/src/workspace.rs
 [`Monitor::update_workspace_globals`]: ../../komorebi/src/monitor.rs

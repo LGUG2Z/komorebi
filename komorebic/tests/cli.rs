@@ -497,6 +497,11 @@ fn the_monocle_subcommands_send_their_message() {
 }
 
 #[test]
+fn toggle_maximize_sends_its_message() {
+    sends(&["toggle-maximize"], r#"{"type":"ToggleMaximize"}"#);
+}
+
+#[test]
 fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
     sends(
         &["mouse-follows-focus", "enable"],
@@ -818,6 +823,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "toggle-float-override.md",
             "toggle-float.md",
             "toggle-lock.md",
+            "toggle-maximize.md",
             "toggle-monocle-focus-behaviour.md",
             "toggle-monocle.md",
             "toggle-mouse-follows-focus.md",

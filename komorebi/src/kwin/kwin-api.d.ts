@@ -92,6 +92,11 @@ interface KWinWindow {
     readonly captionChanged: Signal;
     readonly desktopsChanged: Signal;
     closeWindow(): void;
+    /**
+     * Maximizes the window vertically and horizontally, or restores it from either. Maximizing
+     * is to the work area, panels left alone, and restoring gives back the frame it had.
+     */
+    setMaximize(vertically: boolean, horizontally: boolean): void;
 }
 
 /** The global `workspace` (`KWin::ScriptingWorkspace`). */

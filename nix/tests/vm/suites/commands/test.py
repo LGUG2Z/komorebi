@@ -194,6 +194,8 @@ preselect-direction left
 cancel-preselect
 toggle-monocle
 toggle-monocle
+toggle-maximize
+toggle-maximize
 toggle-float
 toggle-float
 toggle-lock

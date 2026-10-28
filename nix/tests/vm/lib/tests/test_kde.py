@@ -371,10 +371,12 @@ def workspace(
     focused: int = 0,
     floating: tuple[str, ...] = (),
     monocle: dict[str, object] | None = None,
+    maximized: str | None = None,
 ) -> dict[str, object]:
     return {
         "containers": {"elements": list(containers), "focused": focused},
         "monocle_container": monocle,
+        "maximized_window": None if maximized is None else window(maximized),
         "floating_windows": {"elements": [window(t) for t in floating], "focused": 0},
     }
 
@@ -441,7 +443,7 @@ def test_managed_counts_the_windows_of_every_container_of_the_workspace(
     assert kde.managed(1) == 1
 
 
-def test_managed_all_counts_the_windows_the_floating_windows_and_the_monocle_of_every_workspace(
+def test_managed_all_counts_the_windows_the_floating_ones_the_monocle_and_the_maximized_one(
     machine: FakeMachine,
 ) -> None:
     first = {
@@ -451,7 +453,10 @@ def test_managed_all_counts_the_windows_the_floating_windows_and_the_monocle_of_
     second = {
         "id": 2,
         "workspaces": {
-            "elements": [workspace(container("c")), workspace(monocle=container("m"))],
+            "elements": [
+                workspace(container("c"), maximized="x"),
+                workspace(monocle=container("m")),
+            ],
             "focused": 0,
         },
     }
@@ -460,7 +465,7 @@ def test_managed_all_counts_the_windows_the_floating_windows_and_the_monocle_of_
         output=json.dumps({"monitors": {"elements": [first, second], "focused": 0}}),
     )
 
-    assert Kde(machine, "main").managed_all() == 5
+    assert Kde(machine, "main").managed_all() == 6
 
 
 def test_managed_is_zero_for_a_workspace_without_containers(machine: FakeMachine) -> None:

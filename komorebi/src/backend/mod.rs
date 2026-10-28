@@ -307,6 +307,18 @@ pub trait Backend: Send + Sync + 'static {
     /// something in the compositor.
     fn shutdown(&self) {}
 
+    /// Has the compositor maximize the window to the work area of its monitor, panels left alone,
+    /// or, with `maximize` false, give it back the frame it had before.
+    ///
+    /// The default does nothing, for a compositor that has no maximize of its own.
+    ///
+    /// # Errors
+    ///
+    /// When the window does not exist or is no longer alive.
+    fn maximize(&self, _id: u32, _maximize: bool) -> eyre::Result<()> {
+        Ok(())
+    }
+
     /// Returns true if and only if the compositor has a live window with this id.
     fn is_window(&self, id: u32) -> bool {
         self.window(id).is_some_and(|w| w.alive)

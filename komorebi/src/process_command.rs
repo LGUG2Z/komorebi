@@ -73,6 +73,12 @@
 //!   the layout and out of sight, or puts it back ([`WindowManager::toggle_monocle`]).
 //!   **MonocleFocusBehaviour** sets what focusing in a direction does meanwhile, cycle the
 //!   monocle or nothing, and **ToggleMonocleFocusBehaviour** switches between the two.
+//! - **ToggleMaximize** has the compositor maximize the focused window, which leaves the layout,
+//!   or restores it and puts it back in its tile ([`WindowManager::toggle_maximize`]). While a
+//!   window is maximized, the messages about the tiles (**MoveWindow**, **CycleMoveWindow**, the
+//!   stack messages, the resize, promote and preselect messages, **ToggleLock**, **ToggleFloat**,
+//!   **ToggleMonocle** and the ones that send a container to another monitor or workspace) are
+//!   ignored.
 //! - **WorkspacePadding** and **ContainerPadding** set the paddings of a workspace given by the
 //!   index of its monitor and its own, **NamedWorkspacePadding** and
 //!   **NamedWorkspaceContainerPadding** those of the workspace with a name
@@ -240,6 +246,48 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
     });
 }
 
+/// Commands that are about the tiles of the layout (moving, stacking, resizing, promoting,
+/// locking, floating, the monocle, and sending containers to other monitors and workspaces), which
+/// a maximized window has left
+fn is_layout_command(message: &SocketMessage) -> bool {
+    matches!(
+        message,
+        SocketMessage::MoveWindow(_)
+            | SocketMessage::CycleMoveWindow(_)
+            | SocketMessage::StackWindow(_)
+            | SocketMessage::UnstackWindow
+            | SocketMessage::CycleStack(_)
+            | SocketMessage::CycleStackIndex(_)
+            | SocketMessage::FocusStackWindow(_)
+            | SocketMessage::StackAll
+            | SocketMessage::UnstackAll
+            | SocketMessage::ResizeWindowEdge(..)
+            | SocketMessage::ResizeWindowAxis(..)
+            | SocketMessage::PreselectDirection(_)
+            | SocketMessage::Promote
+            | SocketMessage::PromoteSwap
+            | SocketMessage::PromoteFocus
+            | SocketMessage::PromoteWindow(_)
+            | SocketMessage::ToggleLock
+            | SocketMessage::ToggleFloat
+            | SocketMessage::ToggleMonocle
+            | SocketMessage::MoveContainerToLastWorkspace
+            | SocketMessage::SendContainerToLastWorkspace
+            | SocketMessage::MoveContainerToMonitorNumber(_)
+            | SocketMessage::CycleMoveContainerToMonitor(_)
+            | SocketMessage::MoveContainerToWorkspaceNumber(_)
+            | SocketMessage::MoveContainerToNamedWorkspace(_)
+            | SocketMessage::CycleMoveContainerToWorkspace(_)
+            | SocketMessage::SendContainerToMonitorNumber(_)
+            | SocketMessage::CycleSendContainerToMonitor(_)
+            | SocketMessage::SendContainerToWorkspaceNumber(_)
+            | SocketMessage::CycleSendContainerToWorkspace(_)
+            | SocketMessage::SendContainerToMonitorWorkspaceNumber(..)
+            | SocketMessage::MoveContainerToMonitorWorkspaceNumber(..)
+            | SocketMessage::SendContainerToNamedWorkspace(_)
+    )
+}
+
 impl WindowManager {
     /// Handles one message, writes the answer to a question to `reply`, and sends the subscribers
     /// a notification of the message
@@ -265,6 +313,8 @@ impl WindowManager {
     ///   [`WindowManager::toggle_float`] gives.
     /// - The monocle cannot be turned on or off, for one of the reasons
     ///   [`WindowManager::toggle_monocle`] gives.
+    /// - The focused window cannot be maximized or restored, for one of the reasons
+    ///   [`WindowManager::toggle_maximize`] gives.
     /// - The focused window cannot be stacked, unstacked or cycled, for one of the reasons
     ///   [`WindowManager::add_window_to_container`], [`WindowManager::remove_window_from_container`],
     ///   [`WindowManager::stack_all`], [`WindowManager::unstack_all`],
@@ -303,6 +353,18 @@ impl WindowManager {
         mut reply: impl std::io::Write,
     ) -> eyre::Result<()> {
         tracing::info!("processing command: {message}");
+
+        // a window that is maximized (by `toggle-maximize`) is not in the layout, and what is
+        // asked of the layout is not asked of it: nothing happens until it is restored, by
+        // `toggle-maximize`
+        if is_layout_command(&message)
+            && self
+                .focused_workspace()
+                .is_ok_and(|workspace| workspace.maximized_window.is_some())
+        {
+            tracing::info!("ignoring {message}: the window in front is maximized");
+            return Ok(());
+        }
 
         #[allow(clippy::useless_asref)]
         // We don't have From implemented for &mut WindowManager
@@ -358,6 +420,13 @@ impl WindowManager {
                     match location {
                         WorkspaceWindowLocation::Monocle(window_idx) => {
                             self.focus_container_window(window_idx)?;
+                        }
+                        WorkspaceWindowLocation::Maximized => {
+                            if let Some(window) =
+                                &mut self.focused_workspace_mut()?.maximized_window
+                            {
+                                window.focus(mouse_follows_focus)?;
+                            }
                         }
                         WorkspaceWindowLocation::Container(container_idx, window_idx) => {
                             let focused_container_idx = self.focused_container_idx()?;
@@ -589,6 +658,7 @@ impl WindowManager {
                         && workspace.containers().is_empty()
                         && workspace.floating_windows().is_empty()
                         && workspace.monocle_container.is_none()
+                        && workspace.maximized_window.is_none()
                         && workspace.name.is_none()
                     {
                         can_close = true;
@@ -833,6 +903,7 @@ impl WindowManager {
                 self.ensure_named_workspaces_for_monitor(monitor_idx, names)?;
             }
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
+            SocketMessage::ToggleMaximize => self.toggle_maximize()?,
             SocketMessage::ToggleFloat => self.toggle_float(false)?,
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;

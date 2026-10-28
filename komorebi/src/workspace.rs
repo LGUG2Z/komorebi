@@ -37,6 +37,13 @@ pub struct Workspace {
     /// The index in `containers` the monocle container goes back to
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monocle_container_restore_idx: Option<usize>,
+    /// The window the compositor has maximized, which is in no container: the containers are left
+    /// where they are, behind it ([`Workspace::new_maximized_window`],
+    /// [`Workspace::reintegrate_maximized_window`])
+    pub maximized_window: Option<Window>,
+    /// The index in `containers` the maximized window goes back to, in a container of its own
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maximized_window_restore_idx: Option<usize>,
     pub floating_windows: Ring<Window>,
     pub layout: Layout,
     pub layout_options: Option<LayoutOptions>,
@@ -74,6 +81,8 @@ impl Default for Workspace {
             containers: Default::default(),
             monocle_container: None,
             monocle_container_restore_idx: None,
+            maximized_window: None,
+            maximized_window_restore_idx: None,
             workspace_padding: None,
             container_padding: None,
             resize_dimensions: vec![],
@@ -97,7 +106,8 @@ impl Default for Workspace {
 /// Where a workspace has a window of an application ([`Workspace::location_from_exe`])
 #[derive(Debug)]
 pub enum WorkspaceWindowLocation {
-    Monocle(usize),          // window_idx
+    Monocle(usize), // window_idx
+    Maximized,
     Container(usize, usize), // container_idx, window_idx
     Floating(usize),         // idx in floating_windows
 }
@@ -379,6 +389,15 @@ impl Workspace {
     ///
     /// No container of the workspace has the window.
     pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
+        if let Some(window) = self.maximized_window
+            && window.id == window_id
+        {
+            let _ = window.unmaximize();
+            self.maximized_window = None;
+            self.maximized_window_restore_idx = None;
+            return Ok(window);
+        }
+
         if let Some(container) = self.monocle_container.as_mut()
             && let Some(window_idx) = container
                 .windows()
@@ -450,8 +469,8 @@ impl Workspace {
         self.focus_container(focused_idx.saturating_sub(1));
     }
 
-    /// Returns true if the window that has the focus in the compositor is in the monocle
-    /// container, and so out of the layout
+    /// Returns true if the window that has the focus in the compositor is the maximized window or
+    /// in the monocle container, and so out of the layout
     ///
     /// # Errors
     ///
@@ -460,6 +479,11 @@ impl Workspace {
         let window_id = backend()
             .foreground_window()
             .ok_or_eyre("no foreground window")?;
+        if let Some(window) = &self.maximized_window
+            && window_id == window.id
+        {
+            return Ok(true);
+        }
 
         if let Some(container) = &self.monocle_container
             && container.contains_window(window_id)
@@ -472,6 +496,7 @@ impl Workspace {
 
     pub fn is_empty(&self) -> bool {
         self.containers().is_empty()
+            && self.maximized_window.is_none()
             && self.monocle_container.is_none()
             && self.floating_windows().is_empty()
     }
@@ -481,6 +506,12 @@ impl Workspace {
             if container.contains_window(window_id) {
                 return true;
             }
+        }
+
+        if let Some(window) = &self.maximized_window
+            && window_id == window.id
+        {
+            return true;
         }
 
         if let Some(container) = &self.monocle_container
@@ -498,8 +529,8 @@ impl Workspace {
         false
     }
 
-    /// Where this workspace has a window of the executable `exe`: in a container first, then in
-    /// the monocle container, then floating
+    /// Where this workspace has a window of the executable `exe`: in a container first, then the
+    /// maximized window, then the monocle container, then the floating windows
     pub fn location_from_exe(&self, exe: &str) -> Option<WorkspaceWindowLocation> {
         for (container_idx, container) in self.containers().iter().enumerate() {
             if let Some(window_idx) = container.idx_from_exe(exe) {
@@ -508,6 +539,13 @@ impl Workspace {
                     window_idx,
                 ));
             }
+        }
+
+        if let Some(window) = &self.maximized_window
+            && let Some(window_exe) = window.exe()
+            && exe == window_exe
+        {
+            return Some(WorkspaceWindowLocation::Maximized);
         }
 
         if let Some(container) = &self.monocle_container
@@ -527,13 +565,20 @@ impl Workspace {
         None
     }
 
-    /// Returns true if and only if the window is in one of the containers or in the monocle
-    /// container, which leaves out the floating windows: the windows komorebi tiles
+    /// Returns true if and only if the window is in one of the containers, is the maximized
+    /// window or is in the monocle container, which leaves out the floating windows: the windows
+    /// komorebi tiles
     pub fn contains_managed_window(&self, window_id: u32) -> bool {
         for container in self.containers() {
             if container.contains_window(window_id) {
                 return true;
             }
+        }
+
+        if let Some(window) = &self.maximized_window
+            && window_id == window.id
+        {
+            return true;
         }
 
         if let Some(container) = &self.monocle_container
@@ -626,9 +671,9 @@ impl Workspace {
     }
 
     /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
-    /// windows of every container and of the monocle container. A scrolling workspace is tiled again first without its resize
-    /// adjustments, which are put back after, so that the windows are hidden where the layout
-    /// has them and not where they were dragged.
+    /// windows of every container, the maximized window and the monocle container. A scrolling
+    /// workspace is tiled again first without its resize adjustments, which are put back after,
+    /// so that the windows are hidden where the layout has them and not where they were dragged.
     ///
     /// # Errors
     ///
@@ -668,6 +713,10 @@ impl Workspace {
             self.resize_dimensions = resize_dimensions;
         }
 
+        if let Some(window) = self.maximized_window {
+            window.hide();
+        }
+
         if let Some(container) = &mut self.monocle_container {
             container.hide(omit)?;
         }
@@ -683,7 +732,7 @@ impl Workspace {
     /// this is what komorebi does after it has asked for that, and it brings back what komorebi
     /// itself has hidden (the back of a stack stays hidden). While there is a monocle container
     /// only its window is restored and focused, for the other containers are out of sight behind
-    /// it.
+    /// it. A maximized window is restored and given the focus ahead of the containers' windows.
     pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         if let Some(container) = &mut self.monocle_container {
             container.restore()?;
@@ -718,8 +767,21 @@ impl Workspace {
             window.restore();
         }
 
+        // Do this here to make sure that an error doesn't stop the restoration of other windows
+        // Maximized windows and floating windows should always be drawn at the top of the Z order
+        // when switching to a workspace
         if let Some(window) = to_focus {
-            window.focus(mouse_follows_focus)?;
+            if self.maximized_window.is_none() {
+                window.focus(mouse_follows_focus)?;
+            } else if let Some(maximized_window) = self.maximized_window {
+                maximized_window.restore();
+                maximized_window.focus(mouse_follows_focus)?;
+            } else if let Some(floating_window) = self.focused_floating_window() {
+                floating_window.focus(mouse_follows_focus)?;
+            }
+        } else if let Some(maximized_window) = self.maximized_window {
+            maximized_window.restore();
+            maximized_window.focus(mouse_follows_focus)?;
         } else if let Some(floating_window) = self.focused_floating_window() {
             floating_window.focus(mouse_follows_focus)?;
         }
@@ -885,6 +947,104 @@ impl Workspace {
         Ok(())
     }
 
+    /// Takes the focused window out of its container, and so out of the layout, and has the
+    /// compositor maximize it: the work area, panels respected, and a restore that goes back to
+    /// where the window was. The window of the monocle container is the focused one while there
+    /// is a monocle container.
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no containers, the focused one has no window, or the compositor refuses
+    /// to maximize the window.
+    pub fn new_maximized_window(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+
+        let monocle_restore_idx = self.monocle_container_restore_idx;
+        if let Some(monocle_container) = &mut self.monocle_container {
+            let window = monocle_container
+                .remove_focused_window()
+                .ok_or_eyre("there is no window")?;
+
+            if monocle_container.windows().is_empty() {
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
+            } else {
+                monocle_container.load_focused_window()?;
+            }
+
+            self.maximized_window = Option::from(window);
+            self.maximized_window_restore_idx = monocle_restore_idx;
+            window.maximize()?;
+
+            return Ok(());
+        }
+
+        let container = self
+            .focused_container_mut()
+            .ok_or_eyre("there is no container")?;
+
+        let window = container
+            .remove_focused_window()
+            .ok_or_eyre("there is no window")?;
+
+        if container.windows().is_empty() {
+            // we shouldn't use remove_container_by_idx here because it doesn't make sense for
+            // monocle and maximized toggles which take over the whole screen before being
+            // reinserted at the same index to respect locked container indexes
+            self.containers_mut().remove(focused_idx);
+            if self.resize_dimensions.get(focused_idx).is_some() {
+                self.resize_dimensions.remove(focused_idx);
+            }
+        } else {
+            container.load_focused_window()?;
+        }
+
+        self.maximized_window = Option::from(window);
+        self.maximized_window_restore_idx = Option::from(focused_idx);
+        window.maximize()?;
+
+        Ok(())
+    }
+
+    /// The maximized window is a tile again, in a container of its own at the index it was taken
+    /// from, and the compositor gives it back the frame it had
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no maximized window, or the compositor refuses to restore it.
+    pub fn reintegrate_maximized_window(&mut self) -> eyre::Result<()> {
+        let restore_idx = self
+            .maximized_window_restore_idx
+            .ok_or_eyre("there is no maximized restore index")?;
+
+        let window = self
+            .maximized_window
+            .ok_or_eyre("there is no maximized window")?;
+
+        // it is its tile's size that it has to get back, not the compositor's idea of its old size
+        window.unmaximize()?;
+
+        if !self.containers().is_empty() && restore_idx > self.containers().len().saturating_sub(1)
+        {
+            self.containers_mut()
+                .resize(restore_idx, Container::default());
+        }
+
+        let mut container = Container::default();
+        container.add_window(&window)?;
+
+        // we shouldn't use insert_container_at_index here because it doesn't make sense for
+        // monocle and maximized toggles which take over the whole screen before being reinserted
+        // at the same index to respect locked container indexes
+        self.containers_mut().insert(restore_idx, container);
+        self.focus_container(restore_idx);
+
+        self.maximized_window = None;
+        self.maximized_window_restore_idx = None;
+
+        Ok(())
+    }
+
     /// Takes the focused window out of its container, and out of the layout, into the floating
     /// windows of the workspace; a container that is left with no window is removed, and one that
     /// is left with windows shows the one in front now
@@ -893,7 +1053,12 @@ impl Workspace {
     ///
     /// The workspace has no containers, or the focused one has no window.
     pub fn new_floating_window(&mut self) -> eyre::Result<()> {
-        let window = if let Some(monocle_container) = &mut self.monocle_container {
+        let window = if let Some(maximized_window) = self.maximized_window {
+            maximized_window.unmaximize()?;
+            self.maximized_window = None;
+            self.maximized_window_restore_idx = None;
+            maximized_window
+        } else if let Some(monocle_container) = &mut self.monocle_container {
             let window = monocle_container
                 .remove_focused_window()
                 .ok_or_eyre("there is no window")?;
@@ -1012,6 +1177,10 @@ impl Workspace {
     /// are left where they are. The window-based offset is then applied whatever the number of
     /// containers, if the monitor has one.
     ///
+    /// While it has a maximized window ([`Workspace::maximized_window`]), the compositor is asked
+    /// to maximize it again, which it does in its own work area, with no padding, and the
+    /// containers are left where they are.
+    ///
     /// The layout applies the resize adjustment of each container ([`Workspace::resize_dimensions`])
     /// after the parts its layout cannot apply have been cleared. The tiles are kept in
     /// [`Workspace::latest_layout`], which the scrolling layout scrolls from.
@@ -1083,6 +1252,9 @@ impl Workspace {
                         adjusted_work_area.add_padding(container_padding);
                         window.set_position(&adjusted_work_area)?;
                     };
+                } else if let Some(window) = self.maximized_window {
+                    // the compositor's own maximize, which is the work area and not the padded one
+                    window.maximize()?;
                 } else if !self.containers().is_empty() {
                     let mut layouts = self.layout.as_boxed_arrangement().calculate(
                         &adjusted_work_area,
