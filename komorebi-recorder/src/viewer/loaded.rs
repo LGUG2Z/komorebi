@@ -235,6 +235,14 @@ impl Loaded {
             .filter(|annotation| annotation.kind == annotations::Kind::Bug)
     }
 
+    /// Returns the notes (the annotations of kind [`Kind::Note`](annotations::Kind::Note)), in
+    /// time order. A marker dropped by `mark` is one, with the same start and end.
+    pub fn notes(&self) -> impl Iterator<Item = &AnnotationView> {
+        self.annotations
+            .iter()
+            .filter(|annotation| annotation.kind == annotations::Kind::Note)
+    }
+
     /// Returns the event with sequence number `seq`, if there is one.
     ///
     /// The search is linear in the number of events.

@@ -150,6 +150,11 @@ pub const ALL: &[Entry] = &[
         schema: of::<DeletedData>,
     },
     Entry {
+        name: "mark/1",
+        about: "`mark`: the marker dropped on a recording that is still going",
+        schema: of::<crate::cli::mark::MarkData>,
+    },
+    Entry {
         name: "doctor/1",
         about: "`doctor`: what this machine can do for a recording",
         schema: of::<crate::doctor::Report>,

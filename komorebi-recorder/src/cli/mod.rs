@@ -10,8 +10,9 @@ mod annotate;
 mod doctor;
 mod findings;
 mod investigate;
-pub mod outputs;
 mod logq;
+pub mod mark;
+pub mod outputs;
 mod query;
 mod record;
 pub mod refspec;
@@ -147,6 +148,8 @@ pub enum Command {
     Annotate(AnnotateArgs),
     /// List a session's bug regions, notes and findings
     Annotations(AnnotationsArgs),
+    /// Drop a named marker onto the timeline of a recording that is still going
+    Mark(mark::MarkArgs),
     /// Rebuild a session's timeline from its raw files, recovering it first if the recorder died
     Reindex(ReindexArgs),
     /// Check the video-to-clock alignment against a rendered on-screen clock
@@ -222,6 +225,7 @@ impl Command {
             Self::Compare(args) => args.json,
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
+            Self::Mark(args) => args.json,
             Self::Doctor(args) => args.json,
             Self::Record(args) => args.json,
             Self::Displays(args) => args.json,
@@ -294,6 +298,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Findings(args) => findings::findings(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
+        Command::Mark(args) => mark::mark(&args),
         Command::Reindex(args) => reindex(&args),
         Command::Selftest(args) => crate::selftest::run(&args),
         Command::SelftestClock => crate::selftest::run_clock(),

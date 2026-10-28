@@ -62,6 +62,9 @@ komorebi-recorder overview ./repro     # the whole recording at a glance
 komorebi-recorder trace ./repro event:7  # one event, from the handler that ran to what changed and who changed it
 ```
 
+A script that drives the repro can name its steps on the timeline while recording, with
+`komorebi-recorder mark "step 3: move window right"`; they show up as notes.
+
 For example, a four second recording of a Mac with komorebi running:
 
 ```text

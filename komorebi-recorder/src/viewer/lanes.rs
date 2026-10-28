@@ -458,6 +458,27 @@ impl Open {
             }
         }
 
+        // notes, and the markers a script dropped with `mark`: a tick, in the bugs lane
+        for note in self.loaded.notes() {
+            let x = view.x(note.start_video_s, left, width);
+            if x < left || x > area.right() {
+                continue;
+            }
+            let selected = self.selected_bug.as_deref() == Some(note.id.as_str());
+            let colour = if selected {
+                Color32::WHITE
+            } else {
+                Color32::from_rgb(120, 190, 235)
+            };
+            painter.line_segment(
+                [
+                    Pos2::new(x, bugs_strip.top() + 1.0),
+                    Pos2::new(x, bugs_strip.bottom() - 1.0),
+                ],
+                Stroke::new(2.0_f32, colour),
+            );
+        }
+
         // the range being picked
         if let Some((from, to)) = self.selection {
             let (x0, x1) = (view.x(from, left, width), view.x(to, left, width));
@@ -821,7 +842,13 @@ impl Open {
                         .find(|bug| {
                             time >= bug.start_video_s - reach && time <= bug.end_video_s + reach
                         })
-                        .map(|bug| (bug.id.clone(), bug.start_video_s));
+                        .map(|bug| (bug.id.clone(), bug.start_video_s))
+                        .or_else(|| {
+                            self.loaded
+                                .notes()
+                                .find(|note| (note.start_video_s - time).abs() <= reach)
+                                .map(|note| (note.id.clone(), note.start_video_s))
+                        });
                     match hit {
                         Some((id, start)) => {
                             self.selected_bug = Some(id);
@@ -918,6 +945,20 @@ impl Open {
                             timecode::format(bug.end_video_s),
                             bug.text
                         )
+                    })
+                    .or_else(|| {
+                        self.loaded
+                            .notes()
+                            .find(|note| (note.start_video_s - time).abs() <= reach)
+                            .map(|note| {
+                                format!(
+                                    "{}  ·  note by {}
+{}",
+                                    timecode::format(note.start_video_s),
+                                    note.author,
+                                    note.text
+                                )
+                            })
                     }),
                 Some(Lane::Screen) => self.changes.as_ref().and_then(|changes| {
                     changes

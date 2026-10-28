@@ -127,6 +127,23 @@ This is what makes the recording useful to whoever investigates it, person or ag
 truth of _what_ went wrong, and everything else in the session is evidence of _why_. See
 [Investigating a recording](investigating-a-recording.md#marking-the-bug).
 
+### Marking steps from a script
+
+A script that performs the repro can drop named markers onto the timeline while the recording is going:
+
+```
+komorebi-recorder mark "step 3: move window right"
+```
+
+A marker is a note by the author `script`, written at the moment the command runs, so it appears in `annotations`,
+`brief`, `search`, `overview` and as a tick on the viewer's bug lane. `mark` prints the video time (`marked 00:03.28 (a-3f9c1e02): ...`) once the first frame has been captured and
+the wall time (`marked 12:00:08.12Z (...)`) before that.
+
+It marks the session named by `--session DIR`, else by the environment variable `KOMOREBI_RECORDER_SESSION` (which
+`record --until-exit` sets for the command it runs), else the newest recording in komorebi's data directory that is
+still running. A recording that has finished is refused: it has no "now" to mark; use `annotate <session> add` with a
+time instead. `--json` prints the `mark/1` envelope.
+
 ### Without video
 
 `komorebi-recorder record --no-video` records everything but the screen: komorebi's events and log, the OS trace and

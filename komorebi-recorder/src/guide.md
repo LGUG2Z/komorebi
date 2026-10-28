@@ -32,6 +32,9 @@ not listed), what looked wrong and for how long, the state as the bug began and 
 what differs, what happened to the machine nearby (a display unplugged, a sleep), and the events most
 worth tracing first with the reason each was chosen.
 
+Notes by the author `script` are markers a script dropped while recording (`komorebi-recorder mark`),
+naming the steps of the repro; read them as the timeline of what was being done.
+
 Check `skew` before trusting any source location: it says whether komorebi's source is the commit
 that was recorded. If not, check out the recorded commit and rebuild the recorder, or treat source
 locations as hints.

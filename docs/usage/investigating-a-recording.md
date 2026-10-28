@@ -128,6 +128,7 @@ and `event:12.end` when it finished.
 | `blank --region x,y,w,h` | When a region was blank (one colour, named: `white`, `black`, a hex code) or frozen (identical to the frame before): "the window went white for 200 ms" |
 | `compare A B` | Two recordings side by side: duration, frames, effective fps, worst frame gap, motion, findings by kind, annotations, and the difference |
 | `annotate`, `annotations` | Add, change and list bug regions, notes and findings |
+| `mark TEXT` | While recording: drop a named point note (author `script`) onto the timeline from a script; it then appears in `annotations`, `brief` and the viewer like any note |
 
 ### Who changed it
 
