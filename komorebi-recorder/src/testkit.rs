@@ -679,8 +679,9 @@ pub fn komorebi_mac_src() -> PathBuf {
 /// checkout, and this build indexed it (an empty catalog means it was built without one).
 ///
 /// A machine that has neither (Windows, or a Mac outside `nix develop`) has nothing for those
-/// tests to check, which is not a failure: they use [`skip_without_komorebi_mac_source`] to say so
-/// and stop, as the tests that need `ffmpeg` do.
+/// tests to check, which is not a failure: they use
+/// [`skip_without_komorebi_mac_source!`](crate::skip_without_komorebi_mac_source) to say so and
+/// stop, as the tests that need `ffmpeg` do.
 #[must_use]
 pub fn komorebi_mac_source_available() -> bool {
     std::env::var_os("KOMOREBI_MAC_SRC").is_some_and(|path| !path.is_empty())

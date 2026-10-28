@@ -93,7 +93,7 @@ Useful options:
 | `--no-oslog`, `--no-komorebi`              | Skip the OS trace, or skip touching komorebi entirely                                   |
 | `--no-video`                               | Do not capture the screen; record everything else on the same clock (see below)         |
 | `--no-probe-windows`                       | Windows: do not record what Windows says about each window event, which is on by default (see below) |
-| `--fps N`, `--retina`, `--codec hevc\|h264` | Video settings (30 fps cap, logical points, HEVC by default)                           |
+| `--fps N`, `--retina`, `--codec hevc\|h264` | Video settings (display-rate capture (`--fps 0`, the default; N caps it), logical points, HEVC by default)                           |
 
 ### Marking where the bug is
 

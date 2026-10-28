@@ -71,6 +71,8 @@ use super::segment::even;
 use super::segment::h264_bitrate;
 use super::segment::h264_size;
 use super::segment::keepalive_due;
+use super::segment::min_update_interval_100ns;
+use super::segment::nominal_fps;
 use super::video_file_name;
 use crate::clock;
 use crate::platform::media::pack;
@@ -80,6 +82,7 @@ use parking_lot::Mutex;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use windows::Foundation::TimeSpan;
 use windows::Foundation::TypedEventHandler;
 use windows::Graphics::Capture::Direct3D11CaptureFramePool;
 use windows::Graphics::Capture::GraphicsCaptureItem;
@@ -401,6 +404,9 @@ struct Writer {
     /// How long one frame at the nominal rate lasts, in 100 ns units: what the last frame of a
     /// still display is given.
     frame_100ns: i64,
+    /// The latest frame, not yet given to the encoder: how long it lasts is the time until the one
+    /// after it, which is not known until that one arrives.
+    pending: Option<(IMFMediaBuffer, i64)>,
 }
 
 fn input_type(width: u32, height: u32, fps: u32) -> eyre::Result<IMFMediaType> {
@@ -439,7 +445,7 @@ fn output_type(width: u32, height: u32, fps: u32) -> eyre::Result<IMFMediaType> 
 
 impl Writer {
     fn create(path: &Path, gpu: &Gpu, width: u32, height: u32, fps: u32) -> eyre::Result<Self> {
-        let fps = fps.max(1);
+        let fps = nominal_fps(fps);
         let wide: Vec<u16> = path
             .to_string_lossy()
             .encode_utf16()
@@ -481,6 +487,7 @@ impl Writer {
                 sink,
                 stream,
                 frame_100ns: i64::from(10_000_000 / fps),
+                pending: None,
             })
         }
     }
@@ -497,14 +504,28 @@ impl Writer {
         }
     }
 
-    fn write(&self, buffer: &IMFMediaBuffer, time: i64) -> eyre::Result<()> {
-        let sample = Self::sample(buffer, time, self.frame_100ns)?;
+    /// Queues `buffer` to be shown from `time`, and hands the encoder the frame before it, which
+    /// is now known to have lasted until `time`.
+    fn write(&mut self, buffer: &IMFMediaBuffer, time: i64) -> eyre::Result<()> {
+        if let Some((previous, started)) = self.pending.replace((buffer.clone(), time)) {
+            self.submit(&previous, started, (time - started).max(1))?;
+        }
+        Ok(())
+    }
+
+    fn submit(&self, buffer: &IMFMediaBuffer, time: i64, duration: i64) -> eyre::Result<()> {
+        let sample = Self::sample(buffer, time, duration)?;
         // SAFETY: the writer is writing (`create` began it) and the sample is complete
         unsafe { self.sink.WriteSample(self.stream, &sample) }
             .wrap_err("the encoder rejected a frame")
     }
 
-    fn finish(&self) -> eyre::Result<()> {
+    /// Gives the encoder the last frame, for the length of one frame at the nominal rate, and
+    /// closes the file.
+    fn finish(&mut self) -> eyre::Result<()> {
+        if let Some((last, started)) = self.pending.take() {
+            self.submit(&last, started, self.frame_100ns)?;
+        }
         // SAFETY: the writer is writing; this waits for what is queued to be encoded and the file
         // to be closed
         unsafe { self.sink.Finalize() }.wrap_err("could not finish the video file")
@@ -816,6 +837,13 @@ impl DisplayCapture {
         // best effort: each of these needs a newer Windows than the capture itself
         let _ = session.SetIsBorderRequired(false);
         let _ = session.SetIsCursorCaptureEnabled(true);
+        // Without this Windows holds the capture to 60 frames a second, so a 120 Hz display is
+        // recorded at half its rate and a one-refresh flash can fall between two frames. The
+        // interval is the cap asked for, or (with none) a millisecond, which is shorter than any
+        // refresh. It needs Windows 11 22H2, and older ones keep their 60 frames a second.
+        let _ = session.SetMinUpdateInterval(TimeSpan {
+            Duration: min_update_interval_100ns(config.fps),
+        });
         session
             .StartCapture()
             .wrap_err("Windows refused to start the capture")?;

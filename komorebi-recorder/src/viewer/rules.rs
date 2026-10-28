@@ -118,7 +118,7 @@ impl Open {
     /// Sends the rule the form shows, in the background, with the tools and the repository `make`
     /// gives (it runs on the thread: finding `gh` runs it).
     ///
-    /// Does nothing unless the form is open, at [`Stage::Review`], and has a rule to send. The
+    /// Does nothing unless the form is open, at `Stage::Review`, and has a rule to send. The
     /// window sends to the real repository with [`Open::send_rule`]; this is its seam for the tests.
     pub fn start_sending(&mut self, make: impl FnOnce() -> (Tools, Upstream) + Send + 'static) {
         let Some(form) = self.rule.as_mut() else {

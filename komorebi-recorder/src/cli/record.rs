@@ -36,8 +36,8 @@ use std::time::Duration;
 
 /// The options of a recording, shared by `record` and `gui`.
 ///
-/// The default is a recording with no flags given: every display, 30 frames per second at logical
-/// resolution, komorebi and the OS trace included, no time limit.
+/// The default is a recording with no flags given: every display, frames as fast as the display
+/// refreshes at logical resolution, komorebi and the OS trace included, no time limit.
 #[derive(Args, Clone, Debug)]
 pub struct RecordArgs {
     /// Session directory to create [default: in komorebi's data directory, under recordings/,
@@ -50,8 +50,9 @@ pub struct RecordArgs {
     /// Display id to record (repeatable; see `displays`) [default: every display]
     #[arg(long = "display", value_name = "ID")]
     pub displays: Vec<u32>,
-    /// Maximum video frame rate (frames are only produced when the screen changes)
-    #[arg(long, default_value_t = 30)]
+    /// Maximum video frame rate, 0 for as fast as the display refreshes (frames are only produced
+    /// when the screen changes)
+    #[arg(long, default_value_t = 0)]
     pub fps: u32,
     /// Record at native pixel resolution instead of logical points
     #[arg(long)]
@@ -114,7 +115,7 @@ impl Default for RecordArgs {
             out: None,
             duration: None,
             displays: Vec::new(),
-            fps: 30,
+            fps: 0,
             retina: false,
             codec: Codec::default(),
             no_komorebi: false,
@@ -159,7 +160,7 @@ impl RecordArgs {
     /// assert_eq!(options.duration, Some(Duration::from_millis(2500)));
     /// assert_eq!(options.displays, [1]);
     /// assert!(!options.oslog.enabled);
-    /// assert_eq!(options.capture.fps, 30);
+    /// assert_eq!(options.capture.fps, 0);
     /// ```
     #[must_use]
     pub fn to_options(&self) -> RecordOptions {

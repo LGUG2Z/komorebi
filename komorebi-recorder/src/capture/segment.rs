@@ -121,6 +121,49 @@ pub fn h264_size(width: usize, height: usize) -> (usize, usize) {
     (even(width * scale), even(height * scale))
 }
 
+/// The frame rate declared to the encoder when the capture is not capped (`fps` of `0`).
+///
+/// Frames are stamped with the times they arrived, so this only sets the bitrate, the key frame
+/// spacing and the duration given to the last frame.
+pub const UNCAPPED_NOMINAL_FPS: u32 = 60;
+
+/// Returns the frame rate to declare to the encoder for a capture configured with `fps`.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::capture::segment::{nominal_fps, UNCAPPED_NOMINAL_FPS};
+///
+/// assert_eq!(nominal_fps(24), 24);
+/// assert_eq!(nominal_fps(0), UNCAPPED_NOMINAL_FPS);
+/// ```
+#[must_use]
+pub fn nominal_fps(fps: u32) -> u32 {
+    if fps == 0 { UNCAPPED_NOMINAL_FPS } else { fps }
+}
+
+/// Returns the shortest time between frames to ask the Windows capture for, in 100 ns units.
+///
+/// With a cap that is a frame at `fps`; with none (`fps` of `0`) it is a millisecond, which is
+/// shorter than the refresh of any display.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::capture::segment::min_update_interval_100ns;
+///
+/// assert_eq!(min_update_interval_100ns(30), 333_333);
+/// assert_eq!(min_update_interval_100ns(0), 10_000);
+/// ```
+#[must_use]
+pub fn min_update_interval_100ns(fps: u32) -> i64 {
+    if fps == 0 {
+        10_000
+    } else {
+        10_000_000 / i64::from(fps)
+    }
+}
+
 /// Returns the bitrate to encode a screen of this size at, in bits per second.
 ///
 /// Screen content is mostly flat and changes in bursts, so this is about a tenth of a bit per pixel

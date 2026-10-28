@@ -139,7 +139,8 @@ impl std::fmt::Display for Codec {
 /// [`DisplayManager::new`](manager::DisplayManager::new) takes it once and hands it to
 /// [`CaptureBackend::start`] for each segment.
 ///
-/// The default is 30 frames a second, not retina, and [`Codec::default`].
+/// The default is no frame rate cap (frames as fast as the display refreshes), not retina, and
+/// [`Codec::default`].
 ///
 /// # Example
 ///
@@ -147,19 +148,21 @@ impl std::fmt::Display for Codec {
 /// use komorebi_recorder::capture::{CaptureConfig, Codec};
 ///
 /// let config = CaptureConfig::default();
-/// assert_eq!(config.fps, 30);
+/// assert_eq!(config.fps, 0);
 /// assert!(!config.retina);
 /// assert_eq!(config.codec, Codec::default());
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CaptureConfig {
-    /// The frame rate the capture is configured for. `0` is treated as `1`.
+    /// The most frames a second to capture. `0` means no cap: as many as the display refreshes.
     ///
-    /// On a Mac this is an upper bound: `ScreenCaptureKit` is asked for no more than `fps` frames a
-    /// second, and emits frames only when the content changes. On Windows it is the nominal rate
-    /// declared to the encoder. It sets the bitrate (see [`segment::h264_bitrate`]), the key frame
-    /// spacing and the duration given to the last frame, and does not limit how often frames
-    /// arrive.
+    /// Both backends treat this as an upper bound, and emit frames only when the content changes.
+    /// `ScreenCaptureKit` is given it as the minimum frame interval; on Windows it is the minimum
+    /// update interval of the capture session (which needs Windows 11 22H2, and on an older
+    /// Windows the capture is held to 60 frames a second whatever this is). On Windows it is also
+    /// the rate declared to the encoder, which sets the bitrate (see [`segment::h264_bitrate`]),
+    /// the key frame spacing and the duration given to the last frame; with no cap that is
+    /// [`segment::UNCAPPED_NOMINAL_FPS`]. On a Mac the encoder never sees it.
     pub fps: u32,
     /// Whether to capture at native pixel resolution rather than logical points.
     ///
@@ -169,16 +172,6 @@ pub struct CaptureConfig {
     pub retina: bool,
     /// The codec to encode with. See [`Codec`] for what each host accepts.
     pub codec: Codec,
-}
-
-impl Default for CaptureConfig {
-    fn default() -> Self {
-        Self {
-            fps: 30,
-            retina: false,
-            codec: Codec::default(),
-        }
-    }
 }
 
 /// A display that can be captured, as the OS described it at one moment.

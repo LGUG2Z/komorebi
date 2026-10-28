@@ -16,10 +16,10 @@
 //!
 //! 1. [`DisplayCapture::start`] finds the display among `ScreenCaptureKit`'s shareable content,
 //!    builds a filter that leaves out this process and any other `komorebi-recorder` process, and
-//!    configures the stream: the size, `fps` as the minimum frame interval, BGRA pixels, the cursor
-//!    shown. It creates the `AVAssetWriter` (an MP4 cut into movie fragments every second, so a
-//!    killed recorder leaves a file that plays up to the last fragment) and the frame log with its
-//!    header row, and starts the stream.
+//!    configures the stream: the size, `fps` as the minimum frame interval (none when it is `0`),
+//!    BGRA pixels, the cursor shown. It creates the `AVAssetWriter` (an MP4 cut into movie
+//!    fragments every second, so a killed recorder leaves a file that plays up to the last
+//!    fragment) and the frame log with its header row, and starts the stream.
 //! 2. Each frame arrives on a serial dispatch queue. A callback that carries no new content (the
 //!    frame status is idle, blank or suspended) is counted in
 //!    [`CaptureStats::idle_callbacks`] and dropped. A real frame starts the writer's session at its
@@ -765,7 +765,13 @@ impl DisplayCapture {
             let stream_config = SCStreamConfiguration::new();
             stream_config.setWidth(width_px);
             stream_config.setHeight(height_px);
-            stream_config.setMinimumFrameInterval(CMTime::new(1, config.fps.max(1) as i32));
+            // zero is no minimum: frames as fast as the display refreshes
+            let minimum_interval = if config.fps == 0 {
+                CMTime::new(0, 1)
+            } else {
+                CMTime::new(1, config.fps as i32)
+            };
+            stream_config.setMinimumFrameInterval(minimum_interval);
             stream_config.setPixelFormat(PIXEL_FORMAT_BGRA);
             stream_config.setShowsCursor(true);
             stream_config.setQueueDepth(6);
