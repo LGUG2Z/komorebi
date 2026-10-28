@@ -273,6 +273,11 @@ impl GhostHost {
         (self.bounds.0, self.bounds.1)
     }
 
+    /// Whether there are no ghosts
+    fn is_idle(&self) -> bool {
+        self.thumbnails.is_empty()
+    }
+
     fn register(
         &mut self,
         snapshot: &Snapshot,
@@ -396,6 +401,22 @@ unsafe fn init_layered_transparent(hwnd: HWND) {
     }
 }
 
+/// How often the owner thread looks for messages for its windows when no
+/// command comes. While there are ghosts that is often, so that they are never
+/// kept waiting; while there are none the windows it has are a host nobody can
+/// see and nothing is sent to, and waking up every few milliseconds for them
+/// keeps the processor from sleeping.
+fn poll_interval(idle: bool) -> Duration {
+    if idle {
+        IDLE_POLL_INTERVAL
+    } else {
+        BUSY_POLL_INTERVAL
+    }
+}
+
+const BUSY_POLL_INTERVAL: Duration = Duration::from_millis(8);
+const IDLE_POLL_INTERVAL: Duration = Duration::from_millis(250);
+
 fn run_owner_loop(cmd_rx: crossbeam_channel::Receiver<GhostCmd>) {
     let mut host = match GhostHost::create() {
         Ok(host) => Some(host),
@@ -415,7 +436,7 @@ fn run_owner_loop(cmd_rx: crossbeam_channel::Receiver<GhostCmd>) {
             }
         }
 
-        match cmd_rx.recv_timeout(Duration::from_millis(8)) {
+        match cmd_rx.recv_timeout(poll_interval(host.as_ref().is_some_and(GhostHost::is_idle))) {
             Ok(GhostCmd::Create {
                 snapshot,
                 start_rect,
@@ -656,6 +677,13 @@ mod tests {
         assert!(!is_swap_chain_class("CabinetWClass"));
         assert!(!is_swap_chain_class("Chrome_RenderWidgetHostHWND"));
         assert!(!is_swap_chain_class(""));
+    }
+
+    #[test]
+    fn the_owner_thread_polls_slowly_when_there_are_no_ghosts() {
+        assert_eq!(poll_interval(false), BUSY_POLL_INTERVAL);
+        assert_eq!(poll_interval(true), IDLE_POLL_INTERVAL);
+        assert!(IDLE_POLL_INTERVAL >= BUSY_POLL_INTERVAL * 10);
     }
 
     #[test]
