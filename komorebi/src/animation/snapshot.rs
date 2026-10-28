@@ -132,15 +132,32 @@ fn copy_area(
     }
 }
 
-/// Make every pixel opaque, except for the ones outside the rounded corners of
-/// a window, which are made fully transparent. (Premultiplied, so those are
-/// all zero.)
-fn round_corners(pixels: &mut [u32], width: i32, height: i32, radius: i32) {
-    let radius = radius.min(width / 2).min(height / 2).max(0);
-
+/// Make every pixel opaque. (Premultiplied, so the colour is as it was.)
+fn make_opaque(pixels: &mut [u32]) {
     for pixel in pixels.iter_mut() {
         *pixel |= 0xFF00_0000;
     }
+}
+
+/// Whether the pixels of a picture are all opaque, as far as a grid of them
+/// across the picture says, which is a lot cheaper than looking at every one
+/// of the millions there can be. The picture a window renders of itself
+/// normally is, and then there is nothing to do.
+fn looks_opaque(pixels: &[u32], width: i32, height: i32) -> bool {
+    let step_x = (width / 32).max(1) as usize;
+    let step_y = (height / 32).max(1) as usize;
+
+    (0..height as usize).step_by(step_y).all(|y| {
+        (0..width as usize)
+            .step_by(step_x)
+            .all(|x| pixels[y * width as usize + x] >> 24 == 0xFF)
+    })
+}
+
+/// Make the pixels outside the rounded corners of a window, which has opaque
+/// pixels, fully transparent. (Premultiplied, so those are all zero.)
+fn round_corners(pixels: &mut [u32], width: i32, height: i32, radius: i32) {
+    let radius = radius.min(width / 2).min(height / 2).max(0);
 
     for corner_y in 0..radius {
         for corner_x in 0..radius {
@@ -163,13 +180,98 @@ fn round_corners(pixels: &mut [u32], width: i32, height: i32, radius: i32) {
     }
 }
 
-/// Ask a window to paint itself, as it is now. Taking a picture of a window
-/// makes it render synchronously (see `Snapshot::capture`), which is also a
-/// way to have a window that has just been resized lay itself out at its new
-/// size, without waiting for it to get round to it.
+/// What a window rendered of itself, and where in that its visible frame is
+struct Rendered {
+    bitmap: HBITMAP,
+    pixels: &'static [u32],
+    window_width: i32,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+impl Drop for Rendered {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = DeleteObject(self.bitmap.into());
+        }
+    }
+}
+
+/// Have a window render itself, which it does synchronously, whatever it takes
+/// it to do so, into a bitmap of the size of the window.
+fn render(hwnd: isize) -> eyre::Result<Rendered> {
+    let handle = HWND(hwnd as *mut c_void);
+
+    let mut window = RECT::default();
+    unsafe { GetWindowRect(handle, &mut window) }?;
+    let window_width = window.right - window.left;
+    let window_height = window.bottom - window.top;
+
+    // what is on screen is the extended frame, inside the invisible borders
+    let frame = WindowsApi::window_rect(hwnd)?;
+    let x = (frame.left - window.left).clamp(0, window_width);
+    let y = (frame.top - window.top).clamp(0, window_height);
+    let width = frame.right.min(window_width - x);
+    let height = frame.bottom.min(window_height - y);
+
+    if width <= 0 || height <= 0 {
+        eyre::bail!("hwnd {hwnd} has no visible area to take a picture of");
+    }
+
+    let start = std::time::Instant::now();
+
+    unsafe {
+        let screen = GetDC(None);
+        let dc = CreateCompatibleDC(Some(screen));
+
+        let result = (|| {
+            let (bitmap, pixels) = create_dib(dc, window_width, window_height)?;
+            let allocated = start.elapsed();
+
+            let previous = SelectObject(dc, bitmap.into());
+            let printed = PrintWindow(handle, dc, PRINT_WINDOW_FLAGS(PW_RENDERFULLCONTENT));
+            SelectObject(dc, previous);
+
+            tracing::trace!(
+                "snapshot: hwnd {hwnd} {window_width}x{window_height}: allocate {:.1} ms, \
+                 PrintWindow {:.1} ms",
+                allocated.as_secs_f64() * 1000.0,
+                (start.elapsed() - allocated).as_secs_f64() * 1000.0,
+            );
+
+            let rendered = Rendered {
+                bitmap,
+                pixels,
+                window_width,
+                x,
+                y,
+                width,
+                height,
+            };
+
+            if printed.as_bool() {
+                Ok(rendered)
+            } else {
+                Err(eyre::eyre!("hwnd {hwnd} would not render itself"))
+            }
+        })();
+
+        let _ = DeleteDC(dc);
+        ReleaseDC(None, screen);
+
+        result
+    }
+}
+
+/// Ask a window to paint itself, as it is now. Having a window render itself
+/// is synchronous, which makes it a way to have a window that has just been
+/// resized lay itself out at its new size, without waiting for it to get round
+/// to it. What it renders is of no use here, so nothing is made of it.
 pub fn paint_now(hwnd: isize) {
     let start = std::time::Instant::now();
-    let _ = Snapshot::capture(hwnd);
+    let _ = render(hwnd);
     tracing::trace!(
         "snapshot: hwnd {hwnd} painted itself in {:.1} ms",
         start.elapsed().as_secs_f64() * 1000.0
@@ -181,23 +283,7 @@ impl Snapshot {
     /// render itself, so it can take a while for one that is busy, and it is
     /// not for the thread that handles komorebi's events.
     pub fn capture(hwnd: isize) -> eyre::Result<Self> {
-        let handle = HWND(hwnd as *mut c_void);
-
-        let mut window = RECT::default();
-        unsafe { GetWindowRect(handle, &mut window) }?;
-        let window_width = window.right - window.left;
-        let window_height = window.bottom - window.top;
-
-        // what is on screen is the extended frame, inside the invisible borders
-        let frame = WindowsApi::window_rect(hwnd)?;
-        let x = (frame.left - window.left).clamp(0, window_width);
-        let y = (frame.top - window.top).clamp(0, window_height);
-        let width = frame.right.min(window_width - x);
-        let height = frame.bottom.min(window_height - y);
-
-        if width <= 0 || height <= 0 {
-            eyre::bail!("hwnd {hwnd} has no visible area to take a picture of");
-        }
+        let rendered = render(hwnd)?;
 
         let start = std::time::Instant::now();
 
@@ -205,43 +291,36 @@ impl Snapshot {
             let screen = GetDC(None);
             let dc = CreateCompatibleDC(Some(screen));
 
-            let result = (|| {
-                let (full, full_pixels) = create_dib(dc, window_width, window_height)?;
-                let allocated = start.elapsed();
-                let previous = SelectObject(dc, full.into());
-                let printed = PrintWindow(handle, dc, PRINT_WINDOW_FLAGS(PW_RENDERFULLCONTENT));
-                SelectObject(dc, previous);
-                let rendered = start.elapsed();
-
-                let result = if printed.as_bool() {
-                    create_dib(dc, width, height).map(|(bitmap, pixels)| {
-                        copy_area(full_pixels, window_width, x, y, pixels, width, height);
-                        round_corners(pixels, width, height, CORNER_RADIUS);
-                        Self {
-                            bitmap,
-                            width,
-                            height,
-                        }
-                    })
-                } else {
-                    Err(eyre::eyre!("hwnd {hwnd} would not render itself"))
-                };
-
-                let _ = DeleteObject(full.into());
-
-                tracing::trace!(
-                    "snapshot: hwnd {hwnd} {window_width}x{window_height}: allocate {:.1} ms, \
-                     PrintWindow {:.1} ms, picture {:.1} ms",
-                    allocated.as_secs_f64() * 1000.0,
-                    (rendered - allocated).as_secs_f64() * 1000.0,
-                    (start.elapsed() - rendered).as_secs_f64() * 1000.0,
+            let result = create_dib(dc, rendered.width, rendered.height).map(|(bitmap, pixels)| {
+                copy_area(
+                    rendered.pixels,
+                    rendered.window_width,
+                    rendered.x,
+                    rendered.y,
+                    pixels,
+                    rendered.width,
+                    rendered.height,
                 );
 
-                result
-            })();
+                if !looks_opaque(pixels, rendered.width, rendered.height) {
+                    make_opaque(pixels);
+                }
+                round_corners(pixels, rendered.width, rendered.height, CORNER_RADIUS);
+
+                Self {
+                    bitmap,
+                    width: rendered.width,
+                    height: rendered.height,
+                }
+            });
 
             let _ = DeleteDC(dc);
             ReleaseDC(None, screen);
+
+            tracing::trace!(
+                "snapshot: hwnd {hwnd}: picture {:.1} ms",
+                start.elapsed().as_secs_f64() * 1000.0
+            );
 
             result
         }
@@ -387,9 +466,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn corners_are_cut_out_and_the_rest_is_opaque() {
+    fn corners_are_cut_out_and_the_rest_is_kept() {
         let (width, height) = (40, 30);
-        let mut pixels = vec![0x0010_2030_u32; (width * height) as usize];
+        let mut pixels = vec![0xFF10_2030_u32; (width * height) as usize];
 
         round_corners(&mut pixels, width, height, 10);
 
@@ -401,7 +480,7 @@ mod tests {
         assert_eq!(at(0, height - 1), 0);
         assert_eq!(at(width - 1, height - 1), 0);
 
-        // the middle and the straight edges are kept, and opaque
+        // the middle and the straight edges are kept
         assert_eq!(at(20, 15), 0xFF10_2030);
         assert_eq!(at(20, 0), 0xFF10_2030);
         assert_eq!(at(0, 15), 0xFF10_2030);
@@ -414,13 +493,46 @@ mod tests {
 
     #[test]
     fn corners_of_a_tiny_picture_do_not_run_out_of_bounds() {
-        let mut pixels = vec![0x00FF_FFFF_u32; 9];
+        let mut pixels = vec![0xFFFF_FFFF_u32; 9];
         round_corners(&mut pixels, 3, 3, 10);
         assert!(
             pixels
                 .iter()
                 .all(|pixel| *pixel == 0xFFFF_FFFF || *pixel == 0)
         );
+    }
+
+    #[test]
+    fn pixels_are_made_opaque_without_changing_their_colour() {
+        let mut pixels = vec![0x0010_2030_u32, 0x0000_0000, 0x7F11_2233];
+        make_opaque(&mut pixels);
+        assert_eq!(pixels, vec![0xFF10_2030, 0xFF00_0000, 0xFF11_2233]);
+    }
+
+    #[test]
+    fn a_picture_looks_opaque_when_the_pixels_across_it_are() {
+        let (width, height) = (100, 80);
+        let mut pixels = vec![0xFF00_FF00_u32; (width * height) as usize];
+        assert!(looks_opaque(&pixels, width, height));
+
+        // a pixel on the grid that is not
+        pixels[0] = 0x0000_FF00;
+        assert!(!looks_opaque(&pixels, width, height));
+        pixels[0] = 0xFF00_FF00;
+
+        // a whole row of them, on the grid
+        for x in 0..width {
+            pixels[(4 * width + x) as usize] = 0;
+        }
+        assert!(!looks_opaque(&pixels, width, height));
+
+        // pictures too small for a grid are looked at pixel by pixel
+        assert!(looks_opaque(&[0xFF00_0000_u32; 6], 3, 2));
+        assert!(!looks_opaque(
+            &[0xFF00_0000, 0xFF00_0000, 0x0, 0xFF00_0000],
+            2,
+            2
+        ));
     }
 
     #[test]
