@@ -183,9 +183,12 @@ to develop in. For an Apple silicon Mac there are two that QEMU runs, one with a
 session that can be reached over RDP, and a disk image for UTM, which renders on
 the Mac's GPU. For a Linux machine with KVM there are the same two QEMU guests,
 for `x86_64` and for `aarch64`, and a demo guest of the session guest, which
-shows komorebi tiling a few windows in the first minute.
+shows komorebi tiling a few windows in the first minute. On Linux,
+`nix run .#run-kde` (or `just run-kde`) starts the demo in a window, and
+`run-kde --doctor` says what the machine lacks.
 [`docs/dev/utm.md`](docs/dev/utm.md) says how to build and run them;
-`plasma-guests-eval` evaluates them on every system.
+`plasma-guests-eval` evaluates them on every system, and `run-kde-dry-run` and
+`run-kde-doctor` run the command against machines that a test makes up.
 
 ## How it fits together
 

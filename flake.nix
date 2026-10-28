@@ -160,6 +160,35 @@
             inherit pkgs;
             rev = "nix-check";
           };
+          # `run-kde` starts the demo guest of the host's architecture (docs/dev/utm.md). The guest's
+          # runner is named in the program, not depended on: the command works out what is missing
+          # and builds it, with its progress shown, instead of `nix run` fetching 4 GB first.
+          runKde =
+            let
+              arch = if system == "x86_64-linux" then "x86_64" else "aarch64";
+              guest = self.nixosConfigurations."run-kde-${arch}";
+              runner = builtins.unsafeDiscardStringContext "${guest.config.system.build.vm}";
+            in
+            pkgs.writeShellApplication {
+              name = "run-kde";
+              runtimeInputs = with pkgs; [
+                coreutils
+                e2fsprogs
+                gawk
+                git
+                gnugrep
+                gnused
+                mesa-demos
+                openssh
+                qemu-utils
+                virtiofsd
+              ];
+              text = ''
+                : "''${RUN_KDE_GUEST:=run-kde-${arch}}"
+                : "''${RUN_KDE_RUNNER_BIN:=${runner}/bin/run-${guest.config.networking.hostName}-vm}"
+              ''
+              + builtins.readFile ./scripts/run-kde;
+            };
           nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
           nightlyToolchain = pkgs.rust-bin.nightly.latest.default;
           rustToolchainWithNightlyRustfmt = pkgs.symlinkJoin {
@@ -383,6 +412,16 @@
                   touch $out
                 '';
           }
+          # `run-kde` is shellchecked when it is built, and its output is what a test says it is
+          // lib.optionalAttrs isLinux (
+            {
+              run-kde = config.packages.run-kde;
+            }
+            // import ./nix/tests/run-kde.nix {
+              inherit pkgs;
+              runKde = config.packages.run-kde;
+            }
+          )
           # The VM tests need QEMU with KVM, so only Linux checks them. A Mac runs the same tests
           # through legacyPackages.<system>.vm, see docs/dev/vm-tests.md.
           // lib.optionalAttrs isLinux (
@@ -422,6 +461,7 @@
             kwin-effect-geometry-change-komorebi = pkgs.callPackage ./nix/kwin-effect-geometry-change.nix { };
             wsl2-probe = wsl2Probe.probe;
             wsl2-probe-guest = wsl2Probe.guest;
+            run-kde = runKde;
           };
 
           apps = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
@@ -439,6 +479,11 @@
               type = "app";
               program = lib.getExe wsl2Probe.probe;
               meta.description = "Probes a NixOS-WSL2 machine for KVM, WSLg, a GPU and RDP";
+            };
+            run-kde = {
+              type = "app";
+              program = lib.getExe config.packages.run-kde;
+              meta.description = "Start the komorebi demo in a virtual machine";
             };
             default = config.apps.komorebi;
           };

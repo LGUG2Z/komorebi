@@ -135,7 +135,7 @@ what a person's run needs comes from the environment of the runner:
 | `QEMU_OPTS` | the display device: `-vga none -device virtio-vga,xres=1280,yres=800`, or `-display gtk,gl=on -vga none -device virtio-vga-gl,xres=1280,yres=800` for a GPU |
 | `NIX_DISK_IMAGE` | the disk image, which the runner makes when it is not there |
 
-`run-kde` sets them; to start the guest by hand, on a Linux machine:
+[`run-kde`](#the-command) sets them; to start the guest by hand, on a Linux machine:
 
 ```sh
 nix build .#nixosConfigurations.run-kde-x86_64.config.system.build.vm -o .vm/result-run-kde
@@ -166,6 +166,77 @@ the closure is built:
   cannot read the directory then. The unit `run-kde-credentials` copies the two files as root, to
   `/run/run-kde-guest`, where the RDP unit (`komorebi.krdp.passwordFile`) and sshd
   (`AuthorizedKeysFile`) read them.
+
+## The command
+
+`run-kde` starts the demo guest on a Linux machine, from a checkout: `nix run .#run-kde -- [options]`,
+or `just run-kde [options]`. It is [`scripts/run-kde`](../../scripts/run-kde), which the flake wraps
+with the runner of the machine's guest (`run-kde-x86_64` or `run-kde-aarch64`) written into it, as
+`packages.<system>.run-kde` and `apps.<system>.run-kde`. The package names the runner and does not
+depend on it, so `nix run` does not fetch 4 GB before the command can say what the machine lacks.
+
+In order, it:
+
+1. Checks the machine. `--doctor` prints every check, a tick or a cross or a `!`, with the fix under
+   each cross and each `!`: WSL 2 or not, Nix, KVM (`/dev/kvm`, the group `kvm`, the CPU's `svm` or
+   `vmx` flag, the module `kvm_amd` or `kvm_intel`, and on WSL 2 the line
+   `nestedVirtualization=true` of `.wslconfig`), virtiofs (a `virtiofsd`, the runner's own when it
+   is built, is started as this user with the runner's options and must make its socket: a cross
+   when it does not; `/dev/fuse` is a `!`, since `virtiofsd` never opens it), memory, cores, disk, a
+   window (WSLg: `WAYLAND_DISPLAY`, `DISPLAY`), Windows interop for `--rdp`, the GPU (`/dev/dxg` on
+   WSL 2, a render node elsewhere, and the OpenGL renderer of the host from `glxinfo`), and the
+   networking mode of `.wslconfig`. A cross stops the command and `--doctor` exits with 1; a `!`
+   does not. A missing KVM is a cross, unless `--tcg` allows software emulation, which is too slow
+   to try anything.
+2. Builds the guest when its runner is not in the store, with `nix build` of the checkout's flake and
+   the build log shown. There is no binary cache: the first run builds komorebi and downloads about
+   4 GB of Plasma, which are 11 GB in the Nix store.
+3. Makes the state directory, `$XDG_STATE_HOME/komorebi-run-kde` (`~/.local/state/komorebi-run-kde`),
+   when it is not there: the guest's disk (20 GB, or `--size`, sparse), a random RDP password and an
+   ed25519 key for ssh, all of mode 0600 in a directory of mode 0700. `--reset` deletes it. Nothing
+   of it is in the Nix store.
+4. Prints a banner and starts the runner with the environment of [the demo guest](#the-demo-guest):
+   `-cpu host` with KVM, the repository at `/repo` (the checkout, or `KOMOREBI_REPO`), the state
+   directory at `/run/run-kde`, the ports on `127.0.0.1` (ssh 2223, RDP 3389: `--ssh-port`,
+   `--rdp-port`), and `-m` and `-smp` from what the machine has (`--memory`, `--cores`): the
+   machine's memory less 2048 MB, between 4096 and 8192, and its cores up to 6.
+
+The terminal is the guest's console, logged in as `komorebi`. What else the guest shows depends on
+the display and on the GPU.
+
+| `--display` | What it does |
+|---|---|
+| `gtk` | a window of QEMU; the default when `WAYLAND_DISPLAY` or `DISPLAY` is set |
+| `rdp` | no window; the guest is reached over RDP; the default otherwise |
+| `vnc` | no window; QEMU's VNC server on `127.0.0.1:5900` |
+| `none` | no window; `--shell` is this with the GPU off |
+
+`--gpu auto` uses the GPU when the display is a window, the host has a GPU device and the OpenGL of
+the host (`glxinfo`) is not llvmpipe. Otherwise it does not, and the banner says why. The GPU is
+`-display gtk,gl=on` with `-device virtio-vga-gl`, which renders the guest's OpenGL on the host
+through VirGL; without it the guest has `virtio-vga` and renders on its CPUs. `--gpu on` with no
+window starts `-display egl-headless`, which needs a DRM render node. The guest says what KWin draws
+with in its cheat sheet and on the console (`GPU (virgl)` or `software (llvmpipe)`): the guest's
+driver, not the host's.
+
+On WSL 2, `--rdp` starts Windows' own RDP client once ssh says that the unit `krdp` is running:
+`cmdkey.exe` stores the password for `TERMSRV/localhost`, `mstsc.exe` connects to
+`localhost:3389`, and the credential is deleted when `run-kde` ends.
+
+`--dry-run` prints the environment and the command that would be started, and starts nothing. The
+script reads the machine through variables, so that a test can make up a machine:
+`RUN_KDE_KVM_DEVICE`, `RUN_KDE_DXG_DEVICE`, `RUN_KDE_DRI_DIR`, `RUN_KDE_MEMINFO`, `RUN_KDE_CPUINFO`,
+`RUN_KDE_OSRELEASE`, `RUN_KDE_SYS_MODULE_DIR`, `RUN_KDE_STORE_DIR`, `RUN_KDE_FUSE_DEVICE`,
+`RUN_KDE_VIRTIOFSD`, `RUN_KDE_FREE_GB`, `RUN_KDE_CPUS`, `RUN_KDE_HOST_RENDERER` and
+`RUN_KDE_WSLCONFIG`, besides `WAYLAND_DISPLAY` and `DISPLAY`; and `RUN_KDE_GUEST` and
+`RUN_KDE_RUNNER_BIN`, which the package sets, and `RUN_KDE_QEMU_OPTS`, which adds to the options of
+QEMU. The checks `run-kde-dry-run` and `run-kde-doctor`
+([`nix/tests/run-kde.nix`](../../nix/tests/run-kde.nix)) run it against a WSL 2 with WSLg and a GPU,
+one with WSLg and a software OpenGL, one with WSLg and no GPU device, a Linux machine with no
+window, `--tcg` with no KVM, and machines that cannot run the guest (no KVM, a KVM the user cannot
+open, a `virtiofsd` that exits), a `/dev/fuse` that is missing or closed, and compare the output
+with the texts in [`nix/tests/run-kde`](../../nix/tests/run-kde). The check `run-kde` builds the package, which
+shellchecks the script.
 
 ## The UTM disk
 
@@ -273,7 +344,12 @@ machine. Both guests reached the login on their serial console and had one DRM d
 node, and the session guest drew the Plasma desktop on its display (a screenshot taken through
 QEMU's monitor) with komorebi running in the session. The demo guest, `run-kde-x86_64`, was
 started under KVM with a state directory: ssh took the key from it, the RDP unit started with the
-password from it, komorebi tiled the four windows, and the cheat sheet opened. The `aarch64` guests
+password from it, komorebi tiled the four windows, and the cheat sheet opened. `run-kde --doctor`,
+`--dry-run`, `--build-only` and a start with `--display none` were run on the same machine, which has
+no WSL, no window and no GPU: the guest came up with the memory and cores asked for, and it said
+`software (llvmpipe)`. The GPU path was started on that machine in QEMU's GTK window on an X server
+whose OpenGL is Mesa's llvmpipe. Nothing was run on WSL 2, with WSLg, with a GPU, or with
+`mstsc.exe`: what the command does there is not known yet. The `aarch64` guests
 for a Linux host were evaluated and not built. The RDP server is the exception to all of this: the
 VM suite `rdp` runs the same unit in the test session. That KWin 6.8 runs well on VirGL under UTM
 is not known either: the UTM and Mesa notes say VirGL is the way to render a Linux desktop, and

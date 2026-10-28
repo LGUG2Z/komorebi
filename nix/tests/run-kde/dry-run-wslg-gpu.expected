@@ -1,0 +1,12 @@
+run-kde would start run-kde-x86_64:
+  host: WSL 2, KVM yes
+  display: gtk
+  gpu: on, because @T@/dxg is there and the OpenGL of the host is D3D12 (AMD Radeon RX 7800 XT)
+  environment:
+    NIX_DISK_IMAGE=/state/komorebi-run-kde/disk.qcow2
+    KOMOREBI_REPO=@T@/repo
+    RUN_KDE_STATE=/state/komorebi-run-kde
+    RUN_KDE_MEMORY=8192
+    QEMU_NET_OPTS=hostfwd=tcp:127.0.0.1:2223-:22,hostfwd=tcp:127.0.0.1:3389-:3389
+    QEMU_OPTS=-cpu host -display gtk,gl=on -vga none -device virtio-vga-gl,xres=1280,yres=800
+  command: /nix/store/fake-nixos-vm/bin/run-komorebi-demo-vm -m 8192 -smp 6

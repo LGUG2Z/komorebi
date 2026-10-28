@@ -1,0 +1,15 @@
+run-kde: what the guest needs, and what this machine has
+  ✓ this is Linux, not WSL 2 (6.18.0)
+  ✓ nix is installed
+  ✓ KVM: @T@/kvm can be used
+  ! FUSE: @T@/kvm-denied is there and this user cannot open it; virtiofsd does not use it, so the guest can still start
+      on NixOS, services.udev.extraRules = ''KERNEL=="fuse", MODE="0666"'';
+      for now: sudo chmod 666 @T@/kvm-denied
+  ✓ virtiofsd: starts as this user and serves a directory
+  ✓ memory: this machine has 16384 MB, and the guest gets 8192 MB
+  ✓ cores: this machine has 12, and the guest gets 6
+  ✓ disk: 100 GB are free for the Nix store (@T@)
+  ! there is no window to show the guest in (neither WAYLAND_DISPLAY nor DISPLAY is set), so the guest is reached over RDP
+  ! GPU: there is no render node in @T@/dri, so the guest renders on its CPUs
+  ✓ the guest will not use the GPU: there is no window to show it in (the display is rdp)
+run-kde: 0 error(s), 3 warning(s)

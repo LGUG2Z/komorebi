@@ -151,7 +151,11 @@ module, and carry nothing of the person who uses them: a key, a password or a
 configuration of yours goes into the guest when it runs, never into these files.
 The `plasma-guests-eval` check evaluates them, and the VM suite `rdp` runs their
 RDP server, [`nix/dev/krdp.nix`](nix/dev/krdp.nix). The demo guest has no
-password and no key in its closure: the host shares a directory with them.
+password and no key in its closure: the host shares a directory with them, and
+`run-kde` ([`scripts/run-kde`](scripts/run-kde)) starts it. The script is
+shellchecked when the package is built, and `run-kde-dry-run` and
+`run-kde-doctor` compare what it prints for made-up machines with the texts in
+[`nix/tests/run-kde`](nix/tests/run-kde): change one with the other.
 
 ## Continuous integration
 
