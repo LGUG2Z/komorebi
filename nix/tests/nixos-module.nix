@@ -83,6 +83,131 @@ let
     }
   );
 
+  withConfig = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      config = {
+        default_workspace_padding = 20;
+        window_container_behaviour = "Append";
+        float_override_placement = "Center";
+        monocle_focus_behaviour = "Cycle";
+        monitors = [
+          {
+            floating_layer_behaviour = "Tile";
+            workspaces = [
+              {
+                name = "web";
+                layout = "BSP";
+              }
+              {
+                name = "code";
+                layout = "Columns";
+                window_container_behaviour_rules."2" = "Append";
+                float_override = false;
+                floating_layer_behaviour = "Float";
+              }
+            ];
+          }
+        ];
+      };
+    };
+  };
+
+  # a layout komorebi does not have
+  badLayout = eval {
+    imports = [ plasma ];
+    services.komorebi = {
+      enable = true;
+      config.monitors = [
+        {
+          workspaces = [
+            {
+              name = "x";
+              layout = "Nope";
+            }
+          ];
+        }
+      ];
+    };
+  };
+
+  withSource = eval (
+    { pkgs, ... }:
+    {
+      imports = [ plasma ];
+      services.komorebi = {
+        enable = true;
+        config.resize_delta = 70;
+        applicationSpecificConfiguration.sources = [
+          {
+            owner = "someone";
+            repo = "komorebi-rules";
+            rev = "0123456789abcdef0123456789abcdef01234567";
+            hash = pkgs.lib.fakeHash;
+          }
+        ];
+      };
+    }
+  );
+
+  # the same source and config, with the sources turned off
+  withSourceOff = eval (
+    { pkgs, ... }:
+    {
+      imports = [ plasma ];
+      services.komorebi = {
+        enable = true;
+        config.resize_delta = 70;
+        applicationSpecificConfiguration = {
+          enable = false;
+          sources = [
+            {
+              owner = "someone";
+              repo = "komorebi-rules";
+              rev = "0123456789abcdef0123456789abcdef01234567";
+              hash = pkgs.lib.fakeHash;
+            }
+          ];
+        };
+      };
+    }
+  );
+
+  # the sources turned off, and no config: nothing is left to write
+  onlySourceOff = eval (
+    { pkgs, ... }:
+    {
+      imports = [ plasma ];
+      services.komorebi = {
+        enable = true;
+        applicationSpecificConfiguration = {
+          enable = false;
+          sources = [
+            {
+              owner = "someone";
+              repo = "komorebi-rules";
+              rev = "0123456789abcdef0123456789abcdef01234567";
+              hash = pkgs.lib.fakeHash;
+            }
+          ];
+        };
+      };
+    }
+  );
+
+  bothConfigs = eval (
+    { pkgs, ... }:
+    {
+      imports = [ plasma ];
+      services.komorebi = {
+        enable = true;
+        configFile = pkgs.writeText "komorebi.json" "{}";
+        config.resize_delta = 70;
+      };
+    }
+  );
+
   unknownLevel = eval {
     imports = [ plasma ];
     services.komorebi = {
@@ -196,10 +321,86 @@ let
     {
       name = "configFile reaches execStart and the unit as --config, after the log level";
       ok =
-        withConfigFile.services.komorebi.execStart
-        == "${withConfigFile.services.komorebi.package}/bin/komorebi --log-level info --config ${withConfigFile.services.komorebi.configFile}"
+        lib.hasPrefix "${withConfigFile.services.komorebi.package}/bin/komorebi --log-level info --config /nix/store/" withConfigFile.services.komorebi.execStart
         && (unit withConfigFile).serviceConfig.ExecStart == withConfigFile.services.komorebi.execStart;
       got = (unit withConfigFile).serviceConfig.ExecStart;
+    }
+    {
+      name = "with neither a configFile nor a config, there is nothing to write";
+      ok = enabled.services.komorebi.internal.configAttrs == null;
+    }
+    {
+      name = "config is the komorebi.json the daemon is given, with no null left in it";
+      ok =
+        withConfig.services.komorebi.internal.configAttrs.default_workspace_padding == 20
+        &&
+          map (w: w.name) (lib.head withConfig.services.komorebi.internal.configAttrs.monitors).workspaces
+          == [
+            "web"
+            "code"
+          ]
+        && !(lib.hasInfix "null" (builtins.toJSON withConfig.services.komorebi.internal.configAttrs));
+      got = withConfig.services.komorebi.internal.configAttrs;
+    }
+    {
+      name = "the keys of the stacks, the float override, monocle and the floating layer are typed options";
+      ok =
+        withConfig.services.komorebi.internal.configAttrs.window_container_behaviour == "Append"
+        && withConfig.services.komorebi.internal.configAttrs.float_override_placement == "Center"
+        && withConfig.services.komorebi.internal.configAttrs.monocle_focus_behaviour == "Cycle"
+        &&
+          (lib.head withConfig.services.komorebi.internal.configAttrs.monitors).floating_layer_behaviour
+          == "Tile"
+        &&
+          (lib.elemAt (lib.head withConfig.services.komorebi.internal.configAttrs.monitors).workspaces 1)
+          .window_container_behaviour_rules."2" == "Append";
+      got = withConfig.services.komorebi.internal.configAttrs;
+    }
+    {
+      name = "config reaches execStart as a komorebi.json that was checked against the schema";
+      ok =
+        lib.hasInfix " --config " withConfig.services.komorebi.execStart
+        && lib.hasSuffix "-validated-komorebi.json" withConfig.services.komorebi.execStart
+        && (unit withConfig).serviceConfig.ExecStart == withConfig.services.komorebi.execStart;
+      got = withConfig.services.komorebi.execStart;
+    }
+    {
+      name = "configFile is checked against the schema too";
+      ok = lib.hasSuffix "-validated-komorebi.json" withConfigFile.services.komorebi.execStart;
+      got = withConfigFile.services.komorebi.execStart;
+    }
+    {
+      name = "a layout komorebi does not have does not evaluate";
+      ok = !(evaluates (builtins.deepSeq badLayout.services.komorebi.internal.configAttrs true));
+    }
+    {
+      name = "a source of application specific configuration is the daemon's app_specific_configuration_path";
+      ok =
+        lib.hasSuffix "-applications.json" withSource.services.komorebi.internal.configAttrs.app_specific_configuration_path
+        && withSource.services.komorebi.internal.configAttrs.resize_delta == 70;
+      got = withSource.services.komorebi.internal.configAttrs.app_specific_configuration_path;
+    }
+    {
+      name = "with applicationSpecificConfiguration.enable = false, the sources are left out of config";
+      ok =
+        withSource.services.komorebi.internal.configAttrs ? app_specific_configuration_path
+        && !(withSourceOff.services.komorebi.internal.configAttrs ? app_specific_configuration_path)
+        && withSourceOff.services.komorebi.internal.configAttrs.resize_delta == 70;
+      got = withSourceOff.services.komorebi.internal.configAttrs;
+    }
+    {
+      name = "with the sources turned off and no config, there is nothing to write and no --config";
+      ok =
+        onlySourceOff.services.komorebi.internal.configAttrs == null
+        && !(lib.hasInfix "--config" onlySourceOff.services.komorebi.execStart);
+      got = onlySourceOff.services.komorebi.execStart;
+    }
+    {
+      name = "with a configFile, config is ignored, and the module says so";
+      ok =
+        lib.any (lib.hasInfix "services.komorebi.config is ignored") bothConfigs.warnings
+        && lib.hasSuffix "-validated-komorebi.json" bothConfigs.services.komorebi.execStart;
+      got = bothConfigs.warnings;
     }
     {
       name = "a log level the daemon does not have does not evaluate";

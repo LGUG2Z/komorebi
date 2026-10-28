@@ -99,7 +99,9 @@ package.json: `tsc` and `node` come from the dev shell), inside `nix develop`.
 `nix flake check` runs the same checks as derivations, plus `cargo deny`, the
 TOML and Nix formatting, the tests under `cargo nextest`, and
 `nixos-module-eval`, which evaluates the NixOS module in real NixOS systems, on
-Linux and on an Apple silicon Mac. On Linux it also boots every VM test, which
+Linux and on an Apple silicon Mac, `schema-fresh`, which compares the schemas and
+the options made from them with the Rust types, and `nix-options-validation`,
+which checks the example configuration, in Nix and in JSON, against the schema. On Linux it also boots every VM test, which
 needs KVM. A Mac runs the tests against the fake desktop, since KWin only exists
 on Linux. `nix fmt` formats every file the checks look at.
 
@@ -204,7 +206,10 @@ can be in files of their own, which `app_specific_configuration_path` names.
 `workspace-layout-rule` makes a
 workspace change layout with the number of windows it has, as the file's
 `layout_rules` do, and `generate-static-config` prints the settings the daemon
-has as a `komorebi.json`.
+has as a `komorebi.json`. The Rust types that read the file describe it as a JSON Schema
+(`schema.json`, written by `just jsonschema` and printed by `static-config-schema`), and the
+module's `config` option is typed from that schema (`nix/komorebi-options.nix`, written by
+`just nixgen`), so a configuration written in Nix is checked when it is evaluated.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

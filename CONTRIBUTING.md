@@ -72,6 +72,14 @@ session also changes the VM suite `module`, which logs in to Plasma on a machine
 with the module and checks the daemon the unit runs. Every other VM suite runs
 on machines built with the module too.
 
+Three files are generated from the Rust types and committed: `schema.json` and
+`schema.asc.json` (`just jsonschema`), and `nix/komorebi-options.nix`, which types the
+module's `config` (`just nixgen`, which needs `schemars-nixgen`, `cargo install
+schemars-nixgen`). A change to what `komorebi.json` or an `applications.json` can
+say regenerates them in the same commit, and the check `schema-fresh` fails when
+it does not. The first line of the options file is the hash of the schema it was
+made from, which is how the check tells without running `schemars-nixgen`.
+
 ## VM tests
 
 A change that needs a real KWin to be checked comes with a VM test, next to

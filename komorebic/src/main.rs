@@ -84,7 +84,10 @@
 //! The others work without the daemon: `start` runs `komorebi` in the background, with the
 //! `komorebi.json` it is given with `--config`, `configuration` shows the path of the
 //! `komorebi.json` the daemon reads, `log` follows its log, `data-directory` shows where its
-//! socket is, and `completions` prints a completion script for a shell. The hidden `docgen` writes the help of every subcommand as Markdown, wrapped
+//! socket is, `completions` prints a completion script for a shell, and `static-config-schema`,
+//! `application-specific-configuration-schema`, `notification-schema` and `socket-schema` print
+//! the JSON Schema of `komorebi.json`, of an `applications.json`, of a notification and of a
+//! message. The hidden `docgen` writes the help of every subcommand as Markdown, wrapped
 //! at 100 columns whatever the width of the terminal, which is how `docs/cli` is made.
 
 use chrono::Utc;
@@ -1029,6 +1032,15 @@ enum SubCommand {
     MouseFollowsFocus(MouseFollowsFocus),
     /// Toggle mouse follows focus on all workspaces
     ToggleMouseFollowsFocus,
+    /// Generate a JSON Schema for applications.json
+    #[clap(alias = "asc-schema")]
+    ApplicationSpecificConfigurationSchema,
+    /// Generate a JSON Schema of subscription notifications
+    NotificationSchema,
+    /// Generate a JSON Schema of socket messages
+    SocketSchema,
+    /// Generate a JSON Schema of the static configuration file
+    StaticConfigSchema,
     /// Generates a static configuration JSON file based on the current window manager state
     GenerateStaticConfig,
 }
@@ -1621,6 +1633,38 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::MouseFollowsFocus(args) => {
             send_message(&SocketMessage::MouseFollowsFocus(args.boolean_state.into()))?;
+        }
+        SubCommand::ApplicationSpecificConfigurationSchema => {
+            #[cfg(feature = "schemars")]
+            {
+                let asc = schemars::schema_for!(komorebi_client::ApplicationSpecificConfiguration);
+                let schema = serde_json::to_string_pretty(&asc)?;
+                println!("{schema}");
+            }
+        }
+        SubCommand::NotificationSchema => {
+            #[cfg(feature = "schemars")]
+            {
+                let notification = schemars::schema_for!(komorebi_client::Notification);
+                let schema = serde_json::to_string_pretty(&notification)?;
+                println!("{schema}");
+            }
+        }
+        SubCommand::SocketSchema => {
+            #[cfg(feature = "schemars")]
+            {
+                let socket_message = schemars::schema_for!(SocketMessage);
+                let schema = serde_json::to_string_pretty(&socket_message)?;
+                println!("{schema}");
+            }
+        }
+        SubCommand::StaticConfigSchema => {
+            #[cfg(feature = "schemars")]
+            {
+                let socket_message = schemars::schema_for!(komorebi_client::StaticConfig);
+                let schema = serde_json::to_string_pretty(&socket_message)?;
+                println!("{schema}");
+            }
         }
         SubCommand::SubscribeSocket(args) => {
             send_message(&SocketMessage::AddSubscriberSocket(args.socket))?;

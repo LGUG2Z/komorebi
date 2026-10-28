@@ -99,6 +99,15 @@
             ;
           komorebi = extractBinary "komorebi";
           komorebic = extractBinary "komorebic";
+          # komorebic with the constant commit of the checks, whose output the schemas are
+          # checked against: it is the same for every commit
+          komorebicForChecks = craneLib.buildPackage (
+            individualCrateArgs
+            // {
+              pname = "komorebic-for-checks";
+              cargoExtraArgs = "--package komorebic --bin komorebic";
+            }
+          );
         };
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
@@ -216,6 +225,30 @@
 
             vm-lib = vm.lib;
 
+            # The schemas, the options made from one of them and the example are what the Rust types
+            # say: `just jsonschema` and `just nixgen` write them
+            schema-fresh =
+              pkgs.runCommand "komorebi-schema-fresh"
+                {
+                  nativeBuildInputs = [
+                    build.komorebicForChecks
+                    pkgs.diffutils
+                  ];
+                }
+                ''
+                  komorebic static-config-schema | diff -u ${./schema.json} - \
+                    || { echo "schema.json is stale: run just jsonschema"; exit 1; }
+                  komorebic application-specific-configuration-schema | diff -u ${./schema.asc.json} - \
+                    || { echo "schema.asc.json is stale: run just jsonschema"; exit 1; }
+                  expected=$(sha256sum ${./schema.json} | cut -d' ' -f1)
+                  head -n 1 ${./nix/komorebi-options.nix} | grep -qx "# schema-sha256: $expected" \
+                    || { echo "nix/komorebi-options.nix is stale: run just nixgen"; exit 1; }
+                  touch $out
+                '';
+
+            # the options the module is typed with, evaluated against the example configuration
+            nix-options-validation = import ./nix/tests/default.nix { inherit pkgs; };
+
             # The NixOS module in real NixOS systems, evaluated and never built, so a Mac checks it
             # too. A VM suite, `vm-module`, runs it.
             nixos-module-eval = import ./nix/tests/nixos-module.nix {
@@ -282,6 +315,7 @@
 
               pkgs.cargo-deny
               pkgs.cargo-nextest
+              pkgs.check-jsonschema
               pkgs.jq
               pkgs.just
               pkgs.ripgrep

@@ -1,11 +1,11 @@
 # The NixOS module runs komorebi in a real Plasma session: nothing in this test starts the daemon.
 # What only a real session can tell: that logging in starts the module's user unit through
 # `plasma-workspace.target`, that the daemon it runs reaches KWin from there and tiles a window
-# opened in the session, that it runs with the module's log level, its `configFile` and the PATH
-# of the user's session, that systemd starts it again when it is killed, and that a clean stop is
-# not a failure. Once the unit is stopped, the daemon is started with a `komorebi.json` of the
-# user's, which it follows when the file changes.
-# The options and the unit the module writes are checked without a machine by `nixos-module-eval`
+# opened in the session, that it runs with the module's log level, the `komorebi.json` the module
+# wrote from its `config`, and the PATH of the user's session, that systemd starts it again when
+# it is killed, and that a clean stop is not a failure. Once the unit is stopped, the daemon is
+# started with a `komorebi.json` of the user's, which it follows when the file changes. The
+# options and the unit the module writes are checked without a machine by `nixos-module-eval`
 # (`nix/tests/nixos-module.nix`).
 import json
 import shlex
@@ -65,7 +65,7 @@ print(f"     the unit runs: {' '.join(command)}")
 checks.check("the unit runs bin/komorebi", command[0].endswith("/bin/komorebi"))
 checks.check("... at the module's log level", command[1:3] == ["--log-level", "debug"])
 checks.check(
-    "... with the module's configFile as its --config",
+    "... with the komorebi.json the module wrote as its --config",
     len(command) == 5 and command[3] == "--config" and command[4].endswith("-komorebi.json"),
 )
 environment = kde.sh(f"tr '\\0' '\\n' < /proc/{pid}/environ").splitlines()

@@ -683,6 +683,19 @@ defaults. A **rule** is an entry of one of the process-wide lists. A workspace's
 `layout_rules`, `work_area_offset_rules` and `window_container_behaviour_rules` are fields of the
 [`Workspace`], which [`Workspace::update`] reads each time it tiles.
 
+The same types describe the file as a JSON Schema, which `schemars` derives: `komorebic
+static-config-schema` prints the schema of [`StaticConfig`], `application-specific-configuration-schema`
+that of an applications file, and `notification-schema` and `socket-schema` those of a
+[`Notification`] and of a [`SocketMessage`]; the daemon answers the same four questions on its
+socket (the fourth is the schema of a list of applications files, where `komorebic` prints the
+schema of one).
+The schemas of the first two are committed (`schema.json`, `schema.asc.json`, written by `just
+jsonschema`), and so are the options the module's `config` is typed with
+(`nix/komorebi-options.nix`, which `schemars-nixgen` makes from `schema.json` and `just nixgen`
+gives the hash of the schema as its first line). The check `schema-fresh` compares the schemas with
+what the Rust types print and the hash with the schema, so a change to a key that leaves one of
+them behind fails.
+
 One `komorebi.json` is meant for every platform komorebi runs on, so [`StaticConfig`] has no
 `deny_unknown_fields`: a key it does not read is dropped, and the keys of other platforms that
 mean nothing on KDE Plasma are fields that nothing reads. `StaticConfig::from(&WindowManager)`
@@ -695,6 +708,9 @@ goes the other way, for `GenerateStaticConfig`.
 | The example in the docs is the example file, which loads | test | `the_example_in_the_docs_is_the_example_file`, `fixtures_load_round_trip_and_only_lose_windows_only_keys` | none |
 | A path to an applications file that is not there is skipped, and one that is there and is broken is an error | framework path: `handle_asc_file` returns early when the path does not exist, and parses the file otherwise | `a_missing_application_specific_configuration_is_skipped_not_fatal`, `an_application_specific_configuration_that_exists_but_is_broken_is_still_an_error`, `a_file_that_is_not_there_is_skipped_and_one_that_is_broken_is_an_error` | none |
 | The rules of an applications file and of the configuration add up | framework path: both are appended to the process-wide lists | `the_rules_of_the_configuration_and_of_the_file_add_up`, `every_file_of_a_list_is_read` | none |
+| `schema.json` and `schema.asc.json` are what the Rust types print | Nix check `schema-fresh`, and a test that compares them with `komorebic`'s output | `schema-fresh`, `the_schema_files_of_the_repository_are_what_the_subcommands_print` | `just jsonschema` |
+| The options the module is typed with are made from the committed schema | the hash of `schema.json` in the first line of `nix/komorebi-options.nix`, compared by `schema-fresh` | `schema-fresh` | `just nixgen` |
+| The example, in Nix and in JSON, follows the schema, and says the same in both | Nix check `nix-options-validation`: the options evaluated against the Nix example, both examples checked with `check-jsonschema`, and one contained in the other | `nix-options-validation` | none |
 | A file that cannot be read changes nothing | framework path: [`StaticConfig::reload`] reads and parses the file before it applies anything | `a_configuration_that_cannot_be_read_changes_nothing`, `the_daemon_follows_the_file_it_is_given_when_the_file_changes` | none |
 | The daemon applies a change to its file, written in place or replaced by a rename | framework path: the watcher sends `ReloadStaticConfiguration` to the daemon's own socket | `the_daemon_follows_the_file_it_is_given_when_the_file_changes`, `vm-module` | none: the file has to be the one the daemon was started with |
 | A monitor takes the entry its display index preference gives it, else the first nobody has | framework path: [`StaticConfig::postload`] and [`StaticConfig::reload`] choose the entry by serial number id first | `a_monitor_takes_the_configuration_its_display_index_preference_gives_it` | none |
@@ -711,9 +727,16 @@ The flake exports one module under two names, `nixosModules.default` and
 `nixosModules.komorebi`: [`nixos-module.nix`] and the flake's overlay, which builds
 `komorebi-full` (both programs) with the flake's nixpkgs and Rust toolchain. Its options are
 `enable`, `package` (by default `pkgs.komorebi-full`, from the overlay), `logLevel`,
-`configFile`, and `execStart`, which is read-only: the module sets it to `bin/komorebi` of the
-package with `--log-level`, and `--config` with `configFile` when that is set. With
-`services.komorebi.enable`, the module:
+`configFile`, `config`, `applicationSpecificConfiguration`, and `execStart`, which is read-only: the
+module sets it to `bin/komorebi` of the package with `--log-level`, and `--config` with a
+`komorebi.json` when `configFile` or `config` is set. `config` is typed from
+`nix/komorebi-options.nix`, the options `schemars-nixgen` makes from the schema of `komorebi.json`;
+the module writes it as JSON, with no null in it, and `configFile` and the written file both go
+through `check-jsonschema` against `schema.json` when the system is built (comment lines taken out
+first, since the checker reads plain JSON). `applicationSpecificConfiguration.sources` are files
+fetched from GitHub that become `app_specific_configuration_path`; the module has none by default.
+`internal.configAttrs` is the configuration as the attribute set the options make, for the tests.
+With `services.komorebi.enable`, the module:
 
 - installs the package in the system profile;
 - defines the user unit `komorebi.service`, which every user of the machine has. Plasma's
@@ -734,7 +757,9 @@ module's unit.
 | komorebi is enabled only on a machine with Plasma 6 | evaluation error: an assertion of the module | `nixos-module-eval` ("without Plasma 6, an assertion fails") | none |
 | The log level is one the daemon accepts | evaluation error: `logLevel` is an enum of the daemon's `--log-level` values | `nixos-module-eval` ("a log level the daemon does not have does not evaluate") | none |
 | The unit runs `execStart`, and nothing but the module sets it | evaluation error: the option is read-only | `nixos-module-eval` ("execStart cannot be set", "the unit runs execStart") | a unit of your own |
-| The daemon is configured by `configFile` when it is set | framework path: `execStart` passes it as `--config`, which comes before the config home | `nixos-module-eval` ("configFile reaches execStart and the unit as --config"), `vm-module` | none: with no `configFile` the daemon reads the file of the config home |
+| The daemon is configured by `configFile` when it is set, else by `config` | framework path: `execStart` passes the checked file as `--config`, which comes before the config home | `nixos-module-eval` ("configFile reaches execStart and the unit as --config", "config reaches execStart ..."), `vm-module` | none: with neither the daemon reads the file of the config home |
+| A configuration with a layout or a value komorebi does not have does not build | evaluation error: `config` is typed from the schema; and `check-jsonschema` fails the build for a file that does not follow it | `nixos-module-eval` ("a layout komorebi does not have does not evaluate"), `nix-options-validation` | `configFile` with a file the schema accepts |
+| The sources of application specific configuration reach the daemon only while `applicationSpecificConfiguration.enable` is set | framework path: the module adds `app_specific_configuration_path` to the file it writes only when `enable` is set and there are sources | `nixos-module-eval` ("with applicationSpecificConfiguration.enable = false, the sources are left out of config", "with the sources turned off and no config, there is nothing to write") | none |
 | `komorebi` and `komorebic` are on every user's `PATH` | the module installs the package in the system profile | `nixos-module-eval`; every VM suite runs `komorebic` | none |
 | Every Plasma session starts komorebi, once KWin's service has started | systemd: the user unit is wanted by `plasma-workspace.target`, after `plasma-core.target` | `nixos-module-eval`, `vm-module` | `systemctl --user mask komorebi` |
 | A daemon that fails or is killed is started again | systemd: `Restart=on-failure` | `vm-module` (`SIGKILL`) | none |
@@ -996,7 +1021,13 @@ A window is shown, and ends up on a tile:
   with several monitors, [`komorebi/tests/hot_reload.rs`](../../komorebi/tests/hot_reload.rs) the
   daemon following a file, and
   [`komorebi/tests/config_parity.rs`](../../komorebi/tests/config_parity.rs) the files of other
-  platforms and the example, which load; [`komorebi/tests/asc.rs`](../../komorebi/tests/asc.rs)
+  platforms and the example, which load;
+  [`komorebi/tests/schemas.rs`](../../komorebi/tests/schemas.rs) the schemas the daemon answers
+  with; [`schema.json`](../../schema.json), [`schema.asc.json`](../../schema.asc.json) and
+  [`nix/komorebi-options.nix`](../../nix/komorebi-options.nix), which are generated;
+  [`nix/tests/default.nix`](../../nix/tests/default.nix) and
+  [`nix/tests/komorebi-example.nix`](../../nix/tests/komorebi-example.nix), the check of the options
+  and the example it evaluates them against; [`komorebi/tests/asc.rs`](../../komorebi/tests/asc.rs)
   the applications files; [`komorebi/src/core/asc.rs`](../../komorebi/src/core/asc.rs) their
   format.
 - [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event

@@ -692,6 +692,50 @@ fn a_config_home_that_is_not_a_directory_is_refused() {
     );
 }
 
+/// The JSON `komorebic` prints for a subcommand that needs no daemon
+fn printed(args: &[&str]) -> serde_json::Value {
+    let runtime = Runtime::new();
+
+    let output = runtime.komorebic(args);
+
+    assert!(output.status.success(), "{args:?}: {output:?}");
+    serde_json::from_str(&stdout(&output)).unwrap_or_else(|error| panic!("{args:?}: {error}"))
+}
+
+#[test]
+fn the_schema_subcommands_print_a_json_schema_without_a_daemon() {
+    let configuration = printed(&["static-config-schema"]);
+    assert!(configuration["properties"]["resize_delta"].is_object());
+    assert!(configuration["$defs"]["MonitorConfig"].is_object());
+
+    // `asc-schema` is another name for it
+    let applications = printed(&["application-specific-configuration-schema"]);
+    assert_eq!(applications, printed(&["asc-schema"]));
+    assert!(applications["$defs"]["AscApplicationRules"]["properties"]["floating"].is_object());
+
+    assert!(printed(&["notification-schema"])["$defs"]["WindowManagerEvent"].is_object());
+    assert!(printed(&["socket-schema"])["oneOf"].is_array());
+}
+
+#[test]
+fn the_schema_files_of_the_repository_are_what_the_subcommands_print() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+
+    for (file, subcommand) in [
+        ("schema.json", "static-config-schema"),
+        (
+            "schema.asc.json",
+            "application-specific-configuration-schema",
+        ),
+    ] {
+        let runtime = Runtime::new();
+        let printed = stdout(&runtime.komorebic(&[subcommand]));
+        let committed = std::fs::read_to_string(root.join(file)).unwrap();
+
+        assert_eq!(printed, committed, "{file} is stale: run `just jsonschema`");
+    }
+}
+
 #[test]
 fn the_monitor_subcommands_send_what_they_are_given() {
     sends(
@@ -813,6 +857,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
         [
             "adjust-container-padding.md",
             "adjust-workspace-padding.md",
+            "application-specific-configuration-schema.md",
             "cancel-preselect.md",
             "change-layout.md",
             "clear-named-workspace-layout-rules.md",
@@ -881,6 +926,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "named-workspace-padding.md",
             "named-workspace-tiling.md",
             "new-workspace.md",
+            "notification-schema.md",
             "preselect-direction.md",
             "promote-focus.md",
             "promote-swap.md",
@@ -902,10 +948,12 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "send-to-workspace.md",
             "session-float-rule.md",
             "session-float-rules.md",
+            "socket-schema.md",
             "stack-all.md",
             "stack.md",
             "start.md",
             "state.md",
+            "static-config-schema.md",
             "stop.md",
             "subscribe-socket.md",
             "swap-workspaces-with-monitor.md",

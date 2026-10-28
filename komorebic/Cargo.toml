@@ -16,11 +16,13 @@ dirs = { workspace = true }
 fs-tail = "0.1"
 lazy_static = { workspace = true }
 pastey = { workspace = true }
+schemars = { workspace = true, optional = true }
+serde_json = { workspace = true }
 sysinfo = { workspace = true }
 
 [features]
 default = ["schemars"]
-schemars = ["komorebi-client/default"]
+schemars = ["dep:schemars", "komorebi-client/default"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(FALSE)'] }

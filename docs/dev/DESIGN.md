@@ -354,3 +354,12 @@ Because one `komorebi.json` is meant to work on every platform, and the file it 
 one that another platform has: a configuration written for macOS names `applications.mac.json`,
 which a KDE desktop does not have. The daemon warns and goes on. A file that exists and is not an
 applications.json is a mistake in something the user wrote, and is an error.
+
+## Why does `nix/komorebi-options.nix` start with the hash of the schema?
+
+Because the check that the options are fresh cannot make them again. `schemars-nixgen` makes
+`nix/komorebi-options.nix` from `schema.json`, and it is not in the dev shell or in CI (it is
+installed with `cargo install`). `just nixgen` writes the hash of `schema.json` as the first line
+of the file, and the check `schema-fresh` compares that with the hash of the committed schema, and
+the schema with what `komorebic static-config-schema` prints. A change to a key that leaves the
+schema or the options behind fails the check, with no tool but the build.

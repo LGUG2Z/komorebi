@@ -426,6 +426,10 @@ for args in [
     "data-directory",
     "configuration",
     "generate-static-config",
+    "static-config-schema",
+    "application-specific-configuration-schema",
+    "notification-schema",
+    "socket-schema",
     "session-float-rules",
 ]:
     checks.check(f"komorebic {args}", kde.run(f"komorebic {args}")[0] == 0)

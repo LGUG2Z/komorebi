@@ -72,20 +72,45 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
 | `services.komorebi.enable` | `false` | Installs komorebi and starts it with every Plasma session. |
 | `services.komorebi.package` | `pkgs.komorebi-full` | The package with `bin/komorebi` and `bin/komorebic`; the unit runs the first, and both are installed. |
 | `services.komorebi.logLevel` | `"info"` | The daemon's `--log-level`: `"error"`, `"warn"`, `"info"`, `"debug"` or `"trace"`. |
-| `services.komorebi.configFile` | `null` | A `komorebi.json` for the daemon. The unit passes it to komorebi as `--config`, so the daemon reads it and not the `komorebi.json` of `~/.config/komorebi`. The file is in the Nix store: komorebi reads a new one when it starts again. |
-| `services.komorebi.execStart` | read only | The command line the unit starts komorebi with, built from `package`, `logLevel` and `configFile`. A unit of your own that runs komorebi uses it to start komorebi the same way. |
+| `services.komorebi.config` | `null` | The configuration, as Nix: every key of `komorebi.json`, typed from the schema. The module writes it as a `komorebi.json`, checks that against the schema, and the unit passes it to komorebi as `--config`. Ignored if `configFile` is set. |
+| `services.komorebi.configFile` | `null` | A `komorebi.json` for the daemon, checked against the schema when the system is built. The unit passes it to komorebi as `--config`, so the daemon reads it and not the `komorebi.json` of `~/.config/komorebi`. The file is in the Nix store: komorebi reads a new one when it starts again. |
+| `services.komorebi.applicationSpecificConfiguration` | `enable = true`, `sources = [ ]` | Files of [application specific configuration](usage/application-specific-configuration.md) fetched from GitHub (`owner`, `repo`, `rev`, `path` and `hash` each), which become the `app_specific_configuration_path` of the configuration `config` makes. There are none by default. |
+| `services.komorebi.execStart` | read only | The command line the unit starts komorebi with, built from `package`, `logLevel` and `configFile` or `config`. A unit of your own that runs komorebi uses it to start komorebi the same way. |
 
-The file for `configFile` is written like any other `komorebi.json`
-([Configuration](usage/configuration.md)):
+`config` takes the keys of `komorebi.json` ([Configuration](usage/configuration.md)) as Nix, and a
+value of the wrong kind, or a layout that does not exist, is an error when the configuration is
+evaluated:
 
 ```nix
 {
   services.komorebi = {
     enable = true;
-    configFile = ./komorebi.json;
+    config = {
+      default_workspace_padding = 15;
+      monitors = [
+        {
+          workspaces = [
+            { name = "web"; layout = "BSP"; }
+            { name = "code"; layout = "Columns"; }
+          ];
+        }
+      ];
+    };
   };
 }
 ```
+
+`configFile` takes a `komorebi.json` you wrote:
+
+```nix
+{
+  services.komorebi.configFile = ./komorebi.json;
+}
+```
+
+Comment lines (starting with `//`) are taken out of the file before it is checked, which is why
+the file can have them. With both, `configFile` wins, and the module warns that `config` is
+ignored.
 
 ### Running it
 

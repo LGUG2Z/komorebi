@@ -1099,6 +1099,8 @@ dependencies = [
  "komorebi-client",
  "lazy_static",
  "pastey",
+ "schemars 1.2.3",
+ "serde_json_lenient",
  "sysinfo",
  "version",
 ]

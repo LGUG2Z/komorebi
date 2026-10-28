@@ -496,6 +496,10 @@ pub enum SocketMessage {
     RemoveSubscriberSocket(String),
     // AddSubscriberPipe(String),
     // RemoveSubscriberPipe(String),
+    ApplicationSpecificConfigurationSchema,
+    NotificationSchema,
+    SocketSchema,
+    StaticConfigSchema,
     GenerateStaticConfig,
     DebugWindow(u32),
 }

@@ -187,3 +187,32 @@ index of the workspace, the number of containers and the layout;
 [`named-workspace-layout-rule`](../cli/named-workspace-layout-rule.md) takes the name of the
 workspace instead. A rule for a count that has one replaces it. The clear commands take every
 rule of the workspace away and leave it with the layout it has.
+
+## The schema
+
+The Rust types that read `komorebi.json` also describe it as a JSON Schema, which an editor can
+check the file against, and which the NixOS module is typed from. [`schema.json`](../../schema.json)
+in the repository is the schema of `komorebi.json`, [`schema.asc.json`](../../schema.asc.json) the
+schema of an [`applications.json`](application-specific-configuration.md), and the commands print
+them (and two more), without a daemon:
+
+```sh
+komorebic static-config-schema
+komorebic application-specific-configuration-schema
+komorebic notification-schema
+komorebic socket-schema
+```
+
+[`notification-schema`](../cli/notification-schema.md) is the schema of what a
+[subscriber](subscribing-to-notifications.md) is sent, and
+[`socket-schema`](../cli/socket-schema.md) the schema of a message. To check a file by hand:
+
+```sh
+komorebic static-config-schema > schema.json
+check-jsonschema --schemafile schema.json ~/.config/komorebi/komorebi.json
+```
+
+`check-jsonschema` reads plain JSON, so comments in the file have to come out first. The schema
+does not stop komorebi from reading a file that does not follow it: a key it does not have is
+dropped, as [above](#one-file-for-every-platform).
+

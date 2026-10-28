@@ -16,6 +16,10 @@
 //!   ([`RuleDebug`]), as JSON, or nothing for a window that is not there.
 //! - **GenerateStaticConfig**: the window manager's settings as a `komorebi.json`
 //!   ([`StaticConfig`]), as JSON.
+//! - **StaticConfigSchema**, **ApplicationSpecificConfigurationSchema**, **NotificationSchema**
+//!   and **SocketSchema**: the JSON Schema of `komorebi.json`, of a list of applications files,
+//!   of a [`Notification`] and of a [`SocketMessage`]. They answer nothing when the daemon is
+//!   built without the `schemars` feature.
 //!
 //! The others answer nothing:
 //!
@@ -1624,6 +1628,44 @@ impl WindowManager {
             }
             SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
                 self.unmanaged_window_operation_behaviour = behaviour;
+            }
+            SocketMessage::ApplicationSpecificConfigurationSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let asc = schemars::schema_for!(
+                        Vec<crate::core::asc::ApplicationSpecificConfiguration>
+                    );
+                    let schema = serde_json::to_string_pretty(&asc)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
+            }
+            SocketMessage::NotificationSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let notification = schemars::schema_for!(Notification);
+                    let schema = serde_json::to_string_pretty(&notification)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
+            }
+            SocketMessage::SocketSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let socket_message = schemars::schema_for!(SocketMessage);
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
+            }
+            SocketMessage::StaticConfigSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let static_config = schemars::schema_for!(StaticConfig);
+                    let schema = serde_json::to_string_pretty(&static_config)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::AddSubscriberSocket(ref socket) => {
                 let mut sockets = SUBSCRIPTION_SOCKETS.lock();

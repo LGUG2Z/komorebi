@@ -23,6 +23,21 @@ lint:
     test -z "$(rg 'dbg!' --type rust .)" || (echo "dbg! macro not allowed"; false)
     test -z "$(rg 'println!' --type rust ./komorebi/src)" || (echo "println! macro not allowed"; false)
 
+# the JSON Schemas of komorebi.json and of applications.json, from the Rust types
+jsonschema:
+    cargo run --package komorebic --locked -- static-config-schema > schema.json
+    cargo run --package komorebic --locked -- application-specific-configuration-schema > schema.asc.json
+
+# the options of the module's `config`, from schema.json, with the hash of the schema they were
+# made from in the first line (the check `schema-fresh` compares it); needs schemars-nixgen
+# (`cargo install schemars-nixgen`), which the dev shell does not have
+nixgen:
+    schemars-nixgen schema.json -o nix/komorebi-options.nix --name komorebi --description "komorebi for KDE Plasma configuration"
+    printf '# schema-sha256: %s\n' "$(nix hash file --type sha256 --base16 schema.json)" | cat - nix/komorebi-options.nix > nix/komorebi-options.nix.new
+    mv nix/komorebi-options.nix.new nix/komorebi-options.nix
+    nix fmt nix/komorebi-options.nix
+    nix build -L --no-link ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).nix-options-validation"
+
 # one VM test, on this machine: `just vm kwin`. Linux boots the guest under KVM through the
 # flake check; a Mac builds the guest on a builder and runs the driver (see docs/dev/vm-tests.md)
 vm name:

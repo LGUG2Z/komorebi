@@ -1,0 +1,1100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StaticConfig",
+  "description": "The `komorebi.json` static configuration file reference for komorebi for KDE Plasma",
+  "type": "object",
+  "properties": {
+    "app_specific_configuration_path": {
+      "description": "Path to an applications.json, or a list of them, with rules for the applications that\nneed them: which windows to ignore, to manage and to float",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AppSpecificConfigurationPath"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cross_boundary_behaviour": {
+      "description": "Determine what happens when an action is called on a window at a monitor boundary",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CrossBoundaryBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Monitor"
+    },
+    "cross_monitor_move_behaviour": {
+      "description": "Determine what happens when a window is moved across a monitor boundary",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MoveBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Swap"
+    },
+    "default_container_padding": {
+      "description": "Global default container padding",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 5
+    },
+    "default_workspace_padding": {
+      "description": "Global default workspace padding",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 5
+    },
+    "display_index_preferences": {
+      "description": "Set display index preferences",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^\\d+$": {
+          "type": "string"
+        }
+      }
+    },
+    "float_override": {
+      "description": "Enable or disable float override, which makes it so every new window opens in floating mode",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": false
+    },
+    "float_override_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window with float override active",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Placement"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "float_rule_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window that matches a\n'floating_applications' rule",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Placement"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "floating_applications": {
+      "description": "Identify applications which should be managed as floating windows",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MatchingRule"
+      }
+    },
+    "floating_layer_behaviour": {
+      "description": "Determines what happens on a new window when on the `FloatingLayer`",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FloatingLayerBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Tile"
+    },
+    "floating_layer_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window on the floating layer with the\n`FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float`",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Placement"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Center"
+    },
+    "floating_window_aspect_ratio": {
+      "description": "Aspect ratio to resize with when toggling floating mode for a window",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AspectRatio"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "global_work_area_offset": {
+      "description": "Global work area (space used for tiling) offset",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Rect"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ignore_rules": {
+      "description": "Individual window floating rules",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MatchingRule"
+      }
+    },
+    "layout_defaults": {
+      "description": "Per-layout default options and rules, keyed by layout name.\nApplied as fallback when a workspace does not define its own layout_options or layout_options_rules.\nIf a workspace defines either setting, all global defaults for that layout are completely replaced.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/LayoutDefaultEntry"
+      }
+    },
+    "manage_rules": {
+      "description": "Individual window force-manage rules",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MatchingRule"
+      }
+    },
+    "monitors": {
+      "description": "Monitor and workspace configurations",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MonitorConfig"
+      }
+    },
+    "monocle_focus_behaviour": {
+      "description": "Determine what happens when focusing in a direction while a monocle container is active",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MonocleFocusBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "NoOp"
+    },
+    "mouse_follows_focus": {
+      "description": "Enable or disable mouse follows focus",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": true
+    },
+    "resize_delta": {
+      "description": "Delta to resize windows by",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 50
+    },
+    "tabbed_applications": {
+      "description": "Accepted so that a configuration written for another platform loads, and ignored: a KWin\nwindow has no native tabs",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "titleless_applications": {
+      "description": "Accepted so that a configuration written for another platform loads, and ignored: a KWin\nwindow is always a window",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "toggle_float_placement": {
+      "description": "Determines the placement of a new window when toggling to float",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Placement"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "CenterAndResize"
+    },
+    "unmanaged_window_operation_behaviour": {
+      "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Op"
+    },
+    "window_container_behaviour": {
+      "description": "Determine what happens when a new window is opened",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WindowContainerBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Create"
+    }
+  },
+  "$defs": {
+    "AppSpecificConfigurationPath": {
+      "description": "Path(s) to application-specific configuration file(s)",
+      "anyOf": [
+        {
+          "description": "A single applications.json file",
+          "$ref": "#/$defs/PathBuf"
+        },
+        {
+          "description": "Multiple applications.json files",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PathBuf"
+          }
+        }
+      ]
+    },
+    "ApplicationIdentifier": {
+      "description": "Application identifier",
+      "oneOf": [
+        {
+          "description": "Executable name",
+          "type": "string",
+          "const": "Exe"
+        },
+        {
+          "description": "Role or subrole",
+          "type": "string",
+          "const": "Class"
+        },
+        {
+          "description": "Window title",
+          "type": "string",
+          "const": "Title"
+        },
+        {
+          "description": "Executable path",
+          "type": "string",
+          "const": "Path"
+        }
+      ]
+    },
+    "AspectRatio": {
+      "description": "Aspect ratio for temporarily floating windows",
+      "anyOf": [
+        {
+          "title": "Predefined",
+          "description": "A predefined aspect ratio",
+          "$ref": "#/$defs/PredefinedAspectRatio"
+        },
+        {
+          "title": "Custom",
+          "description": "A custom W:H aspect ratio",
+          "type": "array",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer",
+              "format": "int32"
+            },
+            {
+              "type": "integer",
+              "format": "int32"
+            }
+          ]
+        }
+      ]
+    },
+    "Axis": {
+      "description": "Axis on which to perform an operation",
+      "oneOf": [
+        {
+          "description": "Horizontal axis",
+          "type": "string",
+          "const": "Horizontal"
+        },
+        {
+          "description": "Vertical axis",
+          "type": "string",
+          "const": "Vertical"
+        },
+        {
+          "description": "Both horizontal and vertical axes",
+          "type": "string",
+          "const": "HorizontalAndVertical"
+        }
+      ]
+    },
+    "CrossBoundaryBehaviour": {
+      "description": "Behavior when an action would cross a monitor boundary",
+      "oneOf": [
+        {
+          "description": "Attempt to perform actions across a workspace boundary",
+          "type": "string",
+          "const": "Workspace"
+        },
+        {
+          "description": "Attempt to perform actions across a monitor boundary",
+          "type": "string",
+          "const": "Monitor"
+        }
+      ]
+    },
+    "DefaultLayout": {
+      "description": "A predefined komorebi layout",
+      "oneOf": [
+        {
+          "description": "BSP Layout\n\n```text\n+-------+-----+\n|       |     |\n|       +--+--+\n|       |  |--|\n+-------+--+--+\n```",
+          "type": "string",
+          "const": "BSP"
+        },
+        {
+          "description": "Columns Layout\n\n```text\n+--+--+--+--+\n|  |  |  |  |\n|  |  |  |  |\n|  |  |  |  |\n+--+--+--+--+\n```",
+          "type": "string",
+          "const": "Columns"
+        },
+        {
+          "description": "Rows Layout\n\n```text\n+-----------+\n|-----------|\n|-----------|\n|-----------|\n+-----------+\n```",
+          "type": "string",
+          "const": "Rows"
+        },
+        {
+          "description": "Vertical Stack Layout\n\n```text\n+-------+-----+\n|       |     |\n|       +-----+\n|       |     |\n+-------+-----+\n```",
+          "type": "string",
+          "const": "VerticalStack"
+        },
+        {
+          "description": "Horizontal Stack Layout\n\n```text\n+------+------+\n|             |\n|------+------+\n|      |      |\n+------+------+\n```",
+          "type": "string",
+          "const": "HorizontalStack"
+        },
+        {
+          "description": "Ultrawide Vertical Stack Layout\n\n```text\n+-----+-----------+-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n+-----+-----------+-----+\n```",
+          "type": "string",
+          "const": "UltrawideVerticalStack"
+        },
+        {
+          "description": "Grid Layout\n\n```text\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n  4 windows       5 windows       6 windows       7 windows\n```",
+          "type": "string",
+          "const": "Grid"
+        },
+        {
+          "description": "Right Main Vertical Stack Layout\n\n```text\n+-----+-------+\n|     |       |\n+-----+       |\n|     |       |\n+-----+-------+\n```",
+          "type": "string",
+          "const": "RightMainVerticalStack"
+        },
+        {
+          "description": "Scrolling Layout\n\n```text\n+--+--+--+--+--+--+\n|     |     |     |\n|     |     |     |\n|     |     |     |\n+--+--+--+--+--+--+\n```",
+          "type": "string",
+          "const": "Scrolling"
+        }
+      ]
+    },
+    "FloatingLayerBehaviour": {
+      "description": "Floating layer behavior when a new window is opened",
+      "oneOf": [
+        {
+          "description": "Tile new windows (unless they match a float rule or float override is active)",
+          "type": "string",
+          "const": "Tile"
+        },
+        {
+          "description": "Float new windows",
+          "type": "string",
+          "const": "Float"
+        }
+      ]
+    },
+    "GridLayoutOptions": {
+      "description": "Options for the Grid layout",
+      "type": "object",
+      "properties": {
+        "rows": {
+          "description": "Maximum number of rows per grid column",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "rows"
+      ]
+    },
+    "IdWithIdentifier": {
+      "description": "Rule for matching applications",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Target identifier",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind of identifier to target",
+          "$ref": "#/$defs/ApplicationIdentifier"
+        },
+        "matching_strategy": {
+          "description": "Matching strategy to use",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatchingStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ]
+    },
+    "LayoutDefaultEntry": {
+      "description": "Per-layout default options entry for the `layout_defaults` global setting.\nContains both base layout options and threshold-based layout options rules.",
+      "type": "object",
+      "properties": {
+        "layout_options": {
+          "description": "Default layout options for this layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options_rules": {
+          "description": "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/LayoutOptions"
+            }
+          }
+        }
+      }
+    },
+    "LayoutOptions": {
+      "description": "Options for specific layouts",
+      "type": "object",
+      "properties": {
+        "column_ratios": {
+          "description": "Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Columns layout: ratios for each column width\n- Used by Grid layout: ratios for column widths\n- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio\n- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)\n- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio\n\nColumns without a ratio share remaining space equally.\nExample: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
+        },
+        "grid": {
+          "description": "Options related to the Grid layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GridLayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_ratios": {
+          "description": "Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Rows layout: ratios for each row height\n- Used by Grid layout: ratios for row heights\n\nRows without a ratio share remaining space equally.\nExample: `[0.5, 0.5]` for 50%-50% rows",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
+        },
+        "scrolling": {
+          "description": "Options related to the Scrolling layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScrollingLayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "MatchingRule": {
+      "description": "Rule for matching applications",
+      "anyOf": [
+        {
+          "description": "Simple matching rule which must evaluate to true",
+          "$ref": "#/$defs/IdWithIdentifier"
+        },
+        {
+          "description": "Composite matching rule where all conditions must evaluate to true",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IdWithIdentifier"
+          }
+        }
+      ]
+    },
+    "MatchingStrategy": {
+      "description": "Strategy for matching identifiers",
+      "oneOf": [
+        {
+          "description": "Should not be used, only kept for backward compatibility",
+          "type": "string",
+          "const": "Legacy"
+        },
+        {
+          "description": "Equals",
+          "type": "string",
+          "const": "Equals"
+        },
+        {
+          "description": "Starts With",
+          "type": "string",
+          "const": "StartsWith"
+        },
+        {
+          "description": "Ends With",
+          "type": "string",
+          "const": "EndsWith"
+        },
+        {
+          "description": "Contains",
+          "type": "string",
+          "const": "Contains"
+        },
+        {
+          "description": "Regex",
+          "type": "string",
+          "const": "Regex"
+        },
+        {
+          "description": "Does not end with",
+          "type": "string",
+          "const": "DoesNotEndWith"
+        },
+        {
+          "description": "Does not start with",
+          "type": "string",
+          "const": "DoesNotStartWith"
+        },
+        {
+          "description": "Does not equal",
+          "type": "string",
+          "const": "DoesNotEqual"
+        },
+        {
+          "description": "Does not contain",
+          "type": "string",
+          "const": "DoesNotContain"
+        }
+      ]
+    },
+    "MonitorConfig": {
+      "description": "Monitor configuration",
+      "type": "object",
+      "properties": {
+        "container_padding": {
+          "description": "Container padding",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "floating_layer_behaviour": {
+          "description": "Determine what happens to a new window when the Floating workspace layer is active",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FloatingLayerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Tile"
+        },
+        "window_based_work_area_offset": {
+          "description": "Window based work area offset",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_based_work_area_offset_limit": {
+          "description": "Open window limit after which the window based work area offset will no longer be applied",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int",
+          "default": 1
+        },
+        "window_hiding_position": {
+          "description": "Accepted so that a configuration written for another platform loads, and ignored: there is\nno hiding position on KDE Plasma",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowHidingPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_area_offset": {
+          "description": "Monitor-specific work area offset",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workspace_padding": {
+          "description": "Workspace padding (default: global)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "workspaces": {
+          "description": "Workspace configurations",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkspaceConfig"
+          }
+        }
+      },
+      "required": [
+        "workspaces"
+      ]
+    },
+    "MonocleFocusBehaviour": {
+      "description": "Behavior when focusing in a direction while a monocle container is active",
+      "oneOf": [
+        {
+          "description": "Cycle the monocle container to the next/previous container in the workspace",
+          "type": "string",
+          "const": "Cycle"
+        },
+        {
+          "description": "Do nothing, allowing focus to fall through to cross-monitor logic",
+          "type": "string",
+          "const": "NoOp"
+        }
+      ]
+    },
+    "MoveBehaviour": {
+      "description": "Move behavior when the operation works across a monitor boundary",
+      "oneOf": [
+        {
+          "description": "Swap the window container with the window container at the edge of the adjacent monitor",
+          "type": "string",
+          "const": "Swap"
+        },
+        {
+          "description": "Insert the window container into the focused workspace on the adjacent monitor",
+          "type": "string",
+          "const": "Insert"
+        },
+        {
+          "description": "Do nothing if trying to move a window container in the direction of an adjacent monitor",
+          "type": "string",
+          "const": "NoOp"
+        }
+      ]
+    },
+    "OperationBehaviour": {
+      "description": "Operation behavior for temporarily unmanaged and floating windows",
+      "oneOf": [
+        {
+          "description": "Process commands on temporarily unmanaged/floated windows",
+          "type": "string",
+          "const": "Op"
+        },
+        {
+          "description": "Ignore commands on temporarily unmanaged/floated windows",
+          "type": "string",
+          "const": "NoOp"
+        }
+      ]
+    },
+    "PathBuf": {
+      "description": "A file system path. Environment variables like $VAR are automatically resolved.",
+      "type": "string"
+    },
+    "Placement": {
+      "description": "Placement behavior for floating windows",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "const": "None"
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "const": "Center"
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "const": "CenterAndResize"
+        }
+      ]
+    },
+    "PredefinedAspectRatio": {
+      "description": "Predefined aspect ratio",
+      "oneOf": [
+        {
+          "description": "21:9",
+          "type": "string",
+          "const": "Ultrawide"
+        },
+        {
+          "description": "16:9",
+          "type": "string",
+          "const": "Widescreen"
+        },
+        {
+          "description": "4:3",
+          "type": "string",
+          "const": "Standard"
+        }
+      ]
+    },
+    "Rect": {
+      "description": "Rectangle dimensions",
+      "type": "object",
+      "properties": {
+        "bottom": {
+          "description": "Height of the rectangle (from the top point)",
+          "type": "integer",
+          "format": "int32"
+        },
+        "left": {
+          "description": "Left point of the rectangle",
+          "type": "integer",
+          "format": "int32"
+        },
+        "right": {
+          "description": "Width of the recentangle (from the left point)",
+          "type": "integer",
+          "format": "int32"
+        },
+        "top": {
+          "description": "Top point of the rectangle",
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "required": [
+        "left",
+        "top",
+        "right",
+        "bottom"
+      ]
+    },
+    "ScrollingLayoutOptions": {
+      "description": "Options for the Scrolling layout",
+      "type": "object",
+      "properties": {
+        "center_focused_column": {
+          "description": "With an odd number of visible columns, keep the focused window column centered",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "columns": {
+          "description": "Desired number of visible columns (default: 3)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "columns"
+      ]
+    },
+    "WindowContainerBehaviour": {
+      "description": "Window container behavior when a new window is opened",
+      "oneOf": [
+        {
+          "description": "Create a new container for each new window",
+          "type": "string",
+          "const": "Create"
+        },
+        {
+          "description": "Append new windows to the focused window container",
+          "type": "string",
+          "const": "Append"
+        }
+      ]
+    },
+    "WindowHidingPosition": {
+      "description": "Window hiding position",
+      "oneOf": [
+        {
+          "description": "Hide windows in the bottom left corner of the screen",
+          "type": "string",
+          "const": "BottomLeft"
+        },
+        {
+          "description": "Hide windows in the bottom right corner of the screen",
+          "type": "string",
+          "const": "BottomRight"
+        }
+      ]
+    },
+    "WorkspaceConfig": {
+      "description": "Workspace configuration",
+      "type": "object",
+      "properties": {
+        "apply_window_based_work_area_offset": {
+          "description": "Apply this monitor's window-based work area offset",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "container_padding": {
+          "description": "Container padding (default: global)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "float_override": {
+          "description": "Enable or disable float override, which makes it so every new window opens in floating mode",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "floating_layer_behaviour": {
+          "description": "Determine what happens to a new window when the Floating workspace layer is active",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FloatingLayerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Tile"
+        },
+        "layout": {
+          "description": "Layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DefaultLayout"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "BSP"
+        },
+        "layout_flip": {
+          "description": "Specify an axis on which to flip the selected layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Axis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options": {
+          "description": "Layout-specific options",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options_rules": {
+          "description": "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.\nThis follows the same threshold logic as `layout_rules`.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/LayoutOptions"
+            }
+          }
+        },
+        "layout_rules": {
+          "description": "Layout rules in the format of threshold => layout",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/DefaultLayout"
+            }
+          }
+        },
+        "name": {
+          "description": "Name",
+          "type": "string"
+        },
+        "tile": {
+          "description": "Enable or disable tiling for the workspace",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "window_container_behaviour": {
+          "description": "Determine what happens when a new window is opened",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowContainerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Create"
+        },
+        "window_container_behaviour_rules": {
+          "description": "Window container behavior rules in the format of threshold => behavior",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/WindowContainerBehaviour"
+            }
+          }
+        },
+        "work_area_offset": {
+          "description": "Workspace specific work area offset",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_area_offset_rules": {
+          "description": "Work area offset rules in the format of threshold => Rect (default: None)",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Rect"
+            }
+          }
+        },
+        "workspace_padding": {
+          "description": "Workspace padding (default: global)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  }
+}
