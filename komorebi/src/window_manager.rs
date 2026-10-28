@@ -22,9 +22,15 @@ use parking_lot::Mutex;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
+use crate::HIDING_BEHAVIOUR;
+use crate::HidingBehaviour;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::AnimationEngine;
+use crate::animation::engine::AnimationBatch;
+use crate::animation::transition;
+use crate::animation::transition::SlideDirection;
+use crate::animation::workspace_transitions_enabled;
 use crate::core::Arrangement;
 use crate::core::Axis;
 use crate::core::BorderImplementation;
@@ -2023,43 +2029,17 @@ impl WindowManager {
                 _ => workspace_idx,
             };
 
-            self.focus_workspace(next_idx)?;
-
-            if let Ok(focused_workspace) = self.focused_workspace_mut()
-                && focused_workspace.monocle_container.is_none()
-            {
-                match direction {
-                    OperationDirection::Left => match focused_workspace.layout {
-                        Layout::Default(layout) => {
-                            let target_index = direction.cross_boundary_edge_index(
-                                layout,
-                                focused_workspace.containers().len(),
-                                focused_workspace.layout_flip,
-                            );
-                            focused_workspace.focus_container(target_index);
-                        }
-                        Layout::Custom(_) => {
-                            focused_workspace.focus_container(
-                                focused_workspace.containers().len().saturating_sub(1),
-                            );
-                        }
-                    },
-                    OperationDirection::Right => match focused_workspace.layout {
-                        Layout::Default(layout) => {
-                            let target_index = direction.cross_boundary_edge_index(
-                                layout,
-                                focused_workspace.containers().len(),
-                                focused_workspace.layout_flip,
-                            );
-                            focused_workspace.focus_container(target_index);
-                        }
-                        Layout::Custom(_) => {
-                            focused_workspace.focus_container(0);
-                        }
-                    },
-                    _ => {}
-                };
-            }
+            // the container at the edge the workspace is entered by is the one that
+            // is focused, which is done before it is laid out and slid in
+            self.focus_workspace_towards(
+                next_idx,
+                SlideDirection::of_operation(direction),
+                |workspace| {
+                    if workspace.monocle_container.is_none() {
+                        focus_container_at_edge(workspace, direction);
+                    }
+                },
+            )?;
 
             return Ok(());
         }
@@ -2250,43 +2230,17 @@ impl WindowManager {
                 _ => workspace_idx,
             };
 
-            self.focus_workspace(next_idx)?;
-
-            if let Ok(focused_workspace) = self.focused_workspace_mut()
-                && focused_workspace.monocle_container.is_none()
-            {
-                match direction {
-                    OperationDirection::Left => match focused_workspace.layout {
-                        Layout::Default(layout) => {
-                            let target_index = direction.cross_boundary_edge_index(
-                                layout,
-                                focused_workspace.containers().len(),
-                                focused_workspace.layout_flip,
-                            );
-                            focused_workspace.focus_container(target_index);
-                        }
-                        Layout::Custom(_) => {
-                            focused_workspace.focus_container(
-                                focused_workspace.containers().len().saturating_sub(1),
-                            );
-                        }
-                    },
-                    OperationDirection::Right => match focused_workspace.layout {
-                        Layout::Default(layout) => {
-                            let target_index = direction.cross_boundary_edge_index(
-                                layout,
-                                focused_workspace.containers().len(),
-                                focused_workspace.layout_flip,
-                            );
-                            focused_workspace.focus_container(target_index);
-                        }
-                        Layout::Custom(_) => {
-                            focused_workspace.focus_container(0);
-                        }
-                    },
-                    _ => {}
-                };
-            }
+            // the container at the edge the workspace is entered by is the one that
+            // is focused, which is done before it is laid out and slid in
+            self.focus_workspace_towards(
+                next_idx,
+                SlideDirection::of_operation(direction),
+                |workspace| {
+                    if workspace.monocle_container.is_none() {
+                        focus_container_at_edge(workspace, direction);
+                    }
+                },
+            )?;
 
             return Ok(());
         }
@@ -3877,14 +3831,51 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
+        let direction = self
+            .focused_monitor()
+            .and_then(|monitor| SlideDirection::between(monitor.focused_workspace_idx(), idx));
+
+        self.focus_workspace_towards(idx, direction, |_| {})
+    }
+
+    /// Focus the workspace at `idx` on the focused monitor, and slide the windows
+    /// of the workspace that is left out of the monitor and those of this one in
+    /// from `direction`, if workspaces are slid and there is a direction.
+    ///
+    /// `prepare` is given the workspace before it is shown, to focus what is to
+    /// be in focus on it, which cannot be left until it is laid out.
+    pub fn focus_workspace_towards(
+        &mut self,
+        idx: usize,
+        direction: Option<SlideDirection>,
+        prepare: impl FnOnce(&mut Workspace),
+    ) -> eyre::Result<()> {
         tracing::info!("focusing workspace");
 
         let mouse_follows_focus = self.mouse_follows_focus;
+
+        // the windows that slide are animated together, when everything that
+        // is to be done to them has been, and whatever is not animated by then
+        // is hidden or shown at once, which is done first
+        let _animations = AnimationBatch::begin();
+        let _pending = transition::PendingGuard;
+
         let monitor = self
             .focused_monitor_mut()
             .ok_or_eyre("there is no workspace")?;
 
+        if let Some(direction) = direction
+            && let Some(plan) = workspace_transition_plan(monitor, idx, direction)
+        {
+            transition::start(&plan);
+        }
+
         monitor.focus_workspace(idx)?;
+
+        if let Some(workspace) = monitor.focused_workspace_mut() {
+            prepare(workspace);
+        }
+
         monitor.load_focused_workspace(mouse_follows_focus)?;
 
         self.update_focused_workspace(false, true)
@@ -4011,6 +4002,72 @@ impl WindowManager {
             self.known_hwnds = known_hwnds;
         }
     }
+}
+
+/// Focus the container of a workspace that is next to the edge it is entered
+/// by when moving in `direction`: the last one when moving left and the first
+/// one when moving right
+fn focus_container_at_edge(workspace: &mut Workspace, direction: OperationDirection) {
+    let target_index = match (direction, &workspace.layout) {
+        (OperationDirection::Left | OperationDirection::Right, Layout::Default(layout)) => {
+            direction.cross_boundary_edge_index(
+                *layout,
+                workspace.containers().len(),
+                workspace.layout_flip,
+            )
+        }
+        (OperationDirection::Left, Layout::Custom(_)) => {
+            workspace.containers().len().saturating_sub(1)
+        }
+        (OperationDirection::Right, Layout::Custom(_)) => 0,
+        _ => return,
+    };
+
+    workspace.focus_container(target_index);
+}
+
+/// What to slide when the monitor goes from its workspace to the one at `idx`,
+/// if anything is: not when workspaces are not slid, or either has a window
+/// that is maximized, which the monitor is not shown as it is laid out, or
+/// when windows are not hidden by cloaking them, which a picture cannot be
+/// taken of
+fn workspace_transition_plan(
+    monitor: &Monitor,
+    idx: usize,
+    direction: SlideDirection,
+) -> Option<transition::Plan> {
+    if !workspace_transitions_enabled()
+        || !matches!(*HIDING_BEHAVIOUR.lock(), HidingBehaviour::Cloak)
+        || idx == monitor.focused_workspace_idx()
+    {
+        return None;
+    }
+
+    let leaving = monitor.focused_workspace()?;
+    let entering = monitor.workspaces().get(idx)?;
+
+    if leaving.maximized_window.is_some() || entering.maximized_window.is_some() {
+        return None;
+    }
+
+    let outgoing: Vec<(isize, Rect)> = leaving
+        .windows_on_show()
+        .into_iter()
+        .filter(|window| !window.is_miminized())
+        .filter_map(|window| {
+            WindowsApi::window_rect(window.hwnd)
+                .ok()
+                .map(|rect| (window.hwnd, rect))
+        })
+        .collect();
+
+    let incoming: Vec<isize> = entering
+        .windows_on_show()
+        .into_iter()
+        .map(|window| window.hwnd)
+        .collect();
+
+    transition::plan(direction, monitor.size, &outgoing, &incoming)
 }
 
 #[cfg(test)]

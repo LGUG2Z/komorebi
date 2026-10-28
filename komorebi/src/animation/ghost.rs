@@ -116,6 +116,7 @@ enum GhostCmd {
     Create {
         snapshot: Snapshot,
         start_rect: Rect,
+        clip: Option<Rect>,
         reply: Sender<eyre::Result<(isize, (i32, i32))>>,
     },
     Destroy {
@@ -285,6 +286,7 @@ impl GhostHost {
         &mut self,
         snapshot: &Snapshot,
         start_rect: Rect,
+        clip: Option<Rect>,
     ) -> eyre::Result<(isize, (i32, i32))> {
         self.fit_to_virtual_screen();
 
@@ -298,9 +300,9 @@ impl GhostHost {
         let origin = self.origin();
         let registered =
             WindowsApi::dwm_register_thumbnail(self.hwnd, source.hwnd).and_then(|hthumb| {
-                let props = thumbnail_properties(
-                    destination(start_rect, origin),
-                    full_source(snapshot.width, snapshot.height),
+                let props = properties_for(
+                    drawn_part(start_rect, (snapshot.width, snapshot.height), clip),
+                    origin,
                     255,
                 );
                 WindowsApi::dwm_update_thumbnail_properties(hthumb, &props)
@@ -447,10 +449,11 @@ fn run_owner_loop(cmd_rx: crossbeam_channel::Receiver<GhostCmd>) {
             Ok(GhostCmd::Create {
                 snapshot,
                 start_rect,
+                clip,
                 reply,
             }) => {
                 let result = match host.as_mut() {
-                    Some(host) => host.register(&snapshot, start_rect),
+                    Some(host) => host.register(&snapshot, start_rect, clip),
                     None => Err(eyre::eyre!("the ghost host window could not be created")),
                 };
                 let _ = reply.send(result);
@@ -474,16 +477,6 @@ fn destination(rect: Rect, origin: (i32, i32)) -> RECT {
         top: rect.top - origin.1,
         right: rect.left - origin.0 + rect.right,
         bottom: rect.top - origin.1 + rect.bottom,
-    }
-}
-
-/// The whole of a picture, in pixels of it
-fn full_source(width: i32, height: i32) -> RECT {
-    RECT {
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: height,
     }
 }
 
@@ -547,9 +540,25 @@ struct Shown {
 impl GhostWindow {
     /// Take a picture of the window and show it where the window is. The
     /// picture is taken before the window is touched.
-    pub fn create(src_hwnd: isize, start_rect: Rect) -> eyre::Result<Self> {
+    ///
+    /// None of it is shown outside `clip`, if there is one, not even for the
+    /// moment before the first update.
+    pub fn create(src_hwnd: isize, start_rect: Rect, clip: Option<Rect>) -> eyre::Result<Self> {
         let start = std::time::Instant::now();
         let snapshot = Snapshot::capture(src_hwnd)?;
+
+        Self::create_from(snapshot, src_hwnd, start_rect, clip, start)
+    }
+
+    /// Like `create`, with a picture that has been taken already, of the window
+    /// `src_hwnd`. `start` is when it began to be made, for the log.
+    pub fn create_from(
+        snapshot: Snapshot,
+        src_hwnd: isize,
+        start_rect: Rect,
+        clip: Option<Rect>,
+        start: std::time::Instant,
+    ) -> eyre::Result<Self> {
         let captured = start.elapsed();
         let source_size = (snapshot.width, snapshot.height);
 
@@ -559,6 +568,7 @@ impl GhostWindow {
             .send(GhostCmd::Create {
                 snapshot,
                 start_rect,
+                clip,
                 reply: reply_tx,
             })
             .map_err(|e| eyre::eyre!("ghost owner channel send failed: {e}"))?;
@@ -574,18 +584,10 @@ impl GhostWindow {
             hthumb,
             origin,
             source_size,
-            // it is registered where the window is, with all of its picture,
-            // and opaque
+            // it is registered where the window is, with all of its picture that
+            // is to be seen, and opaque
             shown: Mutex::new(Some(Shown {
-                drawn: Some((
-                    start_rect,
-                    Rect {
-                        left: 0,
-                        top: 0,
-                        right: source_size.0,
-                        bottom: source_size.1,
-                    },
-                )),
+                drawn: drawn_part(start_rect, source_size, clip),
                 opacity: 255,
             })),
             disposed: false,
@@ -620,10 +622,10 @@ impl GhostWindow {
 
     /// Fade the ghost out over a few frames, where it is, for when there is no
     /// animation left to do it in.
-    pub fn fade_out(&self, rect: Rect) {
+    pub fn fade_out(&self, rect: Rect, clip: Option<Rect>) {
         for step in 1..=FADE_OUT_FRAMES {
             let opacity = ghost_opacity(f64::from(step) / f64::from(FADE_OUT_FRAMES), 0.0);
-            let _ = self.update(rect, opacity);
+            let _ = self.update_clipped(rect, opacity, clip);
             unsafe {
                 let _ = windows::Win32::Graphics::Dwm::DwmFlush();
             }

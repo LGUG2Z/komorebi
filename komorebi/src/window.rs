@@ -371,6 +371,19 @@ impl Window {
     }
 
     pub fn set_position(&self, layout: &Rect, top: bool) -> eyre::Result<()> {
+        // a window of the workspace that has been switched to slides in from the
+        // side of the monitor, which is so even if it is where the layout puts it
+        // already, as it was when it was hidden
+        if let Some(slid) = transition::slide_in(*self, layout, top) {
+            return slid;
+        }
+
+        // and it is put where it goes by that animation, which a layout that is
+        // done while it is on its way is not to cancel
+        if transition::is_sliding_in(self.hwnd) {
+            return Ok(());
+        }
+
         let window_rect = WindowsApi::window_rect(self.hwnd)?;
 
         if window_rect.eq(layout) {
@@ -519,6 +532,13 @@ impl Window {
     }
 
     pub fn focus(self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        // Focusing a window that is hidden shows it, which is not for it to be
+        // when it is yet to slide in: it is focused when its animation shows it
+        if transition::is_entering(self.hwnd) {
+            transition::focus_when_shown(self.hwnd, mouse_follows_focus);
+            return Ok(());
+        }
+
         // If the target window is already focused, do nothing.
         if let Ok(ihwnd) = WindowsApi::foreground_window()
             && ihwnd == self.hwnd

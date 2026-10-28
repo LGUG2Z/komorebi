@@ -6,6 +6,8 @@
 //! at one place on it. Everything here is arithmetic on rects in virtual
 //! screen coordinates, so that it can be tested without a screen.
 
+use crate::animation::engine::AnimationEngine;
+use crate::animation::ghost_dispatcher::GhostDispatcher;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use lazy_static::lazy_static;
@@ -125,6 +127,152 @@ pub fn clip_thumbnail(dest: Rect, source: (i32, i32), clip: Rect) -> Option<(Rec
             right: source_right - source_left,
             bottom: source_bottom - source_top,
         },
+    ))
+}
+
+/// Whether any of `rect` is inside `clip`
+fn intersects(rect: Rect, clip: Rect) -> bool {
+    rect.left < clip.left + clip.right
+        && rect.left + rect.right > clip.left
+        && rect.top < clip.top + clip.bottom
+        && rect.top + rect.bottom > clip.top
+}
+
+/// A window of the workspace that is left, and where it slides to
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Exit {
+    pub hwnd: isize,
+    pub from: Rect,
+    pub to: Rect,
+}
+
+/// What switching to another workspace on a monitor is to slide
+#[derive(Debug, Clone, PartialEq)]
+pub struct Plan {
+    pub direction: SlideDirection,
+    /// The monitor, outside of which nothing of it is to be seen
+    pub clip: Rect,
+    pub exits: Vec<Exit>,
+    /// The windows of the workspace that is entered, which are placed by the
+    /// layout and slide in to where it puts them
+    pub enters: Vec<isize>,
+}
+
+/// What to slide on the monitor `clip`, given the windows of the workspace that
+/// is left and where they are, and the windows of the one that is entered.
+///
+/// A window that is not inside the monitor to begin with is not slid out of it:
+/// it is not seen, and no ghost of it would be either. There is nothing to slide
+/// when there are no windows at all.
+pub fn plan(
+    direction: SlideDirection,
+    clip: Rect,
+    outgoing: &[(isize, Rect)],
+    incoming: &[isize],
+) -> Option<Plan> {
+    let offset = direction.outgoing_offset(clip.right);
+
+    let exits: Vec<Exit> = outgoing
+        .iter()
+        .filter(|(_, rect)| intersects(*rect, clip))
+        .map(|(hwnd, rect)| Exit {
+            hwnd: *hwnd,
+            from: *rect,
+            to: shifted(*rect, offset),
+        })
+        .collect();
+
+    if exits.is_empty() && incoming.is_empty() {
+        return None;
+    }
+
+    Some(Plan {
+        direction,
+        clip,
+        exits,
+        enters: incoming.to_vec(),
+    })
+}
+
+/// Start the workspace transition: the windows that slide out are put on
+/// their animations, which hide them, and the ones that slide in wait for the
+/// layout to put them in their places.
+///
+/// This is to be done before the workspaces are switched, so that hiding the
+/// windows of the one that is left and showing those of the one that is entered
+/// is left to the animations, and inside an animation batch, so that all of them
+/// start together.
+pub fn start(plan: &Plan) {
+    let duration = crate::animation::workspace_transition_duration();
+    let style = crate::animation::workspace_transition_style();
+
+    tracing::debug!(
+        "workspace transition: {} slide out and {} slide in from the {:?} of {:?}",
+        plan.exits.len(),
+        plan.enters.len(),
+        plan.direction,
+        plan.clip
+    );
+
+    for exit in &plan.exits {
+        expect_exit(exit.hwnd);
+
+        let slide = GhostDispatcher::slide_out(exit.hwnd, exit.from, exit.to, plan.clip, style);
+        match AnimationEngine::animate(slide, duration) {
+            // if it cannot be animated it is left for `finish_pending` to hide
+            Ok(()) => claim(exit.hwnd),
+            Err(error) => tracing::warn!(
+                "workspace transition: failed to animate hwnd {} out: {error}",
+                exit.hwnd
+            ),
+        }
+    }
+
+    for hwnd in &plan.enters {
+        expect_enter(*hwnd, plan.direction, plan.clip);
+    }
+}
+
+/// A window that has been told to slide in is laid out: the animation that
+/// slides it in, from the side of the monitor it comes in from to where it is
+/// put, if it is to be seen in the monitor at all
+pub fn slide_in(
+    window: crate::window::Window,
+    layout: &Rect,
+    top: bool,
+) -> Option<color_eyre::eyre::Result<()>> {
+    let (direction, clip) = take_enter(window.hwnd)?;
+    tracing::debug!(
+        "workspace transition: hwnd {} to {layout:?} in {clip:?}, inside it: {}",
+        window.hwnd,
+        intersects(*layout, clip)
+    );
+
+    // a window that is put somewhere that is not in the monitor, as a window of
+    // a scrolling layout that is scrolled out of view is, is shown there at once
+    if !intersects(*layout, clip) {
+        finish_enter(window.hwnd);
+        window.restore();
+        return None;
+    }
+
+    let start = shifted(*layout, direction.incoming_offset(clip.right));
+
+    // its border is not to be seen until the window is, so held from here on
+    crate::border_manager::set_held(window.hwnd, true);
+
+    let slide = GhostDispatcher::slide_in(
+        window.hwnd,
+        start,
+        *layout,
+        top,
+        clip,
+        crate::animation::workspace_transition_style(),
+    );
+
+    Some(AnimationEngine::animate(
+        slide,
+        crate::animation::workspace_transition_duration(),
     ))
 }
 
@@ -330,8 +478,62 @@ pub fn finish_pending() {
         let window = crate::window::Window { hwnd };
         match pending {
             Pending::Exit => window.hide(),
-            Pending::Enter { .. } | Pending::Entering => window.restore(),
+            Pending::Enter { .. } | Pending::Entering => {
+                window.restore();
+                focus_if_asked(hwnd);
+            }
         }
+    }
+}
+
+/// Windows that were asked to be focused while they were hidden, and whether the
+/// cursor was to follow, for them to be when they are shown.
+///
+/// Focusing a window that is cloaked shows it, wherever it is to be, which is
+/// the last thing that is to happen to one that has yet to slide in.
+#[derive(Default)]
+struct FocusLater {
+    asked: HashMap<isize, (bool, Instant)>,
+}
+
+impl FocusLater {
+    fn ask(&mut self, hwnd: isize, mouse_follows_focus: bool, now: Instant) {
+        self.asked.insert(hwnd, (mouse_follows_focus, now));
+    }
+
+    /// Whether the window was asked to be focused, and whether the cursor was to
+    /// follow. What was asked too long ago is not wanted any more, and the window
+    /// is not focused out of the blue because of it.
+    fn take(&mut self, hwnd: isize, now: Instant) -> Option<bool> {
+        self.asked
+            .retain(|_, (_, since)| now.saturating_duration_since(*since) < PENDING_LIFETIME);
+
+        self.asked
+            .remove(&hwnd)
+            .map(|(mouse_follows_focus, _)| mouse_follows_focus)
+    }
+}
+
+lazy_static! {
+    static ref FOCUS_LATER: Mutex<FocusLater> = Mutex::new(FocusLater::default());
+}
+
+/// The window is to be focused, but is hidden and is to be shown by an
+/// animation: it is focused when it is
+pub fn focus_when_shown(hwnd: isize, mouse_follows_focus: bool) {
+    FOCUS_LATER
+        .lock()
+        .ask(hwnd, mouse_follows_focus, Instant::now());
+}
+
+/// The window that was asked to be focused when it is shown is, if it was
+pub fn focus_if_asked(hwnd: isize) {
+    let asked = FOCUS_LATER.lock().take(hwnd, Instant::now());
+
+    if let Some(mouse_follows_focus) = asked
+        && let Err(error) = (crate::window::Window { hwnd }).focus(mouse_follows_focus)
+    {
+        tracing::warn!("workspace transition: failed to focus hwnd {hwnd}: {error}");
     }
 }
 
@@ -663,6 +865,81 @@ mod tests {
     }
 
     #[test]
+    fn windows_slide_out_to_the_side_opposite_to_the_one_the_others_come_in_from() {
+        let monitor = rect(0, 0, 1920, 1080);
+        let window = rect(100, 50, 800, 900);
+
+        let plan = plan(SlideDirection::FromRight, monitor, &[(1, window)], &[2]).unwrap();
+
+        assert_eq!(plan.enters, vec![2]);
+        assert_eq!(
+            plan.exits,
+            vec![Exit {
+                hwnd: 1,
+                from: window,
+                to: rect(100 - 1920, 50, 800, 900),
+            }]
+        );
+
+        let plan = self::plan(SlideDirection::FromLeft, monitor, &[(1, window)], &[2]).unwrap();
+        assert_eq!(plan.exits[0].to, rect(100 + 1920, 50, 800, 900));
+    }
+
+    #[test]
+    fn what_slides_out_of_a_monitor_is_measured_from_where_the_monitor_is() {
+        // a monitor to the left of the primary one, which a window slides out
+        // of by the width of the monitor, not by its own distance from zero
+        let monitor = rect(-1280, 0, 1280, 1024);
+        let window = rect(-1000, 0, 500, 1000);
+
+        let plan = plan(SlideDirection::FromRight, monitor, &[(1, window)], &[]).unwrap();
+
+        assert_eq!(plan.exits[0].to, rect(-1000 - 1280, 0, 500, 1000));
+        assert_eq!(plan.clip, monitor);
+    }
+
+    #[test]
+    fn a_window_that_is_not_in_the_monitor_is_not_slid_out_of_it() {
+        let monitor = rect(0, 0, 1920, 1080);
+        let on_show = rect(0, 0, 960, 1080);
+        // scrolled out of view, right of the monitor, and on the monitor next to it
+        let scrolled = rect(1920, 0, 960, 1080);
+        let next_door = rect(-960, 0, 960, 1080);
+        // only just in
+        let edge = rect(1919, 0, 960, 1080);
+
+        let plan = plan(
+            SlideDirection::FromRight,
+            monitor,
+            &[(1, on_show), (2, scrolled), (3, next_door), (4, edge)],
+            &[9],
+        )
+        .unwrap();
+
+        let slid: Vec<isize> = plan.exits.iter().map(|exit| exit.hwnd).collect();
+        assert_eq!(slid, vec![1, 4]);
+    }
+
+    #[test]
+    fn there_is_nothing_to_slide_without_windows() {
+        let monitor = rect(0, 0, 1920, 1080);
+
+        assert_eq!(plan(SlideDirection::FromRight, monitor, &[], &[]), None);
+
+        // only windows coming in is a plan, and so is only windows going out
+        assert!(plan(SlideDirection::FromRight, monitor, &[], &[1]).is_some());
+        assert!(
+            plan(
+                SlideDirection::FromRight,
+                monitor,
+                &[(1, rect(0, 0, 10, 10))],
+                &[]
+            )
+            .is_some()
+        );
+    }
+
+    #[test]
     fn a_window_that_slides_in_is_not_shown_by_anything_else_until_its_animation_does() {
         // a window nothing else in the tests uses
         let hwnd = 0x7e57_1003;
@@ -761,5 +1038,44 @@ mod tests {
         finish_enter(hwnd);
         assert!(!is_entering(hwnd));
         assert!(!is_sliding_in(hwnd));
+    }
+
+    #[test]
+    fn a_window_asked_to_be_focused_while_hidden_is_focused_once_when_shown() {
+        let mut later = FocusLater::default();
+        let now = Instant::now();
+
+        later.ask(1, true, now);
+        later.ask(2, false, now);
+
+        assert_eq!(later.take(1, now), Some(true));
+        assert_eq!(later.take(1, now), None, "once");
+        assert_eq!(later.take(2, now), Some(false));
+        assert_eq!(later.take(3, now), None);
+    }
+
+    #[test]
+    fn a_window_is_not_focused_for_what_was_asked_for_it_long_ago() {
+        let mut later = FocusLater::default();
+        let then = Instant::now();
+
+        later.ask(1, false, then);
+
+        assert_eq!(later.take(1, then + PENDING_LIFETIME), None);
+        assert!(later.asked.is_empty());
+    }
+
+    #[test]
+    fn asking_again_is_what_counts() {
+        let mut later = FocusLater::default();
+        let then = Instant::now();
+
+        later.ask(1, false, then);
+        later.ask(1, true, then + Duration::from_secs(1));
+
+        assert_eq!(
+            later.take(1, then + Duration::from_millis(2500)),
+            Some(true)
+        );
     }
 }

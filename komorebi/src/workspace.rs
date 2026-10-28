@@ -2019,6 +2019,20 @@ impl Workspace {
         vec
     }
 
+    /// The windows that are on show, which are the ones to slide when the
+    /// workspace is switched
+    pub fn windows_on_show(&self) -> Vec<Window> {
+        if let Some(monocle) = &self.monocle_container {
+            return monocle.focused_window().copied().into_iter().collect();
+        }
+
+        self.visible_windows()
+            .into_iter()
+            .flatten()
+            .copied()
+            .collect()
+    }
+
     pub fn visible_window_details(&self) -> Vec<WindowDetails> {
         let mut vec: Vec<WindowDetails> = vec![];
 
