@@ -55,7 +55,8 @@
  * `desktops` says which desktops a window is on now, `desktop_list` which desktops there are, and
  * `current_desktops` which desktop each output shows, each sent when it is not what was last sent;
  * `move_resize_started` and `move_resize_finished` are the start and the end of a drag of a window
- * by the user, with its frame, and at the end where the pointer is; `cursor` answers a cursor
+ * by the user, with its frame, and at the end where the pointer is and the frame the user last
+ * asked for (`requested`, or `null` when the drag asked for none); `cursor` answers a cursor
  * query, and `failed` gives back the commands of a batch that could not be carried out.
  *
  * @typedef {{
@@ -74,7 +75,9 @@
  * @typedef {{
  *     type: "move_resize_started", id: string, move: boolean, resize: boolean, geo: Rect
  * }} MoveResizeStarted
- * @typedef {{ type: "move_resize_finished", id: string, geo: Rect, cursor: Point }} MoveResizeFinished
+ * @typedef {{
+ *     type: "move_resize_finished", id: string, geo: Rect, requested: Rect | null, cursor: Point
+ * }} MoveResizeFinished
  * @typedef {{ type: "cursor", token: number, x: number, y: number }} CursorAnswer
  * @typedef {{ type: "failed", batch: number, cmds: Command[] }} Failed
  * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Caption | Desktops
@@ -123,6 +126,9 @@ var known = {};
 // so a match does not end the watch; only the clock does.)
 /** @type {Record<string, { x: number, y: number, tries: number, until: number }>} */
 var want = {};
+// where each window being dragged was last asked to be: the frame lags behind it
+/** @type {Record<string, Rect>} */
+var stepped = {};
 var WANT_RETRIES = 3;
 var WANT_MS = 1000;
 
@@ -369,10 +375,19 @@ function track(w, announce) {
     });
     w.interactiveMoveResizeStarted.connect(function () {
         delete want[id];
+        delete stepped[id];
         emit("move_resize_started", { id: id, move: !!w.move, resize: !!w.resize, geo: rect(w.frameGeometry) });
     });
+    // What the user is asking for, every step of the drag. For a Wayland client the frame only
+    // follows once the client has drawn at the new size, so at the end of a drag it can be well
+    // short of where the pointer took the edge.
+    w.interactiveMoveResizeStepped.connect(function (g) {
+        stepped[id] = rect(g);
+    });
     w.interactiveMoveResizeFinished.connect(function () {
-        emit("move_resize_finished", { id: id, geo: rect(w.frameGeometry), cursor: cursor() });
+        var requested = stepped[id] || null;
+        delete stepped[id];
+        emit("move_resize_finished", { id: id, geo: rect(w.frameGeometry), requested: requested, cursor: cursor() });
     });
 }
 
@@ -383,6 +398,7 @@ workspace.windowRemoved.connect(function (w) {
     var id = wid(w);
     delete known[id];
     delete want[id];
+    delete stepped[id];
     emit("removed", { id: id });
 });
 /** @type {string | null} */

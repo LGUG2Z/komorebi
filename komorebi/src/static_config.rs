@@ -1260,6 +1260,7 @@ impl StaticConfig {
             hotwatch: Hotwatch::new()?,
             minimized_windows: HashMap::new(),
             pending_move_op: Arc::new(None),
+            pending_resize_op: Arc::new(None),
             already_moved_window_handles: Default::default(),
             known_window_ids: HashMap::new(),
         };

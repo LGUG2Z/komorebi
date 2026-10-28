@@ -153,6 +153,9 @@ pub struct WindowManager {
     /// The monitor, the workspace and the window of a move the user began with the pointer and
     /// has not let go of yet
     pub pending_move_op: Arc<Option<(usize, usize, u32)>>,
+    /// The window of a resize the user began with the pointer and has not let go of yet, and the
+    /// frame it had when they took hold of it
+    pub pending_resize_op: Arc<Option<(u32, Option<Rect>)>>,
     /// The windows an `initial_only` workspace rule has moved already, so that it moves each of
     /// them once, until it closes
     pub already_moved_window_handles: Arc<Mutex<HashSet<u32>>>,
@@ -244,6 +247,7 @@ impl WindowManager {
             incoming_events: incoming,
             minimized_windows: HashMap::new(),
             pending_move_op: Arc::new(None),
+            pending_resize_op: Arc::new(None),
             already_moved_window_handles: Default::default(),
             known_window_ids: Default::default(),
         })

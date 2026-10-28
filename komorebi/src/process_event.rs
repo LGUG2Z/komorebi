@@ -41,6 +41,10 @@
 //!   a window let go where there is no tile goes back to its own. On the same monitor a drag
 //!   counts as a move when the window's frame is as wide and as tall as its tile, and a floating
 //!   window is not swapped.
+//! - **ResizeStart** and **ResizeEnd**: the user dragged an edge or a corner of a window. When they
+//!   let go, each edge of the frame they left it with is compared with the same edge of the frame
+//!   it had when the drag began, the edges of its tile move by as much
+//!   ([`WindowManager::resize_window`]), and the workspace is tiled again.
 //! - **WorkspaceChange**: a monitor shows another workspace, because something other than komorebi
 //!   switched it (a pager, a shortcut, an app raising a window of another desktop). The window
 //!   manager follows ([`WindowManager::adopt_workspace_change`]) and asks the compositor for
@@ -75,12 +79,15 @@ use crate::backend::backend;
 use crate::border_manager;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 use crate::notify_subscribers;
 use crate::state::State;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
+use crate::window::Window;
 use crate::window::should_act;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::KWinNotification;
@@ -507,7 +514,7 @@ impl WindowManager {
             }
             WindowManagerEvent::MoveStart(_, window) => {
                 let window_id = window.id;
-                if self.pending_move_op.is_none() {
+                if self.pending_move_op.is_none() && self.pending_resize_op.is_none() {
                     let monitor_idx = self.focused_monitor_idx();
                     let workspace_idx = self
                         .focused_monitor()
@@ -726,6 +733,65 @@ impl WindowManager {
                     }
                 }
             }
+            WindowManagerEvent::ResizeStart(_, window) => {
+                let window_id = window.id;
+
+                // A drag is measured from the frame the window has when it begins, which is what
+                // the user had under the pointer, and not from the tile the layout gave it: an app
+                // that snaps its size to a grid (a terminal), or has a minimum, is never exactly on
+                // its tile, and every drag would then look as if it had moved the other edges too.
+                // A start reported again during the same drag changes nothing: the first one is
+                // the one that counts.
+                let already_started = matches!(
+                    *self.pending_resize_op,
+                    Some((started, Some(_))) if started == window_id
+                );
+
+                if !already_started {
+                    let started_from = match crate::backend::backend().drag_origin(window_id) {
+                        Some(origin) => origin,
+                        None => window.rect()?,
+                    };
+                    let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
+                    *pending_resize_op = Option::from((window_id, Some(started_from)));
+                }
+            }
+            WindowManagerEvent::ResizeEnd(_, window) => {
+                let window_id = window.id;
+                let pending = *self.pending_resize_op;
+                // Always consume the pending resize op whenever this event is handled
+                let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
+                *pending_resize_op = None;
+
+                if let Some((wid, Some(started_from))) = pending {
+                    // If the window handles don't match then something went wrong and the pending resize
+                    // is not related to this current resize, if so abort this operation.
+                    if wid != window_id {
+                        eyre::bail!(
+                            "window handles for resize operation don't match: {} != {}",
+                            wid,
+                            window_id
+                        );
+                    }
+
+                    // where the user took the edges, which is not the window's frame while the
+                    // client is still drawing at the new size, and the frame events after the
+                    // drag can have changed that by now: the end of a resize does not wait for
+                    // them
+                    let new_position = match crate::backend::backend().drag_end(window_id) {
+                        Some(asked) => asked,
+                        None => window.rect()?,
+                    };
+                    let resized = self.apply_mouse_resize(window, started_from, new_position)?;
+
+                    // put every window where the layout now says: the dragged one too when
+                    // nothing could be done with what it was given (an edge at the edge of the
+                    // screen has no neighbor to take room from)
+                    if resized && new_position != started_from {
+                        self.update_focused_workspace(false, false)?;
+                    }
+                }
+            }
         }
 
         // a window that was just managed is on the desktop the compositor opened it on, which is the
@@ -754,5 +820,82 @@ impl WindowManager {
         transparency_manager::apply(self);
 
         Ok(())
+    }
+}
+
+impl WindowManager {
+    /// Work out what the user did to the edges of a tile and ask the layout for it. The edges are
+    /// compared from where the window was when the drag began; the layout moves a shared edge by half
+    /// of what it is given. Returns whether there was a tile to resize.
+    fn apply_mouse_resize(
+        &mut self,
+        window: Window,
+        started_from: Rect,
+        new_position: Rect,
+    ) -> eyre::Result<bool> {
+        let window_id = window.id;
+        let workspace = self.focused_workspace_mut()?;
+
+        // The container that was dragged, which is not necessarily the focused one: the press that
+        // began the drag may not have been given focus yet
+        let Some(container_idx) = workspace
+            .container_idx_for_window(window_id)
+            .filter(|_| workspace.tile)
+        else {
+            return Ok(false);
+        };
+
+        if container_idx != workspace.focused_container_idx() {
+            workspace.focus_container(container_idx);
+        }
+
+        // How far each edge went. (A rect is left, top, width, height, so the right and bottom edges
+        // have to be worked out: comparing the widths, which is what comparing the rects field by
+        // field does, makes a drag of the left edge look like a drag of the right one too, and the
+        // code that then had to tell them apart did so by guessing.)
+        let edges = |rect: &Rect| {
+            (
+                rect.left,
+                rect.top,
+                rect.left + rect.right,
+                rect.top + rect.bottom,
+            )
+        };
+        let (start_left, start_top, start_right, start_bottom) = edges(&started_from);
+        let (end_left, end_top, end_right, end_bottom) = edges(&new_position);
+
+        let moved = [
+            (OperationDirection::Left, end_left - start_left),
+            (OperationDirection::Up, end_top - start_top),
+            (OperationDirection::Right, end_right - start_right),
+            (OperationDirection::Down, end_bottom - start_bottom),
+        ];
+
+        tracing::debug!(
+            "resizing with mouse: {started_from:?} -> {new_position:?}, edges moved (left, up, right, down): {:?}",
+            moved.map(|(_, by)| by)
+        );
+
+        for (edge, by) in moved {
+            if by == 0 {
+                continue;
+            }
+
+            // an edge that goes outward makes the tile bigger, inward smaller; the layout moves a
+            // shared edge by half of what it is given
+            let outward = match edge {
+                OperationDirection::Left | OperationDirection::Up => by < 0,
+                OperationDirection::Right | OperationDirection::Down => by > 0,
+            };
+            let sizing = if outward {
+                Sizing::Increase
+            } else {
+                Sizing::Decrease
+            };
+
+            self.resize_window(edge, sizing, by.abs() * 2, false)?;
+        }
+
+        Ok(true)
     }
 }

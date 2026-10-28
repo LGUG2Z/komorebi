@@ -251,6 +251,61 @@ pub trait Backend: Send + Sync + 'static {
     /// Returns where the pointer is, if the compositor says.
     fn cursor_pos(&self) -> Option<(i32, i32)>;
 
+    /// Returns the frame the window had when the user last began to drag it, if the backend has
+    /// kept it.
+    ///
+    /// A resize by dragging is measured from that frame, and not from the frame the window has by
+    /// the time the window manager handles the start of the drag: a compositor that reports the
+    /// frame all through the drag has moved on by then. The default keeps nothing and returns
+    /// `None`, and the window manager then takes the frame the window has when it handles the
+    /// start, as it does with the fake.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi::backend::Backend;
+    /// use komorebi::backend::fake::FakeBackend;
+    ///
+    /// let fake = FakeBackend::with_one_monitor();
+    /// fake.open_window(1, "foot", "foot", "a terminal");
+    ///
+    /// assert_eq!(fake.drag_origin(1), None);
+    /// ```
+    fn drag_origin(&self, _id: u32) -> Option<Rect> {
+        None
+    }
+
+    /// Returns the frame the user asked for when they last let go of an edge of the window, if
+    /// the backend has kept it.
+    ///
+    /// A resize by dragging ends at that frame, and not at the frame the window has by the time
+    /// the window manager handles the end of the drag. A compositor changes the frame once the
+    /// client has drawn at the new size, and goes on reporting the client's frames after the
+    /// drag is over, which can be before the window manager, busy with an earlier event, gets to
+    /// the end: the frame it would read is then one the client has not finished drawing, and the
+    /// drag would count for less than the user made it. The default keeps nothing and returns
+    /// `None`, and the window manager then takes the frame the window has, as it does for a drag
+    /// that had no steps.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi::backend::Backend;
+    /// use komorebi::backend::fake::FakeBackend;
+    /// use komorebi::core::Rect;
+    ///
+    /// let fake = FakeBackend::with_one_monitor();
+    /// fake.open_window(1, "foot", "foot", "a terminal");
+    /// assert_eq!(fake.drag_end(1), None);
+    ///
+    /// let asked = Rect { left: 0, top: 0, right: 672, bottom: 704 };
+    /// fake.set_drag_end(1, asked);
+    /// assert_eq!(fake.drag_end(1), Some(asked));
+    /// ```
+    fn drag_end(&self, _id: u32) -> Option<Rect> {
+        None
+    }
+
     // ---- commands ------------------------------------------------------------------------------
 
     /// Moves and resizes the window to `rect`, a position and a size.

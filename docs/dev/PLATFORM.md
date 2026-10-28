@@ -409,6 +409,18 @@ cannot go where it was asked is left alone. A maximize makes the bridge forget t
 window's frame then changes to the work area, which is not where it was last asked to be. The VM
 test `vm-scrolling` checks that the columns out of view stay where komorebi put them.
 
+The same holds for a frame the user asks for. While the user drags an edge of a window, KWin reports
+at every step of the drag the frame the pointer asks for (`interactiveMoveResizeStepped`), and the
+window's frame follows once the client has drawn at that size. When the user lets go, the frame can
+be well short of where they took the edge: at time of writing (2026-10-27), in the spike, the frame
+at the end of a 72-pixel drag of a terminal's edge had moved 12 or 48 pixels. KWin goes on reporting
+the client's frames after the end of the drag: in a run of `vm-drag-resize` at time of writing
+(2026-10-28), a frame of 660 pixels, which is what `foot` had drawn of the 672 asked for, came 1 ms
+after the end, and the window manager, busy with an earlier event, handled the end 17 ms after that.
+The bridge sends the frame of the last step with the end of the drag, and the end of a resize is
+that frame, which the daemon keeps apart from the frames that follow. The VM test `vm-drag-resize`
+drags edges in a Plasma session with a pointer device that the session node makes with uinput.
+
 ## How long a retile takes
 
 Measured by the VM test `vm-latency` at time of writing (2026-10-27), in a headless KWin 6.8.1

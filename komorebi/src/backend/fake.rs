@@ -89,6 +89,8 @@ struct State {
     /// the windows that are hidden, in the order they were
     hidden: Vec<u32>,
     min_sizes: HashMap<u32, (i32, i32)>,
+    /// the frame the user asked for when they last let go of an edge of each window
+    drag_ends: HashMap<u32, Rect>,
     monitors: Vec<MonitorInfo>,
     foreground: Option<u32>,
     cursor: Option<(i32, i32)>,
@@ -298,6 +300,13 @@ impl FakeBackend {
         }
     }
 
+    /// Sets what [`Backend::drag_end`] answers for a window: the frame the user asked for when
+    /// they let go of one of its edges, as a client that has not finished drawing is short of it.
+    /// [`FakeBackend::move_window_by_user`] puts the frame the window has.
+    pub fn set_drag_end(&self, id: u32, rect: Rect) {
+        self.state.lock().drag_ends.insert(id, rect);
+    }
+
     /// Gives a window a minimum size. A [`Backend::set_rect`] for something smaller leaves it at
     /// the minimum, which is how a GTK4 client answers.
     pub fn set_min_size(&self, id: u32, width: i32, height: i32) {
@@ -492,6 +501,10 @@ impl Backend for FakeBackend {
 
     fn cursor_pos(&self) -> Option<(i32, i32)> {
         self.state.lock().cursor
+    }
+
+    fn drag_end(&self, id: u32) -> Option<Rect> {
+        self.state.lock().drag_ends.get(&id).copied()
     }
 
     fn set_rect(&self, id: u32, rect: &Rect) -> eyre::Result<()> {

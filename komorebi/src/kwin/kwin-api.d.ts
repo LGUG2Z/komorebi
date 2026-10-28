@@ -96,6 +96,9 @@ interface KWinWindow {
     /** The user took hold of the window with the pointer, to move it (`move`) or resize it
      * (`resize`). */
     readonly interactiveMoveResizeStarted: Signal;
+    /** A step of the drag, with the frame the user is asking for, which the window's frame follows
+     * once the client has drawn at that size. */
+    readonly interactiveMoveResizeStepped: Signal<[geometry: QRectF]>;
     /** The user let go of the window. */
     readonly interactiveMoveResizeFinished: Signal;
     closeWindow(): void;

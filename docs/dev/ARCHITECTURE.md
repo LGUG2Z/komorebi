@@ -655,12 +655,12 @@ none.
 
 ## Dragging
 
-The user can move a window with the pointer. KWin reports the start and the end of a drag
-(`interactiveMoveResizeStarted` and `interactiveMoveResizeFinished`), the bridge sends both with
-the window's frame, and the end with where the pointer is, and the table turns a move into a
-`MoveStart` and a `MoveEnd` ([`Table::handle`]). A drag that resizes the window raises no event.
-The bridge also stops asking KWin again for the position komorebi gave the window (`settle`):
-the window is the user's now.
+The user can move a window with the pointer, and resize it by dragging an edge. KWin reports the
+start and the end of a drag (`interactiveMoveResizeStarted` and `interactiveMoveResizeFinished`),
+the bridge sends both with the window's frame, and the end with where the pointer is, and the
+table turns a move into a `MoveStart` and a `MoveEnd`, and a resize into a `ResizeStart` and a
+`ResizeEnd` ([`Table::handle`]). The bridge also stops asking KWin again for the position komorebi
+gave the window (`settle`): the window is the user's now.
 
 `MoveStart` records the monitor, the workspace and the window
 ([`WindowManager::pending_move_op`]). `MoveEnd` takes the record, and when it names the same
@@ -681,6 +681,25 @@ which puts a window let go where there is no tile back on its own. A frame of an
 changes nothing, and neither does a floating window, which is in no container
 ([`Workspace::contains_managed_window`]). The swap goes through `LockableSequence`, as
 `MoveWindow`'s does.
+
+A resize is measured from the frame the window had when the user took hold of it. The table keeps
+that frame at the start ([`Table::drag_origin`], the backend's `drag_origin`), because the
+`geometry` events of the drag change the window's frame before the window manager gets to the start;
+a backend that keeps none, as the fake, gives the frame the window has when `ResizeStart` is
+handled. `ResizeStart` records the window and that frame ([`WindowManager::pending_resize_op`]). At
+the end the edges are where the user took them, which is not where the window's frame is: KWin
+changes the frame once the client has drawn at the new size, and goes on reporting the client's
+frames after the end of the drag, which can be before the window manager, busy with an earlier
+event, gets to the end. The bridge therefore keeps the frame the last step of the drag asked for
+(`interactiveMoveResizeStepped`) and sends it with the end as `requested`, and the table keeps it
+apart from the window's frame ([`Table::drag_end`], the backend's `drag_end`), where a frame event
+cannot reach it. `ResizeEnd` compares each edge of that frame, or of the window's frame when there
+is none (a drag with no step), with the same edge of the frame the drag began with, focuses the
+container of the dragged window, and calls [`WindowManager::resize_window`] for each edge that
+moved, with twice the distance, since the layout moves a shared edge by half of what it is given. If
+the window is in a container of a workspace that tiles, and the frame changed, the workspace is
+tiled again, which also puts back a window whose edge had no neighbor to take room from.
+[drag-resize.md](../drag-resize.md) has the rules and the reasons for each.
 
 ## Configuration
 
@@ -1091,7 +1110,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
   It does nothing when it is asked for the look it applied last.
 - `shutdown`, `is_window`, `window_rect` and `monitor_from_point` have defaults, written in
   terms of the queries. An implementor should not need to override them, except `shutdown`
-  when it created something in the compositor that has to be given up.
+  when it created something in the compositor that has to be given up. `drag_origin` and
+  `drag_end` have defaults that keep nothing; a backend whose frames change during a drag and
+  after it, as KWin's do, overrides them.
 
 ## What is guaranteed, and by what
 
@@ -1147,7 +1168,11 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A window let go of on another monitor goes there, in the place of the container under the pointer | framework path: `MoveEnd` sees that the monitor under the pointer is not the one the drag began on, and hands the window to [`WindowManager::transfer_window`] without comparing its frame with its tile | `a_window_let_go_of_on_another_monitor_goes_to_that_monitor`, `a_window_let_go_of_on_a_monitor_with_nothing_on_it_goes_there`, `a_floating_window_let_go_of_on_another_monitor_is_one_of_the_floating_windows_there` | a floating window that is the only window of its workspace is not noticed to have moved |
 | With the window container behavior `Append` a window let go of on a tile joins its container, and with the float override on it floats where it was let go of | framework path: `MoveEnd` reads [`WindowManager::window_management_behaviour`] for the focused workspace | `with_append_a_window_let_go_of_on_a_tile_joins_the_container_of_that_tile`, `with_the_float_override_a_window_let_go_of_on_a_tile_floats_where_it_was_let_go_of` | none |
 | The bridge leaves a window the user has taken hold of where the user puts it | framework path: the bridge forgets the position it was asking again for when a drag of the window starts | `a window the user has taken hold of is not asked again for the position komorebi gave it` | none |
-| A resize leaves no tile smaller than a tenth of the work area, or than it was | framework path: [`WindowManager::resize_window`] calculates the tiles for the adjustment, and cuts the adjustment down until they all fit | `a_resize_leaves_every_tile_about_a_tenth_of_the_work_area_wide_at_least` | the paddings are taken off afterwards, so a tile can end up a little smaller |
+| A drag of an edge resizes the tile of the window that was dragged, by what the pointer moved the edge, and moves no other edge | framework path: `ResizeEnd` compares each edge with the frame the drag began with ([`Table::drag_origin`]) and resizes the dragged window's container | `resizing_a_tile_by_hand_moves_the_split`, `a_drag_is_measured_from_where_the_window_was_not_from_its_tile`, `the_window_that_was_dragged_is_the_one_resized_not_the_focused_one`, `a_corner_resizes_both_of_its_edges`, `vm-drag-resize` | none |
+| The end of a resize is where the user took the edge, not the frame KWin has then, or reports a moment later | framework path: the bridge sends the frame of the last step as `requested`, the table keeps it for a resize apart from the window's frame ([`Table::drag_end`]), which the frame events that follow the end do not reach, and `ResizeEnd` reads it ([`Backend::drag_end`]) | `the_end_of_a_resize_is_where_the_user_took_it_not_where_the_frame_had_got_to`, `a_frame_that_follows_the_end_of_a_resize_does_not_change_where_the_user_took_it`, `the_end_of_a_resize_is_where_the_user_took_the_edge_when_the_frame_has_not_got_there`, `a drag is reported when the user takes hold of a window and when they let go`, `vm-drag-resize` | a drag with no step ends at the frame |
+| A dragged edge with no neighbor puts the window back on its tile | framework path: `ResizeEnd` tiles the workspace again when the frame changed | `dragging_an_edge_that_has_no_neighbour_puts_the_window_back`, `vm-drag-resize` | none |
+| Only a tile is resized by dragging: the window of a stack resizes the tile of the stack, and a floating window or the window of a monocle is left as the user made it | framework path: `ResizeEnd` looks for the container of the dragged window among the workspace's containers ([`Workspace::container_idx_for_window`]), which leaves out the floating windows and the monocle container, and does nothing when there is none | `the_edge_of_a_stack_is_the_edge_of_its_tile`, `a_floating_window_dragged_by_its_edge_is_left_as_the_user_made_it`, `the_window_of_a_monocle_dragged_by_its_edge_is_left_as_the_user_made_it` | none |
+| A resize leaves no tile smaller than a tenth of the work area, or than it was | framework path: [`WindowManager::resize_window`] calculates the tiles for the adjustment, and cuts the adjustment down until they all fit | `a_resize_leaves_every_tile_about_a_tenth_of_the_work_area_wide_at_least`, `a_drag_further_than_the_neighbour_can_give_goes_as_far_as_it_can`, `shrinking_a_tile_by_more_than_it_can_is_granted_as_far_as_it_goes` | the paddings are taken off afterwards, so a tile can end up a little smaller |
 | The offset of a workspace wins over its monitor's, which wins over the window manager's | framework path: [`Monitor::update_workspace_globals`] gives the workspace the monitor's offset or else the window manager's, and [`Workspace::update`] takes its own before that | `the_workspaces_offset_wins_over_the_monitors_which_wins_over_the_global_one` | none |
 | A workspace whose tiling is off moves no window | framework path: [`Workspace::update`] returns before the layout when [`Workspace::tile`] is false | `with_tiling_off_no_window_is_moved_until_it_is_back_on` | none |
 | komorebi hides no window to leave a workspace | framework path: showing a workspace is one request to the compositor ([`Backend::switch_workspace`]), which shows and hides the windows of its desktops | `switching_workspace_asks_the_compositor_to_show_the_other_desktop`, `vm-workspace-switch` ("KWin shows the desktop, komorebi hides nothing") | none |
@@ -1382,13 +1407,16 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/rule_commands.rs`](../../komorebi/tests/rule_commands.rs), the rules and the
   messages that add and show them;
   [`komorebi/tests/drag_swap.rs`](../../komorebi/tests/drag_swap.rs), dragging a window onto
-  another tile and onto another monitor.
+  another tile and onto another monitor;
+  [`komorebi/tests/drag_resize.rs`](../../komorebi/tests/drag_resize.rs), dragging an edge.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py): what is on the
   screen of a real compositing session, read from screenshots.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
+- [`nix/tests/vm/suites/drag-resize`](../../nix/tests/vm/suites/drag-resize/test.py): edges and
+  corners dragged with a pointer in a Plasma session.
 - [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
   fake's desktops;
   [`komorebi/tests/workspace_commands.rs`](../../komorebi/tests/workspace_commands.rs), naming,
@@ -1568,6 +1596,11 @@ A window is shown, and ends up on a tile:
 [`Workspace::contains_managed_window`]: ../../komorebi/src/workspace.rs
 [`WindowManager::pending_move_op`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::transfer_window`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::pending_resize_op`]: ../../komorebi/src/window_manager.rs
+[`Workspace::container_idx_for_window`]: ../../komorebi/src/workspace.rs
+[`Table::drag_origin`]: ../../komorebi/src/kwin/state.rs
+[`Table::drag_end`]: ../../komorebi/src/kwin/state.rs
+[`Backend::drag_end`]: ../../komorebi/src/backend/mod.rs
 [`LayoutOptions`]: ../../komorebi/src/core/mod.rs
 [`Workspace::tile`]: ../../komorebi/src/workspace.rs
 [`Layout`]: ../../komorebi/src/core/mod.rs

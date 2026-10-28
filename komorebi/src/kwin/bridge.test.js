@@ -96,6 +96,7 @@ function window({
         captionChanged: new Signal(),
         desktopsChanged: new Signal(),
         interactiveMoveResizeStarted: new Signal(),
+        interactiveMoveResizeStepped: new Signal(),
         interactiveMoveResizeFinished: new Signal(),
         closeWindow: () => assert.fail("a window that is in no KWin was closed"),
         ...rest,
@@ -350,9 +351,17 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     k.workspace.cursorPos = { x: 1500.4, y: 600 };
     editor.move = false;
     editor.interactiveMoveResizeFinished.emit();
+    // and drags its right edge further right: the client draws the new size after the pointer
+    // has moved on, so the frame is short of the edge when they let go
+    editor.resize = true;
+    editor.interactiveMoveResizeStarted.emit();
+    editor.interactiveMoveResizeStepped.emit(geometry(40, 30, 1100.4, 1050));
+    editor.frameGeometry = geometry(40, 30, 1040, 1050);
+    editor.resize = false;
+    editor.interactiveMoveResizeFinished.emit();
 
     assert.deepStrictEqual(k.events(), events);
-    assert.deepStrictEqual(editor.frameGeometry, geometry(40.2, 30, 960, 1050));
+    assert.deepStrictEqual(editor.frameGeometry, geometry(40, 30, 1040, 1050));
     assert.equal(k.workspace.activeWindow, editor);
     assert.deepStrictEqual(k.raised, [editor]);
     assert.equal(editor.minimized, false);
@@ -672,8 +681,9 @@ test("a drag is reported when the user takes hold of a window and when they let 
 
     w.resize = true;
     w.interactiveMoveResizeStarted.emit();
+    w.interactiveMoveResizeStepped.emit(geometry(0, 0, 1080.6, 1050));
     w.frameGeometry = geometry(0, 0, 1000.4, 1050);
-    k.workspace.cursorPos = { x: 1000.4, y: 500.6 };
+    k.workspace.cursorPos = { x: 1080.6, y: 500.6 };
     w.resize = false;
     w.interactiveMoveResizeFinished.emit();
 
@@ -691,7 +701,8 @@ test("a drag is reported when the user takes hold of a window and when they let 
             type: "move_resize_finished",
             id: "{w}",
             geo: { x: 0, y: 0, w: 1000, h: 1050 },
-            cursor: { x: 1000, y: 501 },
+            requested: { x: 0, y: 0, w: 1081, h: 1050 },
+            cursor: { x: 1081, y: 501 },
             seq: 4,
         },
     ]);

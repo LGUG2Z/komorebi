@@ -29,7 +29,8 @@ fn drag(kind: KWinNotification, id: u32, start: bool, resize: bool) -> WindowMan
     match (start, resize) {
         (true, false) => WindowManagerEvent::MoveStart(n, w),
         (false, false) => WindowManagerEvent::MoveEnd(n, w),
-        (_, true) => unreachable!("the window manager is not told of a resize"),
+        (true, true) => WindowManagerEvent::ResizeStart(n, w),
+        (false, true) => WindowManagerEvent::ResizeEnd(n, w),
     }
 }
 

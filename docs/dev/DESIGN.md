@@ -542,3 +542,25 @@ backend asks it through the held call, and returns the last position the table h
 answer comes within 250 ms. The end of a drag is the moment the window manager asks, and the
 event that reports it brings the position of the pointer with it, so the last position the
 table has is the one that counts.
+
+## Why is a drag of an edge measured from where the window was when it began?
+
+A window is not always on its tile. A client that sizes itself to a grid, such as a terminal that
+keeps to whole cells of its font, is a few pixels short of it, and a window with a minimum size
+can be larger. Measured against the tile, every drag of such a window would look as if it had
+moved the other edges too, and they would be resized as well. The frame the window had when the
+drag began is what the user had under the pointer, so the drag is measured from it. KWin reports
+the window's frame all through a drag, so the table keeps the frame of the start apart from it,
+and the window manager reads that one when it handles the start.
+
+## Why is the end of a resize the frame the user asked for and not the window's frame?
+
+KWin changes the window's frame only once the client has drawn at the new size, so when the user
+lets go the frame can be short of where they took the edge
+([PLATFORM.md](PLATFORM.md#how-clients-answer-a-frame)). The frame the last step of the drag asked
+for is where the user took it. The table keeps it apart from the window's frame, because the window
+manager does not handle the end of the drag at once: it may be busy with an earlier event, and the
+frame event KWin sends a millisecond after the end changes the frame in the table before the window
+manager reads it. The end of the drag has to survive that, so it is not the window's frame. The
+frame events go on updating the window's frame, and the retile that ends the drag puts the window on
+its tile. A move changes no size, so the end of a move is the frame.

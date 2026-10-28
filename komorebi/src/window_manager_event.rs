@@ -47,6 +47,10 @@ pub enum KWinNotification {
     InteractiveMoveStarted,
     /// `window.interactiveMoveResizeFinished` after a move
     InteractiveMoveFinished,
+    /// `window.interactiveMoveResizeStarted` for a resize
+    InteractiveResizeStarted,
+    /// `window.interactiveMoveResizeFinished` after a resize
+    InteractiveResizeFinished,
 }
 
 /// Events komorebi raises itself, for example from a command
@@ -78,6 +82,11 @@ pub enum WindowManagerEvent {
     /// The user let go of a window they were moving: where it is now is what the window reports,
     /// and the pointer is where they let go
     MoveEnd(SystemNotification, Window),
+    /// The user took hold of an edge or a corner of a window to resize it with the pointer
+    ResizeStart(SystemNotification, Window),
+    /// The user let go of the edge or the corner they were dragging: where they took it is what the
+    /// window reports
+    ResizeEnd(SystemNotification, Window),
     /// A monitor (by id) now shows another workspace: komorebi did that itself, or a pager, a
     /// shortcut or an app raising a window did. Not about any one window.
     WorkspaceChange(SystemNotification, u32, usize),
@@ -100,6 +109,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Unmanage(window)
             | WindowManagerEvent::MoveStart(_, window)
             | WindowManagerEvent::MoveEnd(_, window)
+            | WindowManagerEvent::ResizeStart(_, window)
+            | WindowManagerEvent::ResizeEnd(_, window)
             | WindowManagerEvent::WorkspaceMove(_, window, _) => *window,
             WindowManagerEvent::WorkspaceChange(..) => return None,
         })
@@ -124,6 +135,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::TitleUpdate(n, _)
             | WindowManagerEvent::MoveStart(n, _)
             | WindowManagerEvent::MoveEnd(n, _)
+            | WindowManagerEvent::ResizeStart(n, _)
+            | WindowManagerEvent::ResizeEnd(n, _)
             | WindowManagerEvent::WorkspaceChange(n, _, _)
             | WindowManagerEvent::WorkspaceMove(n, _, _) => match n {
                 SystemNotification::KWin(k) => k.to_string(),

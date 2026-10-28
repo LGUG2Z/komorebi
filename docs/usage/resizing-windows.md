@@ -1,8 +1,9 @@
 # Resizing windows
 
 komorebi resizes the focused window by moving the edges of its tile, and its neighbors give up
-the room. The size a tile has been given is kept until the workspace is retiled with
-`komorebic retile`, so it lasts while windows open and close around it.
+the room. A window can also be resized by dragging one of its edges. The size a tile has been
+given is kept until the workspace is retiled with `komorebic retile`, so it lasts while windows
+open and close around it.
 
 ## An edge
 
@@ -39,6 +40,17 @@ komorebic resize-delta 100
 
 A resize never makes a tile narrower or shorter than a tenth of the monitor's work area, unless
 the tile is smaller than that already: a resize that would is carried out as far as it can go.
+
+## By dragging an edge
+
+Take hold of an edge or a corner of a tiled window with the pointer, drag it, and let go: the
+edges of the window's tile move by as much as the pointer moved them, the neighbors give up or
+take the room, and the window is put on its tile. A corner moves two edges. The rules are those
+of `resize-edge`: an edge with no tile on the other side of it does not move, and the window goes
+back to its tile; no tile is made smaller than a tenth of the work area, so a long drag goes as
+far as it can. The window of a stack has the tile of the stack. A floating window and the window
+of a monocle have no tile: they are left as the user made them. [Resizing a tile by dragging its
+edge](../drag-resize.md) says how a drag is measured.
 
 ## Back to the layout
 

@@ -277,7 +277,9 @@ impl Poll {
 ///
 /// The queries are answered from a [`state::Table`] that the script's events keep up to date, so
 /// they do not wait for KWin, except [`Backend::cursor_pos`]: only the script can read the pointer,
-/// so it is asked, and given 250 ms to answer.
+/// so it is asked, and given 250 ms to answer. The table also keeps the frame a window had when the
+/// user began to drag it, for [`Backend::drag_origin`], and the frame the user asked for when they
+/// let go of an edge of it, for [`Backend::drag_end`].
 ///
 /// A command ([`Backend::set_rect`], [`Backend::focus`] and the rest) is queued for the script and
 /// returns: the script gets the queue as the answer to its held `Poll` call, and carries the
@@ -781,6 +783,14 @@ impl Backend for KWinBackend {
         self.shared.table.lock().foreground()
     }
 
+    fn drag_origin(&self, id: u32) -> Option<Rect> {
+        self.shared.table.lock().drag_origin(id)
+    }
+
+    fn drag_end(&self, id: u32) -> Option<Rect> {
+        self.shared.table.lock().drag_end(id)
+    }
+
     fn monitors(&self) -> eyre::Result<Vec<MonitorInfo>> {
         let monitors = self.shared.table.lock().monitors();
         if monitors.is_empty() {
@@ -1226,6 +1236,104 @@ mod tests {
             ask(&backend);
             assert_eq!(next_poll(&runtime, &backend), json!([command["batch"]]));
         }
+    }
+
+    /// The end of a resize in the order of a run of `vm-drag-resize` that failed. The user lets go
+    /// of the left edge of the right tile after pulling it 200 pixels. The client has drawn 140 of
+    /// them, and KWin reports that frame a millisecond after the end of the drag. The window
+    /// manager is busy with something else, and gets to the end later: the tile has to take the 200
+    /// pixels the user asked for, and not the 140 of the frame it finds by then.
+    #[test]
+    fn a_frame_that_follows_the_end_of_a_resize_does_not_make_the_drag_count_for_less() {
+        let (_runtime, backend) = offline();
+        let backend = Arc::new(backend);
+
+        let snapshot = json!({
+            "type": "snapshot",
+            "windows": [],
+            "screens": [{
+                "name": "DP-1", "manufacturer": "ACME", "model": "M1", "serial": "S1",
+                "geo": { "x": 0, "y": 0, "w": 1920, "h": 1080 },
+                "area": { "x": 0, "y": 0, "w": 1920, "h": 1050 },
+            }],
+            "desktops": [{ "id": "d1", "name": "Desktop 1" }],
+            "current_desktops": [{ "output": "DP-1", "id": "d1" }],
+            "active": null,
+            "cursor": { "x": 5, "y": 6 },
+        });
+        backend
+            .shared
+            .table
+            .lock()
+            .handle(&snapshot, Instant::now());
+
+        let (_sender, receiver) = crossbeam_channel::bounded(1);
+        let socket = std::path::PathBuf::from(format!(
+            "/tmp/komorebi-kwin-drag-{}.sock",
+            std::process::id()
+        ));
+        let mut wm = crate::backend::with_backend(backend.clone(), || {
+            let mut wm =
+                crate::window_manager::WindowManager::new(receiver, Some(socket.clone())).unwrap();
+            wm.init().unwrap();
+            wm
+        });
+
+        // what KWin reports, as the events the window manager gets
+        let report = |event: Value| -> Vec<crate::window_manager_event::WindowManagerEvent> {
+            let out = backend.shared.table.lock().handle(&event, Instant::now());
+            out.into_iter()
+                .filter_map(|output| match output {
+                    Output::Event(event) => Some(event),
+                    _ => None,
+                })
+                .collect()
+        };
+        let process = |wm: &mut crate::window_manager::WindowManager, events: Vec<_>| {
+            crate::backend::with_backend(backend.clone(), || {
+                for event in events {
+                    wm.process_event(event).unwrap();
+                }
+            });
+        };
+        let frame = |left: i32| json!({ "x": left, "y": 0, "w": 1920 - left, "h": 1050 });
+
+        // two windows open, and are tiled
+        for (uuid, title) in [("{a}", "left"), ("{b}", "right")] {
+            let shown = report(json!({
+                "type": "added", "id": uuid, "pid": 0, "class": "foot", "caption": title,
+                "normal": true, "minimized": false, "desktops": ["d1"],
+                "geo": { "x": 0, "y": 0, "w": 100, "h": 100 },
+            }));
+            process(&mut wm, shown);
+        }
+
+        // the right tile, as the window manager put it
+        let tile = backend.window_rect(2).unwrap();
+        assert!(tile.left > 900, "{tile:?}");
+
+        let started = report(json!({
+            "type": "move_resize_started", "id": "{b}", "move": false, "resize": true,
+            "geo": frame(tile.left)
+        }));
+        process(&mut wm, started);
+
+        // the end is waiting for the window manager, and a frame event comes
+        let waiting = report(json!({
+            "type": "move_resize_finished", "id": "{b}", "geo": frame(tile.left - 140),
+            "requested": frame(tile.left - 200), "cursor": { "x": 1, "y": 1 }
+        }));
+        report(json!({ "type": "geometry", "id": "{b}", "geo": frame(tile.left - 140) }));
+        assert_eq!(waiting.len(), 1, "the end: {waiting:?}");
+
+        process(&mut wm, waiting);
+
+        assert_eq!(
+            backend.window_rect(2).unwrap().left,
+            tile.left - 200,
+            "the tile took what the user asked for"
+        );
+        let _ = std::fs::remove_file(socket);
     }
 
     #[test]
