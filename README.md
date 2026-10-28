@@ -377,7 +377,9 @@ and [`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
 [`docs/dev/COMPARE.md`](docs/dev/COMPARE.md) what is the same and what is different in
 komorebi for Windows and komorebi for Mac,
 [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work, and
-[`docs/dev/utm.md`](docs/dev/utm.md) how to develop in a Plasma guest.
+[`docs/dev/utm.md`](docs/dev/utm.md) how to develop in a Plasma guest, and
+[`docs/dev/wsl2-probe.md`](docs/dev/wsl2-probe.md) how to find out whether a
+NixOS-WSL2 machine can run one (`nix run .#wsl2-probe`).
 
 ## License
 

@@ -34,6 +34,10 @@ it.
 TCG is software emulation. It is slow enough that only short suites are worth
 running that way, and the library's `scale` argument (below) is 8 for it.
 
+Whether a machine has working KVM is not always obvious, and under WSL2 it
+depends on settings of Windows. `nix run .#wsl2-probe` boots a tiny guest with
+and without KVM and times both ([wsl2-probe.md](wsl2-probe.md)).
+
 The suites are what `testedMax` in
 [`nix/supported-kwin.nix`](../../nix/supported-kwin.nix) means: the newest KWin
 every suite has passed against. When the weekly canary job, which runs every

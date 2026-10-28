@@ -862,6 +862,9 @@ they work or that they do not.
   the curve gives about 60 % ([KWin effects](#kwin-effects)). The log evidence and the comparison
   with animation off do not depend on it.
 - Graphics other than llvmpipe: every render measured was in software.
+- WSL2: KVM, a QEMU window through WSLg, the Windows GPU as OpenGL in WSL, a port that
+  Windows reaches in WSL, and `virtiofsd` serving a guest's `/nix/store`. The probe that measures
+  them ([wsl2-probe.md](wsl2-probe.md)) has not run on WSL2.
 - The scrolling layout on a monitor that has another beside it. A strip spills onto the
   neighbor when that monitor shows the same workspace number, and a window whose middle is on a
   monitor that shows another desktop is not drawn. This is read from KWin's sources, not

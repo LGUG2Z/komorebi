@@ -150,6 +150,16 @@
             inherit komorebiModule;
             scale = if isLinux then 1 else 1.5;
           };
+          # the probe of a NixOS-WSL2 machine (docs/dev/wsl2-probe.md); the checks use a constant
+          # revision, so that they are the same derivations for every commit
+          wsl2Probe = import ./nix/dev/wsl2-probe.nix {
+            inherit pkgs;
+            rev = self.rev or self.dirtyRev or "unknown";
+          };
+          wsl2ProbeForChecks = import ./nix/dev/wsl2-probe.nix {
+            inherit pkgs;
+            rev = "nix-check";
+          };
           nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
           nightlyToolchain = pkgs.rust-bin.nightly.latest.default;
           rustToolchainWithNightlyRustfmt = pkgs.symlinkJoin {
@@ -298,6 +308,29 @@
                 touch $out
               '';
           }
+          # The probe builds (shellcheck runs over the script and over the guest's init as it
+          # does) and its dry run works without a machine to probe, so that it cannot rot between
+          # the times somebody runs it.
+          // lib.optionalAttrs isLinux {
+            wsl2-probe = wsl2ProbeForChecks.probe;
+            wsl2-probe-dry-run =
+              pkgs.runCommand "wsl2-probe-dry-run" { nativeBuildInputs = [ wsl2ProbeForChecks.probe ]; }
+                ''
+                  wsl2-probe --dry-run --no-prompt --report report.txt > out.txt
+                  cat out.txt
+                  for probe in P0 P1 P2 P3 P4 P5 P6; do
+                    grep -q "^$probe " out.txt || { echo "no verdict line for $probe"; exit 1; }
+                  done
+                  grep -q "PASTE THIS" out.txt
+                  grep -q "would run" out.txt
+                  # the report file has what the screen has
+                  grep -q "PASTE THIS" report.txt
+                  # a mistake in the options is refused
+                  if wsl2-probe --nonsense 2> err.txt; then exit 1; fi
+                  grep -q "unknown option" err.txt
+                  touch $out
+                '';
+          }
           # The VM tests need QEMU with KVM, so only Linux checks them. A Mac runs the same tests
           # through legacyPackages.<system>.vm, see docs/dev/vm-tests.md.
           // lib.optionalAttrs isLinux (
@@ -335,6 +368,8 @@
             default = build.fullBuild;
             kde-rounded-corners-komorebi = pkgs.callPackage ./nix/kde-rounded-corners.nix { };
             kwin-effect-geometry-change-komorebi = pkgs.callPackage ./nix/kwin-effect-geometry-change.nix { };
+            wsl2-probe = wsl2Probe.probe;
+            wsl2-probe-guest = wsl2Probe.guest;
           };
 
           apps = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
@@ -347,6 +382,11 @@
               type = "app";
               program = "${build.komorebic}/bin/komorebic";
               meta.description = "The command line interface of komorebi";
+            };
+            wsl2-probe = {
+              type = "app";
+              program = lib.getExe wsl2Probe.probe;
+              meta.description = "Probes a NixOS-WSL2 machine for KVM, WSLg, a GPU and RDP";
             };
             default = config.apps.komorebi;
           };

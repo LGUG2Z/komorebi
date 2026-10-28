@@ -17,13 +17,14 @@ check-js:
     cd komorebi/src/kwin && tsc -p tsconfig.json
     node --test komorebi/src/kwin/bridge.test.js
 
-# the macros the codebase has agreed not to use, and the workflows, which actionlint checks (with
-# shellcheck over their scripts), both from the nixpkgs flake.lock pins
+# the macros the codebase has agreed not to use, the workflows, which actionlint checks (with
+# shellcheck over their scripts), and the probe script, all with the tools of the nixpkgs flake.lock pins
 lint:
     test -z "$(rg 'eyre!' --type rust .)" || (echo "eyre! macro not allowed"; false)
     test -z "$(rg 'dbg!' --type rust .)" || (echo "dbg! macro not allowed"; false)
     test -z "$(rg 'println!' --type rust ./komorebi/src)" || (echo "println! macro not allowed"; false)
     nix shell --inputs-from . nixpkgs#actionlint nixpkgs#shellcheck --command actionlint .github/workflows/*.yaml
+    nix shell --inputs-from . nixpkgs#shellcheck --command shellcheck scripts/wsl2-probe.sh
 
 # the JSON Schemas of komorebi.json and of applications.json, from the Rust types
 jsonschema:
@@ -39,6 +40,10 @@ nixgen:
     mv nix/komorebi-options.nix.new nix/komorebi-options.nix
     nix fmt nix/komorebi-options.nix
     nix build -L --no-link ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).nix-options-validation"
+
+# probe a NixOS-WSL2 machine for KVM, WSLg, a GPU and RDP (docs/dev/wsl2-probe.md): `just wsl2-probe --dry-run`
+wsl2-probe *args:
+    nix run .#wsl2-probe -- {{ args }}
 
 # one VM test, on this machine: `just vm kwin`. Linux boots the guest under KVM through the
 # flake check; a Mac builds the guest on a builder and runs the driver (see docs/dev/vm-tests.md)

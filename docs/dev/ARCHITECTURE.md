@@ -1979,6 +1979,11 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   [COMPARE.md](COMPARE.md) from this checkout and from checkouts of komorebi for Windows and
   komorebi for Mac, and checks them. Continuous integration has neither checkout and does not run
   it.
+- [`scripts/wsl2-probe.sh`](../../scripts/wsl2-probe.sh), wrapped by
+  [`nix/dev/wsl2-probe.nix`](../../nix/dev/wsl2-probe.nix): probes a NixOS-WSL2 machine for KVM,
+  WSLg, a GPU and RDP ([wsl2-probe.md](wsl2-probe.md)). The flake checks `wsl2-probe` (ShellCheck
+  over the script and over the guest's init) and `wsl2-probe-dry-run` (the script's `--dry-run` in
+  the build sandbox) keep it building.
 
 [`nixos-module.nix`]: ../../nix/nixos-module.nix
 [`supported-kwin.nix`]: ../../nix/supported-kwin.nix
