@@ -1,4 +1,4 @@
-//! The borders around the windows, which the compositor draws.
+//! The borders around the windows, which the compositor draws, and their colors.
 //!
 //! komorebi draws no border itself. KWin's KDE Rounded Corners effect draws an outline outside
 //! each window, in the gap komorebi leaves between tiles, and this module decides what it looks
@@ -13,9 +13,9 @@
 //!   is to the layout ([`window_kinds`]). Only komorebi's build of the effect takes them; the
 //!   stock one draws the look's two colors, one for the active window and one for the others.
 //!
-//! The settings are the statics of this module, which the `komorebic border*` commands set and
-//! the `border*` keys of `komorebi.json` ([`crate::static_config::StaticConfig`]) give their
-//! first values.
+//! The settings are the statics of this module, which the `komorebic border*` commands and the
+//! themes set, and the `border*` keys of `komorebi.json` ([`crate::static_config::StaticConfig`])
+//! give their first values.
 
 use crate::backend::AnimationLook;
 use crate::backend::BorderLook;
@@ -25,6 +25,8 @@ use crate::core::WindowKind;
 use crate::core::animation::AnimationStyle;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
+use komorebi_themes::colour::Colour;
+use komorebi_themes::colour::Rgb;
 use lazy_static::lazy_static;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
@@ -46,18 +48,23 @@ pub static BORDER_RADIUS: AtomicI32 = AtomicI32::new(10);
 pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(true);
 
 lazy_static! {
-    /// The color of the focused window's border, as [`pack`] stores it.
-    pub static ref FOCUSED: AtomicU32 = AtomicU32::new(pack(66, 165, 245));
-    /// The color of the border of every other window, as [`pack`] stores it.
-    pub static ref UNFOCUSED: AtomicU32 = AtomicU32::new(pack(128, 128, 128));
+    /// The color of the focused window's border, red, green and blue in one number.
+    pub static ref FOCUSED: AtomicU32 =
+        AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(66, 165, 245))));
+    /// The color of the border of every other window.
+    pub static ref UNFOCUSED: AtomicU32 =
+        AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(128, 128, 128))));
     /// The color of the border of a locked container that does not have the focus.
-    pub static ref UNFOCUSED_LOCKED: AtomicU32 = AtomicU32::new(pack(158, 8, 8));
+    pub static ref UNFOCUSED_LOCKED: AtomicU32 =
+        AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(158, 8, 8))));
     /// The color of the border of a monocled window.
-    pub static ref MONOCLE: AtomicU32 = AtomicU32::new(pack(255, 51, 153));
+    pub static ref MONOCLE: AtomicU32 =
+        AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(255, 51, 153))));
     /// The color of the border of a stack that has the focus.
-    pub static ref STACK: AtomicU32 = AtomicU32::new(pack(0, 165, 66));
+    pub static ref STACK: AtomicU32 = AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(0, 165, 66))));
     /// The color of the border of a floating window that has the focus.
-    pub static ref FLOATING: AtomicU32 = AtomicU32::new(pack(245, 245, 165));
+    pub static ref FLOATING: AtomicU32 =
+        AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(245, 245, 165))));
 }
 
 /// Returns the kind of border the stock border effect gives a window of this kind.
@@ -170,11 +177,8 @@ pub fn window_colours(wm: &WindowManager) -> Vec<(u32, u32)> {
     window_kinds(wm)
         .into_iter()
         .map(|(id, kind)| {
-            let (r, g, b) = unpack(kind_colour(kind));
-            (
-                id,
-                (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b),
-            )
+            let rgb = Rgb::from(kind_colour(kind));
+            (id, (rgb.r << 16) | (rgb.g << 8) | rgb.b)
         })
         .collect()
 }
@@ -197,29 +201,6 @@ pub fn update_colours(wm: &WindowManager) {
     }
 }
 
-/// Returns a color as the statics store it: red in the low byte, then green, then blue.
-///
-/// ```rust
-/// use komorebi::border_manager::pack;
-/// use komorebi::border_manager::unpack;
-///
-/// assert_eq!(pack(1, 2, 3), 0x030201);
-/// assert_eq!(unpack(pack(66, 165, 245)), (66, 165, 245));
-/// ```
-pub const fn pack(r: u32, g: u32, b: u32) -> u32 {
-    r | (g << 8) | (b << 16)
-}
-
-/// Returns the red, green and blue of a color as the statics store it. The bits above the third
-/// byte are dropped.
-pub const fn unpack(colour: u32) -> (u8, u8, u8) {
-    (
-        (colour & 0xff) as u8,
-        ((colour >> 8) & 0xff) as u8,
-        ((colour >> 16) & 0xff) as u8,
-    )
-}
-
 /// Whether the compositor is drawing the borders, as the backend last answered
 /// [`send_notification`].
 ///
@@ -235,11 +216,11 @@ pub static BORDER_DRAWN: AtomicBool = AtomicBool::new(false);
 ///
 /// ```rust
 /// use komorebi::border_manager::look;
-/// use komorebi::border_manager::pack;
 /// use komorebi::core::animation::AnimationStyle;
+/// use komorebi_themes::colour::Rgb;
 ///
-/// let blue = pack(66, 165, 245);
-/// let grey = pack(128, 128, 128);
+/// let blue = u32::from(Rgb::new(66, 165, 245));
+/// let grey = u32::from(Rgb::new(128, 128, 128));
 ///
 /// let on = look(
 ///     true,
@@ -265,12 +246,17 @@ pub fn look(
     unfocused: u32,
     animation: Option<(u64, AnimationStyle)>,
 ) -> Look {
+    let rgb = |colour: u32| {
+        let rgb = Rgb::from(colour);
+        (rgb.r as u8, rgb.g as u8, rgb.b as u8)
+    };
+
     Look {
         border: enabled.then(|| BorderLook {
             width: width.max(0),
             radius: radius.max(0),
-            focused: unpack(focused),
-            unfocused: unpack(unfocused),
+            focused: rgb(focused),
+            unfocused: rgb(unfocused),
         }),
         animation: animation.map(|(duration_ms, style)| AnimationLook {
             duration_ms,
@@ -326,8 +312,8 @@ mod tests {
 
     #[test]
     fn the_stored_colours_become_red_green_and_blue() {
-        let blue = pack(66, 165, 245);
-        let grey = pack(128, 128, 128);
+        let blue: u32 = Colour::Rgb(Rgb::new(66, 165, 245)).into();
+        let grey: u32 = Colour::Rgb(Rgb::new(128, 128, 128)).into();
 
         let look = look(true, 10, 12, blue, grey, None);
         let border = look.border.unwrap();

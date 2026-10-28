@@ -17,6 +17,7 @@ use crate::core::animation::AnimationStyle;
 use crate::core::pathext::ResolvedPathBuf;
 use clap::ValueEnum;
 use color_eyre::eyre;
+use komorebi_themes::KomorebiTheme;
 use serde::Deserialize;
 use serde::Serialize;
 use std::num::NonZeroUsize;
@@ -291,8 +292,8 @@ pub enum StateQuery {
 /// sent a notification for every event and message the window manager handles. With
 /// `filter_state_changes`, it is sent one only when the event or the message changed the
 /// [`State`](crate::state::State), and always when a window is shown, when a subscriber is added
-/// (so a new subscriber receives the state as soon as it subscribes) and when the configuration is
-/// reloaded.
+/// (so a new subscriber receives the state as soon as it subscribes), when a theme is set (the
+/// colors of the borders are not part of the state) and when the configuration is reloaded.
 ///
 /// # Example
 ///
@@ -473,6 +474,7 @@ pub enum SocketMessage {
     // WatchConfiguration(bool),
     // CompleteConfiguration,
     // AltFocusHack(bool),
+    Theme(Box<KomorebiTheme>),
     Transparency(bool),
     ToggleTransparency,
     TransparencyAlpha(u8),

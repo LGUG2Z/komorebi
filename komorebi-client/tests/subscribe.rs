@@ -25,6 +25,9 @@ use komorebi_client::SubscribeOptions;
 use komorebi_client::send_query;
 use komorebi_client::subscribe;
 use komorebi_client::subscribe_with_options;
+use komorebi_themes::Catppuccin;
+use komorebi_themes::KomorebiTheme;
+use komorebi_themes::KomorebiThemeCatppuccin;
 use parking_lot::Mutex;
 use std::io::ErrorKind;
 use std::io::Read;
@@ -246,6 +249,37 @@ fn a_subscriber_that_filters_state_changes_is_not_sent_what_changed_nothing()
     assert!(!on_the_workspace(&received[1], 911));
     let received = everything.until(minimized(911));
     assert!(is_state(&received[0]), "{received:?}");
+    Ok(())
+}
+
+#[test]
+fn a_subscriber_that_filters_state_changes_is_sent_a_theme()
+-> Result<(), Box<dyn std::error::Error>> {
+    let (_turn, _daemon) = daemon();
+    let options = SubscribeOptions {
+        filter_state_changes: true,
+    };
+    let filtered = Subscriber::new("theme.sock", subscribe_with_options("theme.sock", options)?);
+    filtered.subscribed();
+
+    // the colors of the borders are not part of the state, so the state is the same after a theme
+    // as before it; a message that changes nothing else is not sent
+    send_query(&SocketMessage::State)?;
+    let theme = KomorebiTheme::Catppuccin(KomorebiThemeCatppuccin {
+        name: Catppuccin::Mocha,
+        bar_accent: None,
+        single_border: None,
+        stack_border: None,
+        monocle_border: None,
+        floating_border: None,
+        unfocused_border: None,
+        unfocused_locked_border: None,
+    });
+    send_query(&SocketMessage::Theme(Box::new(theme)))?;
+
+    let received =
+        filtered.until(|event| matches!(event, NotificationEvent::Socket(SocketMessage::Theme(_))));
+    assert_eq!(received.len(), 1, "{received:?}");
     Ok(())
 }
 

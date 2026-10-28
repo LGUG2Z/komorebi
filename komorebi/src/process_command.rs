@@ -248,6 +248,7 @@ use crate::notify_subscribers;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
+use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
 use crate::window::Window;
@@ -258,6 +259,7 @@ use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
+use komorebi_themes::colour::Rgb;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fs::File;
@@ -424,7 +426,11 @@ impl WindowManager {
         message: SocketMessage,
         mut reply: impl std::io::Write,
     ) -> eyre::Result<()> {
-        tracing::info!("processing command: {message}");
+        if matches!(message, SocketMessage::Theme(_)) {
+            tracing::trace!("processing command: {message}");
+        } else {
+            tracing::info!("processing command: {message}");
+        }
 
         // a window that is maximized (by `toggle-maximize`) is not in the layout, and what is
         // asked of the layout is not asked of it: nothing happens until it is restored, by
@@ -1990,6 +1996,9 @@ impl WindowManager {
                     border_manager::destroy_all_borders()?;
                 }
             }
+            SocketMessage::Theme(ref theme) => {
+                theme_manager::send_notification(*theme.clone());
+            }
             SocketMessage::Transparency(enable) => {
                 transparency_manager::TRANSPARENCY_ENABLED.store(enable, Ordering::SeqCst);
             }
@@ -2002,24 +2011,23 @@ impl WindowManager {
             }
             SocketMessage::BorderColour(kind, r, g, b) => match kind {
                 WindowKind::Single => {
-                    border_manager::FOCUSED.store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                    border_manager::FOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
                 WindowKind::Stack => {
-                    border_manager::STACK.store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                    border_manager::STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
                 WindowKind::Monocle => {
-                    border_manager::MONOCLE.store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                    border_manager::MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
                 WindowKind::Unfocused => {
-                    border_manager::UNFOCUSED
-                        .store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                    border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
                 WindowKind::UnfocusedLocked => {
                     border_manager::UNFOCUSED_LOCKED
-                        .store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                        .store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
                 WindowKind::Floating => {
-                    border_manager::FLOATING.store(border_manager::pack(r, g, b), Ordering::SeqCst);
+                    border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
             },
             SocketMessage::BorderWidth(width) => {
@@ -2081,7 +2089,11 @@ impl WindowManager {
         border_manager::update_colours(self);
         transparency_manager::apply(self);
 
-        tracing::info!("processed command: {message}");
+        if matches!(message, SocketMessage::Theme(_)) {
+            tracing::trace!("processed command: {message}");
+        } else {
+            tracing::info!("processed command: {message}");
+        }
 
         Ok(())
     }

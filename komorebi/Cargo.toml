@@ -5,12 +5,14 @@ description = "A tiling window manager for KDE Plasma"
 edition = "2024"
 
 [dependencies]
+komorebi-themes = { workspace = true }
 komorebi-layouts = { workspace = true }
 version = { path = "../version" }
 
 clap = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
+crossbeam-utils = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
 hotwatch = { workspace = true }

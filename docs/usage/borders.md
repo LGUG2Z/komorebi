@@ -90,6 +90,19 @@ starts and when the file changes; a key it leaves out leaves the setting as it i
 }
 ```
 
+`border_colours` sets the colors of the kinds of window above, each as red, green and blue or as
+a hex color, and leaves out the kinds it does not name. A [theme](themes.md), which the
+`theme` key of the file gives too, replaces them.
+
+```json
+{
+  "border_colours": {
+    "single": { "r": 255, "g": 128, "b": 0 },
+    "unfocused": "#404040"
+  }
+}
+```
+
 ## What is put back
 
 The effect keeps its settings in the user's `kwinrc`, in the group `[Round-Corners]`. komorebi

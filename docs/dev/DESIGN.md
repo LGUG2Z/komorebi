@@ -481,6 +481,15 @@ which is KWin's setting for no delay between the pointer entering a window and t
 given the focus; why 0 and not the delay KWin has by default is not written down, and needs a
 reason.
 
+## Why is a palette kept by the hash of its picture?
+
+Because the name of a picture alone does not say which picture it is: two folders can each have a
+`wallpaper.png`, and one wallpaper can be painted over. A palette takes seconds to make for a
+large picture, so it is kept, in the user's cache directory (`~/.cache/komorebi`), where it
+outlives a login; the runtime directory, where the socket is, does not. The file is named after the
+picture, a hash of its path, size and time of last change, and the variant. A palette that cannot
+be kept is made again the next time. komorebi for Windows keeps them by file name alone.
+
 ## Why are the effects patched?
 
 Because the stock effects lack what komorebi needs of them. Each patch leaves the effect

@@ -13,6 +13,7 @@ use komorebi::border_manager;
 use komorebi::core::SocketMessage;
 use komorebi::core::WindowKind;
 use komorebi::window_manager::WindowManager;
+use komorebi_themes::colour::Rgb;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -68,10 +69,8 @@ fn the_border_messages_set_the_border_and_the_compositor_is_asked_for_it() {
         (border.focused, border.unfocused),
         ((10, 20, 30), (40, 50, 60))
     );
-    assert_eq!(
-        border_manager::unpack(border_manager::FLOATING.load(Ordering::SeqCst)),
-        (70, 80, 90)
-    );
+    let floating = Rgb::from(border_manager::FLOATING.load(Ordering::SeqCst));
+    assert_eq!((floating.r, floating.g, floating.b), (70, 80, 90));
 
     send(&mut wm, SocketMessage::Border(false));
     assert_eq!(last_look(), Look::default());

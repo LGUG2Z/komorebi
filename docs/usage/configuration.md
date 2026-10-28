@@ -38,8 +38,9 @@ trailing commas.
 Reading the file again sets every setting of the daemon from it, and a key the file leaves out is
 the default of the setting: a `resize-delta` given with a command is gone when the file changes.
 These stay as they were when the file leaves them out: `default_workspace_padding`,
-`default_container_padding`, `display_index_preferences`, the four settings of the borders and the
-animation, when the file has no `animation`. The rules add up, as
+`default_container_padding`, `display_index_preferences`, the four settings of the borders, each
+color of `border_colours` the file does not name, the theme and the animation, when the file has no
+`animation`. The rules add up, as
 [Rules](#rules) says. A workspace the file lists gets its name, padding, offsets and rules from
 its entry, and its layout when the entry names one; a workspace the file does not list is left as
 it is.
@@ -101,6 +102,8 @@ can have values of their own, which come before the default.
 | `border_width` | `10` | How thick the border is, in pixels (`active_window_border_width`) |
 | `border_offset` | `0` | How much more room than the width the layout leaves around each window (`active_window_border_offset`) |
 | `border_radius` | `10` | How round the corners of the border are, in pixels |
+| `border_colours` | see [Borders](borders.md#colors) | The color of the border of each kind of window: `single`, `stack`, `monocle`, `floating`, `unfocused` and `unfocused_locked`, each as `{ "r": 66, "g": 165, "b": 245 }` or `"#42A5F5"` (`active_window_border_colours`). A theme replaces them |
+| `theme` | none | A theme that gives every kind of border its color: a Catppuccin theme, a Base16 scheme or a palette of your own ([Themes](themes.md)). It wins over `border_colours` |
 
 [Borders](borders.md) explains what the compositor draws and what the layout leaves room for.
 `komorebic border`, `border-width` and `border-offset` change the first three while the daemon

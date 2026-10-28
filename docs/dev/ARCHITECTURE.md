@@ -363,12 +363,13 @@ notified.
 its socket, writes the JSON and closes the connection, all on the thread that handled the
 event or the message, with the window manager still locked. A subscriber with
 `filter_state_changes` is skipped when the state did not change, unless the notification is
-about a window being shown or a subscriber being added. A subscriber that cannot be
-connected to is removed, with its socket file, after the loop. Writing to a subscriber that
-was connected to has no timeout, and a failed write returns an error from the call that
-handled the event or the message. A subscriber that stops reading therefore holds the window
-manager, and with it the thread that handles events: the backend's events wait in the
-channel of [`window_manager_event_listener`], and past 20 the backend drops them.
+about a window being shown, a subscriber being added, a theme being set (the colors of the
+borders are not part of the state) or the configuration being reloaded. A subscriber that
+cannot be connected to is removed, with its socket file, after the loop. Writing to a
+subscriber that was connected to has no timeout, and a failed write returns an error from the
+call that handled the event or the message. A subscriber that stops reading therefore holds
+the window manager, and with it the thread that handles events: the backend's events wait in
+the channel of [`window_manager_event_listener`], and past 20 the backend drops them.
 
 When the daemon stops ([`WindowManager::stop`], or `SIGINT` and `SIGTERM` in `main.rs`), it
 connects to each subscriber and shuts the connection down without writing anything.
@@ -824,6 +825,23 @@ once, when the effect is the stock one: every border is then the focused or the 
 the look.
 [PLATFORM.md](PLATFORM.md#kwin-effects) has the effect, its settings and what was measured.
 
+## Themes
+
+A theme gives the borders their colors. The `Theme` message carries a [`KomorebiTheme`]: a
+Catppuccin theme, a Base16 theme or a Base16 palette, each with the color it gives to each of the
+six kinds of border, and a default for the ones it does not name.
+[`theme_manager::send_notification`] puts the six colors into the statics of [`border_manager`],
+keeps the theme as [`theme_manager::CURRENT_THEME`] and asks the backend for the look again, on
+the thread that handled the message; [`border_manager::update_colours`] hands them to the border
+effect with the next event or message. The palette of a picture is made by
+`komorebi-themes` ([`komorebi_themes::generate_base16_palette`]), which takes seconds, so
+[`theme_manager::wallpaper_palette`] keeps each palette it makes in `komorebi` in the user's cache
+directory, in a file named by [`theme_manager::palette_file`] for the picture, a hash of its path,
+size and time of last change, and the variant: a picture that was painted over, or one of the same
+name in another folder, has a palette of its own. A picture it cannot make a palette from (it
+cannot be read, or has fewer than eight colors) has none, and the borders keep their colors.
+[DESIGN.md](DESIGN.md#why-is-a-palette-kept-by-the-hash-of-its-picture) has the reason.
+
 ## Transparency
 
 The opacity of a window is a property KWin has, so komorebi sets it ([`Backend::set_opacity`],
@@ -953,6 +971,8 @@ module's unit.
 - [`border_manager`](../../komorebi/src/border_manager/mod.rs): the border settings, and the
   [`Look`] they make, which it asks the backend for.
 - [`animation`](../../komorebi/src/animation/mod.rs): the animation settings, which the look has.
+- [`theme_manager`](../../komorebi/src/theme_manager.rs): a theme's colors for the borders, and the
+  palettes made from pictures.
 - [`transparency_manager`](../../komorebi/src/transparency_manager.rs): which windows are
   see-through, and the opacity they are given.
 - [`kwin::effects`](../../komorebi/src/kwin/effects.rs): the KWin effect that draws the border,
@@ -1106,6 +1126,9 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | Every style is a curve Qt has | test: [`AnimationStyle::qt_curve`] is a `match` of every style, and the test checks each against its name without the "Ease" | `every_style_is_a_curve_qt_has`, the doctest of `qt_curve`, `vm-features` (section D: two curves are in different places at the same moment) | a cubic Bézier is an ease out |
 | Only the windows the rules make see-through are, and only while transparency is on | framework path: [`transparency_manager::apply`] asks [`transparency_manager::transparent_windows`] and sends the difference from [`WindowManager::opacity_applied`] | `unfocused_windows_are_transparent_and_the_focused_one_is_not`, `turning_transparency_off_makes_everything_opaque_again`, `a_monocled_window_is_not_transparent`, `windows_the_rules_ignore_keep_their_opacity`, `vm-features` (section B) | none |
 | The `transparency` keys of the file are the settings, and a key the file leaves out has the default | framework path: `StaticConfig::apply_globals` stores `transparency` and `transparency_alpha` whether the file has them or not, and adds the ignore rules to `TRANSPARENCY_BLACKLIST` | `the_transparency_keys_of_the_file_are_the_transparency_settings` | none |
+| A theme gives every kind of border a color, the one it names or the theme's default | framework path: [`theme_manager::send_notification`] stores a color for each of the six kinds, from the theme's own defaults for the ones the message does not name | `a_named_theme_colours_every_kind_of_border` | none |
+| The `border_colours` of the file are the border colors, and a theme in the file wins over them | framework path: `StaticConfig::apply_globals` stores each color the file names, and then calls [`theme_manager::send_notification`] for the `theme` | `the_colour_and_theme_keys_of_the_file_are_the_border_colours` | none |
+| A picture's palette is made again when the picture changes, and is not mistaken for another picture's | framework path: [`theme_manager::palette_file`] names the file by a hash of the picture's path, size and time of last change, and the variant | the doctest of `palette_file` | the hash is not a proof of identity |
 | A window komorebi made see-through is opaque again when komorebi exits | framework path: [`WindowManager::stop`] and `main.rs` call [`transparency_manager::restore`] | `what_komorebi_made_see_through_is_opaque_again_when_it_exits` | `SIGKILL`: the windows stay as they were drawn |
 | What the backend sends for an opacity is what the bridge sets | tests: the `opacity` command of [`fixtures`] is what the backend's test sends and what the bridge's test answers with, checking the window's `opacity` | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a window is given the opacity it is asked for, and one KWin has not got is given back` | none |
 | The user's focus policy is put back when focus follows mouse is turned off and when komorebi exits | framework path: [`Kwinrc`] records the first value of each key it sets, `set_focus_follows_mouse(false)` puts the two keys back with [`Kwinrc::restore_keys`] and `shutdown` puts back all | `one_key_can_be_put_back_while_the_others_in_its_group_stay_changed`, `what_komorebi_changed_is_put_back_exactly_and_what_it_added_is_removed`, `vm-focus-follows-mouse` | `SIGKILL`: the next run puts it back when it stops |
@@ -1247,7 +1270,9 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/animation.rs`](../../komorebi/tests/animation.rs), the messages that set the
   animation, [`komorebi/tests/animation_config.rs`](../../komorebi/tests/animation_config.rs), its
   key of the file, and [`komorebi/tests/animation_stack.rs`](../../komorebi/tests/animation_stack.rs),
-  the stack commands that turn it off; [`komorebi/tests/focus_follows_mouse.rs`](../../komorebi/tests/focus_follows_mouse.rs),
+  the stack commands that turn it off; [`komorebi/tests/themes.rs`](../../komorebi/tests/themes.rs),
+  a named theme and [`komorebi/tests/theme_config.rs`](../../komorebi/tests/theme_config.rs), the
+  colors and the theme of the file; [`komorebi/tests/focus_follows_mouse.rs`](../../komorebi/tests/focus_follows_mouse.rs),
   focus follows mouse; [`komorebi/tests/transparency.rs`](../../komorebi/tests/transparency.rs)
   and [`komorebi/tests/transparency_config.rs`](../../komorebi/tests/transparency_config.rs),
   transparency and its keys of the file; [`komorebi/tests/border_colours.rs`](../../komorebi/tests/border_colours.rs) and
@@ -1343,6 +1368,12 @@ A window is shown, and ends up on a tile:
 [`border_manager::send_notification`]: ../../komorebi/src/border_manager/mod.rs
 [`BORDER_DRAWN`]: ../../komorebi/src/border_manager/mod.rs
 [`animation`]: ../../komorebi/src/animation/mod.rs
+[`KomorebiTheme`]: ../../komorebi/src/core/mod.rs
+[`theme_manager::send_notification`]: ../../komorebi/src/theme_manager.rs
+[`theme_manager::CURRENT_THEME`]: ../../komorebi/src/theme_manager.rs
+[`theme_manager::wallpaper_palette`]: ../../komorebi/src/theme_manager.rs
+[`theme_manager::palette_file`]: ../../komorebi/src/theme_manager.rs
+[`komorebi_themes::generate_base16_palette`]: https://github.com/LGUG2Z/komorebi/tree/f08aa55511d77ca56ab0e789efabeb0a237a463e/komorebi-themes
 [`WindowManager::focus_follows_mouse`]: ../../komorebi/src/window_manager.rs
 [`Backend::set_focus_follows_mouse`]: ../../komorebi/src/backend/mod.rs
 [`Kwinrc::restore_keys`]: ../../komorebi/src/kwin/kwinrc.rs

@@ -2,7 +2,7 @@
 //! ships (`docs/komorebi.example.json`) and files of komorebi for Windows, which has keys that
 //! mean nothing on KDE Plasma. Every fixture must deserialize with [`StaticConfig`], round-trip
 //! through its serializer, and lose only the top-level keys that are Windows-only
-//! ([`WINDOWS_ONLY`]) or that are read once the feature they configure is there ([`NOT_YET`]).
+//! ([`WINDOWS_ONLY`]).
 //! Run with `--nocapture` to see exactly which paths each config has silently dropped.
 //!
 //! Extra configs (for example your own) can be checked without copying them into the repo:
@@ -37,16 +37,6 @@ const WINDOWS_ONLY: &[&str] = &[
     "tray_and_multi_window_applications",
     "window_handling_behaviour",
     "window_hiding_behaviour",
-];
-
-/// Top-level fields that `StaticConfig` has when the feature they configure is there, and that are
-/// ignored until then. Each comment says which commit of the plan brings the feature, and takes
-/// the key off this list.
-const NOT_YET: &[&str] = &[
-    // a color for each kind of window's border, whose type is komorebi-themes' (49)
-    "border_colours",
-    // themes (49)
-    "theme",
 ];
 
 fn repo_root() -> PathBuf {
@@ -114,7 +104,7 @@ fn dropped(input: &Value, output: &Value, path: &str, out: &mut Vec<String>) {
 
 #[test]
 fn fixtures_load_round_trip_and_only_lose_windows_only_keys() {
-    let windows_only: BTreeSet<&str> = WINDOWS_ONLY.iter().chain(NOT_YET).copied().collect();
+    let windows_only: BTreeSet<&str> = WINDOWS_ONLY.iter().copied().collect();
     let files = fixtures();
     assert!(
         files.len() >= 3,
@@ -158,7 +148,7 @@ fn fixtures_load_round_trip_and_only_lose_windows_only_keys() {
             .collect();
         assert!(
             unexpected.is_empty(),
-            "{name}: dropped top-level keys that are neither Windows-only nor not yet read: {unexpected:?}"
+            "{name}: dropped top-level keys that are not Windows-only: {unexpected:?}"
         );
     }
 }
@@ -180,7 +170,6 @@ fn the_lists_name_no_key_that_is_read() {
 
     let stale: Vec<_> = WINDOWS_ONLY
         .iter()
-        .chain(NOT_YET)
         .filter(|key| read.contains(**key))
         .collect();
 

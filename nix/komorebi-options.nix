@@ -1,4 +1,4 @@
-# schema-sha256: c001e5dc47908d250a272d3be32faaccd8e0b57629a62a0537d7880a53183ae5
+# schema-sha256: 475a8bc02a8f0e0e68cc0fbb41bd949ff7743feda00fac5c4bf02565d2848561
 { lib, ... }:
 let
   animationStyle = (
@@ -44,6 +44,77 @@ let
           };
         };
       })
+    ]
+  );
+  base16Value = (
+    lib.types.enum [
+      "Base00"
+      "Base01"
+      "Base02"
+      "Base03"
+      "Base04"
+      "Base05"
+      "Base06"
+      "Base07"
+      "Base08"
+      "Base09"
+      "Base0A"
+      "Base0B"
+      "Base0C"
+      "Base0D"
+      "Base0E"
+      "Base0F"
+    ]
+  );
+  catppuccinValue = (
+    lib.types.enum [
+      "Rosewater"
+      "Flamingo"
+      "Pink"
+      "Mauve"
+      "Red"
+      "Maroon"
+      "Peach"
+      "Yellow"
+      "Green"
+      "Teal"
+      "Sky"
+      "Sapphire"
+      "Blue"
+      "Lavender"
+      "Text"
+      "Subtext1"
+      "Subtext0"
+      "Overlay2"
+      "Overlay1"
+      "Overlay0"
+      "Surface2"
+      "Surface1"
+      "Surface0"
+      "Base"
+      "Mantle"
+      "Crust"
+    ]
+  );
+  colour = (
+    lib.types.oneOf [
+      (lib.types.submodule {
+        options = {
+          b = lib.mkOption {
+            type = lib.types.int;
+            description = "Blue";
+          };
+          g = lib.mkOption {
+            type = lib.types.int;
+            description = "Green";
+          };
+          r = lib.mkOption {
+            type = lib.types.int;
+            description = "Red";
+          };
+        };
+      })
+      lib.types.str
     ]
   );
   defaultLayout = (
@@ -291,6 +362,48 @@ in
           type = (lib.types.nullOr lib.types.bool);
           default = true;
           description = "Display window borders";
+        };
+        border_colours = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.submodule {
+                options = {
+                  floating = lib.mkOption {
+                    type = (lib.types.nullOr colour);
+                    default = null;
+                    description = "Border colour when the container is in floating mode";
+                  };
+                  monocle = lib.mkOption {
+                    type = (lib.types.nullOr colour);
+                    default = null;
+                    description = "Border colour when the container is in monocle mode";
+                  };
+                  single = lib.mkOption {
+                    type = (lib.types.nullOr colour);
+                    default = null;
+                    description = "Border colour when the container contains a single window";
+                  };
+                  stack = lib.mkOption {
+                    type = (lib.types.nullOr colour);
+                    default = null;
+                    description = "Border colour when the container contains multiple windows";
+                  };
+                  unfocused = lib.mkOption {
+                    type = (lib.types.nullOr colour);
+                    default = null;
+                    description = "Border colour when the container is unfocused";
+                  };
+                  unfocused_locked = lib.mkOption {
+                    type = (lib.types.nullOr colour);
+                    default = null;
+                    description = "Border colour when the container is unfocused and locked";
+                  };
+                };
+              }
+            )
+          );
+          default = null;
+          description = "Window border colours for different container types (has no effect if a theme is defined)";
         };
         border_offset = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
@@ -634,6 +747,465 @@ in
           type = (lib.types.nullOr (lib.types.listOf lib.types.str));
           default = null;
           description = "Accepted so that a configuration written for another platform loads, and ignored: a KWin\nwindow has no native tabs";
+        };
+        theme = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.submodule {
+                options = {
+                  palette = lib.mkOption {
+                    type = (
+                      lib.types.enum [
+                        "Catppuccin"
+                        "Base16"
+                        "Custom"
+                      ]
+                    );
+                  };
+                  monocle_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  colours = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.submodule {
+                          options = {
+                            base_00 = lib.mkOption {
+                              type = colour;
+                              description = "Base00";
+                            };
+                            base_01 = lib.mkOption {
+                              type = colour;
+                              description = "Base01";
+                            };
+                            base_02 = lib.mkOption {
+                              type = colour;
+                              description = "Base02";
+                            };
+                            base_03 = lib.mkOption {
+                              type = colour;
+                              description = "Base03";
+                            };
+                            base_04 = lib.mkOption {
+                              type = colour;
+                              description = "Base04";
+                            };
+                            base_05 = lib.mkOption {
+                              type = colour;
+                              description = "Base05";
+                            };
+                            base_06 = lib.mkOption {
+                              type = colour;
+                              description = "Base06";
+                            };
+                            base_07 = lib.mkOption {
+                              type = colour;
+                              description = "Base07";
+                            };
+                            base_08 = lib.mkOption {
+                              type = colour;
+                              description = "Base08";
+                            };
+                            base_09 = lib.mkOption {
+                              type = colour;
+                              description = "Base09";
+                            };
+                            base_0a = lib.mkOption {
+                              type = colour;
+                              description = "Base0A";
+                            };
+                            base_0b = lib.mkOption {
+                              type = colour;
+                              description = "Base0B";
+                            };
+                            base_0c = lib.mkOption {
+                              type = colour;
+                              description = "Base0C";
+                            };
+                            base_0d = lib.mkOption {
+                              type = colour;
+                              description = "Base0D";
+                            };
+                            base_0e = lib.mkOption {
+                              type = colour;
+                              description = "Base0E";
+                            };
+                            base_0f = lib.mkOption {
+                              type = colour;
+                              description = "Base0F";
+                            };
+                          };
+                        }
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_locked_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  name = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.enum [
+                            "Frappe"
+                            "Latte"
+                            "Macchiato"
+                            "Mocha"
+                          ])
+                          (lib.types.enum [
+                            "3024"
+                            "Apathy"
+                            "Apprentice"
+                            "Ashes"
+                            "AtelierCaveLight"
+                            "AtelierCave"
+                            "AtelierDuneLight"
+                            "AtelierDune"
+                            "AtelierEstuaryLight"
+                            "AtelierEstuary"
+                            "AtelierForestLight"
+                            "AtelierForest"
+                            "AtelierHeathLight"
+                            "AtelierHeath"
+                            "AtelierLakesideLight"
+                            "AtelierLakeside"
+                            "AtelierPlateauLight"
+                            "AtelierPlateau"
+                            "AtelierSavannaLight"
+                            "AtelierSavanna"
+                            "AtelierSeasideLight"
+                            "AtelierSeaside"
+                            "AtelierSulphurpoolLight"
+                            "AtelierSulphurpool"
+                            "Atlas"
+                            "AyuDark"
+                            "AyuLight"
+                            "AyuMirage"
+                            "Aztec"
+                            "Bespin"
+                            "BlackMetalBathory"
+                            "BlackMetalBurzum"
+                            "BlackMetalDarkFuneral"
+                            "BlackMetalGorgoroth"
+                            "BlackMetalImmortal"
+                            "BlackMetalKhold"
+                            "BlackMetalMarduk"
+                            "BlackMetalMayhem"
+                            "BlackMetalNile"
+                            "BlackMetalVenom"
+                            "BlackMetal"
+                            "Blueforest"
+                            "Blueish"
+                            "Brewer"
+                            "Bright"
+                            "Brogrammer"
+                            "BrushtreesDark"
+                            "Brushtrees"
+                            "Caroline"
+                            "CatppuccinFrappe"
+                            "CatppuccinLatte"
+                            "CatppuccinMacchiato"
+                            "CatppuccinMocha"
+                            "Chalk"
+                            "Circus"
+                            "ClassicDark"
+                            "ClassicLight"
+                            "Codeschool"
+                            "Colors"
+                            "Cupcake"
+                            "Cupertino"
+                            "DaOneBlack"
+                            "DaOneGray"
+                            "DaOneOcean"
+                            "DaOnePaper"
+                            "DaOneSea"
+                            "DaOneWhite"
+                            "DanqingLight"
+                            "Danqing"
+                            "Darcula"
+                            "Darkmoss"
+                            "Darktooth"
+                            "Darkviolet"
+                            "Decaf"
+                            "DefaultDark"
+                            "DefaultLight"
+                            "Dirtysea"
+                            "Dracula"
+                            "EdgeDark"
+                            "EdgeLight"
+                            "Eighties"
+                            "EmbersLight"
+                            "Embers"
+                            "Emil"
+                            "EquilibriumDark"
+                            "EquilibriumGrayDark"
+                            "EquilibriumGrayLight"
+                            "EquilibriumLight"
+                            "Eris"
+                            "Espresso"
+                            "EvaDim"
+                            "Eva"
+                            "EvenokDark"
+                            "EverforestDarkHard"
+                            "Everforest"
+                            "Flat"
+                            "Framer"
+                            "FruitSoda"
+                            "Gigavolt"
+                            "Github"
+                            "GoogleDark"
+                            "GoogleLight"
+                            "Gotham"
+                            "GrayscaleDark"
+                            "GrayscaleLight"
+                            "Greenscreen"
+                            "Gruber"
+                            "GruvboxDarkHard"
+                            "GruvboxDarkMedium"
+                            "GruvboxDarkPale"
+                            "GruvboxDarkSoft"
+                            "GruvboxLightHard"
+                            "GruvboxLightMedium"
+                            "GruvboxLightSoft"
+                            "GruvboxMaterialDarkHard"
+                            "GruvboxMaterialDarkMedium"
+                            "GruvboxMaterialDarkSoft"
+                            "GruvboxMaterialLightHard"
+                            "GruvboxMaterialLightMedium"
+                            "GruvboxMaterialLightSoft"
+                            "Hardcore"
+                            "Harmonic16Dark"
+                            "Harmonic16Light"
+                            "HeetchLight"
+                            "Heetch"
+                            "Helios"
+                            "Hopscotch"
+                            "HorizonDark"
+                            "HorizonLight"
+                            "HorizonTerminalDark"
+                            "HorizonTerminalLight"
+                            "HumanoidDark"
+                            "HumanoidLight"
+                            "IaDark"
+                            "IaLight"
+                            "Icy"
+                            "Irblack"
+                            "Isotope"
+                            "Jabuti"
+                            "Kanagawa"
+                            "Katy"
+                            "Kimber"
+                            "Lime"
+                            "Macintosh"
+                            "Marrakesh"
+                            "Materia"
+                            "MaterialDarker"
+                            "MaterialLighter"
+                            "MaterialPalenight"
+                            "MaterialVivid"
+                            "Material"
+                            "MeasuredDark"
+                            "MeasuredLight"
+                            "MellowPurple"
+                            "MexicoLight"
+                            "Mocha"
+                            "Monokai"
+                            "Moonlight"
+                            "Mountain"
+                            "Nebula"
+                            "NordLight"
+                            "Nord"
+                            "Nova"
+                            "Ocean"
+                            "Oceanicnext"
+                            "OneLight"
+                            "OnedarkDark"
+                            "Onedark"
+                            "OutrunDark"
+                            "OxocarbonDark"
+                            "OxocarbonLight"
+                            "Pandora"
+                            "PapercolorDark"
+                            "PapercolorLight"
+                            "Paraiso"
+                            "Pasque"
+                            "Phd"
+                            "Pico"
+                            "Pinky"
+                            "Pop"
+                            "Porple"
+                            "PreciousDarkEleven"
+                            "PreciousDarkFifteen"
+                            "PreciousLightWarm"
+                            "PreciousLightWhite"
+                            "PrimerDarkDimmed"
+                            "PrimerDark"
+                            "PrimerLight"
+                            "Purpledream"
+                            "Qualia"
+                            "Railscasts"
+                            "Rebecca"
+                            "RosePineDawn"
+                            "RosePineMoon"
+                            "RosePine"
+                            "Saga"
+                            "Sagelight"
+                            "Sakura"
+                            "Sandcastle"
+                            "SelenizedBlack"
+                            "SelenizedDark"
+                            "SelenizedLight"
+                            "SelenizedWhite"
+                            "Seti"
+                            "ShadesOfPurple"
+                            "ShadesmearDark"
+                            "ShadesmearLight"
+                            "Shapeshifter"
+                            "SilkDark"
+                            "SilkLight"
+                            "Snazzy"
+                            "SolarflareLight"
+                            "Solarflare"
+                            "SolarizedDark"
+                            "SolarizedLight"
+                            "Spaceduck"
+                            "Spacemacs"
+                            "Sparky"
+                            "StandardizedDark"
+                            "StandardizedLight"
+                            "Stella"
+                            "StillAlive"
+                            "Summercamp"
+                            "SummerfruitDark"
+                            "SummerfruitLight"
+                            "SynthMidnightDark"
+                            "SynthMidnightLight"
+                            "Tango"
+                            "Tarot"
+                            "Tender"
+                            "TerracottaDark"
+                            "Terracotta"
+                            "TokyoCityDark"
+                            "TokyoCityLight"
+                            "TokyoCityTerminalDark"
+                            "TokyoCityTerminalLight"
+                            "TokyoNightDark"
+                            "TokyoNightLight"
+                            "TokyoNightMoon"
+                            "TokyoNightStorm"
+                            "TokyoNightTerminalDark"
+                            "TokyoNightTerminalLight"
+                            "TokyoNightTerminalStorm"
+                            "TokyodarkTerminal"
+                            "Tokyodark"
+                            "TomorrowNightEighties"
+                            "TomorrowNight"
+                            "Tomorrow"
+                            "Tube"
+                            "Twilight"
+                            "UnikittyDark"
+                            "UnikittyLight"
+                            "UnikittyReversible"
+                            "Uwunicorn"
+                            "Vesper"
+                            "Vice"
+                            "Vulcan"
+                            "Windows10Light"
+                            "Windows10"
+                            "Windows95Light"
+                            "Windows95"
+                            "WindowsHighcontrastLight"
+                            "WindowsHighcontrast"
+                            "WindowsNtLight"
+                            "WindowsNt"
+                            "Woodland"
+                            "XcodeDusk"
+                            "Zenbones"
+                            "Zenburn"
+                          ])
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  stack_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  floating_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  single_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  bar_accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                };
+              }
+            )
+          );
+          default = null;
+          description = "Theme configuration options\n\nIf a theme is specified, `border_colours` will have no effect";
         };
         titleless_applications = lib.mkOption {
           type = (lib.types.nullOr (lib.types.listOf lib.types.str));

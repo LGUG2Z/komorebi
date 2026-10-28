@@ -75,6 +75,7 @@ use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core::pathext::ResolvedPathBuf;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
@@ -85,6 +86,8 @@ use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_themes::KomorebiTheme;
+use komorebi_themes::colour::Colour;
 use parking_lot::Mutex;
 use regex::Regex;
 use serde::Deserialize;
@@ -97,6 +100,32 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Border colours for different container states
+///
+/// These options will have no effect if a `theme` is set
+pub struct BorderColours {
+    /// Border colour when the container contains a single window
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single: Option<Colour>,
+    /// Border colour when the container contains multiple windows
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stack: Option<Colour>,
+    /// Border colour when the container is in monocle mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monocle: Option<Colour>,
+    /// Border colour when the container is in floating mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating: Option<Colour>,
+    /// Border colour when the container is unfocused
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused: Option<Colour>,
+    /// Border colour when the container is unfocused and locked
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused_locked: Option<Colour>,
+}
 
 // serde_as must be before derive
 #[serde_with::serde_as]
@@ -445,6 +474,10 @@ pub struct StaticConfig {
     #[serde(alias = "active_window_border")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_ENABLED)))]
     pub border: Option<bool>,
+    /// Window border colours for different container types (has no effect if a theme is defined)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "active_window_border_colours")]
+    pub border_colours: Option<BorderColours>,
     // /// Active window border style (default: System)
     // #[serde(skip_serializing_if = "Option::is_none")]
     // #[serde(alias = "active_window_border_style")]
@@ -528,6 +561,11 @@ pub struct StaticConfig {
     /// Animations configuration options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub animation: Option<AnimationsConfig>,
+    /// Theme configuration options
+    ///
+    /// If a theme is specified, `border_colours` will have no effect
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme: Option<KomorebiTheme>,
     /// Aspect ratio to resize with when toggling floating mode for a window
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_window_aspect_ratio: Option<AspectRatio>,
@@ -605,6 +643,25 @@ impl From<&WindowManager> for StaticConfig {
             monitors.push(MonitorConfig::from(m));
         }
 
+        let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {
+            None
+        } else {
+            Option::from(BorderColours {
+                single: Option::from(Colour::from(border_manager::FOCUSED.load(Ordering::SeqCst))),
+                stack: Option::from(Colour::from(border_manager::STACK.load(Ordering::SeqCst))),
+                monocle: Option::from(Colour::from(border_manager::MONOCLE.load(Ordering::SeqCst))),
+                floating: Option::from(Colour::from(
+                    border_manager::FLOATING.load(Ordering::SeqCst),
+                )),
+                unfocused: Option::from(Colour::from(
+                    border_manager::UNFOCUSED.load(Ordering::SeqCst),
+                )),
+                unfocused_locked: Option::from(Colour::from(
+                    border_manager::UNFOCUSED_LOCKED.load(Ordering::SeqCst),
+                )),
+            })
+        };
+
         Self {
             // invisible_borders: None,
             resize_delta: Option::from(value.resize_delta),
@@ -642,6 +699,7 @@ impl From<&WindowManager> for StaticConfig {
             border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
             border_radius: Option::from(border_manager::BORDER_RADIUS.load(Ordering::SeqCst)),
             border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
+            border_colours,
             transparency: Option::from(
                 transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst),
             ),
@@ -682,6 +740,7 @@ impl From<&WindowManager> for StaticConfig {
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.read().clone()),
             // stackbar: None,
             animation: None,
+            theme: None,
             // slow_application_compensation_time: Option::from(
             //     SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
             // ),
@@ -794,6 +853,33 @@ impl StaticConfig {
 
         if let Some(border_enabled) = self.border {
             border_manager::BORDER_ENABLED.store(border_enabled, Ordering::SeqCst);
+        }
+
+        if let Some(colours) = &self.border_colours {
+            if let Some(single) = colours.single {
+                border_manager::FOCUSED.store(u32::from(single), Ordering::SeqCst);
+            }
+
+            if let Some(stack) = colours.stack {
+                border_manager::STACK.store(u32::from(stack), Ordering::SeqCst);
+            }
+
+            if let Some(monocle) = colours.monocle {
+                border_manager::MONOCLE.store(u32::from(monocle), Ordering::SeqCst);
+            }
+
+            if let Some(floating) = colours.floating {
+                border_manager::FLOATING.store(u32::from(floating), Ordering::SeqCst);
+            }
+
+            if let Some(unfocused) = colours.unfocused {
+                border_manager::UNFOCUSED.store(u32::from(unfocused), Ordering::SeqCst);
+            }
+
+            if let Some(unfocused_locked) = colours.unfocused_locked {
+                border_manager::UNFOCUSED_LOCKED
+                    .store(u32::from(unfocused_locked), Ordering::SeqCst);
+            }
         }
 
         // STYLE.store(self.border_style.unwrap_or_default());
@@ -940,6 +1026,10 @@ impl StaticConfig {
         //     }
         // }
         //
+        if let Some(theme) = &self.theme {
+            theme_manager::send_notification(theme.clone());
+        }
+
         if let Some(path) = &self.app_specific_configuration_path {
             match path {
                 AppSpecificConfigurationPath::Single(path) => handle_asc_file(

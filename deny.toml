@@ -16,15 +16,22 @@ ignore = [
   { id = "RUSTSEC-2026-0370", reason = "zvariant is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
   { id = "RUSTSEC-2026-0371", reason = "zbus_names is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
   { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
+  { id = "RUSTSEC-2024-0320", reason = "yaml-rust comes with serde_yaml 0.8 under flavours, which komorebi-themes makes palettes with; not using any yaml features from this library" },
+  { id = "RUSTSEC-2025-0056", reason = "adler comes with the image decoder under flavours, which komorebi-themes makes palettes with; only used for color palette generation" },
+  { id = "RUSTSEC-2026-0192", reason = "ttf-parser comes with the fonts of egui, which komorebi-themes pulls in for its theme types; komorebi draws no text" },
 ]
 
 [licenses]
 allow = [
   "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
   "CC0-1.0",
   "ISC",
   "MIT",
   "MPL-2.0",
+  "OFL-1.1",
+  "Ubuntu-font-1.0",
   "Unicode-3.0",
   "Zlib",
   "LicenseRef-Komorebi-2.0",
@@ -52,8 +59,18 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
+crate = "komorebi-themes"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
 crate = "version"
 expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "base16-egui-themes"
+expression = "MIT"
 license-files = []
 
 [bans]
@@ -67,4 +84,10 @@ external-default-features = "allow"
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = ["https://github.com/LGUG2Z/komorebi"]
+allow-git = [
+  "https://github.com/LGUG2Z/base16-egui-themes",
+  "https://github.com/LGUG2Z/base16_color_scheme",
+  "https://github.com/LGUG2Z/catppuccin-egui",
+  "https://github.com/LGUG2Z/flavours",
+  "https://github.com/LGUG2Z/komorebi",
+]

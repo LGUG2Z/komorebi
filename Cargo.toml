@@ -12,11 +12,14 @@ version = "0.1.0"
 komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "f08aa55511d77ca56ab0e789efabeb0a237a463e", features = [
   "schemars",
 ] }
+# the themes (and the palettes made from pictures), from the same upstream revision
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "f08aa55511d77ca56ab0e789efabeb0a237a463e" }
 
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = "0.6"
 crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
 dirs = "6"
 hotwatch = "0.5"
 lazy_static = "1"

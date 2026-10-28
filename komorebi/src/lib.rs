@@ -13,7 +13,7 @@
 //!
 //! On KDE Plasma the backend is [`kwin::KWinBackend`], which talks to a script it loads into KWin.
 //! The compositor also draws what the windows look like: [`border_manager`] asks the backend for
-//! the borders, [`animation`] holds how windows are animated going to their places, and
+//! the borders, [`theme_manager`] colors them from a theme, [`animation`] holds how windows are animated going to their places, and
 //! [`transparency_manager`] makes the windows that do not have the focus see-through.
 //!
 //! The daemon also listens on a socket, `komorebi.sock` in [`struct@DATA_DIR`], for the messages
@@ -69,6 +69,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod state;
 pub mod static_config;
+pub mod theme_manager;
 pub mod transparency_manager;
 pub mod window;
 pub mod window_manager;
@@ -263,7 +264,8 @@ pub struct Notification {
 /// Each subscriber is sent the notification as JSON on a new connection to its socket, which is
 /// closed after it. A subscriber with `filter_state_changes` in its [`SubscribeOptions`] is sent it
 /// only if `state_has_been_modified`, or if the notification is about a window being shown, a
-/// subscriber being added or the configuration being reloaded.
+/// subscriber being added, a theme being set (the colors of the borders are not part of the
+/// [`State`]) or the configuration being reloaded.
 ///
 /// A subscriber that cannot be connected to (its program has exited, or its socket was removed)
 /// is removed, with its socket file, and is not tried again: it has to subscribe again. The
@@ -323,6 +325,7 @@ pub fn notify_subscribers(
         notification.event,
         NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
             | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
+            | NotificationEvent::Socket(SocketMessage::Theme(_))
             | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_))
             | NotificationEvent::WindowManager(WindowManagerEvent::Show(_, _))
     );
