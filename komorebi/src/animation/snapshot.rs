@@ -8,8 +8,13 @@
 //! window of our own, which DWM can scale on the GPU like any other.
 
 use color_eyre::eyre;
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::OnceLock;
+use std::time::Duration;
+use std::time::Instant;
 use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::POINT;
@@ -67,6 +72,8 @@ const CORNER_RADIUS: i32 = 10;
 /// borders it has around it.
 pub struct Snapshot {
     bitmap: HBITMAP,
+    /// Where the pixels of the bitmap are, which is as long as the bitmap is
+    pixels: usize,
     pub width: i32,
     pub height: i32,
 }
@@ -309,6 +316,7 @@ impl Snapshot {
 
                 Self {
                     bitmap,
+                    pixels: pixels.as_ptr() as usize,
                     width: rendered.width,
                     height: rendered.height,
                 }
@@ -339,11 +347,132 @@ impl Snapshot {
 
             Self {
                 bitmap,
+                pixels: pixels.as_ptr() as usize,
                 width,
                 height,
             }
         }
     }
+
+    /// Another picture that is the same as this one
+    pub fn duplicate(&self) -> eyre::Result<Self> {
+        unsafe {
+            let screen = GetDC(None);
+            let dc = CreateCompatibleDC(Some(screen));
+
+            let result = create_dib(dc, self.width, self.height).map(|(bitmap, pixels)| {
+                let source = std::slice::from_raw_parts(
+                    self.pixels as *const u32,
+                    (self.width * self.height) as usize,
+                );
+                pixels.copy_from_slice(source);
+
+                Self {
+                    bitmap,
+                    pixels: pixels.as_ptr() as usize,
+                    width: self.width,
+                    height: self.height,
+                }
+            });
+
+            let _ = DeleteDC(dc);
+            ReleaseDC(None, screen);
+
+            result
+        }
+    }
+
+    fn bytes(&self) -> usize {
+        self.width as usize * self.height as usize * 4
+    }
+}
+
+/// How many pictures are kept of windows that left, at most
+const REMEMBERED_MAX: usize = 12;
+
+/// How much memory the pictures that are kept can take up, at most
+const REMEMBERED_MAX_BYTES: usize = 256 * 1024 * 1024;
+
+/// How long a picture is kept: what a window looked like that long ago is not
+/// what it looks like now, and the window is not shown for long as it was.
+const REMEMBERED_MAX_AGE: Duration = Duration::from_secs(10 * 60);
+
+/// How much bigger or smaller than a window a picture of it can be, in pixels,
+/// and be shown in its place: it is not scaled to anything much different
+const REMEMBERED_SIZE_TOLERANCE: i32 = 4;
+
+/// The pictures of windows as they left, for the ghosts of them to show when
+/// they are back. A window that is hidden is not to be asked to render itself:
+/// a picture of it can only be taken by having it paint something it is not
+/// shown for, and Chromium and Electron windows that have been asked to have
+/// been seen to be left blank or drawn off their place until their process is
+/// restarted.
+#[derive(Default)]
+struct Remembered {
+    pictures: HashMap<isize, (Instant, Snapshot)>,
+}
+
+impl Remembered {
+    fn remember(&mut self, hwnd: isize, picture: Snapshot, now: Instant) {
+        self.pictures.insert(hwnd, (now, picture));
+        self.prune(now);
+    }
+
+    /// The picture of the window, which is not kept any more, if there is one
+    /// of about this size that is not too old
+    fn recall(&mut self, hwnd: isize, size: (i32, i32), now: Instant) -> Option<Snapshot> {
+        let (since, picture) = self.pictures.remove(&hwnd)?;
+
+        let fits = (picture.width - size.0).abs() <= REMEMBERED_SIZE_TOLERANCE
+            && (picture.height - size.1).abs() <= REMEMBERED_SIZE_TOLERANCE;
+
+        (fits && now.saturating_duration_since(since) < REMEMBERED_MAX_AGE).then_some(picture)
+    }
+
+    /// Get rid of what is too old, and then of the oldest while there is too
+    /// much of it
+    fn prune(&mut self, now: Instant) {
+        self.pictures
+            .retain(|_, (since, _)| now.saturating_duration_since(*since) < REMEMBERED_MAX_AGE);
+
+        while self.pictures.len() > REMEMBERED_MAX
+            || self
+                .pictures
+                .values()
+                .map(|(_, picture)| picture.bytes())
+                .sum::<usize>()
+                > REMEMBERED_MAX_BYTES
+        {
+            let Some(oldest) = self
+                .pictures
+                .iter()
+                .min_by_key(|(_, (since, _))| *since)
+                .map(|(hwnd, _)| *hwnd)
+            else {
+                break;
+            };
+
+            self.pictures.remove(&oldest);
+        }
+    }
+}
+
+lazy_static! {
+    static ref REMEMBERED: Mutex<Remembered> = Mutex::new(Remembered::default());
+}
+
+/// Keep a picture of a window that is about to leave
+pub fn remember(hwnd: isize, picture: &Snapshot) {
+    match picture.duplicate() {
+        Ok(copy) => REMEMBERED.lock().remember(hwnd, copy, Instant::now()),
+        Err(error) => tracing::trace!("snapshot: could not keep a picture of hwnd {hwnd}: {error}"),
+    }
+}
+
+/// The picture that was kept of a window that is coming back, if it is one that
+/// can be shown for it. `size` is what it is to be shown as.
+pub fn recall(hwnd: isize, size: (i32, i32)) -> Option<Snapshot> {
+    REMEMBERED.lock().recall(hwnd, size, Instant::now())
 }
 
 extern "system" fn snapshot_wnd_proc(
@@ -626,5 +755,81 @@ mod tests {
         assert_eq!((middle >> 8) & 0xFF, 0, "red, got {middle:#08x}");
         // stretched, so it reaches the corner of the host as well
         assert_eq!(far_corner & 0xFF, 0xFF, "red, got {far_corner:#08x}");
+    }
+
+    fn picture(width: i32, height: i32) -> Snapshot {
+        Snapshot::solid(width, height, 0x0010_2030)
+    }
+
+    #[test]
+    fn a_picture_that_was_kept_is_given_back_once() {
+        let mut remembered = Remembered::default();
+        let now = Instant::now();
+
+        remembered.remember(1, picture(100, 50), now);
+
+        let back = remembered.recall(1, (100, 50), now).unwrap();
+        assert_eq!((back.width, back.height), (100, 50));
+
+        assert!(remembered.recall(1, (100, 50), now).is_none());
+    }
+
+    #[test]
+    fn a_picture_is_not_shown_for_a_window_of_another_size_or_much_later() {
+        let mut remembered = Remembered::default();
+        let now = Instant::now();
+
+        // a few pixels either way is the same window
+        remembered.remember(1, picture(100, 50), now);
+        assert!(remembered.recall(1, (104, 46), now).is_some());
+
+        // but a window that has been given a different shape is not the picture
+        remembered.remember(2, picture(100, 50), now);
+        assert!(remembered.recall(2, (200, 50), now).is_none());
+        assert!(
+            remembered.recall(2, (100, 50), now).is_none(),
+            "and it is gone"
+        );
+
+        // and what a window looked like long ago is not what it looks like
+        remembered.remember(3, picture(100, 50), now);
+        assert!(
+            remembered
+                .recall(3, (100, 50), now + REMEMBERED_MAX_AGE)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn the_oldest_pictures_are_the_first_to_go_when_there_are_too_many() {
+        let mut remembered = Remembered::default();
+        let start = Instant::now();
+
+        for hwnd in 0..(REMEMBERED_MAX as isize + 3) {
+            remembered.remember(
+                hwnd,
+                picture(10, 10),
+                start + Duration::from_millis(hwnd as u64),
+            );
+        }
+
+        assert_eq!(remembered.pictures.len(), REMEMBERED_MAX);
+        // the first three were the oldest
+        for hwnd in 0..3 {
+            assert!(!remembered.pictures.contains_key(&hwnd));
+        }
+        assert!(remembered.pictures.contains_key(&3));
+    }
+
+    #[test]
+    fn a_duplicate_is_the_same_picture() {
+        let original = picture(20, 10);
+        let copy = original.duplicate().unwrap();
+        assert_eq!((copy.width, copy.height), (20, 10));
+        let pixels = |picture: &Snapshot| unsafe {
+            std::slice::from_raw_parts(picture.pixels as *const u32, 200).to_vec()
+        };
+        assert_eq!(pixels(&original), pixels(&copy));
+        assert_ne!(original.pixels, copy.pixels);
     }
 }
