@@ -16,6 +16,7 @@ pub mod direction;
 pub mod layout;
 pub mod operation_direction;
 pub mod rect;
+pub mod scrolling;
 pub mod sizing;
 
 pub use arrangement::*;

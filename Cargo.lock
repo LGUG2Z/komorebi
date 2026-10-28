@@ -3446,6 +3446,7 @@ version = "0.1.42"
 dependencies = [
  "clap",
  "color-eyre",
+ "komorebi-scrolling",
  "objc2-core-foundation",
  "schemars 1.2.3",
  "serde",
@@ -3458,7 +3459,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-scrolling"
-version = "0.1.0"
+version = "0.1.42"
 
 [[package]]
 name = "komorebi-shortcuts"

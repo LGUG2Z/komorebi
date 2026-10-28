@@ -234,14 +234,33 @@ pub struct LayoutOptions {
     pub row_ratios: Option<[Option<f32>; MAX_RATIOS]>,
 }
 
+/// A centring is one of its names, or a boolean, which is what it used to be
+#[cfg(feature = "schemars")]
+fn centering_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "description": "When to centre the focused column: `Never` (the default), `Always`, or
+`OnOverflow`, which is when it does not fit on the screen together with the column that
+focus came from. A boolean is also accepted, where `true` is `Always` and `false` is `Never`",
+        "anyOf": [
+            { "type": "boolean" },
+            generator.subschema_for::<crate::scrolling::ScrollingCentering>(),
+            { "type": "null" }
+        ]
+    })
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Options for the Scrolling layout
 pub struct ScrollingLayoutOptions {
     /// Desired number of visible columns (default: 3)
     pub columns: usize,
-    /// With an odd number of visible columns, keep the focused window column centered
-    pub center_focused_column: Option<bool>,
+    /// When to centre the focused column: `Never` (the default), `Always`, or `OnOverflow`, which
+    /// is when it does not fit on the screen together with the column that focus came from. A
+    /// boolean is also accepted, where `true` is `Always` and `false` is `Never`
+    #[serde(default)]
+    #[cfg_attr(feature = "schemars", schemars(schema_with = "centering_schema"))]
+    pub center_focused_column: Option<crate::scrolling::ScrollingCentering>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
