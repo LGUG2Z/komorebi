@@ -363,3 +363,12 @@ installed with `cargo install`). `just nixgen` writes the hash of `schema.json` 
 of the file, and the check `schema-fresh` compares that with the hash of the committed schema, and
 the schema with what `komorebic static-config-schema` prints. A change to a key that leaves the
 schema or the options behind fails the check, with no tool but the build.
+
+## Why does `komorebic` write an autostart entry, as well as the module having a unit?
+
+The module is NixOS, and the daemon runs on other distributions too. An XDG autostart entry is
+what a Plasma session runs at login for a program that is not part of it, so
+`komorebic enable-autostart` writes one, with the `komorebi.json` it is given if any. The entry is
+ordered after `plasma-workspace` (`X-KDE-autostart-after`), as the module's unit is ordered after
+`plasma-core.target`: the daemon exits when KWin is not on the session bus. The entry and the
+unit do not go together, since the session bus gives its name to one komorebi.

@@ -74,7 +74,12 @@
 //!   [`WindowManager::clear_workspace_layout_rules`]).
 //! - **ReloadStaticConfiguration** applies a `komorebi.json` to the window manager
 //!   ([`WindowManager::reload_static_configuration`]). The daemon sends itself this message when
-//!   the file it was started with changes.
+//!   the file it was started with changes. **ReplaceConfiguration** makes the window manager
+//!   again from a `komorebi.json`, which loads the monitors and the windows from the backend as
+//!   the daemon does when it starts, and watches that file instead of the one it had. The old
+//!   window manager is paused and brings back the windows it hid (the back of a stack), so that
+//!   every window is in view for the new one to find; a file that is not a `komorebi.json` is
+//!   logged and changes nothing.
 //! - **PreselectDirection** reserves the place on one side of the focused container for the next
 //!   window ([`WindowManager::preselect_container_in_direction`]), unless a place is reserved
 //!   already, and **CancelPreselect** gives the reserved place up.
@@ -207,6 +212,7 @@ use crate::static_config::StaticConfig;
 use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
+use crate::window_manager_event_listener;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
@@ -920,6 +926,38 @@ impl WindowManager {
             SocketMessage::DisplayIndexPreference(index_preference, ref display) => {
                 let mut display_index_preferences = DISPLAY_INDEX_PREFERENCES.write();
                 display_index_preferences.insert(index_preference, display.clone());
+            }
+            SocketMessage::ReplaceConfiguration(ref config) => {
+                // Check that this is a valid static config file first
+                if StaticConfig::read(config).is_ok() {
+                    // Pause so that restored windows come to the foreground from all workspaces
+                    self.is_paused = true;
+                    // Bring all windows to the foreground
+                    self.restore_all_windows(false)?;
+
+                    // Create a new wm from the config path
+                    let mut wm = StaticConfig::preload(
+                        config,
+                        window_manager_event_listener::event_rx(),
+                        self.command_listener.try_clone().ok(),
+                    )?;
+
+                    // Initialize the new wm
+                    wm.init()?;
+
+                    wm.restore_all_windows(true)?;
+
+                    // This is equivalent to StaticConfig::postload for this use case
+                    StaticConfig::reload(config, &mut wm)?;
+
+                    // Set self to the new wm instance
+                    *self = wm;
+                } else {
+                    tracing::warn!(
+                        "not replacing the configuration: {} is not a komorebi.json",
+                        config.display()
+                    );
+                }
             }
             SocketMessage::NewWorkspace => {
                 self.new_workspace()?;

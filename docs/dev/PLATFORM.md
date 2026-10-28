@@ -233,6 +233,7 @@ since a read right after `createDesktop` has to see the new desktop.
 | Path | What | Lifetime |
 |---|---|---|
 | `$KOMOREBI_CONFIG_HOME/komorebi.json` (`~/.config/komorebi/komorebi.json`) | komorebi's configuration, which komorebi never writes: read when the daemon starts, and again when it changes. `--config` names another file | the user's |
+| `$XDG_CONFIG_HOME/autostart/komorebi.desktop` (`~/.config/autostart/komorebi.desktop`) | the XDG autostart entry `komorebic enable-autostart` writes: `Exec=komorebi`, or `komorebi --config "FILE"`, and `X-KDE-autostart-after=plasma-workspace`, which a Plasma session starts komorebi from at login | the user's; `komorebic disable-autostart` removes it |
 | `$XDG_CONFIG_HOME/kwinrc` (`~/.config/kwinrc`) | KWin's configuration: komorebi sets `PerOutputVirtualDesktops=true` in `[Windows]`, changing that line or adding it and nothing else, and writes the file beside it first and renames it over it | put back as it was when the daemon stops |
 | `$XDG_RUNTIME_DIR/komorebi/kwinrc-backup.json` | the value each key of `kwinrc` had before komorebi first changed it | removed when the values are put back; one a crash left behind is used by the next run |
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
@@ -299,6 +300,15 @@ Whether an error carries a backtrace. komorebi sets it to `1` when it is not set
 When set to anything but the empty string, the log the daemon prints on its standard output
 has no ANSI colors, which is what standard output redirected to a file wants. The VM tests
 set it. The log files are not affected: one has colors and the other none.
+
+## The autostart entry
+
+At time of writing (2026-10-27), on a Plasma session of a NixOS machine, systemd's autostart
+generator makes a user unit of the entry `komorebic enable-autostart` writes,
+`app-komorebi@autostart.service`, when the user manager reloads (`systemctl --user
+daemon-reload`), and starting that unit starts a daemon that follows the file the entry gave it
+(`vm-module`, which does this on x86_64). The test starts the unit by hand, since the session it
+runs in has logged in already: it does not show that the next login starts it.
 
 ## Watching the configuration
 

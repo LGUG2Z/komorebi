@@ -75,13 +75,17 @@
 //! `workspace-layout-rule` and `named-workspace-layout-rule` make a workspace change layout once
 //! it has so many windows, and `clear-workspace-layout-rules` and
 //! `clear-named-workspace-layout-rules` take those rules away. `generate-static-config` prints the
-//! settings of the daemon as a `komorebi.json`.
+//! settings of the daemon as a `komorebi.json`, and `replace-configuration` makes the daemon
+//! start over with another one.
 //!
 //! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
 //! event and each message it handles.
 //!
-//! The others work without the daemon: `start` runs `komorebi` in the background, with the
+//! The others work without the daemon: `quickstart` writes an example `komorebi.json` and
+//! `applications.json` in the config home, `enable-autostart` and `disable-autostart` write and
+//! remove the entry that has Plasma start komorebi at login, `start` runs `komorebi` in the
+//! background, with the
 //! `komorebi.json` it is given with `--config`, `configuration` shows the path of the
 //! `komorebi.json` the daemon reads, `log` follows its log, `data-directory` shows where its
 //! socket is, `completions` prints a completion script for a shell, and `static-config-schema`,
@@ -617,6 +621,21 @@ struct LoadResize {
 }
 
 #[derive(Parser)]
+struct ReplaceConfiguration {
+    /// Static configuration JSON file from which the configuration should be loaded
+    #[clap(value_parser = replace_env_in_path)]
+    path: PathBuf,
+}
+
+#[derive(Parser)]
+struct EnableAutostart {
+    /// Path to a static configuration JSON file
+    #[clap(action, short, long)]
+    #[clap(value_parser = replace_env_in_path)]
+    config: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 struct EagerFocus {
     /// Case-sensitive exe identifier
     exe: String,
@@ -665,6 +684,8 @@ enum SubCommand {
     /// Generate komorebic CLI completions for the target shell
     #[clap(arg_required_else_help = true)]
     Completions(Completions),
+    /// Gather example configurations for a new-user quickstart
+    Quickstart,
     /// Start komorebi as a background process
     Start(Start),
     /// Stop the komorebi process
@@ -1032,6 +1053,9 @@ enum SubCommand {
     MouseFollowsFocus(MouseFollowsFocus),
     /// Toggle mouse follows focus on all workspaces
     ToggleMouseFollowsFocus,
+    /// Replace the configuration of a running instance of komorebi from a static configuration file
+    #[clap(arg_required_else_help = true)]
+    ReplaceConfiguration(ReplaceConfiguration),
     /// Generate a JSON Schema for applications.json
     #[clap(alias = "asc-schema")]
     ApplicationSpecificConfigurationSchema,
@@ -1043,6 +1067,18 @@ enum SubCommand {
     StaticConfigSchema,
     /// Generates a static configuration JSON file based on the current window manager state
     GenerateStaticConfig,
+    /// Writes an XDG autostart entry so komorebi starts with the Plasma session
+    EnableAutostart(EnableAutostart),
+    /// Removes the XDG autostart entry
+    DisableAutostart,
+}
+
+/// `~/.config/autostart/komorebi.desktop`, which Plasma runs at login
+fn autostart_entry() -> PathBuf {
+    dirs::config_dir()
+        .expect("there is no config directory")
+        .join("autostart")
+        .join("komorebi.desktop")
 }
 
 fn print_query(message: &SocketMessage) {
@@ -1093,6 +1129,87 @@ fn main() -> eyre::Result<()> {
         SubCommand::Completions(args) => {
             let mut cli = Opts::command();
             clap_complete::generate(args.shell, &mut cli, "komorebic", &mut std::io::stdout());
+        }
+        SubCommand::Quickstart => {
+            fn write_file_with_prompt(
+                path: &PathBuf,
+                content: &str,
+                created_files: &mut Vec<String>,
+            ) -> eyre::Result<()> {
+                if path.exists() {
+                    print!(
+                        "{} will be overwritten, do you want to continue? (y/N): ",
+                        path.display()
+                    );
+                    std::io::stdout().flush()?;
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input)?;
+                    let trimmed = input.trim().to_lowercase();
+                    if trimmed == "y" || trimmed == "yes" {
+                        std::fs::write(path, content)?;
+                        created_files.push(path.display().to_string());
+                    } else {
+                        println!("Skipping {}", path.display());
+                    }
+                } else {
+                    std::fs::write(path, content)?;
+                    created_files.push(path.display().to_string());
+                }
+                Ok(())
+            }
+
+            std::fs::create_dir_all(&*HOME_DIR)?;
+            std::fs::create_dir_all(&*komorebi_client::DATA_DIR)?;
+
+            let komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
+            let komorebi_path = HOME_DIR.join("komorebi.json");
+            let applications_path = HOME_DIR.join("applications.json");
+
+            let mut written_files = Vec::new();
+
+            write_file_with_prompt(&komorebi_path, &komorebi_json, &mut written_files)?;
+
+            let applications_json = include_str!("../applications.json");
+            write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
+            if written_files.is_empty() {
+                println!("\nNo files were written.")
+            } else {
+                println!(
+                    "\nThe following example files were written:\n{}",
+                    written_files.join("\n")
+                );
+            }
+
+            println!("\nYou can now run: komorebic start");
+        }
+        SubCommand::EnableAutostart(args) => {
+            let exec = match args.config {
+                None => String::from("komorebi"),
+                Some(config) => format!("komorebi --config \"{}\"", config.display()),
+            };
+
+            let target = autostart_entry();
+            if let Some(dir) = target.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+
+            std::fs::write(
+                &target,
+                format!(
+                    "[Desktop Entry]\nType=Application\nName=komorebi\nComment=A tiling window manager for KDE Plasma\nExec={exec}\nX-KDE-autostart-after=plasma-workspace\nTerminal=false\n"
+                ),
+            )?;
+
+            println!("Wrote {}", target.display());
+        }
+        SubCommand::DisableAutostart => {
+            let target = autostart_entry();
+            if target.exists() {
+                std::fs::remove_file(&target)?;
+                println!("Deleted {}", target.display());
+            } else {
+                println!("There is no autostart entry at {}", target.display());
+            }
         }
         SubCommand::Start(args) => {
             let mut command = &mut Command::new("komorebi");
@@ -1674,6 +1791,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::GenerateStaticConfig => {
             print_query(&SocketMessage::GenerateStaticConfig);
+        }
+        SubCommand::ReplaceConfiguration(args) => {
+            send_message(&SocketMessage::ReplaceConfiguration(args.path))?;
         }
         SubCommand::QuickSaveResize => {
             send_message(&SocketMessage::QuickSave)?;

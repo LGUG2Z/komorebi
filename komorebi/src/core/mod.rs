@@ -464,6 +464,7 @@ pub enum SocketMessage {
     ToggleWorkspaceLayer,
     // Configuration
     // ReloadConfiguration,
+    ReplaceConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     // WatchConfiguration(bool),
     // CompleteConfiguration,

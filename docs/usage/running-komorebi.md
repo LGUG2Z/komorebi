@@ -36,7 +36,8 @@ session. Outside a Plasma session it exits with an error that says what is missi
 `komorebic start` prints.
 
 `--config` gives the daemon the `komorebi.json` to read
-([Configuration](configuration.md) says where it looks otherwise):
+([Configuration](configuration.md) says where it looks otherwise), and
+[`komorebic quickstart`](quickstart-and-autostart.md) writes one to start from:
 
 ```sh
 komorebic start --config ~/mine.json

@@ -63,8 +63,9 @@ different layout. This page has the file as it is:
 }
 ```
 
-Put it where the daemon looks for it, `~/.config/komorebi/komorebi.json`, or give it to the daemon
-with `komorebic start --config`. [Configuration](usage/configuration.md) explains every key and
+`komorebic quickstart` writes it, and the `applications.json` below, where the daemon looks for
+them ([Quickstart and autostart](usage/quickstart-and-autostart.md)). Or put it there yourself,
+`~/.config/komorebi/komorebi.json`, or give it to the daemon with `komorebic start --config`. [Configuration](usage/configuration.md) explains every key and
 where the daemon looks. The settings of a monitor with more than one entry in `monitors`, and of
 each workspace, are there too.
 
@@ -72,8 +73,9 @@ each workspace, are there too.
 
 `app_specific_configuration_path` names a file of rules for the applications that need them, which
 the repository has a start of in
-[`komorebic/applications.json`](../komorebic/applications.json). Put a copy where the example
-says, `~/.config/komorebi/applications.json`; a path with no file behind it is skipped.
+[`komorebic/applications.json`](../komorebic/applications.json). `komorebic quickstart` puts a copy
+where the example says, `~/.config/komorebi/applications.json`; a path with no file behind it is
+skipped.
 [Application specific configuration](usage/application-specific-configuration.md) explains the
 format.
 

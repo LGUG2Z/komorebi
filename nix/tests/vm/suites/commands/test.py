@@ -334,8 +334,14 @@ manage-rule exe nonexistent
 manage
 close
 retile
+replace-configuration /tmp/e2e-config.json
 eager-focus foot
 """
+kde.sh(
+    "printf %s "
+    + shlex.quote('{ "monitors": [ { "workspaces": [ { "name": "again", "layout": "BSP" } ] } ] }')
+    + " > /tmp/e2e-config.json"
+)
 for line in SWEEP.strip().splitlines():
     status, out = kde.run(shlex.join(["komorebic", *line.split()]))
     if status != 0:
@@ -345,6 +351,12 @@ for line in SWEEP.strip().splitlines():
         checks.bad(f"komorebic {line}: komorebi is not healthy afterwards ({healthy()})")
         continue
     checks.ok(f"komorebic {line}")
+
+first_workspace = kde.state()["monitors"]["elements"][0]["workspaces"]["elements"][0]
+checks.check(
+    "replace-configuration made the window manager again from the file",
+    first_workspace["name"] == "again",
+)
 
 print("== 3b. minimize, unmanage and manage the focused window")
 focused = kde.active()

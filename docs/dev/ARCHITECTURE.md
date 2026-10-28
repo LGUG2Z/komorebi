@@ -683,6 +683,16 @@ defaults. A **rule** is an entry of one of the process-wide lists. A workspace's
 `layout_rules`, `work_area_offset_rules` and `window_container_behaviour_rules` are fields of the
 [`Workspace`], which [`Workspace::update`] reads each time it tiles.
 
+`ReplaceConfiguration` is the third way in: [`WindowManager::process_command`] checks that the file
+reads as a [`StaticConfig`], pauses the old window manager and brings back the windows it hid
+([`WindowManager::restore_all_windows`]), makes a new window manager from the file
+([`StaticConfig::preload`], [`WindowManager::init`], [`StaticConfig::reload`]) over the same command
+socket, and puts it where the old one was, so the daemon starts over from the file, with the
+windows the backend has, all of them in view, and a watcher on the new file. A file that does not read is logged and the old window manager stays.
+`komorebic quickstart` writes the example file of the docs and `komorebic/applications.json` into
+the config home, compiled into the binary, and asks before it writes over a file;
+`komorebic enable-autostart` writes the XDG autostart entry that has Plasma start the daemon at login.
+
 The same types describe the file as a JSON Schema, which `schemars` derives: `komorebic
 static-config-schema` prints the schema of [`StaticConfig`], `application-specific-configuration-schema`
 that of an applications file, and `notification-schema` and `socket-schema` those of a
@@ -711,6 +721,10 @@ goes the other way, for `GenerateStaticConfig`.
 | `schema.json` and `schema.asc.json` are what the Rust types print | Nix check `schema-fresh`, and a test that compares them with `komorebic`'s output | `schema-fresh`, `the_schema_files_of_the_repository_are_what_the_subcommands_print` | `just jsonschema` |
 | The options the module is typed with are made from the committed schema | the hash of `schema.json` in the first line of `nix/komorebi-options.nix`, compared by `schema-fresh` | `schema-fresh` | `just nixgen` |
 | The example, in Nix and in JSON, follows the schema, and says the same in both | Nix check `nix-options-validation`: the options evaluated against the Nix example, both examples checked with `check-jsonschema`, and one contained in the other | `nix-options-validation` | none |
+| Replacing the configuration with a file that does not read leaves the window manager as it was | framework path: the arm reads the file as a [`StaticConfig`] before it makes anything | `replacing_the_configuration_makes_the_window_manager_again_from_the_new_file` | none |
+| Replacing the configuration leaves no window hidden | framework path: the arm brings back the windows the old window manager hid ([`WindowManager::restore_all_windows`]) before the new one reads the desktop | `replacing_the_configuration_makes_the_window_manager_again_from_the_new_file` | none |
+| `quickstart` never writes over a file without being told to | framework path: every file goes through `write_file_with_prompt`, which keeps the file unless the answer is `y` or `yes` | `quickstart_writes_the_example_files_and_asks_before_it_overwrites_one` | none |
+| The entry `enable-autostart` writes is one the session runs | VM test: systemd's autostart generator makes a unit of it, which starts a daemon | `autostart_writes_an_xdg_entry_that_starts_komorebi_and_takes_it_away_again`, `vm-module` | none |
 | A file that cannot be read changes nothing | framework path: [`StaticConfig::reload`] reads and parses the file before it applies anything | `a_configuration_that_cannot_be_read_changes_nothing`, `the_daemon_follows_the_file_it_is_given_when_the_file_changes` | none |
 | The daemon applies a change to its file, written in place or replaced by a rename | framework path: the watcher sends `ReloadStaticConfiguration` to the daemon's own socket | `the_daemon_follows_the_file_it_is_given_when_the_file_changes`, `vm-module` | none: the file has to be the one the daemon was started with |
 | A monitor takes the entry its display index preference gives it, else the first nobody has | framework path: [`StaticConfig::postload`] and [`StaticConfig::reload`] choose the entry by serial number id first | `a_monitor_takes_the_configuration_its_display_index_preference_gives_it` | none |
@@ -1022,7 +1036,8 @@ A window is shown, and ends up on a tile:
   daemon following a file, and
   [`komorebi/tests/config_parity.rs`](../../komorebi/tests/config_parity.rs) the files of other
   platforms and the example, which load;
-  [`komorebi/tests/schemas.rs`](../../komorebi/tests/schemas.rs) the schemas the daemon answers
+  [`komorebi/tests/replace_configuration.rs`](../../komorebi/tests/replace_configuration.rs)
+  the `ReplaceConfiguration` message; [`komorebi/tests/schemas.rs`](../../komorebi/tests/schemas.rs) the schemas the daemon answers
   with; [`schema.json`](../../schema.json), [`schema.asc.json`](../../schema.asc.json) and
   [`nix/komorebi-options.nix`](../../nix/komorebi-options.nix), which are generated;
   [`nix/tests/default.nix`](../../nix/tests/default.nix) and

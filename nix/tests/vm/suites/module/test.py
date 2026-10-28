@@ -4,7 +4,8 @@
 # opened in the session, that it runs with the module's log level, the `komorebi.json` the module
 # wrote from its `config`, and the PATH of the user's session, that systemd starts it again when
 # it is killed, and that a clean stop is not a failure. Once the unit is stopped, the daemon is
-# started with a `komorebi.json` of the user's, which it follows when the file changes. The
+# started with a `komorebi.json` of the user's, which it follows when the file changes, and
+# `komorebic enable-autostart` writes the entry systemd's autostart generator makes a unit of. The
 # options and the unit the module writes are checked without a machine by `nixos-module-eval`
 # (`nix/tests/nixos-module.nix`).
 import json
@@ -187,5 +188,31 @@ checks.check(
 )
 kde.komorebic("stop")
 checks.check("that daemon stops", kde.wait_for(lambda: not answering(), timeout=30))
+
+print("== 6. an autostart entry is run by the session")
+ENTRY = "/home/komorebi/.config/autostart/komorebi.desktop"
+AUTOSTART = "app-komorebi@autostart.service"
+kde.komorebic("enable-autostart", "--config", MINE)
+checks.check(
+    "komorebic enable-autostart writes the entry, with the file it is given",
+    f'Exec=komorebi --config "{MINE}"' in machine.succeed(f"cat {ENTRY}"),
+)
+kde.systemctl("daemon-reload")
+status, unit_text = kde.run(f"systemctl --user cat {AUTOSTART}")
+print(unit_text)
+checks.check(
+    "systemd's autostart generator makes a unit of it, which runs komorebi",
+    status == 0 and "komorebi" in unit_text,
+)
+kde.systemctl("start", AUTOSTART)
+checks.check("... which starts a daemon that answers", kde.wait_for(answering, timeout=60))
+checks.check("... with the file the entry gave it", resize_delta() == 33)
+kde.komorebic("stop")
+checks.check("that daemon stops", kde.wait_for(lambda: not answering(), timeout=30))
+kde.komorebic("disable-autostart")
+checks.check(
+    "komorebic disable-autostart takes the entry away",
+    machine.execute(f"test -e {ENTRY}")[0] != 0,
+)
 
 checks.finish()

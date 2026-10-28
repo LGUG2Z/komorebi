@@ -83,8 +83,9 @@ without a checkout of the toolchain.
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
 - [`komorebic`](komorebic): the command line. A subcommand that asks something
-  of the daemon is one message on its socket; `start`, `configuration`, `log`,
-  `data-directory`, `completions` and the hidden `docgen` work without the daemon.
+  of the daemon is one message on its socket; `quickstart`, `enable-autostart`,
+  `disable-autostart`, `start`, `configuration`, `log`, `data-directory`, `completions` and
+  the hidden `docgen` work without the daemon.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -206,7 +207,9 @@ can be in files of their own, which `app_specific_configuration_path` names.
 `workspace-layout-rule` makes a
 workspace change layout with the number of windows it has, as the file's
 `layout_rules` do, and `generate-static-config` prints the settings the daemon
-has as a `komorebi.json`. The Rust types that read the file describe it as a JSON Schema
+has as a `komorebi.json`, and `replace-configuration` makes the daemon start over from
+another file. `quickstart` writes an example configuration, and `enable-autostart` an
+autostart entry that has Plasma start komorebi at login. The Rust types that read the file describe it as a JSON Schema
 (`schema.json`, written by `just jsonschema` and printed by `static-config-schema`), and the
 module's `config` option is typed from that schema (`nix/komorebi-options.nix`, written by
 `just nixgen`), so a configuration written in Nix is checked when it is evaluated.

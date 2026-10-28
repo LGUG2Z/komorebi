@@ -157,8 +157,9 @@ cargo install --locked --path komorebic
 `cargo` installs both in `~/.cargo/bin`, which has to be on your `PATH`. Start komorebi from a
 terminal in your Plasma session with [`komorebic start`](cli/start.md).
 
-To start it with every Plasma session instead, write the unit the NixOS module defines, without
-the NixOS paths, to `~/.config/systemd/user/komorebi.service`:
+To start it with every Plasma session instead, `komorebic enable-autostart` writes an autostart
+entry ([Quickstart and autostart](usage/quickstart-and-autostart.md)), or you can write the unit
+the NixOS module defines, without the NixOS paths, to `~/.config/systemd/user/komorebi.service`:
 
 ```ini
 [Unit]

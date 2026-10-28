@@ -679,6 +679,130 @@ fn configuration_shows_the_path_of_komorebi_json_when_there_is_one() {
 }
 
 #[test]
+fn replace_configuration_sends_the_path_it_is_given_with_the_variables_replaced() {
+    let runtime = Runtime::new();
+    let daemon = runtime.serve("");
+
+    let output = runtime.komorebic_with_config_home(
+        &runtime.0,
+        &["replace-configuration", "$KOMOREBI_CONFIG_HOME/other.json"],
+    );
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        daemon.join().unwrap(),
+        format!(
+            r#"{{"type":"ReplaceConfiguration","content":"{}/other.json"}}"#,
+            runtime.0.display()
+        )
+    );
+    assert_eq!(stdout(&output), "");
+}
+
+/// Runs `komorebic quickstart` in the config home `home`, which answers `answers` to its questions
+fn quickstart(runtime: &Runtime, home: &Path, answers: &str) -> Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_komorebic"))
+        .arg("quickstart")
+        .env("XDG_RUNTIME_DIR", &runtime.0)
+        .env("KOMOREBI_CONFIG_HOME", home)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(answers.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
+}
+
+#[test]
+fn quickstart_writes_the_example_files_and_asks_before_it_overwrites_one() {
+    let runtime = Runtime::new();
+    let home = runtime.0.join("config");
+    std::fs::create_dir_all(&home).unwrap();
+
+    let output = quickstart(&runtime, &home, "");
+    assert!(output.status.success(), "{output:?}");
+    let example = include_str!("../../docs/komorebi.example.json");
+    assert_eq!(
+        std::fs::read_to_string(home.join("komorebi.json")).unwrap(),
+        example
+    );
+    assert_eq!(
+        std::fs::read_to_string(home.join("applications.json")).unwrap(),
+        include_str!("../applications.json")
+    );
+    assert!(stdout(&output).contains("The following example files were written"));
+    assert!(stdout(&output).contains("komorebic start"));
+
+    // a file that is there is kept unless the answer is yes
+    std::fs::write(home.join("komorebi.json"), "{}").unwrap();
+    std::fs::write(home.join("applications.json"), "{}").unwrap();
+    let output = quickstart(&runtime, &home, "n\nyes\n");
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        std::fs::read_to_string(home.join("komorebi.json")).unwrap(),
+        "{}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(home.join("applications.json")).unwrap(),
+        include_str!("../applications.json")
+    );
+    assert!(stdout(&output).contains("Skipping"));
+}
+
+#[test]
+fn autostart_writes_an_xdg_entry_that_starts_komorebi_and_takes_it_away_again() {
+    let runtime = Runtime::new();
+    let config_dir = runtime.0.join("xdg");
+    let entry = config_dir.join("autostart").join("komorebi.desktop");
+    let run = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_komorebic"))
+            .args(args)
+            .env("XDG_RUNTIME_DIR", &runtime.0)
+            .env("XDG_CONFIG_HOME", &config_dir)
+            .output()
+            .unwrap()
+    };
+
+    let output = run(&["disable-autostart"]);
+    assert!(output.status.success(), "{output:?}");
+    assert!(stdout(&output).contains("There is no autostart entry"));
+
+    let output = run(&["enable-autostart"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = std::fs::read_to_string(&entry).unwrap();
+    assert!(text.starts_with("[Desktop Entry]\n"), "{text}");
+    assert!(text.contains("\nExec=komorebi\n"), "{text}");
+    assert!(
+        text.contains("\nX-KDE-autostart-after=plasma-workspace\n"),
+        "{text}"
+    );
+
+    // `--config` is what the daemon is started with
+    let output = run(&[
+        "enable-autostart",
+        "--config",
+        "/etc/komorebi/komorebi.json",
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    assert!(
+        std::fs::read_to_string(&entry)
+            .unwrap()
+            .contains("\nExec=komorebi --config \"/etc/komorebi/komorebi.json\"\n")
+    );
+
+    let output = run(&["disable-autostart"]);
+    assert!(output.status.success(), "{output:?}");
+    assert!(stdout(&output).starts_with("Deleted "), "{output:?}");
+    assert!(!entry.exists());
+}
+
+#[test]
 fn a_config_home_that_is_not_a_directory_is_refused() {
     let runtime = Runtime::new();
     let home = runtime.0.join("not-there");
@@ -883,8 +1007,10 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "cycle-stack.md",
             "cycle-workspace.md",
             "data-directory.md",
+            "disable-autostart.md",
             "display-index-preference.md",
             "eager-focus.md",
+            "enable-autostart.md",
             "ensure-named-workspaces.md",
             "ensure-workspaces.md",
             "flip-layout.md",
@@ -935,6 +1061,8 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "query.md",
             "quick-load-resize.md",
             "quick-save-resize.md",
+            "quickstart.md",
+            "replace-configuration.md",
             "resize-axis.md",
             "resize-delta.md",
             "resize-edge.md",
