@@ -51,8 +51,10 @@
 use crate::DATA_DIR;
 use crate::HIDDEN_WINDOWS;
 use crate::LibraryError;
+use crate::REGEX_IDENTIFIERS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::UNMANAGED_WINDOW_IDS;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Arrangement;
@@ -69,12 +71,14 @@ use crate::core::Rect;
 use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
+use crate::core::config_generation::MatchingRule;
 use crate::desktop;
 use crate::lockable_sequence::Lockable;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::static_config::StaticConfig;
 use crate::window::Window;
+use crate::window::should_act_individual;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
 use crate::workspace::Workspace;
@@ -84,7 +88,9 @@ use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
 use crossbeam_channel::Receiver;
 use hotwatch::Hotwatch;
+use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::io::ErrorKind;
 use std::net::Shutdown;
@@ -92,6 +98,7 @@ use std::num::NonZeroUsize;
 use std::os::unix::net::UnixListener;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// A tile cannot be resized to less than this fraction of the work area (or less than it already is)
 const MINIMUM_TILE_FRACTION: i32 = 10;
@@ -135,11 +142,40 @@ pub struct WindowManager {
     /// [`crate::window_manager_event_listener`]
     pub incoming_events: Receiver<WindowManagerEvent>,
     pub minimized_windows: HashMap<u32, Window>,
+    /// The windows an `initial_only` workspace rule has moved already, so that it moves each of
+    /// them once, until it closes
+    pub already_moved_window_handles: Arc<Mutex<HashSet<u32>>>,
     /// Maps each known window id to the (monitor, workspace) index pair managing it
     pub known_window_ids: HashMap<u32, (usize, usize)>,
 }
 
 impl_ring_elements!(WindowManager, Monitor);
+
+/// A window that a workspace rule sends from the workspace it is on to the one the rule names
+#[derive(Debug, Clone, Copy)]
+struct EnforceWorkspaceRuleOp {
+    window_id: u32,
+    origin_monitor_idx: usize,
+    origin_workspace_idx: usize,
+    target_monitor_idx: usize,
+    target_workspace_idx: usize,
+    floating: bool,
+}
+
+impl EnforceWorkspaceRuleOp {
+    const fn is_origin(&self, monitor_idx: usize, workspace_idx: usize) -> bool {
+        self.origin_monitor_idx == monitor_idx && self.origin_workspace_idx == workspace_idx
+    }
+
+    const fn is_target(&self, monitor_idx: usize, workspace_idx: usize) -> bool {
+        self.target_monitor_idx == monitor_idx && self.target_workspace_idx == workspace_idx
+    }
+
+    const fn is_enforced(&self) -> bool {
+        (self.origin_monitor_idx == self.target_monitor_idx)
+            && (self.origin_workspace_idx == self.target_workspace_idx)
+    }
+}
 
 impl AsRef<Self> for WindowManager {
     fn as_ref(&self) -> &Self {
@@ -194,6 +230,7 @@ impl WindowManager {
             work_area_offset: None,
             incoming_events: incoming,
             minimized_windows: HashMap::new(),
+            already_moved_window_handles: Default::default(),
             known_window_ids: Default::default(),
         })
     }
@@ -2811,6 +2848,264 @@ impl WindowManager {
         }
 
         Ok(())
+    }
+
+    /// Sends each window that a workspace rule names to the workspace the rule gives, and tiles the
+    /// focused workspace again if a window left it
+    ///
+    /// The rules are in `WORKSPACE_MATCHING_RULES`; only the window at the top of each container
+    /// and the floating windows are looked at, and a window that is on its workspace already is
+    /// left alone. A rule that is `initial_only` moves a window once: the window is remembered in
+    /// [`WindowManager::already_moved_window_handles`] until it closes. A floating window is
+    /// taken to the monitor of its workspace. A workspace that does not exist yet is made. A window
+    /// that leaves the focused workspace is hidden, so it stays out of sight until its new
+    /// workspace is shown. The windows that moved are put on the desktops of their workspaces,
+    /// which is also how a window that leaves a workspace that is out of view comes to the desktop
+    /// of its new one.
+    ///
+    /// # Errors
+    ///
+    /// There is no focused monitor, a rule names a monitor that is not there, a window cannot be
+    /// read, or the focused workspace cannot be tiled again.
+    #[tracing::instrument(skip(self), level = "debug")]
+    pub fn enforce_workspace_rules(&mut self) -> eyre::Result<()> {
+        let mut to_move = vec![];
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+        let focused_workspace_idx = self
+            .monitors()
+            .get(focused_monitor_idx)
+            .ok_or_eyre("there is no monitor with that index")?
+            .focused_workspace_idx();
+
+        // scope mutex locks to avoid deadlock if should_update_focused_workspace evaluates to true
+        // at the end of this function
+        {
+            let workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+            let regex_identifiers = REGEX_IDENTIFIERS.lock();
+            // Go through all the monitors and workspaces
+            for (i, monitor) in self.monitors().iter().enumerate() {
+                for (j, workspace) in monitor.workspaces().iter().enumerate() {
+                    // And all the visible windows (at the top of a container)
+                    for window in workspace.visible_windows().into_iter().flatten() {
+                        if let (Some(exe_name), Some(title), Some(class), Some(path)) =
+                            (window.exe(), window.title(), window.class(), window.path())
+                        {
+                            for rule in &*workspace_matching_rules {
+                                let matched = match &rule.matching_rule {
+                                    MatchingRule::Simple(r) => should_act_individual(
+                                        &title,
+                                        &exe_name,
+                                        &[&class],
+                                        &path.to_string_lossy(),
+                                        r,
+                                        &regex_identifiers,
+                                    ),
+                                    MatchingRule::Composite(r) => {
+                                        let mut composite_results = vec![];
+                                        for identifier in r {
+                                            composite_results.push(should_act_individual(
+                                                &title,
+                                                &exe_name,
+                                                &[&class],
+                                                &path.to_string_lossy(),
+                                                identifier,
+                                                &regex_identifiers,
+                                            ));
+                                        }
+
+                                        composite_results.iter().all(|&x| x)
+                                    }
+                                };
+
+                                if matched {
+                                    let floating = workspace.floating_windows().contains(window);
+
+                                    let mut already_moved_window_handles =
+                                        self.already_moved_window_handles.lock();
+
+                                    if rule.initial_only {
+                                        if !already_moved_window_handles.contains(&window.id) {
+                                            already_moved_window_handles.insert(window.id);
+
+                                            self.add_window_handle_to_move_based_on_workspace_rule(
+                                                &window
+                                                    .title()
+                                                    .ok_or_eyre("could not read window title")?,
+                                                window.id,
+                                                i,
+                                                j,
+                                                rule.monitor_index,
+                                                rule.workspace_index,
+                                                floating,
+                                                &mut to_move,
+                                            );
+                                        }
+                                    } else {
+                                        self.add_window_handle_to_move_based_on_workspace_rule(
+                                            &window
+                                                .title()
+                                                .ok_or_eyre("could not read window title")?,
+                                            window.id,
+                                            i,
+                                            j,
+                                            rule.monitor_index,
+                                            rule.workspace_index,
+                                            floating,
+                                            &mut to_move,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Only retain operations where the target is not the current workspace
+        to_move.retain(|op| !op.is_target(focused_monitor_idx, focused_workspace_idx));
+        // Only retain operations where the rule has not already been enforced
+        to_move.retain(|op| !op.is_enforced());
+
+        let mut should_update_focused_workspace = false;
+        let mut removed_windows = HashMap::new();
+
+        // Parse the operation and remove any windows that are not placed according to their rules
+        for op in &to_move {
+            let target_area = self
+                .monitors_mut()
+                .get_mut(op.target_monitor_idx)
+                .ok_or_eyre("there is no monitor with that index")?
+                .work_area_size;
+
+            let origin_monitor = self
+                .monitors_mut()
+                .get_mut(op.origin_monitor_idx)
+                .ok_or_eyre("there is no monitor with that index")?;
+
+            let origin_area = origin_monitor.work_area_size;
+
+            let origin_workspace = origin_monitor
+                .workspaces_mut()
+                .get_mut(op.origin_workspace_idx)
+                .ok_or_eyre("there is no workspace with that index")?;
+
+            let window = origin_workspace.remove_window(op.window_id)?;
+
+            // If it is a floating window move it to the target area
+            if op.floating {
+                window.move_to_area(&origin_area, &target_area)?;
+            }
+
+            // Hide the window we are about to remove if it is on the currently focused workspace
+            if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
+                window.hide();
+                should_update_focused_workspace = true;
+            }
+
+            removed_windows.insert(window.id, window);
+        }
+
+        // Parse the operation again and associate those removed windows with the workspace that
+        // their rules have defined for them
+        for op in &to_move {
+            let window = removed_windows
+                .get_mut(&op.window_id)
+                .ok_or_eyre("there is no window")?;
+
+            let target_monitor = self
+                .monitors_mut()
+                .get_mut(op.target_monitor_idx)
+                .ok_or_eyre("there is no monitor with that index")?;
+
+            // The very first time this fn is called, the workspace might not even exist yet
+            if target_monitor
+                .workspaces()
+                .get(op.target_workspace_idx)
+                .is_none()
+            {
+                // If it doesn't, let's make sure it does for the next step
+                target_monitor.ensure_workspace_count(op.target_workspace_idx + 1);
+            }
+
+            let target_workspace = target_monitor
+                .workspaces_mut()
+                .get_mut(op.target_workspace_idx)
+                .ok_or_eyre("there is no workspace with that index")?;
+
+            if op.floating {
+                target_workspace
+                    .floating_windows_mut()
+                    // TODO: not sure about this clone
+                    .push_back(*window);
+            } else {
+                //TODO(alex-ds13): should this take into account the target workspace
+                //`window_container_behaviour`?
+                //In the case above a floating window should always be moved as floating,
+                //because it was set as so either manually by the user or by a
+                //`floating_applications` rule so it should stay that way. But a tiled window
+                //when moving to another workspace by a `workspace_rule` should honor that
+                //workspace `window_container_behaviour` in my opinion! Maybe this should be done
+                //on the `new_container_for_window` function instead.
+                // TODO: not sure about this clone
+                target_workspace.new_container_for_window(window)?;
+            }
+        }
+
+        // The compositor learns where the windows that moved belong: each is put on the desktop of
+        // the workspace it is on now (a hidden window only has the desktop it comes back to
+        // changed), which also takes a window that was not hidden out of view when that workspace
+        // is not the one in front
+        let mut assigned = vec![];
+        for op in &to_move {
+            if !assigned.contains(&op.target_monitor_idx)
+                && let Some(monitor) = self.monitors().get(op.target_monitor_idx)
+            {
+                monitor.assign_windows_to_workspaces();
+                assigned.push(op.target_monitor_idx);
+            }
+        }
+
+        // Only re-tile the focused workspace if we need to
+        if should_update_focused_workspace {
+            self.update_focused_workspace(false, false)?;
+        }
+
+        Ok(())
+    }
+
+    /// Adds to `to_move` the operation that takes the window from where it is to the workspace a
+    /// rule gives it
+    #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(skip(self), level = "debug")]
+    fn add_window_handle_to_move_based_on_workspace_rule(
+        &self,
+        window_title: &String,
+        window_id: u32,
+        origin_monitor_idx: usize,
+        origin_workspace_idx: usize,
+        target_monitor_idx: usize,
+        target_workspace_idx: usize,
+        floating: bool,
+        to_move: &mut Vec<EnforceWorkspaceRuleOp>,
+    ) {
+        tracing::trace!(
+            "{} should be on monitor {}, workspace {}",
+            window_title,
+            target_monitor_idx,
+            target_workspace_idx
+        );
+
+        // Create an operation outline and save it for later in the fn
+        to_move.push(EnforceWorkspaceRuleOp {
+            window_id,
+            origin_monitor_idx,
+            origin_workspace_idx,
+            target_monitor_idx,
+            target_workspace_idx,
+            floating,
+        });
     }
 
     /// Applies the `komorebi.json` at `pathbuf` to the window manager and tiles it again
@@ -5640,5 +5935,44 @@ mod tests {
                 assert_eq!(workspace.name, Some(workspace_names[i].clone()));
             }
         }
+    }
+
+    #[test]
+    fn test_add_window_handle_to_move_based_on_workspace_rule() {
+        let (wm, _context) = setup_window_manager();
+
+        // Mock Data representing a window and its workspace/movement details
+        let window_title = String::from("TestWindow");
+        let window_id = 12345;
+        let origin_monitor_idx = 0;
+        let origin_workspace_idx = 0;
+        let target_monitor_idx = 2;
+        let target_workspace_idx = 3;
+        let floating = false;
+
+        // Empty vector to hold workspace rule enforcement operations
+        let mut to_move: Vec<EnforceWorkspaceRuleOp> = Vec::new();
+
+        // Call the function to add a window movement operation based on workspace rules
+        wm.add_window_handle_to_move_based_on_workspace_rule(
+            &window_title,
+            window_id,
+            origin_monitor_idx,
+            origin_workspace_idx,
+            target_monitor_idx,
+            target_workspace_idx,
+            floating,
+            &mut to_move,
+        );
+
+        // Verify that the vector contains the expected operation with the correct values
+        assert_eq!(to_move.len(), 1);
+        let op = &to_move[0];
+        assert_eq!(op.window_id, window_id); // 12345
+        assert_eq!(op.origin_monitor_idx, origin_monitor_idx); // 0
+        assert_eq!(op.origin_workspace_idx, origin_workspace_idx); // 0
+        assert_eq!(op.target_monitor_idx, target_monitor_idx); // 2
+        assert_eq!(op.target_workspace_idx, target_workspace_idx); // 3
+        assert_eq!(op.floating, floating); // false
     }
 }

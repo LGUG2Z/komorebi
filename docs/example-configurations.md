@@ -27,7 +27,14 @@ different layout. This page has the file as it is:
       "workspaces": [
         {
           "name": "I",
-          "layout": "BSP"
+          "layout": "BSP",
+          "initial_workspace_rules": [
+//            {
+//              "kind": "Exe",
+//              "id": "firefox",
+//              "matching_strategy": "Equals"
+//            }
+          ]
         },
         {
           "name": "II",

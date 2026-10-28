@@ -45,7 +45,9 @@ it is.
 
 [`komorebic generate-static-config`](../cli/generate-static-config.md) prints the settings the
 daemon has now as a `komorebi.json`: a way to start a file from a setup arrived at with commands.
-The rules (`ignore_rules`, `manage_rules` and `floating_applications`) are not in what it prints.
+The rules (`ignore_rules`, `manage_rules` and `floating_applications`) are not in what it prints;
+the `workspace_rules` and `initial_workspace_rules` of the workspaces that were loaded from a file
+are.
 
 ## One file for every platform
 
@@ -103,7 +105,8 @@ Each is a list of rules, which [Rules](rules.md) explains. A rule is an object w
 `Contains`, `Regex`, or one of the four that negate them: `DoesNotEqual`, `DoesNotStartWith`,
 `DoesNotEndWith` and `DoesNotContain`), or a list of such objects, all of which have to match.
 Rules in the file add to the ones the daemon has: a rule that is taken out of the file stays
-until the daemon restarts.
+until the daemon restarts. The exception is a workspace's `workspace_rules` and
+`initial_workspace_rules`, which the file gives again each time it is read.
 
 ### Monitors and workspaces
 
@@ -130,6 +133,8 @@ named for it. A workspace has these keys:
 | `tile` | see below | Whether the workspace tiles its windows |
 | `layout_flip` | none | The axis the layout is mirrored on: `Horizontal`, `Vertical` or `HorizontalAndVertical` |
 | `layout_options` | none | Options of the layout, such as `column_ratios` and `scrolling` |
+| `workspace_rules` | none | Rules for the windows that always go to this workspace ([Workspace rules](workspace-rules.md)) |
+| `initial_workspace_rules` | none | Rules for the windows that go to this workspace when komorebi first sees them |
 | `layout_rules` | none | `{ "3": "Columns" }`: the layout the workspace has once it has 3 containers or more |
 | `layout_options_rules` | none | The same, for the layout options |
 | `container_padding`, `workspace_padding` | the default | The padding of this workspace |

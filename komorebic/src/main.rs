@@ -70,7 +70,11 @@
 //! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
 //! always in it, `session-float-rule` floats the focused window and every window like it until the
 //! daemon stops, `session-float-rules` shows those rules and `clear-session-float-rules` removes
-//! them, and `global-state` shows the rules the daemon has.
+//! them, and `global-state` shows the rules the daemon has. `initial-workspace-rule`,
+//! `initial-named-workspace-rule`, `workspace-rule` and `named-workspace-rule` send the windows of
+//! an application to a workspace, when they open or always, `clear-workspace-rules`,
+//! `clear-named-workspace-rules` and `clear-all-workspace-rules` take those rules away, and
+//! `enforce-workspace-rules` applies them to the windows that are open.
 //!
 //! `workspace-layout-rule` and `named-workspace-layout-rule` make a workspace change layout once
 //! it has so many windows, and `clear-workspace-layout-rules` and
@@ -434,6 +438,64 @@ pub struct ClearWorkspaceLayoutRules {
 
     /// Workspace index on the specified monitor (zero-indexed)
     workspace: usize,
+}
+
+#[derive(Parser)]
+struct InitialWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct InitialNamedWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Name of a workspace
+    workspace: String,
+}
+
+#[derive(Parser)]
+struct WorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct NamedWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Name of a workspace
+    workspace: String,
+}
+
+#[derive(Parser)]
+struct ClearWorkspaceRules {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct ClearNamedWorkspaceRules {
+    /// Name of a workspace
+    workspace: String,
 }
 
 #[derive(Parser)]
@@ -1048,6 +1110,28 @@ enum SubCommand {
     /// Add a rule to always manage the specified application
     #[clap(arg_required_else_help = true)]
     ManageRule(ManageRule),
+    /// Add a rule to associate an application with a workspace on first show
+    #[clap(arg_required_else_help = true)]
+    InitialWorkspaceRule(InitialWorkspaceRule),
+    /// Add a rule to associate an application with a named workspace on first show
+    #[clap(arg_required_else_help = true)]
+    InitialNamedWorkspaceRule(InitialNamedWorkspaceRule),
+    /// Add a rule to associate an application with a workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceRule(WorkspaceRule),
+    /// Add a rule to associate an application with a named workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceRule(NamedWorkspaceRule),
+    /// Remove all application association rules for a workspace by monitor and workspace index
+    #[clap(arg_required_else_help = true)]
+    ClearWorkspaceRules(ClearWorkspaceRules),
+    /// Remove all application association rules for a named workspace
+    #[clap(arg_required_else_help = true)]
+    ClearNamedWorkspaceRules(ClearNamedWorkspaceRules),
+    /// Remove all application association rules for all workspaces
+    ClearAllWorkspaceRules,
+    /// Enforce all workspace rules, including initial workspace rules that have already been applied
+    EnforceWorkspaceRules,
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
@@ -1556,6 +1640,51 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ManageRule(args) => {
             send_message(&SocketMessage::ManageRule(args.identifier, args.id))?;
+        }
+        SubCommand::InitialWorkspaceRule(args) => {
+            send_message(&SocketMessage::InitialWorkspaceRule(
+                args.identifier,
+                args.id,
+                args.monitor,
+                args.workspace,
+            ))?;
+        }
+        SubCommand::InitialNamedWorkspaceRule(args) => {
+            send_message(&SocketMessage::InitialNamedWorkspaceRule(
+                args.identifier,
+                args.id,
+                args.workspace,
+            ))?;
+        }
+        SubCommand::WorkspaceRule(args) => {
+            send_message(&SocketMessage::WorkspaceRule(
+                args.identifier,
+                args.id,
+                args.monitor,
+                args.workspace,
+            ))?;
+        }
+        SubCommand::NamedWorkspaceRule(args) => {
+            send_message(&SocketMessage::NamedWorkspaceRule(
+                args.identifier,
+                args.id,
+                args.workspace,
+            ))?;
+        }
+        SubCommand::ClearWorkspaceRules(args) => {
+            send_message(&SocketMessage::ClearWorkspaceRules(
+                args.monitor,
+                args.workspace,
+            ))?;
+        }
+        SubCommand::ClearNamedWorkspaceRules(args) => {
+            send_message(&SocketMessage::ClearNamedWorkspaceRules(args.workspace))?;
+        }
+        SubCommand::ClearAllWorkspaceRules => {
+            send_message(&SocketMessage::ClearAllWorkspaceRules)?;
+        }
+        SubCommand::EnforceWorkspaceRules => {
+            send_message(&SocketMessage::EnforceWorkspaceRules)?;
         }
         SubCommand::EagerFocus(args) => {
             send_message(&SocketMessage::EagerFocus(args.exe))?;

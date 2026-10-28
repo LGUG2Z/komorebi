@@ -19,6 +19,7 @@
           {
             name = "I";
             layout = "BSP";
+            initial_workspace_rules = [ ];
           }
           {
             name = "II";

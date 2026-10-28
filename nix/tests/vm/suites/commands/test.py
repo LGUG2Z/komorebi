@@ -331,6 +331,14 @@ clear-session-float-rules
 toggle-float
 ignore-rule exe nonexistent
 manage-rule exe nonexistent
+initial-workspace-rule exe nonexistent 0 1
+workspace-rule exe nonexistent 0 1
+initial-named-workspace-rule exe nonexistent two
+named-workspace-rule exe nonexistent two
+enforce-workspace-rules
+clear-workspace-rules 0 1
+clear-named-workspace-rules two
+clear-all-workspace-rules
 manage
 close
 retile

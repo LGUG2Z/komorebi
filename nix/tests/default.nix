@@ -32,7 +32,10 @@ let
     builtins.toJSON (filterNulls evaluated)
   );
 
-  exampleJson = ../../docs/komorebi.example.json;
+  # the file has comment lines (komorebi reads them), which the schema checker does not
+  exampleJson = pkgs.runCommand "komorebi.example.json" { } ''
+    grep -v '^\s*//' ${../../docs/komorebi.example.json} > $out
+  '';
   schema = ../../schema.json;
 in
 pkgs.runCommand "nix-options-validation"

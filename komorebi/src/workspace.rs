@@ -100,6 +100,10 @@ pub struct Workspace {
     /// Whether a window that opens while this workspace is on its floating layer floats, when it
     /// is not the monitor's or the window manager's default
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    /// The entry of `komorebi.json` this workspace was loaded from, which keeps the rules that
+    /// send windows to it
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_config: Option<WorkspaceConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preselected_container_idx: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -160,6 +164,7 @@ impl Default for Workspace {
             window_container_behaviour_rules: None,
             floating_windows: Default::default(),
             float_override: None,
+            workspace_config: None,
             preselected_container_idx: None,
             promotion_swap_container_idx: None,
         }
@@ -253,7 +258,8 @@ impl Workspace {
     /// Takes the settings of `config`, which `komorebi.json` has for this workspace: its name, its
     /// layout and the rules that change it with the number of containers, its padding and offsets,
     /// what a new window gets and whether it floats, whether it tiles, how its layout is flipped
-    /// and what a new window does on its floating layer
+    /// and what a new window does on its floating layer, and keeps `config` itself
+    /// ([`Workspace::workspace_config`])
     ///
     /// `layout_defaults` is what `komorebi.json` says every layout has, for the layout options the
     /// workspace sets none of: it is copied here, sorted, so that [`Workspace::update`] has it at
@@ -361,6 +367,8 @@ impl Workspace {
         } else {
             HashMap::new()
         };
+
+        self.workspace_config = Some(config.clone());
 
         Ok(())
     }
@@ -1680,6 +1688,29 @@ impl Workspace {
     pub fn container_for_window(&self, window_id: u32) -> Option<&Container> {
         self.containers()
             .get(self.container_idx_for_window(window_id)?)
+    }
+
+    /// The windows that are in view on this workspace: the maximized window (an entry that is
+    /// `None` when there is none), the one at the top of the monocle container, the one at the top
+    /// of each container, and every floating window
+    pub fn visible_windows(&self) -> Vec<Option<&Window>> {
+        let mut vec = vec![];
+
+        vec.push(self.maximized_window.as_ref());
+
+        if let Some(monocle) = &self.monocle_container {
+            vec.push(monocle.focused_window());
+        }
+
+        for container in self.containers() {
+            vec.push(container.focused_window());
+        }
+
+        for window in self.floating_windows() {
+            vec.push(Some(window));
+        }
+
+        vec
     }
 }
 

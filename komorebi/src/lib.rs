@@ -29,6 +29,7 @@ use crate::core::SubscribeOptions;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
+use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::state::State;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
@@ -136,6 +137,10 @@ lazy_static! {
     /// ([`SocketMessage::DisplayIndexPreference`]): the window manager orders its monitors by it
     static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<usize, String>>> =
         Arc::new(RwLock::new(HashMap::new()));
+    /// The rules that send the windows of an application to a workspace: when they open
+    /// (`initial_only`) or whenever the window manager looks at them
+    static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
+        Arc::new(Mutex::new(Vec::new()));
     /// The compiled regular expression of each rule whose matching strategy is `Regex`, by the
     /// rule's id
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =

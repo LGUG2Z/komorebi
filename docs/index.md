@@ -49,7 +49,9 @@ and keep parts of a monitor free of them.
 [Rules](usage/rules.md) explains how to keep an application out of the layout, always tile it, or
 float its windows.
 [Workspaces](usage/workspaces.md) explains how each monitor shows one of its workspaces, which
-are KWin's virtual desktops, and how to show another or move a window to one.
+are KWin's virtual desktops, and how to show another or move a window to one, and
+[Workspace rules](usage/workspace-rules.md) how to have the windows of an application go to a
+workspace by themselves.
 [Configuration](usage/configuration.md) explains `komorebi.json`, where komorebi looks for it and
 how it is reloaded when it changes, [Example configurations](example-configurations.md) has one to
 start from, and [Application specific configuration](usage/application-specific-configuration.md)

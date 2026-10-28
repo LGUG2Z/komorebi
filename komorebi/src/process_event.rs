@@ -5,6 +5,9 @@
 //! covers and no manage rule rescues), or about one the user took out of the layout with
 //! `UnmanageFocusedWindow`, changes nothing either. Otherwise:
 //!
+//! - Whatever the event, the windows of the workspaces are looked at first for workspace rules
+//!   ([`WindowManager::enforce_workspace_rules`]): a window a rule names is sent to its
+//!   workspace.
 //! - **Show**, and **Manage** (`ManageFocusedWindow`): the window gets a container of its own after
 //!   the focused one, or joins the focused container when the window container behavior is
 //!   `Append` ([`WindowManager::window_management_behaviour`]), and the workspace is tiled again
@@ -181,6 +184,8 @@ impl WindowManager {
         {
             self.focus_monitor(monitor_idx)?;
         }
+
+        self.enforce_workspace_rules()?;
 
         match event {
             WindowManagerEvent::FocusChange(_, _) => {
@@ -439,6 +444,7 @@ impl WindowManager {
 
                 if destroyed {
                     self.minimized_windows.remove(&window_id);
+                    self.already_moved_window_handles.lock().remove(&window_id);
                     HIDDEN_WINDOWS.lock().remove(&window_id);
                     UNMANAGED_WINDOW_IDS.lock().retain(|id| *id != window_id);
                 } else {

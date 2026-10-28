@@ -67,6 +67,12 @@
 //! - **ScrollingLayoutColumns** sets how many columns the scrolling layout shows on the focused
 //!   workspace, and **LayoutRatios** the share of the work area its first columns and rows take,
 //!   and both tile the workspace again.
+//! - **InitialWorkspaceRule**, **InitialNamedWorkspaceRule**, **WorkspaceRule** and
+//!   **NamedWorkspaceRule** add a rule that sends the windows of an application to a workspace,
+//!   given by its indices or by its name: when they open for the first time, or always;
+//!   **ClearWorkspaceRules**, **ClearNamedWorkspaceRules** and **ClearAllWorkspaceRules** take
+//!   rules away, and **EnforceWorkspaceRules** applies all of them to the windows that are open
+//!   ([`WindowManager::enforce_workspace_rules`]).
 //! - **WorkspaceLayoutRule** and **NamedWorkspaceLayoutRule** make a workspace change to a layout
 //!   once it has so many containers, and **ClearWorkspaceLayoutRules** and
 //!   **ClearNamedWorkspaceLayoutRules** take its rules away
@@ -188,6 +194,7 @@ use crate::NotificationEvent;
 use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::backend::backend;
 use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
@@ -204,6 +211,7 @@ use crate::core::WindowContainerBehaviour;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
+use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
 use crate::state::GlobalState;
@@ -930,6 +938,8 @@ impl WindowManager {
             SocketMessage::ReplaceConfiguration(ref config) => {
                 // Check that this is a valid static config file first
                 if StaticConfig::read(config).is_ok() {
+                    // Clear workspace rules; these will need to be replaced
+                    WORKSPACE_MATCHING_RULES.lock().clear();
                     // Pause so that restored windows come to the foreground from all workspaces
                     self.is_paused = true;
                     // Bring all windows to the foreground
@@ -1426,6 +1436,110 @@ impl WindowManager {
                 let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
                 floating_applications.retain(|r| !session_floating_applications.contains(r));
                 session_floating_applications.clear()
+            }
+            SocketMessage::InitialWorkspaceRule(identifier, ref id, monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                let workspace_matching_rule = WorkspaceMatchingRule {
+                    monitor_index: monitor_idx,
+                    workspace_index: workspace_idx,
+                    matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.to_string(),
+                        matching_strategy: Some(MatchingStrategy::Legacy),
+                    }),
+                    initial_only: true,
+                };
+
+                if !workspace_rules.contains(&workspace_matching_rule) {
+                    workspace_rules.push(workspace_matching_rule);
+                }
+            }
+            SocketMessage::InitialNamedWorkspaceRule(identifier, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    let workspace_matching_rule = WorkspaceMatchingRule {
+                        monitor_index: monitor_idx,
+                        workspace_index: workspace_idx,
+                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                            kind: identifier,
+                            id: id.to_string(),
+                            matching_strategy: Some(MatchingStrategy::Legacy),
+                        }),
+                        initial_only: true,
+                    };
+
+                    if !workspace_rules.contains(&workspace_matching_rule) {
+                        workspace_rules.push(workspace_matching_rule);
+                    }
+                }
+            }
+            SocketMessage::WorkspaceRule(identifier, ref id, monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                let workspace_matching_rule = WorkspaceMatchingRule {
+                    monitor_index: monitor_idx,
+                    workspace_index: workspace_idx,
+                    matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.to_string(),
+                        matching_strategy: Some(MatchingStrategy::Legacy),
+                    }),
+                    initial_only: false,
+                };
+
+                if !workspace_rules.contains(&workspace_matching_rule) {
+                    workspace_rules.push(workspace_matching_rule);
+                }
+            }
+            SocketMessage::NamedWorkspaceRule(identifier, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    let workspace_matching_rule = WorkspaceMatchingRule {
+                        monitor_index: monitor_idx,
+                        workspace_index: workspace_idx,
+                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                            kind: identifier,
+                            id: id.to_string(),
+                            matching_strategy: Some(MatchingStrategy::Legacy),
+                        }),
+                        initial_only: false,
+                    };
+
+                    if !workspace_rules.contains(&workspace_matching_rule) {
+                        workspace_rules.push(workspace_matching_rule);
+                    }
+                }
+            }
+            SocketMessage::ClearWorkspaceRules(monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+
+                workspace_rules.retain(|r| {
+                    r.monitor_index != monitor_idx && r.workspace_index != workspace_idx
+                });
+            }
+            SocketMessage::ClearNamedWorkspaceRules(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    workspace_rules.retain(|r| {
+                        r.monitor_index != monitor_idx && r.workspace_index != workspace_idx
+                    });
+                }
+            }
+            SocketMessage::ClearAllWorkspaceRules => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                workspace_rules.clear();
+            }
+            SocketMessage::EnforceWorkspaceRules => {
+                {
+                    let mut already_moved = self.already_moved_window_handles.lock();
+                    already_moved.clear();
+                }
+                self.enforce_workspace_rules()?;
             }
             SocketMessage::IgnoreRule(identifier, ref id) => {
                 let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();

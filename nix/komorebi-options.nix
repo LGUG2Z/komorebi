@@ -1,4 +1,4 @@
-# schema-sha256: 2bb6a47d645d5027d15ea70545473ac3dd417e8a2d7ac932d3c593d71a539dbd
+# schema-sha256: ca218a3bc93a1cc9466eca3ca51409ffb233df8af2cb56de31ee7b86133c8a0c
 { lib, ... }:
 let
   defaultLayout = (
@@ -371,6 +371,11 @@ in
                                 default = "Tile";
                                 description = "Determine what happens to a new window when the Floating workspace layer is active";
                               };
+                              initial_workspace_rules = lib.mkOption {
+                                type = (lib.types.nullOr (lib.types.listOf matchingRule));
+                                default = null;
+                                description = "Initial workspace application rules";
+                              };
                               layout = lib.mkOption {
                                 type = (lib.types.nullOr defaultLayout);
                                 default = "BSP";
@@ -437,6 +442,11 @@ in
                                 type = (lib.types.nullOr lib.types.int);
                                 default = null;
                                 description = "Workspace padding (default: global)";
+                              };
+                              workspace_rules = lib.mkOption {
+                                type = (lib.types.nullOr (lib.types.listOf matchingRule));
+                                default = null;
+                                description = "Permanent workspace application rules";
                               };
                             };
                           }

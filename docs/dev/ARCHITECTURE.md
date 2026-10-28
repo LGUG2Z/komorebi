@@ -683,6 +683,21 @@ defaults. A **rule** is an entry of one of the process-wide lists. A workspace's
 `layout_rules`, `work_area_offset_rules` and `window_container_behaviour_rules` are fields of the
 [`Workspace`], which [`Workspace::update`] reads each time it tiles.
 
+A workspace's `workspace_rules` and `initial_workspace_rules` are not fields of the window manager
+but entries of [`WORKSPACE_MATCHING_RULES`], which [`StaticConfig::postload`] and
+[`StaticConfig::reload`] empty and fill from the file, and the messages `WorkspaceRule`,
+`InitialWorkspaceRule` and their named forms add to. [`WindowManager::enforce_workspace_rules`] reads
+them: for each window in view (the top of each container, and the floating windows) that a rule
+matches, on a workspace other than the rule's, it makes an operation, takes the window out of its
+workspace (and hides it when that is the focused one), puts it in the target (making the workspace
+if it is not there, and taking a floating window to the target's monitor), tiles the focused
+workspace again if the window left it, and has each target monitor put its windows on the desktops
+of their workspaces
+([`Monitor::assign_windows_to_workspaces`]). `handle_event` calls it before every event about a
+window it manages, and `postload`, `reload` and `EnforceWorkspaceRules` call it too. An `initial_only`
+rule moves a window once: the window id goes into [`WindowManager::already_moved_window_handles`],
+which `EnforceWorkspaceRules` empties and a destroy removes the id from.
+
 `ReplaceConfiguration` is the third way in: [`WindowManager::process_command`] checks that the file
 reads as a [`StaticConfig`], pauses the old window manager and brings back the windows it hid
 ([`WindowManager::restore_all_windows`]), makes a new window manager from the file
@@ -721,6 +736,10 @@ goes the other way, for `GenerateStaticConfig`.
 | `schema.json` and `schema.asc.json` are what the Rust types print | Nix check `schema-fresh`, and a test that compares them with `komorebic`'s output | `schema-fresh`, `the_schema_files_of_the_repository_are_what_the_subcommands_print` | `just jsonschema` |
 | The options the module is typed with are made from the committed schema | the hash of `schema.json` in the first line of `nix/komorebi-options.nix`, compared by `schema-fresh` | `schema-fresh` | `just nixgen` |
 | The example, in Nix and in JSON, follows the schema, and says the same in both | Nix check `nix-options-validation`: the options evaluated against the Nix example, both examples checked with `check-jsonschema`, and one contained in the other | `nix-options-validation` | none |
+| A window a workspace rule names ends on its workspace, and on that workspace's desktop once the workspace is shown | framework path: [`WindowManager::enforce_workspace_rules`] moves it in the model, and has the target monitor put it on the desktop | `a_rule_sends_the_window_of_an_application_to_its_workspace`, `a_window_a_rule_moves_between_workspaces_that_are_out_of_view_is_put_on_the_new_desktop`, `vm-workspace-rules` | none |
+| A window a workspace rule takes off the workspace in front is out of sight until its workspace is shown | framework path: [`WindowManager::enforce_workspace_rules`] hides it, and showing the workspace restores it | `a_rule_sends_the_window_of_an_application_to_its_workspace`, `vm-workspace-rules` | none |
+| An initial rule sends a window once, a permanent one every time | framework path: the window ids an initial rule has sent are in [`WindowManager::already_moved_window_handles`] until the window closes | `an_initial_rule_moves_a_window_once_and_a_permanent_one_every_time`, `vm-workspace-rules` | `komorebic enforce-workspace-rules` forgets them |
+| The rules of the configuration are the file's, and the windows that are open follow them | framework path: [`StaticConfig::postload`] and [`StaticConfig::reload`] empty the list, fill it from the file and enforce it | `the_rules_of_komorebi_json_send_the_windows_that_are_open_and_come_out_in_the_generated_file`, `vm-workspace-rules` | none |
 | Replacing the configuration with a file that does not read leaves the window manager as it was | framework path: the arm reads the file as a [`StaticConfig`] before it makes anything | `replacing_the_configuration_makes_the_window_manager_again_from_the_new_file` | none |
 | Replacing the configuration leaves no window hidden | framework path: the arm brings back the windows the old window manager hid ([`WindowManager::restore_all_windows`]) before the new one reads the desktop | `replacing_the_configuration_makes_the_window_manager_again_from_the_new_file` | none |
 | `quickstart` never writes over a file without being told to | framework path: every file goes through `write_file_with_prompt`, which keeps the file unless the answer is `y` or `yes` | `quickstart_writes_the_example_files_and_asks_before_it_overwrites_one` | none |
@@ -1037,7 +1056,9 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/config_parity.rs`](../../komorebi/tests/config_parity.rs) the files of other
   platforms and the example, which load;
   [`komorebi/tests/replace_configuration.rs`](../../komorebi/tests/replace_configuration.rs)
-  the `ReplaceConfiguration` message; [`komorebi/tests/schemas.rs`](../../komorebi/tests/schemas.rs) the schemas the daemon answers
+  the `ReplaceConfiguration` message;
+  [`komorebi/tests/workspace_rules.rs`](../../komorebi/tests/workspace_rules.rs) the workspace
+  rules; [`komorebi/tests/schemas.rs`](../../komorebi/tests/schemas.rs) the schemas the daemon answers
   with; [`schema.json`](../../schema.json), [`schema.asc.json`](../../schema.asc.json) and
   [`nix/komorebi-options.nix`](../../nix/komorebi-options.nix), which are generated;
   [`nix/tests/default.nix`](../../nix/tests/default.nix) and
@@ -1111,6 +1132,9 @@ A window is shown, and ends up on a tile:
   a stack hides, the behavior of new windows and the float override, against the fake;
   [`nix/tests/vm/suites/stacks`](../../nix/tests/vm/suites/stacks/test.py), the same in a real
   KWin, with the parking desktop, a crash and a stop.
+- [`nix/tests/vm/suites/workspace-rules`](../../nix/tests/vm/suites/workspace-rules/test.py):
+  workspace rules sending windows to other workspaces of a real KWin, out of sight on the parking
+  desktop until the workspace is shown.
 - [`nix/tests/vm/suites/workspace-switch`](../../nix/tests/vm/suites/workspace-switch/test.py):
   workspaces as a real KWin's desktops, switched by `komorebic` and by KWin;
   [`nix/tests/vm/suites/kwin-contract`](../../nix/tests/vm/suites/kwin-contract/test.py), the
@@ -1128,6 +1152,10 @@ A window is shown, and ends up on a tile:
 [`StaticConfig::reload`]: ../../komorebi/src/static_config.rs
 [`Workspace::load_static_config`]: ../../komorebi/src/workspace.rs
 [`HOME_DIR`]: ../../komorebi/src/lib.rs
+[`WORKSPACE_MATCHING_RULES`]: ../../komorebi/src/lib.rs
+[`WindowManager::enforce_workspace_rules`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::already_moved_window_handles`]: ../../komorebi/src/window_manager.rs
+[`Monitor::assign_windows_to_workspaces`]: ../../komorebi/src/monitor.rs
 [`LAYOUT_DEFAULTS`]: ../../komorebi/src/lib.rs
 [`IGNORE_IDENTIFIERS`]: ../../komorebi/src/lib.rs
 [`MANAGE_IDENTIFIERS`]: ../../komorebi/src/lib.rs

@@ -962,6 +962,16 @@
           ],
           "default": "Tile"
         },
+        "initial_workspace_rules": {
+          "description": "Initial workspace application rules",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/MatchingRule"
+          }
+        },
         "layout": {
           "description": "Layout",
           "anyOf": [
@@ -1090,6 +1100,16 @@
             "null"
           ],
           "format": "int32"
+        },
+        "workspace_rules": {
+          "description": "Permanent workspace application rules",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/MatchingRule"
+          }
         }
       },
       "required": [

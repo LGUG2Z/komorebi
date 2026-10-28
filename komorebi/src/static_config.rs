@@ -13,6 +13,9 @@
 //! nothing on KDE Plasma is accepted and ignored, and a key that is not known at all is ignored
 //! too, as serde does.
 //!
+//! A workspace's `workspace_rules` and `initial_workspace_rules` become the rules that send windows
+//! to it (`WORKSPACE_MATCHING_RULES`), which are made again from the file each time it is read.
+//!
 //! The rules for particular applications are kept in files of their own, which the configuration
 //! names with `app_specific_configuration_path` ([`ApplicationSpecificConfiguration`]); their
 //! rules are added to the ones the configuration itself has.
@@ -33,6 +36,7 @@ use crate::IGNORE_IDENTIFIERS;
 use crate::LAYOUT_DEFAULTS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::core::Axis;
 use crate::core::CrossBoundaryBehaviour;
 use crate::core::DefaultLayout;
@@ -53,6 +57,7 @@ use crate::core::asc::ApplicationSpecificConfiguration;
 use crate::core::asc::AscApplicationRulesOrSchema;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
+use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core::pathext::ResolvedPathBuf;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
@@ -112,6 +117,12 @@ pub struct WorkspaceConfig {
     /// Workspace padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_padding: Option<i32>,
+    /// Initial workspace application rules
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initial_workspace_rules: Option<Vec<MatchingRule>>,
+    /// Permanent workspace application rules
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_rules: Option<Vec<MatchingRule>>,
     /// Work area offset rules in the format of threshold => Rect (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub work_area_offset_rules: Option<HashMap<usize, Rect>>,
@@ -221,6 +232,14 @@ impl From<&Workspace> for WorkspaceConfig {
             layout_rules,
             container_padding,
             workspace_padding,
+            initial_workspace_rules: value
+                .workspace_config
+                .as_ref()
+                .and_then(|c| c.initial_workspace_rules.clone()),
+            workspace_rules: value
+                .workspace_config
+                .as_ref()
+                .and_then(|c| c.workspace_rules.clone()),
             work_area_offset_rules,
             work_area_offset: value.work_area_offset,
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset),
@@ -890,6 +909,7 @@ impl StaticConfig {
                 .unwrap_or(DEFAULT_MOUSE_FOLLOWS_FOCUS),
             hotwatch: Hotwatch::new()?,
             minimized_windows: HashMap::new(),
+            already_moved_window_handles: Default::default(),
             known_window_ids: HashMap::new(),
         };
 
@@ -931,8 +951,12 @@ impl StaticConfig {
             DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
         let mut configs_used = Vec::new();
 
+        let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+        workspace_matching_rules.clear();
+        drop(workspace_matching_rules);
+
         let offset = wm.work_area_offset;
-        for monitor in wm.monitors_mut().iter_mut() {
+        for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
 
@@ -985,8 +1009,35 @@ impl StaticConfig {
                         ws.load_static_config(workspace_config, value.layout_defaults.as_ref())?;
                     }
                 }
+
+                let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+                for (j, ws) in monitor_config.workspaces.iter().enumerate() {
+                    if let Some(rules) = &ws.workspace_rules {
+                        for r in rules {
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index: i,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: false,
+                            });
+                        }
+                    }
+
+                    if let Some(rules) = &ws.initial_workspace_rules {
+                        for r in rules {
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index: i,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: true,
+                            });
+                        }
+                    }
+                }
             }
         }
+
+        wm.enforce_workspace_rules()?;
 
         Ok(())
     }
@@ -1012,8 +1063,12 @@ impl StaticConfig {
             DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
         let mut configs_used = Vec::new();
 
+        let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+        workspace_matching_rules.clear();
+        drop(workspace_matching_rules);
+
         let offset = wm.work_area_offset;
-        for monitor in wm.monitors_mut().iter_mut() {
+        for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
 
@@ -1068,8 +1123,35 @@ impl StaticConfig {
                         ws.load_static_config(workspace_config, value.layout_defaults.as_ref())?;
                     }
                 }
+
+                let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+                for (j, ws) in monitor_config.workspaces.iter().enumerate() {
+                    if let Some(rules) = &ws.workspace_rules {
+                        for r in rules {
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index: i,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: false,
+                            });
+                        }
+                    }
+
+                    if let Some(rules) = &ws.initial_workspace_rules {
+                        for r in rules {
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index: i,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: true,
+                            });
+                        }
+                    }
+                }
             }
         }
+
+        wm.enforce_workspace_rules()?;
 
         wm.window_management_behaviour.current_behaviour =
             value.window_container_behaviour.unwrap_or_default();

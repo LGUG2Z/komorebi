@@ -16,12 +16,14 @@ use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::Rect;
 use crate::core::WindowContainerBehaviour;
 use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window_manager::WindowManager;
@@ -34,7 +36,8 @@ use std::path::PathBuf;
 
 /// What the daemon has that is not part of the window manager, as it answers
 /// [`SocketMessage::GlobalState`](crate::core::SocketMessage::GlobalState): the ignore and the manage
-/// rules, the indices the user gave the monitors, and the configuration and the data directories
+/// rules, the indices the user gave the monitors, the workspace rules, and the configuration and
+/// the data directories
 ///
 /// # Example
 ///
@@ -47,6 +50,7 @@ use std::path::PathBuf;
 /// assert!(json.contains(r#""id":"org.kde.plasmashell""#), "{json}");
 /// assert!(state.manage_identifiers.is_empty());
 /// assert!(state.display_index_preferences.is_empty());
+/// assert!(state.workspace_rules.is_empty());
 /// assert_eq!(state.configuration_dir, *komorebi::HOME_DIR);
 /// assert_eq!(state.data_dir, *komorebi::DATA_DIR);
 ///
@@ -77,6 +81,7 @@ pub struct GlobalState {
     // pub monitor_index_preferences: HashMap<usize, Rect>,
     pub display_index_preferences: HashMap<usize, String>,
     // pub ignored_duplicate_monitor_serial_ids: Vec<String>,
+    pub workspace_rules: Vec<WorkspaceMatchingRule>,
     // pub window_hiding_behaviour: HidingBehaviour,
     pub configuration_dir: PathBuf,
     pub data_dir: PathBuf,
@@ -89,6 +94,7 @@ impl Default for GlobalState {
             ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             display_index_preferences: DISPLAY_INDEX_PREFERENCES.read().clone(),
+            workspace_rules: WORKSPACE_MATCHING_RULES.lock().clone(),
             configuration_dir: HOME_DIR.clone(),
             data_dir: DATA_DIR.clone(),
         }
@@ -196,6 +202,7 @@ impl From<&WindowManager> for State {
                             layer: workspace.layer,
                             floating_layer_behaviour: workspace.floating_layer_behaviour,
                             globals: workspace.globals,
+                            workspace_config: None,
                             preselected_container_idx: None,
                             promotion_swap_container_idx: None,
                         })

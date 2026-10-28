@@ -177,7 +177,10 @@ on events and orders until it is resumed. The padding commands set the gaps arou
 the work area offsets keep parts of a monitor free of tiles. Rules decide which
 windows are managed at all: `ignore-rule` keeps an application out of the
 layout, `manage-rule` tiles it whatever the ignore rules say, and
-`session-float-rule` floats the focused window and the windows like it.
+`session-float-rule` floats the focused window and the windows like it, and a
+workspace rule (`workspace-rule`, `initial-workspace-rule`, their named forms,
+or `workspace_rules` in `komorebi.json`) sends the windows of an application to a
+workspace, once or whenever the window manager looks, which it does at every event.
 `focus-workspace` shows another workspace, and `move-to-workspace` and
 `send-to-workspace` put the focused window on another workspace, with and
 without showing it; their `cycle-` and `-last-workspace` forms go to the next,
