@@ -1,0 +1,9 @@
+[package]
+name = "komorebi-scrolling"
+version = "0.1.0"
+description = "A platform-free model of a scrollable strip of columns"
+edition = "2024"
+
+# This crate deliberately has no dependencies: it is geometry and a state machine, and it is
+# meant to be usable by every komorebi, whatever it draws windows with.
+[dependencies]

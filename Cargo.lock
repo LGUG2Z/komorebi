@@ -3338,6 +3338,7 @@ dependencies = [
  "ed25519-dalek",
  "hotwatch",
  "komorebi-layouts",
+ "komorebi-scrolling",
  "komorebi-themes",
  "lazy_static",
  "miow",
@@ -3454,6 +3455,10 @@ dependencies = [
  "tracing",
  "windows 0.62.2",
 ]
+
+[[package]]
+name = "komorebi-scrolling"
+version = "0.1.0"
 
 [[package]]
 name = "komorebi-shortcuts"

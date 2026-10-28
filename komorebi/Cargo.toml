@@ -9,6 +9,7 @@ edition = "2024"
 
 [dependencies]
 komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
+komorebi-scrolling = { path = "../komorebi-scrolling" }
 komorebi-themes = { path = "../komorebi-themes" }
 
 base64 = "0.22"
