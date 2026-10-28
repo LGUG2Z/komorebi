@@ -17,6 +17,7 @@ use color_eyre::eyre;
 use crossbeam_channel::Sender;
 use crossbeam_channel::bounded;
 use crossbeam_channel::unbounded;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::OnceLock;
@@ -490,6 +491,8 @@ pub struct GhostWindow {
     hthumb: isize,
     /// Where the host's client area starts in screen coordinates
     origin: (i32, i32),
+    /// Where the ghost was last put, and how opaque it was made
+    shown: Mutex<Option<(Rect, u8)>>,
     disposed: bool,
 }
 
@@ -521,6 +524,8 @@ impl GhostWindow {
         Ok(Self {
             hthumb,
             origin,
+            // it is registered where the window is, and opaque
+            shown: Mutex::new(Some((start_rect, 255))),
             disposed: false,
         })
     }
@@ -528,7 +533,14 @@ impl GhostWindow {
     /// Move and scale the ghost to `rect`, and make it `opacity` opaque.
     /// Updating a registered thumbnail has no thread affinity, so this is
     /// applied on the calling thread and is done by the time it returns.
+    ///
+    /// A ghost that is already there is left alone: asking DWM for what is
+    /// already so still has it compose the frame again.
     pub fn update(&self, rect: Rect, opacity: u8) -> eyre::Result<()> {
+        if !needs_update(&mut self.shown.lock(), rect, opacity) {
+            return Ok(());
+        }
+
         WindowsApi::dwm_update_thumbnail_properties(
             self.hthumb,
             &thumbnail_properties(destination(rect, self.origin), opacity),
@@ -569,6 +581,17 @@ impl Drop for GhostWindow {
     fn drop(&mut self) {
         let _ = self.dispose_inner();
     }
+}
+
+/// Whether putting a ghost at `rect` with `opacity` changes anything, given
+/// where it was last put, which is remembered if it does
+fn needs_update(shown: &mut Option<(Rect, u8)>, rect: Rect, opacity: u8) -> bool {
+    if *shown == Some((rect, opacity)) {
+        return false;
+    }
+
+    *shown = Some((rect, opacity));
+    true
 }
 
 /// How many frames a ghost is faded out over once its animation is over
@@ -677,6 +700,33 @@ mod tests {
         assert!(!is_swap_chain_class("CabinetWClass"));
         assert!(!is_swap_chain_class("Chrome_RenderWidgetHostHWND"));
         assert!(!is_swap_chain_class(""));
+    }
+
+    #[test]
+    fn a_ghost_is_only_updated_when_it_changes() {
+        let rect = |left| Rect {
+            left,
+            top: 0,
+            right: 100,
+            bottom: 50,
+        };
+        let mut shown = Some((rect(0), 255));
+
+        // where it is already
+        assert!(!needs_update(&mut shown, rect(0), 255));
+
+        // moved, or faded, or both
+        assert!(needs_update(&mut shown, rect(10), 255));
+        assert!(!needs_update(&mut shown, rect(10), 255));
+        assert!(needs_update(&mut shown, rect(10), 200));
+        assert!(needs_update(&mut shown, rect(20), 100));
+
+        // and back, which is a change from where it was last
+        assert!(needs_update(&mut shown, rect(10), 200));
+
+        // one that was never put anywhere is put somewhere
+        let mut never = None;
+        assert!(needs_update(&mut never, rect(0), 255));
     }
 
     #[test]
