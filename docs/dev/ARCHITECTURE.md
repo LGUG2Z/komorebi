@@ -405,13 +405,15 @@ focused is in no container of the focused workspace
 ([`WindowManager::handle_unmanaged_window_behaviour`]).
 
 `WorkspacePadding`, `ContainerPadding` and their `FocusedWorkspace` forms set a workspace's own
-padding, and `AdjustWorkspacePadding` and `AdjustContainerPadding` change the focused
-workspace's by a number of pixels, which needs a padding of its own to change
-([`WindowManager::adjust_workspace_padding`]). `WorkAreaOffset`, `MonitorWorkAreaOffset` and
-`WorkspaceWorkAreaOffset` set the offset of the window manager, of a monitor or of a workspace,
-and `ToggleWindowBasedWorkAreaOffset` sets whether the focused workspace takes its monitor's
-window-based offset ([`Workspace::apply_window_based_work_area_offset`]). Each tiles the
-workspace in front again, or every monitor.
+padding, and `NamedWorkspacePadding` and `NamedWorkspaceContainerPadding` do the same for the
+workspace with a name, which they look up like `NamedWorkspaceLayout` does
+([`WindowManager::monitor_workspace_index_by_name`]). `AdjustWorkspacePadding` and
+`AdjustContainerPadding` change the focused workspace's by a number of pixels, which needs a padding
+of its own to change ([`WindowManager::adjust_workspace_padding`]). `WorkAreaOffset`,
+`MonitorWorkAreaOffset` and `WorkspaceWorkAreaOffset` set the offset of the window manager, of a
+monitor or of a workspace, and `ToggleWindowBasedWorkAreaOffset` sets whether the focused workspace
+takes its monitor's window-based offset ([`Workspace::apply_window_based_work_area_offset`]). Each
+tiles the workspace in front again, or every monitor.
 
 `ResizeWindowEdge` and `ResizeWindowAxis` resize the focused container
 ([`WindowManager::resize_window`]). A resize is an adjustment of the container's tile, kept in

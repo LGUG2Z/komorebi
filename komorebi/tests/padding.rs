@@ -88,6 +88,17 @@ fn one_window_without_padding(id: u32) -> (Arc<FakeBackend>, WindowManager) {
     (fake, wm)
 }
 
+/// The workspace padding and the container padding each workspace of the focused monitor has of
+/// its own
+fn paddings(wm: &WindowManager) -> Vec<(Option<i32>, Option<i32>)> {
+    wm.focused_monitor()
+        .unwrap()
+        .workspaces()
+        .iter()
+        .map(|workspace| (workspace.workspace_padding, workspace.container_padding))
+        .collect()
+}
+
 #[test]
 fn the_paddings_of_the_focused_workspace_are_set_and_adjusted() {
     let (fake, mut wm) = desktop_with(&[28_001]);
@@ -154,6 +165,63 @@ fn the_paddings_of_a_workspace_are_set_by_its_indices() {
             .map_err(|error| error.to_string()),
         Err(String::from("there is no monitor"))
     );
+}
+
+#[test]
+fn the_paddings_of_a_workspace_are_set_by_its_name_and_a_name_nobody_has_changes_nothing() {
+    let (fake, mut wm) = desktop_with(&[28_041]);
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::EnsureNamedWorkspaces(0, vec![String::from("main"), String::from("side")]),
+    )
+    .unwrap();
+
+    // the workspace in front is tiled again at once
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::NamedWorkspacePadding(String::from("main"), 20),
+    )
+    .unwrap();
+    assert_eq!(fake.rect_of(28_041), Some(rect(25, 25, 1870, 1000)));
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::NamedWorkspaceContainerPadding(String::from("main"), 0),
+    )
+    .unwrap();
+    assert_eq!(fake.rect_of(28_041), Some(rect(20, 20, 1880, 1010)));
+
+    // another workspace takes its own paddings, and the one in front keeps its tile
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::NamedWorkspacePadding(String::from("side"), 7),
+    )
+    .unwrap();
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::NamedWorkspaceContainerPadding(String::from("side"), 3),
+    )
+    .unwrap();
+    assert_eq!(fake.rect_of(28_041), Some(rect(20, 20, 1880, 1010)));
+    assert_eq!(paddings(&wm), [(Some(20), Some(0)), (Some(7), Some(3))]);
+
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::NamedWorkspacePadding(String::from("nowhere"), 99),
+    )
+    .unwrap();
+    send(
+        &fake,
+        &mut wm,
+        SocketMessage::NamedWorkspaceContainerPadding(String::from("nowhere"), 99),
+    )
+    .unwrap();
+    assert_eq!(paddings(&wm), [(Some(20), Some(0)), (Some(7), Some(3))]);
 }
 
 #[test]

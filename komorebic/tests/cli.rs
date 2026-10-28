@@ -316,6 +316,14 @@ fn the_padding_subcommands_send_the_workspace_and_the_pixels_they_are_given() {
         r#"{"type":"ContainerPadding","content":[1,0,8]}"#,
     );
     sends(
+        &["named-workspace-padding", "mail", "12"],
+        r#"{"type":"NamedWorkspacePadding","content":["mail",12]}"#,
+    );
+    sends(
+        &["named-workspace-container-padding", "mail", "8"],
+        r#"{"type":"NamedWorkspaceContainerPadding","content":["mail",8]}"#,
+    );
+    sends(
         &["adjust-workspace-padding", "increase", "5"],
         r#"{"type":"AdjustWorkspacePadding","content":["Increase",5]}"#,
     );
@@ -689,7 +697,9 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "move-to-workspace.md",
             "move-workspace-to-monitor.md",
             "move.md",
+            "named-workspace-container-padding.md",
             "named-workspace-layout.md",
+            "named-workspace-padding.md",
             "named-workspace-tiling.md",
             "new-workspace.md",
             "preselect-direction.md",

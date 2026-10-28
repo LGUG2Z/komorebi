@@ -21,11 +21,18 @@ set the paddings of the focused workspace, and
 [`komorebic container-padding`](../cli/container-padding.md) those of a workspace given by the
 index of its monitor and its own, counted from 0.
 
+[`komorebic named-workspace-padding`](../cli/named-workspace-padding.md) and
+[`komorebic named-workspace-container-padding`](../cli/named-workspace-container-padding.md) find
+the workspace by the [name](workspaces.md#names) it was given instead, on whichever monitor has
+it. A name no workspace has changes nothing.
+
 ```sh
 komorebic focused-workspace-padding 20
 komorebic focused-workspace-container-padding 10
 komorebic workspace-padding 0 1 0
 komorebic container-padding 0 1 0
+komorebic named-workspace-padding mail 0
+komorebic named-workspace-container-padding mail 0
 ```
 
 [`komorebic adjust-workspace-padding`](../cli/adjust-workspace-padding.md) and

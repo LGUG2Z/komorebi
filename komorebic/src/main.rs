@@ -47,10 +47,11 @@
 //!   `cross-monitor-move-behaviour` and `toggle-cross-monitor-move-behaviour` set what `move` does
 //!   at the edge of a monitor, and `display-index-preference` gives a monitor an index.
 //!   `eager-focus` focuses the first window of an executable, on any workspace of any monitor.
-//! - `workspace-name` names a workspace, which `focus-named-workspace`, `named-workspace-layout`
-//!   and `named-workspace-tiling` find by its name; `workspace-layout` and `workspace-tiling` set
-//!   the layout and the tiling of a workspace by its index, and `ensure-workspaces` and
-//!   `ensure-named-workspaces` give a monitor workspaces up to a number, or with names.
+//! - `workspace-name` names a workspace, which `focus-named-workspace`, `named-workspace-layout`,
+//!   `named-workspace-tiling`, `named-workspace-padding` and `named-workspace-container-padding`
+//!   find by its name; `workspace-layout` and `workspace-tiling` set the layout and the tiling of
+//!   a workspace by its index, and `ensure-workspaces` and `ensure-named-workspaces` give a
+//!   monitor workspaces up to a number, or with names.
 //!
 //! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
 //! always in it, `session-float-rule` floats the focused window and every window like it until the
@@ -295,6 +296,27 @@ macro_rules! gen_padding_subcommand_args {
 gen_padding_subcommand_args! {
     ContainerPadding,
     WorkspacePadding,
+}
+
+macro_rules! gen_named_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Target workspace name
+                workspace: String,
+
+                /// Pixels to pad with as an integer
+                size: i32,
+            }
+        )+
+    };
+}
+
+gen_named_padding_subcommand_args! {
+    NamedWorkspaceContainerPadding,
+    NamedWorkspacePadding,
 }
 
 macro_rules! gen_padding_adjustment_subcommand_args {
@@ -773,9 +795,15 @@ enum SubCommand {
     /// Set the container padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     ContainerPadding(ContainerPadding),
+    /// Set the container padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceContainerPadding(NamedWorkspaceContainerPadding),
     /// Set the workspace padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspacePadding(WorkspacePadding),
+    /// Set the workspace padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspacePadding(NamedWorkspacePadding),
     /// Set the layout for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceLayout(WorkspaceLayout),
@@ -1223,9 +1251,21 @@ fn main() -> eyre::Result<()> {
                 args.size,
             ))?;
         }
+        SubCommand::NamedWorkspaceContainerPadding(args) => {
+            send_message(&SocketMessage::NamedWorkspaceContainerPadding(
+                args.workspace,
+                args.size,
+            ))?;
+        }
         SubCommand::WorkspacePadding(args) => {
             send_message(&SocketMessage::WorkspacePadding(
                 args.monitor,
+                args.workspace,
+                args.size,
+            ))?;
+        }
+        SubCommand::NamedWorkspacePadding(args) => {
+            send_message(&SocketMessage::NamedWorkspacePadding(
                 args.workspace,
                 args.size,
             ))?;

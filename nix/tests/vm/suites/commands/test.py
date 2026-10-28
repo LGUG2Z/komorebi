@@ -278,6 +278,10 @@ container-padding 0 0 12
 container-padding 0 0 10
 workspace-padding 0 0 12
 workspace-padding 0 0 10
+named-workspace-container-padding one 12
+named-workspace-container-padding one 10
+named-workspace-padding one 12
+named-workspace-padding one 10
 cross-monitor-move-behaviour insert
 cross-monitor-move-behaviour swap
 toggle-cross-monitor-move-behaviour

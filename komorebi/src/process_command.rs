@@ -53,10 +53,12 @@
 //!   workspace, which komorebi does not move, or puts a floating window back
 //!   ([`WindowManager::toggle_float`]).
 //! - **WorkspacePadding** and **ContainerPadding** set the paddings of a workspace given by the
-//!   index of its monitor and its own, **FocusedWorkspacePadding** and
-//!   **FocusedWorkspaceContainerPadding** those of the focused workspace, and
-//!   **AdjustWorkspacePadding** and **AdjustContainerPadding** make the focused workspace's larger
-//!   or smaller ([`WindowManager::set_workspace_padding`],
+//!   index of its monitor and its own, **NamedWorkspacePadding** and
+//!   **NamedWorkspaceContainerPadding** those of the workspace with a name
+//!   ([`WindowManager::monitor_workspace_index_by_name`]; a name no workspace has changes
+//!   nothing), **FocusedWorkspacePadding** and **FocusedWorkspaceContainerPadding** those of the
+//!   focused workspace, and **AdjustWorkspacePadding** and **AdjustContainerPadding** make the
+//!   focused workspace's larger or smaller ([`WindowManager::set_workspace_padding`],
 //!   [`WindowManager::set_container_padding`], [`WindowManager::adjust_workspace_padding`],
 //!   [`WindowManager::adjust_container_padding`]).
 //! - **WorkAreaOffset**, **MonitorWorkAreaOffset** and **WorkspaceWorkAreaOffset** set the work
@@ -1140,8 +1142,22 @@ impl WindowManager {
             SocketMessage::ContainerPadding(monitor_idx, workspace_idx, size) => {
                 self.set_container_padding(monitor_idx, workspace_idx, size)?;
             }
+            SocketMessage::NamedWorkspaceContainerPadding(ref workspace, size) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_container_padding(monitor_idx, workspace_idx, size)?;
+                }
+            }
             SocketMessage::WorkspacePadding(monitor_idx, workspace_idx, size) => {
                 self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
+            }
+            SocketMessage::NamedWorkspacePadding(ref workspace, size) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
+                }
             }
             SocketMessage::FocusedWorkspaceContainerPadding(adjustment) => {
                 let focused_monitor_idx = self.focused_monitor_idx();
