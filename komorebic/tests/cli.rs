@@ -425,6 +425,22 @@ fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
 }
 
 #[test]
+fn the_workspace_subcommands_send_the_index_they_are_given() {
+    sends(
+        &["focus-workspace", "1"],
+        r#"{"type":"FocusWorkspaceNumber","content":1}"#,
+    );
+    sends(
+        &["move-to-workspace", "2"],
+        r#"{"type":"MoveContainerToWorkspaceNumber","content":2}"#,
+    );
+    sends(
+        &["send-to-workspace", "0"],
+        r#"{"type":"SendContainerToWorkspaceNumber","content":0}"#,
+    );
+}
+
+#[test]
 fn without_a_daemon_a_question_fails() {
     let runtime = Runtime::new();
 
@@ -476,6 +492,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "cycle-move.md",
             "data-directory.md",
             "flip-layout.md",
+            "focus-workspace.md",
             "focus.md",
             "focused-workspace-container-padding.md",
             "focused-workspace-padding.md",
@@ -491,6 +508,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "monitor-information.md",
             "monitor-work-area-offset.md",
             "mouse-follows-focus.md",
+            "move-to-workspace.md",
             "move.md",
             "preselect-direction.md",
             "promote-focus.md",
@@ -506,6 +524,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "retile.md",
             "save-resize.md",
             "scrolling-layout-columns.md",
+            "send-to-workspace.md",
             "session-float-rule.md",
             "session-float-rules.md",
             "start.md",

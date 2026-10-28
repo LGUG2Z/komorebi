@@ -192,6 +192,12 @@ toggle-tiling
 toggle-tiling
 toggle-pause
 toggle-pause
+focus-workspace 1
+focus-workspace 0
+send-to-workspace 1
+focus-workspace 1
+move-to-workspace 0
+focus-workspace 0
 global-work-area-offset 10 10 20 20
 global-work-area-offset 0 0 0 0
 monitor-work-area-offset 0 10 10 20 20

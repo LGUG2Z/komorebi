@@ -134,6 +134,14 @@ the run.
   in order, `daemon.window_ids(log)` maps a window's title to the daemon's id
   for it, and `daemon.requests(log)` returns the frame the daemon last asked KWin
   for, for each window.
+- `desk(wid)` is the number of the desktop a window is on and `shown()` the one
+  KWin shows, both counted from 1 as `kdotool` counts, `desktops()` how many
+  desktops KWin has, and `kwinrc(group, key)` a value of the user's `kwinrc`.
+- `kwin_script(name, source, keep=)` runs a KWin script and returns the lines it
+  reported: the script calls `report(...)`, which `print`s a line marked with
+  `name` to KWin's log, and ends with `report("done")`. A script that is kept
+  goes on reporting what its signal handlers see, and `kwin_reports(name)`
+  reads every line it has reported so far from the journal.
 - `monitor_bridge(path)` records the bridge's traffic on the session bus with
   `dbus-monitor`, and `latency.rounds` times each batch of commands in it, from
   the daemon's answer to the last frame KWin reports for the windows it moved.

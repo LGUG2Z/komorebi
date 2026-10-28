@@ -20,5 +20,15 @@
                 }
             ]
         }
+    },
+    {
+        "after_seq": 15,
+        "batch": {
+            "batch": 3,
+            "cmds": [
+                {"op": "desktop", "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": "desktop-2"},
+                {"op": "output_desktop", "output": "DP-1", "v": "desktop-2"}
+            ]
+        }
     }
 ]

@@ -5,11 +5,19 @@
 //! one. Before the focused workspace is tiled it is given the monitor's work area, the monitor's
 //! padding (or [`DEFAULT_CONTAINER_PADDING`] and [`DEFAULT_WORKSPACE_PADDING`]) and the work area
 //! offset ([`WorkspaceGlobals`]).
+//!
+//! Workspace `i` of a monitor is the compositor's virtual desktop `i` on that monitor. Showing
+//! another workspace ([`Monitor::load_focused_workspace`]) puts every window on the desktop of the
+//! workspace it is in, asks the compositor to show the focused workspace's desktop, which shows its
+//! windows and hides the others, and gives the focus to the workspace's focused window.
 
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::backend::backend;
 use crate::container::Container;
+use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
@@ -174,8 +182,205 @@ impl Monitor {
         Ok(())
     }
 
+    /// Make this monitor show its focused workspace.
+    ///
+    /// The workspaces are the compositor's virtual desktops, so this is a request to switch the
+    /// desktop this monitor shows, and the compositor shows the windows on it and hides the rest.
+    /// What is left for komorebi is to tile the windows that came into view.
+    pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        let focused_idx = self.focused_workspace_idx();
+        let monitor_id = self.id;
+
+        // a window moved to this workspace has to be on its desktop before the desktop is shown
+        // and a window of it focused, or focusing it would take the monitor back to the desktop it
+        // was on
+        self.assign_windows_to_workspaces();
+
+        if let Err(error) = backend().switch_workspace(monitor_id, focused_idx) {
+            tracing::warn!("could not show workspace {focused_idx}: {error}");
+        }
+
+        if let Some(workspace) = self.workspaces_mut().get_mut(focused_idx) {
+            workspace.restore(mouse_follows_focus)?;
+        }
+
+        Ok(())
+    }
+
+    /// Put every window of every workspace of this monitor on that workspace's desktop, unless it
+    /// already is. komorebi decides which workspace a window belongs to (a window sent to another
+    /// workspace, a new window, a rule); this is how the compositor learns of it.
+    pub fn assign_windows_to_workspaces(&self) {
+        for (idx, workspace) in self.workspaces().iter().enumerate() {
+            let windows = workspace
+                .containers()
+                .iter()
+                .flat_map(|c| c.windows().iter())
+                .chain(workspace.floating_windows().iter());
+
+            for window in windows {
+                if backend().window_workspace(window.id) != Some(idx)
+                    && let Err(error) = backend().set_window_workspace(window.id, idx)
+                {
+                    tracing::debug!(
+                        "could not put window {} on workspace {idx}: {error}",
+                        window.id
+                    );
+                }
+            }
+        }
+    }
+
     pub fn new_workspace_idx(&self) -> usize {
         self.workspaces().len()
+    }
+
+    /// Moves the focused container of the focused workspace, or the focused window when it is a
+    /// floating one, to the back of workspace `target_workspace_idx`, creating the workspace (and
+    /// the ones before it) if it does not exist, and focuses that workspace when `follow` is set.
+    ///
+    /// With a `direction`, the container goes where a container moved across a boundary in that
+    /// direction goes ([`Monitor::add_container_with_direction`]).
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_to_workspace(
+        &mut self,
+        target_workspace_idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()> {
+        let workspace = self
+            .focused_workspace_mut()
+            .ok_or_eyre("there is no workspace")?;
+
+        let foreground_hwnd = if !cfg!(test) {
+            backend()
+                .foreground_window()
+                .ok_or_eyre("no foreground window")?
+        } else {
+            0
+        };
+
+        let floating_window_index = workspace
+            .floating_windows()
+            .iter()
+            .position(|w| w.id == foreground_hwnd);
+
+        if let Some(idx) = floating_window_index {
+            if let Some(window) = workspace.floating_windows_mut().remove(idx) {
+                let workspaces = self.workspaces_mut();
+                #[allow(clippy::option_if_let_else)]
+                let target_workspace = match workspaces.get_mut(target_workspace_idx) {
+                    None => {
+                        workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                        workspaces.get_mut(target_workspace_idx).unwrap()
+                    }
+                    Some(workspace) => workspace,
+                };
+
+                target_workspace.floating_windows_mut().push_back(window);
+            }
+        } else {
+            let container = workspace
+                .remove_focused_container()
+                .ok_or_eyre("there is no container")?;
+
+            let workspaces = self.workspaces_mut();
+
+            #[allow(clippy::option_if_let_else)]
+            let target_workspace = match workspaces.get_mut(target_workspace_idx) {
+                None => {
+                    workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                    workspaces.get_mut(target_workspace_idx).unwrap()
+                }
+                Some(workspace) => workspace,
+            };
+
+            if let Some(direction) = direction {
+                self.add_container_with_direction(
+                    container,
+                    Some(target_workspace_idx),
+                    direction,
+                )?;
+            } else {
+                target_workspace.add_container_to_back(container);
+            }
+        }
+
+        if follow {
+            self.focus_workspace(target_workspace_idx)?;
+        }
+
+        Ok(())
+    }
+
+    /// Adds a container to this `Monitor` using the move direction to calculate if the container
+    /// should be added in front of all containers, in the back or in place of the focused
+    /// container, moving the rest along. The move direction should be from the origin monitor
+    /// towards the target monitor or from the origin workspace towards the target workspace.
+    pub fn add_container_with_direction(
+        &mut self,
+        container: Container,
+        workspace_idx: Option<usize>,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        let workspace = if let Some(idx) = workspace_idx {
+            self.workspaces_mut()
+                .get_mut(idx)
+                .ok_or_eyre(format!("there is no workspace at index {}", idx))?
+        } else {
+            self.focused_workspace_mut()
+                .ok_or_eyre("there is no workspace")?
+        };
+
+        match direction {
+            OperationDirection::Left => {
+                // insert the container into the workspace on the monitor at the back (or rightmost position)
+                // if we are moving across a boundary to the left (back = right side of the target)
+                match workspace.layout {
+                    Layout::Default(layout) => match layout {
+                        DefaultLayout::RightMainVerticalStack => {
+                            workspace.add_container_to_front(container);
+                        }
+                        DefaultLayout::UltrawideVerticalStack
+                            if workspace.containers().len() == 1 =>
+                        {
+                            workspace.insert_container_at_idx(0, container);
+                        }
+                        _ => {
+                            workspace.add_container_to_back(container);
+                        }
+                    },
+                }
+            }
+            OperationDirection::Right => {
+                // insert the container into the workspace on the monitor at the front (or leftmost position)
+                // if we are moving across a boundary to the right (front = left side of the target)
+                match workspace.layout {
+                    Layout::Default(layout) => {
+                        let target_index = layout.leftmost_index(workspace.containers().len());
+
+                        match layout {
+                            DefaultLayout::RightMainVerticalStack
+                            | DefaultLayout::UltrawideVerticalStack
+                                if workspace.containers().len() == 1 =>
+                            {
+                                workspace.add_container_to_back(container);
+                            }
+                            _ => {
+                                workspace.insert_container_at_idx(target_index, container);
+                            }
+                        }
+                    }
+                }
+            }
+            OperationDirection::Up | OperationDirection::Down => {
+                // insert the container into the workspace on the monitor at the position
+                // where the currently focused container on that workspace is
+                workspace.insert_container_at_idx(workspace.focused_container_idx(), container);
+            }
+        };
+
+        Ok(())
     }
 
     pub fn remove_workspace_by_idx(&mut self, idx: usize) -> Option<Workspace> {
@@ -378,6 +583,106 @@ mod tests {
 
         // Should be the last workspace index: 1
         assert_eq!(new_workspace_index, 1);
+    }
+
+    #[test]
+    fn test_move_container_to_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        {
+            // Create workspace 1 and add 3 containers
+            let workspace = m.focused_workspace_mut().unwrap();
+            for _ in 0..3 {
+                let container = Container::default();
+                workspace.add_container_to_back(container);
+            }
+
+            // Should have 3 containers in workspace 1
+            assert_eq!(m.focused_workspace().unwrap().containers().len(), 3);
+        }
+
+        // Create and focus workspace 2
+        m.focus_workspace(new_workspace_index).unwrap();
+
+        // Focus workspace 1
+        m.focus_workspace(0).unwrap();
+
+        // Move container to workspace 2
+        m.move_container_to_workspace(1, true, None).unwrap();
+
+        // Should be focused on workspace 2
+        assert_eq!(m.focused_workspace_idx(), 1);
+
+        // Workspace 2 should have 1 container now
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
+
+        // Move to workspace 1
+        m.focus_workspace(0).unwrap();
+
+        // Workspace 1 should have 2 containers
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
+
+        // Move a another container from workspace 1 to workspace 2 without following
+        m.move_container_to_workspace(1, false, None).unwrap();
+
+        // Should have 1 container
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
+
+        // Should still be focused on workspace 1
+        assert_eq!(m.focused_workspace_idx(), 0);
+
+        // Switch to workspace 2
+        m.focus_workspace(1).unwrap();
+
+        // Workspace 2 should now have 2 containers
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
+    }
+
+    #[test]
+    fn test_move_container_to_nonexistent_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        {
+            // Create workspace 1 and add 3 containers
+            let workspace = m.focused_workspace_mut().unwrap();
+            for _ in 0..3 {
+                let container = Container::default();
+                workspace.add_container_to_back(container);
+            }
+
+            // Should have 3 containers in workspace 1
+            assert_eq!(m.focused_workspace().unwrap().containers().len(), 3);
+        }
+
+        // Should only have 1 workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // Try to move a container to a workspace that doesn't exist
+        m.move_container_to_workspace(8, true, None).unwrap();
+
+        // Should have 9 workspaces now
+        assert_eq!(m.workspaces().len(), 9);
+
+        // Should be focused on workspace 8
+        assert_eq!(m.focused_workspace_idx(), 8);
+
+        // Should have 1 container in workspace 8
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
     }
 
     #[test]

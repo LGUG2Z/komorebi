@@ -7,10 +7,10 @@ tested, without one.
 
 This page describes that trait, who implements and calls it, where each of its rules is
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
-how an event about a window becomes a tile, how a message on the daemon's socket is
-answered, how subscribers are notified of both, what the orders a message gives do, and how the
-NixOS module runs the daemon. It grows with the code: each part of the daemon that is added has
-its place here.
+how an event about a window becomes a tile, how workspaces are the compositor's desktops, how
+a message on the daemon's socket is answered, how subscribers are notified of both, what the
+orders a message gives do, and how the NixOS module runs the daemon. It grows with the code:
+each part of the daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -19,16 +19,22 @@ its place here.
 - **Monitor**: a connected output, with its bounds and its work area (its bounds minus
   the panels).
 - **Workspace**: the containers a monitor shows, in order, and the layout that tiles
-  them. A monitor has a ring of workspaces and shows one of them.
+  them. A monitor has a ring of workspaces and shows one of them. Workspace `i` is the
+  compositor's desktop `i` on that monitor.
+- **Desktop**: one of KWin's virtual desktops. KWin shows the windows of one desktop on each
+  output and hides the others; with its per-output virtual desktops on, each output shows a
+  desktop of its own.
 - **Container**: what a layout places. It gets one tile, and every window in it is put on
   that tile.
 - **Layout**: the arrangement (BSP, columns, rows, ...) that turns a work area and a
   number of containers into one rectangle, a **tile**, for each container.
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
-  the focus, minimized or restored ([`WindowManagerEvent`]). Two events come from komorebi
-  itself: a command asks it to manage the focused window, or to stop managing it.
+  the focus, minimized or restored, or put on another workspace's desktop; and that a monitor
+  shows another workspace ([`WindowManagerEvent`]). Two events come from komorebi itself: a
+  command asks it to manage the focused window, or to stop managing it.
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
-  (focus a window, move it, change the layout, resize it, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
+  (focus a window, move it, change the layout, resize it, show a workspace, retile, stop) or a
+  question (the state, the monitors, one [`StateQuery`]).
 - **Rule**: a condition on a window's title, executable, class or path ([`MatchingRule`]), in
   one of the process-wide lists that decide whether a window is managed (the ignore and the
   manage rules) and whether it floats when it opens (the float rules).
@@ -81,7 +87,9 @@ The desktop, as the window manager sees it, is two lists and a pointer:
   of the window that has it.
 
 A command is one of: move and resize a window, focus it, raise it, minimize it or bring it
-back, close it, and put the pointer in the middle of a rectangle.
+back, close it, put the pointer in the middle of a rectangle, make desktops for the
+workspaces, show a workspace on a monitor, and put a window on a workspace. The workspace a
+window is on, and the one each monitor shows, are queries.
 
 The window manager tiles a tree of four levels, each level a [`Ring`]: a list with one
 element focused, so that "the focused workspace" or "the focused container" means
@@ -111,9 +119,10 @@ tile is clamped to the work area, so it cannot reach onto a neighboring monitor.
 The [`WindowManager`] keeps the monitors, the windows the user minimized (they are in no
 workspace until they are restored), and an index from each window it manages to the
 monitor and workspace that have it. It is loaded from the backend at startup: every
-monitor, and every open window that is normal, alive, not minimized and not ignored by a
-rule, on the focused workspace of the monitor its middle is on. After that it changes only
-when an event comes in, and each event ends with the workspace in front tiled again.
+monitor, focused on the workspace the compositor shows on it, and every open window that is
+normal, alive, not minimized and not ignored by a rule, on the workspace whose desktop it is
+on, of the monitor its middle is on. After that it changes only when an event comes in, and
+each event ends with the workspace in front tiled again.
 
 ## The KWin backend
 
@@ -178,6 +187,41 @@ as it wakes, and the commands go to the new bridge's call.
 and returns once the snapshot has arrived, so that the window manager reads a full table when
 it starts. [PLATFORM.md](PLATFORM.md) has the D-Bus names, the files and the environment
 variables; [DESIGN.md](DESIGN.md#why-does-komorebi-run-a-script-inside-kwin) has the reasons.
+
+## Workspaces
+
+komorebi's workspaces are the compositor's virtual desktops: workspace `i` is desktop `i` on
+every monitor, and each monitor shows one at a time. The compositor shows the windows of the
+desktop in front, hides the others, and keeps which window of each desktop had the focus; the
+window manager hides no window to leave a workspace. The reasons are in
+[DESIGN.md](DESIGN.md#why-are-komorebis-workspaces-kwins-virtual-desktops).
+
+Showing a workspace ([`Monitor::load_focused_workspace`]) is three steps. Every window of every
+workspace of the monitor is put on the desktop of its workspace, unless it is already there.
+The compositor is asked to show the workspace on the monitor ([`Backend::switch_workspace`]),
+which leaves the other monitors as they are. The workspace's focused window is given the focus.
+The order matters: a window that is focused while it is on another desktop takes the monitor
+back to that desktop.
+
+Desktops are global in KWin: every monitor has as many as the monitor with the most
+workspaces, and each has one name. At startup, and when a workspace is asked for that has no
+desktop, the backend creates the missing ones over KWin's `org.kde.KWin.VirtualDesktopManager`
+interface, named "Workspace 1", "Workspace 2" and so on ([`WindowManager::sync_workspace_desktops`]).
+Without KWin's per-output virtual desktops every output would show the same desktop, so
+[`connect`] turns them on in the user's `kwinrc`, and [`Kwinrc`] keeps the user's value and
+puts it back when komorebi stops, also after a crash.
+
+Something else can switch a monitor to another desktop: a pager, a KWin shortcut, an
+application that raises a window of another desktop, which KWin answers by showing that
+desktop. KWin has one signal for it, which does not say which output, so the bridge sends the
+desktop of every output after it, and once a second. The table compares it with what it had,
+and a monitor that shows another desktop is a `WorkspaceChange` event: the window manager
+focuses that workspace and tiles it ([`WindowManager::adopt_workspace_change`]), and asks the
+compositor for nothing, since KWin has already shown the windows and chosen which to focus. A
+window put on another desktop by something else (the window menu's "Move to Desktop") is a
+`WorkspaceMove`: the window manager moves the window to that workspace. komorebi's own switch
+and move come back from KWin as the same reports; the table records them when the command is
+sent ([`Table::switch_commands`], [`Table::window_workspace_commands`]), so they raise nothing.
 
 ## The command socket
 
@@ -370,6 +414,13 @@ would be smaller than a tenth of the work area, or than it is already. The adjus
 until a `Retile`, which drops them; `RetileWithResizeDimensions` tiles with them, and `Save`,
 `Load`, `QuickSave` and `QuickLoad` write them to a file as JSON and read them back.
 
+`FocusWorkspaceNumber` shows another workspace of the focused monitor
+([`WindowManager::focus_workspace`]). `MoveContainerToWorkspaceNumber` takes the focused
+container (or the focused window, when it is a floating one) to the back of another workspace
+of the monitor and shows that workspace, and `SendContainerToWorkspaceNumber` does the same
+and leaves the workspace in front showing ([`WindowManager::move_container_to_workspace`]). A
+workspace that does not exist yet is created, with the ones before it, and gets a desktop.
+
 `PreselectDirection` reserves the index on one side of the focused container for the next
 window ([`WindowManager::preselect_container_in_direction`]). The workspace inserts an empty
 container there ([`Container::preselect`]), which [`Workspace::update`] keeps and the layout
@@ -429,7 +480,8 @@ module's unit.
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
   promote the focused container, float a window, lock a container, set the padding of a
-  workspace, manage and unmanage a window).
+  workspace, manage and unmanage a window, show a workspace, move a container to another
+  workspace, follow a workspace switch made by something else).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -439,7 +491,9 @@ module's unit.
   channel that carries events from the backend to the window manager, and
   [`listen_for_events`], the thread that takes them off it.
 - [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
-  call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table; and
+  call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table;
+  [`kwin::kwinrc`](../../komorebi/src/kwin/kwinrc.rs), the editor of the user's `kwinrc`, which
+  keeps the values it changes and puts them back; and
   [`bridge.js`](../../komorebi/src/kwin/bridge.js), the bridge.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
   socket, and what the window manager does with each message.
@@ -480,6 +534,11 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 - A command about a window that does not exist, or is no longer alive, is an error. It
   never panics. The KWin backend knows a closed window for a minute after it closed, and
   sends its commands to the bridge, which reports that it could not carry them out.
+- Workspace `i` is the compositor's desktop `i`, and each monitor shows one
+  (`switch_workspace`, `set_window_workspace`, `window_workspace`, `current_workspaces`). A
+  backend asked for a workspace that has no desktop makes the desktops up to it
+  (`ensure_workspaces`). The compositor shows and hides the windows of the desktops, and a
+  backend reports a switch or a move it did not make as an event.
 - `shutdown`, `is_window`, `window_rect` and `monitor_from_point` have defaults, written in
   terms of the queries. An implementor should not need to override them, except `shutdown`
   when it created something in the compositor that has to be given up.
@@ -518,6 +577,12 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A resize leaves no tile smaller than a tenth of the work area, or than it was | framework path: [`WindowManager::resize_window`] calculates the tiles for the adjustment, and cuts the adjustment down until they all fit | `a_resize_leaves_every_tile_about_a_tenth_of_the_work_area_wide_at_least` | the paddings are taken off afterwards, so a tile can end up a little smaller |
 | The offset of a workspace wins over its monitor's, which wins over the window manager's | framework path: [`Monitor::update_workspace_globals`] gives the workspace the monitor's offset or else the window manager's, and [`Workspace::update`] takes its own before that | `the_workspaces_offset_wins_over_the_monitors_which_wins_over_the_global_one` | none |
 | A workspace whose tiling is off moves no window | framework path: [`Workspace::update`] returns before the layout when [`Workspace::tile`] is false | `with_tiling_off_no_window_is_moved_until_it_is_back_on` | none |
+| komorebi hides no window to leave a workspace | framework path: showing a workspace is one request to the compositor ([`Backend::switch_workspace`]), which shows and hides the windows of its desktops | `switching_workspace_asks_the_compositor_to_show_the_other_desktop`, `vm-workspace-switch` ("KWin shows the desktop, komorebi hides nothing") | none |
+| Showing a workspace on one monitor leaves the other monitors as they are | KWin's per-output virtual desktops, which [`connect`] turns on | `showing_a_workspace_switches_that_output_only`, `vm-kwin-contract` ("the other keeps its own") | a `kwinrc` komorebi cannot write: every monitor switches |
+| A window is on its new workspace's desktop before the desktop is shown or the window focused | framework path: [`Monitor::load_focused_workspace`] puts every window on its desktop first | `moving_a_window_to_another_workspace_puts_it_on_the_desktop_before_showing_it` | none |
+| A workspace switch or a window move made by something else is followed, and answered with no command | framework path: the table reports what it did not send as a `WorkspaceChange` or a `WorkspaceMove`, and [`WindowManager::adopt_workspace_change`] asks the compositor for nothing | `a_workspace_switch_by_someone_else_is_followed_not_undone`, `a_window_moved_to_another_desktop_by_someone_else_changes_workspace`, `another_party_switching_a_monitor_is_a_workspace_change`, `vm-workspace-switch` ("nothing is flip-flopping") | none |
+| komorebi's own switch or move, reported back by KWin, changes nothing | framework path: the table records a switch and a move when it makes their commands | `the_compositor_reporting_komorebis_own_switch_changes_nothing`, `komorebis_own_move_coming_back_as_an_event_moves_nothing`, `komorebi_switching_a_monitor_comes_back_as_a_change_to_what_it_already_knows` | none |
+| The user's `kwinrc` gets back the value komorebi changed, also after a crash | framework path: [`Kwinrc`] records the first value of a key in a backup file, and the backend's `shutdown` puts it back | `what_komorebi_changed_is_put_back_exactly_and_what_it_added_is_removed`, `a_backup_left_by_a_crash_keeps_the_values_from_before_the_first_run`, `vm-workspace-switch` ("back as they were") | `SIGKILL`: the next run puts it back when it stops |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
@@ -648,6 +713,14 @@ A window is shown, and ends up on a tile:
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
+- [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
+  fake's desktops; [`komorebi/src/kwin/kwinrc.rs`](../../komorebi/src/kwin/kwinrc.rs), the
+  `kwinrc` editor and its tests.
+- [`nix/tests/vm/suites/workspace-switch`](../../nix/tests/vm/suites/workspace-switch/test.py):
+  workspaces as a real KWin's desktops, switched by `komorebic` and by KWin;
+  [`nix/tests/vm/suites/kwin-contract`](../../nix/tests/vm/suites/kwin-contract/test.py), the
+  behavior of KWin's per-output virtual desktops komorebi relies on, with two outputs and no
+  komorebi.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),
@@ -727,6 +800,15 @@ A window is shown, and ends up on a tile:
 [`Table`]: ../../komorebi/src/kwin/state.rs
 [`Table::handle`]: ../../komorebi/src/kwin/state.rs
 [`Table::compositor_lost`]: ../../komorebi/src/kwin/state.rs
+[`Table::switch_commands`]: ../../komorebi/src/kwin/state.rs
+[`Table::window_workspace_commands`]: ../../komorebi/src/kwin/state.rs
+[`Kwinrc`]: ../../komorebi/src/kwin/kwinrc.rs
+[`Backend::switch_workspace`]: ../../komorebi/src/backend/mod.rs
+[`Monitor::load_focused_workspace`]: ../../komorebi/src/monitor.rs
+[`WindowManager::sync_workspace_desktops`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::adopt_workspace_change`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::focus_workspace`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::move_container_to_workspace`]: ../../komorebi/src/window_manager.rs
 [`bridge.js`]: ../../komorebi/src/kwin/bridge.js
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts
 [`bridge.test.js`]: ../../komorebi/src/kwin/bridge.test.js

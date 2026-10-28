@@ -20,6 +20,17 @@
 //!   again; **Restore** brings it back in a container of its own.
 //! - **TitleUpdate**: a window komorebi does not have, and that was not minimized, is announced
 //!   again as a Show, so that a rule that matches on the title it has now decides.
+//! - **WorkspaceChange**: a monitor shows another workspace, because something other than komorebi
+//!   switched it (a pager, a shortcut, an app raising a window of another desktop). The window
+//!   manager follows ([`WindowManager::adopt_workspace_change`]) and asks the compositor for
+//!   nothing: it has already shown the windows and chosen which to focus. komorebi's own switch
+//!   comes back as one too, and changes nothing.
+//! - **WorkspaceMove**: a window was put on the desktop of another workspace by something other
+//!   than komorebi. It moves to that workspace, and whichever of the two is in front is tiled
+//!   again.
+//!
+//! A window that is shown or managed is put on the desktop of the workspace it was managed into
+//! ([`Monitor::assign_windows_to_workspaces`]).
 //!
 //! The daemon hands events to the window manager on a thread of their own,
 //! [`listen_for_events`], one at a time and in the order the backend raised them.
@@ -28,6 +39,7 @@
 //! of it ([`notify_subscribers`]).
 //!
 //! [`Window::should_manage`]: crate::window::Window::should_manage
+//! [`Monitor::assign_windows_to_workspaces`]: crate::monitor::Monitor::assign_windows_to_workspaces
 
 use crate::FLOATING_APPLICATIONS;
 use crate::Notification;
@@ -107,6 +119,11 @@ impl WindowManager {
             return Ok(());
         }
 
+        // a monitor changed which workspace it shows; nothing to do with any window
+        if let WindowManagerEvent::WorkspaceChange(_, monitor_id, idx) = event {
+            return self.adopt_workspace_change(monitor_id, idx);
+        }
+
         let Some(window) = event.window() else {
             return Ok(());
         };
@@ -144,6 +161,7 @@ impl WindowManager {
 
         match event {
             WindowManagerEvent::FocusChange(_, _) => {
+                let is_known = self.known_window_ids.get(&window_id).cloned();
                 let mut is_on_current_workspace = false;
 
                 // don't want to trigger the full workspace updates when there are no managed
@@ -171,6 +189,38 @@ impl WindowManager {
                 ) && !self.focused_workspace()?.containers().is_empty()
                 {
                     self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                }
+
+                // A window of another workspace being activated (an app raising itself) makes
+                // KWin switch that monitor to the window's desktop, and tells us in a
+                // `WorkspaceChange`: there is nothing to do about the window until that arrives
+                let _ = (is_known, is_on_current_workspace);
+            }
+            // handled before the window is looked up
+            WindowManagerEvent::WorkspaceChange(..) => {}
+            WindowManagerEvent::WorkspaceMove(_, _, idx) => {
+                // somebody put the window on another workspace's desktop: it belongs there now.
+                // (komorebi's own moves come back here too, and find the window already there.)
+                if let Some((m_idx, w_idx)) = self.known_window_ids.get(&window_id).cloned()
+                    && w_idx != idx
+                {
+                    tracing::info!("window {window_id} was moved to workspace {idx}");
+                    let offset = self.work_area_offset;
+
+                    if let Some(monitor) = self.monitors_mut().get_mut(m_idx) {
+                        monitor.ensure_workspace_count(idx + 1);
+
+                        if let Some(from) = monitor.workspaces_mut().get_mut(w_idx) {
+                            from.remove_window(window_id)?;
+                        }
+
+                        if let Some(to) = monitor.workspaces_mut().get_mut(idx) {
+                            to.new_container_for_window(&window)?;
+                        }
+
+                        // whichever of the two is showing needs its tiles redone
+                        monitor.update_focused_workspace(offset)?;
+                    }
                 }
             }
             WindowManagerEvent::Show(_, _) | WindowManagerEvent::Manage(_) => {
@@ -332,6 +382,17 @@ impl WindowManager {
                         window,
                     ));
                 }
+            }
+        }
+
+        // a window that was just managed is on the desktop the compositor opened it on, which is the
+        // one in front where it opened; make sure that is the workspace it was managed into
+        if matches!(
+            event,
+            WindowManagerEvent::Show(_, _) | WindowManagerEvent::Manage(_)
+        ) {
+            for monitor in self.monitors() {
+                monitor.assign_windows_to_workspaces();
             }
         }
 

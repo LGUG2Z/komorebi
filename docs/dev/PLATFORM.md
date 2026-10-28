@@ -19,6 +19,8 @@ was measured with KWin 6.8.1, Plasma 6.8.1 and Qt 6.12.0 from nixpkgs `d3b13ad`
 - **Script**: a JavaScript program that KWin runs inside itself, through its scripting API.
   komorebi's is the **bridge**, [`bridge.js`](../../komorebi/src/kwin/bridge.js).
 - **Output**: KWin's name for a monitor.
+- **Desktop**: one of KWin's virtual desktops. Each output shows one; komorebi's workspace `i`
+  is desktop `i`.
 - **Headless KWin**: `kwin_wayland --virtual`, a KWin with virtual outputs and no display,
   which the VM tests run ([vm-tests.md](vm-tests.md)).
 
@@ -26,10 +28,35 @@ was measured with KWin 6.8.1, Plasma 6.8.1 and Qt 6.12.0 from nixpkgs `d3b13ad`
 
 ### KWin 6.8 or newer
 
-KWin 6.8 is the oldest KWin komorebi supports. The bridge reads the work area of each output
-for the virtual desktop that output shows (`workspace.currentDesktopForScreen`), which is part
-of the per-output virtual desktops KWin 6.8 introduced. At time of writing (2026-10-27) KWin
-6.8.1 is the only version komorebi has been run against; 6.7 and older have not been tried.
+KWin 6.8 is the oldest KWin komorebi supports. komorebi's workspaces are KWin's virtual
+desktops, one shown on each output, which needs the per-output virtual desktops KWin 6.8
+introduced (`workspace.currentDesktopForScreen`, `workspace.setCurrentDesktopForScreen`, and
+the setting `[Windows] PerOutputVirtualDesktops` in `kwinrc`). At time of writing (2026-10-27)
+KWin 6.8.1 is the only version komorebi has been run against; 6.7 and older have not been
+tried.
+
+### Per-output virtual desktops
+
+What komorebi relies on KWin to do with them, on KWin 6.8.1 at time of writing (2026-10-27),
+measured in the spikes and checked by the VM test `vm-kwin-contract` on a headless KWin with two
+outputs:
+
+- With `PerOutputVirtualDesktops=true` in the `[Windows]` group of `kwinrc`, a script that
+  shows a desktop on one output (`workspace.setCurrentDesktopForScreen`) leaves the other
+  output's desktop as it was. komorebi turns the setting on when it starts, has KWin reload its
+  configuration (`org.kde.KWin.reconfigure`), and puts the user's value back when it stops.
+- KWin raises `workspace.currentDesktopChanged` when an output shows another desktop. The signal
+  does not say which output, so the bridge reads the desktop of every output after it.
+- KWin gives the focus to a window of the desktop it switched an output to, by itself.
+- Activating a window that is on another desktop of its output switches that output to the
+  window's desktop and gives the window the focus.
+- A window that a script moves so that its middle is on another output keeps its desktops;
+  `window.output` follows the middle. KWin puts a window on the new output's desktop only during
+  an interactive move.
+- Putting a window on another desktop from outside the script raises the window's
+  `desktopsChanged`.
+- Desktops are global: every output has the same desktops, with the same names, and each output
+  shows one of them. The ids of the desktops are UUIDs; the bridge names them by id.
 
 ### Wayland
 
@@ -74,9 +101,16 @@ the windows and outputs it finds, and from then on every window that opens, clos
 focus, is minimized or brought back, moves or changes size. The daemon waits up to 10 seconds
 for the first report and does not start without it.
 
+Before it loads the script, it turns on KWin's per-output virtual desktops in the user's
+`kwinrc` (`[Windows] PerOutputVirtualDesktops=true`), unless they are on, and asks KWin to
+reload its configuration. If a workspace has no desktop, it creates the missing desktops over
+`org.kde.KWin.VirtualDesktopManager`, named "Workspace 1", "Workspace 2" and so on. A desktop
+that is already there keeps its name.
+
 Every command of the window manager (move and resize, focus, raise, minimize, bring back or
-close a window) is queued for the bridge, which gets the queue as the answer to its held call
-and carries the commands out in KWin, in order. The script API cannot move the pointer, so
+close a window, show a workspace on an output, put a window on a workspace) is queued for the
+bridge, which gets the queue as the answer to its held call and carries the commands out in
+KWin, in order. The script API cannot move the pointer, so
 when the pointer follows the focus komorebi invokes KWin's own "Move Mouse to Focus" shortcut,
 which puts the pointer in the middle of the window KWin has focused.
 
@@ -94,11 +128,15 @@ an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a runnin
 
 #### What komorebi leaves behind
 
-When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it asks KWin
-to unload the script, closes an empty connection to each subscriber, and removes the socket.
-The file `bridge.js` stays in the runtime directory, which is removed at logout. A daemon
-that is killed leaves the script running in KWin, reporting to nobody, and the socket file in
-the runtime directory, until the next start replaces both or the session ends.
+When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it puts back
+the value `PerOutputVirtualDesktops` had in `kwinrc` (or removes the key, when the user had
+none) and asks KWin to reload its configuration, asks KWin to unload the script, closes an
+empty connection to each subscriber, and removes the socket. The desktops it created stay:
+they are the user's desktops from then on. The file `bridge.js` stays in the runtime
+directory, which is removed at logout. A daemon that is killed leaves the script running in
+KWin, reporting to nobody, the socket file in the runtime directory, and per-output desktops
+on, until the next start replaces the script and the socket, and its stop puts the setting
+back (the backup in the runtime directory keeps the user's value), or the session ends.
 
 ### A headless KWin
 
@@ -143,11 +181,19 @@ What komorebi calls:
 | `org.kde.KWin` | `/Scripting/Script<id>` | `org.kde.kwin.Script` | `run()` | after `loadScript` |
 | `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin leave the bus and come back |
 | `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
+| `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
+| `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the property `desktops`, `createDesktop(us)`, `setDesktopName(ss)` | when a workspace has no desktop, and at start |
+
+The property `desktops` is introspected as `a(iss)`, a position, an id and a name for each
+desktop, and the value on the wire is `a(uss)`: komorebi reads it as that. It is read uncached,
+since a read right after `createDesktop` has to see the new desktop.
 
 ## Files and directories
 
 | Path | What | Lifetime |
 |---|---|---|
+| `$XDG_CONFIG_HOME/kwinrc` (`~/.config/kwinrc`) | KWin's configuration: komorebi sets `PerOutputVirtualDesktops=true` in `[Windows]`, changing that line or adding it and nothing else, and writes the file beside it first and renames it over it | put back as it was when the daemon stops |
+| `$XDG_RUNTIME_DIR/komorebi/kwinrc-backup.json` | the value each key of `kwinrc` had before komorebi first changed it | removed when the values are put back; one a crash left behind is used by the next run |
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
 | `$XDG_RUNTIME_DIR/komorebi/komorebi.sock` | the command socket | bound once the daemon is connected to KWin, after a file left there is removed; removed when the daemon stops |
 | `$XDG_RUNTIME_DIR/komorebi/NAME` | the socket of a subscriber, which the subscriber binds and names in its subscription | removed by the daemon, with the subscriber, when it cannot connect to it |
@@ -169,6 +215,19 @@ either. An address with no bus behind it is the first error under [No KWin](#no-
 
 The runtime directory of the user, normally `/run/user/<uid>`: komorebi writes the bridge to
 the `komorebi` directory in it, and binds its command socket there.
+
+### `XDG_CONFIG_HOME`
+
+Where the user's `kwinrc` is: `$XDG_CONFIG_HOME/kwinrc`, or `~/.config/kwinrc` when it is not
+set. Without either, komorebi leaves per-output virtual desktops as they are and logs that it
+found no configuration directory.
+
+### `XDG_CONFIG_DIRS`
+
+Where KConfig looks for the system's `kwinrc` when the user's has no value: komorebi reads
+`PerOutputVirtualDesktops` the same way, from the user's file and then from the first of these
+directories that has it (`/etc/xdg` when the variable is not set), and changes nothing when the
+setting is on already.
 
 ### `XDG_DATA_HOME`
 

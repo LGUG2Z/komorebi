@@ -52,6 +52,12 @@ pub enum Command {
     Close(u32),
     /// [`Backend::center_cursor_in`].
     CenterCursor(Rect),
+    /// [`Backend::ensure_workspaces`]: how many workspaces were asked for.
+    EnsureWorkspaces(usize),
+    /// [`Backend::switch_workspace`]: the monitor, and the workspace it was asked to show.
+    SwitchWorkspace(u32, usize),
+    /// [`Backend::set_window_workspace`]: the window, and the workspace it was put on.
+    SetWindowWorkspace(u32, usize),
 }
 
 #[derive(Default)]
@@ -65,6 +71,42 @@ struct State {
     foreground: Option<u32>,
     cursor: Option<(i32, i32)>,
     commands: Vec<Command>,
+    /// how many virtual desktops there are
+    desktops: usize,
+    /// the desktop every window is on
+    window_ws: HashMap<u32, usize>,
+    /// the desktop each monitor (by id) shows
+    shown: HashMap<u32, usize>,
+}
+
+impl State {
+    /// The monitor a window is on: the one that holds the middle of it, else the first
+    fn monitor_of(&self, id: u32) -> Option<u32> {
+        let w = self.windows.get(&id)?;
+        let (x, y) = (
+            w.rect.left + w.rect.right / 2,
+            w.rect.top + w.rect.bottom / 2,
+        );
+        self.monitors
+            .iter()
+            .find(|m| {
+                x >= m.size.left
+                    && x < m.size.left + m.size.right
+                    && y >= m.size.top
+                    && y < m.size.top + m.size.bottom
+            })
+            .or_else(|| self.monitors.first())
+            .map(|m| m.id)
+    }
+
+    /// What a window opened now would be on, as in KWin: the desktop its monitor is showing
+    fn desktop_for_new_window(&self) -> usize {
+        self.monitors
+            .first()
+            .and_then(|m| self.shown.get(&m.id))
+            .copied()
+            .unwrap_or(0)
+    }
 }
 
 /// An in-memory [`Backend`].
@@ -127,9 +169,12 @@ impl FakeBackend {
     }
 
     /// Opens a window of an application. It starts at 800x600 at (100, 100), a normal window with
-    /// no focus.
+    /// no focus, on the workspace the first monitor shows.
     pub fn open_window(&self, id: u32, exe: &str, class: &str, title: &str) {
-        self.state.lock().windows.insert(
+        let mut state = self.state.lock();
+        let desktop = state.desktop_for_new_window();
+        state.window_ws.insert(id, desktop);
+        state.windows.insert(
             id,
             WindowInfo {
                 id,
@@ -205,6 +250,45 @@ impl FakeBackend {
     /// Returns where a window is, if it was ever opened.
     pub fn rect_of(&self, id: u32) -> Option<Rect> {
         self.state.lock().windows.get(&id).map(|w| w.rect)
+    }
+
+    /// Returns true if and only if the window can be seen: it is alive, not minimized, and on the
+    /// workspace its monitor shows. This is what the compositor does with desktops.
+    pub fn on_screen(&self, id: u32) -> bool {
+        let state = self.state.lock();
+        let Some(window) = state.windows.get(&id) else {
+            return false;
+        };
+        let monitor = state.monitor_of(id);
+        let shown = monitor
+            .and_then(|m| state.shown.get(&m))
+            .copied()
+            .unwrap_or(0);
+        window.alive && !window.minimized && state.window_ws.get(&id).copied().unwrap_or(0) == shown
+    }
+
+    /// Returns the workspace a window is on, if it was ever opened.
+    pub fn workspace_of(&self, id: u32) -> Option<usize> {
+        self.state.lock().window_ws.get(&id).copied()
+    }
+
+    /// Returns the workspace a monitor shows.
+    pub fn shown_workspace(&self, monitor_id: u32) -> usize {
+        self.state
+            .lock()
+            .shown
+            .get(&monitor_id)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    /// Shows workspace `idx` on a monitor the way something other than komorebi does (a pager, a
+    /// shortcut, a click on a window of another desktop): no command is recorded, and the
+    /// compositor's event about it is the test's to send.
+    pub fn show_workspace_by_user(&self, monitor_id: u32, idx: usize) {
+        let mut state = self.state.lock();
+        state.desktops = state.desktops.max(idx + 1);
+        state.shown.insert(monitor_id, idx);
     }
 
     /// Returns every command received so far, oldest first.
@@ -343,6 +427,47 @@ impl Backend for FakeBackend {
         state.commands.push(Command::CenterCursor(*rect));
         state.cursor = Some((rect.left + rect.right / 2, rect.top + rect.bottom / 2));
         Ok(())
+    }
+
+    fn ensure_workspaces(&self, names: &[String]) -> eyre::Result<()> {
+        let mut state = self.state.lock();
+        state.commands.push(Command::EnsureWorkspaces(names.len()));
+        state.desktops = state.desktops.max(names.len());
+        Ok(())
+    }
+
+    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> eyre::Result<()> {
+        let mut state = self.state.lock();
+        state
+            .commands
+            .push(Command::SwitchWorkspace(monitor_id, idx));
+        state.desktops = state.desktops.max(idx + 1);
+        state.shown.insert(monitor_id, idx);
+        Ok(())
+    }
+
+    fn set_window_workspace(&self, id: u32, idx: usize) -> eyre::Result<()> {
+        self.record(id, Command::SetWindowWorkspace(id, idx), |state| {
+            state.desktops = state.desktops.max(idx + 1);
+            state.window_ws.insert(id, idx);
+        })
+    }
+
+    fn window_workspace(&self, id: u32) -> Option<usize> {
+        let mut state = self.state.lock();
+        if state.permissive && !state.windows.contains_key(&id) {
+            state.windows.insert(id, permissive_window(id));
+        }
+        state.window_ws.get(&id).copied()
+    }
+
+    fn current_workspaces(&self) -> Vec<(u32, usize)> {
+        let state = self.state.lock();
+        state
+            .monitors
+            .iter()
+            .map(|m| (m.id, state.shown.get(&m.id).copied().unwrap_or(0)))
+            .collect()
     }
 }
 
@@ -498,6 +623,69 @@ mod tests {
         let ids: Vec<_> = fake.windows().iter().map(|w| w.id).collect();
 
         assert_eq!(ids, [1, 3]);
+    }
+
+    #[test]
+    fn a_window_opens_on_the_workspace_the_first_monitor_shows() {
+        let fake = FakeBackend::with_one_monitor();
+        fake.show_workspace_by_user(1, 2);
+
+        fake.open_window(1, "foot", "foot", "window 1");
+
+        assert_eq!(fake.workspace_of(1), Some(2));
+        assert_eq!(fake.window_workspace(1), Some(2));
+        assert!(fake.on_screen(1));
+    }
+
+    #[test]
+    fn a_monitor_shows_the_windows_of_its_workspace_and_no_others() -> eyre::Result<()> {
+        let fake = fake_with(&[1, 2]);
+        fake.set_window_workspace(2, 1)?;
+
+        assert!(fake.on_screen(1) && !fake.on_screen(2));
+
+        fake.switch_workspace(1, 1)?;
+
+        assert!(!fake.on_screen(1) && fake.on_screen(2));
+        assert_eq!(fake.shown_workspace(1), 1);
+        assert_eq!(fake.current_workspaces(), [(1, 1)]);
+        assert_eq!(
+            fake.commands(),
+            [
+                Command::SetWindowWorkspace(2, 1),
+                Command::SwitchWorkspace(1, 1)
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_workspace_shown_by_the_user_is_not_a_command() {
+        let fake = fake_with(&[1]);
+
+        fake.show_workspace_by_user(1, 3);
+
+        assert_eq!(fake.current_workspaces(), [(1, 3)]);
+        assert!(fake.commands().is_empty());
+    }
+
+    #[test]
+    fn a_minimized_window_or_one_that_closed_is_not_on_screen() -> eyre::Result<()> {
+        let fake = fake_with(&[1, 2]);
+
+        fake.minimize(1)?;
+        fake.close_window_now(2);
+
+        assert!(!fake.on_screen(1) && !fake.on_screen(2));
+        Ok(())
+    }
+
+    #[test]
+    fn putting_a_window_nobody_opened_on_a_workspace_is_an_error() {
+        let fake = fake_with(&[1]);
+
+        assert!(fake.set_window_workspace(9, 1).is_err());
+        assert_eq!(fake.workspace_of(9), None);
     }
 
     #[test]

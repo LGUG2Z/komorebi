@@ -397,6 +397,83 @@ class Kde:
         self.machine.screenshot(name)
         return Image.open(self.machine.out_dir / f"{name}.png").convert("RGB")
 
+    def desk(self, wid: str) -> int:
+        """The number of the virtual desktop the window is on, counted from 1 as kdotool counts.
+
+        0 when kdotool cannot say (a window on every desktop, a window that is gone).
+        """
+        lines = self.run(f"kdotool get_desktop_for_window {shlex.quote(wid)}")[1].split()
+        return int(lines[-1]) if lines and lines[-1].isdigit() else 0
+
+    def shown(self) -> int:
+        """The number of the virtual desktop KWin shows, counted from 1.
+
+        With per-output virtual desktops, that is the desktop of the output KWin considers
+        active; a suite with one output has no other.
+        """
+        lines = self.run("kdotool get_desktop")[1].split()
+        return int(lines[-1]) if lines and lines[-1].isdigit() else 0
+
+    def desktops(self) -> int:
+        """The number of virtual desktops KWin has."""
+        out = self.run(
+            "busctl --user get-property org.kde.KWin /VirtualDesktopManager"
+            " org.kde.KWin.VirtualDesktopManager count"
+        )[1].split()
+        return int(out[-1]) if out and out[-1].isdigit() else 0
+
+    def kwinrc(self, group: str, key: str) -> str | None:
+        """The value of `key` in `[group]` of the user's `kwinrc`, or None when it is not set."""
+        status, text = self.machine.execute(f"cat /home/{self.user}/.config/kwinrc")
+        if status != 0:
+            return None
+        current = None
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("[") and line.endswith("]"):
+                current = line[1:-1]
+            elif current == group and "=" in line:
+                name, value = line.split("=", 1)
+                if name.strip() == key:
+                    return value.strip()
+        return None
+
+    def kwin_script(self, name: str, source: str, *, keep: bool = False) -> list[str]:
+        """Runs `source` as the KWin script `name` and returns the lines it reported.
+
+        The script reports with `report(...)`, which writes its arguments to KWin's log as one
+        line marked with `name`, and ends with `report("done")`, which the lines are waited for.
+        The script is unloaded afterwards, unless `keep` is set: a script that connects to a
+        signal goes on reporting, and [`Kde.kwin_reports`][] reads what it reported since.
+        """
+        path = f"/tmp/kwin-script-{name}.js"
+        prelude = (
+            "function report() { print("
+            + json.dumps(f"KS:{name} ")
+            + " + Array.prototype.slice.call(arguments).join(' ')); }\n"
+        )
+        self.as_user(f"printf %s {shlex.quote(prelude + source)} > {path}")
+        reply = self.sh(
+            "busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting loadScript ss"
+            f" {path} {shlex.quote(name)}"
+        ).split()
+        script = f"/Scripting/Script{reply[-1]}"
+        self.sh(f"busctl --user call org.kde.KWin {script} org.kde.kwin.Script run")
+        if not self.wait_for(lambda: "done" in self.kwin_reports(name)):
+            raise AssertionError(f"the KWin script {name} never reported it was done")
+        if not keep:
+            self.sh(
+                "busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting unloadScript s"
+                f" {shlex.quote(name)}"
+            )
+        return [line for line in self.kwin_reports(name) if line != "done"]
+
+    def kwin_reports(self, name: str) -> list[str]:
+        """Every line the KWin script `name` has reported so far ([`Kde.kwin_script`][])."""
+        log = self.machine.execute(f"journalctl _UID={self.uid} --no-pager -o cat")[1]
+        mark = f"KS:{name} "
+        return [line.split(mark, 1)[1] for line in log.splitlines() if mark in line]
+
     def outputs(self) -> int:
         """The number of outputs KWin has enabled."""
         return int(self.sh("kscreen-doctor -j | jq '[.outputs[] | select(.enabled)] | length'"))

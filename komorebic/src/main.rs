@@ -30,6 +30,9 @@
 //! - `resize-edge` and `resize-axis` resize the focused window by the `resize-delta`, and
 //!   `quick-save-resize`, `quick-load-resize`, `save-resize` and `load-resize` save the sizes of
 //!   the tiles of the focused workspace and load them back.
+//! - `focus-workspace` shows another workspace of the focused monitor, `move-to-workspace` moves
+//!   the focused window to a workspace and shows it, and `send-to-workspace` moves it there and
+//!   stays. A workspace is KWin's virtual desktop of the same number, counted from 0.
 //!
 //! `ignore-rule` and `manage-rule` add a rule that keeps an application out of the layout or
 //! always in it, `session-float-rule` floats the focused window and every window like it until the
@@ -118,6 +121,25 @@ gen_enum_subcommand_args! {
     Query: StateQuery,
     UnmanagedWindowOperationBehaviour: OperationBehaviour,
     PromoteWindow: OperationDirection,
+}
+
+macro_rules! gen_target_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Target index (zero-indexed)
+                target: usize,
+            }
+        )+
+    };
+}
+
+gen_target_subcommand_args! {
+    MoveToWorkspace,
+    SendToWorkspace,
+    FocusWorkspace,
 }
 
 macro_rules! gen_focused_workspace_padding_subcommand_args {
@@ -426,6 +448,15 @@ enum SubCommand {
     /// Resize the focused window or primary column along the specified axis
     #[clap(arg_required_else_help = true)]
     ResizeAxis(ResizeAxis),
+    /// Move the focused window to the specified workspace
+    #[clap(arg_required_else_help = true)]
+    MoveToWorkspace(MoveToWorkspace),
+    /// Send the focused window to the specified workspace
+    #[clap(arg_required_else_help = true)]
+    SendToWorkspace(SendToWorkspace),
+    /// Focus the specified workspace on the focused monitor
+    #[clap(arg_required_else_help = true)]
+    FocusWorkspace(FocusWorkspace),
     /// Set the resize delta (used by resize-edge and resize-axis)
     #[clap(arg_required_else_help = true)]
     ResizeDelta(ResizeDelta),
@@ -669,6 +700,9 @@ fn main() -> eyre::Result<()> {
         SubCommand::FlipLayout(args) => {
             send_message(&SocketMessage::FlipLayout(args.axis))?;
         }
+        SubCommand::FocusWorkspace(args) => {
+            send_message(&SocketMessage::FocusWorkspaceNumber(args.target))?;
+        }
         SubCommand::ToggleFloat => {
             send_message(&SocketMessage::ToggleFloat)?;
         }
@@ -677,6 +711,12 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ResizeAxis(args) => {
             send_message(&SocketMessage::ResizeWindowAxis(args.axis, args.sizing))?;
+        }
+        SubCommand::MoveToWorkspace(args) => {
+            send_message(&SocketMessage::MoveContainerToWorkspaceNumber(args.target))?;
+        }
+        SubCommand::SendToWorkspace(args) => {
+            send_message(&SocketMessage::SendContainerToWorkspaceNumber(args.target))?;
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;

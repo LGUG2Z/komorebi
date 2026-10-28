@@ -388,6 +388,36 @@ impl Workspace {
         false
     }
 
+    /// Gives the focus to the window of this workspace that had it: the focused window of the
+    /// focused container, or the focused floating window when there is no container.
+    ///
+    /// The compositor shows a workspace's windows by itself when the workspace's desktop is shown;
+    /// this is what komorebi does after it has asked for that.
+    pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        let idx = self.focused_container_idx();
+        let mut to_focus = None;
+
+        for (i, container) in self.containers().iter().enumerate() {
+            if let Some(window) = container.focused_window()
+                && idx == i
+            {
+                to_focus = Option::from(*window);
+            }
+        }
+
+        if let Some(container) = self.focused_container_mut() {
+            container.focus_window(container.focused_window_idx());
+        }
+
+        if let Some(window) = to_focus {
+            window.focus(mouse_follows_focus)?;
+        } else if let Some(floating_window) = self.focused_floating_window() {
+            floating_window.focus(mouse_follows_focus)?;
+        }
+
+        Ok(())
+    }
+
     pub fn remove_focused_container(&mut self) -> Option<Container> {
         let focused_idx = self.focused_container_idx();
         let container = self.remove_container_by_idx(focused_idx);

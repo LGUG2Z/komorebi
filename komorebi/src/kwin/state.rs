@@ -1,10 +1,17 @@
-//! The daemon's model of the compositor: the windows and monitors KWin reports, kept up to date by
-//! the events the script in KWin sends, and the window events the window manager gets from them.
+//! The daemon's model of the compositor: the windows, monitors and virtual desktops KWin reports,
+//! kept up to date by the events the script in KWin sends, and the window events the window manager
+//! gets from them.
 //!
 //! This is pure: JSON in, [`Output`]s out, no D-Bus and no threads, so everything the bridge
 //! decides can be tested without a compositor. The script (`bridge.js`) holds no logic: it reports
 //! what KWin tells it, and every decision about what a report means is made here. The events are
 //! JSON objects with a `type`, described on [`Table::handle`].
+//!
+//! Every virtual desktop is a workspace: workspace `i` is KWin's desktop `i`, and each output
+//! shows one desktop of its own, because komorebi turns on KWin's per-output virtual desktops. The
+//! commands that show a workspace and put a window on one are made here too
+//! ([`Table::switch_commands`], [`Table::window_workspace_commands`]), so that the table knows what
+//! komorebi asked for and does not report it back as somebody else's doing.
 //!
 //! # Example
 //!
@@ -73,6 +80,7 @@ struct Entry {
     info: WindowInfo,
     /// What KWin says: a normal window, as opposed to a dialog, splash, panel, popup...
     kwin_normal: bool,
+    desktops: Vec<String>,
     closed_at: Option<Instant>,
 }
 
@@ -107,6 +115,12 @@ pub struct Table {
     monitors: Vec<MonitorInfo>,
     foreground: Option<u32>,
     cursor: Option<(i32, i32)>,
+    /// `(id, name)` of every virtual desktop, in KWin's order
+    desktops: Vec<(String, String)>,
+    /// The desktop each output shows, by output name. They are independent (komorebi turns on
+    /// KWin's per-output virtual desktops), which is what lets every monitor have a workspace of
+    /// its own in front.
+    current: HashMap<String, String>,
 }
 
 fn rect(v: &Value) -> Rect {
@@ -117,6 +131,16 @@ fn rect(v: &Value) -> Rect {
         right: n("w"),
         bottom: n("h"),
     }
+}
+
+fn strings(v: &Value) -> Vec<String> {
+    v.as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|s| s.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// FNV-1a: a monitor's id has to be the same on every run, so no `RandomState`
@@ -209,9 +233,108 @@ impl Table {
     }
 
     /// Whether komorebi should have anything to do with this window: a normal window, as opposed
-    /// to a dialog, a panel, a popup.
+    /// to a dialog, a panel, a popup. Every desktop is a workspace of komorebi's.
     fn manageable(&self, entry: &Entry) -> bool {
         entry.kwin_normal
+    }
+
+    // ---- workspaces ------------------------------------------------------------------------
+
+    /// The ids of the desktops that are workspaces, in order: all of them
+    fn workspace_desktops(&self) -> Vec<&str> {
+        self.desktops.iter().map(|(id, _)| id.as_str()).collect()
+    }
+
+    /// Which workspace a desktop is
+    fn workspace_index(&self, desktop: &str) -> Option<usize> {
+        self.workspace_desktops().iter().position(|d| *d == desktop)
+    }
+
+    /// Returns the workspace a window is on: the first of its desktops. A window on every desktop
+    /// (KWin gives it no desktop) is on none.
+    pub fn window_workspace(&self, id: u32) -> Option<usize> {
+        let entry = self.windows.get(&id)?;
+        let desktop = entry.desktops.first()?;
+        self.workspace_index(desktop)
+    }
+
+    /// Returns the workspace each monitor shows, as `(monitor id, workspace index)`
+    pub fn current_workspaces(&self) -> Vec<(u32, usize)> {
+        self.monitors
+            .iter()
+            .filter_map(|m| {
+                let desktop = self.current.get(&m.name)?;
+                Some((m.id, self.workspace_index(desktop)?))
+            })
+            .collect()
+    }
+
+    /// Returns how many workspace desktops there are
+    pub fn workspace_count(&self) -> usize {
+        self.workspace_desktops().len()
+    }
+
+    /// Replaces the list of desktops with what KWin says it is now, for after komorebi created
+    /// some. The list is `(id, name)` pairs, in KWin's order.
+    pub fn set_desktops(&mut self, desktops: Vec<(String, String)>) {
+        self.desktops = desktops;
+    }
+
+    /// Returns the commands that show workspace `idx` on a monitor, and records that the monitor
+    /// shows it, so that KWin's report of the switch is not taken for somebody else's. A monitor
+    /// the table does not know gets no command.
+    ///
+    /// # Errors
+    ///
+    /// [`NeedsDesktops`] when there are not that many desktops yet: make them, then ask again.
+    pub fn switch_commands(
+        &mut self,
+        monitor_id: u32,
+        idx: usize,
+    ) -> Result<Vec<Value>, NeedsDesktops> {
+        let desktop = self
+            .workspace_desktops()
+            .get(idx)
+            .map(|d| d.to_string())
+            .ok_or(NeedsDesktops(idx + 1))?;
+
+        let Some(monitor) = self.monitors.iter().find(|m| m.id == monitor_id) else {
+            return Ok(vec![]);
+        };
+
+        let output = monitor.name.clone();
+        self.current.insert(output.clone(), desktop.clone());
+        Ok(vec![
+            json!({ "op": "output_desktop", "output": output, "v": desktop }),
+        ])
+    }
+
+    /// Returns the commands that put a window on workspace `idx`, and records the window there,
+    /// so that the next query sees it at once and KWin's report of the move raises nothing. A
+    /// window the table does not know gets no command.
+    ///
+    /// # Errors
+    ///
+    /// [`NeedsDesktops`] when there are not that many desktops yet: make them, then ask again.
+    pub fn window_workspace_commands(
+        &mut self,
+        id: u32,
+        idx: usize,
+    ) -> Result<Vec<Value>, NeedsDesktops> {
+        let desktop = self
+            .workspace_desktops()
+            .get(idx)
+            .map(|d| d.to_string())
+            .ok_or(NeedsDesktops(idx + 1))?;
+
+        let Some(entry) = self.windows.get_mut(&id) else {
+            return Ok(vec![]);
+        };
+
+        entry.desktops = vec![desktop.clone()];
+        Ok(vec![
+            json!({ "op": "desktop", "id": entry.uuid, "v": desktop }),
+        ])
     }
 
     /// KWin went away. Its windows go with it, and nothing will report them closing.
@@ -282,6 +405,7 @@ impl Table {
             uuid,
             info,
             kwin_normal: w["normal"].as_bool().unwrap_or(false),
+            desktops: strings(&w["desktops"]),
             closed_at: None,
         };
 
@@ -321,9 +445,10 @@ impl Table {
     ///
     /// The event's `type` is one of:
     ///
-    /// - `snapshot`: everything on the desktop (`windows`, `screens`, `active`, `cursor`), sent
-    ///   once, when the script starts. It fills the table and raises no event: the window manager
-    ///   reads the desktop from the table when it starts.
+    /// - `snapshot`: everything on the desktop (`windows`, `screens`, `desktops`,
+    ///   `current_desktops`, `active`, `cursor`), sent once, when the script starts. It fills the
+    ///   table and raises no event: the window manager reads the desktop from the table when it
+    ///   starts.
     /// - `added`, `removed`: a window opened or closed. For a window komorebi may manage, they are
     ///   a [`WindowManagerEvent::Show`] and a [`WindowManagerEvent::Destroy`].
     /// - `activated`: KWin gave a window the focus ([`WindowManagerEvent::FocusChange`]), or,
@@ -332,6 +457,13 @@ impl Table {
     ///   [`WindowManagerEvent::Restore`]).
     /// - `caption`: a window's title changed ([`WindowManagerEvent::TitleUpdate`]).
     /// - `geometry`: a window's frame changed. It raises no event.
+    /// - `desktops`: a window is on other desktops. When it is now on another workspace than the
+    ///   table had it on, this is a [`WindowManagerEvent::WorkspaceMove`]; komorebi's own move
+    ///   ([`Table::window_workspace_commands`]) is on it already, and raises nothing.
+    /// - `current_desktops`: the desktop each output shows. An output that shows another desktop
+    ///   than the table had it showing is a [`WindowManagerEvent::WorkspaceChange`]; komorebi's own
+    ///   switch ([`Table::switch_commands`]) raises nothing.
+    /// - `desktop_list`: the virtual desktops, in order. It raises no event.
     /// - `cursor`: the answer to a cursor query ([`Output::Cursor`]).
     /// - `failed`: commands the script could not carry out. They are logged.
     ///
@@ -351,6 +483,12 @@ impl Table {
                 if let Some(entry) = self.entry_mut(event) {
                     entry.info.rect = rect(&event["geo"]);
                 }
+                vec![]
+            }
+            Some("desktops") => self.on_desktops(event),
+            Some("current_desktops") => self.on_current_desktops(event),
+            Some("desktop_list") => {
+                self.desktops = desktop_list(&event["desktops"]);
                 vec![]
             }
             Some("cursor") => {
@@ -387,6 +525,10 @@ impl Table {
     }
 
     fn on_snapshot(&mut self, event: &Value) -> Vec<Output> {
+        // desktops first: which workspace a window is on depends on them
+        self.desktops = desktop_list(&event["desktops"]);
+        self.current = current_map(&event["current_desktops"]);
+
         // rebuild the windows, keeping the ids of those we already knew
         let old = std::mem::take(&mut self.windows);
         for w in event["windows"].as_array().cloned().unwrap_or_default() {
@@ -536,7 +678,111 @@ impl Table {
             vec![]
         }
     }
+
+    fn on_desktops(&mut self, event: &Value) -> Vec<Output> {
+        let Some(id) = self.id_of(event) else {
+            return vec![];
+        };
+
+        let before = self.window_workspace(id);
+        let desktops = strings(&event["desktops"]);
+
+        if let Some(entry) = self.windows.get_mut(&id) {
+            entry.desktops = desktops;
+        }
+
+        // A window that is on another workspace's desktop than it was: komorebi's own doing coming
+        // back (the window manager already has it there) or somebody else's, which it will adopt.
+        let after = self
+            .windows
+            .get(&id)
+            .filter(|e| e.info.normal && e.info.alive)
+            .and_then(|e| e.desktops.first())
+            .and_then(|d| self.workspace_index(d));
+
+        match after {
+            Some(idx) if before != Some(idx) => {
+                vec![Output::Event(WindowManagerEvent::WorkspaceMove(
+                    kwin(KWinNotification::WindowMovedToDesktop),
+                    Window::from(id),
+                    idx,
+                ))]
+            }
+            _ => vec![],
+        }
+    }
+
+    /// Some output now shows another desktop: komorebi's request, or a pager, a shortcut, an app
+    /// raising a window (KWin switches that output to the window's desktop)
+    fn on_current_desktops(&mut self, event: &Value) -> Vec<Output> {
+        let now = current_map(&event["current"]);
+        let mut out = vec![];
+
+        let mut changes: Vec<(String, String)> = now
+            .iter()
+            .filter(|(output, desktop)| self.current.get(*output) != Some(*desktop))
+            .map(|(o, d)| (o.clone(), d.clone()))
+            .collect();
+        changes.sort();
+
+        for (output, desktop) in changes {
+            self.current.insert(output.clone(), desktop.clone());
+
+            let (Some(idx), Some(monitor)) = (
+                self.workspace_index(&desktop),
+                self.monitors.iter().find(|m| m.name == output),
+            ) else {
+                continue;
+            };
+
+            out.push(Output::Event(WindowManagerEvent::WorkspaceChange(
+                kwin(KWinNotification::WorkspaceChanged),
+                monitor.id,
+                idx,
+            )));
+        }
+
+        out
+    }
 }
+
+fn desktop_list(v: &Value) -> Vec<(String, String)> {
+    v.as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|d| {
+                    Some((
+                        d["id"].as_str()?.to_string(),
+                        d["name"].as_str()?.to_string(),
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn current_map(v: &Value) -> HashMap<String, String> {
+    v.as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|d| {
+                    Some((
+                        d["output"].as_str()?.to_string(),
+                        d["id"].as_str()?.to_string(),
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The error of a request for a workspace that has no desktop yet: at least this many desktops
+/// are needed.
+///
+/// [`Table::switch_commands`] and [`Table::window_workspace_commands`] return it; the KWin backend
+/// makes the desktops and asks again.
+#[derive(Debug)]
+pub struct NeedsDesktops(pub usize);
 
 /// The executable of a process, by name and by path.
 ///
@@ -582,6 +828,8 @@ mod tests {
                 "geo": { "x": 0, "y": 0, "w": 1920, "h": 1080 },
                 "area": { "x": 0, "y": 0, "w": 1920, "h": 1050 },
             }],
+            "desktops": [{ "id": "d1", "name": "Desktop 1" }, { "id": "d2", "name": "Desktop 2" }],
+            "current_desktops": [{ "output": "DP-1", "id": "d1" }],
             "active": null,
             "cursor": { "x": 5, "y": 6 },
         })
@@ -614,17 +862,32 @@ mod tests {
         let mut trace = vec![];
         for event in &session {
             let out = t.handle(event, now);
-            let mut said = events(&out);
-            for output in &out {
-                if let Output::Cursor { token, x, y } = output {
-                    said.push(format!("Cursor {token} at {x},{y}"));
-                }
-            }
+            let said: Vec<String> = out
+                .iter()
+                .map(|output| match output {
+                    Output::Event(WindowManagerEvent::WorkspaceMove(_, window, idx)) => {
+                        format!("WorkspaceMove {} to {idx}", window.id)
+                    }
+                    Output::Event(WindowManagerEvent::WorkspaceChange(_, _, idx)) => {
+                        format!("WorkspaceChange to {idx}")
+                    }
+                    Output::Event(e) => format!("{e} {}", e.window_id().unwrap_or(0)),
+                    Output::Cursor { token, x, y } => format!("Cursor {token} at {x},{y}"),
+                })
+                .collect();
             trace.push(format!(
                 "{} -> {}",
                 event["type"].as_str().unwrap(),
                 said.join(", ")
             ));
+
+            // what komorebi asks for next (fixtures/commands.json, batch 3): the editor on the
+            // second workspace, and the output showing it
+            if event["seq"] == 15 {
+                let monitor = t.monitors()[0].id;
+                t.window_workspace_commands(1, 1).unwrap();
+                t.switch_commands(monitor, 1).unwrap();
+            }
 
             if event["type"] == "added" && event["caption"] == "a terminal" {
                 let w = t.window(2).unwrap();
@@ -664,6 +927,13 @@ mod tests {
                 "minimized -> Restore 1",
                 "removed -> ",
                 "failed -> ",
+                // komorebi's own move and switch, coming back
+                "desktops -> ",
+                "current_desktops -> ",
+                // somebody else's: a new desktop, the editor moved back, the first one shown
+                "desktop_list -> ",
+                "desktops -> WorkspaceMove 1 to 0",
+                "current_desktops -> WorkspaceChange to 0",
             ]
         );
 
@@ -676,6 +946,9 @@ mod tests {
         assert_eq!(t.window(2).unwrap().rect.bottom, 532, "the geometry event");
         assert_eq!(t.foreground(), Some(1));
         assert_eq!(t.cursor(), Some((1200, 701)));
+        assert_eq!(t.workspace_count(), 3);
+        assert_eq!(t.window_workspace(1), Some(0));
+        assert_eq!(t.current_workspaces(), [(t.monitors()[0].id, 0)]);
 
         let monitor = &t.monitors()[0];
         assert_eq!(
@@ -714,6 +987,7 @@ mod tests {
             }
         );
         assert_eq!(t.cursor(), Some((5, 6)));
+        assert_eq!(t.current_workspaces(), vec![(t.monitors()[0].id, 0)]);
     }
 
     #[test]
@@ -890,6 +1164,167 @@ mod tests {
 
         assert_eq!(events(&out), vec!["TitleUpdate 1"]);
         assert_eq!(t.window(1).unwrap().title, "renamed");
+    }
+
+    #[test]
+    fn every_desktop_is_a_workspace_and_a_window_is_on_the_one_it_is_on() {
+        let t = table(vec![
+            win("first", &["d1"]),
+            win("second", &["d2"]),
+            win("everywhere", &[]),
+        ]);
+
+        assert_eq!(
+            t.windows().len(),
+            3,
+            "windows on any desktop are komorebi's"
+        );
+        assert_eq!(t.window_workspace(1), Some(0));
+        assert_eq!(t.window_workspace(2), Some(1));
+        assert_eq!(
+            t.window_workspace(3),
+            None,
+            "a window on every desktop is on none"
+        );
+        assert_eq!(t.workspace_count(), 2);
+    }
+
+    #[test]
+    fn moving_a_window_to_another_desktop_is_reported_once_as_a_workspace_move() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let now = Instant::now();
+
+        let out = t.handle(
+            &json!({ "type": "desktops", "id": "a", "desktops": ["d2"] }),
+            now,
+        );
+        assert!(
+            matches!(
+                &out[..],
+                [Output::Event(WindowManagerEvent::WorkspaceMove(_, _, 1))]
+            ),
+            "{out:?}"
+        );
+        assert_eq!(t.window_workspace(1), Some(1));
+        assert!(t.window(1).unwrap().normal);
+
+        // the same again is nothing new
+        let out = t.handle(
+            &json!({ "type": "desktops", "id": "a", "desktops": ["d2"] }),
+            now,
+        );
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn komorebis_own_move_coming_back_from_kwin_raises_nothing() {
+        let mut t = table(vec![win("a", &["d1"])]);
+
+        // komorebi put it on workspace 1; kwin says so
+        t.window_workspace_commands(1, 1).unwrap();
+        let out = t.handle(
+            &json!({ "type": "desktops", "id": "a", "desktops": ["d2"] }),
+            Instant::now(),
+        );
+
+        assert!(out.is_empty(), "{out:?}");
+    }
+
+    #[test]
+    fn a_window_is_put_on_a_workspace_by_putting_it_on_its_desktop() {
+        let mut t = table(vec![win("a", &["d1"])]);
+
+        assert_eq!(
+            t.window_workspace_commands(1, 1).unwrap(),
+            vec![json!({ "op": "desktop", "id": "a", "v": "d2" })]
+        );
+        assert_eq!(
+            t.window_workspace(1),
+            Some(1),
+            "visible to the next query at once"
+        );
+    }
+
+    #[test]
+    fn showing_a_workspace_switches_that_output_only() {
+        let mut t = table(vec![]);
+        let monitor = t.monitors()[0].id;
+
+        assert_eq!(
+            t.switch_commands(monitor, 1).unwrap(),
+            vec![json!({ "op": "output_desktop", "output": "DP-1", "v": "d2" })]
+        );
+        assert_eq!(t.current_workspaces(), vec![(monitor, 1)]);
+    }
+
+    #[test]
+    fn a_workspace_without_a_desktop_asks_for_one() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        let monitor = t.monitors()[0].id;
+
+        assert!(matches!(
+            t.switch_commands(monitor, 4),
+            Err(NeedsDesktops(5))
+        ));
+        assert!(matches!(
+            t.window_workspace_commands(1, 2),
+            Err(NeedsDesktops(3))
+        ));
+    }
+
+    #[test]
+    fn another_party_switching_a_monitor_is_a_workspace_change() {
+        let mut t = table(vec![]);
+        let monitor = t.monitors()[0].id;
+
+        let out = t.handle(
+            &json!({ "type": "current_desktops", "current": [{ "output": "DP-1", "id": "d2" }] }),
+            Instant::now(),
+        );
+        assert!(
+            matches!(&out[..], [Output::Event(WindowManagerEvent::WorkspaceChange(_, m, 1))] if *m == monitor),
+            "{out:?}"
+        );
+
+        // the same again says nothing
+        let out = t.handle(
+            &json!({ "type": "current_desktops", "current": [{ "output": "DP-1", "id": "d2" }] }),
+            Instant::now(),
+        );
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn komorebi_switching_a_monitor_comes_back_as_a_change_to_what_it_already_knows() {
+        let mut t = table(vec![]);
+        let monitor = t.monitors()[0].id;
+        t.switch_commands(monitor, 1).unwrap();
+
+        // the table already believes it, so KWin's report of it raises nothing a second time
+        let out = t.handle(
+            &json!({ "type": "current_desktops", "current": [{ "output": "DP-1", "id": "d2" }] }),
+            Instant::now(),
+        );
+        assert!(out.is_empty(), "{out:?}");
+    }
+
+    #[test]
+    fn a_new_list_of_desktops_is_read_and_raises_nothing() {
+        let mut t = table(vec![win("a", &["d3"])]);
+        assert_eq!(t.window_workspace(1), None, "d3 is not a desktop yet");
+
+        let out = t.handle(
+            &json!({ "type": "desktop_list", "desktops": [
+                { "id": "d1", "name": "Desktop 1" },
+                { "id": "d2", "name": "Desktop 2" },
+                { "id": "d3", "name": "mail" },
+            ] }),
+            Instant::now(),
+        );
+
+        assert!(out.is_empty(), "{out:?}");
+        assert_eq!(t.workspace_count(), 3);
+        assert_eq!(t.window_workspace(1), Some(2));
     }
 
     #[test]

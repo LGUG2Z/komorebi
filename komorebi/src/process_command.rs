@@ -81,6 +81,12 @@
 //!   [`WindowManager::resize_delta`] that **ResizeDelta** sets ([`WindowManager::resize_window`]),
 //!   and **QuickSave**, **QuickLoad**, **Save** and **Load** write the resize adjustments of the
 //!   focused workspace's containers to a file and read them back.
+//! - **FocusWorkspaceNumber** shows a workspace of the focused monitor, by its index
+//!   ([`WindowManager::focus_workspace`]): the compositor is asked to show its desktop on that
+//!   monitor. **MoveContainerToWorkspaceNumber** moves the focused container to a workspace and
+//!   shows it, and **SendContainerToWorkspaceNumber** moves it there and stays
+//!   ([`WindowManager::move_container_to_workspace`]). A workspace that does not exist yet is
+//!   made, with the ones before it.
 //! - **Retile** tiles the focused workspace of every monitor again, without the resize
 //!   adjustments, and **RetileWithResizeDimensions** with them.
 //! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
@@ -202,6 +208,10 @@ impl WindowManager {
     ///   `UnlockMonitorWorkspaceContainer` is not there (a container that is not there is ignored).
     /// - The focused window cannot be floated or put back, for one of the reasons
     ///   [`WindowManager::toggle_float`] gives.
+    /// - The focused monitor has no workspace or no container to move to another workspace, or
+    ///   the compositor reports no window with the focus (`MoveContainerToWorkspaceNumber`,
+    ///   `SendContainerToWorkspaceNumber`), or the focused window of the workspace that is shown
+    ///   cannot be focused.
     /// - The monitor or the workspace of `WorkspacePadding` or `ContainerPadding` is not there, or
     ///   the focused workspace has no padding of its own for `AdjustWorkspacePadding` or
     ///   `AdjustContainerPadding` to change.
@@ -271,6 +281,18 @@ impl WindowManager {
             }
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
+            }
+            SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
+                if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
+                    self.focus_workspace(workspace_idx)?;
+                }
+            }
+
+            SocketMessage::MoveContainerToWorkspaceNumber(workspace_idx) => {
+                self.move_container_to_workspace(workspace_idx, true, None)?;
+            }
+            SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
+                self.move_container_to_workspace(workspace_idx, false, None)?;
             }
             SocketMessage::ToggleFloat => self.toggle_float(false)?,
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
@@ -904,6 +926,11 @@ mod tests {
     use crate::backend::fake::FakeBackend;
     use crate::backend::with_backend;
     use crate::core::Rect;
+    use crate::monitor;
+    use crate::window_manager_event::WindowManagerEvent;
+    use crossbeam_channel::Receiver;
+    use crossbeam_channel::Sender;
+    use crossbeam_channel::bounded;
     use std::io::Read;
     use std::io::Write;
     use std::net::Shutdown;
@@ -1120,5 +1147,54 @@ mod tests {
         let reply = daemon.send("{\"type\":\"Nonsense\"}\n");
 
         assert!(reply.is_err());
+    }
+
+    fn send_socket_message(socket: &PathBuf, message: SocketMessage) {
+        let mut stream = UnixStream::connect(socket).unwrap();
+        stream
+            .set_write_timeout(Some(Duration::from_secs(1)))
+            .unwrap();
+        stream
+            .write_all(serde_json::to_string(&message).unwrap().as_bytes())
+            .unwrap();
+    }
+
+    #[test]
+    fn test_receive_socket_message() {
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+        // /tmp: short enough for a unix socket path on macOS, and writable wherever the tests run
+        let socket_name = format!("/tmp/komorebi-test-{}.sock", Uuid::new_v4());
+        let socket_path = PathBuf::from(&socket_name);
+        let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDeviceID".to_string(),
+        );
+
+        wm.monitors_mut().push_back(m);
+
+        // send a message
+        send_socket_message(&socket_path, SocketMessage::FocusWorkspaceNumber(5));
+
+        let (stream, _) = wm.command_listener.accept().unwrap();
+        let reader = BufReader::new(stream.try_clone().unwrap());
+        let next = reader.lines().next();
+
+        // read and deserialize the message
+        let message_string = next.unwrap().unwrap();
+        let message = SocketMessage::from_str(&message_string).unwrap();
+        assert!(matches!(message, SocketMessage::FocusWorkspaceNumber(5)));
+
+        // process the message
+        wm.process_command(message, stream).unwrap();
+
+        // check the updated window manager state
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 5);
+
+        std::fs::remove_file(socket_path).unwrap();
     }
 }

@@ -57,13 +57,14 @@ function geometry(x, y, width, height) {
 }
 
 // A window. `id` becomes its `internalId`, which is a QUuid in KWin: an object, not a string.
-// Setting `minimized` or `frameGeometry` raises the signal KWin raises, and `closeWindow` closes it
-// once it is in a KWin. `place` is where KWin puts the window when it is asked for a frame: where
-// it was asked, unless a test says otherwise.
+// Setting `minimized`, `frameGeometry` or `desktops` raises the signal KWin raises, and
+// `closeWindow` closes it once it is in a KWin. `place` is where KWin puts the window when it is
+// asked for a frame: where it was asked, unless a test says otherwise.
 function window({
     id,
     minimized = false,
     frameGeometry = geometry(0, 0, 100, 100),
+    desktops = [],
     place = (g) => g,
     ...rest
 }) {
@@ -83,15 +84,22 @@ function window({
         minSize: { width: 0, height: 0 },
         move: false,
         resize: false,
-        desktops: [],
         frameGeometryChanged: new Signal(),
         minimizedChanged: new Signal(),
         captionChanged: new Signal(),
+        desktopsChanged: new Signal(),
         closeWindow: () => assert.fail("a window that is in no KWin was closed"),
         ...rest,
     };
-    let state = { minimized, frameGeometry };
+    let state = { minimized, frameGeometry, desktops };
     Object.defineProperties(w, {
+        desktops: {
+            get: () => state.desktops,
+            set: (ds) => {
+                state.desktops = ds;
+                w.desktopsChanged.emit();
+            },
+        },
         minimized: {
             get: () => state.minimized,
             set: (v) => {
@@ -123,8 +131,23 @@ const DP1 = {
     placementArea: geometry(0, 0, 1920, 1050),
 };
 
+// the virtual desktops of a KWin that nobody has given any others
+function twoDesktops() {
+    return [
+        { id: "desktop-1", name: "Desktop 1" },
+        { id: "desktop-2", name: "Desktop 2" },
+    ];
+}
+
 // A KWin with `windows` open, `active` focused and the pointer at `cursor`, running the bridge.
-function kwin({ windows = [], screens = [DP1], active = null, cursor = { x: 0, y: 0 } } = {}) {
+// Every output shows the first of `desktops`.
+function kwin({
+    windows = [],
+    screens = [DP1],
+    desktops = twoDesktops(),
+    active = null,
+    cursor = { x: 0, y: 0 },
+} = {}) {
     const calls = [];
     const printed = [];
     const raised = [];
@@ -132,21 +155,30 @@ function kwin({ windows = [], screens = [DP1], active = null, cursor = { x: 0, y
     const clock = { now: 1000 };
     const open = [];
     let activeWindow = active;
+    const current = Object.fromEntries(screens.map((s) => [s.name, desktops[0]]));
 
     const workspace = {
         screens,
+        desktops,
         cursorPos: cursor,
         windowList: () => open.slice(),
         clientArea: (option, output, desktop) => {
             assert.equal(option, 7, "the placement area");
-            assert.equal(desktop.id, `desktop of ${output.name}`);
+            assert.equal(desktop, current[output.name], "the desktop the output shows");
             return output.placementArea;
         },
-        currentDesktopForScreen: (output) => ({ id: `desktop of ${output.name}` }),
+        currentDesktopForScreen: (output) => current[output.name],
+        // per-output virtual desktops: the other outputs keep theirs
+        setCurrentDesktopForScreen: (desktop, output) => {
+            current[output.name] = desktop;
+            workspace.currentDesktopChanged.emit();
+        },
         raiseWindow: (w) => raised.push(w),
         windowAdded: new Signal(),
         windowRemoved: new Signal(),
         windowActivated: new Signal(),
+        currentDesktopChanged: new Signal(),
+        desktopsChanged: new Signal(),
     };
     Object.defineProperty(workspace, "activeWindow", {
         get: () => activeWindow,
@@ -219,6 +251,11 @@ function kwin({ windows = [], screens = [DP1], active = null, cursor = { x: 0, y
         },
         // the daemon answers the bridge's last `Poll` with these batches
         answer: (batches) => k.reply(JSON.stringify(batches)),
+        // somebody makes another desktop (System Settings, the pager)
+        createDesktop: (desktop) => {
+            desktops.push(desktop);
+            workspace.desktopsChanged.emit();
+        },
     };
     return k;
 }
@@ -267,7 +304,7 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     // the client took the frame it was given to whole cells of its font
     terminal.frameGeometry = geometry(480.4, 270, 956, 532);
 
-    const [cursorQuery, windowCommands] = commands;
+    const [cursorQuery, windowCommands, workspaceCommands] = commands;
     assert.equal(k.events().at(-1).seq, cursorQuery.after_seq);
     k.workspace.cursorPos = { x: 1200, y: 700.5 };
     k.answer([cursorQuery.batch]);
@@ -279,12 +316,71 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     assert.equal(k.events().at(-1).seq, windowCommands.after_seq);
     k.answer([windowCommands.batch]);
 
+    // the editor is sent to the second workspace, and the output is switched to it
+    assert.equal(k.events().at(-1).seq, workspaceCommands.after_seq);
+    k.answer([workspaceCommands.batch]);
+    const [first, second] = k.workspace.desktops;
+    // (an array the script made, whose prototype is not this file's)
+    assert.deepStrictEqual([...editor.desktops], [second]);
+    assert.equal(k.workspace.currentDesktopForScreen(DP1), second);
+
+    // then somebody else makes a desktop, moves the editor back to the first, and shows that
+    k.createDesktop({ id: "desktop-3", name: "mail" });
+    editor.desktops = [first];
+    k.workspace.setCurrentDesktopForScreen(first, DP1);
+
     assert.deepStrictEqual(k.events(), events);
     assert.deepStrictEqual(editor.frameGeometry, geometry(0, 0, 960, 1050));
     assert.equal(k.workspace.activeWindow, editor);
     assert.deepStrictEqual(k.raised, [editor]);
     assert.equal(editor.minimized, false);
     assert.deepStrictEqual(k.workspace.windowList(), [editor]);
+});
+
+test("the desktop each output shows is sent when it changes, and once", () => {
+    const k = kwin();
+    const [first, second] = k.workspace.desktops;
+
+    k.workspace.setCurrentDesktopForScreen(second, DP1);
+    k.timers[0].timeout.emit();
+    k.workspace.setCurrentDesktopForScreen(first, DP1);
+
+    assert.deepStrictEqual(k.events().slice(1), [
+        { type: "current_desktops", current: [{ output: "DP-1", id: "desktop-2" }], seq: 2 },
+        { type: "current_desktops", current: [{ output: "DP-1", id: "desktop-1" }], seq: 3 },
+    ]);
+});
+
+test("a desktop made while the bridge runs is sent as the new list of desktops", () => {
+    const k = kwin();
+
+    k.createDesktop({ id: "desktop-3", name: "mail" });
+
+    assert.deepStrictEqual(k.events().at(-1), {
+        type: "desktop_list",
+        desktops: [
+            { id: "desktop-1", name: "Desktop 1" },
+            { id: "desktop-2", name: "Desktop 2" },
+            { id: "desktop-3", name: "mail" },
+        ],
+        seq: 2,
+    });
+});
+
+test("a desktop a command names that KWin does not have is given back as failed", () => {
+    const w = window({ id: "{w}", desktops: [{ id: "desktop-1" }] });
+    const k = kwin({ windows: [w] });
+    const commands = [
+        { op: "desktop", id: "{w}", v: "gone" },
+        { op: "output_desktop", output: "DP-1", v: "gone" },
+        { op: "output_desktop", output: "HDMI-9", v: "desktop-2" },
+    ];
+
+    k.answer([{ batch: 6, cmds: commands }]);
+
+    assert.deepStrictEqual(w.desktops, [{ id: "desktop-1" }]);
+    assert.equal(k.workspace.currentDesktopForScreen(DP1).id, "desktop-1");
+    assert.deepStrictEqual(k.events().at(-1), { type: "failed", batch: 6, cmds: commands, seq: 2 });
 });
 
 test("a window KWin activates before announcing it is announced first, and once", () => {

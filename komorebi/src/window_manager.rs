@@ -14,6 +14,12 @@
 //! [`WindowManager::move_container_in_cycle_direction`]), and stops the daemon when it is asked
 //! to ([`WindowManager::stop`]).
 //!
+//! A monitor's workspaces are the compositor's virtual desktops. The window manager shows one
+//! ([`WindowManager::focus_workspace`]), moves a container to one
+//! ([`WindowManager::move_container_to_workspace`]), makes sure the compositor has a desktop for
+//! each ([`WindowManager::sync_workspace_desktops`]), and follows a workspace switch that
+//! something else made ([`WindowManager::adopt_workspace_change`]).
+//!
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
 use crate::DATA_DIR;
@@ -136,11 +142,13 @@ impl WindowManager {
     }
 
     /// Loads the monitors and the windows that are already open from the backend
-    /// ([`desktop`])
+    /// ([`desktop`]), and makes sure the compositor has a desktop for every workspace
+    /// ([`WindowManager::sync_workspace_desktops`])
     #[tracing::instrument(skip(self))]
     pub fn init(&mut self) -> Result<(), LibraryError> {
         tracing::info!("initializing");
         desktop::load_monitor_information(self)?;
+        self.sync_workspace_desktops();
         desktop::load_workspace_information(self)?;
         // the windows that were open already are in containers now; an event about one of them
         // (the first thing to happen may be that it closes) has to find it
@@ -420,6 +428,55 @@ impl WindowManager {
         backend().shutdown();
 
         std::process::exit(0)
+    }
+
+    /// Shows workspace `idx` on the focused monitor, creating it (and the ones before it) if it
+    /// does not exist yet.
+    ///
+    /// The compositor is asked to show the workspace's desktop on that monitor
+    /// ([`Monitor::load_focused_workspace`]): it shows the windows on it and hides the others, and
+    /// komorebi focuses the workspace's focused window and tiles it.
+    #[tracing::instrument(skip(self))]
+    pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("focusing workspace");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let monitor = self
+            .focused_monitor_mut()
+            .ok_or_eyre("there is no workspace")?;
+
+        monitor.focus_workspace(idx)?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
+
+        self.update_focused_workspace(false, true)
+    }
+
+    /// Moves the focused container of the focused monitor to workspace `idx`, creating it if it
+    /// does not exist yet, and shows that workspace when `follow` is set.
+    ///
+    /// The container's windows are put on the workspace's desktop before the desktop is shown or
+    /// one of them is focused ([`Monitor::load_focused_workspace`]): a window that is focused while
+    /// it is still on the desktop it came from takes the monitor back to that desktop.
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_to_workspace(
+        &mut self,
+        idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()> {
+        tracing::info!("moving container");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let monitor = self
+            .focused_monitor_mut()
+            .ok_or_eyre("there is no monitor")?;
+
+        monitor.move_container_to_workspace(idx, follow, direction)?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
+
+        self.update_focused_workspace(mouse_follows_focus, true)?;
+
+        Ok(())
     }
 
     /// Takes the window that has the focus in the compositor out of the layout of the focused
@@ -990,6 +1047,48 @@ impl WindowManager {
         Ok(())
     }
 
+    /// Make sure the compositor has a virtual desktop for every workspace any monitor has, named
+    /// "Workspace 1", "Workspace 2" and so on where it has to create them
+    pub fn sync_workspace_desktops(&self) {
+        let count = self
+            .monitors()
+            .iter()
+            .map(|m| m.workspaces().len())
+            .max()
+            .unwrap_or(1)
+            .max(1);
+
+        let names: Vec<String> = (0..count).map(|i| format!("Workspace {}", i + 1)).collect();
+
+        if let Err(error) = backend().ensure_workspaces(&names) {
+            tracing::warn!("could not make sure there are desktops for the workspaces: {error}");
+        }
+    }
+
+    /// A monitor now shows workspace `idx`, which komorebi did not ask for: a pager, a shortcut, an
+    /// app raising a window of another desktop. The compositor has already shown the windows and
+    /// chosen what to focus; komorebi follows, and tiles what came into view.
+    pub fn adopt_workspace_change(&mut self, monitor_id: u32, idx: usize) -> eyre::Result<()> {
+        let offset = self.work_area_offset;
+
+        let Some(monitor) = self.monitors_mut().iter_mut().find(|m| m.id == monitor_id) else {
+            return Ok(());
+        };
+
+        if monitor.focused_workspace_idx() == idx {
+            // komorebi's own switch, coming back
+            return Ok(());
+        }
+
+        tracing::info!("the compositor now shows workspace {idx} on monitor {monitor_id}");
+        monitor.focus_workspace(idx)?;
+        monitor.update_focused_workspace(offset)?;
+
+        self.update_known_window_ids();
+
+        Ok(())
+    }
+
     pub fn update_known_window_ids(&mut self) {
         tracing::trace!("updating list of known window_ids");
         let mut known_window_ids = HashMap::new();
@@ -1221,6 +1320,50 @@ mod tests {
     #[test]
     fn test_create_window_manager() {
         let (_wm, _test_context) = setup_window_manager();
+    }
+
+    #[test]
+    fn test_focus_workspace() {
+        let (mut wm, _test_context) = setup_window_manager();
+
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDeviceID".to_string(),
+        );
+
+        // a new monitor should have a single workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // the next index on the monitor should be the not-yet-created second workspace
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // add the monitor to the window manager
+        wm.monitors_mut().push_back(m);
+
+        {
+            // focusing a workspace which doesn't yet exist should create it
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index).unwrap();
+            assert_eq!(monitor.workspaces().len(), 2);
+        }
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 1);
+
+        {
+            // focusing a workspace many indices ahead should create all workspaces
+            // required along the way
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index + 2).unwrap();
+            assert_eq!(monitor.workspaces().len(), 4);
+        }
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 3);
+
+        // we should be able to successfully focus an existing workspace too
+        wm.focus_workspace(0).unwrap();
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 0);
     }
 
     #[test]

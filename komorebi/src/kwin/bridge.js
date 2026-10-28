@@ -42,15 +42,24 @@
  */
 
 /**
+ * A virtual desktop, by KWin's id for it and its name; and the desktop an output shows.
+ *
+ * @typedef {{ id: string, name: string }} Desktop
+ * @typedef {{ output: string, id: string }} CurrentDesktop
+ */
+
+/**
  * What the bridge sends, as the one argument of `Event`. `emit` adds `seq` to each, which counts
  * them from 1. `snapshot` is everything on the desktop, sent once, when the script starts; an
  * `activated` with no `id` means no window has the focus; `caption` is a window's new title;
+ * `desktops` says which desktops a window is on now, `desktop_list` which desktops there are, and
+ * `current_desktops` which desktop each output shows, each sent when it is not what was last sent;
  * `cursor` answers a cursor query, and `failed` gives back the commands of a batch that could not
  * be carried out.
  *
  * @typedef {{
- *     type: "snapshot", windows: WindowInfo[], screens: Screen[], active: string | null,
- *     cursor: Point
+ *     type: "snapshot", windows: WindowInfo[], screens: Screen[], desktops: Desktop[],
+ *     current_desktops: CurrentDesktop[], active: string | null, cursor: Point
  * }} Snapshot
  * @typedef {WindowInfo & { type: "added" }} Added
  * @typedef {{ type: "removed", id: string }} Removed
@@ -58,25 +67,32 @@
  * @typedef {{ type: "minimized", id: string, v: boolean }} Minimized
  * @typedef {{ type: "geometry", id: string, geo: Rect }} Geometry
  * @typedef {{ type: "caption", id: string, caption: string }} Caption
+ * @typedef {{ type: "desktops", id: string, desktops: string[] }} Desktops
+ * @typedef {{ type: "desktop_list", desktops: Desktop[] }} DesktopList
+ * @typedef {{ type: "current_desktops", current: CurrentDesktop[] }} CurrentDesktops
  * @typedef {{ type: "cursor", token: number, x: number, y: number }} CursorAnswer
  * @typedef {{ type: "failed", batch: number, cmds: Command[] }} Failed
- * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Caption | CursorAnswer | Failed} BridgeEvent
+ * @typedef {Snapshot | Added | Removed | Activated | Minimized | Geometry | Caption | Desktops
+ *     | DesktopList | CurrentDesktops | CursorAnswer | Failed} BridgeEvent
  */
 
 /**
  * What the daemon sends: the answer to `Poll` is a list of batches, each a list of commands. A
  * window command names the window by its `id`: `geo` sets its frame, `min` minimizes it (`v`) or
- * brings it back, and `activate`, `raise` and `close` do what they say. A cursor query is
- * numbered by `token` so that its answer can be matched.
+ * brings it back, `desktop` puts it on the desktop `v` (and on no other), and `activate`, `raise`
+ * and `close` do what they say. `output_desktop` shows the desktop `v` on one output, leaving the
+ * others as they are. A cursor query is numbered by `token` so that its answer can be matched.
  *
  * @typedef {{ op: "cursor", token: number }} CursorQuery
+ * @typedef {{ op: "output_desktop", output: string, v: string }} OutputDesktop
  * @typedef {{ op: "geo", id: string, x: number, y: number, w: number, h: number }} SetFrame
  * @typedef {{ op: "min", id: string, v: boolean }} SetMinimized
  * @typedef {{ op: "activate", id: string }} Activate
  * @typedef {{ op: "raise", id: string }} Raise
  * @typedef {{ op: "close", id: string }} Close
- * @typedef {SetFrame | SetMinimized | Activate | Raise | Close} WindowCommand
- * @typedef {CursorQuery | WindowCommand} Command
+ * @typedef {{ op: "desktop", id: string, v: string }} SetDesktop
+ * @typedef {SetFrame | SetMinimized | Activate | Raise | Close | SetDesktop} WindowCommand
+ * @typedef {CursorQuery | OutputDesktop | WindowCommand} Command
  * @typedef {{ batch: number, cmds: Command[] }} Batch
  */
 
@@ -207,6 +223,59 @@ function cursor() {
     return { x: Math.round(p.x), y: Math.round(p.y) };
 }
 
+/** @returns {Desktop[]} */
+function desktops() {
+    var ds = [];
+    for (var i = 0; i < workspace.desktops.length; i++) {
+        ds.push({ id: String(workspace.desktops[i].id), name: String(workspace.desktops[i].name) });
+    }
+    return ds;
+}
+
+// The desktop each output shows. With per-output virtual desktops (which komorebi turns on) the
+// outputs are independent: that is what lets each monitor have its own workspace in front.
+/** @returns {CurrentDesktop[]} */
+function currentDesktops() {
+    var out = [];
+    for (var i = 0; i < workspace.screens.length; i++) {
+        var s = workspace.screens[i];
+        out.push({ output: String(s.name), id: String(workspace.currentDesktopForScreen(s).id) });
+    }
+    return out;
+}
+
+/**
+ * @param {string} name
+ * @returns {Output | null}
+ */
+function screenByName(name) {
+    for (var i = 0; i < workspace.screens.length; i++) {
+        if (String(workspace.screens[i].name) === name) {
+            return workspace.screens[i];
+        }
+    }
+    return null;
+}
+
+// KWin has one signal for "an output changed desktop" and it does not say which, so the whole set is
+// compared with what was last announced, here and once a second.
+var lastCurrent = "";
+var lastDesktopList = "";
+
+function announceDesktops() {
+    var list = JSON.stringify(desktops());
+    if (list !== lastDesktopList) {
+        lastDesktopList = list;
+        emit("desktop_list", { desktops: JSON.parse(list) });
+    }
+
+    var now = JSON.stringify(currentDesktops());
+    if (now !== lastCurrent) {
+        lastCurrent = now;
+        emit("current_desktops", { current: JSON.parse(now) });
+    }
+}
+
 /**
  * @param {string} id
  * @returns {KWinWindow | null}
@@ -219,6 +288,19 @@ function findWindow(id) {
     for (var i = 0; i < l.length; i++) {
         if (wid(l[i]) === id) {
             return l[i];
+        }
+    }
+    return null;
+}
+
+/**
+ * @param {string} id
+ * @returns {VirtualDesktop | null}
+ */
+function findDesktop(id) {
+    for (var i = 0; i < workspace.desktops.length; i++) {
+        if (String(workspace.desktops[i].id) === id) {
+            return workspace.desktops[i];
         }
     }
     return null;
@@ -272,6 +354,9 @@ function track(w, announce) {
     w.captionChanged.connect(function () {
         emit("caption", { id: id, caption: String(w.caption) });
     });
+    w.desktopsChanged.connect(function () {
+        emit("desktops", { id: id, desktops: desktopIds(w) });
+    });
 }
 
 workspace.windowAdded.connect(function (w) {
@@ -298,6 +383,12 @@ function announceActive(w) {
 }
 
 workspace.windowActivated.connect(announceActive);
+workspace.currentDesktopChanged.connect(function () {
+    announceDesktops();
+});
+workspace.desktopsChanged.connect(function () {
+    announceDesktops();
+});
 
 var existing = workspace.windowList();
 for (var i = 0; i < existing.length; i++) {
@@ -305,10 +396,14 @@ for (var i = 0; i < existing.length; i++) {
 }
 
 lastActive = workspace.activeWindow ? wid(workspace.activeWindow) : null;
+lastCurrent = JSON.stringify(currentDesktops());
+lastDesktopList = JSON.stringify(desktops());
 
 emit("snapshot", {
     windows: workspace.windowList().map(describe),
     screens: screens(),
+    desktops: desktops(),
+    current_desktops: currentDesktops(),
     active: workspace.activeWindow ? wid(workspace.activeWindow) : null,
     cursor: cursor()
 });
@@ -325,6 +420,15 @@ function applyOne(c) {
         var p = cursor();
         emit("cursor", { token: c.token, x: p.x, y: p.y });
         return true;
+    }
+    if (c.op === "output_desktop") {
+        // show a desktop on one output, leaving the others as they are
+        var target = findDesktop(c.v);
+        var screen = screenByName(c.output);
+        if (target && screen) {
+            workspace.setCurrentDesktopForScreen(target, screen);
+        }
+        return !!(target && screen);
     }
 
     var w = findWindow(c.id);
@@ -349,6 +453,14 @@ function applyOne(c) {
         case "close":
             w.closeWindow();
             break;
+        case "desktop": {
+            var d = findDesktop(c.v);
+            if (!d) {
+                return false;
+            }
+            w.desktops = [d];
+            break;
+        }
         default:
             return false;
     }
@@ -408,5 +520,6 @@ watchdog.timeout.connect(function () {
     if (Date.now() - lastIssue > CFG.hold_ms + 3000) {
         pull();
     }
+    announceDesktops();
 });
 watchdog.start();

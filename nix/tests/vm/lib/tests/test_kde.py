@@ -431,3 +431,75 @@ def test_focused_title_is_empty_for_a_workspace_without_containers(machine: Fake
     machine.reply("komorebic state", output=a_state(workspace()))
 
     assert Kde(machine, "main").focused_title() == ""
+
+
+def test_desk_is_the_desktop_number_kdotool_prints_or_zero(machine: FakeMachine) -> None:
+    machine.reply("{a}", output="2\n")
+    machine.reply("{b}", status=1, output="no such window")
+    kde = Kde(machine, "main")
+
+    assert kde.desk("{a}") == 2
+    assert kde.desk("{b}") == 0
+
+
+def test_shown_and_desktops_ask_kwin(machine: FakeMachine) -> None:
+    machine.reply("kdotool get_desktop", output="3\n")
+    machine.reply("VirtualDesktopManager count", output="u 4\n")
+    kde = Kde(machine, "main")
+
+    assert kde.shown() == 3
+    assert kde.desktops() == 4
+
+
+def test_kwinrc_reads_a_key_of_its_own_group(machine: FakeMachine) -> None:
+    machine.reply(
+        "cat /home/komorebi/.config/kwinrc",
+        output=(
+            "[Desktops]\nPerOutputVirtualDesktops=false\n"
+            "[Windows]\nPerOutputVirtualDesktops = true\n"
+        ),
+    )
+    kde = Kde(machine, "main")
+
+    assert kde.kwinrc("Windows", "PerOutputVirtualDesktops") == "true"
+    assert kde.kwinrc("Windows", "FocusPolicy") is None
+
+
+def test_kwinrc_is_none_without_a_file(machine: FakeMachine) -> None:
+    machine.reply("cat /home/komorebi/.config/kwinrc", status=1)
+
+    assert Kde(machine, "main").kwinrc("Windows", "PerOutputVirtualDesktops") is None
+
+
+def test_a_kwin_script_is_loaded_run_and_unloaded_and_its_reports_returned(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("loadScript", output="i 7\n")
+    machine.reply("journalctl", output="other\nKS:probe 2 outputs\nkwin: KS:probe done\n")
+    kde = Kde(machine, "main", scale=0.01)
+
+    lines = kde.kwin_script("probe", 'report(workspace.screens.length, "outputs"); report("done");')
+
+    assert lines == ["2 outputs"]
+    scripts = [inner(command) for command in machine.commands if " sh -c " in command]
+    assert any("/tmp/kwin-script-probe.js" in s and "function report()" in s for s in scripts)
+    assert any("/Scripting/Script7 org.kde.kwin.Script run" in s for s in scripts)
+    assert any("unloadScript s probe" in s for s in scripts)
+
+
+def test_a_kwin_script_that_is_kept_stays_loaded(machine: FakeMachine) -> None:
+    machine.reply("loadScript", output="i 8\n")
+    machine.reply("journalctl", output="KS:listen done\n")
+    kde = Kde(machine, "main", scale=0.01)
+
+    kde.kwin_script("listen", 'report("done");', keep=True)
+
+    assert not any("unloadScript" in command for command in machine.commands)
+
+
+def test_a_kwin_script_that_never_reports_it_is_done_fails_the_test(machine: FakeMachine) -> None:
+    machine.reply("loadScript", output="i 9\n")
+    kde = Kde(machine, "main", scale=0.01)
+
+    with pytest.raises(AssertionError, match="never reported"):
+        kde.kwin_script("silent", "")

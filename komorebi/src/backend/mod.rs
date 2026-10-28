@@ -20,6 +20,14 @@
 //! short time, with [`WindowInfo::alive`] false, so that the event that mentions it can still be
 //! logged. Commands return once the compositor has accepted them, not once the client has acted on
 //! them, and an implementation may batch them.
+//!
+//! # Workspaces
+//!
+//! komorebi's workspaces are the compositor's virtual desktops, per monitor: the window manager
+//! asks for workspace `i` to be shown on a monitor ([`Backend::switch_workspace`]) and for a window
+//! to be put on workspace `i` ([`Backend::set_window_workspace`]), and the compositor does the
+//! showing, the hiding and the focusing. When something else changes what a monitor shows, the
+//! backend raises an event and the window manager follows it.
 
 #![deny(missing_docs)]
 
@@ -89,6 +97,12 @@ pub struct MonitorInfo {
 /// - A command about a window that does not exist, or is no longer alive, returns an error. It does
 ///   not panic.
 /// - A backend is `Send + Sync`: the window manager calls it from several threads.
+/// - Workspace `i` is the compositor's virtual desktop `i` on every monitor, and each monitor shows
+///   one of them at a time ([`Backend::switch_workspace`]). The compositor shows the windows of the
+///   workspace in front and hides the others; the window manager never hides a window to leave a
+///   workspace.
+/// - A backend asked to show a workspace, or to put a window on one, that has no desktop yet makes
+///   the desktops up to it first.
 ///
 /// The compiler enforces the first and last parts of the contract that it can see. A backend that
 /// leaves out a method does not compile:
@@ -123,6 +137,11 @@ pub struct MonitorInfo {
 /// #     fn unminimize(&self, _: u32) -> eyre::Result<()> { Ok(()) }
 /// #     fn close(&self, _: u32) -> eyre::Result<()> { Ok(()) }
 /// #     fn center_cursor_in(&self, _: &Rect) -> eyre::Result<()> { Ok(()) }
+/// #     fn ensure_workspaces(&self, _: &[String]) -> eyre::Result<()> { Ok(()) }
+/// #     fn switch_workspace(&self, _: u32, _: usize) -> eyre::Result<()> { Ok(()) }
+/// #     fn set_window_workspace(&self, _: u32, _: usize) -> eyre::Result<()> { Ok(()) }
+/// #     fn window_workspace(&self, _: u32) -> Option<usize> { None }
+/// #     fn current_workspaces(&self) -> Vec<(u32, usize)> { vec![] }
 /// # }
 /// ```
 pub trait Backend: Send + Sync + 'static {
@@ -200,6 +219,49 @@ pub trait Backend: Send + Sync + 'static {
     ///
     /// When the compositor refuses to move the pointer.
     fn center_cursor_in(&self, rect: &Rect) -> eyre::Result<()>;
+
+    // ---- workspaces ----------------------------------------------------------------------------
+    //
+    // komorebi's workspaces are the compositor's own virtual desktops: workspace `i` is desktop `i`
+    // on every monitor, and each monitor shows one at a time. Showing, hiding and focusing the
+    // windows of a workspace is then the compositor's business; komorebi tiles what is in front and
+    // follows the compositor when something else (a pager, a shortcut, an app raising a window)
+    // changes what a monitor shows.
+
+    /// Makes sure there are at least as many desktops as `names`, creating the missing ones with
+    /// those names.
+    ///
+    /// A desktop that is already there keeps its name, unless nobody chose it (the compositor's
+    /// own "Desktop 2"), in which case it may take the name it is given.
+    ///
+    /// # Errors
+    ///
+    /// When the compositor refuses to create or rename a desktop.
+    fn ensure_workspaces(&self, names: &[String]) -> eyre::Result<()>;
+
+    /// Shows workspace `idx` on the monitor `monitor_id`, leaving the other monitors as they are.
+    ///
+    /// The compositor shows the windows on that workspace, hides the rest, and gives the focus to a
+    /// window of that workspace by itself.
+    ///
+    /// # Errors
+    ///
+    /// When there is no desktop for `idx` and one cannot be made.
+    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> eyre::Result<()>;
+
+    /// Puts a window on workspace `idx`. It is visible at once to [`Backend::window_workspace`].
+    ///
+    /// # Errors
+    ///
+    /// When the window does not exist, or there is no desktop for `idx` and one cannot be made.
+    fn set_window_workspace(&self, id: u32, idx: usize) -> eyre::Result<()>;
+
+    /// Returns the workspace a window is on, or `None` for a window the compositor does not know or
+    /// that is on every workspace.
+    fn window_workspace(&self, id: u32) -> Option<usize>;
+
+    /// Returns the workspace each monitor shows, as `(monitor id, workspace index)`.
+    fn current_workspaces(&self) -> Vec<(u32, usize)>;
 
     // ---- provided ------------------------------------------------------------------------------
 

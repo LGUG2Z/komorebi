@@ -45,8 +45,10 @@ interface QUuid {
     readonly __quuid: never;
 }
 
+/** A virtual desktop (`KWin::VirtualDesktop`). `id` is a UUID, as a string. */
 interface VirtualDesktop {
     readonly id: string;
+    readonly name: string;
 }
 
 /** An output (`KWin::Output`). */
@@ -82,10 +84,13 @@ interface KWinWindow {
     readonly move: boolean;
     /** True while the user resizes the window with the pointer. */
     readonly resize: boolean;
-    readonly desktops: VirtualDesktop[];
+    /** The desktops the window is on; empty when it is on all of them. Setting it moves the
+     * window. */
+    desktops: VirtualDesktop[];
     readonly frameGeometryChanged: Signal<[oldGeometry: QRectF]>;
     readonly minimizedChanged: Signal;
     readonly captionChanged: Signal;
+    readonly desktopsChanged: Signal;
     closeWindow(): void;
 }
 
@@ -95,14 +100,24 @@ interface Workspace {
     /** Setting it activates the window. */
     activeWindow: KWinWindow | null;
     readonly cursorPos: QPointF;
+    /** Every virtual desktop, in order. */
+    readonly desktops: VirtualDesktop[];
     windowList(): KWinWindow[];
     clientArea(option: number, output: Output, desktop: VirtualDesktop): QRectF;
+    /** The desktop an output shows. With per-output virtual desktops each output has its own. */
     currentDesktopForScreen(output: Output): VirtualDesktop;
+    /** Shows a desktop on one output; with per-output virtual desktops the others keep theirs. */
+    setCurrentDesktopForScreen(desktop: VirtualDesktop, output: Output): void;
     raiseWindow(window: KWinWindow): void;
     readonly windowAdded: Signal<[window: KWinWindow]>;
     readonly windowRemoved: Signal<[window: KWinWindow]>;
     /** `null` when no window has the focus. */
     readonly windowActivated: Signal<[window: KWinWindow | null]>;
+    /** Some output shows another desktop. It does not say which, and the bridge does not need
+     * what KWin passes with it: it reads the desktop of every output. */
+    readonly currentDesktopChanged: Signal;
+    /** A desktop was created or removed. */
+    readonly desktopsChanged: Signal;
 }
 
 declare const workspace: Workspace;

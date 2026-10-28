@@ -34,11 +34,23 @@
 //! owner again, the daemon loads the script into the new KWin, which reports its desktop as it
 //! does at start.
 //!
+//! Workspaces are KWin's own virtual desktops, per output: workspace `i` is desktop `i`, and each
+//! output shows a desktop of its own, which KWin does once its per-output virtual desktops are
+//! turned on. [`connect`] turns them on in the user's `kwinrc` (the exit puts the user's setting
+//! back), desktops are created over KWin's `org.kde.KWin.VirtualDesktopManager` interface when a
+//! workspace has none, and the script switches an output's desktop and puts a window on a desktop.
+//! When something other than komorebi does either, the script reports it, and the table turns it
+//! into a [`WorkspaceChange`] or a [`WorkspaceMove`] for the window manager to follow.
+//!
+//! [`WorkspaceChange`]: crate::window_manager_event::WindowManagerEvent::WorkspaceChange
+//! [`WorkspaceMove`]: crate::window_manager_event::WindowManagerEvent::WorkspaceMove
+//!
 //! `docs/dev/PLATFORM.md` has the D-Bus names, the files and the environment variables involved,
 //! and `docs/dev/DESIGN.md` the reasons for this design.
 
 #![deny(missing_docs)]
 
+mod kwinrc;
 pub mod state;
 
 use crate::DATA_DIR;
@@ -54,6 +66,7 @@ use parking_lot::Condvar;
 use parking_lot::Mutex;
 use serde_json::Value;
 use serde_json::json;
+use state::NeedsDesktops;
 use state::Output;
 use state::Table;
 use std::collections::HashMap;
@@ -68,6 +81,7 @@ use tokio::runtime::Handle;
 use tokio::sync::Notify;
 use zbus::Connection;
 use zbus::interface;
+use zbus::proxy::CacheProperties;
 use zbus::proxy::Proxy;
 
 const SERVICE: &str = "org.komorebi.Bridge";
@@ -104,6 +118,8 @@ struct Shared {
     /// runtime is then being shut down, and blocking on it panics
     alive: AtomicBool,
     connection: Mutex<Option<Connection>>,
+    /// the user's `kwinrc`, for the settings komorebi changes and puts back
+    kwinrc: Option<kwinrc::Kwinrc>,
 }
 
 impl Shared {
@@ -252,6 +268,12 @@ pub struct KWinBackend {
 /// daemon exits or the session bus goes away. The same thread watches KWin on the bus, and loads
 /// the script again into a KWin that has restarted.
 ///
+/// Before it loads the script, it turns on KWin's per-output virtual desktops in the user's
+/// `kwinrc` (`[Windows] PerOutputVirtualDesktops`), unless they are on, and has KWin reload its
+/// configuration. [`Backend::shutdown`] puts the user's setting back. A `kwinrc` that cannot be
+/// written is logged, and komorebi runs on: with more than one monitor, a workspace switch then
+/// switches every monitor.
+///
 /// # Errors
 ///
 /// - The session bus cannot be reached (`DBUS_SESSION_BUS_ADDRESS` is not set, or names a bus
@@ -295,6 +317,7 @@ pub fn connect() -> eyre::Result<Arc<KWinBackend>> {
         handle: runtime.handle().clone(),
         alive: AtomicBool::new(true),
         connection: Mutex::new(None),
+        kwinrc: kwinrc::Kwinrc::user(&DATA_DIR),
     });
 
     let (started_tx, started_rx) = std::sync::mpsc::channel::<eyre::Result<()>>();
@@ -366,7 +389,50 @@ async fn start(shared: Arc<Shared>) -> eyre::Result<()> {
         })?;
 
     *shared.connection.lock() = Some(connection.clone());
+    enable_per_output_desktops(&shared, &connection).await;
     load_script(&connection).await
+}
+
+async fn kwin_reconfigure(connection: &Connection) {
+    let result = async {
+        let kwin = Proxy::new(connection, "org.kde.KWin", "/KWin", "org.kde.KWin").await?;
+        kwin.call_method("reconfigure", &()).await?;
+        eyre::Ok(())
+    }
+    .await;
+    if let Err(error) = result {
+        tracing::warn!("could not ask KWin to reload its configuration: {error}");
+    }
+}
+
+/// Turn on KWin's per-output virtual desktops, which is how every monitor gets a workspace of its
+/// own: without them, switching the desktop switches it on every output. The user's setting is put
+/// back when komorebi exits (see [`kwinrc::Kwinrc`]).
+async fn enable_per_output_desktops(shared: &Shared, connection: &Connection) {
+    let Some(kwinrc) = &shared.kwinrc else {
+        tracing::warn!("there is no configuration directory to find kwinrc in");
+        return;
+    };
+
+    if kwinrc.is_on("Windows", "PerOutputVirtualDesktops") {
+        return;
+    }
+
+    if let Err(error) = kwinrc.set(
+        "Windows",
+        &[("PerOutputVirtualDesktops", "true".to_string())],
+    ) {
+        tracing::warn!(
+            "could not turn on per-output virtual desktops ({error}): with more than one monitor, \
+             switching workspace will switch them all"
+        );
+        return;
+    }
+
+    kwin_reconfigure(connection).await;
+    // the setting is applied as KWin reloads; the script reads the desktops right after
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    tracing::info!("turned on KWin's per-output virtual desktops");
 }
 
 /// Write the bridge to disk, where KWin can read it, and have KWin run it
@@ -460,6 +526,62 @@ async fn supervise(shared: Arc<Shared>) {
     }
 }
 
+async fn desktop_manager(shared: &Shared) -> eyre::Result<Proxy<'static>> {
+    let connection = shared.connection().await?;
+    // uncached: a property read right after createDesktop must not return the list from before it
+    Ok(zbus::proxy::Builder::new(&connection)
+        .destination("org.kde.KWin")?
+        .path("/VirtualDesktopManager")?
+        .interface("org.kde.KWin.VirtualDesktopManager")?
+        .cache_properties(CacheProperties::No)
+        .build()
+        .await?)
+}
+
+/// `(position, id, name)`; kwin's introspection says `a(iss)` but the value on the wire is `a(uss)`
+async fn desktops(manager: &Proxy<'static>) -> eyre::Result<Vec<(u32, String, String)>> {
+    Ok(manager.get_property("desktops").await?)
+}
+
+/// "Desktop 2" is what KWin calls a desktop nobody named, and "Workspace 2" what komorebi calls one
+/// it made for a workspace that has no name: neither is anyone's choice.
+fn is_placeholder(name: &str) -> bool {
+    ["Desktop ", "Workspace "].iter().any(|prefix| {
+        name.strip_prefix(prefix)
+            .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+    })
+}
+
+/// Make sure there are desktops for these workspaces, naming the ones that are created. Existing
+/// desktops keep their names, if they are somebody's: they may be the user's.
+async fn create_workspace_desktops(shared: &Shared, names: &[String]) -> eyre::Result<()> {
+    let manager = desktop_manager(shared).await?;
+    let existing = desktops(&manager).await?;
+    let have = existing.len();
+
+    for (position, name) in names.iter().enumerate().skip(have) {
+        manager
+            .call_method("createDesktop", &(position as u32, name.as_str()))
+            .await?;
+    }
+
+    // the ones nobody named take the workspaces' names; the ones somebody did keep theirs
+    for ((_, id, name), wanted) in existing.iter().zip(names) {
+        if is_placeholder(name) && !is_placeholder(wanted) {
+            manager
+                .call_method("setDesktopName", &(id.as_str(), wanted.as_str()))
+                .await?;
+        }
+    }
+
+    let after = desktops(&manager).await?;
+    shared
+        .table
+        .lock()
+        .set_desktops(after.into_iter().map(|(_, id, name)| (id, name)).collect());
+    Ok(())
+}
+
 /// KWin's own "Move Mouse to Focus" action: the scripting API cannot move the pointer
 async fn move_mouse_to_focus(shared: &Shared) -> eyre::Result<()> {
     let connection = shared.connection().await?;
@@ -481,6 +603,12 @@ fn command_rect(uuid: &str, rect: &Rect) -> Value {
 }
 
 impl KWinBackend {
+    /// A workspace was asked for that has no desktop: make desktops up to it
+    fn make_desktops(&self, count: usize) -> eyre::Result<()> {
+        let names: Vec<String> = (1..=count).map(|n| format!("Workspace {n}")).collect();
+        self.ensure_workspaces(&names)
+    }
+
     fn command(&self, id: u32, build: impl FnOnce(&str) -> Value) -> eyre::Result<()> {
         let uuid = self
             .shared
@@ -562,6 +690,51 @@ impl Backend for KWinBackend {
         self.command(id, |uuid| json!({ "op": "raise", "id": uuid }))
     }
 
+    fn ensure_workspaces(&self, names: &[String]) -> eyre::Result<()> {
+        let shared = self.shared.clone();
+        let names = names.to_vec();
+        self.shared
+            .block_on(async move { create_workspace_desktops(&shared, &names).await })?
+    }
+
+    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> eyre::Result<()> {
+        let commands = loop {
+            let attempt = self.shared.table.lock().switch_commands(monitor_id, idx);
+            match attempt {
+                Ok(commands) => break commands,
+                Err(NeedsDesktops(count)) => self.make_desktops(count)?,
+            }
+        };
+
+        for command in commands {
+            self.shared.push(command);
+        }
+        Ok(())
+    }
+
+    fn set_window_workspace(&self, id: u32, idx: usize) -> eyre::Result<()> {
+        let commands = loop {
+            let attempt = self.shared.table.lock().window_workspace_commands(id, idx);
+            match attempt {
+                Ok(commands) => break commands,
+                Err(NeedsDesktops(count)) => self.make_desktops(count)?,
+            }
+        };
+
+        for command in commands {
+            self.shared.push(command);
+        }
+        Ok(())
+    }
+
+    fn window_workspace(&self, id: u32) -> Option<usize> {
+        self.shared.table.lock().window_workspace(id)
+    }
+
+    fn current_workspaces(&self) -> Vec<(u32, usize)> {
+        self.shared.table.lock().current_workspaces()
+    }
+
     fn minimize(&self, id: u32) -> eyre::Result<()> {
         self.command(id, |uuid| json!({ "op": "min", "id": uuid, "v": true }))
     }
@@ -590,7 +763,18 @@ impl Backend for KWinBackend {
         // the script goes with komorebi: KWin would otherwise keep running it, reporting to nobody
         let shared = self.shared.clone();
 
-        let _ = self.shared.block_on(async move {
+        let told_kwin = self.shared.block_on(async move {
+            // every setting of KWin's that komorebi changed
+            if let Ok(connection) = shared.connection().await
+                && let Some(kwinrc) = &shared.kwinrc
+            {
+                match kwinrc.restore() {
+                    Ok(true) => kwin_reconfigure(&connection).await,
+                    Ok(false) => {}
+                    Err(error) => tracing::warn!("could not put kwinrc back as it was: {error}"),
+                }
+            }
+
             if let Ok(connection) = shared.connection().await
                 && let Ok(scripting) = Proxy::new(
                     &connection,
@@ -603,6 +787,16 @@ impl Backend for KWinBackend {
                 let _: Result<bool, _> = scripting.call("unloadScript", &(SCRIPT_NAME,)).await;
             }
         });
+
+        // KWin is gone (the session is being torn down, so this is not the way it usually ends):
+        // there is nobody to tell, but what komorebi changed in `kwinrc` is the user's, and a file
+        // can be put back without KWin
+        if told_kwin.is_err()
+            && let Some(kwinrc) = &self.shared.kwinrc
+            && let Err(error) = kwinrc.restore()
+        {
+            tracing::warn!("could not put kwinrc back as it was: {error}");
+        }
     }
 }
 
@@ -630,6 +824,7 @@ mod tests {
             handle: runtime.handle().clone(),
             alive: AtomicBool::new(true),
             connection: Mutex::new(None),
+            kwinrc: None,
         });
 
         (runtime, KWinBackend { shared })
@@ -655,7 +850,7 @@ mod tests {
             serde_json::from_str(include_str!("fixtures/commands.json")).unwrap();
 
         // what the window manager asks of the backend, batch by batch
-        let asks: [fn(&KWinBackend); 2] = [
+        let asks: [fn(&KWinBackend); 3] = [
             |backend| {
                 // nothing answers the query here, so the pointer is where the snapshot had it
                 assert_eq!(backend.cursor_pos(), Some((481, 525)));
@@ -676,6 +871,14 @@ mod tests {
                 backend.close(3).unwrap();
                 // the terminal has closed, and the table still knows it: the bridge gives it back
                 backend.set_rect(2, &left(960)).unwrap();
+            },
+            |backend| {
+                // the editor goes to the second workspace before the monitor is switched to it
+                let monitor = backend.monitors().unwrap()[0].id;
+                backend.set_window_workspace(1, 1).unwrap();
+                backend.switch_workspace(monitor, 1).unwrap();
+                assert_eq!(backend.window_workspace(1), Some(1));
+                assert_eq!(backend.current_workspaces(), [(monitor, 1)]);
             },
         ];
         assert_eq!(asks.len(), commands.len());
@@ -737,5 +940,27 @@ mod tests {
         let (runtime, backend) = offline();
 
         assert_eq!(next_poll(&runtime, &backend), json!([]));
+    }
+
+    #[test]
+    fn a_desktop_nobody_named_is_a_placeholder() {
+        assert!(is_placeholder("Desktop 1"));
+        assert!(is_placeholder("Desktop 12"));
+        assert!(is_placeholder("Workspace 3"));
+    }
+
+    #[test]
+    fn a_name_somebody_chose_is_not() {
+        for name in [
+            "",
+            "Desktop",
+            "Desktop ",
+            "Desktop 1b",
+            "Mail",
+            "My Desktop 1",
+            "terminal",
+        ] {
+            assert!(!is_placeholder(name), "{name:?}");
+        }
     }
 }

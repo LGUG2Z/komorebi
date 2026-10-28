@@ -223,3 +223,39 @@ to put a window for a second, and sets the position again when the window's fram
 another one in that time ([PLATFORM.md](PLATFORM.md#how-clients-answer-a-frame)). Three tries
 at most keep it from chasing a window that cannot go where it was asked, such as a fullscreen
 one.
+
+## Why are komorebi's workspaces KWin's virtual desktops?
+
+Because KWin has virtual desktops, per output since KWin 6.8, and Windows and macOS have no API
+for them. komorebi's own workspaces exist there for that reason: switching workspace hides
+every window of the workspace being left and restores the windows of the one being entered. On
+KDE that is what KWin does with its desktops, and native behavior is preferred over a
+workaround (see [What is komorebi for KDE the port of?](#what-is-komorebi-for-kde-the-port-of)):
+workspace `i` is desktop `i` on every monitor, and each monitor shows one at a time.
+
+The spikes measured what KWin does with per-output desktops on a headless KWin with two
+outputs: showing a desktop on one output left the other output's alone; KWin gave the focus to
+a window of the desktop it switched to, by itself; and activating a window on another desktop
+of its output (an application raising itself) made KWin switch that output to the window's
+desktop and focus the window, by itself. So komorebi asks for a switch and follows the ones it
+did not ask for, with no command in reply. A first attempt in which komorebi hid the windows
+itself switched between two workspaces about 280 times a second after an application raised a
+window of another workspace: KWin delivered focus events it had generated before it carried
+out komorebi's commands, and komorebi took each for a new request. With KWin's desktops there
+is nothing to debounce, since komorebi answers a switch with nothing.
+
+The costs: desktops are global, so every monitor has as many as the monitor with the most
+workspaces, with one name each, and they show in the pager and the overview. A window komorebi
+does not manage (a dialog, say) belongs to the desktop it opened on and goes out of view with
+it. The desktops komorebi created stay when it stops: by then they are the user's desktops.
+
+## Why does komorebi edit `kwinrc` itself?
+
+Because per-output virtual desktops are off by default, they are a setting in the user's
+`kwinrc`, and the program that would set it cannot be counted on. KDE's `kwriteconfig6` was not
+on the PATH of komorebi's user service in the first live run in a Plasma session, and
+per-output desktops stayed off; `kreadconfig6` is not always installed either. The file is
+plain ini, which komorebi changes line by line, and asks KWin to reload its configuration.
+It is the user's setting, so the value komorebi found is kept in a backup file and put back
+when komorebi stops; a backup a crash left behind keeps the value from before the first run,
+and the next run puts it back.

@@ -2,11 +2,12 @@
 //! window manager handles it
 //! ([`WindowManager::process_event`](crate::window_manager::WindowManager::process_event)).
 //!
-//! An event is about one window and carries it, and the compositor signal it came from
-//! ([`SystemNotification`]), which is only for logging. Two events come from komorebi itself
-//! rather than from the compositor: [`WindowManagerEvent::Manage`] and
-//! [`WindowManagerEvent::Unmanage`], which the commands that manage and unmanage the focused window
-//! raise.
+//! An event carries the compositor signal it came from ([`SystemNotification`]), which is only for
+//! logging. Every event but one is about a window, and carries it: a
+//! [`WindowManagerEvent::WorkspaceChange`] is about a monitor that shows another workspace. Two
+//! events come from komorebi itself rather than from the compositor:
+//! [`WindowManagerEvent::Manage`] and [`WindowManagerEvent::Unmanage`], which the commands that
+//! manage and unmanage the focused window raise.
 
 use crate::window::Window;
 use serde::Deserialize;
@@ -32,6 +33,10 @@ pub enum KWinNotification {
     WindowRemoved,
     /// `workspace.windowActivated`
     WindowActivated,
+    /// `workspace.currentDesktopChanged`: a monitor now shows another desktop
+    WorkspaceChanged,
+    /// `window.desktopsChanged`: a window is on another desktop
+    WindowMovedToDesktop,
     /// `window.minimizedChanged` to true
     WindowMinimized,
     /// `window.minimizedChanged` to false
@@ -48,7 +53,7 @@ pub enum ManualNotification {
     Unmanage,
 }
 
-/// Window events: each carries the window it is about.
+/// Window events: each carries the window it is about, but for a workspace change.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
@@ -64,6 +69,12 @@ pub enum WindowManagerEvent {
     Manage(Window),
     /// The user asked komorebi to stop managing the window (`UnmanageFocusedWindow`)
     Unmanage(Window),
+    /// A monitor (by id) now shows another workspace: komorebi did that itself, or a pager, a
+    /// shortcut or an app raising a window did. Not about any one window.
+    WorkspaceChange(SystemNotification, u32, usize),
+    /// A window was put on another workspace's desktop by something other than komorebi (the
+    /// window menu's "Move to Desktop", a drag in the pager)
+    WorkspaceMove(SystemNotification, Window, usize),
 }
 
 impl WindowManagerEvent {
@@ -77,7 +88,9 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Restore(_, window)
             | WindowManagerEvent::TitleUpdate(_, window)
             | WindowManagerEvent::Manage(window)
-            | WindowManagerEvent::Unmanage(window) => *window,
+            | WindowManagerEvent::Unmanage(window)
+            | WindowManagerEvent::WorkspaceMove(_, window, _) => *window,
+            WindowManagerEvent::WorkspaceChange(..) => return None,
         })
     }
 
@@ -97,7 +110,9 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Destroy(n, _)
             | WindowManagerEvent::Minimize(n, _)
             | WindowManagerEvent::Restore(n, _)
-            | WindowManagerEvent::TitleUpdate(n, _) => match n {
+            | WindowManagerEvent::TitleUpdate(n, _)
+            | WindowManagerEvent::WorkspaceChange(n, _, _)
+            | WindowManagerEvent::WorkspaceMove(n, _, _) => match n {
                 SystemNotification::KWin(k) => k.to_string(),
                 SystemNotification::Manual(m) => m.to_string(),
             },
@@ -124,5 +139,18 @@ mod tests {
         assert_eq!(event.process_id(), Some(1301));
         assert_eq!(event.notification(), "WindowMinimized");
         assert_eq!(event.to_string(), "Minimize");
+    }
+
+    #[test]
+    fn a_workspace_change_is_about_a_monitor_and_no_window() {
+        let event = WindowManagerEvent::WorkspaceChange(
+            SystemNotification::KWin(KWinNotification::WorkspaceChanged),
+            7,
+            2,
+        );
+
+        assert_eq!(event.window(), None);
+        assert_eq!(event.window_id(), None);
+        assert_eq!(event.notification(), "WorkspaceChanged");
     }
 }

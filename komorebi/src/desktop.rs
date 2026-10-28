@@ -141,13 +141,19 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
     Ok(())
 }
 
-/// Puts the windows that are already open into containers on the focused workspace of the
-/// monitor they are on, so that starting komorebi tiles what is on screen.
+/// Puts the windows that are already open into containers on the workspace of the monitor they
+/// are on, so that starting komorebi tiles what is on screen.
 ///
-/// A window is on the monitor whose bounds contain its middle. A window that is minimized, that
-/// komorebi does not manage ([`Window::should_manage`]: not a normal window, or one the rules
-/// ignore), or that is on no monitor is left alone.
-/// Nothing is moved: tiling is [`WindowManager::retile_all`]'s job.
+/// Each monitor is first focused on the workspace the compositor shows on it
+/// ([`Backend::current_workspaces`]). A window is on the monitor whose bounds contain its middle,
+/// and on the workspace whose desktop it is on ([`Backend::window_workspace`]), which need not be
+/// the one in front; a window on every desktop goes to the one in front. The monitor gets as many
+/// workspaces as that takes. A window that is minimized, that komorebi does not manage
+/// ([`Window::should_manage`]: not a normal window, or one the rules ignore), or that is on no
+/// monitor is left alone. Nothing is moved: tiling is [`WindowManager::retile_all`]'s job.
+///
+/// [`Backend::current_workspaces`]: crate::backend::Backend::current_workspaces
+/// [`Backend::window_workspace`]: crate::backend::Backend::window_workspace
 ///
 /// # Errors
 ///
@@ -181,12 +187,20 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
 /// let workspace = wm.focused_workspace()?;
 /// assert!(workspace.contains_window(1));
 /// assert!(!workspace.contains_window(2));
+/// assert_eq!(wm.focused_workspace_idx()?, 0);
 /// # std::fs::remove_file(socket)?;
 /// # Ok::<(), color_eyre::eyre::Report>(())
 /// ```
 #[tracing::instrument(skip_all)]
 pub fn load_workspace_information(wm: &mut WindowManager) -> eyre::Result<()> {
     let mut valid_window_count = 0;
+
+    // each monitor starts out showing the workspace the compositor is showing on it
+    for (monitor_id, idx) in backend().current_workspaces() {
+        if let Some(monitor) = wm.monitors_mut().iter_mut().find(|m| m.id == monitor_id) {
+            monitor.focus_workspace(idx)?;
+        }
+    }
 
     for info in backend().windows() {
         if info.minimized {
@@ -212,10 +226,14 @@ pub fn load_workspace_information(wm: &mut WindowManager) -> eyre::Result<()> {
             continue;
         };
 
+        // a window is on the workspace whose desktop it is on, not necessarily the one in front
         let Some(monitor) = wm.monitors_mut().get_mut(monitor_idx) else {
             continue;
         };
-        let workspace_idx = monitor.focused_workspace_idx();
+        let workspace_idx = backend()
+            .window_workspace(info.id)
+            .unwrap_or_else(|| monitor.focused_workspace_idx());
+        monitor.ensure_workspace_count(workspace_idx + 1);
 
         if let Some(workspace) = monitor.workspaces_mut().get_mut(workspace_idx) {
             let mut container = Container::default();

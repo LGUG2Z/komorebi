@@ -65,7 +65,8 @@ without a checkout of the toolchain.
 - [`komorebi`](komorebi): the daemon, and the library behind it. The library has
   the vocabulary the window manager is written in (`core`), the `Backend` trait
   through which it reaches a compositor and the in-memory desktop the tests use
-  (`backend`), the backend that reaches KWin through a script it runs (`kwin`),
+  (`backend`), the backend that reaches KWin through a script it runs and edits
+  the one setting of KWin's it needs in the user's `kwinrc` (`kwin`),
   the model of what it tiles (`monitor`, `workspace`, `container`, `window`), the
   window manager that keeps the model (`window_manager`), loads it from the
   backend (`desktop`) and changes it when the compositor reports an event
@@ -119,6 +120,15 @@ a table of the windows and monitors from those reports, answers the window
 manager's questions from it, and turns each report into an event for the window
 manager. If KWin restarts, the daemon loads the bridge into the new one.
 
+komorebi's workspaces are KWin's own virtual desktops: workspace `i` is desktop
+`i`, and each monitor shows a desktop of its own, which the daemon has KWin do by
+turning on its per-output virtual desktops (the setting is put back when the
+daemon stops). Showing a workspace is a request to KWin, which shows the
+windows of that desktop, hides the others, and gives the focus to one of them.
+When something else switches a monitor to another desktop (a pager, a shortcut,
+an application raising a window of another desktop), or puts a window on
+another desktop, the window manager follows.
+
 The window manager models the desktop as monitors, each with a ring of
 workspaces, each with a ring of containers, each with a ring of windows. A
 workspace's layout gives each of its containers a tile of the monitor's work
@@ -126,7 +136,8 @@ area, and every window of a container is moved onto its tile. At startup the
 window manager loads the monitors and the windows that are open from the
 backend and tiles them; after that it changes the model when the compositor
 reports that a window was shown, closed, focused, minimized or restored, and
-tiles the workspace in front again.
+tiles the workspace in front again. A window open at startup goes to the
+workspace whose desktop it is on.
 
 Everything else reaches the daemon as a message on its socket: one JSON
 `SocketMessage` per line, handled one at a time with the window manager
@@ -151,6 +162,9 @@ the work area offsets keep parts of a monitor free of tiles. Rules decide which
 windows are managed at all: `ignore-rule` keeps an application out of the
 layout, `manage-rule` tiles it whatever the ignore rules say, and
 `session-float-rule` floats the focused window and the windows like it.
+`focus-workspace` shows another workspace, and `move-to-workspace` and
+`send-to-workspace` put the focused window on another workspace, with and
+without showing it.
 
 A program such as a status bar can subscribe to the daemon's notifications: it
 listens on a socket of its own, and after each event and each message, the

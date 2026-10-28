@@ -18,6 +18,10 @@
                 "area": {"x": 0, "y": 0, "w": 1920, "h": 1050}
             }
         ],
+        "desktops": [
+            {"id": "desktop-1", "name": "Desktop 1"}, {"id": "desktop-2", "name": "Desktop 2"}
+        ],
+        "current_desktops": [{"output": "DP-1", "id": "desktop-1"}],
         "active": "{0e5a1c3b-0000-4000-8000-00000000000a}", "cursor": {"x": 481, "y": 525}
     },
     {
@@ -59,5 +63,22 @@
                 "w": 960, "h": 1050
             }
         ]
-    }
+    },
+    {
+        "type": "desktops", "seq": 16, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "desktops": ["desktop-2"]
+    },
+    {"type": "current_desktops", "seq": 17, "current": [{"output": "DP-1", "id": "desktop-2"}]},
+    {
+        "type": "desktop_list", "seq": 18,
+        "desktops": [
+            {"id": "desktop-1", "name": "Desktop 1"}, {"id": "desktop-2", "name": "Desktop 2"},
+            {"id": "desktop-3", "name": "mail"}
+        ]
+    },
+    {
+        "type": "desktops", "seq": 19, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "desktops": ["desktop-1"]
+    },
+    {"type": "current_desktops", "seq": 20, "current": [{"output": "DP-1", "id": "desktop-1"}]}
 ]
