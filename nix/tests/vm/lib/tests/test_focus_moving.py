@@ -1,7 +1,7 @@
 """The focus and moving scenarios against a daemon that is right, and against ones that are not."""
 
 from komorebi_vm.core.checks import Checks
-from komorebi_vm.core.scenarios import focus, moving, stacks, tiling
+from komorebi_vm.core.scenarios import focus, moving, stacks, tiling, workspaces
 from tests.fake_platform import FakePlatform
 
 
@@ -42,3 +42,12 @@ def test_a_daemon_that_is_right_passes_stacks() -> None:
     stacks.run(platform, checks, clients)
     assert checks.failed == 0, checks.failures
     assert checks.passed > 10
+
+
+def test_a_daemon_that_is_right_passes_workspaces() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    workspaces.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 7

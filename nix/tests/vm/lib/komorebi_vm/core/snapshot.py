@@ -80,11 +80,12 @@ class Snapshot:
     extra: dict[str, Any] = field(default_factory=dict, compare=False)
     """What only this port's state has, such as `has_pending_raise_op` on kfw."""
 
-    def workspace(self, workspace: int = 0, monitor: int = 0) -> Workspace:
-        """A workspace of a monitor, by position."""
-        return self.monitors[monitor].workspaces[workspace]
+    def workspace(self, workspace: int | None = None, monitor: int = 0) -> Workspace:
+        """A workspace of a monitor, by position; the focused one when none is given."""
+        m = self.monitors[monitor]
+        return m.workspaces[m.focused_workspace if workspace is None else workspace]
 
-    def containers(self, workspace: int = 0, monitor: int = 0) -> list[list[str]]:
+    def containers(self, workspace: int | None = None, monitor: int = 0) -> list[list[str]]:
         """The titles of the windows of each tiled container of a workspace."""
         return [[w.title for w in c] for c in self.workspace(workspace, monitor).containers]
 
@@ -92,9 +93,9 @@ class Snapshot:
         """The number of windows the daemon has, on every workspace of every monitor."""
         return sum(len(ws.windows()) for m in self.monitors for ws in m.workspaces)
 
-    def focused_title(self, workspace: int = 0, monitor: int = 0) -> str:
-        """The title of the focused window of a workspace: the focused window of its focused
-        container. Empty if the workspace has no container."""
+    def focused_title(self, workspace: int | None = None, monitor: int = 0) -> str:
+        """The title of the focused window of a workspace (the focused one when none is given): the
+        focused window of its focused container. Empty if the workspace has no container."""
         ws = self.workspace(workspace, monitor)
         if not ws.containers:
             return ""

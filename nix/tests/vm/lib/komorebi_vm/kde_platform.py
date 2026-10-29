@@ -53,11 +53,19 @@ class KdePlatform:
         return OsWindow(client.title, self.kde.rect(wid), self.kde.active() == wid)
 
     def hidden(self, client: Client) -> bool:
-        names = self.kde.desktop_names()
+        """The window is on the parking desktop, or on a desktop that is not the one in view.
+
+        KDE keeps the windows of a workspace on a virtual desktop of its own and parks the ones a
+        stack or a monocle puts away, so both are out of sight.
+        """
         wid = self.kde.wid(client.title)
-        if PARK not in names or wid == "":
+        if wid == "":
             return False
-        return self.kde.desk(wid) == names.index(PARK) + 1
+        desk = self.kde.desk(wid)
+        names = self.kde.desktop_names()
+        if PARK in names and desk == names.index(PARK) + 1:
+            return True
+        return desk != 0 and desk != self.kde.shown()
 
     def work_area(self) -> Rect:
         return Rect(0, 0, *self.size)

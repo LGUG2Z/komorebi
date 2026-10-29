@@ -20,9 +20,11 @@ class FakePlatform:
     tolerance = 24
 
     def __init__(self, *, moves: bool = True, focus_follows_move: bool = True) -> None:
-        self.containers: list[list[str]] = []
-        """The stack of each container, in the order of the tiles; the first is in view."""
-        self.focus = 0
+        self.spaces: list[list[list[str]]] = [[], []]
+        """The two workspaces: for each, the stack of each container, in the order of the tiles,
+        and the first window of a stack is the one in view."""
+        self.focuses = [0, 0]
+        self.current = 0
         self.moves = moves
         self.focus_follows_move = focus_follows_move
 
@@ -33,6 +35,18 @@ class FakePlatform:
         pass
 
     @property
+    def containers(self) -> list[list[str]]:
+        return self.spaces[self.current]
+
+    @property
+    def focus(self) -> int:
+        return self.focuses[self.current]
+
+    @focus.setter
+    def focus(self, value: int) -> None:
+        self.focuses[self.current] = value
+
+    @property
     def order(self) -> list[str]:
         """The titles in view, in the order of the tiles."""
         return [stack[0] for stack in self.containers]
@@ -41,18 +55,25 @@ class FakePlatform:
         self.containers.append([title])
         return Client(title)
 
+    def _find(self, title: str) -> tuple[int, int]:
+        for s, containers in enumerate(self.spaces):
+            for i, stack in enumerate(containers):
+                if title in stack:
+                    return s, i
+        raise AssertionError(f"no window {title}")
+
     def _container(self, title: str) -> int:
-        return next(i for i, stack in enumerate(self.containers) if title in stack)
+        return self._find(title)[1]
 
     def hidden(self, client: Client) -> bool:
-        stack = self.containers[self._container(client.title)]
-        return stack[0] != client.title
+        s, i = self._find(client.title)
+        return s != self.current or self.spaces[s][i][0] != client.title
 
     def work_area(self) -> Rect:
         return Rect(0, 0, 1920, 1080)
 
     def activate(self, client: Client) -> None:
-        self.focus = self._container(client.title)
+        self.current, self.focus = self._find(client.title)
         stack = self.containers[self.focus]
         stack.insert(0, stack.pop(stack.index(client.title)))
 
@@ -90,6 +111,15 @@ class FakePlatform:
             case ("cycle-stack", "next" | "previous" as way):
                 stack = self.containers[self.focus]
                 stack.append(stack.pop(0)) if way == "next" else stack.insert(0, stack.pop())
+            case ("send-to-workspace", number):
+                stack = self.containers[self.focus]
+                window = stack.pop(0)
+                if not stack:
+                    self.containers.pop(self.focus)
+                    self.focus = max(0, min(self.focus, len(self.containers) - 1))
+                self.spaces[int(number)].append([window])
+            case ("focus-workspace", number):
+                self.current = int(number)
             case ("unstack",):
                 stack = self.containers.pop(self.focus)
                 self.containers[self.focus : self.focus] = [[t] for t in stack]
@@ -115,28 +145,42 @@ class FakePlatform:
                 "details": {"title": title, "exe": "", "class": "", "path": ""},
             }
 
-        workspace = {
-            "name": None,
-            "containers": {
+        def rect(r: Rect) -> dict[str, int]:
+            return {"left": r.x, "top": r.y, "right": r.w, "bottom": r.h}
+
+        def workspace(containers: list[list[str]], focus: int) -> dict[str, Any]:
+            return {
+                "name": None,
+                "containers": {
+                    "elements": [
+                        {
+                            "id": str(i),
+                            "locked": False,
+                            "windows": {
+                                "elements": [window(t, TILES[i]) for t in stack],
+                                "focused": 0,
+                            },
+                        }
+                        for i, stack in enumerate(containers)
+                    ],
+                    "focused": focus,
+                },
+                "monocle_container": None,
+                "maximized_window": None,
+                "floating_windows": {"elements": [], "focused": 0},
+                "layout": {"Default": "Columns"},
+                "tile": True,
+                "latest_layout": [rect(r) for r in TILES[: len(containers)]],
+            }
+
+        monitor = {
+            "id": 1,
+            "size": rect(Rect(0, 0, 1920, 1080)),
+            "workspaces": {
                 "elements": [
-                    {
-                        "id": str(i),
-                        "locked": False,
-                        "windows": {"elements": [window(t, TILES[i]) for t in stack], "focused": 0},
-                    }
-                    for i, stack in enumerate(self.containers)
+                    workspace(c, f) for c, f in zip(self.spaces, self.focuses, strict=True)
                 ],
-                "focused": self.focus,
+                "focused": self.current,
             },
-            "monocle_container": None,
-            "maximized_window": None,
-            "floating_windows": {"elements": [], "focused": 0},
-            "layout": {"Default": "Columns"},
-            "tile": True,
-            "latest_layout": [
-                {"left": r.x, "top": r.y, "right": r.w, "bottom": r.h} for r in TILES
-            ],
         }
-        size = {"left": 0, "top": 0, "right": 1920, "bottom": 1080}
-        monitor = {"id": 1, "size": size, "workspaces": {"elements": [workspace], "focused": 0}}
         return parse({"monitors": {"elements": [monitor], "focused": 0}})
