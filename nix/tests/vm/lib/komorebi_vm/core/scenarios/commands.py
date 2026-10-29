@@ -353,3 +353,20 @@ def prints(platform: Platform, checks: Checks) -> None:
             checks.skip(f"komorebic {line}", "the port has no such command")
             continue
         checks.check(f"komorebic {line}", status == 0)
+
+
+def unknown_monitor(platform: Platform, checks: Checks, clients: list[Client]) -> None:
+    """Sends the focused window to a monitor that does not exist, and checks that no window is lost.
+
+    A port may refuse the command or ignore it, but a window that was managed has to stay managed:
+    a daemon that stops managing it leaves it on the screen with nothing tiling it. The platform
+    has fewer than seven displays.
+    """
+    managed = platform.state().managed()
+    for command in ("send-to-monitor", "move-to-monitor"):
+        platform.komorebic_status(command, "7")
+        platform.wait_for(lambda: unhealthy(platform, clients) is None, timeout=5)
+        checks.check(
+            f"after {command} 7, which no display has, the daemon still manages every window",
+            platform.state().managed() == managed and unhealthy(platform, clients) is None,
+        )

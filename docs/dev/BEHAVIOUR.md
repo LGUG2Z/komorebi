@@ -35,7 +35,8 @@ runs, and goes stale when the code changes.
 | `workspaces` | `send-to-workspace` and `focus-workspace` put windows away and bring them back | pass | pass |
 | `closing` | a closed window leaves the state, and the others take its room | pass | pass |
 | `resize` | dragging the edge two tiles share moves it by what the pointer moved | pass | **fails**, cause found |
-| `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | not run |
+| `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | not run, see below |
+| `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **fails** | **fails** |
 | `rules` | initial, permanent and ignore rules by title | see below | not run |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | not run |
 
@@ -44,6 +45,19 @@ is not the scenario's, that the daemon had exited after `komorebic stop`; the ne
 and the cause is not known.
 
 ## What they have found
+
+**A window sent to a monitor that does not exist is lost, on both ports.** After
+`komorebic send-to-monitor 7` (or `move-to-monitor 7`) on a desktop with one monitor, the daemon
+stops managing the focused window and leaves it on the screen with nothing tiling it. On kfw this
+was seen on a Windows guest: three windows managed and present, then two managed and three
+present, with the command exiting 0 and printing nothing. On kfde `core-e2e` failed the scenario's
+check on a real KWin, and the windows after it. kfde's code shows how:
+`WindowManager::move_container_to_monitor` takes the focused container out of its workspace with
+`remove_focused_container()` and only then looks the monitor up, with an error for one that is not
+there, so the container is gone when the error is returned. This is not fixed, on either port. The
+scenario is `commands.unknown_monitor`, which a suite can call; it is not in `core-e2e` while it
+would fail there. The sweep of `commands` is not affected on kfde, which has two outputs, and on
+kfw the sweep now plugs in a second display first.
 
 **`resize` on kfw.** Dragging the edge between two tiles by 30, 60 and 120 pixels moved it by 27,
 53 and 96 on kfw's master, and by 27, 51 and 106 on its animation branch (`0c9acdf4`), where kfde
