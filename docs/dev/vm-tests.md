@@ -164,10 +164,12 @@ the run.
   The scenarios run on two platforms. KDE runs all eight: seven at the end of `core-e2e`,
   and `resize`, which needs a pointer, at the end of `drag-resize`. A Windows 11 guest
   under QEMU, which kfw drives from its own tree, has run `tiling`, `focus`, `moving`,
-  `stacks` and `workspaces` against kfw's daemon (reported by the session that ran them,
-  2026-10-29, with this `core/` copied unchanged); `monocle` and `closing` have not, and `resize` ran with a shortfall that is a finding about kfw
-  (the edge moves less than the pointer).
-  `scripts/sync-e2e-core` keeps kfw's copy of `core/` in step until `core/` moves there.
+  `stacks`, `workspaces`, `monocle` and `closing` against kfw's daemon (reported by the
+  session that ran them, 2026-10-29, with this `core/` copied unchanged). `resize` ran
+  there too, and the edge moved less than the pointer did (+53 px for a drag of 60): a
+  finding about kfw, not about the setup, because an unmanaged window followed the same
+  drag exactly. `scripts/sync-e2e-core` keeps kfw's copy of `core/` in step until `core/`
+  moves there.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines
