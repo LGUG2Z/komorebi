@@ -72,5 +72,15 @@ def run(platform: Platform, checks: Checks) -> None:
     )
 
     platform.komorebic("clear-all-workspace-rules")
-    for client in (once, always, ignored):
+    platform.komorebic("focus-workspace", "0")
+    # the title is the window's name here, so the first window of it goes before the next opens
+    platform.close(once)
+    platform.wait_for(lambda: platform.os_window(once) is None, timeout=20)
+    later = platform.spawn("sent-once")
+    checks.check(
+        "once the rules are cleared, a window they matched stays on the workspace in view",
+        platform.wait_for(lambda: _on(platform, "sent-once") == 0, timeout=20)
+        and not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=3),
+    )
+    for client in (always, ignored, later):
         platform.close(client)
