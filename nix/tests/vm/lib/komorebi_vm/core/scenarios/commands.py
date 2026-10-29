@@ -24,6 +24,10 @@ LAYOUTS: tuple[str, ...] = (
     "scrolling",
 )
 
+# A command with an option that has a default is given the option here when one port requires some
+# argument: kfw's `toggle-focus-follows-mouse` prints its help and exits 2 without one, and kfde's
+# accepts it.
+#
 # Every command the ports share that changes something, in an order that leaves the daemon with
 # windows to act on. `{config}` is the path of a configuration file for `replace-configuration`.
 SWEEP: tuple[str, ...] = (
@@ -207,8 +211,8 @@ SWEEP: tuple[str, ...] = (
     "toggle-mouse-follows-focus",
     "focus-follows-mouse enable",
     "focus-follows-mouse disable",
-    "toggle-focus-follows-mouse",
-    "toggle-focus-follows-mouse",
+    "toggle-focus-follows-mouse --implementation windows",
+    "toggle-focus-follows-mouse --implementation windows",
     "transparency enable",
     "transparency-alpha 150",
     "toggle-transparency",
