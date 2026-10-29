@@ -2176,6 +2176,9 @@ dependencies = [
  "syn 2.0.119",
  "sysinfo",
  "uds_windows",
+ "wayland-client",
+ "wayland-protocols",
+ "wayland-protocols-plasma",
  "windows 0.62.2",
 ]
 

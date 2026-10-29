@@ -149,6 +149,9 @@ windows = { version = "0.62", features = [
 gstreamer = "0.25.4"
 gstreamer-app = "0.25.2"
 gstreamer-video = "0.25.4"
+wayland-client = "0.31.15"
+wayland-protocols = { version = "0.32.13", features = ["client", "unstable"] }
+wayland-protocols-plasma = { version = "0.3.12", features = ["client"] }
 
 [build-dependencies]
 embed-resource = "3"
