@@ -37,6 +37,7 @@ import zipfile
 from pathlib import Path
 
 from komorebi_vm.core.checks import Checks
+from komorebi_vm.core.suite import platform_only, run_suite, shared
 
 from .agent import AgentError, AgentLost
 from .guest import Guest
@@ -122,6 +123,13 @@ WITH_CLIENTS = {
     "maximizing", "workspace_moves", "resize_commands", "promoting",
     "flipping", "pausing", "tiling_off", "lifecycle_hidden",
     "scrolling", "locking",
+}
+
+# what only Windows can check, `extras/<name>.py`, after the tiling windows
+EXTRAS = {
+    "windows_padding": "padding", "windows_cloaking": "cloaking",
+    "windows_config_file": "config_file", "windows_tracking": "tracking",
+    "windows_second_display": "second_display",
 }
 
 # a small configuration for the sweep's `replace-configuration`
@@ -229,9 +237,11 @@ def run_one(
 ) -> RecordedChecks:
     out.mkdir(parents=True, exist_ok=True)
     module = "commands" if name == "unknown_monitor" else name
-    scenario = importlib.import_module(
-        f"komorebi_vm.core.scenarios.{module}"
-    )
+    scenario = None
+    if name not in EXTRAS:
+        scenario = importlib.import_module(
+            f"komorebi_vm.core.scenarios.{module}"
+        )
     tiling = importlib.import_module("komorebi_vm.core.scenarios.tiling")
     capture = os.environ.get("KOMOREBI_E2E_CAPTURE")
 
@@ -256,6 +266,17 @@ def run_one(
         if recorder:
             _start_recorder(platform, Path(recorder), guest, out)
         try:
+            if name in EXTRAS:
+                extra = importlib.import_module(
+                    f"platforms.qemu_windows.extras.{EXTRAS[name]}"
+                )
+                clients = run_suite(
+                    checks, shared(tiling.run, platform, checks)
+                )[0]
+                run_suite(checks, platform_only(
+                    "windows", extra.run, platform, checks, clients
+                ))
+                return checks
             if name in WITH_CLIENTS:
                 clients = tiling.run(platform, checks)
                 if capture and name == "stacks":
