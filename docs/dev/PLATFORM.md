@@ -871,6 +871,30 @@ RDP](#rendering-in-virtual-machines-and-over-rdp).
 | Resources | free memory and disk in WSL, the values of `.wslconfig`, the time to build the guest, the size of its closure | to be recorded |
 | virtiofs | `virtiofsd` starts as the user and serves `/nix/store` and a directory; the guest mounts both through virtio-fs devices, with its memory in a shared memfd, reads the store, and reads and writes the directory | to be recorded |
 
+### The VM suites on WSL 2
+
+Measured on 2026-10-28 on the machine `run-kde` is written for: Windows 11, a Ryzen 9 5900X (24
+threads for WSL 2), 31 GB of memory for WSL 2, NixOS-WSL with `nestedVirtualization=true` and
+`/dev/kvm` writable by the build users, so the suites ran under KVM inside Hyper-V. These are the
+wall times of `nix build .#checks.x86_64-linux.vm-NAME` from a warm store, the boot of the machine
+included. Another VM was running for some of the non-timing suites, and none was for the timing
+ones.
+
+| Suites | Wall time | Result at `scale` 1 |
+|---|---|---|
+| `kwin` | 5 min 21 s, with the guest's Mesa and QEMU built | pass |
+| `core-e2e` | about 5 min | pass |
+| `drag-resize`, `live-resize`, `lock-sleep`, `look` | 1 to 3 min each | pass |
+| `keys-engine`, `keys-skhd`, `keys-static`, `keys-sxhkd`, `keys-whkd` | 1.5 to 2 min each | pass |
+| `features` | about 4 min | pass |
+| `latency` | 2 min 53 s | fail: p95 128.9 ms, p50 46.0 ms, max 137.4 ms |
+
+The 20 other suites passed too, two at a time. `latency` is the only one that failed at `scale` 1:
+its p95 is held to 100 ms times `scale`, and nested virtualization is slower to the tail than x86-1
+was. `scale` is 1.5 for every Linux host now (`flake.nix`), and `latency` passed at it with a p95 of
+132.4 ms against 150 ms, p50 70.0 ms and max 206.5 ms. The two runs differ by more than the margin
+that is left, so a suite that fails on its p95 here may be noise, and a second run says which.
+
 What is known of virtiofs without WSL 2 (nixpkgs' runner mounts the host's `/nix/store` and the
 shared directories by virtiofs on a Linux host), at time of writing (2026-10-28): the chain that
 the probe's P6 builds, `virtiofsd` 1.14.0 started as an ordinary user with the runner's options, and

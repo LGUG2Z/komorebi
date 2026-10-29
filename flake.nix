@@ -144,11 +144,14 @@
           isLinux = pkgs.stdenv.hostPlatform.isLinux;
           # the guests install komorebi through the module, as a NixOS user does
           komorebiModule = self.nixosModules.default;
-          # a Mac runs the guests under HVF, which is slower than KVM
+          # a Mac runs the guests under HVF, which is slower than KVM. A Linux host is no faster
+          # than a Mac to the suites that time the daemon: on a 24-core WSL2 machine, under nested
+          # KVM and with nothing else running, `latency` measured a p95 of 129 ms against its
+          # 100 ms times `scale`, where x86-1 had passed it at 1
           vm = import ./nix/tests/vm {
             hostPkgs = pkgs;
             inherit komorebiModule;
-            scale = if isLinux then 1 else 1.5;
+            scale = 1.5;
           };
           # the probe of a NixOS-WSL2 machine (docs/dev/wsl2-probe.md); the checks use a constant
           # revision, so that they are the same derivations for every commit

@@ -5,7 +5,7 @@
 # `hostPkgs` is the pkgs of the machine that runs QEMU; the guests are always Linux.
 # `komorebiModule` is the flake's NixOS module, `services.komorebi`, which every node imports: its
 # overlay builds `komorebi` and `komorebic` for the guest's system. `scale` says how much slower
-# than KVM that machine is (1 for KVM, 1.5 for HVF on a Mac, 8 for TCG), and every wait in the
+# than KVM that machine is (1.5 for KVM, nested or not, and for HVF on a Mac, and 8 for TCG), and every wait in the
 # suites is multiplied by it.
 {
   hostPkgs,
