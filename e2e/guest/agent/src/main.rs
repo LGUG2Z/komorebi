@@ -14,6 +14,8 @@
 //! host (QMP), which also works at the lock screen.
 
 #![cfg(windows)]
+// no console window: it would be a window for the daemon to tile
+#![windows_subsystem = "windows"]
 
 use std::io::BufRead;
 use std::io::BufReader;
@@ -21,6 +23,7 @@ use std::io::Read;
 use std::io::Write;
 use std::net::TcpListener;
 use std::net::TcpStream;
+use std::os::windows::process::CommandExt;
 use std::process::Command;
 
 use serde::Deserialize;
@@ -53,6 +56,9 @@ use windows::Win32::UI::WindowsAndMessaging::WM_CLOSE;
 use windows::core::BOOL;
 
 const DEFAULT_PORT: u16 = 7878;
+
+/// `CREATE_NO_WINDOW`: a child must not open a console of its own either.
+const NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Deserialize)]
 struct Request {
@@ -183,6 +189,7 @@ fn exec(args: &[String]) -> Result<Value, String> {
     let (program, rest) = args.split_first().ok_or("exec wants a program")?;
     let out = Command::new(program)
         .args(rest)
+        .creation_flags(NO_WINDOW)
         .output()
         .map_err(|e| format!("{program}: {e}"))?;
     Ok(json!({
@@ -197,6 +204,7 @@ fn spawn(args: &[String]) -> Result<Value, String> {
     let (program, rest) = args.split_first().ok_or("spawn wants a program")?;
     let child = Command::new(program)
         .args(rest)
+        .creation_flags(NO_WINDOW)
         .spawn()
         .map_err(|e| format!("{program}: {e}"))?;
     Ok(json!({"pid": child.id()}))
