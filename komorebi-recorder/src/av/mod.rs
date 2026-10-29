@@ -63,28 +63,36 @@
 
 /// Returns `true` if and only if this host can decode the recorded video.
 ///
-/// That is macOS and Windows. Elsewhere [`Asset::open`] always fails.
+/// That is macOS, Windows and Linux. Elsewhere [`Asset::open`] always fails.
 ///
 /// # Example
 ///
 /// ```rust
 /// assert_eq!(
 ///     komorebi_recorder::av::supported(),
-///     cfg!(any(target_os = "macos", windows))
+///     cfg!(any(target_os = "macos", windows, target_os = "linux"))
 /// );
 /// ```
 #[must_use]
 pub const fn supported() -> bool {
-    cfg!(any(target_os = "macos", windows))
+    cfg!(any(target_os = "macos", windows, target_os = "linux"))
 }
 
+#[cfg(target_os = "linux")]
+mod gstreamer;
 #[cfg(windows)]
 mod mf;
 #[cfg(target_os = "macos")]
 mod reader;
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 mod unsupported;
 
+#[cfg(target_os = "linux")]
+pub use gstreamer::Asset;
+#[cfg(target_os = "linux")]
+pub use gstreamer::Reader;
+#[cfg(target_os = "linux")]
+pub(crate) use gstreamer::init;
 #[cfg(windows)]
 pub use mf::Asset;
 #[cfg(windows)]
@@ -93,9 +101,9 @@ pub use mf::Reader;
 pub use reader::Asset;
 #[cfg(target_os = "macos")]
 pub use reader::Reader;
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 pub use unsupported::Asset;
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 pub use unsupported::Reader;
 
 /// The size to decode frames at.
@@ -177,7 +185,7 @@ pub struct Frame {
 /// [`done`]: Selector::done
 /// [`finish`]: Selector::finish
 #[derive(Debug)]
-#[cfg_attr(not(windows), allow(dead_code))]
+#[cfg_attr(not(any(windows, target_os = "linux")), allow(dead_code))]
 pub(crate) struct Selector {
     from_s: f64,
     end_s: f64,
@@ -187,7 +195,7 @@ pub(crate) struct Selector {
     done: bool,
 }
 
-#[cfg_attr(not(windows), allow(dead_code))]
+#[cfg_attr(not(any(windows, target_os = "linux")), allow(dead_code))]
 impl Selector {
     /// Creates a selector for the frames shown from `from_s` to `end_s`, both in seconds of the
     /// file's time.
