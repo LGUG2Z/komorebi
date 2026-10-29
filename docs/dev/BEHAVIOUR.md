@@ -36,7 +36,7 @@ runs, and goes stale when the code changes.
 | `closing` | a closed window leaves the state, and the others take its room | pass | pass |
 | `resize` | dragging the edge two tiles share moves it by what the pointer moved | pass | **fails**, cause found |
 | `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | not run, see below |
-| `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **fails** | **fails** |
+| `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **known failure** | **known failure** |
 | `rules` | initial, permanent and ignore rules by title | see below | not run |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | not run |
 
@@ -54,9 +54,11 @@ present, with the command exiting 0 and printing nothing. On kfde `core-e2e` fai
 check on a real KWin, and the windows after it. kfde's code shows how:
 `WindowManager::move_container_to_monitor` takes the focused container out of its workspace with
 `remove_focused_container()` and only then looks the monitor up, with an error for one that is not
-there, so the container is gone when the error is returned. This is not fixed, on either port. The
-scenario is `commands.unknown_monitor`, which a suite can call; it is not in `core-e2e` while it
-would fail there. The sweep of `commands` is not affected on kfde, which has two outputs, and on
+there, so the container is gone when the error is returned. This is not fixed, on either port, and is a
+**known failure to follow up on later**: `commands.unknown_monitor` takes a `known_failure`
+reason, with which its checks are recorded by `Checks.known_failure`. They do not fail the suite,
+the totals say `known failures: N`, and one that holds fails the suite to say the marker can go.
+`core-e2e` runs it last (section 12c), because the window is lost. The sweep of `commands` is not affected on kfde, which has two outputs, and on
 kfw the sweep now plugs in a second display first.
 
 **`resize` on kfw.** Dragging the edge between two tiles by 30, 60 and 120 pixels moved it by 27,

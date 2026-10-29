@@ -16,6 +16,7 @@ from komorebi_vm import Checks, Kde, Rect, daemon
 from komorebi_vm.core.platform import Client
 from komorebi_vm.core.scenarios import (
     closing,
+    commands,
     focus,
     lifecycle,
     monocle,
@@ -466,6 +467,16 @@ checks.check("the daemon answers", kde.wait_for(answering, timeout=30))
 platform.close(Client("after-the-restart"))
 platform.close(Client("beside"))
 checks.check("one window is left", kde.wait_for(lambda: kde.managed_all() == 1, timeout=20))
+
+print("== 12c. a window sent to a monitor that does not exist")
+# KNOWN FAILURE, to follow up on: move_container_to_monitor takes the container out before it
+# looks the monitor up. See docs/dev/BEHAVIOUR.md. The window is lost, so this stays last.
+commands.unknown_monitor(
+    platform,
+    checks,
+    [Client("afterwards")],
+    known_failure="the container is removed before the monitor is looked up, on both ports",
+)
 
 print("== 13. komorebic stop")
 kde.komorebic("stop")
