@@ -1176,6 +1176,10 @@ pub fn default_code_root(flavor: Flavor) -> Option<PathBuf> {
             "KOMOREBI_WINDOWS_SRC",
             option_env!("KOMOREBI_WINDOWS_ROOT").map(PathBuf::from),
         ),
+        Flavor::Kde => (
+            "KOMOREBI_KDE_SRC",
+            option_env!("KOMOREBI_KDE_ROOT").map(PathBuf::from),
+        ),
     };
 
     [variable, "KOMOREBI_SOURCE"]

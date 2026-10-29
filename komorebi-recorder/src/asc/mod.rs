@@ -40,7 +40,9 @@ impl Platform {
     pub fn of(flavor: Flavor) -> Self {
         match flavor {
             Flavor::Windows => Self::Windows,
-            Flavor::Macos => Self::Macos,
+            // komorebi for KDE has no rule file here yet, and no ghost tiles are found for it
+            // (see `Analysis::ghost_tiles`), so nothing asks for the platform of one
+            Flavor::Macos | Flavor::Kde => Self::Macos,
         }
     }
 

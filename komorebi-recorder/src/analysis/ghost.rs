@@ -236,6 +236,9 @@ impl Analysis {
     /// Returns an error when a state of the recording cannot be read.
     pub fn ghost_tiles(&self) -> eyre::Result<Vec<GhostTile>> {
         let (platform, seen) = match self.flavor() {
+            // ghost tiles are found by probing windows (Windows) or by looking at the video (Mac);
+            // neither is written for KDE yet
+            Flavor::Kde => return Ok(Vec::new()),
             Flavor::Windows => (Platform::Windows, self.sightings_by_probe()?),
             Flavor::Macos => (Platform::Macos, self.sightings_by_frame()?),
         };

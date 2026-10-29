@@ -146,6 +146,7 @@ pub fn of(flavor: Flavor) -> &'static Catalog {
     match flavor {
         Flavor::Macos => &MAC,
         Flavor::Windows => &WINDOWS,
+        Flavor::Kde => &KDE,
     }
 }
 
@@ -776,6 +777,7 @@ pub fn skew(flavor: Flavor, versions: &[KomorebiVersion], root: Option<&std::pat
             match flavor {
                 Flavor::Macos => "KOMOREBI_MAC_SRC",
                 Flavor::Windows => "KOMOREBI_WINDOWS_SRC",
+                Flavor::Kde => "KOMOREBI_KDE_SRC",
             }
         ));
     }

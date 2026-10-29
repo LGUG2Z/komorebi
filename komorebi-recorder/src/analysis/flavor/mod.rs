@@ -94,6 +94,7 @@
 //! [`Family`]: super::events::Family
 //! [`Family::Unknown`]: super::events::Family::Unknown
 
+pub mod kde;
 pub mod mac;
 pub mod windows;
 
@@ -189,14 +190,16 @@ pub enum Flavor {
     Macos,
     /// komorebi for Windows.
     Windows,
+    /// komorebi for KDE Plasma.
+    Kde,
 }
 
 impl Flavor {
     /// Returns the flavor of the komorebi that runs on this machine: there is one per OS, and a
     /// recorder watches the one on its own host.
     ///
-    /// This is [`Flavor::Windows`] when the crate is built for Windows and [`Flavor::Macos`] for
-    /// every other target, including the `unsupported` host. Use it to say which komorebi a
+    /// This is [`Flavor::Windows`] when the crate is built for Windows, [`Flavor::Kde`] when it is built
+    /// for Linux and [`Flavor::Macos`] for every other target, including the `unsupported` host. Use it to say which komorebi a
     /// recording made *here* is of; to read a session, use the flavor in its manifest.
     ///
     /// # Example
@@ -210,6 +213,8 @@ impl Flavor {
     pub fn of_host() -> Self {
         if cfg!(windows) {
             Flavor::Windows
+        } else if cfg!(target_os = "linux") {
+            Flavor::Kde
         } else {
             Flavor::Macos
         }
@@ -239,6 +244,7 @@ impl Flavor {
         match self {
             Flavor::Macos => &mac::MacRules,
             Flavor::Windows => &windows::WindowsRules,
+            Flavor::Kde => &kde::KdeRules,
         }
     }
 
@@ -251,6 +257,7 @@ impl Flavor {
         match self {
             Flavor::Macos => "macOS",
             Flavor::Windows => "Windows",
+            Flavor::Kde => "KDE",
         }
     }
 }

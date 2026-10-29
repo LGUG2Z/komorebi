@@ -99,7 +99,7 @@ pub fn log_file_name(date: NaiveDate) -> String {
 #[must_use]
 pub fn log_dir_candidates(flavor: Flavor, data_dir: &Path, temp_dir: &Path) -> Vec<PathBuf> {
     match flavor {
-        Flavor::Macos => vec![data_dir.to_path_buf()],
+        Flavor::Macos | Flavor::Kde => vec![data_dir.to_path_buf()],
         Flavor::Windows => vec![temp_dir.to_path_buf(), data_dir.to_path_buf()],
     }
 }
