@@ -218,6 +218,7 @@ MORE = {
     "lifecycle_hidden": ("crash",),
     "monocle": ("focus_behaviour",),
     "monitors": ("at_cursor",),
+    "scrolling": ("columns", "two_monitors"),
 }
 
 # what only Windows can check, `extras/<name>.py`, after the tiling windows
