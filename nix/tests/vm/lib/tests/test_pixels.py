@@ -1,6 +1,6 @@
 from PIL import Image, ImageDraw
 
-from komorebi_vm import Rect
+from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.pixels import leftmost, near, pixel, ring
 
 BLUE = (66, 165, 245)

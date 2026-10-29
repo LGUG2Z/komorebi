@@ -1,6 +1,6 @@
 import pytest
 
-from komorebi_vm import Checks
+from komorebi_vm.core.checks import Checks
 
 
 def test_counts_passes_and_failures(capsys: pytest.CaptureFixture[str]) -> None:
