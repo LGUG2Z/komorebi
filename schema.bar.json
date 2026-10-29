@@ -4970,6 +4970,66 @@
         }
       ]
     },
+    "PanDirection": {
+      "description": "Which way the view goes when the strip of the Scrolling layout is panned: to the left is to\nsee what is to the left of the screen, which is to move the strip to the right",
+      "type": "string",
+      "enum": [
+        "Left",
+        "Right"
+      ]
+    },
+    "PanGesture": {
+      "description": "What the fingers of a gesture that pans the strip do, as far as the strip is concerned",
+      "oneOf": [
+        {
+          "description": "The fingers have landed",
+          "type": "string",
+          "const": "Begin"
+        },
+        {
+          "description": "The fingers moved by `dx` and `dy` centimetres on the touchpad since the last time, to\nthe right and down if they are positive, at `t` milliseconds on a clock that only the\ndifferences between the times of a gesture mean anything on",
+          "type": "object",
+          "properties": {
+            "Move": {
+              "type": "object",
+              "properties": {
+                "dx": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "dy": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "t": {
+                  "type": "number",
+                  "format": "double"
+                }
+              },
+              "required": [
+                "dx",
+                "dy",
+                "t"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Move"
+          ]
+        },
+        {
+          "description": "The fingers lifted",
+          "type": "string",
+          "const": "End"
+        },
+        {
+          "description": "The gesture was given up: the strip goes back to where it was",
+          "type": "string",
+          "const": "Cancel"
+        }
+      ]
+    },
     "PathBuf": {
       "description": "A file system path. Environment variables like %VAR%, $Env:VAR, or $VAR are automatically resolved.",
       "type": "string"
@@ -6410,6 +6470,38 @@
           },
           "required": [
             "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "content": {
+              "$ref": "#/$defs/PanDirection"
+            },
+            "type": {
+              "type": "string",
+              "const": "Pan"
+            }
+          },
+          "required": [
+            "type",
+            "content"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "content": {
+              "$ref": "#/$defs/PanGesture"
+            },
+            "type": {
+              "type": "string",
+              "const": "PanGesture"
+            }
+          },
+          "required": [
+            "type",
+            "content"
           ]
         },
         {
