@@ -38,8 +38,44 @@ class OsWindow:
     focused: bool
 
 
+class Pointer(Protocol):
+    """A pointer a scenario moves and presses, in the pixels of the first display.
+
+    A drag is one press, a glide to the end with the button held, and one release, because a
+    window manager that is asked to follow the pointer drops moves that come a round trip apart.
+    """
+
+    def move(self, x: int, y: int) -> None:
+        """Puts the pointer on the pixel (x, y)."""
+        ...
+
+    def down(self) -> None:
+        """Presses the left button."""
+        ...
+
+    def up(self) -> None:
+        """Lets go of the left button."""
+        ...
+
+    def drag(
+        self, start: tuple[int, int], end: tuple[int, int], steps: int = 25, ms: int = 30
+    ) -> None:
+        """Presses the left button at `start`, glides to `end` with it held, and lets go there."""
+        ...
+
+
 class Platform(Protocol):
     """A machine with a desktop and a daemon to test."""
+
+    def has(self, feature: str) -> bool:
+        """Whether the platform can do what a scenario needs of it (`"pointer"`), so that a
+        scenario that needs it is skipped, with the reason, where it cannot."""
+        ...
+
+    @property
+    def pointer(self) -> Pointer:
+        """The pointer. Only where `has("pointer")`."""
+        ...
 
     @property
     def tolerance(self) -> int:

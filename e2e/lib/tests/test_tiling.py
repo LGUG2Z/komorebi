@@ -4,7 +4,7 @@ from PIL import Image
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
-from komorebi_vm.core.platform import Client, OsWindow
+from komorebi_vm.core.platform import Client, OsWindow, Pointer
 from komorebi_vm.core.scenarios import tiling
 from komorebi_vm.core.snapshot import Snapshot, parse
 
@@ -34,6 +34,13 @@ class FakePlatform:
 
     def hidden(self, client: Client) -> bool:
         return False
+
+    def has(self, feature: str) -> bool:
+        return False
+
+    @property
+    def pointer(self) -> Pointer:
+        raise AssertionError("no pointer")
 
     def work_area(self) -> Rect:
         return Rect(0, 0, 1920, 1080)
