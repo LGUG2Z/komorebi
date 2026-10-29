@@ -110,13 +110,13 @@ def _with(fn, **kwargs):
     return step
 
 
-def _contains(fix: str) -> bool:
+def _contains(fix: str, repo: Path | None = None) -> bool:
     """Whether the commit under test has the commit `fix` in its history, so that
     a marker for the bug it fixed no longer applies. Not known: no."""
     commit = os.environ.get("KOMOREBI_E2E_COMMIT")
     if not commit:
         return False
-    here = Path(__file__).resolve().parent
+    here = repo or Path(__file__).resolve().parent
     git = subprocess.run(
         ["git", "-C", str(here), "merge-base", "--is-ancestor", fix, commit],
         capture_output=True,
