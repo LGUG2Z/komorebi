@@ -1546,7 +1546,7 @@ fn main() -> eyre::Result<()> {
                 .stderr(Stdio::null())
                 .stdin(Stdio::null());
 
-            let mut system = sysinfo::System::new_all();
+            let mut system = sysinfo::System::new_all()?;
             system.refresh_processes(ProcessesToUpdate::All, true);
 
             let mut attempts = 0;
