@@ -68,8 +68,8 @@ class Platform(Protocol):
     """A machine with a desktop and a daemon to test."""
 
     def has(self, feature: str) -> bool:
-        """Whether the platform can do what a scenario needs of it (`"pointer"`), so that a
-        scenario that needs it is skipped, with the reason, where it cannot."""
+        """Whether the platform can do what a scenario needs of it (`"pointer"`, `"lock"`), so
+        that a scenario that needs it is skipped, with the reason, where it cannot."""
         ...
 
     @property
@@ -101,6 +101,12 @@ class Platform(Protocol):
         """
         ...
 
+    def rewrite_config(self, config: dict[str, Any]) -> None:
+        """Writes `config` over the `komorebi.json` that `restart_with` gave the daemon, which
+        the daemon watches and reloads when it changes. It returns once the file is written; a
+        scenario waits for the state to follow."""
+        ...
+
     def komorebic(self, *args: str) -> str:
         """Runs `komorebic` with `args` and returns what it printed. Fails if it does."""
         ...
@@ -114,8 +120,16 @@ class Platform(Protocol):
         """The daemon's state."""
         ...
 
-    def spawn(self, title: str) -> Client:
-        """Opens a window with this title and waits until the platform has it."""
+    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+        """Opens a window with this title and waits until the platform has it.
+
+        `app_id` is the class of the window (its app id on Wayland, its window class on Windows)
+        for a rule that matches by it; the platform's own when there is none.
+
+        `exe` is the name of the program that opens it, without an extension (`e2e-exe` is
+        `e2e-exe.exe` on Windows and `e2e-exe` on Linux), for a rule that matches by it. The
+        platform makes a program of that name; a rule's `id` is the same on every platform.
+        """
         ...
 
     def os_window(self, client: Client) -> OsWindow | None:
@@ -149,6 +163,26 @@ class Platform(Protocol):
 
     def close(self, client: Client) -> None:
         """Closes the window, as its close button would."""
+        ...
+
+    def minimize(self, client: Client) -> None:
+        """Minimizes the window, as its title bar button would. `activate` restores it."""
+        ...
+
+    def lock(self) -> None:
+        """Locks the screen, as the user's lock shortcut would, and returns when it is locked.
+        Only where `has("lock")`."""
+        ...
+
+    def unlock(self) -> None:
+        """Unlocks the screen, as the user's password would, and returns when it is unlocked.
+        Only where `has("lock")`."""
+        ...
+
+    def move_window(self, client: Client, x: int, y: int) -> None:
+        """Moves the window so that its top left corner is at (x, y) of the desktop, as the
+        compositor or the shell would, not as the user's pointer would. The window keeps its
+        size."""
         ...
 
     def work_area(self) -> Rect:

@@ -1,21 +1,40 @@
 """The focus and moving scenarios against a daemon that is right, and against ones that are not."""
 
 from komorebi_vm.core.checks import Checks
+from komorebi_vm.core.geometry import Rect
+from komorebi_vm.core.platform import OsWindow
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
+    config_reload,
+    flipping,
+    floating,
     focus,
     focus_follows_mouse,
     hotplug,
+    layouts,
     lifecycle,
+    lifecycle_hidden,
+    locking,
+    maximizing,
+    minimizing,
     monocle,
     moving,
+    padding,
+    pausing,
     placement,
+    promoting,
     resize,
+    resize_commands,
     rules,
+    rules_class,
+    rules_exe,
+    scrolling,
     stacks,
     startup_rules,
     tiling,
+    tiling_off,
+    workspace_moves,
     workspaces,
 )
 from tests.fake_platform import FakePlatform
@@ -132,6 +151,359 @@ def test_a_daemon_that_does_not_take_its_windows_up_again_fails_lifecycle() -> N
     checks = Checks()
     clients = opened(platform, checks)
     lifecycle.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_layouts() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    layouts.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > len(layouts.LAYOUTS) * 6
+
+
+def test_a_layout_that_puts_tiles_over_each_other_fails_layouts() -> None:
+    class Overlapping(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            out = super().komorebic(*args)
+            if args == ("change-layout", "grid"):
+                self.tiles = [Rect(0, 0, 1000, 1080)] * len(self.containers)
+            return out
+
+    platform = Overlapping()
+    checks = Checks()
+    clients = opened(platform, checks)
+    layouts.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_floating() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    floating.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 6
+
+
+def test_a_float_that_stays_in_the_tiling_fails_floating() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("toggle-float",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    floating.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_minimizing() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    minimizing.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_keeps_the_room_of_a_minimized_window_fails_minimizing() -> None:
+    class Keeping(FakePlatform):
+        def _relayout(self) -> None:
+            pass
+
+    platform = Keeping()
+    checks = Checks()
+    clients = opened(platform, checks)
+    minimizing.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_padding() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    padding.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 5
+
+
+def test_a_daemon_that_ignores_the_padding_fails_padding() -> None:
+    class Ignoring(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args[0].endswith("padding") else super().komorebic(*args)
+
+    platform = Ignoring()
+    checks = Checks()
+    clients = opened(platform, checks)
+    padding.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_maximizing() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    maximizing.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_does_not_maximize_fails_maximizing() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("toggle-maximize",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    maximizing.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_workspace_moves() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    workspace_moves.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 6
+
+
+def test_a_daemon_that_does_not_follow_the_window_fails_workspace_moves() -> None:
+    class Staying(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            if args[0] == "move-to-workspace":
+                return super().komorebic("send-to-workspace", args[1])
+            return super().komorebic(*args)
+
+    platform = Staying()
+    checks = Checks()
+    clients = opened(platform, checks)
+    workspace_moves.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_resize_commands() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    resize_commands.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_does_not_resize_fails_resize_commands() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args[0] == "resize-axis" else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    resize_commands.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_promoting() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    promoting.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_does_not_promote_fails_promoting() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("promote",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    promoting.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_flipping() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    flipping.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_does_not_flip_fails_flipping() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args[0] == "flip-layout" else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    flipping.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_pausing() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    pausing.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_manages_while_paused_fails_pausing() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("toggle-pause",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    pausing.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_tiling_off() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    tiling_off.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_ignores_toggle_tiling_fails_tiling_off() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("toggle-tiling",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    tiling_off.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_lifecycle_hidden() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    lifecycle_hidden.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_loses_the_put_away_window_fails_lifecycle_hidden() -> None:
+    class Forgetful(FakePlatform):
+        def start_komorebi(self) -> None:
+            super().start_komorebi()
+            self.spaces = [[c for c in self.spaces[0] if c != ["win3"]], [], []]
+            self.unmanaged.append("win3")
+
+    platform = Forgetful()
+    checks = Checks()
+    clients = opened(platform, checks)
+    lifecycle_hidden.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_scrolling() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    scrolling.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_loses_the_focused_window_off_screen_fails_scrolling() -> None:
+    class Off(FakePlatform):
+        def os_window(self, client):  # noqa: ANN001, ANN201
+            window = super().os_window(client)
+            if window is not None and window.focused:
+                return OsWindow(window.title, Rect(5000, 0, 100, 100), focused=True)
+            return window
+
+    platform = Off()
+    checks = Checks()
+    clients = opened(platform, checks)
+    scrolling.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_rules_class() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    rules_class.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_ignores_class_rules_fails_rules_class() -> None:
+    class Deaf(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if "class" in args else super().komorebic(*args)
+
+    platform = Deaf()
+    checks = Checks()
+    rules_class.run(platform, checks)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_rules_exe() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    rules_exe.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_ignores_exe_rules_fails_rules_exe() -> None:
+    class Deaf(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if "exe" in args else super().komorebic(*args)
+
+    platform = Deaf()
+    checks = Checks()
+    rules_exe.run(platform, checks)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_reloads_the_file_passes_config_reload() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    config_reload.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 6
+
+
+def test_a_daemon_that_does_not_reload_the_file_fails_config_reload() -> None:
+    platform = FakePlatform(reloads=False)
+    checks = Checks()
+    config_reload.run(platform, checks)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_tiles_again_on_unlock_passes_locking() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    locking.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_does_not_tile_again_on_unlock_fails_locking() -> None:
+    platform = FakePlatform(retiles_on_unlock=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    locking.run(platform, checks, clients)
     assert checks.failed > 0
 
 
