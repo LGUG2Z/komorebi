@@ -509,6 +509,11 @@ impl Analysis {
                 commands.push(format!("komorebi-recorder sheet {dir} --bug {}", bug.id));
                 commands.push(format!("komorebi-recorder changes {dir} --bug {}", bug.id));
             }
+            if self.manifest.window_track.is_some()
+                && self.manifest.komorebi.flavor != crate::analysis::flavor::Flavor::Kde
+            {
+                commands.push(format!("komorebi-recorder lag {dir}"));
+            }
             for window in region
                 .findings
                 .iter()

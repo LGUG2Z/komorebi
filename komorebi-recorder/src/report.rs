@@ -1312,10 +1312,12 @@ fn event_line(event: &EventView) -> String {
         Some(true) => "  state changed",
         _ => "",
     };
+    let received = received_text(event);
     format!(
-        "#{:<5} {}  {:<9}  {}{handler}{state}",
+        "#{:<5} {}{}  {:<9}  {}{handler}{received}{state}",
         event.seq,
-        timecode::format(event.video_s),
+        timecode::format(event.komorebi_time.video_s),
+        source_marker(event),
         format!("{:?}", event.class).to_lowercase(),
         event.summary
     )
@@ -1338,6 +1340,23 @@ fn finding_line(finding: &Finding) -> String {
         finding.kind,
         finding.summary
     )
+}
+
+/// Writes what the recording has in it, and the commands that read each part, so a reader knows
+/// which commands can answer anything about this recording and what each one's data cannot say.
+fn available_text(out: &mut String, available: &[crate::analysis::available::Available]) {
+    let _ = writeln!(
+        out,
+        "  what this recording has, and the commands that read it:"
+    );
+    for part in available {
+        let commands = part.commands.join(", ");
+        let marker = if part.present { "has    " } else { "MISSING" };
+        let _ = writeln!(out, "    {marker} {}: {commands}", part.name);
+        if let Some(note) = &part.note {
+            let _ = writeln!(out, "            {note}");
+        }
+    }
 }
 
 fn region_text(out: &mut String, region: &RegionBrief) {
@@ -1367,6 +1386,12 @@ fn region_text(out: &mut String, region: &RegionBrief) {
             String::new()
         }
     );
+    if !region.events.listed.is_empty() {
+        let _ = writeln!(
+            out,
+            "  times: p = when komorebi pushed the notification, r = when the recorder received it (no pushed line in the log)"
+        );
+    }
     for event in &region.events.listed {
         let _ = writeln!(out, "  {}", event_line(event));
     }
@@ -1532,6 +1557,7 @@ pub fn brief_text(data: &BriefData) -> String {
     for warning in &session.warnings {
         let _ = writeln!(out, "  warning: {warning}");
     }
+    available_text(&mut out, &session.available);
     if let Some(warning) = &data.skew.warning {
         let _ = writeln!(out, "\nWARNING: {warning}");
     }
@@ -1607,6 +1633,7 @@ pub fn overview_text(data: &OverviewData) -> String {
         session.log_lines,
         session.incidents
     );
+    available_text(&mut out, &session.available);
 
     for bug in &data.bugs {
         let _ = writeln!(out, "\nbug region:");
