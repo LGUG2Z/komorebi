@@ -1,6 +1,7 @@
 """Counted checks, so that one failure does not hide the ones after it."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 
 
 class Checks:
@@ -17,22 +18,39 @@ class Checks:
         self.failures: list[str] = []
         self.skipped: list[str] = []
         self.known: list[str] = []
+        self.scope = ""
+        """Where the checks being made come from (`shared`, `kde`, `windows`), or empty. It prefixes
+        the description of each check, and a subclass that records checks may read it."""
+
+    @contextmanager
+    def scoped(self, scope: str) -> Generator[None]:
+        """Makes the checks inside the block those of `scope`, and puts the scope before it back
+        after, so that scopes nest."""
+        before, self.scope = self.scope, scope
+        try:
+            yield
+        finally:
+            self.scope = before
+
+    def labelled(self, description: str) -> str:
+        """The description with the scope in front of it, `[kde] ...`, when there is one."""
+        return f"[{self.scope}] {description}" if self.scope else description
 
     def ok(self, description: str) -> None:
         """Records a check that passed."""
         self.passed += 1
-        print(f"  ok   {description}")
+        print(f"  ok   {self.labelled(description)}")
 
     def bad(self, description: str) -> None:
         """Records a check that failed."""
         self.failed += 1
-        self.failures.append(description)
-        print(f"  FAIL {description}")
+        self.failures.append(self.labelled(description))
+        print(f"  FAIL {self.labelled(description)}")
 
     def skip(self, description: str, reason: str) -> None:
         """Records a check that was not made, and why: the platform cannot do what it asks."""
-        self.skipped.append(f"{description} ({reason})")
-        print(f"  skip {description}: {reason}")
+        self.skipped.append(f"{self.labelled(description)} ({reason})")
+        print(f"  skip {self.labelled(description)}: {reason}")
 
     def known_failure(self, description: str, condition: bool, reason: str) -> bool:
         """Records a check that is known to fail, with the reason, to follow up on later.
@@ -43,8 +61,8 @@ class Checks:
         if condition:
             self.bad(f"{description}: it holds now, so it is no longer a known failure")
         else:
-            self.known.append(f"{description} ({reason})")
-            print(f"  known failure {description}: {reason}")
+            self.known.append(f"{self.labelled(description)} ({reason})")
+            print(f"  known failure {self.labelled(description)}: {reason}")
         return condition
 
     def check(self, description: str, condition: bool | Callable[[], bool]) -> bool:
