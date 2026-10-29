@@ -217,9 +217,8 @@ class WindowsPlatform:
     def rewrite_config(self, config: dict) -> None:
         local = self._out / "komorebi.json"
         local.write_text(json.dumps(config, indent=2))
+        # the daemon watches the file it was started with and reads it again
         self._agent.put_file(local, CONFIG_PATH)
-        # the daemon reads the file again when told to: it does not watch it
-        self.komorebic("replace-configuration", CONFIG_PATH)
 
     def exe_id(self, program: str) -> str:
         # kfw names the exe of a window with its extension
