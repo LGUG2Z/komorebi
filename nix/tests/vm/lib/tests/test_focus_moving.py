@@ -202,3 +202,13 @@ def test_a_daemon_that_does_not_see_the_displays_fails_hotplug() -> None:
     clients = opened(platform, checks)
     hotplug.run(platform, checks, clients)
     assert any("a monitor for each display" in f for f in checks.failures)
+
+
+def test_the_sweep_plugs_in_a_second_display_when_there_is_only_one() -> None:
+    platform = FakePlatform()
+    platform.display_count = 1
+    checks = Checks()
+    clients = opened(platform, checks)
+    commands.sweep(platform, checks, clients, config="unused", commands=("focus right",))
+    assert platform.display_count == 2
+    assert checks.failed == 0, checks.failures
