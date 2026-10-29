@@ -434,20 +434,20 @@ pub fn connect() -> eyre::Result<Arc<KWinBackend>> {
 }
 
 async fn start(shared: Arc<Shared>) -> eyre::Result<()> {
-    let connection = zbus::connection::Builder::session()?
-        .name(SERVICE)?
+    let connection = zbus::connection::Builder::session()
+        .name(SERVICE)
         .serve_at(
             PATH,
             Events {
                 shared: shared.clone(),
             },
-        )?
+        )
         .serve_at(
             POLL_PATH,
             Poll {
                 shared: shared.clone(),
             },
-        )?
+        )
         .build()
         .await
         .map_err(|error| {
@@ -675,9 +675,9 @@ async fn desktop_manager(shared: &Shared) -> eyre::Result<Proxy<'static>> {
     let connection = shared.connection().await?;
     // uncached: a property read right after createDesktop must not return the list from before it
     Ok(zbus::proxy::Builder::new(&connection)
-        .destination("org.kde.KWin")?
-        .path("/VirtualDesktopManager")?
-        .interface("org.kde.KWin.VirtualDesktopManager")?
+        .destination("org.kde.KWin")
+        .path("/VirtualDesktopManager")
+        .interface("org.kde.KWin.VirtualDesktopManager")
         .cache_properties(CacheProperties::No)
         .build()
         .await?)

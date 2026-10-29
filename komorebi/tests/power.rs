@@ -40,9 +40,9 @@ impl Bus {
     }
 
     async fn connect(&self, name: Option<&str>) -> Connection {
-        let mut builder = zbus::connection::Builder::address(self.address.as_str()).unwrap();
+        let mut builder = zbus::connection::Builder::address(self.address.as_str());
         if let Some(name) = name {
-            builder = builder.name(name.to_string()).unwrap();
+            builder = builder.name(name.to_string());
         }
         builder.build().await.unwrap()
     }

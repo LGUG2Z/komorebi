@@ -106,8 +106,8 @@ use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc;
 use zbus::Connection;
+use zbus::OwnedObjectPath;
 use zbus::proxy::Proxy;
-use zbus::zvariant::OwnedObjectPath;
 
 /// The name of komorebi's component in kglobalaccel.
 pub const COMPONENT: &str = "komorebi";

@@ -25,9 +25,9 @@ use color_eyre::eyre;
 use std::collections::HashMap;
 use std::path::Path;
 use zbus::Connection;
+use zbus::OwnedVariant;
+use zbus::Variant;
 use zbus::proxy::Proxy;
-use zbus::zvariant::OwnedValue;
-use zbus::zvariant::Value;
 
 /// The Plasma shell's name on the session bus.
 const SHELL: &str = "org.kde.plasmashell";
@@ -75,7 +75,7 @@ fn screen_script(output: &str) -> String {
 
 /// Returns true if and only if the shell's answer about a screen's wallpaper is the picture at
 /// `url`, shown by [`PLUGIN`] with [`FILL_MODE`].
-fn shows(current: &HashMap<String, OwnedValue>, url: &str) -> bool {
+fn shows(current: &HashMap<String, OwnedVariant>, url: &str) -> bool {
     let text = |key: &str| {
         current
             .get(key)
@@ -113,14 +113,14 @@ pub async fn apply(connection: &Connection, output: &str, path: &Path) -> eyre::
     };
 
     let url = file_url(path);
-    let current: HashMap<String, OwnedValue> = proxy.call("wallpaper", &(screen,)).await?;
+    let current: HashMap<String, OwnedVariant> = proxy.call("wallpaper", &(screen,)).await?;
     if shows(&current, &url) {
         return Ok(false);
     }
 
-    let mut parameters: HashMap<&str, Value<'_>> = HashMap::new();
-    parameters.insert("Image", Value::from(url));
-    parameters.insert("FillMode", Value::from(FILL_MODE));
+    let mut parameters: HashMap<&str, Variant<'_>> = HashMap::new();
+    parameters.insert("Image", Variant::from(url));
+    parameters.insert("FillMode", Variant::from(FILL_MODE));
     proxy
         .call_method("setWallpaper", &(PLUGIN, parameters, screen))
         .await?;

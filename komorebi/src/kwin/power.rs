@@ -79,9 +79,9 @@ async fn screen_lock(session: Connection) {
         // KDE's lock screen says whether it is up, on KWin's name for the freedesktop interface
         let rule = MatchRule::builder()
             .msg_type(Type::Signal)
-            .interface("org.freedesktop.ScreenSaver")?
-            .member("ActiveChanged")?
-            .build();
+            .interface("org.freedesktop.ScreenSaver")
+            .member("ActiveChanged")
+            .build()?;
         let mut stream = MessageStream::for_match_rule(rule, &session, None).await?;
 
         while let Some(message) = stream.next().await {
@@ -113,10 +113,10 @@ async fn sleep(system: Connection) {
     let result = async {
         let rule = MatchRule::builder()
             .msg_type(Type::Signal)
-            .sender("org.freedesktop.login1")?
-            .interface("org.freedesktop.login1.Manager")?
-            .member("PrepareForSleep")?
-            .build();
+            .sender("org.freedesktop.login1")
+            .interface("org.freedesktop.login1.Manager")
+            .member("PrepareForSleep")
+            .build()?;
         let mut stream = MessageStream::for_match_rule(rule, &system, None).await?;
 
         while let Some(message) = stream.next().await {
