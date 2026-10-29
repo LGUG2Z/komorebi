@@ -1,7 +1,7 @@
 //! `record`, `gui` and `displays`: the arguments of a recording and the headless recorder.
 //!
 //! [`RecordArgs`] is the one set of options for both ways of recording: `record` runs without a
-//! window and `gui` opens the recorder window with the same options as its starting settings.
+//! window and `gui` opens the window, on its Record tab, with the same options as its starting settings.
 //! [`RecordArgs::to_options`] turns them into the [`RecordOptions`] that [`recorder::record`] takes.
 //!
 //! `record --until-exit -- <command>` runs a command while recording and stops when it exits (see

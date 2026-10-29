@@ -1,6 +1,6 @@
 //! What this program's windows do about being in the video and being tiled, which differs by OS.
 //!
-//! The recorder window ([`crate::app`]) and the viewer must not be in the video they are
+//! The program's one window ([`crate::viewer`], with the recorder of [`crate::app`] as a tab) must not be in the video it is
 //! recording, and komorebi must not tile them. The two hosts get there differently:
 //!
 //! | | macOS | Windows |

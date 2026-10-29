@@ -6,7 +6,7 @@ was the OS doing, at 00:12.5 in the video?" and the other way around.
 
 ```
 komorebi-recorder record --duration 30  # record without a window
-komorebi-recorder                       # or open the Record / Stop window
+komorebi-recorder                       # or open the window, with its Record / Stop tab
 ```
 
 It is built for the situations where komorebi bugs actually show up: laptops that get docked and undocked, woken with the
@@ -46,7 +46,7 @@ Start komorebi with `komorebi.exe --log-level debug` before recording a bug. (`R
 prints every dependency's log; `RUST_LOG=komorebi=debug` does not.)
 `komorebi-recorder doctor` says what the machine can do, and `komorebi-recorder record --no-video` records without the
 screen.
-The recorder window keeps itself out of the video (Windows 10 version 2004 or later).
+The window keeps itself out of the video (Windows 10 version 2004 or later).
 
 ## Before you record
 
@@ -58,9 +58,11 @@ The recorder window keeps itself out of the video (Windows 10 version 2004 or la
 - **`ffmpeg`** is only needed for `frames` and `selftest`. It is never used to capture. The `nix develop` shell provides
   it; otherwise `brew install ffmpeg`.
 
-The recorder window is borderless, and on Windows is named `komorebi-recorder` only once komorebi is told to ignore it:
+There is one window for everything. It opens small (the Record tab alone, always on top, to leave over the application
+you are reproducing a bug in) and grows when you open a recording; see [The window](#the-window). On Windows it is named
+`komorebi-recorder` only once komorebi is told to ignore it:
 at start the recorder runs `komorebic ignore-rule exe komorebi-recorder.exe` (and the same for
-`komorebi-recorder-gui.exe`, which opens the viewer) against the running komorebi, a live rule that is not saved. If
+`komorebi-recorder-gui.exe`, the build with no console window) against the running komorebi, a live rule that is not saved. If
 komorebi is not running the window is named too; if `komorebic` is not found or fails, and on a Mac, the window stays
 untitled, because komorebi does not manage windows without a title, and the recorder says so on standard error and in
 the window. Either way opening it does not move your layout around while you are trying to reproduce a layout bug.
@@ -89,13 +91,32 @@ the same match is an `ignore_rules` entry with `kind: Exe`, `id: komorebi-record
   }
 ```
  It is also excluded from the video, as is any other `komorebi-recorder` process.
-The viewer is one such process.
+The window is one such process, in either size.
 
 ## Recording
 
-Press **Record**, reproduce the problem, press **Stop**. The window shows live counters, recent events (a display being
-unplugged, a wake) and any warnings. The session is written to
+Press **Record**, reproduce the problem, press **Stop**. The Record tab shows live counters, recent events (a display
+being unplugged, a wake) and any warnings. The session is written to
 `~/Library/Application Support/komorebi/recordings/<UTC timestamp>/` unless you pass `--out`.
+
+The **Review** row of the tab has **Open session…** (choose a recording's folder) and **Open last** (the newest one);
+each opens the recording as a new tab of this same window, and the window grows to show it.
+
+### The window
+
+`komorebi-recorder` (or `komorebi-recorder gui`) opens one window, and there is never a second: starting it again, or
+running `komorebi-recorder view <session>`, raises the window that is already open instead. The first tab, **Record**,
+cannot be closed, and says `REC` and the time in the tab bar while a recording is going, so you can look at another tab
+and see that it still is (the recording carries on whichever tab is showing, and closing the window while recording
+finishes the session first). The recordings you open follow it as tabs, and **+**, ⌘/Ctrl-T and ⌘/Ctrl-0 (the Record
+tab) work as in a browser.
+
+Started plainly, the window is _compact_: 420 by 380, always on top, showing the Record tab and nothing else, the small
+control window you leave over the application you are reproducing the bug in. **Expand** (on the Record tab) makes it
+the full window with the tab bar, and opening a recording does that for you; **Compact** goes back, and the choice is
+remembered. While recording, the full window has a **pin on top** checkbox. Options such as `--fps` or `--no-komorebi`
+given to `komorebi-recorder`/`gui` set up the Record tab of the window that gets started; if a window is already open
+they are ignored. `--new-window` opens a window of its own instead of raising the open one.
 
 With every display ticked, the recorder follows _all_ displays, including ones connected while it is recording. Untick a
 display to record only the others.
@@ -148,9 +169,10 @@ Useful options:
 
 ### Marking where the bug is
 
-A bug is marked in one place, the viewer, after the recording: `komorebi-recorder view <session>` opens it, and **Mark
-bug** (or **B**) takes a stretch of the recording and what went wrong in it. That marks a _region_, not a single moment.
-The recorder window has no button for it, so while recording there is nothing to do but reproduce the problem.
+A bug is marked in one place, a session's tab, after the recording: `komorebi-recorder view <session>` opens it (the
+Record tab's **Open last** does too), and **Mark bug** (or **B**) takes a stretch of the recording and what went wrong in
+it. That marks a _region_, not a single moment. The Record tab has no button for it, so while recording there is nothing
+to do but reproduce the problem.
 
 This is what makes the recording useful to whoever investigates it, person or agent: your description is the ground
 truth of _what_ went wrong, and everything else in the session is evidence of _why_. See

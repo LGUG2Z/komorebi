@@ -1,6 +1,6 @@
 //! Naming the recorder's windows, and telling komorebi to leave them alone.
 //!
-//! The recorder window and the viewer are used on the machine whose behavior is being investigated, so komorebi
+//! The program's one window (the Record tab and the tabs of recordings) is used on the machine whose behavior is being investigated, so komorebi
 //! must not tile them. For a long time that was done by giving them no title at all, which komorebi does not
 //! manage. This module lets them have a real title, `komorebi-recorder`, on one condition: _the window is only
 //! named when it is safely ignored_.
@@ -36,7 +36,7 @@ use std::time::Instant;
 /// The title of the windows when it is safe to give them one.
 pub const TITLE: &str = "komorebi-recorder";
 
-/// The executable of the windows that have no console, which the recorder window opens the viewer with.
+/// The executable of the windows that have no console, which a process that opens a recording in the window starts it with.
 pub const GUI_EXE: &str = "komorebi-recorder-gui.exe";
 
 /// How long `komorebic ignore-rule` has before it is killed.
@@ -194,7 +194,7 @@ pub fn describe_exit(code: i32) -> String {
 /// Registers an ignore rule for each of the recorder's executables, if komorebi is running and a `komorebic` is
 /// found. Pure apart from what `runner` does; `current` is this executable's file name.
 ///
-/// Each `komorebic` that exists is tried in turn ([`candidates`]), and the first that registers every rule
+/// Each `komorebic` that exists is tried in turn (`candidates`), and the first that registers every rule
 /// wins. One that crashes or refuses does not end the attempt while another is left; if none works the
 /// failure names every one tried and how it failed.
 pub fn ensure_with(runner: &mut dyn Runner, current: &str, windows: bool) -> Outcome {
@@ -350,9 +350,18 @@ fn current_exe_name() -> String {
         })
 }
 
+/// The environment variable that stops [`ensure_self_ignored`] from running `komorebic` at all, for trying the
+/// window out (or testing it end to end) on a machine whose real komorebi must not be told anything. The window is
+/// then not titled. It is not meant for anything else.
+pub const SKIP_VARIABLE: &str = "KOMOREBI_RECORDER_NO_IGNORE_RULE";
+
 /// Registers the ignore rules for this machine's real komorebi (see the [module documentation](self)). Call it
-/// before a window is created.
+/// before a window is created. With [`SKIP_VARIABLE`] set it registers nothing and returns
+/// [`Outcome::NotApplicable`].
 pub fn ensure_self_ignored() -> Outcome {
+    if std::env::var_os(SKIP_VARIABLE).is_some_and(|value| !value.is_empty()) {
+        return Outcome::NotApplicable;
+    }
     ensure_with(&mut SystemRunner, &current_exe_name(), cfg!(windows))
 }
 

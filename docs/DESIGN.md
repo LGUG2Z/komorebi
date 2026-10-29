@@ -83,13 +83,20 @@ recorded in the manifest, and everything that reads a session asks the manifest.
 
 ## Why can a bug only be marked in the viewer?
 
-The recorder window has no button for marking a bug, and the viewer has one. I found it confusing to have two places to do
-the same thing, so a bug is marked in the viewer only. `komorebi-recorder annotate` writes the same annotations for a
+The Record tab has no button for marking a bug, and a session's tab has one. I found it confusing to have two places to do
+the same thing, so a bug is marked in a session's tab only. `komorebi-recorder annotate` writes the same annotations for a
 script or an agent that has no window.
 
-## Why is the recorder window untitled?
+## Why is there one window?
 
-komorebi does not manage windows with an empty title, so a borderless untitled window is never tiled: opening the recorder
+Recording and reviewing used to be two windows, and the recorder's buttons for opening a recording started the other one.
+Now the recorder is the pinned first tab of the one window and each recording is a tab after it, so there is one thing to
+keep out of the video and out of komorebi's layout. It starts small, always on top, with only the Record tab, which is what
+the old recorder window was for, and grows when a recording is opened.
+
+## Why is the window untitled?
+
+komorebi does not manage windows with an empty title, so an untitled window is never tiled: opening the recorder
 does not move the layout of the machine whose bug is being recorded.
 
 ## Why is ffmpeg not part of the program?

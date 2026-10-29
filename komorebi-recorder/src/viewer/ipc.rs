@@ -1,16 +1,18 @@
-//! One viewer window, however many times a recording is opened: the viewer's local socket.
+//! One window, however many times the program is started: the window's local socket.
 //!
-//! The first viewer to start listens on a unix domain socket in the per-user data directory
-//! ([`default_socket`]); every later `komorebi-recorder view SESSION...`, and the recorder
-//! window's "Open session..." and "Open last", connect to it, ask it to open the sessions as tabs
-//! and exit, instead of making a window of their own. The socket types are the ones
+//! The first `komorebi-recorder` to start a window (with no command, `gui` or `view`) listens on a
+//! unix domain socket in the per-user data directory ([`default_socket`]); every later one connects
+//! to it, asks it to open the sessions as tabs or to show the Record tab, and exits, instead of
+//! making a window of its own. The socket types are the ones
 //! [`crate::komorebi_link`] uses (std's on unix, the `uds_windows` crate's on Windows), so there is
 //! one place where the two hosts differ.
 //!
 //! # Protocol
 //!
 //! A request is one line of JSON, [`Request`], for example
-//! `{"open":["/recordings/20261028T154619Z"],"focus":true}`. The server answers with one line,
+//! `{"open":["/recordings/20261028T154619Z"],"focus":true}`. A request may also say which tab to
+//! show, `"tab":"record"` (what `gui` sends: see [`TabName`]); a request without `"tab"`, which is
+//! what older programs send, is still accepted. The server answers with one line,
 //! [`Reply`] (`{"ok":true}`, or `{"ok":false,"error":"..."}`), and closes the connection. An empty
 //! `open` asks only for the window to be raised and a start-screen tab to be there. Paths must be
 //! absolute: the viewer runs somewhere else, so a relative path would mean nothing to it
@@ -67,9 +69,9 @@ pub const TIMEOUT: Duration = Duration::from_secs(2);
 /// # Example
 ///
 /// ```rust
-/// use komorebi_recorder::viewer::ipc::Request;
+/// use komorebi_recorder::viewer::ipc::{Request, TabName};
 ///
-/// let request = Request { open: vec!["/recordings/a".into()], focus: true };
+/// let request = Request { open: vec!["/recordings/a".into()], ..Request::default() };
 /// assert_eq!(
 ///     serde_json::to_string(&request)?,
 ///     r#"{"open":["/recordings/a"],"focus":true}"#
@@ -77,7 +79,11 @@ pub const TIMEOUT: Duration = Duration::from_secs(2);
 ///
 /// // both fields may be left out
 /// let empty: Request = serde_json::from_str("{}")?;
-/// assert!(empty.open.is_empty() && empty.focus);
+/// assert!(empty.open.is_empty() && empty.focus && empty.tab.is_none());
+///
+/// // `gui` asks for the Record tab
+/// let record = Request { tab: Some(TabName::Record), ..Request::default() };
+/// assert_eq!(serde_json::to_string(&record)?, r#"{"open":[],"focus":true,"tab":"record"}"#);
 /// # Ok::<(), serde_json::Error>(())
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -89,6 +95,18 @@ pub struct Request {
     /// Whether to raise the window and un-minimise it. The default is `true`.
     #[serde(default = "yes")]
     pub focus: bool,
+    /// Which tab to show once the sessions are open. `None`, the default and what `view` sends,
+    /// shows the last session opened (or a start screen, when there is none).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tab: Option<TabName>,
+}
+
+/// A tab a [`Request`] can ask for by name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TabName {
+    /// The pinned Record tab, first in the window.
+    Record,
 }
 
 fn yes() -> bool {
@@ -100,6 +118,7 @@ impl Default for Request {
         Self {
             open: Vec::new(),
             focus: true,
+            tab: None,
         }
     }
 }
@@ -134,8 +153,8 @@ impl Reply {
 /// empty, else [`SOCKET_NAME`] in komorebi's data directory
 /// ([`data_dir`](crate::komorebi_link::data_dir)).
 ///
-/// Only the edges of the program call this (the `view` command and the recorder window); everything
-/// else takes the path as a parameter.
+/// Only the edges of the program call this (the `gui` and `view` commands); everything else takes
+/// the path as a parameter.
 #[must_use]
 pub fn default_socket() -> PathBuf {
     match std::env::var_os(SOCKET_VARIABLE) {
@@ -464,6 +483,7 @@ mod tests {
         let request = Request {
             open: vec![abs("a"), abs("b")],
             focus: true,
+            ..Request::default()
         };
         assert_eq!(send(&path, &request).expect("sent"), Delivery::Delivered);
         assert_eq!(wait_for(&server, 1), [request]);
@@ -473,12 +493,31 @@ mod tests {
         let more = Request {
             open: vec![abs("c")],
             focus: false,
+            ..Request::default()
         };
         assert!(matches!(
             claim(&path, &more).expect("claim"),
             Claim::Forwarded
         ));
         assert_eq!(wait_for(&server, 1), [more]);
+    }
+
+    #[test]
+    fn the_tab_is_additive_and_old_requests_still_read() {
+        let old: Request = serde_json::from_str(r#"{"open":["/a"],"focus":false}"#).expect("old");
+        assert_eq!(old.tab, None);
+        let new: Request = serde_json::from_str(r#"{"tab":"record"}"#).expect("new");
+        assert_eq!(new.tab, Some(TabName::Record));
+        assert!(serde_json::from_str::<Request>(r#"{"tab":"nowhere"}"#).is_err());
+
+        let path = socket("tab");
+        let server = serving(&path);
+        let request = Request {
+            tab: Some(TabName::Record),
+            ..Request::default()
+        };
+        assert_eq!(send(&path, &request).expect("sent"), Delivery::Delivered);
+        assert_eq!(wait_for(&server, 1), [request]);
     }
 
     #[test]
@@ -514,6 +553,7 @@ mod tests {
         let request = Request {
             open: vec![abs("x")],
             focus: true,
+            ..Request::default()
         };
         assert_eq!(send(&path, &request).expect("sent"), Delivery::Delivered);
         assert_eq!(wait_for(&server, 1), [request]);
@@ -537,6 +577,7 @@ mod tests {
                 let request = Request {
                     open: vec![abs(&format!("s{index}"))],
                     focus: true,
+                    ..Request::default()
                 };
                 match claim(&path, &request).expect("claim") {
                     Claim::Forwarded => None,
@@ -602,6 +643,7 @@ mod tests {
         let request = Request {
             open: vec![abs("fine")],
             focus: true,
+            ..Request::default()
         };
         assert_eq!(send(&path, &request).expect("sent"), Delivery::Delivered);
         assert_eq!(wait_for(&server, 1), [request]);
@@ -614,6 +656,7 @@ mod tests {
         let relative = Request {
             open: vec![PathBuf::from("relative")],
             focus: true,
+            ..Request::default()
         };
         let error = send(&path, &relative).expect_err("refused");
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);

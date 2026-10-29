@@ -1,8 +1,10 @@
-//! The viewer window: opening a session and keeping everything on screen in step.
+//! The window: the Record tab, opening a session and keeping everything on screen in step.
 //!
-//! [`ViewerApp`] is the whole application and holds tabs, each with a [`Screen`]: nothing opened
-//! yet, a session loading, a session that failed to open, or an [`Open`] session.
-//! [`ViewerApp::ui`] draws one frame of the tab bar and of the tab that is showing. An [`Open`] is where the state of a session being viewed lives (the
+//! [`ViewerApp`] is the whole application. It holds the recorder ([`RecorderApp`]), which is the
+//! pinned first tab and cannot be closed, and after it a tab for each session, each with a
+//! [`Screen`]: nothing opened yet, a session loading, a session that failed to open, or an [`Open`]
+//! session. [`ViewerApp::ui`] draws one frame of the tab bar and of the tab that is showing. An
+//! [`Open`] is where the state of a session being viewed lives (the
 //! playhead's [`Playback`], the visible stretch of the timeline, the selection, which event or
 //! finding or bug region is selected, the form being filled in), and its methods are spread
 //! over the files that draw each part: this file keeps it in step with the keyboard, and the lanes,
@@ -26,6 +28,7 @@ use super::timeline::View;
 use crate::analysis::guard::SessionPath;
 use crate::analysis::state::Snapshot;
 use crate::analysis::trace::TraceData;
+use crate::app::RecorderApp;
 use crate::playback::Playback;
 use color_eyre::eyre;
 use crossbeam_channel::Receiver;
@@ -184,13 +187,23 @@ impl Screen {
     }
 }
 
-/// The viewer application: the preferences and the tabs of the window.
+/// The application: the recorder, the preferences and the tabs of the window.
 ///
-/// This is what [`run`](super::run) hands to `eframe`. [`ViewerApp::new`] makes one with a single
-/// start-screen tab, [`ViewerApp::open`] opens a session in a tab, and [`ViewerApp::ui`] draws a
-/// frame. There is always at least one tab, and exactly one is active; the others keep their
-/// state (an open session keeps its playhead, its selection and its scan) but their video is
-/// paused. It needs a window to draw and so has no example.
+/// This is what [`run`](super::run) hands to `eframe`. [`ViewerApp::new`] makes one showing the
+/// Record tab with no session tabs, [`ViewerApp::open`] opens a session in a tab, and
+/// [`ViewerApp::ui`] draws a frame. The Record tab is always first and cannot be closed; the
+/// session tabs ([`ViewerApp::tabs`]) follow it, and closing the last of them leaves the Record
+/// tab showing. Exactly one tab is showing; the others keep their state (an open session keeps its
+/// playhead, its selection and its scan) but their video is paused, while a recording carries on
+/// whichever tab is showing. It needs a window to draw and so has no example.
+///
+/// # The two sizes
+///
+/// The window is either *compact*, the small always-on-top control window that shows the Record tab
+/// alone, or expanded, with the tab bar. Starting with no session to show gives the size the
+/// preferences remember ([`Prefs::compact`]); showing any session tab expands it, and the Compact
+/// button of the Record tab goes back. The window is resized and pinned on top with viewport
+/// commands, by [`ViewerApp::ui`], whenever the mode changed.
 ///
 /// # Opening a session
 ///
@@ -204,8 +217,19 @@ pub struct ViewerApp {
     /// switched.
     pub prefs: Prefs,
     prefs_dir: PathBuf,
+    recorder: RecorderApp,
+    /// Whether the Record tab, rather than a session tab, is the one showing.
+    record_active: bool,
     tabs: Vec<Screen>,
+    /// The session tab showing, or the one that was when the Record tab is.
     active: usize,
+    compact: bool,
+    /// Whether the window is kept on top while it is not compact.
+    pinned: bool,
+    /// The (compact, on top) the window was last put in, so it is only told when that changes.
+    applied: (bool, bool),
+    /// The size of the expanded window, to go back to after being compact.
+    full_size: egui::Vec2,
     picker: Option<Receiver<Option<PathBuf>>>,
     server: Option<ipc::Server>,
     release_focus: bool,
@@ -228,21 +252,113 @@ fn canonical(dir: &Path) -> PathBuf {
 }
 
 impl ViewerApp {
-    /// Returns a viewer with one start-screen tab, with the preferences kept in `prefs_dir`.
+    /// Returns an app showing the Record tab, with the preferences kept in `prefs_dir`, and no
+    /// session tabs.
     ///
     /// The preferences are read with [`Prefs::load`], so a missing or damaged file gives the
-    /// defaults. Nothing is opened: see [`ViewerApp::open`].
+    /// defaults; the window is compact if they say so. Nothing is opened: see [`ViewerApp::open`].
     #[must_use]
     pub fn new(prefs_dir: PathBuf) -> Self {
-        Self {
-            prefs: Prefs::load(&prefs_dir),
+        Self::start(
             prefs_dir,
-            tabs: vec![Screen::Empty],
+            super::Launch::record(crate::cli::RecordArgs::default()),
+        )
+    }
+
+    /// Returns the app a launch asks for: the recorder seeded with its options, and its sessions
+    /// opened (see [`ViewerApp::open`]).
+    ///
+    /// A launch that shows the Record tab is compact if the preferences say so; one that shows
+    /// sessions is expanded, and with none shows a start screen. The preferences are not changed
+    /// by that: only the Compact and Expand buttons write them.
+    #[must_use]
+    pub fn start(prefs_dir: PathBuf, launch: super::Launch) -> Self {
+        let prefs = Prefs::load(&prefs_dir);
+        let compact = launch.starts_compact(&prefs);
+        let mut app = Self {
+            prefs,
+            prefs_dir,
+            recorder: RecorderApp::new(launch.record),
+            record_active: true,
+            tabs: Vec::new(),
             active: 0,
+            compact,
+            pinned: false,
+            applied: (compact, compact),
+            full_size: egui::vec2(FULL_SIZE[0], FULL_SIZE[1]),
             picker: None,
             server: None,
             release_focus: false,
+        };
+        if matches!(launch.show, super::Show::Sessions) {
+            for dir in &launch.sessions {
+                app.open(dir);
+            }
+            if launch.sessions.is_empty() {
+                app.new_tab();
+            }
         }
+        app
+    }
+
+    /// Returns the recorder, the content of the Record tab.
+    #[must_use]
+    pub fn recorder(&self) -> &RecorderApp {
+        &self.recorder
+    }
+
+    /// Returns the recorder, to change.
+    pub fn recorder_mut(&mut self) -> &mut RecorderApp {
+        &mut self.recorder
+    }
+
+    /// Whether the Record tab, rather than a session tab, is showing.
+    #[must_use]
+    pub fn record_active(&self) -> bool {
+        self.record_active
+    }
+
+    /// Whether the window is the small control window.
+    #[must_use]
+    pub fn is_compact(&self) -> bool {
+        self.compact
+    }
+
+    /// Whether the window is on top: always when compact, and when pinned otherwise.
+    #[must_use]
+    pub fn is_on_top(&self) -> bool {
+        self.compact || self.pinned
+    }
+
+    /// Switches between the small control window and the full one, and remembers which in the
+    /// preferences. Becoming compact shows the Record tab, which is all a compact window has;
+    /// expanding shows the tab bar and no longer keeps the window on top.
+    pub fn toggle_compact(&mut self) {
+        let compact = !self.compact;
+        self.set_compact(compact);
+        self.prefs.compact = compact;
+        self.prefs.save(&self.prefs_dir);
+    }
+
+    /// Makes the window compact or not, without touching the preferences: what opening a session
+    /// does (it expands the window so the session shows). The resizing itself is done by the next
+    /// [`ViewerApp::ui`].
+    pub fn set_compact(&mut self, compact: bool) {
+        if compact == self.compact {
+            return;
+        }
+        self.compact = compact;
+        if compact {
+            self.show_record();
+        } else {
+            self.pinned = false;
+        }
+    }
+
+    /// Shows the Record tab. The session tab that was showing is paused.
+    pub fn show_record(&mut self) {
+        self.record_active = true;
+        self.pause_hidden();
     }
 
     /// Takes requests from other processes through `server` from now on: see
@@ -251,27 +367,38 @@ impl ViewerApp {
         self.server = Some(server);
     }
 
-    /// Returns every tab, in order.
+    /// Returns every session tab, in order: the ones after the Record tab.
     #[must_use]
     pub fn tabs(&self) -> &[Screen] {
         &self.tabs
     }
 
-    /// Returns the index of the tab being shown.
+    /// Returns the index, among [`ViewerApp::tabs`], of the session tab being shown, or that of the
+    /// one that was shown last while the Record tab is.
     #[must_use]
     pub fn active_index(&self) -> usize {
         self.active
     }
 
-    /// Returns what the tab being shown has in it.
+    /// Returns what the session tab being shown has in it, or `None` while the Record tab is
+    /// showing.
     #[must_use]
-    pub fn screen(&self) -> &Screen {
-        &self.tabs[self.active]
+    pub fn screen(&self) -> Option<&Screen> {
+        if self.record_active {
+            None
+        } else {
+            self.tabs.get(self.active)
+        }
     }
 
-    /// Returns what the tab being shown has in it, to change.
-    pub fn screen_mut(&mut self) -> &mut Screen {
-        &mut self.tabs[self.active]
+    /// Returns what the session tab being shown has in it, to change, or `None` while the Record
+    /// tab is showing.
+    pub fn screen_mut(&mut self) -> Option<&mut Screen> {
+        if self.record_active {
+            None
+        } else {
+            self.tabs.get_mut(self.active)
+        }
     }
 
     /// Returns the index of the tab that has the session in `dir` (already [`canonical`]) in it.
@@ -310,10 +437,10 @@ impl ViewerApp {
         self.focus_tab(slot);
     }
 
-    /// Returns the tab a session that is not open yet goes in: the current one if it is free, else
-    /// a new one at the end.
+    /// Returns the tab a session that is not open yet goes in: the current one if it is a free
+    /// session tab, else a new one at the end. The Record tab is never one.
     fn slot_for_new_session(&mut self) -> usize {
-        if self.tabs[self.active].is_free() {
+        if !self.record_active && self.tabs.get(self.active).is_some_and(Screen::is_free) {
             self.active
         } else {
             self.tabs.push(Screen::Empty);
@@ -402,19 +529,22 @@ impl ViewerApp {
         Ok(open)
     }
 
-    /// Adds a start-screen tab at the end and shows it.
+    /// Adds a start-screen session tab at the end and shows it.
     pub fn new_tab(&mut self) {
         self.tabs.push(Screen::Empty);
         self.focus_tab(self.tabs.len() - 1);
     }
 
-    /// Shows tab `index`. The tab that was showing is paused, so that only the tab in view decodes
-    /// video. An index beyond the tabs does nothing.
+    /// Shows session tab `index`, and expands the window if it was compact, so the session shows.
+    /// The tab that was showing is paused, so that only the tab in view decodes video. An index
+    /// beyond the tabs does nothing.
     pub fn focus_tab(&mut self, index: usize) {
         if index >= self.tabs.len() {
             return;
         }
         self.active = index;
+        self.record_active = false;
+        self.set_compact(false);
         self.pause_hidden();
         if let Screen::Open(open) = &mut self.tabs[index] {
             // the overlay is one setting for the window, not one per tab
@@ -422,11 +552,11 @@ impl ViewerApp {
         }
     }
 
-    /// Pauses every tab but the active one. Decoding stops with the playhead, and a hidden tab's
-    /// scan for changes carries on.
+    /// Pauses every tab but the active one (all of them, with the Record tab showing). Decoding
+    /// stops with the playhead, and a hidden tab's scan for changes carries on.
     fn pause_hidden(&mut self) {
         for (index, tab) in self.tabs.iter_mut().enumerate() {
-            if index != self.active
+            if (index != self.active || self.record_active)
                 && let Screen::Open(open) = tab
                 && open.playback.is_playing()
             {
@@ -435,8 +565,9 @@ impl ViewerApp {
         }
     }
 
-    /// Closes tab `index`. Closing a session stops its scan for changes and its playback; closing
-    /// the last tab leaves a start-screen tab, so the window stays. The tab that takes the closed
+    /// Closes session tab `index`; the Record tab is not one and cannot be closed. Closing a
+    /// session stops its scan for changes and its playback; closing the last session tab shows the
+    /// Record tab (a start screen is only there if `+` adds it). The tab that takes the closed
     /// one's place is shown if it was the one showing. An index beyond the tabs does nothing.
     pub fn close_tab(&mut self, index: usize) {
         if index >= self.tabs.len() {
@@ -445,41 +576,70 @@ impl ViewerApp {
         // dropping an Open cancels its scan and stops its playback
         drop(self.tabs.remove(index));
         if self.tabs.is_empty() {
-            self.tabs.push(Screen::Empty);
+            self.active = 0;
+            self.show_record();
+            return;
         }
         if index < self.active {
             self.active -= 1;
         }
-        self.focus_tab(self.active.min(self.tabs.len() - 1));
+        self.active = self.active.min(self.tabs.len() - 1);
+        if !self.record_active {
+            self.focus_tab(self.active);
+        }
     }
 
     /// Carries out a tab key: see [`Action::NewTab`] and the others for which are tab actions. Any
     /// other action does nothing.
+    ///
+    /// The Record tab is part of the ring `Next` and `Previous` go round (it comes first), `GoToTab`
+    /// and `LastTab` count session tabs only, and `CloseTab` does nothing on the Record tab.
     pub fn apply_tab_action(&mut self, action: Action) {
         let count = self.tabs.len();
+        let position = if self.record_active {
+            0
+        } else {
+            self.active + 1
+        };
+        let total = count + 1;
         match action {
             Action::NewTab => self.new_tab(),
-            Action::CloseTab => self.close_tab(self.active),
-            Action::NextTab => self.focus_tab((self.active + 1) % count),
-            Action::PreviousTab => self.focus_tab((self.active + count - 1) % count),
+            Action::CloseTab if !self.record_active => self.close_tab(self.active),
+            Action::NextTab => self.focus_position((position + 1) % total),
+            Action::PreviousTab => self.focus_position((position + total - 1) % total),
             Action::GoToTab(index) => self.focus_tab(index),
-            Action::LastTab => self.focus_tab(count - 1),
+            Action::LastTab if count > 0 => self.focus_tab(count - 1),
+            Action::LastTab | Action::ShowRecord => self.show_record(),
             _ => {}
         }
     }
 
+    /// Shows the tab at `position` of the whole bar: `0` is the Record tab, then the sessions.
+    fn focus_position(&mut self, position: usize) {
+        match position.checked_sub(1) {
+            None => self.show_record(),
+            Some(index) => self.focus_tab(index),
+        }
+    }
+
     /// Carries out a request from another process (see [`ipc::Request`]): opens each session as
-    /// [`ViewerApp::open`] does, or, for a request with none, shows a start-screen tab (a new one
-    /// unless the current tab is one already). Returns whether the window should be raised.
+    /// [`ViewerApp::open`] does, which expands the window if it was compact; for a request with
+    /// none, shows the Record tab if it asked for that (`gui` does), else a start-screen tab (a new
+    /// one unless the current tab is one already). A request that names the Record tab shows it
+    /// after any sessions are opened. Returns whether the window should be raised.
     pub fn handle_request(&mut self, request: &ipc::Request) -> bool {
+        let record = request.tab == Some(ipc::TabName::Record);
         if request.open.is_empty() {
-            if !matches!(self.tabs[self.active], Screen::Empty) {
+            if !record && !matches!(self.screen(), Some(Screen::Empty)) {
                 self.new_tab();
             }
         } else {
             for dir in &request.open {
                 self.open(dir);
             }
+        }
+        if record {
+            self.show_record();
         }
         request.focus
     }
@@ -604,67 +764,110 @@ impl ViewerApp {
     /// Needs an `egui::Context`, so a window is needed (the tests of this module draw frames
     /// headlessly with `egui::Context::run`).
     pub fn ui(&mut self, ctx: &egui::Context) {
+        // whichever tab is showing, a recording goes on and is finished
+        self.recorder.poll(ctx);
         self.poll_requests(ctx);
         self.poll_loading();
         self.poll_picker();
         let ctrl_tab = self.tab_keys(ctx);
+        // a session needs the room of the full window
+        if !self.record_active {
+            self.set_compact(false);
+        }
         self.pause_hidden();
+        self.remember_full_size(ctx);
 
         let mut to_open: Option<PathBuf> = None;
         let mut choose = false;
         let mut bar = TabBar::default();
+        let (label, recording) = self.recorder.tab_label();
+        let record_tab = RecordTab {
+            label,
+            recording,
+            selected: self.record_active,
+        };
 
-        egui::TopBottomPanel::top("top")
-            .frame(
-                egui::Frame::new()
-                    .fill(theme::BACKGROUND)
-                    .inner_margin(egui::Margin::symmetric(10, 6)),
-            )
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    // leave room for the window controls that sit over the content
-                    ui.add_space(70.0);
-                    bar = tab_bar(ui, &self.tabs, self.active);
-                    if ui.button("Open…").clicked() {
-                        choose = true;
+        // the compact window is the Record tab alone
+        if !self.compact {
+            egui::TopBottomPanel::top("top")
+                .frame(
+                    egui::Frame::new()
+                        .fill(theme::BACKGROUND)
+                        .inner_margin(egui::Margin::symmetric(10, 6)),
+                )
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        // leave room for the window controls that sit over the content
+                        if cfg!(target_os = "macos") {
+                            ui.add_space(70.0);
+                        }
+                        bar = tab_bar(ui, &record_tab, &self.tabs, self.active);
+                        if ui.button("Open…").clicked() {
+                            choose = true;
+                        }
+                        if recording {
+                            ui.checkbox(&mut self.pinned, "pin on top")
+                                .on_hover_text("keep this window above the others while recording");
+                        }
+                    });
+                    if !self.record_active {
+                        let active = self.active;
+                        match &mut self.tabs[active] {
+                            Screen::Open(open) => {
+                                ui.horizontal(|ui| {
+                                    ui.label(
+                                        egui::RichText::new(name_of(&open.loaded.dir)).strong(),
+                                    );
+                                    open.top_bar(ui, &mut self.prefs);
+                                });
+                            }
+                            Screen::Loading { dir, .. } => {
+                                ui.horizontal(|ui| {
+                                    ui.spinner();
+                                    ui.label(format!("opening {}…", name_of(dir)));
+                                });
+                            }
+                            _ => {}
+                        }
                     }
                 });
-                let active = self.active;
-                match &mut self.tabs[active] {
-                    Screen::Open(open) => {
-                        ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new(name_of(&open.loaded.dir)).strong());
-                            open.top_bar(ui, &mut self.prefs);
-                        });
-                    }
-                    Screen::Loading { dir, .. } => {
-                        ui.horizontal(|ui| {
-                            ui.spinner();
-                            ui.label(format!("opening {}…", name_of(dir)));
-                        });
-                    }
-                    _ => {}
-                }
-            });
+        }
 
         let active = self.active;
-        match &mut self.tabs[active] {
-            Screen::Open(open) => open.ui(ctx),
-            Screen::Empty => {
-                egui::CentralPanel::default().show(ctx, |ui| {
-                    to_open = start_screen(ui, &self.prefs, None);
-                });
+        if self.record_active {
+            let compact = self.compact;
+            let mut output = crate::app::RecorderOutput::default();
+            egui::CentralPanel::default().show(ctx, |ui| {
+                // leave room for the window controls that sit over the content
+                if cfg!(target_os = "macos") && compact {
+                    ui.add_space(24.0);
+                }
+                output = self.recorder.ui(ui, compact);
+            });
+            choose |= output.choose;
+            to_open = output.open;
+            if output.toggle_compact {
+                self.toggle_compact();
             }
-            Screen::Failed { dir, message } => {
-                let (dir, message) = (dir.clone(), message.clone());
-                egui::CentralPanel::default().show(ctx, |ui| {
-                    to_open = start_screen(ui, &self.prefs, Some((&dir, &message)));
-                });
-            }
-            Screen::Loading { .. } => {
-                egui::CentralPanel::default().show(ctx, |ui| {
-                    ui.centered_and_justified(|ui| ui.spinner());
-                });
+        } else {
+            match &mut self.tabs[active] {
+                Screen::Open(open) => open.ui(ctx),
+                Screen::Empty => {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        to_open = start_screen(ui, &self.prefs, None);
+                    });
+                }
+                Screen::Failed { dir, message } => {
+                    let (dir, message) = (dir.clone(), message.clone());
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        to_open = start_screen(ui, &self.prefs, Some((&dir, &message)));
+                    });
+                }
+                Screen::Loading { .. } => {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        ui.centered_and_justified(|ui| ui.spinner());
+                    });
+                }
             }
         }
 
@@ -685,6 +888,9 @@ impl ViewerApp {
         if bar.new_tab {
             self.new_tab();
         }
+        if bar.select_record {
+            self.show_record();
+        }
         if let Some(index) = bar.select {
             self.focus_tab(index);
         }
@@ -700,21 +906,79 @@ impl ViewerApp {
             ctx.request_repaint_after(Duration::from_millis(500));
         }
 
-        if let Screen::Open(open) = &self.tabs[self.active]
+        if !self.record_active
+            && let Some(Screen::Open(open)) = self.tabs.get(self.active)
             && open.overlay != self.prefs.overlay
         {
             self.prefs.overlay = open.overlay;
             self.prefs.save(&self.prefs_dir);
         }
+        self.sync_window(ctx);
+    }
+
+    /// Notes the size of the window while it is the full one, to go back to after being compact.
+    fn remember_full_size(&mut self, ctx: &egui::Context) {
+        if self.compact {
+            return;
+        }
+        if let Some(rect) = ctx.input(|input| input.viewport().inner_rect) {
+            let size = rect.size();
+            // not the middle of a resize from the small window
+            if size.x >= FULL_MIN[0] && size.y >= FULL_MIN[1] {
+                self.full_size = size;
+            }
+        }
+    }
+
+    /// Resizes and pins the window if its mode (compact, on top) is not the one it was last put in.
+    fn sync_window(&mut self, ctx: &egui::Context) {
+        let want = (self.compact, self.is_on_top());
+        if want == self.applied {
+            return;
+        }
+        if want.0 != self.applied.0 {
+            let (size, min) = if want.0 {
+                (egui::vec2(COMPACT_SIZE[0], COMPACT_SIZE[1]), COMPACT_MIN)
+            } else {
+                (self.full_size, FULL_MIN)
+            };
+            ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(
+                min[0], min[1],
+            )));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+        }
+        ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(if want.1 {
+            egui::WindowLevel::AlwaysOnTop
+        } else {
+            egui::WindowLevel::Normal
+        }));
+        self.applied = want;
     }
 }
+
+/// The size of the expanded window, in points.
+pub const FULL_SIZE: [f32; 2] = [1500.0, 920.0];
+/// The least the expanded window can be made, in points.
+pub const FULL_MIN: [f32; 2] = [900.0, 600.0];
+/// The size of the compact window, in points.
+pub const COMPACT_SIZE: [f32; 2] = [420.0, 380.0];
+/// The least the compact window can be made, in points.
+pub const COMPACT_MIN: [f32; 2] = [360.0, 260.0];
 
 /// What was clicked in the tab bar in one frame.
 #[derive(Default)]
 struct TabBar {
+    select_record: bool,
     select: Option<usize>,
     close: Option<usize>,
     new_tab: bool,
+}
+
+/// What the Record tab says about itself in the bar.
+struct RecordTab {
+    label: String,
+    recording: bool,
+    selected: bool,
 }
 
 /// What a tab says about itself: its label and the longer text for hovering over it.
@@ -736,9 +1000,25 @@ fn tab_title(screen: &Screen) -> (String, String) {
     }
 }
 
-/// Draws the tabs, a close button on each, and the `+` after them.
-fn tab_bar(ui: &mut egui::Ui, tabs: &[Screen], active: usize) -> TabBar {
+/// Draws the Record tab, which has no close button, then the session tabs with one on each, and
+/// the `+` after them. `active` is the session tab showing, if the Record tab is not.
+fn tab_bar(ui: &mut egui::Ui, record: &RecordTab, tabs: &[Screen], active: usize) -> TabBar {
     let mut bar = TabBar::default();
+    let text = egui::RichText::new(&record.label);
+    let text = if record.recording {
+        text.color(theme::BUG).strong()
+    } else {
+        text
+    };
+    if ui
+        .selectable_label(record.selected, text)
+        .on_hover_text("Record: start and stop a recording")
+        .clicked()
+    {
+        bar.select_record = true;
+    }
+    ui.separator();
+    let active = (!record.selected).then_some(active);
     let room = (ui.available_width() - 110.0).max(120.0);
     egui::ScrollArea::horizontal()
         .id_salt("tabs")
@@ -749,7 +1029,7 @@ fn tab_bar(ui: &mut egui::Ui, tabs: &[Screen], active: usize) -> TabBar {
                 for (index, tab) in tabs.iter().enumerate() {
                     let (label, tip) = tab_title(tab);
                     let response = ui
-                        .selectable_label(index == active, label)
+                        .selectable_label(Some(index) == active, label)
                         .on_hover_text(tip);
                     if response.clicked() {
                         bar.select = Some(index);
@@ -989,7 +1269,8 @@ impl Open {
             | Action::NextTab
             | Action::PreviousTab
             | Action::GoToTab(_)
-            | Action::LastTab => {}
+            | Action::LastTab
+            | Action::ShowRecord => {}
             Action::Escape => {
                 if self.help {
                     self.help = false;
@@ -1258,7 +1539,7 @@ mod tests {
 
     fn open(app: &mut ViewerApp) -> &mut Open {
         match app.screen_mut() {
-            Screen::Open(open) => open,
+            Some(Screen::Open(open)) => open,
             _ => panic!("no session is open"),
         }
     }
@@ -1288,7 +1569,12 @@ mod tests {
         let mut app = ViewerApp::new(prefs_dir("empty"));
         let ctx = egui::Context::default();
         frame(&mut app, &ctx, vec![]);
-        assert!(matches!(app.screen(), Screen::Empty));
+        assert!(
+            app.record_active(),
+            "the Record tab shows, not a start screen"
+        );
+        assert!(app.tabs().is_empty());
+        assert!(app.screen().is_none());
     }
 
     #[test]
@@ -1302,11 +1588,11 @@ mod tests {
         app.open(&session.dir);
 
         let deadline = Instant::now() + Duration::from_secs(5);
-        while matches!(app.screen(), Screen::Loading { .. }) && Instant::now() < deadline {
+        while matches!(app.screen(), Some(Screen::Loading { .. })) && Instant::now() < deadline {
             frame(&mut app, &ctx, vec![]);
             std::thread::sleep(Duration::from_millis(20));
         }
-        let Screen::Failed { message, .. } = app.screen() else {
+        let Some(Screen::Failed { message, .. }) = app.screen() else {
             panic!("the unfinished session opened");
         };
         assert!(message.contains("left unfinished"), "{message}");
@@ -1601,7 +1887,7 @@ mod tests {
         });
         assert!(ctx.wants_keyboard_input());
         let _ = ctx.run(input(vec![key(egui::Key::Space)]), |ctx| {
-            if let Screen::Open(open) = app.screen_mut() {
+            if let Some(Screen::Open(open)) = app.screen_mut() {
                 open.ui(ctx);
             }
         });
@@ -1874,7 +2160,11 @@ mod tests {
         let ctx = egui::Context::default();
 
         app.open(&a);
-        assert_eq!(app.tabs().len(), 1, "the start tab was used");
+        assert_eq!(
+            app.tabs().len(),
+            1,
+            "the Record tab is not one a session loads into"
+        );
         settle(&mut app, &ctx);
         assert_eq!(names(&app), ["viewer-tabs-a"]);
 
@@ -1893,7 +2183,7 @@ mod tests {
         // a new tab is a start screen, and a session opened from it goes into it
         app.new_tab();
         assert_eq!(app.tabs().len(), 4);
-        assert!(matches!(app.screen(), Screen::Empty));
+        assert!(matches!(app.screen(), Some(Screen::Empty)));
         frame(&mut app, &ctx, vec![]);
         app.open_now(&a).expect("already open");
         assert_eq!(app.tabs().len(), 4, "nothing was added");
@@ -1924,7 +2214,10 @@ mod tests {
         app.open(&roundabout);
         assert_eq!((app.tabs().len(), app.active_index()), (2, 0));
         settle(&mut app, &ctx);
-        assert!(matches!(app.screen(), Screen::Open(_)), "not reloaded");
+        assert!(
+            matches!(app.screen(), Some(Screen::Open(_))),
+            "not reloaded"
+        );
     }
 
     #[test]
@@ -1941,7 +2234,7 @@ mod tests {
         assert_eq!(app.tabs().len(), 2, "the open session is not replaced");
         settle(&mut app, &ctx);
 
-        let Screen::Failed { message, .. } = app.screen() else {
+        let Some(Screen::Failed { message, .. }) = app.screen() else {
             panic!("it should have failed");
         };
         assert!(message.contains("left unfinished"), "{message}");
@@ -1969,19 +2262,22 @@ mod tests {
         // closing a tab before the active one keeps the same session showing
         app.close_tab(0);
         assert_eq!(names(&app), ["viewer-close-b", "viewer-close-c"]);
-        assert_eq!(short(app.screen().dir().expect("dir")), "viewer-close-c");
+        assert_eq!(
+            short(app.screen().and_then(Screen::dir).expect("dir")),
+            "viewer-close-c"
+        );
         // closing the active last tab shows the one before
         app.close_tab(1);
         assert_eq!(names(&app), ["viewer-close-b"]);
         assert_eq!(app.active_index(), 0);
-        // closing the last tab leaves a start screen, and the window draws it
+        // closing the last session tab shows the Record tab, and the window draws it
         app.close_tab(0);
-        assert!(matches!(app.screen(), Screen::Empty));
-        assert_eq!(app.tabs().len(), 1);
+        assert!(app.record_active());
+        assert!(app.tabs().is_empty());
         frame(&mut app, &ctx, vec![]);
         // an index that is not there does nothing
         app.close_tab(7);
-        assert_eq!(app.tabs().len(), 1);
+        assert!(app.tabs().is_empty());
     }
 
     #[test]
@@ -2008,9 +2304,14 @@ mod tests {
         frame(&mut app, &ctx, vec![]);
 
         frame(&mut app, &ctx, vec![ctrl_tab(false)]);
-        assert_eq!(app.active_index(), 0, "next wraps round");
+        assert!(app.record_active(), "next goes round to the Record tab");
         frame(&mut app, &ctx, vec![ctrl_tab(true)]);
-        assert_eq!(app.active_index(), 2, "previous wraps round");
+        assert_eq!(
+            app.active_index(),
+            2,
+            "previous goes back round to the last"
+        );
+        assert!(!app.record_active());
         // egui moved the focus for the Tab, and the window lets go of it again
         frame(&mut app, &ctx, vec![]);
         frame(&mut app, &ctx, vec![]);
@@ -2023,6 +2324,10 @@ mod tests {
         assert_eq!(app.active_index(), 0);
         frame(&mut app, &ctx, vec![with_command(egui::Key::Num8, false)]);
         assert_eq!(app.active_index(), 0, "there is no eighth tab");
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num0, false)]);
+        assert!(app.record_active(), "0 is the Record tab");
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num1, false)]);
+        assert!(!app.record_active());
         frame(
             &mut app,
             &ctx,
@@ -2038,7 +2343,7 @@ mod tests {
 
         frame(&mut app, &ctx, vec![with_command(egui::Key::T, false)]);
         assert_eq!(app.tabs().len(), 4);
-        assert!(matches!(app.screen(), Screen::Empty));
+        assert!(matches!(app.screen(), Some(Screen::Empty)));
         // the start screen has no keys of its own, and the tab keys work there too
         frame(&mut app, &ctx, vec![with_command(egui::Key::W, false)]);
         assert_eq!(app.tabs().len(), 3);
@@ -2068,7 +2373,7 @@ mod tests {
         let _ = ctx.run(input(vec![with_command(egui::Key::T, false)]), |ctx| {
             app.ui(ctx);
         });
-        assert_eq!(app.tabs().len(), 1);
+        assert!(app.tabs().is_empty(), "no new tab was opened");
     }
 
     #[test]
@@ -2116,6 +2421,7 @@ mod tests {
         let request = ipc::Request {
             open: vec![a.clone(), b.clone()],
             focus: true,
+            ..ipc::Request::default()
         };
         assert!(app.handle_request(&request));
         settle(&mut app, &ctx);
@@ -2125,6 +2431,7 @@ mod tests {
         let again = ipc::Request {
             open: vec![a],
             focus: false,
+            ..ipc::Request::default()
         };
         assert!(!app.handle_request(&again));
         assert_eq!((app.tabs().len(), app.active_index()), (2, 0));
@@ -2154,13 +2461,14 @@ mod tests {
         let request = ipc::Request {
             open: vec![a],
             focus: true,
+            ..ipc::Request::default()
         };
         assert_eq!(
             ipc::send(&socket, &request).expect("sent"),
             ipc::Delivery::Delivered
         );
         let deadline = Instant::now() + Duration::from_secs(10);
-        while !matches!(app.screen(), Screen::Open(_)) && Instant::now() < deadline {
+        while !matches!(app.screen(), Some(Screen::Open(_))) && Instant::now() < deadline {
             frame(&mut app, &ctx, vec![]);
             std::thread::sleep(Duration::from_millis(20));
         }
@@ -2190,6 +2498,373 @@ mod tests {
             ["viewer-bar-ok", "failed", "empty"],
             "open, failed and start tabs"
         );
+    }
+
+    // ---- the Record tab and the one window ----
+
+    /// An app whose recorder touches no screen, and the flag that stands for SIGINT.
+    fn quiet(name: &str) -> (ViewerApp, &'static std::sync::atomic::AtomicBool) {
+        let quit: &'static std::sync::atomic::AtomicBool =
+            Box::leak(Box::new(std::sync::atomic::AtomicBool::new(false)));
+        let mut app = ViewerApp::new(prefs_dir(name));
+        *app.recorder_mut() = RecorderApp::quiet(quit);
+        (app, quit)
+    }
+
+    /// A recording that is finished when it is asked to stop, and saves `dir`.
+    fn fake_recording(
+        live: Arc<crate::recorder::Live>,
+        dir: PathBuf,
+    ) -> std::thread::JoinHandle<eyre::Result<PathBuf>> {
+        std::thread::spawn(move || {
+            while !live.stop_requested() {
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            Ok(dir)
+        })
+    }
+
+    /// Draws a frame and returns the commands it sent to the window.
+    fn commands(
+        app: &mut ViewerApp,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+        close_requested: bool,
+    ) -> Vec<egui::ViewportCommand> {
+        let mut raw = input(events);
+        if close_requested {
+            raw.viewports
+                .entry(egui::ViewportId::ROOT)
+                .or_default()
+                .events
+                .push(egui::ViewportEvent::Close);
+        }
+        let output = ctx.run(raw, |ctx| app.ui(ctx));
+        output
+            .viewport_output
+            .get(&egui::ViewportId::ROOT)
+            .map(|viewport| viewport.commands.clone())
+            .unwrap_or_default()
+    }
+
+    fn start_recording(app: &mut ViewerApp, phase: crate::recorder::Phase) {
+        let live = app.recorder().live();
+        let worker = fake_recording(live, PathBuf::from("saved-session"));
+        app.recorder_mut().pretend(worker, phase, 12.0);
+    }
+
+    #[test]
+    fn the_record_tab_is_first_pinned_and_cannot_be_closed() {
+        let (a, b) = (
+            session("viewer-rec-a", false),
+            session("viewer-rec-b", false),
+        );
+        let (mut app, _) = quiet("record-first");
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        assert!(app.record_active() && app.tabs().is_empty());
+        assert!(app.is_compact(), "a plain start is the small window");
+
+        // a session is tab 1 (the first session tab), and the window expands to show it
+        app.open_now(&a).expect("open");
+        assert_eq!(app.tabs().len(), 1);
+        assert!(!app.record_active());
+        assert!(!app.is_compact(), "opening a session expands the window");
+        app.open_now(&b).expect("open");
+        frame(&mut app, &ctx, vec![]);
+
+        // the key for the Record tab, and Cmd/Ctrl W on it does nothing
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num0, false)]);
+        assert!(app.record_active());
+        frame(&mut app, &ctx, vec![with_command(egui::Key::W, false)]);
+        assert!(app.record_active());
+        assert_eq!(app.tabs().len(), 2, "no session was closed either");
+        // the tab bar and the tab draw with the Record tab showing
+        frame(&mut app, &ctx, vec![]);
+
+        // `+` after the Record tab is a start screen; closing every session returns to Record
+        app.new_tab();
+        assert!(matches!(app.screen(), Some(Screen::Empty)));
+        for _ in 0..3 {
+            app.close_tab(0);
+        }
+        assert!(app.tabs().is_empty());
+        assert!(app.record_active(), "not an empty start screen");
+        frame(&mut app, &ctx, vec![]);
+    }
+
+    #[test]
+    fn opening_a_session_expands_the_compact_window_and_asks_the_window_to_resize() {
+        let a = session("viewer-expand-a", false);
+        let (mut app, _) = quiet("expand");
+        let ctx = egui::Context::default();
+        assert!(app.is_compact() && app.is_on_top());
+        // nothing to say while the window is as it was made
+        let sent = commands(&mut app, &ctx, vec![], false);
+        assert!(
+            !sent
+                .iter()
+                .any(|c| matches!(c, egui::ViewportCommand::InnerSize(_)))
+        );
+
+        app.open_now(&a).expect("open");
+        assert!(!app.is_compact() && !app.is_on_top());
+        let sent = commands(&mut app, &ctx, vec![], false);
+        assert!(
+            sent.contains(&egui::ViewportCommand::InnerSize(egui::vec2(1500.0, 920.0))),
+            "{sent:?}"
+        );
+        assert!(sent.contains(&egui::ViewportCommand::WindowLevel(
+            egui::WindowLevel::Normal
+        )));
+
+        // back to the small window: pinned on top again
+        app.toggle_compact();
+        assert!(app.is_compact() && app.record_active());
+        let sent = commands(&mut app, &ctx, vec![], false);
+        assert!(
+            sent.contains(&egui::ViewportCommand::InnerSize(egui::vec2(420.0, 380.0))),
+            "{sent:?}"
+        );
+        assert!(sent.contains(&egui::ViewportCommand::WindowLevel(
+            egui::WindowLevel::AlwaysOnTop
+        )));
+        // and a key that shows a session expands it again
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num1, false)]);
+        assert!(!app.is_compact() && !app.record_active());
+    }
+
+    #[test]
+    fn the_compact_choice_is_kept_in_the_preferences() {
+        let dir = prefs_dir("compact-prefs");
+        let mut app = ViewerApp::new(dir.clone());
+        assert!(app.is_compact(), "the default is the small window");
+        app.toggle_compact();
+        assert!(!app.is_compact());
+        assert!(!Prefs::load(&dir).compact);
+        // the next start is the full window
+        assert!(!ViewerApp::new(dir.clone()).is_compact());
+        app.toggle_compact();
+        assert!(Prefs::load(&dir).compact);
+
+        // showing a session expands without being remembered
+        let a = session("viewer-compact-a", false);
+        app.open_now(&a).expect("open");
+        assert!(!app.is_compact());
+        assert!(Prefs::load(&dir).compact, "only the button writes it");
+
+        // `view` with sessions starts full, and with none shows a start screen
+        let launched = ViewerApp::start(dir.clone(), crate::viewer::Launch::sessions(Vec::new()));
+        assert!(!launched.is_compact());
+        assert_eq!(launched.tabs().len(), 1);
+        assert!(matches!(launched.screen(), Some(Screen::Empty)));
+        assert!(Prefs::load(&dir).compact);
+        // an older preferences file has no such field, and keeps the small window
+        std::fs::write(dir.join("viewer-prefs.json"), r#"{"overlay": true}"#).expect("write");
+        assert!(ViewerApp::new(dir).is_compact());
+    }
+
+    #[test]
+    fn the_tab_says_when_a_recording_is_going() {
+        let a = session("viewer-marker-a", false);
+        let (mut app, _) = quiet("marker");
+        let ctx = egui::Context::default();
+        assert_eq!(app.recorder().tab_label(), ("Record".to_string(), false));
+
+        start_recording(&mut app, crate::recorder::Phase::Recording);
+        let (label, recording) = app.recorder().tab_label();
+        assert!(recording && label.starts_with("● REC "), "{label}");
+        // it draws, in the bar and with a session showing, with the pin toggle
+        app.open_now(&a).expect("open");
+        frame(&mut app, &ctx, vec![]);
+        frame(&mut app, &ctx, vec![with_command(egui::Key::Num0, false)]);
+
+        let live = app.recorder().live();
+        live.request_stop();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while app.recorder().recording() && Instant::now() < deadline {
+            frame(&mut app, &ctx, vec![]);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(app.recorder().tab_label(), ("Record".to_string(), false));
+    }
+
+    #[test]
+    fn a_recording_is_joined_and_saved_while_another_tab_is_showing() {
+        let a = session("viewer-poll-a", false);
+        let (mut app, _) = quiet("poll");
+        let ctx = egui::Context::default();
+        start_recording(&mut app, crate::recorder::Phase::Recording);
+        app.open_now(&a).expect("open");
+        assert!(!app.record_active());
+
+        let live = app.recorder().live();
+        live.request_stop();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while app.recorder().recording() && Instant::now() < deadline {
+            frame(&mut app, &ctx, vec![]);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(!app.recorder().recording());
+        assert_eq!(
+            app.recorder().saved(),
+            Some(Path::new("saved-session")),
+            "the worker was joined and its session kept, with the Record tab hidden"
+        );
+        assert!(!app.record_active(), "and the tab in view was left alone");
+    }
+
+    #[test]
+    fn closing_the_window_while_recording_stops_the_recording_first() {
+        let a = session("viewer-close-rec-a", false);
+        let (mut app, _) = quiet("close-recording");
+        let ctx = egui::Context::default();
+        start_recording(&mut app, crate::recorder::Phase::Recording);
+        app.open_now(&a).expect("open");
+
+        let sent = commands(&mut app, &ctx, vec![], true);
+        assert!(
+            sent.contains(&egui::ViewportCommand::CancelClose),
+            "{sent:?}"
+        );
+        assert!(!sent.contains(&egui::ViewportCommand::Close));
+        assert!(app.recorder().live().stop_requested());
+        assert!(app.recorder().closing());
+
+        // once the recording has finalized the window closes
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut closed = false;
+        while !closed && Instant::now() < deadline {
+            closed =
+                commands(&mut app, &ctx, vec![], false).contains(&egui::ViewportCommand::Close);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(closed, "the window closed after the recording was done");
+        assert!(app.recorder().saved().is_some());
+    }
+
+    #[test]
+    fn a_quit_signal_while_recording_is_the_same_as_closing() {
+        let (mut app, quit) = quiet("quit-recording");
+        let ctx = egui::Context::default();
+        start_recording(&mut app, crate::recorder::Phase::Recording);
+        // with a session showing, as the other tests do
+        app.open_now(&session("viewer-quit-a", false))
+            .expect("open");
+        quit.store(true, std::sync::atomic::Ordering::SeqCst);
+
+        let sent = commands(&mut app, &ctx, vec![], false);
+        assert!(
+            sent.contains(&egui::ViewportCommand::CancelClose),
+            "{sent:?}"
+        );
+        assert!(app.recorder().live().stop_requested());
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut closed = false;
+        while !closed && Instant::now() < deadline {
+            closed =
+                commands(&mut app, &ctx, vec![], false).contains(&egui::ViewportCommand::Close);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(closed);
+    }
+
+    #[test]
+    fn with_no_recording_a_close_request_closes_and_a_quit_signal_closes_too() {
+        let (mut app, quit) = quiet("close-idle");
+        let ctx = egui::Context::default();
+        let sent = commands(&mut app, &ctx, vec![], true);
+        assert!(
+            !sent.contains(&egui::ViewportCommand::CancelClose),
+            "{sent:?}"
+        );
+
+        quit.store(true, std::sync::atomic::Ordering::SeqCst);
+        let sent = commands(&mut app, &ctx, vec![], false);
+        assert!(sent.contains(&egui::ViewportCommand::Close), "{sent:?}");
+    }
+
+    #[test]
+    fn a_gui_request_shows_the_record_tab_and_a_view_request_opens_tabs() {
+        let (a, b) = (
+            session("viewer-gui-a", false),
+            session("viewer-gui-b", false),
+        );
+        let (mut app, _) = quiet("gui-request");
+        let ctx = egui::Context::default();
+
+        // `view SESSION...` forwarded: tabs, in the full window
+        let view = ipc::Request {
+            open: vec![a.clone(), b],
+            ..ipc::Request::default()
+        };
+        assert!(app.handle_request(&view));
+        settle(&mut app, &ctx);
+        assert_eq!(names(&app), ["viewer-gui-a", "viewer-gui-b"]);
+        assert!(!app.record_active() && !app.is_compact());
+
+        // `gui` forwarded: the Record tab, and no tab added or closed
+        let gui = ipc::Request {
+            tab: Some(ipc::TabName::Record),
+            ..ipc::Request::default()
+        };
+        assert!(app.handle_request(&gui), "the window is raised");
+        assert!(app.record_active());
+        assert_eq!(app.tabs().len(), 2);
+
+        // sessions and the Record tab together open the sessions and end on Record
+        let both = ipc::Request {
+            open: vec![a],
+            tab: Some(ipc::TabName::Record),
+            ..ipc::Request::default()
+        };
+        assert!(app.handle_request(&both));
+        assert!(app.record_active() && app.tabs().len() == 2);
+
+        // a request in the old shape is still understood
+        let old: ipc::Request =
+            serde_json::from_str(r#"{"open":[],"focus":false}"#).expect("old request");
+        assert!(!app.handle_request(&old));
+        assert_eq!(
+            app.tabs().len(),
+            3,
+            "an empty open is a start screen, as it was"
+        );
+        assert!(matches!(app.screen(), Some(Screen::Empty)));
+    }
+
+    #[test]
+    fn a_gui_request_over_the_socket_reaches_a_hidden_record_tab() {
+        let dir = std::env::temp_dir().join(format!("kr-viewer-gui-socket-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("dir");
+        let socket = dir.join("v.sock");
+        let a = session("viewer-gui-socket-a", false);
+
+        let Ok(ipc::Claim::Serving(bound)) = ipc::claim(&socket, &ipc::Request::default()) else {
+            panic!("nobody is serving");
+        };
+        let (mut app, _) = quiet("gui-socket");
+        app.listen(bound.serve(|| {}));
+        app.open_now(&a).expect("open");
+        assert!(!app.record_active());
+        let ctx = egui::Context::default();
+
+        let gui = ipc::Request {
+            tab: Some(ipc::TabName::Record),
+            ..ipc::Request::default()
+        };
+        assert!(matches!(
+            ipc::claim(&socket, &gui).expect("claim"),
+            ipc::Claim::Forwarded
+        ));
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !app.record_active() && Instant::now() < deadline {
+            frame(&mut app, &ctx, vec![]);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(app.record_active());
+        assert_eq!(app.tabs().len(), 1);
     }
 
     #[test]

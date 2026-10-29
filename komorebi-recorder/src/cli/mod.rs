@@ -63,6 +63,7 @@ pub use video::CompareArgs;
 pub use video::FramediffArgs;
 pub use video::MotionArgs;
 pub use video::SheetArgs;
+pub use viewer_command::GuiArgs;
 pub use viewer_command::ViewArgs;
 
 /// The command line of `komorebi-recorder`.
@@ -76,7 +77,7 @@ pub use viewer_command::ViewArgs;
                   all on one clock, into a session directory. \
                   Then ask what was happening at any second of the video, or where in the video any \
                   log line or event is.\n\n\
-                  Run with no subcommand to open the recorder window."
+                  Run with no subcommand to open the window on its Record tab."
 )]
 pub struct Opts {
     /// The command to run.
@@ -87,8 +88,12 @@ pub struct Opts {
 /// What `komorebi-recorder` was asked to do.
 #[derive(Subcommand)]
 pub enum Command {
-    /// Open the recorder window with Record / Stop buttons (the default)
-    Gui(RecordArgs),
+    /// Open the window, on its Record tab, with Record / Stop buttons (the default)
+    ///
+    /// There is only ever one window, for recording and for reviewing sessions. If one is already
+    /// running it is raised and shown on its Record tab, and the options given here are ignored:
+    /// they only set up the window that is started.
+    Gui(GuiArgs),
     /// Record without a window; Ctrl-C (or --duration) stops and finalizes the session
     Record(RecordArgs),
     /// List the displays that can be recorded
@@ -140,7 +145,7 @@ pub enum Command {
     Compare(CompareArgs),
     /// A contact sheet image of frames, with the times, events and bug region marked
     Sheet(SheetArgs),
-    /// Open a recording in a window: play and scrub the video with every event on a timeline
+    /// Open a recording as a tab of the window: play and scrub the video with every event on a timeline
     View(ViewArgs),
     /// Which line of komorebi's source wrote a line of its log, with the code around it
     Code(CodeArgs),
@@ -276,7 +281,10 @@ pub fn execute(command: Command) -> std::process::ExitCode {
 /// Returns whatever error the command fails with; [`execute`] turns it into an exit status.
 pub fn run(command: Command) -> eyre::Result<()> {
     match command {
-        Command::Gui(args) => crate::app::run(args),
+        Command::Gui(args) => {
+            let socket = (!args.new_window).then(crate::viewer::ipc::default_socket);
+            crate::app::run(args.record, socket.as_deref())
+        }
         Command::Record(args) => record::record(&args),
         Command::Displays(args) => record::displays(&args),
         Command::Doctor(args) => doctor::doctor(&args),
@@ -320,7 +328,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
 
 /// What both binaries (`komorebi-recorder` and, on Windows, the no-console
 /// `komorebi-recorder-gui`) do: read the command line and run it.
-/// No command opens the recorder window.
+/// No command opens the window on its Record tab.
 ///
 /// # Errors
 ///
@@ -335,7 +343,7 @@ pub fn main() -> eyre::Result<std::process::ExitCode> {
     let opts = Opts::parse();
     Ok(execute(
         opts.command
-            .unwrap_or_else(|| Command::Gui(RecordArgs::default())),
+            .unwrap_or_else(|| Command::Gui(GuiArgs::default())),
     ))
 }
 

@@ -93,6 +93,8 @@ pub enum Action {
     GoToTab(usize),
     /// Go to the last tab (`Cmd`/`Ctrl` `9`).
     LastTab,
+    /// Go to the pinned Record tab (`Cmd`/`Ctrl` `0`).
+    ShowRecord,
 }
 
 impl Action {
@@ -107,6 +109,7 @@ impl Action {
                 | Self::PreviousTab
                 | Self::GoToTab(_)
                 | Self::LastTab
+                | Self::ShowRecord
         )
     }
 }
@@ -152,7 +155,8 @@ pub const BINDINGS: &[(&str, &str)] = &[
         "Ctrl Tab  Ctrl Shift Tab",
         "next / previous tab (on a Mac also Cmd Shift ]  [)",
     ),
-    ("Cmd/Ctrl 1 – 9", "go to that tab (9 is the last)"),
+    ("Cmd/Ctrl 1 – 9", "go to that session tab (9 is the last)"),
+    ("Cmd/Ctrl 0", "go to the Record tab"),
 ];
 
 /// Returns the action for a key pressed with `modifiers`, if it is bound.
@@ -165,7 +169,7 @@ pub const BINDINGS: &[(&str, &str)] = &[
 /// display).
 ///
 /// The tab keys hold `Command` (`Cmd` on a Mac, `Ctrl` elsewhere): `T` opens a tab, `W` closes
-/// one, `1` to `9` go to a tab. `Ctrl` `Tab` (with `Shift`, backwards) and, on a Mac, `Command`
+/// one, `1` to `9` go to a session tab and `0` to the Record tab. `Ctrl` `Tab` (with `Shift`, backwards) and, on a Mac, `Command`
 /// `Shift` `]` and `[` move between tabs. Anything else pressed with `Command`, `Ctrl` or `Alt`
 /// gives `None`, as does any key that is not bound. [`Action::ClearSelection`] is never returned.
 ///
@@ -269,6 +273,7 @@ fn tab_action(key: Key, modifiers: Modifiers) -> Option<Action> {
     Some(match key {
         Key::T => Action::NewTab,
         Key::W => Action::CloseTab,
+        Key::Num0 => Action::ShowRecord,
         Key::Num1 => Action::GoToTab(0),
         Key::Num2 => Action::GoToTab(1),
         Key::Num3 => Action::GoToTab(2),
@@ -482,6 +487,11 @@ mod tests {
             action(Key::Num9, Modifiers::COMMAND, None),
             Some(Action::LastTab)
         );
+        assert_eq!(
+            action(Key::Num0, Modifiers::COMMAND, None),
+            Some(Action::ShowRecord)
+        );
+        assert_eq!(action(Key::Num0, plain(), None), Some(Action::FitTimeline));
         // the plain digit still picks a display, the plain letters still do what they did
         assert_eq!(
             action(Key::Num1, plain(), None),
@@ -513,7 +523,16 @@ mod tests {
             .map(|(keys, _)| *keys)
             .collect::<Vec<_>>()
             .join(" ");
-        for key in ["Space", "J", "Home", "B", "Esc", "Cmd/Ctrl T", "Ctrl Tab"] {
+        for key in [
+            "Space",
+            "J",
+            "Home",
+            "B",
+            "Esc",
+            "Cmd/Ctrl T",
+            "Ctrl Tab",
+            "Cmd/Ctrl 0",
+        ] {
             assert!(listed.contains(key), "{key}");
         }
     }

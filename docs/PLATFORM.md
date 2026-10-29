@@ -127,7 +127,10 @@ that a contact sheet never decodes more pixels than it shows.
 
 ### The program's own windows
 
-The recorder window and the viewer must not be in the video they are recording, and komorebi must not tile them.
+The program has one window, with the recorder as its first tab and the recordings as the others. It must not be in the
+video it is recording, in either of its sizes (the small always-on-top one and the full one), and komorebi must not tile
+it. Every `komorebi-recorder` launch (`gui`, `view`, no command, and `komorebi-recorder-gui.exe`) shares one local socket,
+so there is never a second window to exclude.
 
 | | macOS | Windows |
 |---|---|---|

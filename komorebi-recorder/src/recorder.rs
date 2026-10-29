@@ -287,7 +287,7 @@ impl Live {
         *self.snapshot.lock() = LiveSnapshot::default();
     }
 
-    fn update(&self, change: impl FnOnce(&mut LiveSnapshot)) {
+    pub(crate) fn update(&self, change: impl FnOnce(&mut LiveSnapshot)) {
         change(&mut self.snapshot.lock());
     }
 }

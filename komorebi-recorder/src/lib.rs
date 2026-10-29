@@ -57,12 +57,12 @@
 //! | [`recovery`] | rebuilding a session whose recorder died |
 //! | [`cli`] | the command line |
 //! | [`icon`] | the icon of the windows |
-//! | [`app`] | the recorder window |
+//! | [`app`] | the recorder: the Record tab of the one window |
 //! | [`av`] and [`selftest`] | decoding the recorded video and checking it against the clocks |
 //! | [`doctor`] | what a recording leans on, and probes that measure it |
 //! | [`report`] | answers as text for a terminal |
 //! | [`playback`] | a clock that runs forwards or backwards, and the decoding that follows it |
-//! | [`viewer`] | the window that plays a recording |
+//! | [`viewer`] | the one window: the Record tab, and a tab for each recording that is played |
 //!
 //! # What is not supported
 //!

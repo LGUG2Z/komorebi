@@ -26,7 +26,7 @@ const RECENT: usize = 12;
 /// use std::path::Path;
 ///
 /// let mut prefs = Prefs::default();
-/// assert!(prefs.overlay);
+/// assert!(prefs.overlay && prefs.compact);
 ///
 /// prefs.opened(Path::new("/recordings/a"));
 /// prefs.opened(Path::new("/recordings/b"));
@@ -41,6 +41,10 @@ pub struct Prefs {
     pub recent: Vec<String>,
     /// Whether komorebi's state is drawn over the video. The default is `true`.
     pub overlay: bool,
+    /// Whether the window, when started with no session to show, is the small control window: the
+    /// Record tab alone, always on top. Switched with the Compact / Expand button. The default is
+    /// `true`, so a file from a build that did not have it keeps the small window.
+    pub compact: bool,
 }
 
 impl Default for Prefs {
@@ -48,6 +52,7 @@ impl Default for Prefs {
         Self {
             recent: Vec::new(),
             overlay: true,
+            compact: true,
         }
     }
 }
@@ -177,14 +182,23 @@ impl Prefs {
     }
 }
 
-/// Returns where preferences live: komorebi's data directory, `<local data dir>/komorebi` (see
+/// The environment variable that replaces [`directory`]. It exists so that the window can be tried
+/// out, or tested end to end, without reading or writing the user's real preferences; it is not
+/// meant for anything else.
+pub const DIRECTORY_VARIABLE: &str = "KOMOREBI_RECORDER_PREFS_DIR";
+
+/// Returns where preferences live: `$KOMOREBI_RECORDER_PREFS_DIR` if it is set and not empty
+/// ([`DIRECTORY_VARIABLE`]), else komorebi's data directory, `<local data dir>/komorebi` (see
 /// [`komorebi_link::data_dir`](crate::komorebi_link::data_dir)).
 ///
 /// It depends on the machine, so it is not shown with an example: the viewer passes it to
 /// [`Prefs::load`] and [`Prefs::save`].
 #[must_use]
 pub fn directory() -> PathBuf {
-    crate::komorebi_link::data_dir().to_path_buf()
+    match std::env::var_os(DIRECTORY_VARIABLE) {
+        Some(path) if !path.is_empty() => PathBuf::from(path),
+        _ => crate::komorebi_link::data_dir().to_path_buf(),
+    }
 }
 
 #[cfg(test)]
