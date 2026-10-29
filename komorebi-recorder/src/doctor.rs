@@ -334,14 +334,16 @@ pub fn report() -> Report {
         ));
     }
 
+    let permitted = platform::capture::has_permission();
     let capture = CaptureReport {
         supported,
-        permitted: platform::capture::has_permission(),
+        permitted,
         video_decoding: crate::av::supported(),
-        note: (!platform::capture::has_permission()).then(|| {
-            "screen recording permission has not been granted to this terminal or app".to_string()
-        }),
+        note: (!permitted).then(permission_note),
     };
+    if supported && !permitted && cfg!(target_os = "linux") {
+        warnings.push(permission_note());
+    }
     if !capture.video_decoding {
         warnings.push(format!(
             "playing back a recording's video is not built for {} yet",
@@ -564,6 +566,25 @@ fn clock_report() -> ClockReport {
         now_ns: clock::mono_now_ns(),
         wall_now_us: clock::wall_now_us(),
         reference: clock::reference_clocks(),
+    }
+}
+
+/// What is missing when the screen cannot be captured, for this host.
+fn permission_note() -> String {
+    if cfg!(target_os = "linux") {
+        let exe = std::env::current_exe().map_or_else(
+            |_| "komorebi-recorder".to_string(),
+            |path| path.display().to_string(),
+        );
+        format!(
+            "KWin offers its screencast only to a program whose desktop file lists it: write \
+             ~/.local/share/applications/komorebi-recorder.desktop with Type=Application, \
+             Name=komorebi-recorder, Exec={exe}, NoDisplay=true and \
+             X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1, then start the recorder again \
+             (see docs/PLATFORM.md)"
+        )
+    } else {
+        "screen recording permission has not been granted to this terminal or app".to_string()
     }
 }
 
