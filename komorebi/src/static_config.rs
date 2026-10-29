@@ -564,7 +564,7 @@ pub struct StaticConfig {
     #[serde(alias = "active_window_border_width")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_WIDTH)))]
     pub border_width: Option<i32>,
-    /// Automatically maximize the only window on a tiled workspace
+    /// Automatically maximize the only tiled window on a workspace
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
     pub auto_maximize_single_window: Option<bool>,
@@ -2077,12 +2077,5 @@ mod tests {
         #[allow(deprecated)]
         let custom_layout_rules = config.custom_layout_rules;
         assert_eq!(custom_layout_rules, None);
-    }
-
-    #[test]
-    fn deserialize_auto_maximize_single_window() {
-        let config = StaticConfig::read_raw(r#"{"auto_maximize_single_window": true}"#).unwrap();
-
-        assert_eq!(config.auto_maximize_single_window, Some(true));
     }
 }

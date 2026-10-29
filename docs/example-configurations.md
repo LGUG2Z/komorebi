@@ -90,9 +90,10 @@ solo developer.
 ### Automatically maximize a single window
 
 Set `auto_maximize_single_window` to `true` in `komorebi.json` to maximize a
-window when it is the only window on a tiled workspace. It is disabled by
-default; when another window is added or tiling is disabled, the automatically
-maximized window returns to the workspace layout.
+tiled window when it is the only tiled window on its workspace. Floating windows
+are not auto-maximized. The option is disabled by default; when another window
+is added or tiling is disabled, the automatically maximized window returns to
+the workspace layout.
 
 ### Border colours
 

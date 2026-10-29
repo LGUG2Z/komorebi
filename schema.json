@@ -27,7 +27,7 @@
       ]
     },
     "auto_maximize_single_window": {
-      "description": "Automatically maximize the only window on a tiled workspace",
+      "description": "Automatically maximize the only tiled window on a workspace",
       "type": [
         "boolean",
         "null"

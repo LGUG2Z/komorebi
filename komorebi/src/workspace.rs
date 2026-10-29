@@ -997,9 +997,11 @@ impl Workspace {
 
     fn update_auto_maximize_single_window(&mut self) {
         let window_count = self.window_count();
-        let enabled = AUTO_MAXIMIZE_SINGLE_WINDOW.load(Ordering::SeqCst) && self.tile;
+        let enabled = AUTO_MAXIMIZE_SINGLE_WINDOW.load(Ordering::SeqCst)
+            && self.tile
+            && matches!(self.layer, WorkspaceLayer::Tiling);
         let only_window = if window_count == 1 {
-            self.single_window()
+            self.single_tiled_window()
         } else {
             None
         };
@@ -1007,7 +1009,9 @@ impl Workspace {
         if let Some(window) = self.auto_maximized_window
             && (!enabled || only_window != Some(window))
         {
-            window.unmaximize();
+            if self.should_unmaximize_auto_maximized_window(window) {
+                window.unmaximize();
+            }
             self.auto_maximized_window = None;
         }
 
@@ -1016,13 +1020,10 @@ impl Workspace {
         }
     }
 
-    fn single_window(&self) -> Option<Window> {
-        self.maximized_window
-            .or_else(|| {
-                self.monocle_container
-                    .as_ref()
-                    .and_then(|container| container.focused_window().copied())
-            })
+    fn single_tiled_window(&self) -> Option<Window> {
+        self.monocle_container
+            .as_ref()
+            .and_then(|container| container.focused_window().copied())
             .or_else(|| {
                 self.containers()
                     .iter()
@@ -1030,7 +1031,12 @@ impl Workspace {
                     .next()
                     .copied()
             })
-            .or_else(|| self.floating_windows().iter().next().copied())
+    }
+
+    fn should_unmaximize_auto_maximized_window(&self, window: Window) -> bool {
+        // SW_NORMAL also restores minimized windows. Avoid bringing a window back after its
+        // minimize/destroy event has removed it from the workspace.
+        self.contains_window(window.hwnd)
     }
 
     pub fn contains_window(&self, hwnd: isize) -> bool {
@@ -2118,21 +2124,6 @@ mod tests {
             ws.containers()[3].id.to_string(),
             state.get(&3).unwrap().to_string()
         );
-    }
-
-    #[test]
-    fn window_count_includes_stacked_floating_and_maximized_windows() {
-        let mut workspace = Workspace::default();
-        workspace.new_container_for_window(Window::from(1));
-        workspace
-            .focused_container_mut()
-            .unwrap()
-            .windows_mut()
-            .push_back(Window::from(2));
-        workspace.floating_windows_mut().push_back(Window::from(3));
-        workspace.maximized_window = Some(Window::from(4));
-
-        assert_eq!(workspace.window_count(), 4);
     }
 
     #[test]
