@@ -13,6 +13,7 @@ from komorebi_vm.core.scenarios import (
     resize,
     rules,
     stacks,
+    startup_rules,
     tiling,
     workspaces,
 )
@@ -318,3 +319,22 @@ def test_a_case_a_port_cannot_start_is_a_known_failure_and_the_rest_run() -> Non
     assert checks.failed == 0, checks.failures
     assert checks.passed == len(placement.CASES) - 1
     assert len(checks.known) == 1 and "exited at start" in checks.known[0]
+
+
+def test_a_daemon_that_reads_the_rules_of_its_file_passes_startup_rules() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    startup_rules.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed == 5
+
+
+def test_a_daemon_that_ignores_the_rules_of_its_file_fails_startup_rules() -> None:
+    class Ignores(FakePlatform):
+        def restart_with(self, config: dict) -> None:
+            self.start_komorebi()
+
+    platform = Ignores()
+    checks = Checks()
+    startup_rules.run(platform, checks)
+    assert checks.failed >= 3, checks.failures
