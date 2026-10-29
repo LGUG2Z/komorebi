@@ -69,18 +69,21 @@ pub fn inspect(hwnd: u32) -> Option<WindowFacts> {
 
 /// Whether this host can list its windows (see [`list`]). Where it cannot, `--window-track` is
 /// refused rather than recording nothing.
-pub const CAN_LIST: bool = cfg!(any(windows, target_os = "macos"));
+pub const CAN_LIST: bool = cfg!(any(windows, target_os = "macos", target_os = "linux"));
 
 /// Returns every top-level window an ordinary user could see, front to back, as generic facts
 /// for the sampled window track (`crate::sources::windowtrack`). The recorder's own windows are
 /// left out.
 ///
-/// | | Windows | macOS |
-/// |---|---|---|
-/// | `id` | the window handle, as komorebi's `hwnd` | the window server's window number |
-/// | `rect` | visible frame in pixels | `kCGWindowBounds` in display points |
-/// | `visible` | `IsWindowVisible`, always true here | `kCGWindowIsOnscreen` |
-/// | `cloaked` | `Some(_)` from DWM | `None` |
+/// | | Windows | macOS | Linux (KDE) |
+/// |---|---|---|---|
+/// | `id` | the window handle, as komorebi's `hwnd` | the window server's window number | komorebi's id for the window |
+/// | `rect` | visible frame in pixels | `kCGWindowBounds` in display points | komorebi's rect, in logical pixels |
+/// | `visible` | `IsWindowVisible`, always true here | `kCGWindowIsOnscreen` | its workspace is showing and it is in front of its stack |
+/// | `cloaked` | `Some(_)` from DWM | `None` | `None` |
+///
+/// On Linux only the windows komorebi for KDE manages are listed: a Wayland client cannot list
+/// the windows of other programs, and komorebi's state is the list there is.
 ///
 /// It is empty on a host that cannot list windows ([`CAN_LIST`]).
 ///
