@@ -31,7 +31,9 @@ runs:
           sudo tee /etc/udev/rules.d/99-kvm4all.rules
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
-        test -w /dev/kvm
+        # The host of a hosted runner is not chosen: some have no nested virtualization. The step is
+        # named so that rerun-no-kvm.yaml can tell this failure from a failed suite and run it again.
+        test -w /dev/kvm || { echo "::error::this runner has no usable /dev/kvm"; exit 1; }
 
     # This action only installs nix. It does not use the Cachix service, and no Cachix cache, account
     # or token is configured anywhere in this repository.
