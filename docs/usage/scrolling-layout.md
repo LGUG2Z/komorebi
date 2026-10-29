@@ -146,6 +146,33 @@ alt + wheeldown : komorebic pan right
 
 It does nothing in the other layouts.
 
+### With the fingers on a touchpad
+
+`komorebic pan --stream` reads the gestures of fingers on a touchpad from standard input and moves the view with them: the
+row follows the fingers while they are down, and comes to rest with a column against an edge of the screen when they lift,
+at the speed that they were going. [whkd](https://github.com/LGUG2Z/whkd) writes that stream for a swipe of three or
+four fingers:
+
+```
+swipe3 : komorebic pan --stream
+```
+
+Windows does not give three-finger gestures to programs, so whkd reads the touchpad itself, and Windows Settings should be
+set to do nothing for the same gesture.
+
+- A swipe of 10 centimetres across the touchpad moves the row the width of the screen. `--sensitivity` multiplies that, and
+  `--reversed` makes the row go the other way to the fingers.
+- With `--paging` the row does not follow the fingers: it takes a step, as `komorebic pan` does, for every two
+  centimetres that they go.
+- A gesture that is given up, or whose stream stops, puts the row back to where it was. Vertical movement is not used.
+- A swipe with a direction, `swipe3left : komorebic pan left`, runs once when the fingers have gone far enough. It does not
+  stop a `swipe3` stream on the same fingers: with both bound, the row follows the fingers and the step is taken as well, so
+  bind one or the other.
+- It does nothing in the other layouts.
+
+The format of the stream is whkd's, and is written down in `docs/gesture-stream.md` in its repository: a line for each
+`begin`, `move`, `end` and `cancel`, with the distances in centimetres. Fields that are not known are ignored.
+
 ## Resizing
 
 [`komorebic resize-edge`](../cli/resize-edge.md) and [`komorebic resize-axis`](../cli/resize-axis.md) change the width of

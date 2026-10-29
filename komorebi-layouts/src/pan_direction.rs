@@ -27,6 +27,22 @@ impl PanDirection {
     }
 }
 
+/// What the fingers of a gesture that pans the strip do, as far as the strip is concerned
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum PanGesture {
+    /// The fingers have landed
+    Begin,
+    /// The fingers moved by `dx` and `dy` centimetres on the touchpad since the last time, to
+    /// the right and down if they are positive, at `t` milliseconds on a clock that only the
+    /// differences between the times of a gesture mean anything on
+    Move { dx: f64, dy: f64, t: f64 },
+    /// The fingers lifted
+    End,
+    /// The gesture was given up: the strip goes back to where it was
+    Cancel,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -14,13 +14,16 @@
 //! it began puts the neighbours back.
 
 use crate::WindowsApi;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::GHOST_MOVEMENT_ENABLED;
 use crate::animation::ghost::GhostWindow;
 use crate::animation::ghost::is_swap_chain_window;
 use crate::animation::ghost::nudge_swap_chain_window;
+use crate::animation::lerp::Lerp;
 use crate::animation::snapshot;
 use crate::border_manager;
 use crate::com::SetCloak;
+use crate::core::AnimationStyle;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::Sizing;
@@ -58,7 +61,8 @@ impl Snapping {
     /// `paced` is for the steps of a drag, which leave a window that has not
     /// got to where it was last sent for the next step: the end of a drag puts
     /// everything where it is to be
-    fn new(paced: bool) -> Self {
+    #[must_use]
+    pub fn new(paced: bool) -> Self {
         PACED.store(paced, Ordering::SeqCst);
         STEPPING.store(true, Ordering::SeqCst);
         Self { paced }
@@ -217,6 +221,9 @@ struct Cover {
     ghost: GhostWindow,
     /// Where the picture is
     at: Rect,
+    /// Where the picture is when the strip has not been moved, which is not where the window is
+    /// if it is parked at the edge of the screen
+    origin: Rect,
     /// Where the window is to go, which is where the last step put the picture
     target: Rect,
 }
@@ -230,6 +237,15 @@ pub fn is_covered(hwnd: isize) -> bool {
         .lock()
         .as_ref()
         .is_some_and(|covers| covers.contains_key(&hwnd))
+}
+
+/// A workspace is about to be laid out a step at a time by something that is not a drag: the
+/// pictures of the last of them are taken away, and the windows that were sent somewhere
+/// are forgotten.
+pub fn begin_steps() {
+    GENERATION.fetch_add(1, Ordering::SeqCst);
+    uncover(false);
+    SENT.lock().take();
 }
 
 /// A window that is to be resized for a step of a drag, from `from` to `to`, and
@@ -272,6 +288,7 @@ pub fn follow(hwnd: isize, from: &Rect, to: &Rect) -> bool {
                 vacant.insert(Cover {
                     ghost,
                     at: *from,
+                    origin: *from,
                     target: *to,
                 });
             }
@@ -287,6 +304,12 @@ pub fn follow(hwnd: isize, from: &Rect, to: &Rect) -> bool {
     };
 
     cover.target = *to;
+
+    // where a glide is to end is all that it is told: it is the glide that moves the picture
+    if GLIDING.load(Ordering::SeqCst) {
+        return true;
+    }
+
     match cover.ghost.update(*to, 255) {
         Ok(()) => {
             cover.at = *to;
@@ -304,6 +327,181 @@ pub fn follow(hwnd: isize, from: &Rect, to: &Rect) -> bool {
             tracing::debug!(
                 "live resize: the cover of hwnd {hwnd} was not moved to {to:?}: {error}"
             );
+        }
+    }
+
+    true
+}
+
+/// Whether the covers are to be told where they go and not moved there, as they are moved to
+/// it by [`glide`]
+static GLIDING: AtomicBool = AtomicBool::new(false);
+
+/// Covers are told where they go, and not moved there, while this is held
+pub struct Gliding;
+
+impl Gliding {
+    pub fn begin() -> Self {
+        GLIDING.store(true, Ordering::SeqCst);
+        Self
+    }
+}
+
+impl Drop for Gliding {
+    fn drop(&mut self) {
+        GLIDING.store(false, Ordering::SeqCst);
+    }
+}
+
+/// Where a picture is `progress` of the way (0 to 1) from where it was to where it goes: it
+/// slows as it gets there, as the windows of the animations do
+fn glide_frame(from: &Rect, to: &Rect, progress: f64) -> Rect {
+    from.lerp(*to, progress.clamp(0.0, 1.0), AnimationStyle::EaseOutCubic)
+}
+
+/// Move the pictures of the covers from where they are to where their windows are to go, as
+/// long as an animation takes, and nothing else is done until they are there. For the windows
+/// of a strip that is let go of, which then does not jump to where it comes to rest.
+pub fn glide() {
+    let duration = Duration::from_millis(ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst));
+
+    let mut covers = COVERS.lock();
+    let Some(covers) = covers.as_mut() else {
+        return;
+    };
+
+    let moving: Vec<_> = covers
+        .iter()
+        .filter(|(_, cover)| cover.at != cover.target)
+        .map(|(hwnd, cover)| (*hwnd, cover.at, cover.target))
+        .collect();
+
+    if moving.is_empty() || duration.is_zero() {
+        return;
+    }
+
+    let started = Instant::now();
+
+    loop {
+        let progress = started.elapsed().as_secs_f64() / duration.as_secs_f64();
+
+        for (hwnd, from, to) in &moving {
+            let rect = glide_frame(from, to, progress.min(1.0));
+
+            if let Some(cover) = covers.get_mut(hwnd)
+                && cover.ghost.update(rect, 255).is_ok()
+            {
+                cover.at = rect;
+                border_manager::animate_to(*hwnd, rect);
+            }
+        }
+
+        if progress >= 1.0 {
+            break;
+        }
+
+        // one frame of the screen at a time, as the animations are
+        unsafe {
+            let _ = windows::Win32::Graphics::Dwm::DwmFlush();
+        }
+    }
+}
+
+/// Whether a window at `rect` is near enough to a work area to be seen soon: within a width
+/// of it
+pub fn is_near(rect: &Rect, work_area: &Rect) -> bool {
+    // a Rect has a width and a height where it would have a right and a bottom
+    let width = work_area.right;
+    rect.left + rect.right > work_area.left - width
+        && rect.left < work_area.left + work_area.right + width
+}
+
+/// Cover the windows that are given with where their pictures are to be, which is not where
+/// they are if they are parked at the edge of the screen, all of them at once, so that the
+/// first step of something that moves them does not wait for a picture of each to be taken
+/// one after the other. A window that is covered already is left as it is. Only with ghost
+/// movement.
+pub fn cover_all(windows: &[(isize, Rect)]) {
+    if !GHOST_MOVEMENT_ENABLED.load(Ordering::Relaxed) {
+        return;
+    }
+
+    let wanted: Vec<_> = windows
+        .iter()
+        .copied()
+        .filter(|(hwnd, _)| !is_covered(*hwnd))
+        .filter(|(hwnd, _)| {
+            !crate::HIDDEN_HWNDS.lock().contains(hwnd)
+                && !WindowsApi::is_window_cloaked(*hwnd).unwrap_or(false)
+        })
+        .collect();
+
+    let made: Vec<_> = wanted
+        .into_iter()
+        .map(|(hwnd, origin)| {
+            std::thread::spawn(move || {
+                let rect = WindowsApi::window_rect(hwnd).ok()?;
+
+                // the picture is taken before the window is touched
+                match GhostWindow::create(hwnd, origin, None) {
+                    Ok(ghost) => Some((hwnd, rect, origin, ghost)),
+                    Err(error) => {
+                        tracing::debug!("cover: no cover for hwnd {hwnd}: {error}");
+                        None
+                    }
+                }
+            })
+        })
+        .collect();
+
+    let mut covers = COVERS.lock();
+    let covers = covers.get_or_insert_with(HashMap::new);
+
+    for (hwnd, rect, origin, ghost) in made
+        .into_iter()
+        .filter_map(|made| made.join().ok().flatten())
+    {
+        border_manager::set_ghosted(hwnd, true);
+        SetCloak(Window { hwnd }.hwnd(), 1, 2);
+
+        covers.insert(
+            hwnd,
+            Cover {
+                ghost,
+                at: origin,
+                origin,
+                target: rect,
+            },
+        );
+    }
+}
+
+/// `rect` moved `shift` pixels to the right, or to the left if it is negative
+fn shifted(rect: &Rect, shift: f64) -> Rect {
+    #[allow(clippy::cast_possible_truncation)]
+    let by = shift.round() as i32;
+
+    Rect {
+        left: rect.left + by,
+        ..*rect
+    }
+}
+
+/// Put the pictures of the covers where they are when the strip is `shift` pixels from where
+/// it was when they were taken, which is all there is to a step of a pan: the windows are not
+/// touched and nothing is laid out. Whether there were any.
+pub fn shift_covers(shift: f64) -> bool {
+    let mut covers = COVERS.lock();
+    let Some(covers) = covers.as_mut().filter(|covers| !covers.is_empty()) else {
+        return false;
+    };
+
+    for (hwnd, cover) in covers.iter_mut() {
+        let rect = shifted(&cover.origin, shift);
+
+        if cover.ghost.update(rect, 255).is_ok() {
+            cover.at = rect;
+            border_manager::animate_to(*hwnd, rect);
         }
     }
 
@@ -342,7 +540,9 @@ pub fn uncover(show: bool) {
 
 /// Put a window that was covered where it is to go, show it, and fade its picture out
 fn reveal(hwnd: isize, cover: Cover) {
-    let Cover { ghost, at, target } = cover;
+    let Cover {
+        ghost, at, target, ..
+    } = cover;
 
     if WindowsApi::is_window(hwnd) {
         if WindowsApi::position_window(hwnd, &target, false, false).is_ok() {
@@ -852,6 +1052,71 @@ impl WindowManager {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_picture_is_shifted_along_the_screen_and_nowhere_else() {
+        let rect = Rect {
+            left: 100,
+            top: 20,
+            right: 400,
+            bottom: 300,
+        };
+
+        assert_eq!(super::shifted(&rect, 0.0), rect);
+        assert_eq!(super::shifted(&rect, 50.4).left, 150);
+        assert_eq!(super::shifted(&rect, -250.6).left, -151);
+        assert_eq!(super::shifted(&rect, -250.6).top, 20);
+        assert_eq!(super::shifted(&rect, 9.0).right, 400);
+    }
+
+    #[test]
+    fn a_picture_glides_from_where_it_was_to_where_it_goes_and_slows_as_it_gets_there() {
+        let from = Rect {
+            left: 0,
+            top: 0,
+            right: 400,
+            bottom: 300,
+        };
+        let to = Rect {
+            left: 1000,
+            top: 100,
+            right: 400,
+            bottom: 300,
+        };
+
+        assert_eq!(super::glide_frame(&from, &to, 0.0), from);
+        assert_eq!(super::glide_frame(&from, &to, 1.0), to);
+        assert_eq!(super::glide_frame(&from, &to, 7.0), to, "no further");
+        assert_eq!(super::glide_frame(&from, &to, -1.0), from);
+
+        // more than half of the way in the first half of the time
+        assert!(super::glide_frame(&from, &to, 0.5).left > 500);
+        // and the size is not changed on the way when it is not to be
+        assert_eq!(super::glide_frame(&from, &to, 0.3).right, 400);
+    }
+
+    #[test]
+    fn a_window_is_near_a_work_area_within_a_width_of_it() {
+        let area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        let at = |left: i32, right: i32| Rect {
+            left,
+            top: 0,
+            right: right - left,
+            bottom: 800,
+        };
+
+        assert!(super::is_near(&at(0, 1000), &area));
+        assert!(super::is_near(&at(900, 1900), &area), "just in view");
+        assert!(super::is_near(&at(1900, 2900), &area), "a width away");
+        assert!(!super::is_near(&at(2100, 3100), &area), "two widths away");
+        assert!(super::is_near(&at(-1900, -900), &area));
+        assert!(!super::is_near(&at(-3100, -2100), &area));
+    }
+
     use super::*;
 
     fn rect(left: i32, top: i32, width: i32, height: i32) -> Rect {

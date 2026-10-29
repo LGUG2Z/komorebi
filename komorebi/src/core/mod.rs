@@ -39,6 +39,7 @@ pub use komorebi_layouts::MAX_RATIOS;
 pub use komorebi_layouts::MIN_RATIO;
 pub use komorebi_layouts::OperationDirection;
 pub use komorebi_layouts::PanDirection;
+pub use komorebi_layouts::PanGesture;
 pub use komorebi_layouts::Rect;
 pub use komorebi_layouts::ScrollingLayoutOptions;
 pub use komorebi_layouts::Sizing;
@@ -134,6 +135,7 @@ pub enum SocketMessage {
     Expel,
     ToggleColumnStack,
     Pan(PanDirection),
+    PanGesture(PanGesture),
     ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
     ToggleWorkspaceWindowContainerBehaviour,

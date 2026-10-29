@@ -764,6 +764,47 @@ impl Workspace {
         }
     }
 
+    /// Give up a pan: the strip is put back to what it was when it began.
+    pub(crate) fn cancel_scrolling_pan(&mut self, saved: ScrollingSpace<String>) {
+        if self.scrolling.is_some() {
+            self.scrolling = Some(saved);
+        }
+    }
+
+    /// How far into the strip the left edge of the screen is, in pixels. A strip that is moved
+    /// by `dx` has this smaller by `dx`.
+    pub(crate) fn scrolling_view_offset(&self) -> Option<f64> {
+        self.scrolling.as_ref().map(ScrollingSpace::view_offset)
+    }
+
+    /// Where the strip puts the window that shows in each container, as how far its left edge
+    /// is from the left edge of the screen, and whether it is on the screen there and so
+    /// where it really is: windows that are not are parked at an edge.
+    pub(crate) fn scrolling_lefts(&self) -> Vec<(isize, i32, bool)> {
+        let Some(space) = self.scrolling.as_ref() else {
+            return vec![];
+        };
+
+        self.containers()
+            .iter()
+            .zip(space.layout())
+            .filter_map(|(container, placement)| {
+                let hwnd = container.focused_window()?.hwnd;
+                let on_screen = !matches!(
+                    placement.visibility,
+                    Visibility::OffLeft | Visibility::OffRight
+                );
+
+                Some((hwnd, placement.rect.x, on_screen))
+            })
+            .collect()
+    }
+
+    /// How wide the screen is that the strip is moved across, in pixels.
+    pub(crate) fn scrolling_view_width(&self) -> Option<i32> {
+        self.scrolling.as_ref().map(|space| space.viewport().width)
+    }
+
     /// How far one step of a pan goes, if nothing says: a column of the width that a new one
     /// is given.
     pub(crate) fn scrolling_pan_step(&self) -> Option<i32> {
@@ -1172,5 +1213,29 @@ mod tests {
         workspace.set_scrolling_columns(4);
         workspace.layout_scrolling(&AREA, 0);
         assert_eq!(workspace.scrolling_pan_step(), Some(300));
+    }
+
+    #[test]
+    fn a_pan_that_is_given_up_puts_the_strip_back() {
+        let mut workspace = workspace(3, 6);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(1);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        let saved = workspace.begin_scrolling_pan().expect("a strip to pan");
+        workspace.pan_scrolling(-500.0);
+        workspace.cancel_scrolling_pan(saved);
+
+        assert_eq!(workspace.layout_scrolling(&AREA, 0), before);
+        assert_eq!(workspace.focused_container_idx(), 1);
+    }
+
+    #[test]
+    fn the_strip_is_moved_across_a_screen_as_wide_as_the_work_area() {
+        let mut workspace = workspace(3, 6);
+        assert_eq!(workspace.scrolling_view_width(), None, "no layout yet");
+
+        workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(workspace.scrolling_view_width(), Some(1200));
     }
 }

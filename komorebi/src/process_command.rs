@@ -930,6 +930,7 @@ impl WindowManager {
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::Pan(direction) => self.pan(direction)?,
+            SocketMessage::PanGesture(gesture) => self.pan_gesture(gesture)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::LayoutRatios(ref columns, ref rows) => {
@@ -2266,6 +2267,15 @@ pub fn read_commands_uds(
     // socket shutdown.
     for line in reader.lines() {
         let message = SocketMessage::from_str(&line?)?;
+
+        // the fingers of a gesture can be still for longer than a command is waited for, and
+        // what they do next is told on this connection: it is closed when they have lifted
+        if matches!(
+            message,
+            SocketMessage::PanGesture(crate::core::PanGesture::Begin)
+        ) {
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
+        }
 
         match wm.try_lock_for(Duration::from_secs(1)) {
             None => {

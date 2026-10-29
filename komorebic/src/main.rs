@@ -6,6 +6,8 @@ use chrono::Utc;
 use komorebi_client::PathExt;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::splash;
+mod pan;
+
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
@@ -1013,8 +1015,27 @@ struct ScrollingLayoutColumns {
 #[derive(Parser)]
 struct Pan {
     /// The way that the view goes
-    #[clap(value_enum)]
-    direction: PanDirection,
+    #[clap(
+        value_enum,
+        required_unless_present = "stream",
+        conflicts_with = "stream"
+    )]
+    direction: Option<PanDirection>,
+    /// Read the gestures of fingers on a touchpad from standard input, as whkd writes them for
+    /// a swipe of three or four fingers, and pan with them
+    #[clap(long)]
+    stream: bool,
+    /// What the distances of a gesture are multiplied by, which is 1 if it is left out, with
+    /// --stream
+    #[clap(long)]
+    sensitivity: Option<f64>,
+    /// Go the other way to the fingers, with --stream
+    #[clap(long)]
+    reversed: bool,
+    /// Take a step for every two centimetres that the fingers go, and not move the view with
+    /// them, with --stream
+    #[clap(long)]
+    paging: bool,
 }
 
 #[derive(Parser)]
@@ -1310,8 +1331,8 @@ enum SubCommand {
     /// Stack the windows of the focused column of the Scrolling layout, or spread the focused
     /// stack out into a column with a window in each slot
     ToggleColumnStack,
-    /// Move the view of the Scrolling layout a column to the left or the right, which does
-    /// nothing in any other layout
+    /// Move the view of the Scrolling layout a column to the left or the right, or with the
+    /// fingers on a touchpad, which does nothing in any other layout
     #[clap(arg_required_else_help = true)]
     Pan(Pan),
     /// Set the layout column and row ratios for the focused workspace
@@ -3005,7 +3026,30 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::ToggleColumnStack)?;
         }
         SubCommand::Pan(args) => {
-            send_message(&SocketMessage::Pan(args.direction))?;
+            // a flag that has a default counts as given, so what only goes with --stream
+            // cannot be left to the parser to say
+            if !args.stream && (args.sensitivity.is_some() || args.reversed || args.paging) {
+                Opts::command()
+                    .error(
+                        clap::error::ErrorKind::ArgumentConflict,
+                        "--sensitivity, --reversed and --paging can only be used with --stream",
+                    )
+                    .exit();
+            }
+
+            if args.stream {
+                pan::run(
+                    BufReader::new(io::stdin()),
+                    pan::Options {
+                        sensitivity: args.sensitivity.unwrap_or(1.0),
+                        reversed: args.reversed,
+                        paging: args.paging,
+                    },
+                    &mut pan::Socket::new(komorebi_client::Connection::open),
+                )?;
+            } else if let Some(direction) = args.direction {
+                send_message(&SocketMessage::Pan(direction))?;
+            }
         }
         SubCommand::LayoutRatios(args) => {
             if args.columns.is_none() && args.rows.is_none() {
