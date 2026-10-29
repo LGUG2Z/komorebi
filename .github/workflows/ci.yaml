@@ -29,7 +29,42 @@ jobs:
 
   # Everything that does not need a virtual machine: the formatting, clippy, rustdoc, the tests and
   # the VM library's own tests, as derivations. The jobs that boot KWin are separate, and `nix flake
-  # check` is not used here because on Linux it would run those suites with no KVM.
+  # check` is not used here because on Linux it would run those suites with no KVM. Built all at
+  # once on one runner they ran it out of resources (it was shut down about six minutes in, twice),
+  # so they are split into shards: a check that matches no shard but the last is built there, and so
+  # a new check needs no edit here.
+  checks:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: rust
+            pattern: "^komorebi-workspace-"
+          - shard: guests
+            pattern: "^(run-kde|wsl2-probe|plasma-guests|nixos-module|nix-options)"
+          - shard: rest
+            pattern: ""
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/nix
+      - name: Build the ${{ matrix.shard }} checks
+        env:
+          PATTERN: ${{ matrix.pattern }}
+        run: |
+          # the last shard takes whatever the others do not, and the library's own tests
+          rust='^komorebi-workspace-'
+          guests='^(run-kde|wsl2-probe|plasma-guests|nixos-module|nix-options)'
+          nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
+            jq -r --arg p "$PATTERN" --arg rust "$rust" --arg guests "$guests" '
+              [.[] | select(startswith("vm-") | not)] + ["vm-lib"]
+              | .[] | select(if $p == "" then (test($rust) or test($guests) | not) else test($p) end)' |
+            sed 's|^|.#checks.x86_64-linux.|' |
+            xargs --no-run-if-empty nix build -L --no-link
+
   lint:
     if: github.repository == 'LGUG2Z/komorebi-for-kde'
     runs-on: ubuntu-24.04
@@ -38,12 +73,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/nix
-      - name: Build every check that needs no virtual machine
-        run: |
-          nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
-            jq -r '(.[] | select(startswith("vm-") | not)), "vm-lib"' |
-            sed 's|^|.#checks.x86_64-linux.|' |
-            xargs nix build -L --no-link
       - run: nix develop --command just lint
 
   # The suites are found in the flake, so that a new directory under nix/tests/vm/suites is run
@@ -150,7 +179,7 @@ jobs:
         run: |
           failed="$RUNNER_TEMP/canary-failed"
           : >"$failed"
-          # the checks that need no virtual machine, as the lint job lists them, then the suites
+          # the checks that need no virtual machine, as the checks job lists them, then the suites
           # of both tiers, as the discover job lists them
           checks=$(nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
             jq -r '(.[] | select(startswith("vm-") | not)), "vm-lib"')
@@ -255,7 +284,7 @@ jobs:
   # on master replaces the rolling `nightly` prerelease, once the lint and the fast VM tier have
   # passed. The release notes are the commit messages since the previous version tag, by kokai.
   publish:
-    needs: [lint, vm-fast, build]
+    needs: [lint, checks, vm-fast, build]
     if: >-
       github.repository == 'LGUG2Z/komorebi-for-kde' && (startsWith(github.ref, 'refs/tags/v') ||
       (github.ref == 'refs/heads/master' &&
