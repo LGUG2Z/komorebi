@@ -333,6 +333,26 @@ class WindowsPlatform:
         ):
             raise RuntimeError("the display did not take the mode")
 
+    def resize_grab(self, frame: Rect, grab: str) -> tuple[int, int]:
+        # the left, right and bottom resize borders of a window reach 7 px
+        # outside its visible frame (the invisible border of the DWM): press 4
+        # px outside. The top has none, its border is inside the window: press
+        # in its first rows, as outside is the desktop
+        outside, inside = 4, 2
+        left, right = frame.x - outside, frame.x + frame.w + outside
+        top, bottom = frame.y + inside, frame.y + frame.h + outside
+        cx, cy = frame.x + frame.w // 2, frame.y + frame.h // 2
+        return {
+            "left": (left, cy),
+            "right": (right, cy),
+            "top": (cx, top),
+            "bottom": (cx, bottom),
+            "topleft": (left, top),
+            "topright": (right, top),
+            "bottomleft": (left, bottom),
+            "bottomright": (right, bottom),
+        }[grab]
+
     def exe_id(self, program: str) -> str:
         # kfw names the exe of a window with its extension
         return f"{program}.exe"

@@ -279,3 +279,19 @@ def test_a_step_that_is_not_known_fails_as_it_did() -> None:
 
     assert checks.failed == 1
     assert checks.known == []
+
+
+def test_the_press_points_of_a_resize_are_outside_but_for_the_top() -> None:
+    from komorebi_vm.core.geometry import Rect
+
+    platform = _platform("")
+    frame = Rect(657, 393, 596, 332)
+
+    assert platform.resize_grab(frame, "left") == (653, 559)
+    assert platform.resize_grab(frame, "right") == (1257, 559)
+    assert platform.resize_grab(frame, "bottom") == (955, 729)
+    # no invisible border on the top: inside the first rows, not the desktop
+    assert platform.resize_grab(frame, "top") == (955, 395)
+    assert platform.resize_grab(frame, "topleft") == (653, 395)
+    assert platform.resize_grab(frame, "topright") == (1257, 395)
+    assert platform.resize_grab(frame, "bottomright") == (1257, 729)
