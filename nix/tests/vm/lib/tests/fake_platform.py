@@ -66,6 +66,7 @@ class FakePlatform:
         self.display_count = 2
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
+        self.running = True
         self.moves = moves
         self.focus_follows_move = focus_follows_move
 
@@ -92,7 +93,14 @@ class FakePlatform:
         return bool(predicate())
 
     def start_komorebi(self) -> None:
-        pass
+        """A new daemon knows nothing: every window is tiled on the first workspace."""
+        everyone = [t for containers in self.spaces for stack in containers for t in stack]
+        self.spaces = [[[t] for t in everyone], [], []]
+        self.focuses = [0, 0, 0]
+        self.current = 0
+        self.monocle = None
+        self.running = True
+        self._relayout()
 
     @property
     def containers(self) -> list[list[str]]:
@@ -120,6 +128,8 @@ class FakePlatform:
             self.spaces[self.rules[title]].append([title])
         else:
             self.containers.append([title])
+        if len(self.containers) > len(self.tiles):
+            self._relayout()
         return Client(title)
 
     def _find(self, title: str) -> tuple[int, int]:
@@ -202,6 +212,8 @@ class FakePlatform:
 
     def komorebic_status(self, *args: str) -> tuple[int, str]:
         """The fake's answer as a real `komorebic` gives it: exit 0, or 2 for what it lacks."""
+        if not self.running:
+            return 1, "the daemon is not running"
         if args[:1] == ("state",) or " ".join(args) in PRINTED:
             return 0, "{}"
         try:
@@ -212,6 +224,8 @@ class FakePlatform:
     def komorebic(self, *args: str) -> str:
         n = len(self.containers)
         match args:
+            case ("stop",):
+                self.running = False
             case ("focus", "right"):
                 self.focus = min(self.focus + 1, n - 1)
             case ("focus", "left"):

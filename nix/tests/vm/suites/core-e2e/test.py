@@ -17,6 +17,7 @@ from komorebi_vm.core.platform import Client
 from komorebi_vm.core.scenarios import (
     closing,
     focus,
+    lifecycle,
     monocle,
     moving,
     rules,
@@ -458,6 +459,13 @@ rules.run(platform, checks)
 # a window for the stop to leave behind
 platform.spawn("afterwards")
 checks.check("it is managed", kde.wait_for(lambda: kde.managed_all() == 1, timeout=20))
+
+print("== 12b. a daemon that stops and starts again takes the windows up")
+lifecycle.run(platform, checks, [Client("afterwards"), platform.spawn("beside")])
+checks.check("the daemon answers", kde.wait_for(answering, timeout=30))
+platform.close(Client("after-the-restart"))
+platform.close(Client("beside"))
+checks.check("one window is left", kde.wait_for(lambda: kde.managed_all() == 1, timeout=20))
 
 print("== 13. komorebic stop")
 kde.komorebic("stop")
