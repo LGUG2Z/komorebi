@@ -57,6 +57,20 @@ use windows::core::BOOL;
 
 const DEFAULT_PORT: u16 = 7878;
 
+/// A windowless program has nowhere to print a panic, so it goes here.
+const LOG: &str = "C:\\e2e\\agent.log";
+
+fn log(message: &str) {
+    use std::io::Write as _;
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(LOG)
+    {
+        let _ = writeln!(file, "{message}");
+    }
+}
+
 /// `CREATE_NO_WINDOW`: a child must not open a console of its own either.
 const NO_WINDOW: u32 = 0x0800_0000;
 
@@ -272,6 +286,7 @@ fn serve(stream: TcpStream) -> std::io::Result<()> {
 }
 
 fn main() -> std::io::Result<()> {
+    std::panic::set_hook(Box::new(|info| log(&format!("panic: {info}"))));
     let port = std::env::var("KOMOREBI_E2E_AGENT_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
@@ -283,7 +298,9 @@ fn main() -> std::io::Result<()> {
     for stream in listener.incoming() {
         let stream = stream?;
         std::thread::spawn(move || {
-            let _ = serve(stream);
+            if let Err(e) = serve(stream) {
+                log(&format!("connection ended: {e}"));
+            }
         });
     }
     Ok(())
