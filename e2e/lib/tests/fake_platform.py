@@ -24,7 +24,6 @@ ASKED_OF_THE_LAYOUT = (
     "unstack",
     "cycle-move",
     "promote",
-    "toggle-float",
     "toggle-monocle",
     "resize-edge",
     "send-to-workspace",
@@ -763,6 +762,12 @@ class FakePlatform:
                 self.paused = not self.paused
             case ("toggle-tiling",):
                 self.tiling = not self.tiling
+            case ("toggle-float",) if self.maximized is not None:
+                # a maximized window is not in the layout: floating it ends the maximize
+                self.floats.append(self.maximized)
+                self.maximized = None
+                self.max_home = None
+                self._relayout()
             case ("toggle-float",):
                 if self.floats:
                     self.containers.insert(self.focus, [self.floats.pop()])
