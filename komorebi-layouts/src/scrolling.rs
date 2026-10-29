@@ -213,16 +213,28 @@ pub fn resize(
         return;
     };
 
+    // a column grows to the right, from its left edge, unless it is its left edge that is
+    // moved: that one is to be where it is moved to, and its right edge where it was
+    let left_edge = matches!(direction, OperationDirection::Left) && space.active_id() == Some(id);
+    let right_edge = |space: &ScrollingSpace<String>| {
+        space
+            .layout()
+            .into_iter()
+            .find(|placement| &placement.id == id)
+            .map(|placement| placement.rect.x + placement.rect.width)
+    };
+    let before = left_edge.then(|| right_edge(space)).flatten();
+
     let resized = ((width + change).round() as i32).max(MINIMUM_COLUMN_WIDTH);
     space.set_width(id, ColumnWidth::Fixed(resized));
 
-    // a column grows to the right, from its left edge, unless it is its left edge that is
-    // moved: that one is to be where it is moved to, and its right edge where it was
-    if matches!(direction, OperationDirection::Left)
-        && space.active_id() == Some(id)
-        && let Some(width_now) = space.column_width(id)
+    // a column that is made wider than the room it has is brought into view, which moves the
+    // strip already: what is left to put back is where its right edge has got to, and not
+    // what the column grew by
+    if let Some(before) = before
+        && let Some(after) = right_edge(space)
     {
-        space.pan_by(width - width_now);
+        space.pan_by(f64::from(before - after));
     }
 }
 
@@ -483,5 +495,64 @@ mod tests {
         let grown = edges(space);
         assert_eq!(grown[1].0, before[1].0);
         assert_eq!(grown[1].1, before[1].1 + 100);
+    }
+
+    #[test]
+    fn the_left_edge_of_a_column_is_where_it_is_moved_to_however_far_it_is_moved() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1200,
+            bottom: 800,
+        };
+        let ids = vec!["a".to_string(), "b".to_string()];
+        let mut space = None;
+
+        sync(
+            &mut space,
+            scrolling_options(options(3, None)),
+            viewport_of(&work_area),
+            &ids,
+            ids.get(1),
+        );
+
+        let space = space.as_mut().unwrap();
+        let edges = |space: &ScrollingSpace<String>| {
+            place(space, &work_area, 0)
+                .iter()
+                .map(|placement| {
+                    (
+                        placement.rect.left,
+                        placement.rect.left + placement.rect.right,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+
+        // the last column ends at 800 of a viewport of 1200: there is room for 400 more, and
+        // past it the column is brought into view, which moves the strip as well
+        let before = edges(space);
+        assert_eq!(before[1], (400, 800));
+
+        for growth in [300, 400, 500, 600, 900] {
+            let mut grown = space.clone();
+            resize(
+                &mut grown,
+                &ids[1],
+                OperationDirection::Left,
+                Sizing::Increase,
+                growth * 2,
+            );
+
+            let after = edges(&grown);
+            assert_eq!(
+                after[1],
+                (before[1].0 - growth, before[1].1),
+                "grown by {growth}"
+            );
+
+            // and the column before it follows its left edge
+            assert_eq!(after[0].1, after[1].0, "grown by {growth}");
+        }
     }
 }
