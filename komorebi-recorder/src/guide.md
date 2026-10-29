@@ -121,6 +121,12 @@ locations as hints.
   (pixels on Windows, points on a Mac). On Windows komorebi's border windows are in the track too, marked `border`
   (`border_of` names the window for a floating window's border; a tiled one is named for its container in the
   `title`, to be joined with `State`; pairing by rect is a heuristic, not recorded). Without it (`--no-window-track`, or a host that cannot list windows) only the sparse per-event probes exist.
+  `lag <session>` (also the `geometry-lag:window` and `geometry-lag:border` findings) compares that track
+  with komorebi's layout rects: per window, each stretch it was off its layout rect, start, end, duration, and
+  the largest and last offset on each edge, on the master clock; with border windows in the track (rows marked
+  `border`) it says whether the border or the window lagged. Offsets within `--tolerance` (default 8) and the
+  first `--grace-ms` (default 500) after a layout change, when komorebi may be animating, are not flagged.
+  On KDE the track is komorebi's own state, so `lag` says it is not independent and reports nothing.
 - Video time `00:00.000` is the first frame of any display. A display that was unplugged, asleep
   or whose capture failed has a gap, and `incident` records say why.
 
