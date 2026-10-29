@@ -67,9 +67,12 @@ def run(platform: Platform, checks: Checks, first: Client, second: Client) -> No
 
     platform.komorebic("focus-follows-mouse", "enable")
     _settle(platform)
-    # the pointer rests over the second window: it has to go into a window to be followed
+    # the pointer rests over the second window: it has to go into a window to be followed. The
+    # first window already has the focus, so there is nothing to wait for there: the pointer rests
+    # over it for a moment, as a person's would, and a platform that follows the pointer by a
+    # hover delay (Windows) has seen it enter that window before it enters the other
     platform.pointer.move(*a)
-    platform.wait_for(lambda: _focused(platform, first), timeout=10)
+    _settle(platform)
     platform.pointer.move(*b)
     checks.check(
         "on again, the pointer over the second window gives it the focus",
