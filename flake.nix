@@ -163,7 +163,13 @@
         };
 
       mkKomorebiPackages =
-        { pkgs, windowsSdk }:
+        {
+          pkgs,
+          windowsSdk,
+          # the commit stamped into the binaries; a build for the e2e guest
+          # gives a constant one, so that a new commit does not rebuild it
+          commit ? self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev),
+        }:
         let
           # toolchain with windows msvc target
           toolchain = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml).override {
@@ -189,7 +195,7 @@
             # komorebic/build.rs downloads applications.json if it is missing, which
             # is not possible in the sandbox, so provide the pinned copy instead
             preBuild = "mkdir -p komorebic && cp ${inputs.asc}/applications.json komorebic/applications.json";
-            COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev);
+            COMMIT_HASH = commit;
 
             # build inputs for cross-compilation
             nativeBuildInputs = [
@@ -289,6 +295,14 @@
           pkgs = mkPkgs system;
           windowsSdk = mkWindowsSdk pkgs;
           build = mkKomorebiPackages { inherit pkgs windowsSdk; };
+          # the binaries the e2e guest runs: the same build, but with a
+          # constant commit stamp, so a new commit (or a dirty tree) that does
+          # not change a source file reuses it. The commit under test is
+          # KOMOREBI_E2E_COMMIT, not what the binary says.
+          e2eBuild = mkKomorebiPackages {
+            inherit pkgs windowsSdk;
+            commit = "e2e";
+          };
 
           # OVMF without SMM and with the TPM support Windows 11 Setup asks for
           ovmfWithTpm = (pkgs.OVMF.override { tpmSupport = true; }).fd;
@@ -313,9 +327,9 @@
               else
                 bins=$(mktemp -d)
                 trap 'rm -rf "$bins"' EXIT
-                cp ${build.komorebi}/bin/komorebi.exe "$bins"
-                cp ${build.komorebic}/bin/komorebic.exe "$bins"
-                cp ${build.komorebi-testwin}/bin/komorebi-testwin.exe "$bins"
+                cp ${e2eBuild.komorebi}/bin/komorebi.exe "$bins"
+                cp ${e2eBuild.komorebic}/bin/komorebic.exe "$bins"
+                cp ${e2eBuild.komorebi-testwin}/bin/komorebi-testwin.exe "$bins"
               fi
               export OVMF_FD=${ovmfWithTpm}
               export KOMOREBI_E2E_COMMIT=''${KOMOREBI_E2E_COMMIT:-${self.rev or "dirty"}}
