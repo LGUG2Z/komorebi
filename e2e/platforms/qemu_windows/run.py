@@ -85,9 +85,9 @@ KNOWN_STEPS = {
 KNOWN_STEPS_FIXED_BY = {
     "maximizing.user": (
         "3fa3d429",
-        "kfw tracks a user's maximize, but toggle-float (it floats the window "
-        "and ends the maximize) and stack left/right (they stack the others) "
-        "are not ignored while a window is maximized",
+        "kfw tracks a user's maximize and toggle-float ends it, but "
+        "toggle-monocle is not ignored while a window is maximized (kfw "
+        "enters the monocle and the window stays maximized)",
     ),
 }
 
