@@ -47,6 +47,26 @@ jobs:
           path: result/bin/komorebi-recorder
           retention-days: 14
 
+  # the Linux host (KDE Plasma): `nix flake check` builds it, clippy and the tests included (those of
+  # the screen need a Plasma session and are not among them), and type-checks the Windows code too
+  linux:
+    if: github.repository == 'LGUG2Z/komorebi-recorder'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: nix flake check
+      - run: nix build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: komorebi-recorder-x86_64-unknown-linux-gnu-${{ github.sha }}
+          path: result/bin/
+          retention-days: 14
+
   windows:
     if: github.repository == 'LGUG2Z/komorebi-recorder'
     strategy:
