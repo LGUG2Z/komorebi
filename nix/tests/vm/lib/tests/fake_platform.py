@@ -57,6 +57,7 @@ class FakePlatform:
         and the first window of a stack is the one in view."""
         self.focuses = [0, 0]
         self.current = 0
+        self.monocle: str | None = None
         self.moves = moves
         self.focus_follows_move = focus_follows_move
 
@@ -111,14 +112,34 @@ class FakePlatform:
             for i, stack in enumerate(containers):
                 if title in stack:
                     return s, i
-        raise AssertionError(f"no window {title}")
+        raise KeyError(title)
+
+    def close(self, client: Client) -> None:
+        s, i = self._find(client.title)
+        stack = self.spaces[s][i]
+        stack.remove(client.title)
+        if not stack:
+            self.spaces[s].pop(i)
+            self.focuses[s] = max(0, min(self.focuses[s], len(self.spaces[s]) - 1))
+        if self.monocle == client.title:
+            self.monocle = None
+        self._relayout()
+
+    def _relayout(self) -> None:
+        """The tiles of each workspace share the work area in equal columns."""
+        self.tiles = list(TILES)
+        n = len(self.containers)
+        if n:
+            width = 1920 // n
+            self.tiles = [Rect(i * width, 0, width, 1080) for i in range(n)] + list(TILES[n:])
 
     def _container(self, title: str) -> int:
         return self._find(title)[1]
 
     def hidden(self, client: Client) -> bool:
         s, i = self._find(client.title)
-        return s != self.current or self.spaces[s][i][0] != client.title
+        away = self.monocle is not None and client.title != self.monocle
+        return s != self.current or self.spaces[s][i][0] != client.title or away
 
     def work_area(self) -> Rect:
         return Rect(0, 0, 1920, 1080)
@@ -132,12 +153,16 @@ class FakePlatform:
         return Image.new("RGB", (4, 4))
 
     def os_window(self, client: Client) -> OsWindow | None:
-        i = self._container(client.title)
-        return OsWindow(
-            client.title,
-            TILES[i],
-            focused=i == self.focus and self.containers[i][0] == client.title,
+        try:
+            s, i = self._find(client.title)
+        except KeyError:
+            return None
+        if self.monocle == client.title:
+            return OsWindow(client.title, Rect(0, 0, 1920, 1080), focused=True)
+        focused = (
+            s == self.current and i == self.focuses[s] and self.spaces[s][i][0] == client.title
         )
+        return OsWindow(client.title, self.tiles[i], focused=focused)
 
     def komorebic(self, *args: str) -> str:
         n = len(self.containers)
@@ -169,6 +194,9 @@ class FakePlatform:
                     self.containers.pop(self.focus)
                     self.focus = max(0, min(self.focus, len(self.containers) - 1))
                 self.spaces[int(number)].append([window])
+            case ("toggle-monocle",):
+                top = self.containers[self.focus][0]
+                self.monocle = None if self.monocle else top
             case ("focus-workspace", number):
                 self.current = int(number)
             case ("unstack",):
@@ -199,7 +227,12 @@ class FakePlatform:
         def rect(r: Rect) -> dict[str, int]:
             return {"left": r.x, "top": r.y, "right": r.w, "bottom": r.h}
 
-        def workspace(containers: list[list[str]], focus: int) -> dict[str, Any]:
+        def workspace(containers: list[list[str]], focus: int, current: bool) -> dict[str, Any]:
+            monocle = None
+            if current and self.monocle is not None:
+                whole = Rect(0, 0, 1920, 1080)
+                windows = {"elements": [window(self.monocle, whole)], "focused": 0}
+                monocle = {"id": "m", "locked": False, "windows": windows}
             return {
                 "name": None,
                 "containers": {
@@ -216,7 +249,7 @@ class FakePlatform:
                     ],
                     "focused": focus,
                 },
-                "monocle_container": None,
+                "monocle_container": monocle,
                 "maximized_window": None,
                 "floating_windows": {"elements": [], "focused": 0},
                 "layout": {"Default": "Columns"},
@@ -229,7 +262,8 @@ class FakePlatform:
             "size": rect(Rect(0, 0, 1920, 1080)),
             "workspaces": {
                 "elements": [
-                    workspace(c, f) for c, f in zip(self.spaces, self.focuses, strict=True)
+                    workspace(c, f, i == self.current)
+                    for i, (c, f) in enumerate(zip(self.spaces, self.focuses, strict=True))
                 ],
                 "focused": self.current,
             },

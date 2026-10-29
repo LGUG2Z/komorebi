@@ -157,15 +157,16 @@ the run.
   a screenshot. Where the platform has a pointer (`has("pointer")`), a scenario moves
   it with `pointer.drag`; where it has none, the scenario says so and is skipped.
   `core/scenarios` has the scenarios written against it: `tiling`, `focus`, `moving`,
-  `stacks`, `workspaces` and `resize`. A method is added with the first scenario that
+  `stacks`, `monocle`, `workspaces`, `closing` and `resize`. A method is added with the first scenario that
   needs it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a `Platform`.
   [Writing a scenario](#writing-a-scenario) says how to add one.
 
-  The scenarios run on two platforms. KDE runs all six: five at the end of `core-e2e`,
+  The scenarios run on two platforms. KDE runs all eight: seven at the end of `core-e2e`,
   and `resize`, which needs a pointer, at the end of `drag-resize`. A Windows 11 guest
   under QEMU, which kfw drives from its own tree, has run `tiling`, `focus`, `moving`,
   `stacks` and `workspaces` against kfw's daemon (reported by the session that ran them,
-  2026-10-29, with this `core/` copied unchanged); `resize` has not run there yet.
+  2026-10-29, with this `core/` copied unchanged); `monocle` and `closing` have not, and `resize` ran with a shortfall that is a finding about kfw
+  (the edge moves less than the pointer).
   `scripts/sync-e2e-core` keeps kfw's copy of `core/` in step until `core/` moves there.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its

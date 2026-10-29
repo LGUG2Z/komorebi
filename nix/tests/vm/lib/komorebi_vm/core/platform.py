@@ -118,6 +118,10 @@ class Platform(Protocol):
         """
         ...
 
+    def close(self, client: Client) -> None:
+        """Closes the window, as its close button would."""
+        ...
+
     def work_area(self) -> Rect:
         """The area of the first display that windows may take."""
         ...

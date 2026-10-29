@@ -13,7 +13,16 @@
 import json
 
 from komorebi_vm import Checks, Kde, Rect, daemon
-from komorebi_vm.core.scenarios import focus, moving, stacks, tiling, workspaces
+from komorebi_vm.core.platform import Client
+from komorebi_vm.core.scenarios import (
+    closing,
+    focus,
+    monocle,
+    moving,
+    stacks,
+    tiling,
+    workspaces,
+)
 from komorebi_vm.kde_platform import KdePlatform
 
 W, H = 1920, 1080
@@ -397,7 +406,7 @@ checks.check(
 report(["afterwards"])
 
 print(
-    "== 12. tiling, focus, moving, stacks and workspaces, through the neutral platform"
+    "== 12. tiling, focus, moving, stacks, monocle, workspaces and closing, through the neutral platform"
 )
 # the scenarios of komorebi_vm.core.scenarios are what runs on Windows too: it asks the
 # operating system where the windows are, and not the daemon's log
@@ -430,7 +439,10 @@ checks.check(
     "and unstacked",
     kde.wait_for(lambda: sorted(map(len, kde.containers())) == [1, 1, 1]),
 )
+monocle.run(platform, checks, neutral)
 workspaces.run(platform, checks, neutral)
+# the third window is on workspace 1 now: the first is closed, and the second takes its room
+closing.run(platform, checks, neutral, Client("neutral1"))
 
 print("== 13. komorebic stop")
 kde.komorebic("stop")
@@ -442,7 +454,7 @@ checks.check(
 checks.check(
     "the script is no longer in KWin", kde.wait_for(lambda: not kde.script_loaded())
 )
-checks.check("the windows stay", kde.wid("neutral1") != "")
+checks.check("the windows stay", kde.wid("neutral2") != "")
 
 kde.stop()
 checks.finish()

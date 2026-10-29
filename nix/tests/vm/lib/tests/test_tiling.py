@@ -35,6 +35,9 @@ class FakePlatform:
     def hidden(self, client: Client) -> bool:
         return False
 
+    def close(self, client: Client) -> None:
+        pass
+
     def has(self, feature: str) -> bool:
         return False
 

@@ -80,6 +80,9 @@ class KdePlatform:
             return True
         return desk != 0 and desk != self.kde.shown()
 
+    def close(self, client: Client) -> None:
+        self.kde.close(self.kde.wid(client.title))
+
     def work_area(self) -> Rect:
         return Rect(0, 0, *self.size)
 
