@@ -260,6 +260,8 @@
           komorebi-bar = extractBinary "komorebi-bar";
           komorebi-gui = extractBinary "komorebi-gui";
           komorebi-shortcuts = extractBinary "komorebi-shortcuts";
+          komorebi-testwin = extractBinary "komorebi-testwin";
+          komorebi-e2e-agent = extractBinary "komorebi-e2e-agent";
         };
 
       mkPkgs =
@@ -287,6 +289,32 @@
           pkgs = mkPkgs system;
           windowsSdk = mkWindowsSdk pkgs;
           build = mkKomorebiPackages { inherit pkgs windowsSdk; };
+
+          # OVMF without SMM and with the TPM support Windows 11 Setup asks for
+          ovmfWithTpm = (pkgs.OVMF.override { tpmSupport = true; }).fd;
+          e2eWindows = pkgs.writeShellApplication {
+            name = "e2e-windows";
+            runtimeInputs = [
+              pkgs.qemu
+              pkgs.swtpm
+              (pkgs.python3.withPackages (p: [ p.pillow ]))
+            ];
+            text = ''
+              : "''${E2E_GOLDEN:?set E2E_GOLDEN to the golden image directory}"
+              out=''${1:?usage: e2e-windows OUT SCENARIO...}
+              shift
+              bins=$(mktemp -d)
+              trap 'rm -rf "$bins"' EXIT
+              cp ${build.komorebi}/bin/komorebi.exe "$bins"
+              cp ${build.komorebic}/bin/komorebic.exe "$bins"
+              cp ${build.komorebi-testwin}/bin/komorebi-testwin.exe "$bins"
+              export OVMF_FD=${ovmfWithTpm}
+              export KOMOREBI_E2E_COMMIT=${self.rev or "dirty"}
+              export PYTHONPATH=${./e2e/lib}:${./e2e}
+              exec python -m platforms.qemu_windows.run \
+                "$E2E_GOLDEN" "$bins" "$out" "$@"
+            '';
+          };
 
           # toolchain with windows target and nightly rustfmt
           rustToolchain = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml).override {
@@ -354,6 +382,8 @@
               komorebi-bar
               komorebi-gui
               komorebi-shortcuts
+              komorebi-testwin
+              komorebi-e2e-agent
               ;
             inherit windowsSdk;
             komorebi-full = build.fullBuild;
@@ -388,6 +418,17 @@
             default = {
               type = "app";
               program = "${build.fullBuild}/bin/komorebi.exe";
+            };
+          }
+          // pkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            # the neutral scenarios against a throwaway Windows guest:
+            #   E2E_GOLDEN=<golden image dir> nix run .#e2e-windows -- \
+            #     OUT SCENARIO...
+            # the golden image is built once with
+            # e2e/platforms/qemu_windows/build-golden.sh
+            e2e-windows = {
+              type = "app";
+              program = pkgs.lib.getExe e2eWindows;
             };
           };
 
