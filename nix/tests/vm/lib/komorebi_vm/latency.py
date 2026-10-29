@@ -19,7 +19,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from komorebi_vm.kde import Rect
+from komorebi_vm.core.geometry import Rect
 
 _HEADER = re.compile(r"^(method call|method return|signal|error) time=(\d+\.\d+) (.*)$")
 _STRING = '   string "'

@@ -2,7 +2,7 @@
 
 from PIL import Image
 
-from komorebi_vm.kde import Rect
+from komorebi_vm.core.geometry import Rect
 
 Color = tuple[int, int, int]
 

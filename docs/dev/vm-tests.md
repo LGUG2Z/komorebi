@@ -139,6 +139,10 @@ check also runs `ruff` and `ty` over it. The driver type checks every
 `test.py` with `ty` and `ruff` too, so a typo in a suite fails the build, not
 the run.
 
+- The package `komorebi_vm.core` is what does not depend on the platform: `Checks`,
+  `Rect` and the pixel helpers. It imports nothing of KDE, so that it can move to
+  the Windows port unchanged. `komorebi_vm` re-exports them, so that a suite
+  imports them from the same place as before.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines

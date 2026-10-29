@@ -10,7 +10,7 @@ and its title, and every frame the daemon asks KWin for is a debug line.
 import re
 from dataclasses import dataclass
 
-from komorebi_vm.kde import Rect
+from komorebi_vm.core.geometry import Rect
 
 _EVENT = re.compile(r"processing event: (\w+) for window (\d+) with notification (\w+)")
 _ACTIVATED = re.compile(r"KWin activated window (\d+) \((.*)\)$", re.MULTILINE)
