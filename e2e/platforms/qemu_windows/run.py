@@ -79,6 +79,13 @@ KNOWN_STEPS = {
 }
 
 
+# the commit of komorebi's `next` that fixed what a step is known to fail, so
+# that a build that has it does not get the marker
+KNOWN_STEPS_FIXED_BY = {
+    "maximizing.user": "3fa3d429",
+}
+
+
 class GuestDied(RuntimeError):
     """QEMU exited while a scenario was running: not what kfw did."""
 
@@ -135,7 +142,10 @@ def _suite(checks: "RecordedChecks", *steps):
     for step in steps:
         began = time.monotonic()
         counted = checks.passed + checks.failed + len(checks.known)
-        checks.expected = KNOWN_STEPS.get(step.name)
+        fix = KNOWN_STEPS_FIXED_BY.get(step.name)
+        checks.expected = (
+            None if fix and _contains(fix) else KNOWN_STEPS.get(step.name)
+        )
         known_before = len(checks.known)
         try:
             results.extend(run_suite(checks, step))

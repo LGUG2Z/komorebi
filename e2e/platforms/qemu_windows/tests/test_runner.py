@@ -324,3 +324,21 @@ def test_the_wallpaper_is_asked_of_the_shell_for_a_display() -> None:
 
     assert agent.executed[-2][-2:] == ("get", "1")
     assert agent.executed[-1][-3:] == ("set", "1", "C:\\x y.png")
+
+
+def test_a_known_step_has_no_marker_on_a_commit_that_has_its_fix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from komorebi_vm.core.suite import shared
+
+    def user(checks: run.RecordedChecks) -> None:
+        checks.check("b", False)
+
+    user.__module__ = "komorebi_vm.core.scenarios.maximizing"
+    monkeypatch.setattr(run, "_contains", lambda fix, repo=None: True)
+    checks = run.RecordedChecks()
+
+    run._suite(checks, shared(user, checks))
+
+    assert checks.failed == 1
+    assert checks.known == []
