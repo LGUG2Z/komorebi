@@ -110,6 +110,25 @@ def _with(fn, **kwargs):
     return step
 
 
+def _contains(fix: str) -> bool:
+    """Whether the commit under test has the commit `fix` in its history, so that
+    a marker for the bug it fixed no longer applies. Not known: no."""
+    commit = os.environ.get("KOMOREBI_E2E_COMMIT")
+    if not commit:
+        return False
+    here = Path(__file__).resolve().parent
+    git = subprocess.run(
+        ["git", "-C", str(here), "merge-base", "--is-ancestor", fix, commit],
+        capture_output=True,
+    )
+    return git.returncode == 0
+
+
+# the commit that fixed each bug a marker is for (komorebi's `next`)
+UNKNOWN_MONITOR_FIX = "837ca257"
+PLACEMENT_INTEGER_FIX = "3b424dd7"
+
+
 def _commit() -> str:
     """The kfw commit under test: set `KOMOREBI_E2E_COMMIT` to the commit the
     binaries were built from; otherwise this tree's HEAD, which may not be it."""
@@ -331,7 +350,9 @@ def run_one(
                     run_suite(checks, shared(
                         _with(
                             commands.unknown_monitor,
-                            known_failure=UNKNOWN_MONITOR_BUG,
+                            known_failure=None
+                            if _contains(UNKNOWN_MONITOR_FIX)
+                            else UNKNOWN_MONITOR_BUG,
                         ),
                         platform, checks, clients,
                     ))
@@ -350,9 +371,10 @@ def run_one(
                 ))
             elif name == "placement":
                 run_suite(checks, shared(
-                    _with(scenario.run, known_failures={
-                        PLACEMENT_INTEGER_CASE: PLACEMENT_INTEGER_BUG
-                    }),
+                    _with(scenario.run, known_failures=None
+                          if _contains(PLACEMENT_INTEGER_FIX) else {
+                              PLACEMENT_INTEGER_CASE: PLACEMENT_INTEGER_BUG
+                          }),
                     platform, checks,
                 ))
             else:
@@ -389,6 +411,10 @@ def run_one(
 def main(argv: list[str]) -> int:
     golden, bin_dir, out, *names = argv
     failed = 0
+    # the commit the binaries were built from, which build-ref.sh writes
+    commit_file = Path(bin_dir) / "commit"
+    if commit_file.exists() and not os.environ.get("KOMOREBI_E2E_COMMIT"):
+        os.environ["KOMOREBI_E2E_COMMIT"] = commit_file.read_text().strip()
     state = None
     if os.environ.get("KOMOREBI_E2E_STATE"):
         state = ensure(Path(golden), Path(os.environ["KOMOREBI_E2E_STATE"]))
