@@ -4,8 +4,8 @@ This document gathers, in one place, what differs by operating system. Most of t
 that implement them; here the same questions are answered once per host, so that someone who has to run the recorder on
 a machine, or change it for one, does not have to read the code to find out.
 
-The recorder is built for macOS and Windows. A third host, `unsupported`, builds on anything else so that the commands
-that only read a session directory work on a Linux agent box; recording there says that it cannot.
+The recorder is built for macOS, Windows and Linux (KDE Plasma). A fourth host, `unsupported`, builds on anything else so
+that the commands that only read a session directory work there; recording says that it cannot.
 
 ## Status
 
@@ -14,6 +14,7 @@ that only read a session directory work on a Linux agent box; recording there sa
 | macOS (Apple silicon) | yes | yes: written and run on macOS 26 |
 | Windows x86_64 | yes, natively on `windows-latest` and cross-compiled from a Mac | no: type-checked and cross-built only |
 | Windows ARM64 | yes, cross-built on an x86_64 runner | no |
+| Linux (KDE Plasma, x86_64) | yes, natively | decoding, the komorebi side of recording and the OS trace were run, with komorebi for KDE's in-memory desktop; the screencast was not: see [kde-checkpoints.md](dev/kde-checkpoints.md) |
 | anything else | the `unsupported` host builds | nothing records |
 
 Nothing that touches a real Windows desktop has been seen running: the Windows host was written from the Windows API
@@ -139,6 +140,43 @@ so there is never a second window to exclude.
 | icon | a slice of watermelon, which the Dock shows while a window is open (eframe sets it as the application's icon image). The program is a bare executable and not an app bundle, so Finder gives the file the generic executable icon | the same picture as the window and taskbar icon while a window is open, and compiled into both executables as a resource, which is what Explorer shows for the files; the installer shows it beside the program in Apps & features |
 | executables | `komorebi-recorder` | `komorebi-recorder.exe` (console: run commands with this one) and `komorebi-recorder-gui.exe` (no console window) |
 
+## Linux (KDE Plasma)
+
+The Linux host records komorebi for KDE (`komorebi-for-kde`), on Plasma 6.8 or later, on Wayland. It is the
+only Linux desktop the recorder knows: the screen comes from KWin's own screencast, and the windows from komorebi for
+KDE. What is written from the sources and has not been seen to work on a real Plasma session is listed, one check each, in
+[kde-checkpoints.md](dev/kde-checkpoints.md).
+
+| | Linux (KDE Plasma) |
+|---|---|
+| master clock | `CLOCK_MONOTONIC`, `host.clock` is `monotonic`; it does not count the time the machine is suspended, and `CLOCK_BOOTTIME`, which does, is the reference clock |
+| sleep, wake and lock | heard on D-Bus: logind's `PrepareForSleep` on the system bus and the screen saver's `ActiveChanged` on the session bus; whether the screen is locked is `org.freedesktop.ScreenSaver.GetActive`. The lid and the displays' power are not read; the displays are polled |
+| the displays | the compositor's outputs, over Wayland (`wl_output` and `xdg_output`), kept up to date by a thread that reads the compositor's events. A display's `id` is the FNV-1a hash of the output's name, which is komorebi for KDE's id for a monitor with no serial number |
+| capturing the screen | KDE's `zkde_screencast_unstable_v1`, which gives a PipeWire node and asks the user nothing; `pipewiresrc` reads it, and the frames are placed in the file's time as on Windows |
+| permission | KWin offers the screencast only to a program whose desktop file lists `zkde_screencast_unstable_v1` in `X-KDE-Wayland-Interfaces`. `doctor` prints the file to write, with the path of the executable in it |
+| the video | H.264 only, written by GStreamer (`x264enc` and `mp4mux`) as fragmented MP4 in segments, as on the other hosts. HEVC is refused. A display of an odd size, or one H.264 cannot take, is scaled by the pipeline |
+| decoding | GStreamer: `decodebin` to BGRA at the size asked for, seeking to the key frame before the time and decoding forward. A frame's time is its stream time, because an MP4's edit list puts the media time of the first frame after zero |
+| the OS trace | the journal: `oslog/system.ndjson` (`journalctl --user`, of `kwin_wayland`, `plasmashell` and `komorebi`, stream `journal`) and `oslog/eventlog.ndjson` (every warning and worse, stream `journal-warnings`). An entry's time is `__MONOTONIC_TIMESTAMP`, which is the master clock |
+| the window track | komorebi for KDE's own state: a Wayland client cannot list other programs' windows, so only windows komorebi manages are listed, each shown when its workspace is showing and it is in front of its stack |
+| komorebi's sockets | `$XDG_RUNTIME_DIR/komorebi/` (the command socket `komorebi.sock` and the subscribers'), and the data directory where there is no runtime directory |
+| komorebi's log | `~/.local/share/komorebi/komorebi_plaintext.log.<UTC date>`; the span of an event's handler is `handle_event` and of a command's `process_command` |
+| the program's own windows | not left out of the video: the compositor's screencast of an output has every window on it. komorebi is told to ignore them by their application id, `komorebic ignore-rule class komorebi-recorder`, run before the window exists |
+| the window's application id | the window's application id is `komorebi-recorder`, which is the `class` komorebi for KDE sees |
+| `--probe-windows` | Windows only |
+| ghost tiles | not found: they need the Windows probe or a picture of the screen read for them, and neither is written for KDE |
+
+komorebi for KDE's rules are checked against the log and the events of a running komorebi (`komorebi --fake-backend`, an
+in-memory desktop with no windows), and against its source. They are not checked against a recording of a real
+desktop, so an analysis of a KDE session says so, as it does for Windows.
+
+### What is needed on the machine
+
+- the GStreamer plugins that read PipeWire (`pipewire`), decode and encode H.264 (`gst-libav`, `gst-plugins-ugly` for
+  `x264enc`), and mux MP4 (`gst-plugins-good`); the Nix package puts them on the plugin path;
+- `libwayland-client`, which is opened when it is needed, and what the window draws through (`libxkbcommon`, `libGL` or
+  Vulkan): the Nix package and the dev shell put them on `LD_LIBRARY_PATH`;
+- `ffmpeg` for `frames` and `selftest`, and nothing else.
+
 ## Degraded modes
 
 - `record --no-video` records everything but the screen, on the same clock. It asks the system nothing about displays and
@@ -151,6 +189,8 @@ so there is never a second window to exclude.
 ## Advice by audience
 
 - **Recording on macOS.** Grant Screen Recording to the terminal, and start komorebi with `--log-level trace`.
+- **Recording on Linux (KDE Plasma).** Install the desktop file `doctor` prints, so that KWin offers the screencast, and start
+  komorebi for KDE with `--log-level debug`. Use `record --no-video` where there is no screencast to be had.
 - **Recording on Windows.** There is nothing to grant. Use `komorebi-recorder.exe` for commands, since the GUI build
   prints nowhere, and start komorebi with `--log-level debug` and `RUST_LOG=komorebi=debug`.
 - **Investigating on any host.** A session is read the same everywhere. `ffmpeg` is needed only for `frames` and
