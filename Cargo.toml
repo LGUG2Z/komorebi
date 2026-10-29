@@ -33,8 +33,8 @@ pastey = "0.2"
 schemars = "1.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_lenient", version = "0.2" }
-shadow-rs = "1"
-sysinfo = "0.38"
+shadow-rs = "2"
+sysinfo = "0.39"
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
