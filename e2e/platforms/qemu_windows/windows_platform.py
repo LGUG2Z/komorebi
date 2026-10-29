@@ -239,6 +239,17 @@ class WindowsPlatform:
         self._agent.exec("taskkill", "/F", "/IM", "komorebi.exe")
         if not self.wait_for(self._daemon_gone, timeout=20):
             raise RuntimeError("komorebi did not go")
+        # the command that launched it writes its exit code to the output file
+        # when it ends: wait for that line, or it can land in the file of the
+        # next launch and look like that one ended
+        self.wait_for(self._exit_line_written, timeout=10)
+
+    def _exit_line_written(self) -> bool:
+        try:
+            text = self._agent.get_file(DAEMON_OUTPUT).decode("utf-8", "replace")
+        except Exception:
+            return True
+        return EXIT_LINE in text
 
     def _daemon_gone(self) -> bool:
         listing = self._agent.exec("tasklist", "/fi", "imagename eq komorebi.exe")
