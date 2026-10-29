@@ -34,11 +34,12 @@ runs, and goes stale when the code changes.
 | `monocle` | `toggle-monocle` gives one window the work area and puts the others away | pass | pass |
 | `workspaces` | `send-to-workspace` and `focus-workspace` put windows away and bring them back | pass | pass |
 | `closing` | a closed window leaves the state, and the others take its room | pass | pass |
-| `resize` | dragging the edge two tiles share moves it by what the pointer moved | pass | **fails**, cause found |
-| `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | not run, see below |
+| `resize` | dragging the edge two tiles share moves it by what the pointer moved | pass | pass on kfw's `0ffc502c`, **fails** on its master |
+| `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | pass with a second display, none skipped, see below |
 | `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **known failure** | **known failure** |
-| `rules` | initial, permanent and ignore rules by title | see below | not run |
-| `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | not run |
+| `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
+| `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
+| `lifecycle` | a daemon that stops and starts again takes the windows that were in view up again | pass | pass |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
 is not the scenario's, that the daemon had exited after `komorebic stop`; the next run passed it,
@@ -76,7 +77,7 @@ event, which the recording puts about 100 ms after the drag began, when the wind
 resize it asked for with a delta of 106, twice that. A longer drag moves further before the event
 is handled, so the loss grows with the distance, as measured. A fix that reads the starting
 rectangle from the tile in `latest_layout`, or in the event callback before the event is queued,
-is not tried yet. kfde reads nothing of the kind and passes. The recording is on the machine that
+was tried afterwards: kfw's `0ffc502c` ("measure a drag from where the tile was") passes the scenario, a 60 pixel drag widening the left tile from 596 to 656 and nothing else moving. kfde reads nothing of the kind and passes. The recording is on the machine that
 made it (`~/e2e-w0/rec1/resize/session/rec`), and the write-up is `W1.md` in kfw's tree.
 
 Nothing else moved: no tile went up
