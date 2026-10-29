@@ -74,3 +74,18 @@ def test_a_suite_runs_its_steps_in_order_each_in_its_own_scope() -> None:
     )
     assert order == ["kde:first", "shared:second", "kde:third"]
     assert checks.scope == ""
+
+
+def test_a_suite_returns_what_its_steps_returned() -> None:
+    checks = Checks()
+    results = run_suite(checks, shared(lambda: 1), platform_only("kde", lambda: "two"))
+    assert results == [1, "two"]
+
+
+def test_a_step_says_what_it_runs(capsys: pytest.CaptureFixture[str]) -> None:
+    def scenario() -> None:
+        pass
+
+    run_suite(Checks(), shared(scenario), platform_only("kde", scenario))
+    out = capsys.readouterr().out
+    assert "== [shared] test_suite.scenario" in out and "== [kde] test_suite.scenario" in out
