@@ -49,8 +49,13 @@ use windows::Win32::Graphics::Gdi::DIB_RGB_COLORS;
 use windows::Win32::Graphics::Gdi::DeleteDC;
 use windows::Win32::Graphics::Gdi::DeleteObject;
 use windows::Win32::Graphics::Gdi::GetDC;
+use windows::Win32::Graphics::Gdi::HDC;
+use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::Graphics::Gdi::ReleaseDC;
 use windows::Win32::Graphics::Gdi::SelectObject;
+use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT;
+use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_UNAWARE;
+use windows::Win32::UI::HiDpi::SetThreadDpiAwarenessContext;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
@@ -78,6 +83,7 @@ use windows::Win32::UI::WindowsAndMessaging::WS_EX_TRANSPARENT;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
 use windows::core::PCWSTR;
+use windows_core::BOOL;
 
 use crate::WindowsApi;
 use crate::animation::snapshot::Snapshot;
@@ -112,12 +118,24 @@ pub fn registered_thumbnails() -> i64 {
     REGISTERED_THUMBNAILS.load(Ordering::SeqCst)
 }
 
+/// What registering a thumbnail comes to
+#[derive(Clone, Copy, Debug)]
+struct Registered {
+    hthumb: isize,
+    /// Where the client area of the host starts, in the host's own units
+    origin: (i32, i32),
+    /// How many pixels of the screen there are to a unit of the host's coordinates
+    scale: f64,
+    /// How many units of the picture, as DWM has it, there are to a pixel of it
+    source_scale: f64,
+}
+
 enum GhostCmd {
     Create {
         snapshot: Snapshot,
         start_rect: Rect,
         clip: Option<Rect>,
-        reply: Sender<eyre::Result<(isize, (i32, i32))>>,
+        reply: Sender<eyre::Result<Registered>>,
     },
     Destroy {
         hthumb: isize,
@@ -181,17 +199,75 @@ fn virtual_screen() -> (i32, i32, i32, i32) {
     }
 }
 
+/// What the host and the windows that it shows are made as, as far as the display's
+/// scaling is concerned.
+///
+/// DWM draws a thumbnail that is stretched on a host that is made by a thread that is
+/// aware of the scaling of the display with only part of the picture, more of it the further
+/// to the right of the screen it is and the wider the host is: it was measured at 1.25
+/// with a destination of 1767 pixels that was asked to show a picture 1227 wide, of which
+/// 342 were drawn on a host as wide as the screen, and all of the same geometry from a
+/// thread that is not aware of it. So when every display is scaled alike the host is made
+/// by a thread that is not aware, whose coordinates are the screen's divided by that scale,
+/// and the pictures, which are in pixels, by one that is.
+struct DpiGuard(DPI_AWARENESS_CONTEXT);
+
+impl DpiGuard {
+    fn unaware() -> Self {
+        Self(unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_UNAWARE) })
+    }
+}
+
+impl Drop for DpiGuard {
+    fn drop(&mut self) {
+        unsafe {
+            SetThreadDpiAwarenessContext(self.0);
+        }
+    }
+}
+
+extern "system" fn collect_monitors(
+    hmonitor: HMONITOR,
+    _hdc: HDC,
+    _rect: *mut RECT,
+    lparam: LPARAM,
+) -> BOOL {
+    let monitors = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
+    monitors.push(hmonitor.0 as isize);
+
+    true.into()
+}
+
+/// The scale of the displays, when all of them have the same and it is not 1, which is
+/// what the host is not made aware of
+fn uniform_display_scale() -> Option<f64> {
+    let mut monitors: Vec<isize> = vec![];
+    WindowsApi::enum_display_monitors(Some(collect_monitors), &raw mut monitors as isize).ok()?;
+
+    let scales: Vec<f64> = monitors
+        .into_iter()
+        .filter_map(|monitor| WindowsApi::dpi_for_monitor(monitor).ok())
+        .map(f64::from)
+        .collect();
+
+    let first = *scales.first()?;
+
+    (first > 1.0 && scales.iter().all(|scale| (scale - first).abs() < 0.01)).then_some(first)
+}
+
 /// The state that only the owner thread touches.
 struct GhostHost {
     hwnd: isize,
     bounds: (i32, i32, i32, i32),
+    /// How many pixels of the screen there are to a unit of the host's coordinates
+    scale: f64,
     /// The thumbnails registered against the host, and the window each one
     /// shows, which is kept for as long as the thumbnail is. The host is only on top of other windows while there are any.
     thumbnails: HashMap<isize, SnapshotWindow>,
 }
 
 impl GhostHost {
-    fn create() -> eyre::Result<Self> {
+    fn create(scale: f64) -> eyre::Result<Self> {
         register_ghost_class()?;
 
         let instance = WindowsApi::module_handle_w()?;
@@ -223,6 +299,7 @@ impl GhostHost {
         let host = Self {
             hwnd: hwnd.0 as isize,
             bounds,
+            scale,
             thumbnails: HashMap::new(),
         };
 
@@ -287,7 +364,7 @@ impl GhostHost {
         snapshot: &Snapshot,
         start_rect: Rect,
         clip: Option<Rect>,
-    ) -> eyre::Result<(isize, (i32, i32))> {
+    ) -> eyre::Result<Registered> {
         self.fit_to_virtual_screen();
 
         let source = SnapshotWindow::create(snapshot)?;
@@ -298,29 +375,46 @@ impl GhostHost {
         }
 
         let origin = self.origin();
+        let scale = self.scale;
         let registered =
             WindowsApi::dwm_register_thumbnail(self.hwnd, source.hwnd).and_then(|hthumb| {
+                // a window that a thread that is not aware of the scaling of the display
+                // has made is as big as the screen makes it: its picture, in pixels, is a
+                // window of that many units, and DWM has it as many more pixels
+                let source_scale =
+                    unsafe { windows::Win32::Graphics::Dwm::DwmQueryThumbnailSourceSize(hthumb) }
+                        .ok()
+                        .filter(|size| size.cx > 0 && snapshot.width > 0)
+                        .map_or(1.0, |size| f64::from(size.cx) / f64::from(snapshot.width));
+
                 let props = properties_for(
                     drawn_part(start_rect, (snapshot.width, snapshot.height), clip),
                     origin,
+                    scale,
+                    source_scale,
                     255,
                 );
                 WindowsApi::dwm_update_thumbnail_properties(hthumb, &props)
                     .inspect_err(|_| {
                         let _ = WindowsApi::dwm_unregister_thumbnail(hthumb);
                     })
-                    .map(|()| hthumb)
+                    .map(|()| (hthumb, source_scale))
             });
 
         match registered {
-            Ok(hthumb) => {
+            Ok((hthumb, source_scale)) => {
                 self.thumbnails.insert(hthumb, source);
                 REGISTERED_THUMBNAILS.fetch_add(1, Ordering::SeqCst);
                 tracing::trace!(
                     "ghost owner: registered thumbnail {hthumb}, {} registered",
                     registered_thumbnails()
                 );
-                Ok((hthumb, origin))
+                Ok(Registered {
+                    hthumb,
+                    origin,
+                    scale,
+                    source_scale,
+                })
             }
             Err(error) => {
                 if self.thumbnails.is_empty() {
@@ -427,7 +521,11 @@ const BUSY_POLL_INTERVAL: Duration = Duration::from_millis(8);
 const IDLE_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 fn run_owner_loop(cmd_rx: crossbeam_channel::Receiver<GhostCmd>) {
-    let mut host = match GhostHost::create() {
+    // asked while the thread is aware, as the screen is in pixels to it
+    let scale = uniform_display_scale().unwrap_or(1.0);
+    let _unaware = (scale > 1.0).then(DpiGuard::unaware);
+
+    let mut host = match GhostHost::create(scale) {
         Ok(host) => Some(host),
         Err(error) => {
             tracing::error!("ghost owner: failed to create the host window: {error}");
@@ -470,23 +568,29 @@ fn run_owner_loop(cmd_rx: crossbeam_channel::Receiver<GhostCmd>) {
 }
 
 /// A rect (left/top and width/height, in screen coordinates) as a thumbnail
-/// destination (in the client coordinates of the host).
-fn destination(rect: Rect, origin: (i32, i32)) -> RECT {
+/// destination (in the client coordinates of the host, which are those of the screen
+/// divided by `scale`).
+fn destination(rect: Rect, origin: (i32, i32), scale: f64) -> RECT {
+    let at = |pixels: i32| (f64::from(pixels) / scale).round() as i32;
+
     RECT {
-        left: rect.left - origin.0,
-        top: rect.top - origin.1,
-        right: rect.left - origin.0 + rect.right,
-        bottom: rect.top - origin.1 + rect.bottom,
+        left: at(rect.left) - origin.0,
+        top: at(rect.top) - origin.1,
+        right: at(rect.left + rect.right) - origin.0,
+        bottom: at(rect.top + rect.bottom) - origin.1,
     }
 }
 
-/// A rect, in pixels of the picture, as the part of it that is shown
-fn part_of_source(part: Rect) -> RECT {
+/// A rect, in pixels of the picture, as the part of it that is shown, in the units that DWM
+/// has the picture in, which are `scale` to a pixel
+fn part_of_source(part: Rect, scale: f64) -> RECT {
+    let at = |pixels: i32| (f64::from(pixels) * scale).round() as i32;
+
     RECT {
-        left: part.left,
-        top: part.top,
-        right: part.left + part.right,
-        bottom: part.top + part.bottom,
+        left: at(part.left),
+        top: at(part.top),
+        right: at(part.left + part.right),
+        bottom: at(part.top + part.bottom),
     }
 }
 
@@ -520,8 +624,12 @@ fn hidden_thumbnail_properties() -> DWM_THUMBNAIL_PROPERTIES {
 /// prefer explicit `dispose()` to surface errors.
 pub struct GhostWindow {
     hthumb: isize,
-    /// Where the host's client area starts in screen coordinates
+    /// Where the host's client area starts in the coordinates of the host
     origin: (i32, i32),
+    /// How many pixels of the screen there are to a unit of the host's coordinates
+    scale: f64,
+    /// How many units of the picture, as DWM has it, there are to a pixel of it
+    source_scale: f64,
     /// How big the picture is, in pixels
     source_size: (i32, i32),
     /// How far the picture reaches out of the window on every side: the room
@@ -570,7 +678,7 @@ impl GhostWindow {
         let mut start_rect = start_rect;
         start_rect.add_margin(margin);
 
-        let (reply_tx, reply_rx) = bounded::<eyre::Result<(isize, (i32, i32))>>(1);
+        let (reply_tx, reply_rx) = bounded::<eyre::Result<Registered>>(1);
         ghost_owner()
             .cmd_tx
             .send(GhostCmd::Create {
@@ -580,7 +688,12 @@ impl GhostWindow {
                 reply: reply_tx,
             })
             .map_err(|e| eyre::eyre!("ghost owner channel send failed: {e}"))?;
-        let (hthumb, origin) = reply_rx.recv()??;
+        let Registered {
+            hthumb,
+            origin,
+            scale,
+            source_scale,
+        } = reply_rx.recv()??;
 
         tracing::trace!(
             "ghost: created for hwnd {src_hwnd} in {:.1} ms ({:.1} ms of it the picture)",
@@ -591,6 +704,8 @@ impl GhostWindow {
         Ok(Self {
             hthumb,
             origin,
+            scale,
+            source_scale,
             source_size,
             margin,
             // it is registered where the window is, with all of its picture that
@@ -627,7 +742,7 @@ impl GhostWindow {
 
         WindowsApi::dwm_update_thumbnail_properties(
             self.hthumb,
-            &properties_for(drawn, self.origin, opacity),
+            &properties_for(drawn, self.origin, self.scale, self.source_scale, opacity),
         )
     }
 
@@ -703,16 +818,20 @@ fn drawn_part(rect: Rect, source_size: (i32, i32), clip: Option<Rect>) -> Option
 }
 
 /// What to ask DWM for to show what `drawn_part` says, on a host whose client
-/// area starts at `origin` on the screen
+/// area starts at `origin` and whose units are `scale` pixels of the screen
 fn properties_for(
     drawn: Option<(Rect, Rect)>,
     origin: (i32, i32),
+    scale: f64,
+    source_scale: f64,
     opacity: u8,
 ) -> DWM_THUMBNAIL_PROPERTIES {
     match drawn {
-        Some((rect, part)) => {
-            thumbnail_properties(destination(rect, origin), part_of_source(part), opacity)
-        }
+        Some((rect, part)) => thumbnail_properties(
+            destination(rect, origin, scale),
+            part_of_source(part, source_scale),
+            opacity,
+        ),
         None => hidden_thumbnail_properties(),
     }
 }
@@ -1067,7 +1186,7 @@ mod tests {
         assert!(drawn.is_some());
         WindowsApi::dwm_update_thumbnail_properties(
             hthumb,
-            &properties_for(drawn, (600, 300), 255),
+            &properties_for(drawn, (600, 300), 1.0, 1.0, 255),
         )
         .expect("show it clipped");
         std::thread::sleep(Duration::from_millis(400));
@@ -1117,7 +1236,7 @@ mod tests {
         assert!(hidden.is_none());
         WindowsApi::dwm_update_thumbnail_properties(
             hthumb,
-            &properties_for(hidden, (600, 300), 255),
+            &properties_for(hidden, (600, 300), 1.0, 1.0, 255),
         )
         .expect("hide it");
         std::thread::sleep(Duration::from_millis(400));
@@ -1146,5 +1265,42 @@ mod tests {
             moved_out, 0x00FF00,
             "nothing drawn when all of it is outside, got {moved_out:#08x}"
         );
+    }
+
+    #[test]
+    fn a_destination_is_in_the_units_of_the_host() {
+        let rect = Rect {
+            left: 3750,
+            top: 100,
+            right: 1250,
+            bottom: 500,
+        };
+
+        let at_one = destination(rect, (0, 0), 1.0);
+        assert_eq!((at_one.left, at_one.top), (3750, 100));
+        assert_eq!((at_one.right, at_one.bottom), (5000, 600));
+
+        // 125%: the units are a pixel and a quarter, from an origin that is in them too
+        let scaled = destination(rect, (-100, 0), 1.25);
+        assert_eq!((scaled.left, scaled.top), (3100, 80));
+        assert_eq!((scaled.right, scaled.bottom), (4100, 480));
+    }
+
+    #[test]
+    fn a_part_of_a_picture_is_in_the_units_that_dwm_has_it_in() {
+        let part = Rect {
+            left: 0,
+            top: 0,
+            right: 1227,
+            bottom: 664,
+        };
+
+        let same = part_of_source(part, 1.0);
+        assert_eq!((same.right, same.bottom), (1227, 664));
+
+        // as the picture window is 1534 by 830 units at 125%
+        let scaled = part_of_source(part, 1.25);
+        assert_eq!((scaled.left, scaled.top), (0, 0));
+        assert_eq!((scaled.right, scaled.bottom), (1534, 830));
     }
 }
