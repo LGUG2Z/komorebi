@@ -83,6 +83,10 @@ impl Source {
                 .build(),
         );
 
+        // left alone, the pipeline takes the clock of the PipeWire stream, which starts at zero when the
+        // stream does: the system clock is `CLOCK_MONOTONIC`, which the master clock reads
+        pipeline.use_clock(Some(&gst::SystemClock::obtain()));
+
         pipeline.set_state(gst::State::Playing).wrap_err(
             "GStreamer could not read the screencast (is the PipeWire plugin on the plugin path?)",
         )?;
@@ -142,6 +146,9 @@ fn watch(pipeline: &gst::Pipeline, stream: &wayland::Stream, stop: &AtomicBool, 
     }
 }
 
+/// How old a picture's own time may be, when it arrives, to be believed.
+const MAX_AGE_NS: u64 = 250_000_000;
+
 /// One picture from the pipeline as a [`Frame`], stamped on the master clock.
 fn frame_of(sample: &gst::Sample, base: Option<gst::ClockTime>) -> eyre::Result<Frame> {
     let caps = sample
@@ -177,8 +184,14 @@ fn frame_of(sample: &gst::Sample, base: Option<gst::ClockTime>) -> eyre::Result<
     let arrived = clock::mono_now_ns();
     let pts_ns = match (buffer.pts(), base) {
         // the running time of a picture, and the moment the pipeline started, on the clock that
-        // the master clock reads
-        (Some(pts), Some(base)) => (pts + base).nseconds(),
+        // the master clock reads. The first picture the compositor sends is the screen as it was
+        // left, and may carry the time of the last change, which is long ago: a time that is not
+        // about now is the time the picture arrived
+        (Some(pts), Some(base))
+            if arrived.saturating_sub((pts + base).nseconds()) <= MAX_AGE_NS =>
+        {
+            (pts + base).nseconds()
+        }
         _ => arrived,
     };
     Ok(Frame {
