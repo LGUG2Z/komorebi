@@ -16,6 +16,7 @@
 //! |---|---|---|
 //! | [`Mach`](crate::platform::ClockKind::Mach) | `mach` | `mach_absolute_time`, on macOS |
 //! | [`Qpc`](crate::platform::ClockKind::Qpc) | `qpc` | `QueryPerformanceCounter`, on Windows |
+//! | [`Monotonic`](crate::platform::ClockKind::Monotonic) | `monotonic` | `CLOCK_MONOTONIC`, on Linux |
 //! | [`Std`](crate::platform::ClockKind::Std) | `std` | [`std::time::Instant`] since the first reading in the process, plus one second so that it is never zero, on a host with no capture |
 //!
 //! `mach_absolute_time` pauses while the machine sleeps. Whether the Windows counter does is not

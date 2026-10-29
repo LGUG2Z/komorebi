@@ -92,6 +92,8 @@ pub enum ClockKind {
     Mach,
     /// `QueryPerformanceCounter`.
     Qpc,
+    /// `CLOCK_MONOTONIC`: pauses while the machine is suspended.
+    Monotonic,
     /// A host with no capture, which still needs some monotonic clock to run on.
     Std,
 }
@@ -157,12 +159,19 @@ impl Host {
         self.os == "windows"
     }
 
+    #[must_use]
+    /// Returns `true` if and only if this is Linux.
+    pub fn is_linux(&self) -> bool {
+        self.os == "linux"
+    }
+
     /// `macOS 26.0`, `windows 10.0.26100`: for prose.
     #[must_use]
     pub fn describe(&self) -> String {
         let os = match self.os.as_str() {
             "macos" => "macOS",
             "windows" => "Windows",
+            "linux" => "Linux",
             other => other,
         };
         match &self.os_version {
