@@ -9,7 +9,8 @@ let
   # and leaves them on a case-sensitive one (Linux), and the two trees hash differently. The
   # linker asks for `kernel32.lib` of a file that is `Kernel32.lib`, which only a case-sensitive
   # filesystem needs an alias for, so on those hosts this adds a lowercase one for each name that
-  # has a capital in it.
+  # has a capital in it, and one for each spelling the headers include each other by that differs
+  # in case from the file (`DriverSpecs.h` for `driverspecs.h`).
   caseFolded =
     { pkgs, windowsSdk }:
     if pkgs.stdenv.hostPlatform.isDarwin then
@@ -27,6 +28,33 @@ let
             ln -s "$name" "$directory/$lower"
           fi
         done
+
+        # headers include each other with spellings that differ from the file name
+        # (`DriverSpecs.h` for `driverspecs.h`), which xwin covers with symlinks unless
+        # told not to
+        grep -Rhoi -E '^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"][^>"]+[>"]' \
+          crt/include sdk/include 2>/dev/null \
+          | sed -E 's/.*[<"]([^>"]+)[>"]/\1/; s#\\#/#g; s#.*/##' \
+          | sort -u > $TMPDIR/spellings
+        find crt/include sdk/include \( -type f -o -type l \) \
+          | awk -v spellings=$TMPDIR/spellings '
+              BEGIN {
+                while ((getline line < spellings) > 0)
+                  known[tolower(line)] = known[tolower(line)] "\n" line
+              }
+              {
+                n = split($0, parts, "/"); base = parts[n]
+                dir = substr($0, 1, length($0) - length(base))
+                m = split(known[tolower(base)], names, "\n")
+                for (i = 1; i <= m; i++)
+                  if (names[i] != "" && names[i] != base)
+                    print dir "\t" base "\t" names[i]
+              }' \
+          | while IFS=$'\t' read -r directory name spelling; do
+              if [ ! -e "$directory$spelling" ] && [ ! -L "$directory$spelling" ]; then
+                ln -s "$name" "$directory$spelling"
+              fi
+            done
       '';
 in
 {
