@@ -154,19 +154,19 @@ the run.
   daemon, run `komorebic`, read the `Snapshot`, open a window, ask whether the
   daemon put it away (`hidden`), ask the operating system for its frame
   (`os_window`, the oracle: the daemon's state is the thing under test), and take
-  a screenshot. `core/scenarios` has the scenarios written against it: `tiling`,
-  `focus`, `moving`, `stacks` and `workspaces`, which `core-e2e` runs on KDE and which a suite
-  of kfw can run unchanged. A method is added with the first scenario that needs
-  it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a `Platform`, and
-  the `core-e2e` suite runs the scenarios through it after its own sections.
+  a screenshot. Where the platform has a pointer (`has("pointer")`), a scenario moves
+  it with `pointer.drag`; where it has none, the scenario says so and is skipped.
+  `core/scenarios` has the scenarios written against it: `tiling`, `focus`, `moving`,
+  `stacks`, `workspaces` and `resize`. A method is added with the first scenario that
+  needs it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a `Platform`.
   [Writing a scenario](#writing-a-scenario) says how to add one.
 
-  The scenarios run on two platforms. KDE runs all five, in `core-e2e`. A Windows 11
-  guest under QEMU, which kfw drives from its own tree, has run `tiling` against kfw's
-  daemon (10 of 10 checks on 2026-10-29, reported by the session that ran it, with this
-  `core/` copied unchanged); `focus`, `moving`, `stacks` and `workspaces` have not run
-  there yet. `scripts/sync-e2e-core` keeps kfw's copy of `core/` in step until `core/`
-  moves there.
+  The scenarios run on two platforms. KDE runs all six: five at the end of `core-e2e`,
+  and `resize`, which needs a pointer, at the end of `drag-resize`. A Windows 11 guest
+  under QEMU, which kfw drives from its own tree, has run `tiling`, `focus`, `moving`,
+  `stacks` and `workspaces` against kfw's daemon (reported by the session that ran them,
+  2026-10-29, with this `core/` copied unchanged); `resize` has not run there yet.
+  `scripts/sync-e2e-core` keeps kfw's copy of `core/` in step until `core/` moves there.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines

@@ -16,10 +16,42 @@ from komorebi_vm.core.snapshot import Snapshot, parse
 TILES = [Rect(0, 0, 640, 1080), Rect(640, 0, 640, 1080), Rect(1280, 0, 640, 1080)]
 
 
+class FakePointer:
+    """A pointer that, dragged from just outside the right edge of a tile, moves that edge."""
+
+    def __init__(self, platform: "FakePlatform") -> None:
+        self.platform = platform
+        self.at = (0, 0)
+
+    def move(self, x: int, y: int) -> None:
+        self.at = (x, y)
+
+    def down(self) -> None:
+        pass
+
+    def up(self) -> None:
+        pass
+
+    def drag(
+        self, start: tuple[int, int], end: tuple[int, int], steps: int = 25, ms: int = 30
+    ) -> None:
+        self.platform.resize(start, end[0] - start[0])
+
+
 class FakePlatform:
     tolerance = 24
 
-    def __init__(self, *, moves: bool = True, focus_follows_move: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        moves: bool = True,
+        focus_follows_move: bool = True,
+        pointer: bool = True,
+        follows_pointer: bool = True,
+    ) -> None:
+        self.tiles = list(TILES)
+        self.has_pointer = pointer
+        self.follows_pointer = follows_pointer
         self.spaces: list[list[list[str]]] = [[], []]
         """The two workspaces: for each, the stack of each container, in the order of the tiles,
         and the first window of a stack is the one in view."""
@@ -27,6 +59,25 @@ class FakePlatform:
         self.current = 0
         self.moves = moves
         self.focus_follows_move = focus_follows_move
+
+    def has(self, feature: str) -> bool:
+        return feature == "pointer" and self.has_pointer
+
+    @property
+    def pointer(self) -> FakePointer:
+        return FakePointer(self)
+
+    def resize(self, start: tuple[int, int], dx: int) -> None:
+        """The edge of the tile that `start` is 4 pixels outside of moves by `dx`, when the daemon
+        follows the pointer."""
+        if not self.follows_pointer:
+            return
+        for i, tile in enumerate(self.tiles[:-1]):
+            if abs(start[0] - (tile.x + tile.w + 4)) <= 1:
+                a, b = tile, self.tiles[i + 1]
+                self.tiles[i] = Rect(a.x, a.y, a.w + dx, a.h)
+                self.tiles[i + 1] = Rect(b.x + dx, b.y, b.w - dx, b.h)
+                return
 
     def wait_for(self, predicate: Any, timeout: float = 10) -> bool:
         return bool(predicate())
@@ -157,7 +208,7 @@ class FakePlatform:
                             "id": str(i),
                             "locked": False,
                             "windows": {
-                                "elements": [window(t, TILES[i]) for t in stack],
+                                "elements": [window(t, self.tiles[i]) for t in stack],
                                 "focused": 0,
                             },
                         }
@@ -170,7 +221,7 @@ class FakePlatform:
                 "floating_windows": {"elements": [], "focused": 0},
                 "layout": {"Default": "Columns"},
                 "tile": True,
-                "latest_layout": [rect(r) for r in TILES[: len(containers)]],
+                "latest_layout": [rect(r) for r in self.tiles[: len(containers)]],
             }
 
         monitor = {

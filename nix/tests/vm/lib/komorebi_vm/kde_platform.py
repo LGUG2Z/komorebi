@@ -6,6 +6,7 @@ from PIL import Image
 from komorebi_vm.core import snapshot
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, OsWindow, Predicate
+from komorebi_vm.core.platform import Pointer as PointerDevice
 from komorebi_vm.core.snapshot import Snapshot
 from komorebi_vm.kde import Kde
 
@@ -18,9 +19,21 @@ PARK = "komorebi-park"
 class KdePlatform:
     """The platform of a headless KWin session of the test machine."""
 
-    def __init__(self, kde: Kde, size: tuple[int, int]) -> None:
+    def __init__(
+        self, kde: Kde, size: tuple[int, int], pointer: PointerDevice | None = None
+    ) -> None:
         self.kde = kde
         self.size = size
+        self._pointer = pointer
+
+    def has(self, feature: str) -> bool:
+        return feature == "pointer" and self._pointer is not None
+
+    @property
+    def pointer(self) -> PointerDevice:
+        if self._pointer is None:
+            raise AssertionError("this session has no pointer device")
+        return self._pointer
 
     @property
     def tolerance(self) -> int:

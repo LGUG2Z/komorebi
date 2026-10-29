@@ -18,6 +18,9 @@ import re
 import time
 
 from komorebi_vm import Checks, Kde, Pointer, daemon
+from komorebi_vm.core.platform import Client
+from komorebi_vm.core.scenarios import resize
+from komorebi_vm.kde_platform import KdePlatform
 
 # the module's unit, which the session starts when it logs in: the daemon the suite drags against
 UNIT = "komorebi.service"
@@ -54,7 +57,8 @@ kde.sh("busctl --user call org.kde.KWin /KWin org.kde.KWin reconfigure")
 
 # the session started the module's unit when it logged in
 checks.check(
-    "komorebi answers", kde.wait_for(lambda: kde.run("komorebic state")[0] == 0, timeout=120)
+    "komorebi answers",
+    kde.wait_for(lambda: kde.run("komorebic state")[0] == 0, timeout=120),
 )
 
 # The windows tiled before the daemon has the panel's room are put in the room that was there, and a
@@ -80,7 +84,9 @@ for x, y in [(1, 1), (W - 2, 1), (W // 3, H // 2), (W - 2, H - 2), (17, H - 2)]:
     kde.wait_for(lambda x=x, y=y: where() == (x, y), timeout=3)
     gx, gy = where()
     worst = max(worst, abs(gx - x), abs(gy - y))
-checks.check(f"the pointer is put within a pixel of where it is asked ({worst})", worst <= 1)
+checks.check(
+    f"the pointer is put within a pixel of where it is asked ({worst})", worst <= 1
+)
 
 for n in range(1, WINDOWS + 1):
     kde.spawn(f"foot -T win{n} sleep 3000")
@@ -193,17 +199,23 @@ def run_case(spec: str) -> list[str]:
     for e in "LTRB":
         if e in held and has_neighbor(e, name, before):
             if abs(moved[e] - want[e]) > CELL:
-                problems.append(f"frame {e} moved {moved[e]}, the pointer moved {want[e]}")
+                problems.append(
+                    f"frame {e} moved {moved[e]}, the pointer moved {want[e]}"
+                )
         elif abs(moved[e]) > CELL:
             why = "was not dragged" if e not in held else "has no neighbor"
             problems.append(f"frame {e} moved {moved[e]} but {why}")
 
     # the layout, which is exact
-    tile_moved = {e: edges(tiles_after[name])[e] - edges(tiles_before[name])[e] for e in "LTRB"}
+    tile_moved = {
+        e: edges(tiles_after[name])[e] - edges(tiles_before[name])[e] for e in "LTRB"
+    }
     for e in "LTRB":
         if e in held and has_neighbor(e, name, before):
             if abs(tile_moved[e] - want[e]) > 2:
-                problems.append(f"tile {e} moved {tile_moved[e]}, the pointer moved {want[e]}")
+                problems.append(
+                    f"tile {e} moved {tile_moved[e]}, the pointer moved {want[e]}"
+                )
         elif abs(tile_moved[e]) > 1:
             why = "was not dragged" if e not in held else "has no neighbor"
             problems.append(f"tile {e} moved {tile_moved[e]} but {why}")
@@ -216,7 +228,9 @@ def run_case(spec: str) -> list[str]:
         for e in "LTRB":
             m = edges(tiles_after[other])[e] - edges(tiles_before[other])[e]
             if abs(m) > 1 and not any(abs(m - f) <= 2 for f in follows):
-                problems.append(f"{other} tile {e} moved {m}: not with the dragged edge")
+                problems.append(
+                    f"{other} tile {e} moved {m}: not with the dragged edge"
+                )
 
     # still a tiling
     names = list(after)
@@ -246,6 +260,18 @@ cases = [
 ]
 for spec in cases:
     problems = run_case(spec)
-    checks.check(f"{spec}: " + ("as expected" if not problems else "; ".join(problems)), not problems)
+    checks.check(
+        f"{spec}: " + ("as expected" if not problems else "; ".join(problems)),
+        not problems,
+    )
+
+print("== the same drag, through the neutral platform")
+# the scenario of komorebi_vm.core.scenarios.resize is what runs on Windows too: it reads the
+# layout from the daemon's state and the frames from the operating system
+resize.run(
+    KdePlatform(kde, (W, H), pointer),
+    checks,
+    [Client(f"win{n}") for n in range(1, WINDOWS + 1)],
+)
 
 checks.finish()
