@@ -10,7 +10,7 @@ and takes the shape both platforms can give.
 """
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from PIL import Image
 
@@ -91,6 +91,14 @@ class Platform(Protocol):
 
     def start_komorebi(self) -> None:
         """Starts the daemon from a clean state and waits until it answers."""
+        ...
+
+    def restart_with(self, config: dict[str, Any]) -> None:
+        """Stops the daemon if it runs, and starts it from a clean state with `config` as its
+        `komorebi.json`, and waits until it answers.
+
+        Windows that are open stay open, and the new daemon takes up the ones that are in view.
+        """
         ...
 
     def komorebic(self, *args: str) -> str:
