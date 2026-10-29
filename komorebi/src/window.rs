@@ -226,11 +226,12 @@ impl MovementRenderDispatcher {
     }
 
     fn finalise_managers(&self) {
-        if ANIMATION_MANAGER
-            .lock()
-            .count_in_progress(MovementRenderDispatcher::PREFIX)
-            == 0
-        {
+        let busy = {
+            let manager = ANIMATION_MANAGER.lock();
+            manager.count_in_progress(MovementRenderDispatcher::PREFIX) > 0
+                || manager.count_in_progress(AnimationPrefix::Workspace) > 0
+        };
+        if !busy {
             if WindowsApi::foreground_window().unwrap_or_default() == self.hwnd {
                 focus_manager::send_notification(self.hwnd)
             }
@@ -653,6 +654,15 @@ impl Window {
 
         if window_rect.eq(layout) {
             return Ok(());
+        }
+
+        if crate::animation::workspace::slide_drives_window(self.hwnd) {
+            return Ok(());
+        }
+        if crate::animation::workspace::position_instantly() {
+            // Synchronous. An async move would land during the slide and yank
+            // the cloaked window (and its live thumbnail) to the final tile.
+            return WindowsApi::position_window(self.hwnd, layout, top, false);
         }
 
         let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();

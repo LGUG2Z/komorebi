@@ -535,6 +535,74 @@ impl Workspace {
         Ok(())
     }
 
+    /// Windows [`Self::restore`] would show, in paint order.
+    ///
+    /// Monocle replaces the tiled and floating layers. Otherwise this is the
+    /// focused window of each tiled container, every floating window, and the
+    /// maximized window when one is set. Unfocused windows in a stack stay hidden.
+    pub fn slide_windows(&self) -> Vec<Window> {
+        let mut windows = Vec::new();
+        let mut push = |window: Window| {
+            if windows
+                .iter()
+                .all(|existing: &Window| existing.hwnd != window.hwnd)
+            {
+                windows.push(window);
+            }
+        };
+
+        if let Some(container) = &self.monocle_container {
+            if let Some(window) = container.focused_window() {
+                push(*window);
+            }
+            return windows;
+        }
+
+        for container in self.containers() {
+            if let Some(window) = container.focused_window() {
+                push(*window);
+            }
+        }
+
+        for window in self.floating_windows() {
+            push(*window);
+        }
+
+        if let Some(window) = self.maximized_window {
+            push(window);
+        }
+
+        windows
+    }
+
+    /// Window [`Self::restore`] would focus.
+    pub fn focus_target_hwnd(&self) -> Option<isize> {
+        if let Some(container) = &self.monocle_container
+            && container.focused_window().is_some()
+        {
+            return container.focused_window().map(|window| window.hwnd);
+        }
+
+        let to_focus = self
+            .focused_container()
+            .and_then(|container| container.focused_window())
+            .map(|window| window.hwnd);
+
+        if let Some(hwnd) = to_focus {
+            if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
+                Some(hwnd)
+            } else if let Some(window) = self.maximized_window {
+                Some(window.hwnd)
+            } else {
+                self.focused_floating_window().map(|window| window.hwnd)
+            }
+        } else if let Some(window) = self.maximized_window {
+            Some(window.hwnd)
+        } else {
+            self.focused_floating_window().map(|window| window.hwnd)
+        }
+    }
+
     pub fn restore(
         &mut self,
         mouse_follows_focus: bool,

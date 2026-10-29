@@ -37,7 +37,9 @@ use windows::Win32::Graphics::Dwm::DwmRegisterThumbnail;
 use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DwmUnregisterThumbnail;
 use windows::Win32::Graphics::Dwm::DwmUpdateThumbnailProperties;
+use windows::Win32::Graphics::Gdi::CreateRectRgn;
 use windows::Win32::Graphics::Gdi::CreateSolidBrush;
+use windows::Win32::Graphics::Gdi::DeleteObject;
 use windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use windows::Win32::Graphics::Gdi::HBRUSH;
@@ -51,6 +53,7 @@ use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use windows::Win32::Graphics::Gdi::Rectangle;
 use windows::Win32::Graphics::Gdi::RoundRect;
+use windows::Win32::Graphics::Gdi::SetWindowRgn;
 use windows::Win32::System::Com::CLSCTX_ALL;
 use windows::Win32::System::Com::CoCreateInstance;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -538,6 +541,91 @@ impl WindowsApi {
         Self::set_window_pos(hwnd, &rect, HWND_TOP, flags.bits())
     }
 
+    /// Move a window to a rect already expressed as `GetWindowRect` coordinates
+    /// (left/top + size). Does not discard the client bits or restyle the frame,
+    /// so a workspace slide does not flicker or drop the backdrop material.
+    pub fn move_window_exact(hwnd: isize, rect: &Rect) -> eyre::Result<()> {
+        let flags = SetWindowPosition::NO_ACTIVATE
+            | SetWindowPosition::NO_Z_ORDER
+            | SetWindowPosition::NO_SEND_CHANGING;
+        Self::set_window_pos(HWND(as_ptr!(hwnd)), rect, HWND_TOP, flags.bits())
+    }
+
+    /// Keep `hwnd` from painting outside `monitor`. A window that sits fully
+    /// inside has its region cleared so DWM backdrop effects (acrylic, mica)
+    /// stay intact. `region_set` skips repeating that clear on later frames.
+    /// `monitor` and the window rect are left/top + size.
+    pub fn clip_window_to_monitor(hwnd: isize, monitor: &Rect, region_set: &mut bool) {
+        let Ok(window) = Self::window_rect(hwnd) else {
+            return;
+        };
+
+        let window_right = window.left.saturating_add(window.right);
+        let window_bottom = window.top.saturating_add(window.bottom);
+        let monitor_right = monitor.left.saturating_add(monitor.right);
+        let monitor_bottom = monitor.top.saturating_add(monitor.bottom);
+
+        let fully_inside = window.left >= monitor.left
+            && window.top >= monitor.top
+            && window_right <= monitor_right
+            && window_bottom <= monitor_bottom;
+        if fully_inside {
+            if *region_set {
+                Self::clear_window_region(hwnd);
+                *region_set = false;
+            }
+            return;
+        }
+
+        let left = window.left.max(monitor.left);
+        let top = window.top.max(monitor.top);
+        let right = window_right.min(monitor_right);
+        let bottom = window_bottom.min(monitor_bottom);
+        if right <= left || bottom <= top {
+            Self::set_window_region(hwnd, 0, 0, 0, 0);
+            *region_set = true;
+            return;
+        }
+
+        Self::set_window_region(
+            hwnd,
+            left - window.left,
+            top - window.top,
+            right - left,
+            bottom - top,
+        );
+        *region_set = true;
+    }
+
+    pub fn clear_window_region(hwnd: isize) {
+        Self::clear_window_region_inner(hwnd, false);
+    }
+
+    /// Drop a window region and ask the window to repaint. Used after a slide so a
+    /// region left on the HWND cannot keep the client area shifted.
+    pub fn clear_window_region_redraw(hwnd: isize) {
+        Self::clear_window_region_inner(hwnd, true);
+    }
+
+    fn clear_window_region_inner(hwnd: isize, redraw: bool) {
+        unsafe {
+            let _ = SetWindowRgn(HWND(as_ptr!(hwnd)), None, redraw);
+        }
+    }
+
+    fn set_window_region(hwnd: isize, x: i32, y: i32, width: i32, height: i32) {
+        unsafe {
+            let region = CreateRectRgn(x, y, x.saturating_add(width), y.saturating_add(height));
+            if region.is_invalid() {
+                return;
+            }
+            // The system takes ownership of the region when the call succeeds.
+            if SetWindowRgn(HWND(as_ptr!(hwnd)), Some(region), false) == 0 {
+                let _ = DeleteObject(region.into());
+            }
+        }
+    }
+
     pub fn bring_window_to_top(hwnd: isize) -> eyre::Result<()> {
         unsafe { BringWindowToTop(HWND(as_ptr!(hwnd))) }.process()
     }
@@ -760,6 +848,14 @@ impl WindowsApi {
         }
 
         bail!("could not find next window")
+    }
+
+    /// Outer window rectangle from `GetWindowRect`, including the invisible
+    /// resize margin. This is the coordinate space `SetWindowPos` expects.
+    pub fn outer_window_rect(hwnd: isize) -> eyre::Result<Rect> {
+        let mut rect = unsafe { std::mem::zeroed() };
+        unsafe { GetWindowRect(HWND(as_ptr!(hwnd)), &mut rect) }.process()?;
+        Ok(Rect::from(rect))
     }
 
     pub fn window_rect(hwnd: isize) -> eyre::Result<Rect> {
