@@ -84,6 +84,46 @@ impl Drop for Snapping {
     }
 }
 
+thread_local! {
+    static IN_PLACE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Puts the windows that the thread lays out while it is alive where they go at once, and
+/// not by an animation, and not under a picture of them: the commands that resize a window
+/// are many and quick, and the picture of a window that is made as big or as small as another
+/// is a little dimmer and softer than the window, which is more to be seen of a layout that is
+/// animated for every one of them than of a drag, which has its pictures, for what it does to
+/// the windows that follow its edge, whichever the animations are.
+pub struct InPlace {
+    previous: bool,
+}
+
+impl InPlace {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            previous: IN_PLACE.with(|in_place| in_place.replace(true)),
+        }
+    }
+}
+
+impl Default for InPlace {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for InPlace {
+    fn drop(&mut self) {
+        IN_PLACE.with(|in_place| in_place.set(self.previous));
+    }
+}
+
+/// Whether the thread is laying windows out in place, for a command that resizes them
+pub fn is_in_place() -> bool {
+    IN_PLACE.with(std::cell::Cell::get)
+}
+
 /// How long a window is given to get to where it was sent before it is sent
 /// somewhere else anyway
 const IN_FLIGHT: Duration = Duration::from_millis(100);
@@ -995,5 +1035,27 @@ mod tests {
         let now = edges_rect(27, 27, 683, 725);
 
         assert_eq!(drag_origin(&started_from, &now, None), started_from);
+    }
+
+    #[test]
+    fn windows_are_laid_out_in_place_for_as_long_as_the_guard_lives_on_its_thread_alone() {
+        assert!(!is_in_place());
+
+        {
+            let _outer = InPlace::new();
+            assert!(is_in_place());
+
+            {
+                let _inner = InPlace::new();
+                assert!(is_in_place());
+            }
+            assert!(is_in_place(), "the outer guard is still alive");
+
+            std::thread::spawn(|| assert!(!is_in_place()))
+                .join()
+                .unwrap();
+        }
+
+        assert!(!is_in_place());
     }
 }

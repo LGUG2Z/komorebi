@@ -436,6 +436,17 @@ impl Window {
             return WindowsApi::position_window(self.hwnd, layout, top, true);
         }
 
+        // a command that resizes windows puts them where they go at once: one that is on its
+        // way somewhere is stopped where it is, first
+        if live_resize::is_in_place() {
+            let key = new_animation_key(GhostDispatcher::PREFIX, self.hwnd.to_string());
+            if ANIMATION_MANAGER.lock().in_progress(&key) {
+                AnimationEngine::cancel(&key);
+            }
+
+            return WindowsApi::position_window(self.hwnd, layout, top, true);
+        }
+
         let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
         let move_enabled = animation_enabled.get(&GhostDispatcher::PREFIX);
 

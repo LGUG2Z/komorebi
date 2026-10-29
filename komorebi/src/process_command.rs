@@ -73,6 +73,7 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::current_virtual_desktop;
+use crate::live_resize;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
@@ -1484,9 +1485,12 @@ impl WindowManager {
                 reply.write_all(response.as_bytes())?;
             }
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
+                let _in_place = live_resize::InPlace::new();
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
+                let _in_place = live_resize::InPlace::new();
+
                 // If the user has a custom layout, allow for the resizing of the primary column
                 // with this signal
                 let workspace = self.focused_workspace_mut()?;
