@@ -213,8 +213,17 @@ pub fn resize(
         return;
     };
 
-    let width = ((width + change).round() as i32).max(MINIMUM_COLUMN_WIDTH);
-    space.set_width(id, ColumnWidth::Fixed(width));
+    let resized = ((width + change).round() as i32).max(MINIMUM_COLUMN_WIDTH);
+    space.set_width(id, ColumnWidth::Fixed(resized));
+
+    // a column grows to the right, from its left edge, unless it is its left edge that is
+    // moved: that one is to be where it is moved to, and its right edge where it was
+    if matches!(direction, OperationDirection::Left)
+        && space.active_id() == Some(id)
+        && let Some(width_now) = space.column_width(id)
+    {
+        space.pan_by(width - width_now);
+    }
 }
 
 /// How many containers that were taken out of a workspace are waited for at another one.
@@ -405,5 +414,74 @@ mod tests {
             space.column_width(&id),
             Some(f64::from(MINIMUM_COLUMN_WIDTH))
         );
+    }
+
+    #[test]
+    fn the_left_edge_of_a_column_that_is_resized_by_it_moves_and_the_right_edge_stays() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1200,
+            bottom: 800,
+        };
+        let ids = vec!["a".to_string(), "b".to_string()];
+        let mut space = None;
+
+        sync(
+            &mut space,
+            scrolling_options(options(3, None)),
+            viewport_of(&work_area),
+            &ids,
+            ids.get(1),
+        );
+
+        let space = space.as_mut().unwrap();
+        let edges = |space: &ScrollingSpace<String>| {
+            place(space, &work_area, 0)
+                .iter()
+                .map(|placement| {
+                    (
+                        placement.rect.left,
+                        placement.rect.left + placement.rect.right,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let before = edges(space);
+
+        // by half of the delta, which is 100 here, out
+        resize(
+            space,
+            &ids[1],
+            OperationDirection::Left,
+            Sizing::Increase,
+            200,
+        );
+        let grown = edges(space);
+        assert_eq!(grown[1].0, before[1].0 - 100);
+        assert_eq!(grown[1].1, before[1].1);
+
+        // and in, which gives it back
+        resize(
+            space,
+            &ids[1],
+            OperationDirection::Left,
+            Sizing::Decrease,
+            200,
+        );
+        assert_eq!(edges(space), before);
+
+        // the right edge of the last column is the one that grows when it is the right edge
+        resize(
+            space,
+            &ids[1],
+            OperationDirection::Right,
+            Sizing::Increase,
+            200,
+        );
+        let grown = edges(space);
+        assert_eq!(grown[1].0, before[1].0);
+        assert_eq!(grown[1].1, before[1].1 + 100);
     }
 }
