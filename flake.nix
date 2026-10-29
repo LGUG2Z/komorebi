@@ -62,6 +62,19 @@
       gstreamerPluginPath =
         pkgs: pkgs.lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" (gstreamerPackages pkgs);
 
+      # the libraries the program opens when it needs them: Wayland, for the compositor and the
+      # window, and what the window draws through
+      linuxRuntimeLibraries = pkgs: [
+        pkgs.wayland
+        pkgs.libxkbcommon
+        pkgs.libGL
+        pkgs.vulkan-loader
+        pkgs.libx11
+        pkgs.libxcursor
+        pkgs.libxi
+        pkgs.libxrandr
+      ];
+
       # what the build needs of the repository: Cargo sources, and the files the crate embeds or
       # its tests read
       mkSource =
@@ -125,7 +138,9 @@
             postFixup = ''
               for bin in $out/bin/*; do
                 if [ -f "$bin" ] && [ -x "$bin" ]; then
-                  wrapProgram "$bin" --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : ${gstreamerPluginPath pkgs}
+                  wrapProgram "$bin" \
+                    --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : ${gstreamerPluginPath pkgs} \
+                    --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (linuxRuntimeLibraries pkgs)}
                 fi
               done
             '';
@@ -322,35 +337,42 @@
             };
           };
 
-          devShells.default = pkgs.mkShell {
-            name = "komorebi-recorder";
+          devShells.default = pkgs.mkShell (
+            {
+              name = "komorebi-recorder";
 
-            RUST_BACKTRACE = "full";
+              RUST_BACKTRACE = "full";
 
-            inherit (sourceEnv)
-              KOMOREBI_MAC_SRC
-              KOMOREBI_MAC_COMMIT
-              KOMOREBI_WINDOWS_SRC
-              KOMOREBI_WINDOWS_COMMIT
-              ;
+              inherit (sourceEnv)
+                KOMOREBI_MAC_SRC
+                KOMOREBI_MAC_COMMIT
+                KOMOREBI_WINDOWS_SRC
+                KOMOREBI_WINDOWS_COMMIT
+                ;
 
-            inputsFrom = [ build.fullBuild ];
+              inputsFrom = [ build.fullBuild ];
 
-            packages = [
-              rustToolchainWithNightlyRustfmt
+              packages = [
+                rustToolchainWithNightlyRustfmt
 
-              pkgs.cargo-deny
-              pkgs.cargo-nextest
-              # `komorebi-recorder frames` and `selftest` extract frames with ffmpeg; it is never
-              # used for capture and is not bundled into the packaged binary
-              pkgs.ffmpeg-headless
-              pkgs.jq
-              pkgs.just
-              pkgs.ripgrep
-              # `just icon` renders the watermelon
-              pkgs.resvg
-            ];
-          };
+                pkgs.cargo-deny
+                pkgs.cargo-nextest
+                # `komorebi-recorder frames` and `selftest` extract frames with ffmpeg; it is never
+                # used for capture and is not bundled into the packaged binary
+                pkgs.ffmpeg-headless
+                pkgs.jq
+                pkgs.just
+                pkgs.ripgrep
+                # `just icon` renders the watermelon
+                pkgs.resvg
+              ];
+            }
+            // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+              # the libraries that Wayland, the window and the GPU are reached through are opened
+              # when they are needed, not linked
+              LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (linuxRuntimeLibraries pkgs);
+            }
+          );
 
           # For working on the Windows side from a Mac: `nix develop .#windows`, then plain
           # `cargo clippy --all-targets` (the target is already `x86_64-pc-windows-msvc`).
