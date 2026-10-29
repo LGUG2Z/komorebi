@@ -143,6 +143,12 @@ the run.
   `Rect` and the pixel helpers. It imports nothing of KDE, so that it can move to
   the Windows port unchanged. `komorebi_vm` re-exports them, so that a suite
   imports them from the same place as before.
+- `Snapshot` (`core/snapshot.py`) is the daemon's state in one shape for every port:
+  `snapshot.parse(json)` reads the `komorebic state` of kfde and of kfw into
+  monitors, workspaces, containers and windows. What only one port's state has
+  goes in `Snapshot.extra`. Its unit tests use fixtures written from the two
+  ports' serializers; recorded states replace them once a run on each port
+  exists.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines
