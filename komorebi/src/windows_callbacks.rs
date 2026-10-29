@@ -118,6 +118,16 @@ pub extern "system" fn win_event_hook(
         Err(_) => return,
     };
 
+    // a window the user has hold of by an edge is laid out around as it is dragged
+    match winevent {
+        WinEvent::SystemMoveSizeStart => crate::live_resize::taken_hold_of(hwnd.0 as isize),
+        WinEvent::SystemMoveSizeEnd | WinEvent::ObjectDestroy => {
+            crate::live_resize::let_go(hwnd.0 as isize);
+        }
+        WinEvent::ObjectLocationChange => crate::live_resize::window_moved(hwnd.0 as isize),
+        _ => {}
+    }
+
     // this forwards the message to the window's border when it moves or is destroyed
     // see border_manager/border.rs
     if matches!(

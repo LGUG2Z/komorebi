@@ -9,6 +9,7 @@ pub mod ring;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
+pub mod live_resize;
 pub mod lockable_sequence;
 pub mod monitor;
 pub mod monitor_reconciliator;

@@ -6,9 +6,7 @@ use color_eyre::eyre::OptionExt;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
 
-use crate::core::OperationDirection;
 use crate::core::Rect;
-use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 
 use crate::CURRENT_VIRTUAL_DESKTOP;
@@ -660,8 +658,14 @@ impl WindowManager {
                 let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
                 *pending_move_op =
                     Option::from((monitor_idx, workspace_idx, window.hwnd, started_from));
+
+                self.live_resize_begin(window.hwnd, started_from);
             }
             WindowManagerEvent::MoveResizeEnd(_, window) => {
+                // the workspace is as it was when the user took hold, which is what the
+                // end of a drag is worked out from, with steps or without
+                let _snapping = self.live_resize_end();
+
                 // We need this because if the event ends on a different monitor,
                 // that monitor will already have been focused and updated in the state
                 let pending = *self.pending_move_op;
@@ -857,33 +861,10 @@ impl WindowManager {
                             workspace.focus_container(idx);
                         }
 
-                        // A Rect is (left, top, width, height); work in edges instead
-                        let edges = |r: &Rect| (r.left, r.top, r.left + r.right, r.top + r.bottom);
-                        let (start_left, start_top, start_right, start_bottom) =
-                            edges(&old_position);
-                        let (end_left, end_top, end_right, end_bottom) = edges(&new_position);
-
-                        let moved = [
-                            (OperationDirection::Left, end_left - start_left),
-                            (OperationDirection::Up, end_top - start_top),
-                            (OperationDirection::Right, end_right - start_right),
-                            (OperationDirection::Down, end_bottom - start_bottom),
-                        ];
-
-                        for (edge, by) in moved.into_iter().filter(|(_, by)| *by != 0) {
-                            let outward = match edge {
-                                OperationDirection::Left | OperationDirection::Up => by < 0,
-                                OperationDirection::Right | OperationDirection::Down => by > 0,
-                            };
-
-                            let sizing = if outward {
-                                Sizing::Increase
-                            } else {
-                                Sizing::Decrease
-                            };
-
-                            // A shared edge is moved by half of what the layout is given
-                            self.resize_window(edge, sizing, by.abs() * 2, false)?;
+                        for (edge, sizing, by) in
+                            crate::live_resize::edges_moved(&old_position, &new_position)
+                        {
+                            self.resize_window(edge, sizing, by, false)?;
                         }
 
                         // Also puts back a window dragged by an edge with no neighbour

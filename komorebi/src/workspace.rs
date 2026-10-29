@@ -721,7 +721,12 @@ impl Workspace {
                 // windows that were not what they were told to be since the last layout, which
                 // is something that animations only show once they are done
                 let around_window = container_padding + border_offset + border_width;
-                if self.is_scrolling() && crate::scrolling::animations_enabled() {
+                // neighbours of a window that is dragged are not yet the size they are being
+                // made while it is followed: that is not what their columns are to be
+                if self.is_scrolling()
+                    && crate::scrolling::animations_enabled()
+                    && !crate::live_resize::is_stepping()
+                {
                     self.adopt_actual_widths(around_window, adjusted_work_area.right);
                 }
 

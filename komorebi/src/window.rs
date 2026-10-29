@@ -35,6 +35,7 @@ use crate::core::Rect;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
+use crate::live_resize;
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
 use crate::transparency_manager;
@@ -384,10 +385,47 @@ impl Window {
             return Ok(());
         }
 
+        // a window that the user has hold of by an edge is where they put it, until
+        // they let go
+        if live_resize::is_dragging(self.hwnd) {
+            return Ok(());
+        }
+
         let window_rect = WindowsApi::window_rect(self.hwnd)?;
 
         if window_rect.eq(layout) {
+            if live_resize::is_stepping() {
+                tracing::debug!(
+                    "live resize: hwnd {} is where it is to be, {layout:?}",
+                    self.hwnd
+                );
+            }
+
             return Ok(());
+        }
+
+        // the neighbours of a window being dragged follow it as it goes, which is
+        // not to be seen catching up
+        if live_resize::is_stepping() {
+            if live_resize::is_catching_up(self.hwnd, layout) {
+                tracing::debug!(
+                    "live resize: hwnd {} is at {window_rect:?}, not yet where it was sent, left alone for {layout:?}",
+                    self.hwnd
+                );
+                return Ok(());
+            }
+
+            tracing::debug!(
+                "live resize: hwnd {} sent to {layout:?} from {window_rect:?} ({})",
+                self.hwnd,
+                if live_resize::is_pacing() {
+                    "step"
+                } else {
+                    "end"
+                }
+            );
+            live_resize::sent(self.hwnd, layout);
+            return WindowsApi::position_window(self.hwnd, layout, top, true);
         }
 
         let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
