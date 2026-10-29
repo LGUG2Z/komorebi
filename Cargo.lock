@@ -3428,6 +3428,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-e2e-agent"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json_lenient",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "komorebi-gui"
 version = "0.1.42"
 dependencies = [
@@ -3469,6 +3478,14 @@ dependencies = [
  "eframe",
  "whkd-core",
  "whkd-parser",
+]
+
+[[package]]
+name = "komorebi-testwin"
+version = "0.1.0"
+dependencies = [
+ "serde_json_lenient",
+ "windows 0.62.2",
 ]
 
 [[package]]

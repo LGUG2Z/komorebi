@@ -1,0 +1,10 @@
+[package]
+name = "komorebi-testwin"
+version = "0.1.0"
+edition = "2024"
+description = "A plain window for the e2e suite to tile, with a control channel"
+publish = false
+
+[dependencies]
+serde_json = { workspace = true }
+windows = { workspace = true }

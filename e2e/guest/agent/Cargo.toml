@@ -1,0 +1,11 @@
+[package]
+name = "komorebi-e2e-agent"
+version = "0.1.0"
+edition = "2024"
+description = "Runs in the interactive session of an e2e guest and answers the host"
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+windows = { workspace = true }

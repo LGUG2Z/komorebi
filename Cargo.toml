@@ -12,6 +12,8 @@ members = [
   "komorebi-bar",
   "komorebi-themes",
   "komorebi-shortcuts",
+  "e2e/guest/agent",
+  "e2e/guest/testwin",
 ]
 
 [workspace.dependencies]
