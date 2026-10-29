@@ -17,15 +17,15 @@ class Step:
     """A thing to run, and the scope of the checks it makes."""
 
     scope: str
-    run: Callable[[], None]
+    run: Callable[[], object]
 
 
-def shared(scenario: Callable[..., None], *args: object) -> Step:
+def shared(scenario: Callable[..., object], *args: object) -> Step:
     """A scenario of `komorebi_vm.core.scenarios`, called with `args`."""
     return Step("shared", lambda: scenario(*args))
 
 
-def platform_only(scope: str, extra: Callable[..., None], *args: object) -> Step:
+def platform_only(scope: str, extra: Callable[..., object], *args: object) -> Step:
     """What one platform adds: an extra of that platform, called with `args`, under its name."""
     return Step(scope, lambda: extra(*args))
 
