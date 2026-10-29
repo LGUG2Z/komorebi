@@ -44,22 +44,38 @@ def _settled(platform: Platform, title: str, count: int) -> None:
     platform.wait_for(lambda: platform.state().focused_title() == title, timeout=20)
 
 
-def run(platform: Platform, checks: Checks) -> None:
+def run(platform: Platform, checks: Checks, known_failures: dict[str, str] | None = None) -> None:
     """Starts the daemon with each case's rules, opens its windows one after the other, and checks
     the order they are in.
+
+    `known_failures` maps the description of a case to why a port is known to fail it, whether
+    its daemon does not start with the rules or puts the windows in another order. The case is
+    then recorded as a known failure, and the others run on.
 
     Nothing else may be open: the daemon takes up every window in view, and the order would
     count it. The windows of a case are closed before the next one. A window is opened only after
     the one before is managed and has the focus, because "after the one in focus" depends on it.
     """
+    known = known_failures or {}
     for description, rules, titles, want in CASES:
-        platform.restart_with(_config(rules))
+        reason = known.get(description)
+        try:
+            platform.restart_with(_config(rules))
+        except Exception as error:
+            if reason is None:
+                raise
+            checks.known_failure(description, False, f"{reason}; it did not start: {error}")
+            continue
         clients: list[Client] = []
         for title in titles:
             clients.append(platform.spawn(title))
             _settled(platform, title, len(clients))
         got = _order(platform)
-        checks.check(f"{description}: {', '.join(want)} ({got})", got == want)
+        message = f"{description}: {', '.join(want)} ({got})"
+        if reason is None:
+            checks.check(message, got == want)
+        else:
+            checks.known_failure(message, got == want, reason)
         for client in clients:
             platform.close(client)
         platform.wait_for(lambda: platform.state().managed() == 0, timeout=20)
