@@ -150,14 +150,15 @@ the run.
   ports' serializers; recorded states replace them once a run on each port
   exists.
 - `Platform` (`core/platform.py`) is what a scenario needs of a platform: start the
-  daemon, run `komorebic`, read the `Snapshot`, open a window, ask whether the daemon put it away (`hidden`), ask the operating
-  system for its frame (`os_window`, the oracle: the daemon's state is the thing
-  under test), and take a screenshot. `core/scenarios` has the scenarios written
-  against it: `tiling`, `focus`, `moving` and `stacks`, which `core-e2e` runs on KDE and which
-  scenarios of kfw's suite can run unchanged. A method is added with the first scenario
-  that needs it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a
-  `Platform`, and the `core-e2e` suite runs `tiling` through it after its own
-  sections.
+  daemon, run `komorebic`, read the `Snapshot`, open a window, ask whether the
+  daemon put it away (`hidden`), ask the operating system for its frame
+  (`os_window`, the oracle: the daemon's state is the thing under test), and take
+  a screenshot. `core/scenarios` has the scenarios written against it: `tiling`,
+  `focus`, `moving` and `stacks`, which `core-e2e` runs on KDE and which a suite
+  of kfw can run unchanged. A method is added with the first scenario that needs
+  it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a `Platform`, and
+  the `core-e2e` suite runs the scenarios through it after its own sections.
+  [Writing a scenario](#writing-a-scenario) says how to add one.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines
@@ -329,6 +330,36 @@ The script prints where the artifacts (screenshots, logs) are, under
    the VM test's first comment what only a real KWin can tell.
 
 Add `git add -N` for new files first: a flake only sees files git knows about.
+
+## Writing a scenario
+
+A scenario is a function `run(platform, checks, ...)` in
+`nix/tests/vm/lib/komorebi_vm/core/scenarios/`. It is what runs on every
+platform, so it follows four rules:
+
+- It reaches the desktop only through the `Platform`, and the daemon only through
+  `platform.komorebic` and `platform.state()`. It imports nothing from
+  `komorebi_vm.kde`, and it names no compositor, no program and no key of a
+  platform.
+- It asks the operating system where a window is (`platform.os_window`) and
+  never the daemon: the daemon's state is what is under test, so it is read to
+  find out what the daemon believes and compared with what the OS has. A window
+  is told by the title the scenario gave it.
+- It waits for a state with `platform.wait_for`, not with a sleep, and compares
+  frames with `platform.tolerance`, because a client may round its size to what
+  suits it.
+- It is checked against a fake first. `tests/fake_platform.py` is a daemon in
+  memory that follows `focus`, `cycle-focus`, `move`, `cycle-move`, `stack`,
+  `cycle-stack` and `unstack` over three tiles, with switches to make it wrong in
+  one way; a scenario's unit test runs it against the right daemon and against
+  wrong ones, so that a check that cannot fail is found without a VM.
+
+A command the fake does not know is added to the fake with the scenario, and a
+method the scenario needs of a platform is added to the `Platform` protocol, to
+`KdePlatform`, and to the fakes, in the same commit. Then call the scenario from
+a suite, as `core-e2e` does, and run that suite on KVM: a scenario that passes
+the fake and fails on KDE has found a bug in the fake, the library or the daemon.
+`Snapshot.focused_title` was found wrong this way, by the `stacks` scenario.
 
 ## Looking inside a failed run
 
