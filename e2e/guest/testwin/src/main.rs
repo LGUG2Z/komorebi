@@ -13,7 +13,8 @@
 //! exit              leave without closing the window first
 //! ```
 //!
-//! Options: `--title T`, `--color RRGGBB`, `--size WxH`, `--min-size WxH` and
+//! Options: `--title T`, `--class C` (the window class, `KomorebiTestWin` by
+//! default), `--color RRGGBB`, `--size WxH`, `--min-size WxH` and
 //! `--fixed` (not resizable).
 
 #![cfg(windows)]
@@ -77,10 +78,6 @@ use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZEBOX;
 use windows::Win32::UI::WindowsAndMessaging::WS_OVERLAPPEDWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::WS_THICKFRAME;
 use windows::core::PCWSTR;
-use windows::core::w;
-
-/// The window class rules can match on.
-const CLASS: windows::core::PCWSTR = w!("KomorebiTestWin");
 
 /// Posted to the window when a command is waiting in [`COMMANDS`].
 const WM_COMMAND_READY: u32 = WM_APP + 1;
@@ -250,11 +247,17 @@ fn main() -> windows::core::Result<()> {
     let mut title = String::from("komorebi-testwin");
     let mut size = (400, 300);
     let mut fixed = false;
+    let mut class_name = wide("KomorebiTestWin");
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--title" => title = args.next().unwrap_or(title),
+            "--class" => {
+                if let Some(c) = args.next() {
+                    class_name = wide(&c);
+                }
+            }
             "--color" => {
                 if let Some(c) = args.next().as_deref().and_then(parse_color) {
                     COLOR.store(c, Ordering::SeqCst);
@@ -278,7 +281,7 @@ fn main() -> windows::core::Result<()> {
         let class = WNDCLASSW {
             lpfnWndProc: Some(wndproc),
             hInstance: instance.into(),
-            lpszClassName: CLASS,
+            lpszClassName: PCWSTR(class_name.as_ptr()),
             hCursor: LoadCursorW(None, IDC_ARROW)?,
             ..Default::default()
         };
@@ -291,7 +294,7 @@ fn main() -> windows::core::Result<()> {
         let title = wide(&title);
         let hwnd = CreateWindowExW(
             WINDOW_EX_STYLE(0),
-            CLASS,
+            PCWSTR(class_name.as_ptr()),
             PCWSTR(title.as_ptr()),
             style,
             CW_USEDEFAULT,
