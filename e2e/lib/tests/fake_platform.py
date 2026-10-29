@@ -241,6 +241,8 @@ class FakePlatform:
                 self.spaces[int(number)].append([window])
             case ("change-layout", _):
                 pass
+            case ("send-to-monitor", _):
+                pass
             case ("move-to-monitor", number):
                 if int(number) < self.display_count:
                     self.display_of[self.containers[self.focus][0]] = int(number)

@@ -212,3 +212,26 @@ def test_the_sweep_plugs_in_a_second_display_when_there_is_only_one() -> None:
     commands.sweep(platform, checks, clients, config="unused", commands=("focus right",))
     assert platform.display_count == 2
     assert checks.failed == 0, checks.failures
+
+
+def test_a_daemon_that_loses_a_window_sent_to_no_monitor_fails() -> None:
+    class Loses(FakePlatform):
+        def komorebic_status(self, *args: str) -> tuple[int, str]:
+            if args[:1] == ("send-to-monitor",):
+                self.containers[self.focus].clear()
+                return 0, ""
+            return super().komorebic_status(*args)
+
+    platform = Loses()
+    checks = Checks()
+    clients = opened(platform, checks)
+    commands.unknown_monitor(platform, checks, clients)
+    assert any("send-to-monitor 7" in f for f in checks.failures)
+
+
+def test_a_daemon_that_ignores_a_monitor_that_does_not_exist_passes() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    commands.unknown_monitor(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
