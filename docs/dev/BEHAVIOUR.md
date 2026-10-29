@@ -124,7 +124,13 @@ overlap. `core-e2e` failed 7 checks and passed 139: the overlap checks of the su
 tiling and of the `tiling` scenario (two each), the one in the suite that says two windows share
 the screen again after a close, and the "not on each other" checks of `stacks` and of `closing`
 or `lifecycle`. Nothing else turned red, so the checks name what
-is wrong. The same mutation on kfw is for its side to run.
+is wrong.
+
+The same mutation on kfw, in a scratch worktree of `0ffc502c`: all 14 scenarios ran on restored
+guests and 65 checks failed, every one of them about geometry: windows inside the work area, not
+on each other, tiles sharing an edge (the precondition of `resize`), and each of the eight
+`change-layout` lines of the `commands` sweep. `rules` (9) and `placement` (4) stayed green,
+because they only check the order of windows. Nothing else turned red.
 
 ## What is not covered
 
