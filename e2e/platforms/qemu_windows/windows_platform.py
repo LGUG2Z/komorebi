@@ -330,7 +330,16 @@ class WindowsPlatform:
         return result["stdout"]
 
     def state(self) -> Snapshot:
-        return parse(json.loads(self.komorebic("state")))
+        printed = self.komorebic("state")
+        try:
+            return parse(json.loads(printed))
+        except ValueError as e:
+            # a daemon that is busy, or in the middle of a monitor change, can
+            # print something else: a wait retries, and a check that keeps
+            # failing shows what it was
+            raise RuntimeError(
+                f"komorebic state did not print JSON ({e}): {printed[:300]!r}"
+            ) from e
 
     def spawn(
         self, title: str, app_id: str | None = None, exe: str | None = None
