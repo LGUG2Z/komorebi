@@ -23,6 +23,7 @@ use super::compare::CompareData;
 use super::envelope::Envelope;
 use super::framediff::FrameDiffData;
 use super::history::HistoryData;
+use super::lag::LagData;
 use super::logq::LogqData;
 use super::measure::MeasureData;
 use super::motion::MotionData;
@@ -179,6 +180,11 @@ pub const ALL: &[Entry] = &[
         name: "findings/1",
         about: "`findings`: detector findings (with stable ids) and an agent's findings, together",
         schema: of::<super::findings::FindingsData>,
+    },
+    Entry {
+        name: "lag/1",
+        about: "`lag`: episodes of a window off its layout rect (or a border off its window), with duration and offsets",
+        schema: of::<LagData>,
     },
     Entry {
         name: "assert/1",

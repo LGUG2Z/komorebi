@@ -11,6 +11,7 @@ mod assert;
 mod doctor;
 mod findings;
 mod investigate;
+mod lag;
 mod logq;
 pub mod mark;
 pub mod outputs;
@@ -48,6 +49,7 @@ pub use investigate::EventsArgs;
 pub use investigate::StateArgs;
 pub use investigate::TraceArgs;
 pub use investigate::WindowArgs;
+pub use lag::LagArgs;
 pub use logq::LogqArgs;
 pub use query::AtArgs;
 pub use query::FilterArgs;
@@ -154,6 +156,8 @@ pub enum Command {
     Code(CodeArgs),
     /// What the detectors found and what an agent concluded, in one list, with stable ids
     Findings(FindingsArgs),
+    /// How long, and by how much, windows were off the rect komorebi's layout gave them (needs a window track)
+    Lag(LagArgs),
     /// Add, edit or delete a session's bug regions, notes and an agent's findings
     Annotate(AnnotateArgs),
     /// List a session's bug regions, notes and findings
@@ -246,6 +250,7 @@ impl Command {
             Self::Reindex(args) => args.json,
             Self::Selftest(args) => args.json,
             Self::Findings(args) => args.json,
+            Self::Lag(args) => args.json,
             _ => false,
         }
     }
@@ -321,6 +326,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Measure(args) => video::measure(&args),
         Command::Compare(args) => video::compare(&args),
         Command::Findings(args) => findings::findings(&args),
+        Command::Lag(args) => lag::lag(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
         Command::Mark(args) => mark::mark(&args),
