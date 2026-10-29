@@ -1,5 +1,9 @@
 [graph]
-targets = ["aarch64-apple-darwin", "x86_64-pc-windows-msvc"]
+targets = [
+  "aarch64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+]
 all-features = false
 no-default-features = false
 
@@ -9,12 +13,17 @@ feature-depth = 1
 [advisories]
 ignore = [
   { id = "RUSTSEC-2026-0192", reason = "ttf-parser is unmaintained and has no safe upgrade; it is reached only through egui's font stack (eframe, egui, epaint, ab_glyph, owned_ttf_parser)" },
+  { id = "RUSTSEC-2026-0370", reason = "zvariant is unmaintained and has no safe upgrade; it is reached through zbus, which the Linux host listens for sleep and the screen lock with, and which eframe's accessibility layer (accesskit_unix) uses too" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names is unmaintained and has no safe upgrade; it is reached through zbus (see RUSTSEC-2026-0370)" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is unmaintained and has no safe upgrade; it is reached through zbus (see RUSTSEC-2026-0370)" },
 ]
 
 [licenses]
 allow = [
   "0BSD",
   "Apache-2.0",
+  # target-lexicon, which the GStreamer bindings' build reads the target with on Linux
+  "Apache-2.0 WITH LLVM-exception",
   # clipboard-win's error-code, which eframe pulls in on Windows
   "BSL-1.0",
   "BSD-2-Clause",
