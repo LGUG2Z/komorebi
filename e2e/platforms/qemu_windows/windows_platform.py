@@ -36,6 +36,9 @@ ANSI = re.compile(r"\x1b\[[0-9;]*m")
 # a daemon that exited at start is launched again, this many times in all
 LAUNCHES = 3
 # the static configuration `restart_with` writes
+POLICY_SYSTEM = "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System"
+# the account the image logs in to
+PASSWORD = "komorebi"
 CONFIG_PATH = "C:\\e2e\\komorebi.json"
 
 
@@ -102,7 +105,7 @@ class WindowsPlatform:
         self._ports_used = 0
 
     def has(self, feature: str) -> bool:
-        return feature == "pointer"
+        return feature in ("pointer", "lock")
 
     @property
     def pointer(self) -> WindowsPointer:
@@ -211,6 +214,68 @@ class WindowsPlatform:
         self._agent.put_file(local, CONFIG_PATH)
         self.start_komorebi(config=CONFIG_PATH)
 
+    def rewrite_config(self, config: dict) -> None:
+        local = self._out / "komorebi.json"
+        local.write_text(json.dumps(config, indent=2))
+        self._agent.put_file(local, CONFIG_PATH)
+        # the daemon reads the file again when told to: it does not watch it
+        self.komorebic("replace-configuration", CONFIG_PATH)
+
+    def _locked(self) -> bool:
+        listing = self._agent.exec(
+            "tasklist", "/fi", "imagename eq LogonUI.exe"
+        )["stdout"]
+        return "LogonUI.exe" in listing
+
+    def lock(self) -> None:
+        # the image forbids locking (it has no use for a lock screen): allow
+        # it for this guest
+        self._agent.exec(
+            "reg", "add", POLICY_SYSTEM, "/v", "DisableLockWorkstation",
+            "/t", "REG_DWORD", "/d", "0", "/f",
+        )
+        self._agent.exec("rundll32.exe", "user32.dll,LockWorkStation")
+        if not self.wait_for(self._locked, timeout=20):
+            raise RuntimeError("the screen did not lock")
+
+    def unlock(self) -> None:
+        # a key to wake the sign-in screen, then the password of the account
+        # the image logs in to (autounattend.xml)
+        self._qmp.key("shift")
+        time.sleep(2 * self._scale)
+        for ch in PASSWORD:
+            self._qmp.key(ch)
+        self._qmp.key("ret")
+        if not self.wait_for(lambda: not self._locked(), timeout=30):
+            raise RuntimeError("the screen did not unlock")
+
+    def move_window(self, client: Client, x: int, y: int) -> None:
+        window = self._find(client.title)
+        if window is None:
+            raise RuntimeError(f"no window titled {client.title!r}")
+
+        def set_position(left: int, top: int) -> None:
+            # SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            result = self._agent.exec(
+                "powershell", "-NoProfile", "-Command",
+                "Add-Type -Name W -Namespace K -MemberDefinition "
+                "'[DllImport(\"user32.dll\")] public static extern bool "
+                "SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, "
+                "int cy, uint f);'; "
+                f"[K.W]::SetWindowPos([IntPtr]{window['hwnd']}, "
+                f"[IntPtr]::Zero, {left}, {top}, 0, 0, 0x15)",
+            )
+            if "True" not in result["stdout"]:
+                raise RuntimeError(f"could not move {client.title!r}: {result}")
+
+        set_position(int(x), int(y))
+        # the frame the OS reports leaves out the invisible border of the
+        # window: move again by what is left to the corner asked for
+        moved = self.os_window(client)
+        if moved is not None and (moved.frame.x, moved.frame.y) != (x, y):
+            f = moved.frame
+            set_position(int(x) - (f.x - int(x)), int(y) - (f.y - int(y)))
+
     def _wait_answering(self) -> None:
         def answers() -> bool:
             try:
@@ -233,10 +298,22 @@ class WindowsPlatform:
     def state(self) -> Snapshot:
         return parse(json.loads(self.komorebic("state")))
 
-    def spawn(self, title: str) -> Client:
-        self._agent.spawn(
-            f"{GUEST_BIN}\\komorebi-testwin.exe", "--title", title
-        )
+    def spawn(
+        self, title: str, app_id: str | None = None, exe: str | None = None
+    ) -> Client:
+        args = ["--title", title]
+        if app_id is not None:
+            args += ["--class", app_id]
+        program = f"{GUEST_BIN}\\komorebi-testwin.exe"
+        if exe is not None:
+            if not re.fullmatch(r"[A-Za-z0-9_-]+", exe):
+                raise ValueError(f"not a program name: {exe!r}")
+            # a program of that name, for a rule that matches by it
+            program = f"{GUEST_BIN}\\{exe}.exe"
+            self._agent.exec(
+                "cmd", "/c", f"copy /y {GUEST_BIN}\\komorebi-testwin.exe {program}"
+            )
+        self._agent.spawn(program, *args)
         if not self.wait_for(lambda: self._find(title) is not None):
             raise RuntimeError(f"no window titled {title!r} appeared")
         return Client(title)
@@ -328,6 +405,12 @@ class WindowsPlatform:
         if window is None:
             raise RuntimeError(f"no window titled {client.title!r}")
         self._agent.call("activate", hwnd=window["hwnd"])
+
+    def minimize(self, client: Client) -> None:
+        window = self._find(client.title)
+        if window is None:
+            raise RuntimeError(f"no window titled {client.title!r}")
+        self._agent.call("minimize", hwnd=window["hwnd"])
 
     def screenshot(self, name: str) -> Image.Image:
         path = self._out / f"{name}.png"
