@@ -226,3 +226,21 @@ def test_acting_on_a_window_that_is_not_there_raises_a_clear_error() -> None:
                 platform.fullscreen, platform.user_maximize):
         with pytest.raises(RuntimeError, match="no window titled 'gone'"):
             act(gone)
+
+
+def test_a_guest_that_died_says_how_and_a_live_one_says_nothing(tmp_path: Path) -> None:
+    guest = Guest(Path("golden"), tmp_path)
+    live = subprocess.Popen(["sleep", "5"])
+    guest._procs.append(live)
+    assert guest.died() is None
+    live.kill()
+    live.wait()
+
+    dead = subprocess.Popen(["sh", "-c", "kill -ABRT $$"])
+    dead.wait()
+    dead.args = ["qemu-system-x86_64"]
+    (tmp_path / "qemu-system-x86_64.err").write_text("assertion failed\nAborted\n")
+    guest._procs = [dead]
+
+    assert "signal 6" in guest.died()
+    assert "assertion failed" in guest.died()

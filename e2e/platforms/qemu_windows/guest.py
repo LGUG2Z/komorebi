@@ -183,7 +183,24 @@ class Guest:
         shutil.copytree(self._run / "tpm", dest / "tpm", dirs_exist_ok=True)
 
     def _start(self, argv: list[str]) -> None:
-        self._procs.append(subprocess.Popen(argv))
+        # what a program writes to stderr is kept: it says why QEMU aborted
+        log = self._run / f"{Path(argv[0]).name}.err"
+        with open(log, "wb") as err:
+            self._procs.append(subprocess.Popen(argv, stderr=err))
+
+    def died(self) -> str | None:
+        """Why QEMU has exited, if it has while the guest was in use (a signal
+        that killed it, and the last of what it wrote), else `None`."""
+        for proc in self._procs:
+            code = proc.poll()
+            if code is None or proc.args[0] != "qemu-system-x86_64":
+                continue
+            log = self._run / "qemu-system-x86_64.err"
+            tail = log.read_text(errors="replace").strip().splitlines()[-5:] \
+                if log.exists() else []
+            how = f"signal {-code}" if code < 0 else f"status {code}"
+            return f"QEMU exited with {how}: " + " | ".join(tail)
+        return None
 
     def upload(self, local_dir: Path, names: list[str]) -> None:
         """Puts binaries under test in the guest's `C:\\e2e\\bin`."""

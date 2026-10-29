@@ -64,6 +64,10 @@ PLACEMENT_INTEGER_BUG = (
 )
 
 
+class GuestDied(RuntimeError):
+    """QEMU exited while a scenario was running: not what kfw did."""
+
+
 class RecordedChecks(Checks):
     """`Checks` that also keeps each check, for the result file."""
 
@@ -423,13 +427,20 @@ def run_one(
             print(f"     AGENT LOST: {e}")
             checks.bad(str(e))
             _fetch_logs(guest, out)
-        except Exception:
+        except Exception as e:
+            died = guest.died()
+            if died:
+                # the guest is gone, so there is nothing to fetch from it
+                raise GuestDied(died) from e
             _fetch_logs(guest, out)
             raise
         finally:
             lap("scenario")
             print(f"     seconds: {timings}")
-            platform.screenshot(f"final-{name}")
+            try:
+                platform.screenshot(f"final-{name}")
+            except Exception:
+                pass
             if recorder:
                 _collect_recording(platform, out)
             # matches a recorder session directory with the run that made it
@@ -461,9 +472,17 @@ def main(argv: list[str]) -> int:
         state = ensure(Path(golden), Path(os.environ["KOMOREBI_E2E_STATE"]))
     for name in names:
         try:
-            checks = run_one(
-                Path(golden), Path(bin_dir), Path(out) / name, name, state
-            )
+            try:
+                checks = run_one(
+                    Path(golden), Path(bin_dir), Path(out) / name, name, state
+                )
+            except GuestDied as e:
+                # QEMU itself aborted (it has, while a display was plugged in):
+                # not a result about kfw, so the scenario runs once more
+                print(f"{name}: THE GUEST DIED ({e}); running it again")
+                checks = run_one(
+                    Path(golden), Path(bin_dir), Path(out) / name, name, state
+                )
         except Exception:
             # a scenario that cannot run is a failure of its own, and the
             # others still run
