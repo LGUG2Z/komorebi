@@ -32,6 +32,9 @@ class FakePlatform:
         i = self.opened.index(client.title)
         return OsWindow(client.title, self.frames[i], focused=False)
 
+    def hidden(self, client: Client) -> bool:
+        return False
+
     def work_area(self) -> Rect:
         return Rect(0, 0, 1920, 1080)
 

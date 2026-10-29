@@ -150,10 +150,10 @@ the run.
   ports' serializers; recorded states replace them once a run on each port
   exists.
 - `Platform` (`core/platform.py`) is what a scenario needs of a platform: start the
-  daemon, run `komorebic`, read the `Snapshot`, open a window, ask the operating
+  daemon, run `komorebic`, read the `Snapshot`, open a window, ask whether the daemon put it away (`hidden`), ask the operating
   system for its frame (`os_window`, the oracle: the daemon's state is the thing
   under test), and take a screenshot. `core/scenarios` has the scenarios written
-  against it: `tiling`, `focus` and `moving`, which `core-e2e` runs on KDE and which
+  against it: `tiling`, `focus`, `moving` and `stacks`, which `core-e2e` runs on KDE and which
   scenarios of kfw's suite can run unchanged. A method is added with the first scenario
   that needs it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a
   `Platform`, and the `core-e2e` suite runs `tiling` through it after its own

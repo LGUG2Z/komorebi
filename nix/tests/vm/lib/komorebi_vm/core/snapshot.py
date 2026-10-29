@@ -41,6 +41,8 @@ class Workspace:
     containers: list[list[Window]]
     """The tiled containers, in order, each with its stack of windows."""
     focused_container: int
+    focused_windows: list[int]
+    """For each container, the place in it of the window that has the focus (a stack's top)."""
     monocle: list[Window] | None
     """The windows of the monocle container, or `None` when the workspace is not in monocle."""
     maximized: Window | None
@@ -96,8 +98,11 @@ class Snapshot:
         ws = self.workspace(workspace, monitor)
         if not ws.containers:
             return ""
-        container = ws.containers[min(ws.focused_container, len(ws.containers) - 1)]
-        return container[0].title if container else ""
+        index = min(ws.focused_container, len(ws.containers) - 1)
+        container = ws.containers[index]
+        if not container:
+            return ""
+        return container[min(ws.focused_windows[index], len(container) - 1)].title
 
 
 def _ring(value: dict[str, Any]) -> list[Any]:
@@ -144,6 +149,7 @@ def _workspace(value: dict[str, Any]) -> Workspace:
         tile=bool(value.get("tile", True)),
         containers=containers,
         focused_container=_focused(value["containers"]),
+        focused_windows=[_focused(c["windows"]) for c in _ring(value["containers"])],
         monocle=[_window(w) for w in _ring(monocle["windows"])] if monocle else None,
         maximized=_window(maximized) if maximized else None,
         floating=[_window(w) for w in _ring(value["floating_windows"])],

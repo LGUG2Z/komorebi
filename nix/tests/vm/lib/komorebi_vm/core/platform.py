@@ -73,6 +73,15 @@ class Platform(Protocol):
         """What the operating system says about the window, or `None` if it has none."""
         ...
 
+    def hidden(self, client: Client) -> bool:
+        """The window exists but is out of sight because the daemon put it away: the other windows
+        of a stack, the windows of another workspace, those behind a monocle.
+
+        That is a window parked on a desktop of its own on KDE, and cloaked on Windows. A window
+        the user minimized is not hidden in this sense.
+        """
+        ...
+
     def work_area(self) -> Rect:
         """The area of the first display that windows may take."""
         ...

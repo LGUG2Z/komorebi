@@ -20,8 +20,8 @@ class FakePlatform:
     tolerance = 24
 
     def __init__(self, *, moves: bool = True, focus_follows_move: bool = True) -> None:
-        self.order: list[str] = []
-        """The titles in the order of the tiles."""
+        self.containers: list[list[str]] = []
+        """The stack of each container, in the order of the tiles; the first is in view."""
         self.focus = 0
         self.moves = moves
         self.focus_follows_move = focus_follows_move
@@ -32,27 +32,43 @@ class FakePlatform:
     def start_komorebi(self) -> None:
         pass
 
+    @property
+    def order(self) -> list[str]:
+        """The titles in view, in the order of the tiles."""
+        return [stack[0] for stack in self.containers]
+
     def spawn(self, title: str) -> Client:
-        self.order.append(title)
+        self.containers.append([title])
         return Client(title)
+
+    def _container(self, title: str) -> int:
+        return next(i for i, stack in enumerate(self.containers) if title in stack)
+
+    def hidden(self, client: Client) -> bool:
+        stack = self.containers[self._container(client.title)]
+        return stack[0] != client.title
 
     def work_area(self) -> Rect:
         return Rect(0, 0, 1920, 1080)
 
     def activate(self, client: Client) -> None:
-        self.focus = self.order.index(client.title)
+        self.focus = self._container(client.title)
+        stack = self.containers[self.focus]
+        stack.insert(0, stack.pop(stack.index(client.title)))
 
     def screenshot(self, name: str) -> Image.Image:
         return Image.new("RGB", (4, 4))
 
     def os_window(self, client: Client) -> OsWindow | None:
-        if client.title not in self.order:
-            return None
-        i = self.order.index(client.title)
-        return OsWindow(client.title, TILES[i], focused=i == self.focus)
+        i = self._container(client.title)
+        return OsWindow(
+            client.title,
+            TILES[i],
+            focused=i == self.focus and self.containers[i][0] == client.title,
+        )
 
     def komorebic(self, *args: str) -> str:
-        n = len(self.order)
+        n = len(self.containers)
         match args:
             case ("focus", "right"):
                 self.focus = min(self.focus + 1, n - 1)
@@ -66,6 +82,17 @@ class FakePlatform:
                 self._swap(min(self.focus + 1, n - 1))
             case ("cycle-move", "previous"):
                 self._swap((self.focus - 1) % n)
+            case ("stack", "left"):
+                if self.focus > 0:
+                    stack = self.containers.pop(self.focus)
+                    self.focus -= 1
+                    self.containers[self.focus][:0] = stack
+            case ("cycle-stack", "next" | "previous" as way):
+                stack = self.containers[self.focus]
+                stack.append(stack.pop(0)) if way == "next" else stack.insert(0, stack.pop())
+            case ("unstack",):
+                stack = self.containers.pop(self.focus)
+                self.containers[self.focus : self.focus] = [[t] for t in stack]
             case _:
                 raise AssertionError(f"the fake does not know komorebic {args}")
         return ""
@@ -73,25 +100,31 @@ class FakePlatform:
     def _swap(self, other: int) -> None:
         if not self.moves:
             return
-        self.order[self.focus], self.order[other] = self.order[other], self.order[self.focus]
+        self.containers[self.focus], self.containers[other] = (
+            self.containers[other],
+            self.containers[self.focus],
+        )
         if self.focus_follows_move:
             self.focus = other
 
     def state(self) -> Snapshot:
-        windows = [
-            {
-                "id": i + 1,
-                "rect": {"left": r.x, "top": r.y, "right": r.w, "bottom": r.h},
-                "details": {"title": t, "exe": "", "class": "", "path": ""},
+        def window(title: str, tile: Rect) -> dict[str, Any]:
+            return {
+                "id": hash(title) % 1000,
+                "rect": {"left": tile.x, "top": tile.y, "right": tile.w, "bottom": tile.h},
+                "details": {"title": title, "exe": "", "class": "", "path": ""},
             }
-            for i, (t, r) in enumerate(zip(self.order, TILES, strict=False))
-        ]
+
         workspace = {
             "name": None,
             "containers": {
                 "elements": [
-                    {"id": str(i), "locked": False, "windows": {"elements": [w], "focused": 0}}
-                    for i, w in enumerate(windows)
+                    {
+                        "id": str(i),
+                        "locked": False,
+                        "windows": {"elements": [window(t, TILES[i]) for t in stack], "focused": 0},
+                    }
+                    for i, stack in enumerate(self.containers)
                 ],
                 "focused": self.focus,
             },

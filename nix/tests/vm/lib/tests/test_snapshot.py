@@ -97,3 +97,12 @@ def test_a_monocle_container_lists_its_windows() -> None:
         "windows": ring(kfde_window(1, "win1", rect(0, 0, 1920, 1040))),
     }
     assert [w.title for w in parse(state).workspace().monocle or []] == ["win1"]
+
+
+def test_the_focused_window_of_a_stack_is_the_one_the_ring_names() -> None:
+    state = scene(kfde_window, {}, {})
+    workspace = state["monitors"]["elements"][0]["workspaces"]["elements"][0]
+    stack = workspace["containers"]["elements"][1]["windows"]
+    stack["elements"].append(kfde_window(4, "under", rect(960, 0, 960, 1080)))
+    stack["focused"] = 1
+    assert parse(state).focused_title() == "under"

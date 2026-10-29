@@ -11,6 +11,8 @@ from komorebi_vm.kde import Kde
 
 # foot sizes itself to whole cells of its font, so its frame can be short of the one asked for
 CELL = 24
+# the desktop that komorebi puts the windows it hides on, which is the last one
+PARK = "komorebi-park"
 
 
 class KdePlatform:
@@ -49,6 +51,13 @@ class KdePlatform:
         if wid == "":
             return None
         return OsWindow(client.title, self.kde.rect(wid), self.kde.active() == wid)
+
+    def hidden(self, client: Client) -> bool:
+        names = self.kde.desktop_names()
+        wid = self.kde.wid(client.title)
+        if PARK not in names or wid == "":
+            return False
+        return self.kde.desk(wid) == names.index(PARK) + 1
 
     def work_area(self) -> Rect:
         return Rect(0, 0, *self.size)
