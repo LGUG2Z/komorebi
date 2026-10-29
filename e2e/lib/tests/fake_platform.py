@@ -5,6 +5,7 @@ real daemon does with windows laid out left to right, so that a scenario can be 
 that is right, and against ones that are wrong in one way.
 """
 
+import json
 from typing import Any
 
 from PIL import Image
@@ -14,7 +15,21 @@ from komorebi_vm.core.platform import Client, OsWindow
 from komorebi_vm.core.scenarios.commands import PRINTED
 from komorebi_vm.core.snapshot import Snapshot, parse
 
-TILES = [Rect(0, 0, 640, 1080), Rect(640, 0, 640, 1080), Rect(1280, 0, 640, 1080)]
+SCREEN = Rect(0, 0, 1920, 1080)
+# what a maximized window is not in, so that asking it does nothing
+ASKED_OF_THE_LAYOUT = (
+    "move",
+    "stack",
+    "unstack",
+    "cycle-move",
+    "promote",
+    "toggle-float",
+    "toggle-monocle",
+    "resize-edge",
+    "send-to-workspace",
+    "move-to-workspace",
+    "toggle-lock",
+)
 
 
 def _place_index(place: str, count: int) -> int:
@@ -60,8 +75,68 @@ class FakePlatform:
         follows_pointer: bool = True,
         reloads: bool = True,
         retiles_on_unlock: bool = True,
+        panel: int = 0,
+        ignores_panel: bool = False,
+        second: Rect | None = None,
+        follows_renames: bool = True,
+        honours_ignore: bool = True,
+        unmanages: bool = True,
+        manages: bool = True,
+        loads_resize: bool = True,
+        answers_queries: bool = True,
+        matches_class: bool = True,
+        applies_rules_on_event: bool = True,
+        clears_rules: bool = True,
+        cycles_in_monocle: bool = True,
+        no_op_in_monocle: bool = True,
+        follows_user_moves: bool = True,
+        resizable: bool = True,
+        follows_modes: bool = True,
+        keeps_fullscreen: bool = True,
+        leaves_hidden_on_crash: bool = False,
+        ignores_commands_when_maximized: bool = True,
     ) -> None:
-        self.tiles = list(TILES)
+        self.panel = panel
+        """The height of a panel along the bottom of the first display, which the work area leaves
+        out."""
+        self.ignores_panel = ignores_panel
+        """A daemon that tiles on the whole display, under the panel."""
+        self.second = second
+        """The rectangle of the second display, when it is not one of the first's size."""
+        self.keeps_fullscreen = keeps_fullscreen
+        self.leaves_hidden_on_crash = leaves_hidden_on_crash
+        self.stuck: set[str] = set()
+        """The windows a daemon that crashed left out of sight, which no daemon found again."""
+        self.ignores_commands_when_maximized = ignores_commands_when_maximized
+        self.fullscreened: str | None = None
+        self.max_home: tuple[int, int] | None = None
+        """Where the window the user maximized was, to put it back."""
+        self.resizable = resizable
+        self.follows_modes = follows_modes
+        self.mode: dict[int, tuple[int, int]] = {}
+        """The mode of the displays that are not 1920 by 1080."""
+        self.follows_user_moves = follows_user_moves
+        self.cycles_in_monocle = cycles_in_monocle
+        self.no_op_in_monocle = no_op_in_monocle
+        self.monocle_cycles = False
+        """The behaviour `monocle-focus-behaviour` set: focusing in a monocle cycles it."""
+        self.applies_rules_on_event = applies_rules_on_event
+        self.clears_rules = clears_rules
+        self.matches_class = matches_class
+        self.loads_resize = loads_resize
+        self.answers_queries = answers_queries
+        self.saved: dict[str, list[Rect]] = {}
+        """The tiles of each resize that `save-resize` saved, by its path."""
+        self.unmanages = unmanages
+        self.manages = manages
+        self.let_go: list[str] = []
+        """The windows `unmanage` let go of, the last one at the end."""
+        self.follows_renames = follows_renames
+        self.honours_ignore = honours_ignore
+        self.clock = 0.0
+        self.renames: list[tuple[float, str, str]] = []
+        """The windows that will give themselves a title: when, the old one, the new one."""
+        self.tiles = self._base()
         self.has_pointer = pointer
         self.follows_pointer = follows_pointer
         self.spaces: list[list[list[str]]] = [[], [], []]
@@ -108,6 +183,26 @@ class FakePlatform:
         self.moves = moves
         self.focus_follows_move = focus_follows_move
 
+    @property
+    def area(self) -> Rect:
+        """What windows may take of the first display."""
+        return Rect(0, 0, SCREEN.w, SCREEN.h - self.panel)
+
+    @property
+    def tiled_area(self) -> Rect:
+        """What the daemon tiles on: the work area, or the display for a daemon that ignores the
+        panel."""
+        return SCREEN if self.ignores_panel else self.area
+
+    def _base(self) -> list[Rect]:
+        a = self.tiled_area
+        return [Rect(i * a.w // 3, 0, a.w // 3, a.h) for i in range(3)]
+
+    def crash(self) -> None:
+        if self.leaves_hidden_on_crash:
+            self.stuck = {t for stack in self.containers for t in stack if self.hidden(Client(t))}
+        self.running = False
+
     def has(self, feature: str) -> bool:
         return feature == "lock" or (feature == "pointer" and self.has_pointer)
 
@@ -122,6 +217,10 @@ class FakePlatform:
     def move_window(self, client: Client, x: int, y: int) -> None:
         here = self.os_window(client)
         assert here is not None
+        target = min(max(x, 0) // 1920, self.display_count - 1)
+        if self.follows_user_moves and target != self.display_of.get(client.title, 0):
+            self.display_of[client.title] = target
+            return
         self.moved[client.title] = Rect(x, y, here.frame.w, here.frame.h)
 
     @property
@@ -134,14 +233,34 @@ class FakePlatform:
         if not self.follows_pointer:
             return
         for i, tile in enumerate(self.tiles[:-1]):
-            if abs(start[0] - (tile.x + tile.w + 4)) <= 1:
+            right_of_it = abs(start[0] - (tile.x + tile.w + 4)) <= 1
+            left_of_next = abs(start[0] - (self.tiles[i + 1].x - 4)) <= 1
+            if right_of_it or left_of_next:
                 a, b = tile, self.tiles[i + 1]
                 self.tiles[i] = Rect(a.x, a.y, a.w + dx, a.h)
                 self.tiles[i + 1] = Rect(b.x + dx, b.y, b.w - dx, b.h)
                 return
 
     def wait_for(self, predicate: Any, timeout: float = 10) -> bool:
+        """Time passes by `timeout`, and the windows that were to rename themselves have."""
+        self.clock += timeout
+        for entry in [r for r in self.renames if r[0] <= self.clock]:
+            self.renames.remove(entry)
+            self._rename(entry[1], entry[2])
         return bool(predicate())
+
+    def _rename(self, old: str, new: str) -> None:
+        for table in (self.exes, self.classes):
+            if old in table:
+                table[new] = table.pop(old)
+        if old not in self.unmanaged or not self.follows_renames:
+            for stack in [s for cs in self.spaces for s in cs]:
+                stack[:] = [new if t == old else t for t in stack]
+            self.unmanaged[:] = [new if t == old else t for t in self.unmanaged]
+            return
+        self.unmanaged.remove(old)
+        self.containers.append([new])
+        self._relayout()
 
     def start_komorebi(self) -> None:
         """A new daemon knows nothing: every window is tiled on the first workspace."""
@@ -172,7 +291,16 @@ class FakePlatform:
         """The titles in view, in the order of the tiles."""
         return [stack[0] for stack in self.containers]
 
-    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+    def spawn(
+        self,
+        title: str,
+        app_id: str | None = None,
+        exe: str | None = None,
+        rename_to: str | None = None,
+        after: float = 0,
+    ) -> Client:
+        if rename_to is not None:
+            self.renames.append((self.clock + after, title, rename_to))
         self.exes[title] = exe or "foot"
         self.classes[title] = app_id or ""
         forced = (
@@ -199,7 +327,7 @@ class FakePlatform:
         if self.paused:
             self.unmanaged.append(title)
             return Client(title)
-        if any(title.startswith(i) for i in self.ignored):
+        if self.honours_ignore and any(title.startswith(i) for i in self.ignored):
             self.unmanaged.append(title)
         elif title in self.initial_rules:
             self.spaces[self.initial_rules.pop(title)].append([title])
@@ -211,8 +339,11 @@ class FakePlatform:
             self._place(title)
         else:
             self.containers.append([title])
-        if len(self.containers) > len(self.tiles):
-            self._relayout()
+        self._relayout()
+        if not self.keeps_fullscreen:
+            self.fullscreened = None
+        if self.applies_rules_on_event:
+            self.komorebic("enforce-workspace-rules")
         return Client(title)
 
     def _place(self, title: str) -> None:
@@ -224,8 +355,11 @@ class FakePlatform:
         if isinstance(rules, dict):
             for place, matches in rules.items():
                 for match in matches if isinstance(matches, list) else [matches]:
+                    if match["kind"] == "Class" and not self.matches_class:
+                        continue
                     equals = match["matching_strategy"] == "Equals"
-                    if (title == match["id"]) if equals else (match["id"] in title):
+                    value = self.classes.get(title, "") if match["kind"] == "Class" else title
+                    if (value == match["id"]) if equals else (match["id"] in value):
                         index = _place_index(place, n)
         elif rules is not None:
             index = 0 if rules == "Primary" else int(rules) - 1
@@ -279,7 +413,26 @@ class FakePlatform:
         raise KeyError(title)
 
     def displays(self) -> list[Rect]:
-        return [Rect(i * 1920, 0, 1920, 1080) for i in range(self.display_count)]
+        return [SCREEN, *self._others()][: self.display_count]
+
+    def resizable_display(self) -> int | None:
+        return self.display_count - 1 if self.resizable and self.display_count > 1 else None
+
+    def resize_display(self, index: int, width: int, height: int) -> None:
+        self.mode[index] = (width, height)
+
+    def _others(self) -> list[Rect]:
+        """The displays after the first, side by side to its right."""
+        found = []
+        x = SCREEN.w
+        for n in range(1, max(self.display_count, 1)):
+            size = self.second if self.second is not None and n == 1 else SCREEN
+            width, height = (size.w, size.h)
+            if self.follows_modes:
+                width, height = self.mode.get(n, (width, height))
+            found.append(Rect(x, 0, width, height))
+            x += width
+        return found
 
     def add_display(self) -> None:
         self.display_count += 1
@@ -312,24 +465,28 @@ class FakePlatform:
 
     def _relayout(self) -> None:
         """The tiles of each workspace share the work area in equal columns."""
-        self.tiles = list(TILES)
+        base = self._base()
+        self.tiles = list(base)
         n = len(self.containers)
         if n:
+            area = self.tiled_area
             w, c = self.workspace_padding, self.container_padding
-            width = (1920 - 2 * w) // n
+            width = (area.w - 2 * w) // n
             self.tiles = [
-                Rect(w + i * width + c, w + c, width - 2 * c, 1080 - 2 * w - 2 * c)
+                Rect(w + i * width + c, w + c, width - 2 * c, area.h - 2 * w - 2 * c)
                 for i in range(n)
-            ] + list(TILES[n:])
+            ] + list(base[n:])
             if self.flipped:
-                self.tiles = [Rect(1920 - t.x - t.w, t.y, t.w, t.h) for t in self.tiles[:n]] + list(
-                    TILES[n:]
-                )
+                self.tiles = [
+                    Rect(area.w - t.x - t.w, t.y, t.w, t.h) for t in self.tiles[:n]
+                ] + list(base[n:])
 
     def _container(self, title: str) -> int:
         return self._find(title)[1]
 
     def hidden(self, client: Client) -> bool:
+        if client.title in self.stuck:
+            return True
         if client.title in self.floats or client.title in self.minimized:
             return False
         if client.title in self.unmanaged:
@@ -339,7 +496,27 @@ class FakePlatform:
         return s != self.current or self.spaces[s][i][0] != client.title or away
 
     def work_area(self) -> Rect:
-        return Rect(0, 0, 1920, 1080)
+        return self.area
+
+    def fullscreen(self, client: Client, on: bool = True) -> None:
+        self.fullscreened = client.title if on else None
+
+    def user_maximize(self, client: Client, on: bool = True) -> None:
+        if on:
+            self.max_home = self._find(client.title)
+            self._find_remove(client.title)
+            self.maximized = client.title
+            self.focus = max(0, min(self.focus, len(self.containers) - 1))
+        elif self.maximized == client.title:
+            self._restore_maximized()
+        self._relayout()
+
+    def _restore_maximized(self) -> None:
+        if self.max_home is not None and self.maximized is not None:
+            space, index = self.max_home
+            self.spaces[space].insert(min(index, len(self.spaces[space])), [self.maximized])
+        self.max_home = None
+        self.maximized = None
 
     def minimize(self, client: Client) -> None:
         self._find_remove(client.title)
@@ -362,9 +539,14 @@ class FakePlatform:
     def exe_id(self, program: str) -> str:
         return program
 
+    def temp_path(self, name: str) -> str:
+        return f"/tmp/{name}"
+
     def os_window(self, client: Client) -> OsWindow | None:
-        if client.title == self.maximized:
+        if client.title == self.fullscreened:
             return OsWindow(client.title, Rect(0, 0, 1920, 1080), focused=True)
+        if client.title == self.maximized:
+            return OsWindow(client.title, self.tiled_area, focused=True)
         if client.title in self.minimized:
             return OsWindow(client.title, Rect(0, 0, 0, 0), focused=False)
         if client.title in self.floats:
@@ -376,15 +558,24 @@ class FakePlatform:
         except KeyError:
             return None
         if self.monocle == client.title:
-            return OsWindow(client.title, Rect(0, 0, 1920, 1080), focused=True)
+            return OsWindow(client.title, self.tiled_area, focused=True)
         focused = (
             s == self.current and i == self.focuses[s] and self.spaces[s][i][0] == client.title
         )
-        tile = self.tiles[i]
-        shift = 1920 * self.display_of.get(client.title, 0)
+        elsewhere = self.display_of.get(client.title, 0)
+        rank = sum(
+            1
+            for stack in self.spaces[s][:i]
+            if stack and self.display_of.get(stack[0], 0) == elsewhere
+        )
+        tile = self.tiles[rank]
         if client.title in self.moved:
             return OsWindow(client.title, self.moved[client.title], focused=focused)
-        return OsWindow(client.title, Rect(tile.x + shift, tile.y, tile.w, tile.h), focused=focused)
+        if elsewhere:
+            d = self.displays()[elsewhere]
+            frame = Rect(d.x + tile.x, d.y + tile.y, min(tile.w, d.w), min(tile.h, d.h))
+            return OsWindow(client.title, frame, focused=focused)
+        return OsWindow(client.title, tile, focused=focused)
 
     def komorebic_status(self, *args: str) -> tuple[int, str]:
         """The fake's answer as a real `komorebic` gives it: exit 0, or 2 for what it lacks."""
@@ -399,6 +590,10 @@ class FakePlatform:
 
     def komorebic(self, *args: str) -> str:
         n = len(self.containers)
+        # a daemon that is wrong obeys one of them, to be told by the windows that moved
+        obeyed = not self.ignores_commands_when_maximized and args[0] == "promote"
+        if self.maximized is not None and args[0] in ASKED_OF_THE_LAYOUT and not obeyed:
+            return ""
         match args:
             case ("stop",):
                 self.running = False
@@ -406,6 +601,13 @@ class FakePlatform:
                 self.follows_mouse = state == "enable" and not self.mouse_ignored
             case ("toggle-focus-follows-mouse", *_):
                 self.follows_mouse = not self.follows_mouse and not self.mouse_ignored
+            case ("monocle-focus-behaviour", way):
+                self.monocle_cycles = way == "cycle"
+            case ("focus", "right") if self.monocle is not None:
+                cycles = self.monocle_cycles if self.no_op_in_monocle else True
+                if cycles and self.cycles_in_monocle:
+                    self.focus = (self.focus + 1) % n
+                    self.monocle = self.containers[self.focus][0]
             case ("focus", "right"):
                 self.focus = min(self.focus + 1, n - 1)
             case ("focus", "left"):
@@ -433,8 +635,8 @@ class FakePlatform:
                     self.containers.pop(self.focus)
                     self.focus = max(0, min(self.focus, len(self.containers) - 1))
                 self.spaces[int(number)].append([window])
-            case ("change-layout", _):
-                pass
+            case ("change-layout", name):
+                self.layout_name = "BSP" if name == "bsp" else name.title()
             case ("send-to-monitor", _):
                 pass
             case ("move-to-monitor", number):
@@ -444,11 +646,18 @@ class FakePlatform:
                 top = self.containers[self.focus][0]
                 self.monocle = None if self.monocle else top
             case ("ensure-workspaces", _, _) | ("clear-all-workspace-rules",):
-                if args[0] == "clear-all-workspace-rules":
+                if args[0] == "clear-all-workspace-rules" and self.clears_rules:
                     self.class_rules.clear()
                     self.exe_rules.clear()
                     self.rules.clear()
                     self.initial_rules.clear()
+            case ("global-state",):
+                rules = [*self.rules, *self.initial_rules, *self.class_rules, *self.exe_rules]
+                return json.dumps({"workspace_rules": rules})
+            case ("workspace-name", _, index, name):
+                self.names[int(index)] = name
+            case ("named-workspace-rule", "title", title, name):
+                self.rules[title] = self.names.index(name)
             case ("initial-workspace-rule", "title", title, _, number):
                 self.initial_rules[title] = int(number)
             case ("workspace-rule", "title", title, _, number):
@@ -490,7 +699,11 @@ class FakePlatform:
                 self.container_padding = int(size)
                 self._relayout()
             case ("toggle-maximize",):
-                self.maximized = None if self.maximized else self.containers[self.focus][0]
+                if self.maximized is not None:
+                    self._restore_maximized()
+                    self._relayout()
+                else:
+                    self.maximized = self.containers[self.focus][0]
             case ("resize-axis", "horizontal", way):
                 d = 50 if way == "increase" else -50
                 i = self.focus
@@ -504,6 +717,35 @@ class FakePlatform:
             case ("flip-layout", "horizontal"):
                 self.flipped = not self.flipped
                 self._relayout()
+            case ("query", name):
+                return self._answer(name)
+            case ("quick-save-resize",):
+                self.saved["quick"] = list(self.tiles)
+            case ("quick-load-resize",):
+                self._load_resize("quick")
+            case ("save-resize", path):
+                self.saved[path] = list(self.tiles)
+            case ("load-resize", path):
+                self._load_resize(path)
+            case ("retile",):
+                self._relayout()
+            case ("minimize",):
+                self.minimize(Client(self.containers[self.focus][0]))
+            case ("unmanage",):
+                title = self.containers[self.focus][0]
+                if self.unmanages:
+                    self._find_remove(title)
+                    self.unmanaged.append(title)
+                    self.let_go.append(title)
+                    self.focus = max(0, min(self.focus, len(self.containers) - 1))
+                    self._relayout()
+            case ("manage",):
+                if self.let_go and self.manages:
+                    title = self.let_go.pop()
+                    self.unmanaged.remove(title)
+                    self.containers.append([title])
+                    self.focus = len(self.containers) - 1
+                    self._relayout()
             case ("toggle-pause",):
                 self.paused = not self.paused
             case ("toggle-tiling",):
@@ -523,6 +765,25 @@ class FakePlatform:
             case _:
                 raise AssertionError(f"the fake does not know komorebic {args}")
         return ""
+
+    def _load_resize(self, key: str) -> None:
+        if self.loads_resize and key in self.saved:
+            self.tiles = list(self.saved[key])
+
+    def _answer(self, name: str) -> str:
+        if not self.answers_queries:
+            return "0"
+        stack = self.containers[self.focus] if self.containers else []
+        return {
+            "focused-monitor-index": "0",
+            "focused-workspace-index": str(self.current),
+            "focused-container-index": str(self.focus),
+            "focused-window-index": "0",
+            "focused-workspace-name": self.names[self.current] or str(self.current),
+            "focused-workspace-layout": self.layout_name,
+            "focused-container-kind": "Stack" if len(stack) > 1 else "Single",
+            "version": "0.1.0",
+        }[name]
 
     def _swap(self, other: int) -> None:
         if not self.moves:
@@ -556,7 +817,7 @@ class FakePlatform:
             floats = self.floats if current else []
             monocle = None
             if current and self.monocle is not None:
-                whole = Rect(0, 0, 1920, 1080)
+                whole = self.tiled_area
                 windows = {"elements": [window(self.monocle, whole)], "focused": 0}
                 monocle = {"id": "m", "locked": False, "windows": windows}
             return {
@@ -577,9 +838,7 @@ class FakePlatform:
                 },
                 "monocle_container": monocle,
                 "maximized_window": (
-                    window(self.maximized, Rect(0, 0, 1920, 1080))
-                    if current and self.maximized
-                    else None
+                    window(self.maximized, self.tiled_area) if current and self.maximized else None
                 ),
                 "floating_windows": {
                     "elements": [window(t, Rect(300, 300, 600, 400)) for t in floats],
@@ -592,12 +851,23 @@ class FakePlatform:
                 "latest_layout": [rect(r) for r in self.tiles[: len(containers)]],
             }
 
+        def on_display(stacks: list[list[str]], display: int) -> list[list[str]]:
+            # a stack with no window is the first display's
+            return [
+                stack
+                for stack in stacks
+                if (self.display_of.get(stack[0], 0) if stack else 0) == display
+            ]
+
         monitor = {
             "id": 1,
-            "size": rect(Rect(0, 0, 1920, 1080)),
+            "size": rect(SCREEN),
+            "work_area_size": rect(self.area),
             "workspaces": {
                 "elements": [
-                    workspace(i, c, f, i == self.current)
+                    workspace(
+                        i, on_display(c, 0), min(f, len(on_display(c, 0)) - 1), i == self.current
+                    )
                     for i, (c, f) in enumerate(zip(self.spaces, self.focuses, strict=True))
                 ],
                 "focused": self.current,
@@ -606,8 +876,11 @@ class FakePlatform:
         extra = [
             {
                 "id": n + 1,
-                "size": rect(Rect(n * 1920, 0, 1920, 1080)),
-                "workspaces": {"elements": [workspace(0, [], 0, False)], "focused": 0},
+                "size": rect(self._others()[n - 1]),
+                "workspaces": {
+                    "elements": [workspace(0, on_display(self.containers, n), 0, False)],
+                    "focused": 0,
+                },
             }
             for n in range(1, 1 if self.forgets_displays else self.display_count)
         ]

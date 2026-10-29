@@ -4,9 +4,7 @@ from typing import Any
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client, Platform
-
-# how long a window has to stay unmanaged for it to be left alone
-QUIET = 3
+from komorebi_vm.core.scenarios.support import QUIET
 
 
 def _kinds(platform: Platform) -> list[tuple[str, str, dict[str, Any]]]:

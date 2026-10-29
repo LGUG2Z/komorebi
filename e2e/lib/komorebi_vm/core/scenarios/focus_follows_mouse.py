@@ -2,6 +2,7 @@
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client, Platform
+from komorebi_vm.core.scenarios.support import QUIET
 
 
 def _middle(platform: Platform, client: Client) -> tuple[int, int] | None:
@@ -16,10 +17,16 @@ def _focused(platform: Platform, client: Client) -> bool:
     return window is not None and window.focused
 
 
+# how long a setting is given to be taken up before the pointer is moved. A port may read it a
+# moment after it is written, or follow the pointer after a delay of its own: this is more than
+# either, and it is scaled for the host like every wait
+SETTLE = 1
+
+
 def _settle(platform: Platform) -> None:
-    """Gives a platform the time to take up a setting: KWin reads its focus policy about 200 ms
-    after it is written, and a pointer that is moved before that is moved under the old one."""
-    platform.wait_for(lambda: False, timeout=1)
+    """Gives the platform the time to take up a setting: a pointer that is moved before is moved
+    under the old one."""
+    platform.wait_for(lambda: False, timeout=SETTLE)
 
 
 def run(platform: Platform, checks: Checks, first: Client, second: Client) -> None:
@@ -56,12 +63,13 @@ def run(platform: Platform, checks: Checks, first: Client, second: Client) -> No
         platform.wait_for(lambda: platform.state().focused_title() == first.title, timeout=10),
     )
 
-    platform.komorebic("toggle-focus-follows-mouse", "--implementation", "windows")
+    # no `--implementation`: each port has one, and the command's default is it
+    platform.komorebic("toggle-focus-follows-mouse")
     _settle(platform)
     platform.pointer.move(*b)
     checks.check(
         "turned off, the pointer over the second window no longer moves the focus",
-        not platform.wait_for(lambda: _focused(platform, second), timeout=3)
+        not platform.wait_for(lambda: _focused(platform, second), timeout=QUIET)
         and _focused(platform, first),
     )
 

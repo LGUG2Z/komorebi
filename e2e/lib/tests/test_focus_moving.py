@@ -2,7 +2,7 @@
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
-from komorebi_vm.core.platform import OsWindow
+from komorebi_vm.core.platform import Client, OsWindow
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
@@ -70,6 +70,23 @@ def test_a_move_that_loses_the_focus_fails() -> None:
     clients = opened(platform, checks)
     moving.run(platform, checks, clients)
     assert any("keeps the focus" in f for f in checks.failures)
+
+
+def test_a_window_that_is_gone_is_not_in_view_for_workspaces() -> None:
+    """`hidden` is false for a window the system does not have, which is not one that is shown."""
+
+    class Vanishes(FakePlatform):
+        def os_window(self, client: Client) -> OsWindow | None:
+            return None if client.title == "win1" else super().os_window(client)
+
+        def hidden(self, client: Client) -> bool:
+            return False if client.title == "win1" else super().hidden(client)
+
+    platform = Vanishes()
+    checks = Checks()
+    clients = opened(platform, checks)
+    workspaces.run(platform, checks, clients)
+    assert any("in view" in f for f in checks.failures)
 
 
 def test_a_daemon_that_is_right_passes_stacks() -> None:
@@ -308,6 +325,26 @@ def test_a_daemon_that_does_not_resize_fails_resize_commands() -> None:
     assert checks.failed > 0
 
 
+def test_a_decrease_that_gives_back_less_than_the_increase_fails_resize_commands() -> None:
+    """Within what a terminal rounds to (24 px), so the window alone cannot tell."""
+
+    class Short(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            if args == ("resize-axis", "horizontal", "decrease"):
+                i = self.focus
+                a, b = self.tiles[i], self.tiles[i + 1]
+                self.tiles[i] = Rect(a.x, a.y, a.w - 30, a.h)
+                self.tiles[i + 1] = Rect(b.x - 30, b.y, b.w + 30, b.h)
+                return ""
+            return super().komorebic(*args)
+
+    platform = Short()
+    checks = Checks()
+    clients = opened(platform, checks)
+    resize_commands.run(platform, checks, clients)
+    assert any("the layout gives it the width it had" in f for f in checks.failures)
+
+
 def test_a_daemon_that_is_right_passes_promoting() -> None:
     platform = FakePlatform()
     checks = Checks()
@@ -538,7 +575,7 @@ def test_a_daemon_that_shows_what_a_window_was_given_passes_state_fidelity() -> 
 
 def test_a_daemon_that_loses_the_class_fails_state_fidelity() -> None:
     class Forgetful(FakePlatform):
-        def spawn(self, title, app_id=None, exe=None):  # noqa: ANN001, ANN202
+        def spawn(self, title, app_id=None, exe=None, rename_to=None, after=0):  # noqa: ANN001, ANN202
             client = super().spawn(title, app_id=None, exe=exe)
             return client
 
@@ -781,3 +818,103 @@ def test_focus_follows_mouse_is_skipped_without_a_pointer() -> None:
     base = checks.passed
     focus_follows_mouse.run(platform, checks, clients[0], clients[1])
     assert checks.failed == 0 and checks.passed == base
+
+
+def test_a_daemon_that_tiles_inside_the_work_area_passes_with_a_panel() -> None:
+    platform = FakePlatform(panel=40)
+    checks = Checks()
+    clients = opened(platform, checks)
+    for scenario in (monocle, maximizing, layouts, floating, flipping, closing):
+        if scenario is closing:
+            closing.run(platform, checks, clients, clients[0])
+        else:
+            scenario.run(platform, checks, clients)
+    assert platform.work_area().h == 1040
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 20
+
+
+def test_a_daemon_that_tiles_under_the_panel_fails_tiling() -> None:
+    platform = FakePlatform(panel=40, ignores_panel=True)
+    checks = Checks()
+    opened(platform, checks)
+    assert any("inside the work area" in f for f in checks.failures)
+
+
+def test_a_window_that_is_maximized_past_the_work_area_fails_maximizing() -> None:
+    platform = FakePlatform(panel=40, ignores_panel=True)
+    checks = Checks()
+    clients = [platform.spawn(t) for t in ("a", "b", "c")]
+    maximizing.run(platform, checks, clients)
+    assert any("without going past the work area" in f for f in checks.failures)
+
+
+def test_a_window_in_monocle_past_the_work_area_fails_monocle() -> None:
+    platform = FakePlatform(panel=40, ignores_panel=True)
+    checks = Checks()
+    clients = [platform.spawn(t) for t in ("a", "b", "c")]
+    monocle.run(platform, checks, clients)
+    assert any("without going past the work area" in f for f in checks.failures)
+
+
+def test_a_second_display_of_another_size_passes_hotplug() -> None:
+    platform = FakePlatform(second=Rect(0, 0, 1280, 800))
+    checks = Checks()
+    clients = opened(platform, checks)
+    hotplug.run(platform, checks, clients)
+    assert platform.displays()[1] == Rect(1920, 0, 1280, 800)
+    assert checks.failed == 0, checks.failures
+
+
+def test_focus_follows_mouse_is_driven_without_naming_an_implementation() -> None:
+    """The implementation is a port's own: the scenario leaves it to the command's default."""
+
+    class Records(FakePlatform):
+        def __init__(self) -> None:
+            super().__init__()
+            self.said: list[tuple[str, ...]] = []
+
+        def komorebic(self, *args: str) -> str:
+            self.said.append(args)
+            return super().komorebic(*args)
+
+    platform = Records()
+    checks = Checks()
+    clients = opened(platform, checks)
+    focus_follows_mouse.run(platform, checks, clients[0], clients[2])
+    assert checks.failed == 0, checks.failures
+    assert not [a for a in platform.said if "--implementation" in a]
+
+
+def test_the_window_is_moved_inside_the_work_area_of_the_platform_while_locked() -> None:
+    class Records(FakePlatform):
+        def __init__(self) -> None:
+            super().__init__(panel=40)
+            self.targets: list[tuple[int, int]] = []
+
+        def move_window(self, client: Client, x: int, y: int) -> None:
+            self.targets.append((x, y))
+            super().move_window(client, x, y)
+
+    platform = Records()
+    checks = Checks()
+    clients = opened(platform, checks)
+    locking.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    (x, y) = platform.targets[0]
+    assert platform.work_area().x <= x < platform.work_area().w
+    assert platform.work_area().y <= y < platform.work_area().h
+
+
+def test_a_platform_that_cannot_move_a_window_while_locked_fails_locking() -> None:
+    """Else the check that the window is back in its tile after the unlock is a vacuous one."""
+
+    class Cannot(FakePlatform):
+        def move_window(self, client: Client, x: int, y: int) -> None:
+            pass
+
+    platform = Cannot()
+    checks = Checks()
+    clients = opened(platform, checks)
+    locking.run(platform, checks, clients)
+    assert any("was moved while the screen was locked" in f for f in checks.failures)

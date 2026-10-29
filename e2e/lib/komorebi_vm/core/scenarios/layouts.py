@@ -49,9 +49,42 @@ def _check_layout(platform: Platform, checks: Checks, clients: list[Client], lay
     )
 
 
+FEWER = (3, 2, 1)
+"""The counts of windows below the one the scenario starts with that every layout is tried with."""
+
+
+def _fewer(platform: Platform, checks: Checks, clients: list[Client]) -> None:
+    """Every layout with fewer windows: those of `FEWER` that `clients` has more than, the others
+    closed from the end, and opened again with their own titles at the end."""
+    closed: list[Client] = []
+    for keep in (n for n in FEWER if n < len(clients)):
+        for client in clients[keep:]:
+            if client not in closed:
+                platform.close(client)
+                closed.append(client)
+        left = clients[:keep]
+        checks.check(
+            f"{keep} windows are left managed",
+            platform.wait_for(lambda n=keep: platform.state().managed() == n, timeout=20),
+        )
+        for layout in LAYOUTS:
+            _check_layout(platform, checks, left, layout)
+    platform.komorebic("change-layout", "bsp")
+    for client in closed:
+        platform.spawn(client.title)
+    checks.check(
+        "the windows that were closed are opened again and tiled",
+        platform.wait_for(
+            lambda: platform.state().managed() == len(clients) and tiled(platform, clients),
+            timeout=30,
+        ),
+    )
+
+
 def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     """Changes the layout of the first workspace to each of `LAYOUTS` with `clients`, which are
-    tiled windows in a container each, and then with two windows more, which it closes.
+    tiled windows in a container each, and then with two windows more, which it closes, and with
+    three, two and one windows of `clients`, which it closes, and opens again.
 
     The layout is `bsp` again at the end.
     """
@@ -77,3 +110,4 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
             timeout=20,
         ),
     )
+    _fewer(platform, checks, clients)

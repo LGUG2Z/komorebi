@@ -48,3 +48,66 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
         "... and not on each other",
         not any(a.overlaps(b) for i, a in enumerate(frames) for b in frames[i + 1 :]),
     )
+
+
+def crash(platform: Platform, checks: Checks, clients: list[Client]) -> None:
+    """Turns a monocle on, which puts the other windows away, kills the daemon, and starts it
+    again: nothing is left out of sight for the new daemon to find, and it manages every window.
+
+    `clients` are two tiled windows or more of the first workspace, each in a container of its own.
+    The monocle is off at the end.
+    """
+    target, other = clients[-1], clients[0]
+
+    def in_front() -> None:
+        # a window that already has the focus gives the daemon no event: another one first
+        platform.activate(other)
+        platform.activate(target)
+        platform.wait_for(lambda: focus_agrees(platform, clients, target.title))
+
+    def only_target_in_view() -> bool:
+        return all(platform.hidden(c) for c in clients if c != target) and not platform.hidden(
+            target
+        )
+
+    in_front()
+    platform.komorebic("toggle-monocle")
+    checks.check(
+        "with a monocle on, the other windows are out of sight",
+        platform.wait_for(only_target_in_view, timeout=20),
+    )
+    platform.crash()
+    checks.check(
+        "the killed daemon no longer answers",
+        platform.wait_for(lambda: platform.komorebic_status("state")[0] != 0, timeout=20),
+    )
+
+    platform.start_komorebi()
+    checks.check(
+        "the next daemon manages every window",
+        platform.wait_for(lambda: platform.state().managed() >= len(clients), timeout=30),
+    )
+    checks.check(
+        "... and none is left out of sight",
+        platform.wait_for(lambda: not any(platform.hidden(c) for c in clients), timeout=20),
+    )
+    area = platform.work_area()
+    frames = [w.frame for c in clients if (w := platform.os_window(c)) is not None]
+    checks.check(
+        "... inside the work area and not on each other",
+        len(frames) == len(clients)
+        and all(f.inside(area) for f in frames)
+        and not any(a.overlaps(b) for i, a in enumerate(frames) for b in frames[i + 1 :]),
+    )
+
+    in_front()
+    platform.komorebic("toggle-monocle")
+    checks.check(
+        "after a crash and a restart a monocle still puts the other windows away",
+        platform.wait_for(only_target_in_view, timeout=20),
+    )
+    platform.komorebic("toggle-monocle")
+    checks.check(
+        "... and turned off, nothing is out of sight",
+        platform.wait_for(lambda: not any(platform.hidden(c) for c in clients), timeout=20),
+    )

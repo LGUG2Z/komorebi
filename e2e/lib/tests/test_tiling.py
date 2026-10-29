@@ -21,7 +21,14 @@ class FakePlatform:
     def wait_for(self, predicate, timeout: float = 10) -> bool:  # noqa: ANN001
         return predicate()
 
-    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+    def spawn(
+        self,
+        title: str,
+        app_id: str | None = None,
+        exe: str | None = None,
+        rename_to: str | None = None,
+        after: float = 0,
+    ) -> Client:
         self.opened.append(title)
         return Client(title)
 
@@ -47,6 +54,12 @@ class FakePlatform:
     def remove_display(self) -> None:
         pass
 
+    def resizable_display(self) -> int | None:
+        return None
+
+    def resize_display(self, index: int, width: int, height: int) -> None:
+        pass
+
     def komorebic_status(self, *args: str) -> tuple[int, str]:
         return 0, ""
 
@@ -66,11 +79,17 @@ class FakePlatform:
     def restart_with(self, config: dict) -> None:
         pass
 
+    def crash(self) -> None:
+        pass
+
     def komorebic(self, *args: str) -> str:
         return ""
 
     def exe_id(self, program: str) -> str:
         return program
+
+    def temp_path(self, name: str) -> str:
+        return f"/tmp/{name}"
 
     def minimize(self, client: Client) -> None:
         pass
@@ -88,6 +107,12 @@ class FakePlatform:
         pass
 
     def activate(self, client: Client) -> None:
+        pass
+
+    def fullscreen(self, client: Client, on: bool = True) -> None:
+        pass
+
+    def user_maximize(self, client: Client, on: bool = True) -> None:
         pass
 
     def screenshot(self, name: str) -> Image.Image:

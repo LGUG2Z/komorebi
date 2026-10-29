@@ -1,7 +1,10 @@
 """Rules that match a window by its title decide where it goes, or that it is left alone."""
 
+import json
+
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Platform
+from komorebi_vm.core.scenarios.support import QUIET
 
 
 def _on(platform: Platform, title: str) -> int | None:
@@ -9,12 +12,13 @@ def _on(platform: Platform, title: str) -> int | None:
 
 
 def run(platform: Platform, checks: Checks) -> None:
-    """Gives the daemon three rules, opens a window that each matches, and checks where it went.
+    """Gives the daemon four rules, opens a window that each matches, and checks where it went.
 
     An initial rule sends a window when it opens, so that moving it back leaves it there. A rule
-    that is not initial sends it again whenever the rules are enforced, and an ignore rule leaves
-    it alone. The daemon must be running, on the first workspace, which is the one in view, with
-    no window.
+    that is not initial sends it again whenever the rules are enforced, and at the next event (a
+    window that opens); the same by the name of a workspace. An ignore rule leaves it alone. Once
+    the rules are cleared the daemon's global state has none. The daemon must be running, on the
+    first workspace, which is the one in view, with no window.
     """
 
     platform.komorebic("ensure-workspaces", "0", "3")
@@ -45,7 +49,7 @@ def run(platform: Platform, checks: Checks) -> None:
     # on purpose, so what is checked is that the daemon does not send the window back on its own
     checks.check(
         "... and an initial rule does not send it there again on its own",
-        not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=3),
+        not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=QUIET),
     )
 
     always = platform.spawn("sent-always")
@@ -71,7 +75,34 @@ def run(platform: Platform, checks: Checks) -> None:
         and _on(platform, "left-alone") is None,
     )
 
+    platform.komorebic("workspace-name", "0", "2", "chat")
+    platform.komorebic("named-workspace-rule", "title", "sent-named", "chat")
+    named = platform.spawn("sent-named")
+    checks.check(
+        "a window a rule by the name of a workspace matches goes to that workspace",
+        platform.wait_for(lambda: _on(platform, "sent-named") == 2, timeout=20),
+    )
+    platform.komorebic("focus-workspace", "2")
+    # the always rule's window is on that workspace too: the focus is on the one to move
+    platform.activate(named)
+    platform.komorebic("move-to-workspace", "0")
+    platform.wait_for(lambda: _on(platform, "sent-named") == 0, timeout=20)
+    # a window that opens is an event, and a rule that is not initial is applied at every event
+    poke = platform.spawn("sent-poke")
+    checks.check(
+        "a rule that is not initial sends the window back at the next event, a window that opens",
+        platform.wait_for(lambda: _on(platform, "sent-named") == 2, timeout=30),
+    )
+
     platform.komorebic("clear-all-workspace-rules")
+    state = json.loads(platform.komorebic("global-state"))
+    if "workspace_rules" in state:
+        checks.check(
+            "once the rules are cleared the daemon's global state has none",
+            not state["workspace_rules"],
+        )
+    else:
+        checks.skip("the global state has no rule", "the port's global state has no such field")
     platform.komorebic("focus-workspace", "0")
     # the title is the window's name here, so the first window of it goes before the next opens
     platform.close(once)
@@ -80,7 +111,7 @@ def run(platform: Platform, checks: Checks) -> None:
     checks.check(
         "once the rules are cleared, a window they matched stays on the workspace in view",
         platform.wait_for(lambda: _on(platform, "sent-once") == 0, timeout=20)
-        and not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=3),
+        and not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=QUIET),
     )
-    for client in (always, ignored, later):
+    for client in (always, ignored, later, named, poke):
         platform.close(client)

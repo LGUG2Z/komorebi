@@ -7,6 +7,7 @@ rule has, whatever its kind."""
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Platform
+from komorebi_vm.core.scenarios.support import QUIET
 
 
 def run(platform: Platform, checks: Checks) -> None:
@@ -34,7 +35,7 @@ def run(platform: Platform, checks: Checks) -> None:
     checks.check(
         "a window an ignore rule by exe matches is not managed",
         not platform.wait_for(
-            lambda: platform.state().workspace_of(left.title) is not None, timeout=3
+            lambda: platform.state().workspace_of(left.title) is not None, timeout=QUIET
         ),
     )
 
