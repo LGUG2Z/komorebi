@@ -40,9 +40,14 @@ mod macos;
 #[cfg(target_os = "macos")]
 use macos as imp;
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+use linux as imp;
+
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 mod unsupported;
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 use unsupported as imp;
 
 // not `windows`: that would be ambiguous with the `windows` crate in every `use` of this module
