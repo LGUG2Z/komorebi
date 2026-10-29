@@ -28,12 +28,19 @@
 //!   `zero-sized` or `outside every display` in every state that had it in front on a showing
 //!   workspace, and never a frame a person could see. That is weaker evidence than Windows saying
 //!   so: it is a window with no visible frame, not a window macOS says is not drawn.
+//! - **komorebi for KDE.** The same, and for the same reason: KWin cannot be asked from here whether a
+//!   window is drawn, but komorebi's state has the frame of every window as the compositor last
+//!   reported it. A ghost is a window whose frame was `zero-sized` or `outside every display` in
+//!   every state that had it in front on a showing workspace. (komorebi writes a window it has no
+//!   geometry for as an all-zero frame, so one the compositor never reported on is called
+//!   `zero-sized`.) A window that a person minimized, or that komorebi parked on its hidden
+//!   desktop, keeps its frame and is not called one.
 //!
 //! A recording without probes, made on Windows, has no ghost tiles here. That is not the same as
 //! having none: it is not knowing.
 //!
 //! A read is taken for the window of each event komorebi sends (on Windows) or from the state that
-//! comes with each event (on a Mac), so a ghost tile that komorebi never sent a second event about
+//! comes with each event (on a Mac or with KDE), so a ghost tile that komorebi never sent a second event about
 //! is not seen: the recording has to have caught komorebi dealing with it twice.
 //!
 //! # Example
@@ -236,11 +243,9 @@ impl Analysis {
     /// Returns an error when a state of the recording cannot be read.
     pub fn ghost_tiles(&self) -> eyre::Result<Vec<GhostTile>> {
         let (platform, seen) = match self.flavor() {
-            // ghost tiles are found by probing windows (Windows) or by looking at the video (Mac);
-            // neither is written for KDE yet
-            Flavor::Kde => return Ok(Vec::new()),
             Flavor::Windows => (Platform::Windows, self.sightings_by_probe()?),
             Flavor::Macos => (Platform::Macos, self.sightings_by_frame()?),
+            Flavor::Kde => (Platform::Kde, self.sightings_by_frame()?),
         };
 
         let mut ghosts: Vec<(u64, u64, Sightings)> = seen
@@ -442,7 +447,7 @@ impl Sightings {
 fn same_program(platform: Platform, a: &str, b: &str) -> bool {
     match platform {
         Platform::Windows => a.eq_ignore_ascii_case(b),
-        Platform::Macos => a == b,
+        Platform::Macos | Platform::Kde => a == b,
     }
 }
 
@@ -789,6 +794,49 @@ mod tests {
             two_display_ghosts("ghost-mac-paused", &[nowhere; 3], true, true),
             0
         );
+    }
+
+    /// A komorebi for KDE state (the shape of the Windows one, but for the id): one window in a tile of
+    /// a monitor that is 1920 wide, with the frame given.
+    fn kde_ghosts(name: &str, frames: &[(f64, [i64; 4])]) -> Vec<GhostTile> {
+        let mut builder = SessionBuilder::new(name).flavor(Flavor::Kde);
+        for (at, frame) in frames {
+            let mut window = windows_window(7, "konsole", Some(*frame));
+            // komorebi for KDE calls a window's id `id`, and Windows calls it `hwnd`
+            window["id"] = json!(7);
+            builder = builder.event(
+                *at,
+                json!({"type": "Retile"}),
+                Some(windows_state(65_537, vec![vec![window]])),
+            );
+        }
+        let (session, _) = builder.build();
+        Analysis::open(&session.dir)
+            .expect("open")
+            .ghost_tiles()
+            .expect("ghost tiles")
+    }
+
+    #[test]
+    fn with_kde_a_tile_whose_frame_is_never_one_a_person_can_see_is_a_ghost() {
+        let found = kde_ghosts("ghost-kde", &[(2.0, [0, 0, 0, 0]), (3.0, [0, 0, 0, 0])]);
+        assert_eq!(found.len(), 1, "{found:#?}");
+        assert_eq!(found[0].platform, Platform::Kde);
+        assert_eq!(found[0].exe, "konsole");
+        assert_eq!(found[0].hidden_how, "zero-sized");
+    }
+
+    #[test]
+    fn with_kde_a_frame_that_was_ever_where_it_could_be_seen_is_not_a_ghost() {
+        let found = kde_ghosts(
+            "ghost-kde-seen",
+            &[
+                (2.0, [0, 0, 0, 0]),
+                (3.0, [0, 0, 960, 1040]),
+                (4.0, [0, 0, 0, 0]),
+            ],
+        );
+        assert!(found.is_empty(), "{found:#?}");
     }
 
     #[test]
