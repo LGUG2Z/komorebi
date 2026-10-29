@@ -11,6 +11,10 @@
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
     git-hooks-nix.url = "github:cachix/git-hooks.nix";
     git-hooks-nix.inputs.nixpkgs.follows = "nixpkgs";
+    asc = {
+      url = "github:LGUG2Z/komorebi-application-specific-configuration";
+      flake = false;
+    };
   };
 
   outputs =
@@ -35,14 +39,20 @@
 
           outputHashAlgo = "sha256";
           outputHashMode = "recursive";
-          outputHash = "sha256-6cLS5q1BDRpLPScfmmKpTTEHUzsgKTKD1+mKvGX9Deo=";
+          outputHash = "sha256-UFQjsFVBwcF/9e9tVFoG0Z1JySxyTnFqoaRwr/tUWzA=";
 
           buildCommand = ''
             export HOME=$(mktemp -d)
+            # keep the cache on the same filesystem as $out, as xwin moves
+            # files from the cache into the output and rename(2) fails with
+            # EXDEV when the build dir and the store are separate mounts
+            mkdir -p $out
             xwin --accept-license \
+              --cache-dir $out/.xwin-cache \
               --sdk-version ${windowsSdkVersion} \
               --crt-version ${windowsCrtVersion} \
               splat --output $out
+            rm -rf $out/.xwin-cache
           '';
         };
 
@@ -119,6 +129,9 @@
           commonArgs = {
             inherit src version;
             strictDeps = true;
+            # komorebic/build.rs downloads applications.json if it is missing, which
+            # is not possible in the sandbox, so provide the pinned copy instead
+            preBuild = "mkdir -p komorebic && cp ${inputs.asc}/applications.json komorebic/applications.json";
             COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev);
 
             # build inputs for cross-compilation
@@ -126,7 +139,16 @@
               pkgs.llvmPackages.clang-unwrapped
               pkgs.llvmPackages.lld
               pkgs.llvmPackages.llvm
+              # komorebic build script uses reqwest, which runs on the build host
+              pkgs.pkg-config
+              pkgs.openssl
+              pkgs.openssl.dev
             ];
+
+            # point the host-side openssl-sys build at the nix openssl
+            OPENSSL_NO_VENDOR = "1";
+            OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
+            OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
 
             # cross-compilation environment
             inherit (msvcEnv)
