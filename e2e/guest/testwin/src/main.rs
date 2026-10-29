@@ -14,8 +14,13 @@
 //! ```
 //!
 //! Options: `--title T`, `--class C` (the window class, `KomorebiTestWin` by
-//! default), `--color RRGGBB`, `--size WxH`, `--min-size WxH` and
-//! `--fixed` (not resizable).
+//! default), `--color RRGGBB`, `--size WxH`, `--min-size WxH`, `--fixed` (not
+//! resizable) and `--rename-to T` with `--after SECONDS` (the window gives
+//! itself that title after that long, as a program that sets it late does).
+//!
+//! The message `WM_APP + 2` takes the window fullscreen (`wparam` 1: a
+//! borderless window over its monitor, as a program's own key does) or brings
+//! it back (`wparam` 0).
 
 #![cfg(windows)]
 
@@ -41,8 +46,12 @@ use windows::Win32::Graphics::Gdi::CreateSolidBrush;
 use windows::Win32::Graphics::Gdi::DeleteObject;
 use windows::Win32::Graphics::Gdi::EndPaint;
 use windows::Win32::Graphics::Gdi::FillRect;
+use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use windows::Win32::Graphics::Gdi::HGDIOBJ;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
+use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
+use windows::Win32::Graphics::Gdi::MONITORINFO;
+use windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
@@ -50,6 +59,15 @@ use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
+use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+use windows::Win32::UI::WindowsAndMessaging::HWND_TOP;
+use windows::Win32::UI::WindowsAndMessaging::SWP_FRAMECHANGED;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOOWNERZORDER;
+use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
+use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
+use windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::HMENU;
 use windows::Win32::UI::WindowsAndMessaging::IDC_ARROW;
@@ -81,6 +99,12 @@ use windows::core::PCWSTR;
 
 /// Posted to the window when a command is waiting in [`COMMANDS`].
 const WM_COMMAND_READY: u32 = WM_APP + 1;
+
+/// Posted to the window to take it fullscreen (`wparam` 1) or back (0).
+const WM_FULLSCREEN: u32 = WM_APP + 2;
+
+/// The style and the rectangle of the window before it went fullscreen.
+static BEFORE_FULLSCREEN: Mutex<Option<(isize, RECT)>> = Mutex::new(None);
 
 static COMMANDS: Mutex<VecDeque<String>> = Mutex::new(VecDeque::new());
 static HWND_RAW: AtomicIsize = AtomicIsize::new(0);
@@ -185,6 +209,49 @@ fn run_command(hwnd: HWND, line: &str) -> bool {
     true
 }
 
+fn set_fullscreen(hwnd: HWND, on: bool) {
+    let mut before = BEFORE_FULLSCREEN.lock().unwrap();
+    // SAFETY: plain Win32 calls on this process's own window, on the thread
+    // that owns it.
+    unsafe {
+        if on && before.is_none() {
+            let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+            let mut rect = RECT::default();
+            let _ = GetWindowRect(hwnd, &mut rect);
+            let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            let mut info = MONITORINFO {
+                cbSize: size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            if GetMonitorInfoW(monitor, &mut info).as_bool() {
+                *before = Some((style, rect));
+                let area = info.rcMonitor;
+                SetWindowLongPtrW(hwnd, GWL_STYLE, (WS_POPUP | WS_VISIBLE).0 as isize);
+                let _ = SetWindowPos(
+                    hwnd,
+                    Some(HWND_TOP),
+                    area.left,
+                    area.top,
+                    area.right - area.left,
+                    area.bottom - area.top,
+                    SWP_FRAMECHANGED | SWP_NOOWNERZORDER,
+                );
+            }
+        } else if !on && let Some((style, rect)) = before.take() {
+            SetWindowLongPtrW(hwnd, GWL_STYLE, style);
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                rect.left,
+                rect.top,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_NOZORDER,
+            );
+        }
+    }
+}
+
 extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_COMMAND_READY => {
@@ -198,6 +265,10 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
                     break;
                 }
             }
+            LRESULT(0)
+        }
+        WM_FULLSCREEN => {
+            set_fullscreen(hwnd, wparam.0 != 0);
             LRESULT(0)
         }
         WM_ERASEBKGND => LRESULT(1),
@@ -248,6 +319,9 @@ fn main() -> windows::core::Result<()> {
     let mut size = (400, 300);
     let mut fixed = false;
     let mut class_name = wide("KomorebiTestWin");
+    let mut rename: Option<(String, f64)> = None;
+    let mut rename_to = None;
+    let mut after = 0.0;
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -268,11 +342,16 @@ fn main() -> windows::core::Result<()> {
                 *MIN_SIZE.lock().unwrap() = args.next().as_deref().and_then(parse_size);
             }
             "--fixed" => fixed = true,
+            "--rename-to" => rename_to = args.next(),
+            "--after" => after = args.next().and_then(|s| s.parse().ok()).unwrap_or(0.0),
             other => eprintln!("komorebi-testwin: ignoring {other}"),
         }
     }
     if fixed {
         *FIXED.lock().unwrap() = Some(size);
+    }
+    if let Some(new) = rename_to {
+        rename = Some((new, after));
     }
 
     // SAFETY: plain Win32 setup on the main thread, which then runs the loop.
@@ -308,6 +387,16 @@ fn main() -> windows::core::Result<()> {
         )?;
         HWND_RAW.store(hwnd.0 as isize, Ordering::SeqCst);
         let _ = ShowWindow(hwnd, SW_SHOW);
+
+        if let Some((new, after)) = rename {
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs_f64(after));
+                let hwnd = HWND(HWND_RAW.load(Ordering::SeqCst) as *mut _);
+                let title = wide(&new);
+                // SAFETY: `title` is NUL-terminated and outlives the call.
+                let _ = unsafe { SetWindowTextW(hwnd, PCWSTR(title.as_ptr())) };
+            });
+        }
 
         std::thread::spawn(move || {
             let hwnd = HWND(HWND_RAW.load(Ordering::SeqCst) as *mut _);
