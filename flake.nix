@@ -431,6 +431,9 @@
               komorebi-e2e-agent
               ;
             inherit windowsSdk;
+            # the test window of the Windows e2e guest, built with the constant
+            # stamp: a new commit does not rebuild what it depends on
+            komorebi-testwin-e2e = e2eBuild.komorebi-testwin;
             komorebi-full = build.fullBuild;
             default = build.fullBuild;
           };

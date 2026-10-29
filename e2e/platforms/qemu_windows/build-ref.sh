@@ -34,7 +34,7 @@ for package in komorebi komorebic; do
   path=$(nix build "$tree#$package" --no-link --print-out-paths)
   cp "$path/bin/$package.exe" "$out/"
 done
-path=$(nix build "$root#komorebi-testwin" --no-link --print-out-paths)
+path=$(nix build "$root#komorebi-testwin-e2e" --no-link --print-out-paths)
 cp "$path/bin/komorebi-testwin.exe" "$out/"
 chmod u+w "$out"/*.exe
 echo "$commit" > "$out/commit"
