@@ -1,11 +1,11 @@
 # Investigating a komorebi recording
 
 You have a recording of komorebi misbehaving: the screen, komorebi's log, every event it sent with
-its full state, and (on a Mac) what macOS did to the machine meanwhile, all on one clock. It is
-komorebi for Mac or komorebi for Windows: `overview` says which, and what a handler, a window id
+its full state, and what the OS did to the machine meanwhile (macOS's log, Windows events, the journal), all on one clock. It is
+komorebi for Mac, for Windows or for KDE Plasma: `overview` says which, and what a handler, a window id
 and a hidden window look like differ between them (a window is a window id and a process on a Mac,
-a handle and a program on Windows; a hidden window is parked in a corner on a Mac and cloaked in
-place on Windows, so its position says nothing there). Your job is to find
+a handle and a program on Windows, a counter on KDE; a hidden window is parked in a corner on a Mac,
+cloaked in place on Windows, so its position says nothing there, and moved to the `komorebi-park` desktop on KDE). Your job is to find
 what *produces* the bug the user described, from the recording, and then propose a fix that rests on
 what it shows. Every command takes `--json`; its output is an envelope
 `{ok, schema, data, warnings, truncated, next_cursor, error}` whose `data` is described by
@@ -21,6 +21,11 @@ description is the ground truth of *what* went wrong. Do not reinterpret it; exp
 was marked the brief says so: ask the user when it happened and what they saw, then record it with
 
     komorebi-recorder annotate <session> add --kind bug --start <t> --end <t> --text "<what is wrong>"
+
+`brief` (and `overview`) also say **what this recording has**: events, komorebi's log, video, the window track, window probes
+and the OS trace, each with the commands that read it and, for a part that is missing or limited, why and what that
+rules out (`session.available` in `--json`; `brief --compact` has a `not recorded` line). A command whose data is
+missing has nothing to say: do not run it, and do not read its silence as "nothing was wrong".
 
 With little context to spare, `komorebi-recorder brief <session> --compact` is the same start in about 40 lines: the
 user's words, one line on the state, the top 3 findings with their references and the exact next commands.
@@ -65,9 +70,6 @@ locations as hints.
    with the code around it. `ambiguous` and `generic` matches say so: do not pin a cause on one.
 7. **Anything else.** `search <text>` across the log, events, incidents and annotations
    (`--oslog` adds the OS trace, where the recording has one); `at`, `range` and `summary` read the raw timeline.
-   To query komorebi's log by field instead of grepping it, use `logq <session> 'level=ERROR and hwnd=0x77179C'`
-   (`and`/`or`, `= != ~ !~`; `command`, `event` and any span field; `--count`, `--group-by <field>`);
-   each hit's `log:N` goes to `at`, `trace` and `annotate --ref`.
    To query komorebi's log by field instead of grepping it, use `logq <session> 'level=ERROR and hwnd=0x77179C'`
    (`and`/`or`, `= != ~ !~`; `command`, `event` and any span field; `--count`, `--group-by <field>`);
    each hit's `log:N` goes to `at`, `trace` and `annotate --ref`.
