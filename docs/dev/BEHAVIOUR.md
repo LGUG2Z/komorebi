@@ -67,7 +67,9 @@ kfw the sweep now plugs in a second display first.
 number, makes `komorebi.exe` exit at start with `data did not match any variant of untagged enum
 InitialWindowPlacementRules`, while the string `"2"` works, and kfde accepts both. kfw's own docs
 for the type say an integer is accepted, but its `PlacementTarget` deserializes with
-`String::deserialize`. It is a known failure to follow up on later: `placement.run` takes the
+`String::deserialize`, nothing in kfw tests the integer form, and its `schema.json`, generated
+from the enum rather than the hand-written deserializer, describes the type as objects
+(`{"Placement": ...}` or `{"Index": n}`), which matches neither form. It is a known failure to follow up on later: `placement.run` takes the
 description of the case and the reason, and records the case that way, whether the daemon does not
 start or puts the windows elsewhere. The other four cases give the same order on both ports.
 
