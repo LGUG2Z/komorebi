@@ -69,6 +69,9 @@ class FakePlatform:
     def komorebic(self, *args: str) -> str:
         return ""
 
+    def exe_id(self, program: str) -> str:
+        return program
+
     def minimize(self, client: Client) -> None:
         pass
 

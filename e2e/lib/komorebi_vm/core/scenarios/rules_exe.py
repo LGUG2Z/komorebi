@@ -1,6 +1,6 @@
 """Rules that match a window by the program that opened it decide where it goes, or that it is
 left alone. The program is `e2e-exe-sent.exe` on Windows and `e2e-exe-sent` on Linux, and the
-rule is the same.
+rule's id is `platform.exe_id(program)`.
 
 The names differ from those of `rules_class`: `ignore-rule` drops a rule whose id an earlier
 rule has, whatever its kind."""
@@ -17,8 +17,8 @@ def run(platform: Platform, checks: Checks) -> None:
     and with workspaces 0 and 1. The rules are cleared afterwards.
     """
     platform.komorebic("ensure-workspaces", "0", "2")
-    platform.komorebic("workspace-rule", "exe", "e2e-exe-sent", "0", "1")
-    platform.komorebic("ignore-rule", "exe", "e2e-exe-left")
+    platform.komorebic("workspace-rule", "exe", platform.exe_id("e2e-exe-sent"), "0", "1")
+    platform.komorebic("ignore-rule", "exe", platform.exe_id("e2e-exe-left"))
 
     sent = platform.spawn("by-exe-sent", exe="e2e-exe-sent")
     checks.check(

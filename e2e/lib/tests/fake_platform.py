@@ -347,6 +347,9 @@ class FakePlatform:
     def screenshot(self, name: str) -> Image.Image:
         return Image.new("RGB", (4, 4))
 
+    def exe_id(self, program: str) -> str:
+        return program
+
     def os_window(self, client: Client) -> OsWindow | None:
         if client.title == self.maximized:
             return OsWindow(client.title, Rect(0, 0, 1920, 1080), focused=True)
