@@ -123,7 +123,7 @@ that a contact sheet never decodes more pixels than it shows.
 | `visible` | `kCGWindowIsOnscreen` (false for windows on other spaces) | `IsWindowVisible`; invisible windows and tool windows are not listed |
 | `minimized` | always false: the window server does not say | `IsIconic` |
 | `cloaked` | absent | `DWMWA_CLOAKED` |
-| `border` | never set | `komoborder-<id>` tool windows are listed (other tool windows are not), with `border` true, and `border_of` when the id is a window handle (a floating window); a tiled window's border is named for its container, see `windowtrack.rs` |
+| `border` | set on the layer-0 windows owned by the `komorebi` process, which are komorebi's borders (`border_of` is never set; pair one with its window by rect, as `lag` does) | `komoborder-<id>` tool windows are listed (other tool windows are not), with `border` true, and `border_of` when the id is a window handle (a floating window); a tiled window's border is named for its container, see `windowtrack.rs` |
 | `title` | `kCGWindowName` | `GetWindowTextW` |
 | status | written against the `objc2` sources and not built or run | built and run |
 

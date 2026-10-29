@@ -250,7 +250,7 @@ question is different: _which window was where, in this frame_. `record --window
 visible or minimized and, on Windows, whether it is cloaked, front to back, into `windows.jsonl`. A
 row is written only when something changed, plus a full row each second, so a still desktop costs
 about one row a second and a busy one a few kilobytes a second. The recorder's own windows and tool
-windows (tooltips, toasts) are left out, except komorebi's border windows on Windows, which are kept and marked `border` so that a border that lagged its window can be seen. It is on by default on every host that can list windows (Windows, macOS, KDE); `--no-window-track` turns it off and `--window-track=HZ` picks another rate (30 Hz is the default; the sampler does not catch up when a sample is late, it counts it and says so in the warnings). `komorebi-recorder sheet
+windows (tooltips, toasts) are left out, except komorebi's border windows (Windows and macOS), which are kept and marked `border` so that a border that lagged its window can be seen. It is on by default on every host that can list windows (Windows, macOS, KDE); `--no-window-track` turns it off and `--window-track=HZ` picks another rate (30 Hz is the default; the sampler does not catch up when a sample is late, it counts it and says so in the warnings). `komorebi-recorder sheet
 <session> --windows` then draws each window's rect, labelled with its program and id, on every
 frame of the sheet; a session with no track says so and gets a plain sheet. A recording that cannot
 keep the rate says so in its warnings.

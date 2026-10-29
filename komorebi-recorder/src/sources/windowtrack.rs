@@ -40,8 +40,11 @@
 //! border's `title`), which komorebi's `State` maps to the container's focused window: that join
 //! is exact but is the analysis's to make; when the container id is not enough (or the state is
 //! missing), pairing a border with a window by rect and z-order is a heuristic and is not done
-//! here. Neither field is ever guessed. macOS komorebi has no such windows this crate knows of
-//! (any border window there is not layer 0, which the Mac listing leaves out), and komorebi for KDE
+//! here. Neither field is ever guessed. komorebi for Mac draws its borders as untitled windows at
+//! the ordinary level owned by the `komorebi` process, which the Mac listing marks `"border":true`
+//! (see [`mac_border_owner`]); it cannot say which window one is for, so `border_of` is never set
+//! there, and its place in the front-to-back order does not say which window it is for (in a
+//! recording, the borders were listed ahead of the windows they surround). komorebi for KDE
 //! draws no border windows at all: KWin's rounded-corners effect paints them.
 //!
 //! # Threads and cost
@@ -192,6 +195,25 @@ pub struct TrackRow {
 pub fn border_class(class: &str) -> Option<Option<u32>> {
     let id = class.strip_prefix("komoborder")?;
     Some(id.strip_prefix('-').and_then(|id| id.parse().ok()))
+}
+
+/// Whether a window of this owner, at the ordinary layer, is one of komorebi for Mac's borders.
+///
+/// komorebi for Mac draws each border as a borderless, untitled `NSWindow` of its own at the
+/// ordinary window level, so the window server lists it like any other window, owned by the `komorebi` process. Nothing else komorebi draws is at that
+/// level (the animation's ghost window floats above it). A border says nothing of which window it
+/// is for, so `border_of` is not set from this.
+///
+/// ```rust
+/// use komorebi_recorder::sources::windowtrack::mac_border_owner;
+///
+/// assert!(mac_border_owner("komorebi"));
+/// assert!(!mac_border_owner("komorebic"));
+/// assert!(!mac_border_owner("Safari"));
+/// ```
+#[must_use]
+pub fn mac_border_owner(owner: &str) -> bool {
+    owner == "komorebi"
 }
 
 /// Decides which samples become rows: the first, any that differ from the previous sample, and one
@@ -475,6 +497,7 @@ mod tests {
         assert_eq!(border_class("komoborder-42"), Some(Some(42)));
         assert_eq!(border_class("komoborder"), Some(None));
         assert_eq!(border_class("notkomoborder-1"), None);
+        assert!(mac_border_owner("komorebi") && !mac_border_owner("komorebic"));
         let old = r#"{"mach_ns":1,"windows":[{"id":1,"owner":"a","rect":[0,0,1,1],"visible":true,"minimized":false}]}"#;
         let row: TrackRow = serde_json::from_str(old).unwrap();
         assert!(!row.windows[0].border && row.windows[0].border_of.is_none());

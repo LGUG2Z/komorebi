@@ -109,7 +109,8 @@ fn bounds_value(bounds: &CFDictionary, key: &str) -> Option<f64> {
 /// Returns the ordinary windows (layer 0, with a frame) the window server lists, front to back,
 /// as [`WindowSample`]s, without this process's own windows. `rect` is `kCGWindowBounds` in
 /// display points rounded to whole points, `visible` is `kCGWindowIsOnscreen`, and `cloaked` is
-/// `None` because a Mac has no such thing. This is how [`crate::platform::window::list`] is
+/// `None` because a Mac has no such thing. `border` is true for komorebi's own border windows, which
+/// are ordinary-level windows owned by the `komorebi` process. This is how [`crate::platform::window::list`] is
 /// answered here.
 ///
 /// Not built or run when this was written: it was checked against the `objc2` sources only.
@@ -156,6 +157,7 @@ pub fn window_list() -> Vec<WindowSample> {
         if pid == own || layer.unwrap_or_default() != 0 {
             continue;
         }
+        let owner = owner.unwrap_or_default();
         let Ok(id) = u32::try_from(number) else {
             continue;
         };
@@ -174,9 +176,10 @@ pub fn window_list() -> Vec<WindowSample> {
             continue;
         }
 
+        let border = crate::sources::windowtrack::mac_border_owner(&owner);
         windows.push(WindowSample {
             id,
-            owner: owner.unwrap_or_default(),
+            owner,
             title: title.filter(|title| !title.is_empty()),
             rect: [
                 x.round() as i32,
@@ -187,7 +190,7 @@ pub fn window_list() -> Vec<WindowSample> {
             visible: onscreen.unwrap_or(false),
             minimized: false,
             cloaked: None,
-            border: false,
+            border,
             border_of: None,
         });
     }

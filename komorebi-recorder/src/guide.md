@@ -120,7 +120,7 @@ locations as hints.
   visibility and minimized state (and `cloaked` on Windows) sampled at video rate, front to back,
   so "which window was where in this frame" has an answer. `sheet --windows` draws the rects on
   each frame (`windows` in the answer names the ones drawn). Rects are in the display's own units
-  (pixels on Windows, points on a Mac). On Windows komorebi's border windows are in the track too, marked `border`
+  (pixels on Windows, points on a Mac). On Windows and macOS komorebi's border windows are in the track too, marked `border`
   (`border_of` names the window for a floating window's border; a tiled one is named for its container in the
   `title`, to be joined with `State`; pairing by rect is a heuristic, not recorded). Without it (`--no-window-track`, or a host that cannot list windows) only the sparse per-event probes exist.
   `lag <session>` (also the `geometry-lag:window` and `geometry-lag:border` findings) compares that track

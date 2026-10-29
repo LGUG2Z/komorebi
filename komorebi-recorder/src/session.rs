@@ -546,7 +546,7 @@ pub fn readme(dir: &Path, manifest: &Manifest) -> String {
         "| `state-start.json`, `state-end.json` | `State` when recording started / stopped |\n",
     );
     if manifest.window_track.is_some() {
-        out.push_str("| `windows.jsonl` | The window track: every top-level window's rect and state, front to back, written when something changed and in full once a second: `{mach_ns, key?, windows: [{id, owner, title?, rect: [l,t,r,b], visible, minimized, cloaked?, border?, border_of?}]}`; `border` marks komorebi's own border windows (Windows). `sheet --windows` draws it on frames |
+        out.push_str("| `windows.jsonl` | The window track: every top-level window's rect and state, front to back, written when something changed and in full once a second: `{mach_ns, key?, windows: [{id, owner, title?, rect: [l,t,r,b], visible, minimized, cloaked?, border?, border_of?}]}`; `border` marks komorebi's own border windows (Windows and macOS; `border_of` is Windows only). `sheet --windows` draws it on frames |
 ");
     }
     out.push_str(os_trace_rows(&host));
