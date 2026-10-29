@@ -99,6 +99,17 @@ class RecordedChecks(Checks):
         return holds
 
 
+def _with(fn, **kwargs):
+    """`fn` with keyword arguments, for a suite step, which takes positional
+    ones only; it keeps the name the step prints."""
+    def step(*args):
+        return fn(*args, **kwargs)
+
+    step.__module__ = fn.__module__
+    step.__name__ = fn.__name__
+    return step
+
+
 def _commit() -> str:
     """The kfw commit under test: set `KOMOREBI_E2E_COMMIT` to the commit the
     binaries were built from; otherwise this tree's HEAD, which may not be it."""
@@ -292,36 +303,49 @@ def run_one(
                     if os.environ.get("SWEEP_TWO_DISPLAYS"):
                         platform.add_display()
                         time.sleep(5)
-                    scenario.layouts(platform, checks, clients)
-                    scenario.sweep(
-                        platform, checks, clients, SWEEP_CONFIG_PATH
+                    run_suite(
+                        checks,
+                        shared(scenario.layouts, platform, checks, clients),
+                        shared(
+                            scenario.sweep, platform, checks, clients,
+                            SWEEP_CONFIG_PATH,
+                        ),
+                        shared(scenario.prints, platform, checks),
                     )
-                    scenario.prints(platform, checks)
                     return checks
                 if name == "unknown_monitor":
                     commands = importlib.import_module(
                         "komorebi_vm.core.scenarios.commands"
                     )
-                    commands.unknown_monitor(
+                    run_suite(checks, shared(
+                        _with(
+                            commands.unknown_monitor,
+                            known_failure=UNKNOWN_MONITOR_BUG,
+                        ),
                         platform, checks, clients,
-                        known_failure=UNKNOWN_MONITOR_BUG,
-                    )
+                    ))
                     return checks
                 if name == "closing":
                     # the window that was opened last
                     kwargs["closing"] = clients[-1]
                 if name == "focus_follows_mouse":
                     # two tiles that are in view and do not overlap
-                    scenario.run(platform, checks, *clients[:2])
+                    run_suite(checks, shared(
+                        scenario.run, platform, checks, *clients[:2]
+                    ))
                     return checks
-                scenario.run(platform, checks, clients, **kwargs)
+                run_suite(checks, shared(
+                    _with(scenario.run, **kwargs), platform, checks, clients
+                ))
             elif name == "placement":
-                scenario.run(
+                run_suite(checks, shared(
+                    _with(scenario.run, known_failures={
+                        PLACEMENT_INTEGER_CASE: PLACEMENT_INTEGER_BUG
+                    }),
                     platform, checks,
-                    known_failures={PLACEMENT_INTEGER_CASE: PLACEMENT_INTEGER_BUG},
-                )
+                ))
             else:
-                scenario.run(platform, checks)
+                run_suite(checks, shared(scenario.run, platform, checks))
         except AgentLost as e:
             print(f"     AGENT LOST: {e}")
             checks.bad(str(e))
