@@ -162,7 +162,7 @@ KDE. What is written from the sources and has not been seen to work on a real Pl
 | komorebi's log | `~/.local/share/komorebi/komorebi_plaintext.log.<UTC date>`; the span of an event's handler is `handle_event` and of a command's `process_command` |
 | the program's own windows | left out of the video by a KWin window rule (`excludefromcapture`, forced for the window class `komorebi-recorder`), which `record` writes to `~/.config/kwinrulesrc` and has KWin read; komorebi is told to ignore them by their application id, `komorebic ignore-rule class komorebi-recorder`, run before the window exists. Whether KWin honours the rule for a screencast of an output is a check still to make (K3) |
 | the window's application id | the window's application id is `komorebi-recorder`, which is the `class` komorebi for KDE sees |
-| `--probe-windows` | Windows only |
+| `--probe-windows` | on by default, as on Windows: after each window event KWin is asked about the window (`org.kde.KWin.getWindowInfo`: the desktops it is on, minimized, its frame). komorebi's window is found by its class, title and frame through KWin's windows runner, because komorebi's ids are a count and not KWin's UUIDs. A window on a desktop that is not showing is `not visible`, one alone on `komorebi-park` is `cloaked` |
 | ghost tiles | found from the frames komorebi has in its state, as on a Mac (a window in front on a showing workspace that has no frame anyone can see). No rule is proposed for one: komorebi for KDE's rules are in its own repository |
 
 komorebi for KDE's rules are checked against the log and the events of a running komorebi (`komorebi --fake-backend`, an

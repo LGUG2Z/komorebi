@@ -20,6 +20,24 @@ of WSLg (which has outputs and no screencast):
 - a made-up source of frames is written to an H.264 file, which the decoder reads back, at the size of the display and
   at an odd size.
 
+And in the Plasma guest of komorebi for KDE (`nix run .#run-kde`, KWin 6.8.2, komorebi with windows, headless over ssh;
+the recorder from `nix build` runs in it, as the guest mounts the host's store):
+
+- **K1:** `doctor` says `permitted: yes` and a recording works with no desktop file written. Whether KWin offers the
+  screencast to every program, or this guest's configuration allows it, was not found out.
+- **K2:** a recording of the output is a playable H.264 file with the windows, the panel and the cursor in it, and its
+  length is the recording's. The frames' times were wrong at first (the GStreamer pipeline took the clock of the
+  PipeWire stream, which starts at zero) and are on the master clock now. The log, the events and their handlers line up.
+- **K3:** the rule that leaves the recorder's window out of the capture works: a window of the class
+  `komorebi-recorder` that had the focus and was on top is not in the video, and one of another class is. KWin 6.8
+  rewrites `kwinrulesrc` with `Order=` in place of `count=` and `rules=`, and the recorder extends whichever the file has.
+- **`--probe-windows`:** a window of an event is found in KWin and its facts are read: frame, minimized, the desktops. The
+  probes of a recording with workspace switches, a new window, a stack and a closed window agree with komorebi, and the
+  one of a window that was closed says it no longer exists. komorebi's workspaces are KWin's virtual desktops, so a
+  window of another workspace is not on the desktop that shows; the park desktop holds only windows hidden behind a
+  front one. What was not seen: a probe that disagrees with komorebi (nothing was broken), and a window that cannot be
+  told from another by class, title and frame (it has no probe).
+
 ## Getting the binary
 
 ```sh
