@@ -54,9 +54,9 @@ qemu-system-x86_64 -name w0-install -accel kvm -machine q35,smm=off \
   &
 qpid=$!
 
-# "Press any key to boot from CD or DVD": tap space for the first minute.
-# Later reboots must reach the disk, so stop after that.
-for _ in $(seq 1 60); do
+# "Press any key to boot from CD or DVD": tap space for the first 20 s only; a
+# later press would land on the Cancel button of the install progress page.
+for _ in $(seq 1 20); do
   sleep 1
   kill -0 "$qpid" 2>/dev/null || break
   [ -S "$work/qmp.sock" ] && press spc || true

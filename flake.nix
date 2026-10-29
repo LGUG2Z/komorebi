@@ -303,13 +303,22 @@
               : "''${E2E_GOLDEN:?set E2E_GOLDEN to the golden image directory}"
               out=''${1:?usage: e2e-windows OUT SCENARIO...}
               shift
-              bins=$(mktemp -d)
-              trap 'rm -rf "$bins"' EXIT
-              cp ${build.komorebi}/bin/komorebi.exe "$bins"
-              cp ${build.komorebic}/bin/komorebic.exe "$bins"
-              cp ${build.komorebi-testwin}/bin/komorebi-testwin.exe "$bins"
+              # the binaries under test: this checkout's, or those of another
+              # commit, made by e2e/platforms/qemu_windows/build-ref.sh
+              if [ -n "''${KOMOREBI_E2E_BINS:-}" ]; then
+                bins=$KOMOREBI_E2E_BINS
+                if [ -f "$bins/commit" ]; then
+                  KOMOREBI_E2E_COMMIT=$(cat "$bins/commit")
+                fi
+              else
+                bins=$(mktemp -d)
+                trap 'rm -rf "$bins"' EXIT
+                cp ${build.komorebi}/bin/komorebi.exe "$bins"
+                cp ${build.komorebic}/bin/komorebic.exe "$bins"
+                cp ${build.komorebi-testwin}/bin/komorebi-testwin.exe "$bins"
+              fi
               export OVMF_FD=${ovmfWithTpm}
-              export KOMOREBI_E2E_COMMIT=${self.rev or "dirty"}
+              export KOMOREBI_E2E_COMMIT=''${KOMOREBI_E2E_COMMIT:-${self.rev or "dirty"}}
               export PYTHONPATH=${./e2e/lib}:${./e2e}
               exec python -m platforms.qemu_windows.run \
                 "$E2E_GOLDEN" "$bins" "$out" "$@"
@@ -424,6 +433,7 @@
             # the neutral scenarios against a throwaway Windows guest:
             #   E2E_GOLDEN=<golden image dir> nix run .#e2e-windows -- \
             #     OUT SCENARIO...
+            # KOMOREBI_E2E_BINS=<dir from build-ref.sh> tests another commit
             # the golden image is built once with
             # e2e/platforms/qemu_windows/build-golden.sh
             e2e-windows = {

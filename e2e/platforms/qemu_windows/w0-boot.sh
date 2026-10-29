@@ -11,6 +11,8 @@ set -euo pipefail
 work=$1 limit=${2:-300}
 : "${OVMF_FD:?set OVMF_FD to an OVMF fd store path with TPM support}"
 : "${VCPUS:=4}" "${MEM:=6G}"
+# an evaluation build reads as expired when the guest clock is the host's
+: "${RTC_BASE:=2024-10-01T00:00:00}"
 
 rm -rf "$work/boot" "$work/overlay.qcow2" "$work/qmp.sock" "$work/tpm.sock"
 mkdir -p "$work/boot"
@@ -26,6 +28,7 @@ start=$(date +%s)
 echo "boot start: $(date -Is)"
 qemu-system-x86_64 -name w0-boot -accel kvm -machine q35,smm=off \
   -cpu host -smp "$VCPUS" -m "$MEM" \
+  -rtc "base=$RTC_BASE" \
   -drive "if=pflash,format=raw,readonly=on,unit=0,file=$OVMF_FD/FV/OVMF_CODE.fd" \
   -drive "if=pflash,format=raw,unit=1,file=$work/vars-boot.fd" \
   -chardev "socket,id=chrtpm,path=$work/tpm.sock" \
