@@ -161,6 +161,13 @@ pub extern "system" fn win_event_hook(
 
     let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
         None => {
+            // far more of these are sent than of anything else, by every window that
+            // is moved, and what a window is takes a call into it for each of the
+            // exe, the title and the class: the hook is held up for as long as that takes
+            if matches!(winevent, WinEvent::ObjectLocationChange) {
+                return;
+            }
+
             tracing::trace!(
                 "Unhandled WinEvent: {winevent} (hwnd: {}, exe: {}, title: {}, class: {})",
                 window.hwnd,
