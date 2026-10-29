@@ -39,6 +39,8 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     )
 
     platform.komorebic("focus-workspace", "1")
+    platform.wait_for(lambda: _in_view(platform, clients) == [last.title])
+    print(f"     in view after the switch: {_in_view(platform, clients)}")
     checks.check(
         "after 'focus-workspace 1' only the window sent there is in view",
         platform.wait_for(lambda: _in_view(platform, clients) == [last.title]),

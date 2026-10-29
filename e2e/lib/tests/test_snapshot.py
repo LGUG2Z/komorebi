@@ -1,8 +1,8 @@
 """The same scene, as each port prints it, reads as the same Snapshot.
 
-The fixtures are written from the `Serialize` code of the two ports (kfde `komorebi/src/window.rs`,
-kfw `komorebi/src/window.rs`), not recorded; a recorded state of each replaces them once a run on
-each port exists.
+The scenes are written from the `Serialize` code of the two ports (kfde `komorebi/src/window.rs`,
+kfw `komorebi/src/window.rs`), so that shapes no run has recorded (a monocle, a stack in a
+neighbor's place) can be tried; `test_recorded.py` has what each port really printed.
 """
 
 from typing import Any
