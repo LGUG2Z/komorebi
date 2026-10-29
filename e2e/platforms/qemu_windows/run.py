@@ -258,8 +258,17 @@ def run_one(
 
     checks = RecordedChecks()
     print(f"== {name}")
+    began = time.monotonic()
+    timings: dict[str, float] = {}
+
+    def lap(phase: str) -> None:
+        now = time.monotonic()
+        timings[phase] = round(now - began - sum(timings.values()), 1)
+
     with Guest(golden, out / "guest", state=state) as guest:
+        lap("guest")
         guest.upload(bin_dir, BINARIES)
+        lap("upload")
         platform = WindowsPlatform(
             guest.qmp, guest.agent, out,
             scale=float(os.environ.get("KOMOREBI_E2E_SCALE", "1")),
@@ -274,6 +283,7 @@ def run_one(
             # what the guest was doing when the daemon did not answer
             _diagnose_start(platform, guest, out)
             raise
+        lap("daemon")
         if recorder:
             _start_recorder(platform, Path(recorder), guest, out)
         try:
@@ -354,6 +364,8 @@ def run_one(
             _fetch_logs(guest, out)
             raise
         finally:
+            lap("scenario")
+            print(f"     seconds: {timings}")
             platform.screenshot(f"final-{name}")
             if recorder:
                 _collect_recording(platform, out)
@@ -367,6 +379,7 @@ def run_one(
                 "skipped": len(checks.skipped),
                 "known_failures": len(checks.known),
                 "start_retries": platform.start_notes,
+                "seconds": timings,
                 "checks": checks.results,
             }, indent=2))
     return checks
