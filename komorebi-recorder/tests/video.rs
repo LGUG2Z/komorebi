@@ -555,3 +555,62 @@ fn a_sheet_draws_the_windows_of_the_moment_and_says_so_when_there_is_no_track() 
     assert!(warnings.contains("no window track"), "{warnings}");
     assert!(answer["data"]["frames"][0].get("windows").is_none());
 }
+
+#[test]
+fn measure_puts_a_region_on_a_fixed_rate_timeline() {
+    let Some(dir) = session("video-measure") else {
+        return;
+    };
+
+    let measured = json(&[
+        "measure",
+        &dir,
+        "--display",
+        "1",
+        "--from",
+        "0",
+        "--to",
+        "1",
+        "--hz",
+        "10",
+        "--json",
+    ]);
+    assert_eq!(measured["schema"], "measure/1");
+    let data = &measured["data"];
+    assert_eq!(data["statistics"], json!(["mean", "peak", "width"]));
+    let samples = data["series"][0]["samples"].as_array().expect("samples");
+    assert_eq!(samples.len(), 11);
+    for (index, sample) in samples.iter().enumerate() {
+        assert!((sample["video_s"].as_f64().expect("time") - index as f64 / 10.0).abs() < 1e-9);
+        let shown = sample["shown_s"].as_f64().expect("a frame is on screen");
+        assert!(shown <= sample["video_s"].as_f64().expect("time") + 1e-9);
+    }
+
+    // display 2 has no video before 1 s
+    let late = json(&[
+        "measure",
+        &dir,
+        "--display",
+        "2",
+        "--from",
+        "0",
+        "--to",
+        "1.5",
+        "--hz",
+        "2",
+        "--stat",
+        "peak",
+        "--json",
+    ]);
+    let samples = late["data"]["series"][0]["samples"]
+        .as_array()
+        .expect("samples");
+    assert!(samples[0]["values"][0].is_null());
+    assert!(!samples[2]["values"][0].is_null());
+
+    // a rate that is not a rate
+    assert_eq!(
+        recorder(&["measure", &dir, "--hz", "0"]).status.code(),
+        Some(2)
+    );
+}

@@ -24,6 +24,7 @@ use super::envelope::Envelope;
 use super::framediff::FrameDiffData;
 use super::history::HistoryData;
 use super::logq::LogqData;
+use super::measure::MeasureData;
 use super::motion::MotionData;
 use super::overview::OverviewData;
 use super::search::SearchData;
@@ -128,6 +129,11 @@ pub const ALL: &[Entry] = &[
         name: "blank/1",
         about: "`blank`: stretches where a region was blank (one colour) or frozen",
         schema: of::<BlankData>,
+    },
+    Entry {
+        name: "measure/1",
+        about: "`measure`: mean or peak brightness or drawn width of a region, on a fixed-rate timeline",
+        schema: of::<MeasureData>,
     },
     Entry {
         name: "compare/1",

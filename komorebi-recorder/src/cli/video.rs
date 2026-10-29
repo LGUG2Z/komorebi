@@ -7,6 +7,7 @@
 //! | `motion` | [`Analysis::motion`] | `motion/1` |
 //! | `framediff` | [`framediff`](crate::analysis::framediff::framediff) | `framediff/1` |
 //! | `blank` | [`Analysis::blank`] | `blank/1` |
+//! | `measure` | [`Analysis::measure`] | `measure/1` |
 //! | `compare` | [`Analysis::compare`] | `compare/1` |
 //!
 //! Both work on a range of video time, given as `--from` and `--to` (any time `state --at` takes;
@@ -33,6 +34,10 @@ use crate::analysis::framediff::DEFAULT_WIDTH;
 use crate::analysis::framediff::FrameAt;
 use crate::analysis::framediff::FrameDiffOptions;
 use crate::analysis::framediff::SCHEMA_FRAMEDIFF;
+use crate::analysis::measure::DEFAULT_HZ;
+use crate::analysis::measure::MeasureOptions;
+use crate::analysis::measure::SCHEMA_MEASURE;
+use crate::analysis::measure::Statistic;
 use crate::analysis::motion::SCHEMA_MOTION;
 use crate::analysis::motion::ScanOptions;
 use crate::analysis::pixels::Crop;
@@ -194,6 +199,38 @@ pub struct BlankArgs {
     /// Drop stretches shorter than this many milliseconds
     #[arg(long, value_name = "MS", default_value_t = DEFAULT_MIN_DURATION_S * 1000.0)]
     pub min_ms: f64,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// The arguments of `measure`.
+#[derive(Args, Debug)]
+pub struct MeasureArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// The region to measure, in display points: x,y,w,h [default: the whole display]
+    #[arg(long, value_name = "X,Y,W,H")]
+    pub region: Option<String>,
+    /// What to measure, repeatable: mean (brightness), peak (brightness), width (drawn width, in
+    /// points) [default: all three]
+    #[arg(long = "stat", value_name = "STAT")]
+    pub stats: Vec<Statistic>,
+    /// Samples per second of the fixed-rate timeline
+    #[arg(long, default_value_t = DEFAULT_HZ)]
+    pub hz: f64,
+    /// The brightness (0 to 255) that is background for `width` [default: the most common one in the region]
+    #[arg(long, value_name = "0-255")]
+    pub background: Option<u8>,
+    /// Only this display (repeatable) [default: every display with video]
+    #[arg(long = "display", value_name = "ID")]
+    pub displays: Vec<u32>,
+    /// From this moment [default: the start of the video]
+    #[arg(long, value_name = "TIME")]
+    pub from: Option<String>,
+    /// To this moment [default: the end of the video]
+    #[arg(long, value_name = "TIME")]
+    pub to: Option<String>,
     /// Machine-readable JSON output
     #[arg(long)]
     pub json: bool,
@@ -483,6 +520,41 @@ pub(super) fn blank(args: &BlankArgs) -> eyre::Result<()> {
     )?;
     if args.json {
         return print_json(&Envelope::ok(SCHEMA_BLANK, data).warnings(analysis.warnings()));
+    }
+
+    print!("{}", data.to_text());
+    Ok(())
+}
+
+pub(super) fn measure(args: &MeasureArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let video = SessionVideo::new(&analysis.manifest, analysis.guard());
+    let (from, to) = range(&analysis, args.from.as_deref(), args.to.as_deref(), None)?;
+    let shown = displays(&video, &args.displays)?;
+    let mut statistics = if args.stats.is_empty() {
+        Statistic::ALL.to_vec()
+    } else {
+        args.stats.clone()
+    };
+    statistics.dedup();
+
+    let data = analysis.measure(
+        &video,
+        &MeasureOptions {
+            scan: ScanOptions {
+                displays: &shown,
+                from_s: from,
+                to_s: to,
+                crop: region(args.region.as_deref())?,
+                cancel: None,
+            },
+            statistics: &statistics,
+            hz: args.hz,
+            background: args.background,
+        },
+    )?;
+    if args.json {
+        return print_json(&Envelope::ok(SCHEMA_MEASURE, data).warnings(analysis.warnings()));
     }
 
     print!("{}", data.to_text());

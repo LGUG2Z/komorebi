@@ -61,6 +61,7 @@ pub use video::BlankArgs;
 pub use video::ChangesArgs;
 pub use video::CompareArgs;
 pub use video::FramediffArgs;
+pub use video::MeasureArgs;
 pub use video::MotionArgs;
 pub use video::SheetArgs;
 pub use viewer_command::GuiArgs;
@@ -141,6 +142,8 @@ pub enum Command {
     Framediff(FramediffArgs),
     /// When a region was blank (one colour, such as white) or frozen
     Blank(BlankArgs),
+    /// A statistic of a region (mean or peak brightness, drawn width) on a fixed-rate timeline
+    Measure(MeasureArgs),
     /// Two recordings side by side: frames, motion, findings, annotations
     Compare(CompareArgs),
     /// A contact sheet image of frames, with the times, events and bug region marked
@@ -231,6 +234,7 @@ impl Command {
             Self::Motion(args) => args.json,
             Self::Framediff(args) => args.json,
             Self::Blank(args) => args.json,
+            Self::Measure(args) => args.json,
             Self::Compare(args) => args.json,
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
@@ -314,6 +318,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Motion(args) => video::motion(&args),
         Command::Framediff(args) => video::framediff(&args),
         Command::Blank(args) => video::blank(&args),
+        Command::Measure(args) => video::measure(&args),
         Command::Compare(args) => video::compare(&args),
         Command::Findings(args) => findings::findings(&args),
         Command::Annotate(args) => annotate::annotate(&args),
