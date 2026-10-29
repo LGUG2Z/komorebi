@@ -321,7 +321,14 @@ def sweep(
 ) -> None:
     """Runs every command of `commands` (`SWEEP`), and checks that it is understood and leaves the
     daemon healthy. `config` is the path, on the platform, of a file the daemon can be told to
-    load."""
+    load.
+
+    The sweep has commands that name the second monitor (`send-to-monitor 1`), so it needs two
+    displays: one is plugged in first if the platform has only one.
+    """
+    if len(platform.displays()) < 2:
+        platform.add_display()
+        platform.wait_for(lambda: len(platform.state().monitors) >= 2, timeout=30)
     for line in commands:
         words = line.format(config=config).split()
         status, out = platform.komorebic_status(*words)
