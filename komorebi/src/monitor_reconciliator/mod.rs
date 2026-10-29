@@ -118,6 +118,26 @@ pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
     monitor_cache.insert(preferred_id, monitor);
 }
 
+fn monitor_is_disconnected(monitor: &Monitor, attached_devices: &[Monitor]) -> bool {
+    !attached_devices.iter().any(|attached| {
+        let serial_matches = match (&attached.serial_number_id, &monitor.serial_number_id) {
+            (Some(attached), Some(tracked)) => attached == tracked,
+            _ => false,
+        };
+        serial_matches || attached.device_id == monitor.device_id
+    })
+}
+
+fn monitor_topology_matches(
+    monitors: &std::collections::VecDeque<Monitor>,
+    attached_devices: &[Monitor],
+) -> bool {
+    monitors.len() == attached_devices.len()
+        && !monitors
+            .iter()
+            .any(|monitor| monitor_is_disconnected(monitor, attached_devices))
+}
+
 pub fn attached_display_devices<F, I>(display_provider: F) -> color_eyre::Result<Vec<Monitor>>
 where
     F: Fn() -> I + Copy,
@@ -251,9 +271,19 @@ where
     F: Fn() -> I + Copy,
     I: Iterator<Item = Result<win32_display_data::Device, win32_display_data::Error>>,
 {
-    tracing::info!("listening");
+    handle_notifications_with_receiver(wm, display_provider, event_rx())
+}
 
-    let receiver = event_rx();
+fn handle_notifications_with_receiver<F, I>(
+    wm: Arc<Mutex<WindowManager>>,
+    display_provider: F,
+    receiver: Receiver<MonitorNotification>,
+) -> color_eyre::Result<()>
+where
+    F: Fn() -> I + Copy,
+    I: Iterator<Item = Result<win32_display_data::Device, win32_display_data::Error>>,
+{
+    tracing::info!("listening");
 
     'receiver: for notification in receiver {
         if !ACTIVE.load_consume()
@@ -402,8 +432,8 @@ where
                     }
                 }
 
-                if initial_monitor_count == attached_devices.len() {
-                    tracing::debug!("monitor counts match, reconciliation not required");
+                if monitor_topology_matches(wm.monitors(), &attached_devices) {
+                    tracing::debug!("monitor identities match, reconciliation not required");
                     drop(wm);
                     continue 'receiver;
                 }
@@ -417,7 +447,11 @@ where
                 }
 
                 // Handle potential monitor removal with verification
-                let attached_devices = if initial_monitor_count > attached_devices.len() {
+                let attached_devices = if wm
+                    .monitors()
+                    .iter()
+                    .any(|monitor| monitor_is_disconnected(monitor, &attached_devices))
+                {
                     tracing::info!(
                         "potential monitor removal detected ({initial_monitor_count} vs {}), verifying in 3s",
                         attached_devices.len()
@@ -446,17 +480,20 @@ where
                         re_queried_devices.len()
                     );
 
-                    // If monitors are back, the removal was transient (spurious event)
-                    // Still try to restore state since windows might have been minimized
-                    if re_queried_devices.len() >= initial_monitor_count {
+                    wm = wm_arc.lock();
+                    if re_queried_devices.is_empty() {
+                        tracing::debug!("no devices found during verification, preserving state");
+                        continue 'receiver;
+                    }
+
+                    // If the same monitors are back, the removal was transient.
+                    // Still try to restore state since windows might have been minimized.
+                    if monitor_topology_matches(wm.monitors(), &re_queried_devices) {
                         tracing::info!(
                             "monitor removal was transient (spurious event), attempting state restoration. Initial: {}, Re-queried: {}",
                             initial_monitor_count,
                             re_queried_devices.len()
                         );
-
-                        // Re-acquire locks for state restoration
-                        wm = wm_arc.lock();
 
                         // Update Win32 data for all monitors
                         for monitor in wm.monitors_mut() {
@@ -549,8 +586,7 @@ where
                         re_queried_devices.len()
                     );
 
-                    // Re-acquire locks for removal processing
-                    wm = wm_arc.lock();
+                    // Re-acquire the cache lock for removal processing.
                     monitor_cache = MONITOR_CACHE
                         .get_or_init(|| Mutex::new(HashMap::new()))
                         .lock();
@@ -587,27 +623,23 @@ where
                     attached_devices
                 };
 
-                if initial_monitor_count > attached_devices.len() {
+                let removed_monitor_indices: Vec<_> = wm
+                    .monitors()
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, monitor)| {
+                        monitor_is_disconnected(monitor, &attached_devices).then_some(index)
+                    })
+                    .collect();
+                if !removed_monitor_indices.is_empty() {
                     tracing::info!("removing disconnected monitors");
 
-                    // Windows to remove from `known_hwnds`
-                    let mut windows_to_remove = Vec::new();
-
-                    // Collect the ids in our state which aren't in the current attached display ids
-                    // These are monitors that have been removed
-                    let mut newly_removed_displays = vec![];
-
-                    for (m_idx, m) in wm.monitors().iter().enumerate() {
-                        if !attached_devices.iter().any(|attached| {
-                            attached.serial_number_id.eq(&m.serial_number_id)
-                                || attached.device_id.eq(&m.device_id)
-                        }) {
+                    for &m_idx in &removed_monitor_indices {
+                        if let Some(m) = wm.monitors().get(m_idx) {
                             let id = m
                                 .serial_number_id
                                 .as_ref()
                                 .map_or(m.device_id.clone(), |sn| sn.clone());
-
-                            newly_removed_displays.push(id.clone());
 
                             let focused_workspace_idx = m.focused_workspace_idx();
 
@@ -618,7 +650,6 @@ where
                                 {
                                     let focused_window_idx = container.focused_window_idx();
                                     for (w_idx, window) in container.windows().iter().enumerate() {
-                                        windows_to_remove.push(window.hwnd);
                                         if is_focused_workspace
                                             && c_idx == focused_container_idx
                                             && w_idx == focused_window_idx
@@ -633,7 +664,6 @@ where
                                 }
 
                                 if let Some(maximized) = &workspace.maximized_window {
-                                    windows_to_remove.push(maximized.hwnd);
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
                                     if maximized.is_focused() {
@@ -641,39 +671,23 @@ where
                                     }
                                 }
 
-                                if let Some(container) = &workspace.monocle_container {
-                                    for window in container.windows() {
-                                        windows_to_remove.push(window.hwnd);
-                                    }
-                                    if let Some(window) = container.focused_window() {
-                                        // Minimize the focused window since Windows might try
-                                        // to move it to another monitor if it was focused.
-                                        if window.is_focused() {
-                                            window.minimize();
-                                        }
-                                    }
-                                }
-
-                                for window in workspace.floating_windows() {
-                                    windows_to_remove.push(window.hwnd);
+                                if let Some(container) = &workspace.monocle_container
+                                    && let Some(window) = container.focused_window()
+                                {
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
                                     if window.is_focused() {
                                         window.minimize();
                                     }
                                 }
-                            }
 
-                            // Remove any workspace_rules for this specific monitor
-                            let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
-                            let mut rules_to_remove = Vec::new();
-                            for (i, rule) in workspace_rules.iter().enumerate().rev() {
-                                if rule.monitor_index == m_idx {
-                                    rules_to_remove.push(i);
+                                for window in workspace.floating_windows() {
+                                    // Minimize the focused window since Windows might try
+                                    // to move it to another monitor if it was focused.
+                                    if window.is_focused() {
+                                        window.minimize();
+                                    }
                                 }
-                            }
-                            for i in rules_to_remove {
-                                workspace_rules.remove(i);
                             }
 
                             // Let's add their state to the cache for later, make sure to use what
@@ -691,24 +705,9 @@ where
                         }
                     }
 
-                    // Update known_hwnds
-                    wm.known_hwnds.retain(|i, _| !windows_to_remove.contains(i));
-
-                    if !newly_removed_displays.is_empty() {
-                        // After we have cached them, remove them from our state
-                        wm.monitors_mut().retain(|m| {
-                            !newly_removed_displays.iter().any(|id| {
-                                m.serial_number_id.as_ref().is_some_and(|sn| sn == id)
-                                    || m.device_id.eq(id)
-                            })
-                        });
-                    }
+                    wm.remove_monitors(&removed_monitor_indices);
 
                     let post_removal_monitor_count = wm.monitors().len();
-                    let focused_monitor_idx = wm.focused_monitor_idx();
-                    if focused_monitor_idx >= post_removal_monitor_count {
-                        wm.focus_monitor(0)?;
-                    }
 
                     let offset = wm.work_area_offset;
 
@@ -736,7 +735,7 @@ where
 
                 // Check for and add any new monitors that may have been plugged in
                 // Monitor and display index preferences get applied in this function
-                WindowsApi::load_monitor_information(&mut wm)?;
+                WindowsApi::apply_monitor_information(&mut wm, &attached_devices);
 
                 let post_addition_monitor_count = wm.monitors().len();
 
@@ -747,9 +746,6 @@ where
 
                     let known_hwnds = wm.known_hwnds.clone();
                     let offset = wm.work_area_offset;
-                    let mouse_follows_focus = wm.mouse_follows_focus;
-                    let focused_monitor_idx = wm.focused_monitor_idx();
-                    let focused_workspace_idx = wm.focused_workspace_idx()?;
 
                     // Look in the updated state for new monitors
                     for (i, m) in wm.monitors_mut().iter_mut().enumerate() {
@@ -806,20 +802,11 @@ where
                                     // windows that were visible since they were probably minimized by
                                     // Windows.
                                     let is_focused_workspace = j == focused_workspace_idx;
-                                    let focused_container_idx = workspace.focused_container_idx();
-
-                                    let mut empty_containers = Vec::new();
-                                    for (idx, container) in
-                                        workspace.containers_mut().iter_mut().enumerate()
-                                    {
+                                    for container in workspace.containers_mut() {
                                         container.windows_mut().retain(|window| {
                                             window.exe().is_ok()
                                                 && !known_hwnds.contains_key(&window.hwnd)
                                         });
-
-                                        if container.windows().is_empty() {
-                                            empty_containers.push(idx);
-                                        }
 
                                         if is_focused_workspace {
                                             if let Some(window) = container.focused_window()
@@ -845,14 +832,7 @@ where
                                         }
                                     }
 
-                                    // Remove empty containers
-                                    for empty_idx in empty_containers {
-                                        if empty_idx == focused_container_idx {
-                                            workspace.remove_container(empty_idx);
-                                        } else {
-                                            workspace.remove_container_by_idx(empty_idx);
-                                        }
-                                    }
+                                    workspace.remove_empty_containers();
 
                                     if let Some(window) = &workspace.maximized_window {
                                         if window.exe().is_err()
@@ -943,7 +923,7 @@ where
 
                                 // Restore windows from new monitor and update the focused
                                 // workspace
-                                m.load_focused_workspace(mouse_follows_focus)?;
+                                m.load_focused_workspace_without_focus()?;
                                 m.update_focused_workspace(offset)?;
                             }
 
@@ -953,11 +933,6 @@ where
                             }
                         }
                     }
-
-                    // Refocus the previously focused monitor since the code above might
-                    // steal the focus away.
-                    wm.focus_monitor(focused_monitor_idx)?;
-                    wm.focus_workspace(focused_workspace_idx)?;
                 }
 
                 let final_count = wm.monitors().len();
@@ -969,6 +944,8 @@ where
                     // Border updates to fix DPI/resolution related jank
                     border_manager::send_notification(None);
                 }
+
+                wm.update_known_hwnds();
             }
         }
 
@@ -979,6 +956,21 @@ where
             },
             initial_state.has_been_modified(&wm),
         )?;
+
+        // Foreground activation is best effort, after restoration and bookkeeping.
+        if matches!(
+            notification,
+            MonitorNotification::DisplayConnectionChange
+                | MonitorNotification::SessionUnlocked
+                | MonitorNotification::ResumingFromSuspendedState
+        ) && let Some(window) = wm
+            .focused_monitor()
+            .and_then(|monitor| monitor.focused_workspace())
+            .and_then(|workspace| workspace.focus_target())
+            && let Err(error) = window.focus(wm.mouse_follows_focus)
+        {
+            tracing::warn!("could not focus restored window {}: {error}", window.hwnd);
+        }
     }
 
     Ok(())
@@ -990,12 +982,146 @@ mod tests {
     use crate::window_manager_event::WindowManagerEvent;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
-    use std::path::PathBuf;
     use uuid::Uuid;
     use windows::Win32::Devices::Display::DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY;
     // NOTE: Using RECT instead of RECT since I get a mismatched type error. Can be updated if
     // needed.
     use windows::Win32::Foundation::RECT;
+
+    #[test]
+    fn test_focus_refusal_finishes_cached_restoration() -> color_eyre::Result<()> {
+        match std::thread::spawn(check_focus_refusal_finishes_cached_restoration).join() {
+            Ok(result) => result,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+
+    fn check_focus_refusal_finishes_cached_restoration() -> color_eyre::Result<()> {
+        use crate::Window;
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::System::StationsAndDesktops::CloseDesktop;
+        use windows::Win32::System::StationsAndDesktops::CreateDesktopW;
+        use windows::Win32::System::StationsAndDesktops::DESKTOP_CREATEWINDOW;
+        use windows::Win32::System::StationsAndDesktops::DESKTOP_READOBJECTS;
+        use windows::Win32::System::StationsAndDesktops::DESKTOP_WRITEOBJECTS;
+        use windows::Win32::System::StationsAndDesktops::GetThreadDesktop;
+        use windows::Win32::System::StationsAndDesktops::HDESK;
+        use windows::Win32::System::StationsAndDesktops::SetThreadDesktop;
+        use windows::Win32::System::Threading::GetCurrentThreadId;
+        use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
+        use windows::core::HSTRING;
+        use windows::core::w;
+
+        let _context = TestContext::new();
+
+        struct TestDesktop {
+            original: HDESK,
+            desktop: HDESK,
+            windows: Vec<Window>,
+        }
+
+        impl Drop for TestDesktop {
+            fn drop(&mut self) {
+                for window in &self.windows {
+                    crate::HIDDEN_HWNDS
+                        .lock()
+                        .retain(|hwnd| *hwnd != window.hwnd);
+                    if let Err(error) = unsafe { DestroyWindow(HWND(window.hwnd as _)) } {
+                        tracing::error!("failed to destroy test window: {error}");
+                    }
+                }
+                unsafe {
+                    if let Err(error) = SetThreadDesktop(self.original) {
+                        tracing::error!("failed to restore test thread desktop: {error}");
+                    }
+                    if let Err(error) = CloseDesktop(self.desktop) {
+                        tracing::error!("failed to close test desktop: {error}");
+                    }
+                }
+            }
+        }
+
+        // Windows on a non-input desktop cannot take the foreground. Never switch
+        // the input desktop; only this isolated test thread uses the new desktop.
+        let original_desktop = unsafe { GetThreadDesktop(GetCurrentThreadId())? };
+        let desktop_name = HSTRING::from(format!("komorebi-test-{}", Uuid::new_v4()));
+        let desktop = unsafe {
+            CreateDesktopW(
+                &desktop_name,
+                None,
+                None,
+                Default::default(),
+                DESKTOP_CREATEWINDOW.0 | DESKTOP_READOBJECTS.0 | DESKTOP_WRITEOBJECTS.0,
+                None,
+            )?
+        };
+        let mut desktop = TestDesktop {
+            original: original_desktop,
+            desktop,
+            windows: Vec::new(),
+        };
+        unsafe { SetThreadDesktop(desktop.desktop)? };
+
+        let mut wm = create_window_manager(&_context);
+        let devices: Vec<_> = (1..=2)
+            .map(|id| MockDevice {
+                hmonitor: id,
+                device_path: format!(r"\\?\DISPLAY#TEST{id}#instance#{{test}}"),
+                device_name: format!(r"\\.\DISPLAY{id}"),
+                device_description: String::new(),
+                serial_number_id: None,
+                size: RECT::default(),
+                work_area_size: RECT::default(),
+                device_key: String::new(),
+                output_technology: None,
+            })
+            .collect();
+        let provider = || devices.iter().cloned().map(|d| Ok(d.into()));
+        let monitors = attached_display_devices(provider)?;
+        for mut monitor in monitors {
+            // Use a real HWND; foreground refusal is not an invalid-handle error.
+            let window = Window::from(WindowsApi::create_hidden_window(w!("STATIC"), 0)?);
+            desktop.windows.push(window);
+            assert!(window.is_window());
+            assert!(window.focus(false).is_err());
+            WindowsApi::hide_window(window.hwnd);
+            assert!(!window.is_visible());
+            monitor.workspaces_mut()[0]
+                .floating_windows_mut()
+                .push_back(window);
+            insert_in_monitor_cache(&monitor.device_id, monitor.clone());
+        }
+        assert_eq!(
+            MONITOR_CACHE
+                .get_or_init(|| Mutex::new(HashMap::new()))
+                .lock()
+                .len(),
+            2
+        );
+
+        wm.monitors_mut().clear();
+        assert!(wm.known_hwnds.is_empty());
+        let wm = Arc::new(Mutex::new(wm));
+        let (sender, receiver) = bounded(1);
+        sender.send(MonitorNotification::DisplayConnectionChange)?;
+        drop(sender);
+        handle_notifications_with_receiver(Arc::clone(&wm), provider, receiver)?;
+
+        assert!(
+            MONITOR_CACHE
+                .get_or_init(|| Mutex::new(HashMap::new()))
+                .lock()
+                .is_empty()
+        );
+        let wm = wm.lock();
+        assert_eq!(wm.monitors().len(), 2);
+        assert_eq!(wm.known_hwnds.len(), 2);
+        for window in &desktop.windows {
+            assert!(window.is_visible());
+            assert!(wm.known_hwnds.contains_key(&window.hwnd));
+        }
+        Ok(())
+    }
 
     // Creating a Mock Display Provider
     #[derive(Clone)]
@@ -1027,44 +1153,152 @@ mod tests {
         }
     }
 
-    // Creating a Window Manager Instance
     struct TestContext {
-        socket_path: Option<PathBuf>,
+        _shared: crate::test_support::TestContext,
+        monitor_cache: HashMap<String, Monitor>,
     }
 
-    impl Drop for TestContext {
-        fn drop(&mut self) {
-            if let Some(socket_path) = &self.socket_path {
-                // Clean up the socket file
-                if let Err(e) = std::fs::remove_file(socket_path) {
-                    tracing::warn!("Failed to remove socket file: {}", e);
-                }
+    impl TestContext {
+        fn new() -> Self {
+            let shared = crate::test_support::TestContext::new();
+            let monitor_cache = std::mem::take(
+                &mut *MONITOR_CACHE
+                    .get_or_init(|| Mutex::new(HashMap::new()))
+                    .lock(),
+            );
+            Self {
+                _shared: shared,
+                monitor_cache,
             }
         }
     }
 
-    fn setup_window_manager() -> (WindowManager, TestContext) {
+    impl Drop for TestContext {
+        fn drop(&mut self) {
+            *MONITOR_CACHE
+                .get_or_init(|| Mutex::new(HashMap::new()))
+                .lock() = std::mem::take(&mut self.monitor_cache);
+        }
+    }
+
+    fn setup_window_manager() -> (TestContext, WindowManager) {
+        let context = TestContext::new();
+        let wm = create_window_manager(&context);
+        (context, wm)
+    }
+
+    fn create_window_manager(context: &TestContext) -> WindowManager {
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
+        match WindowManager::new(receiver, Some(context._shared.socket_path())) {
+            Ok(wm) => wm,
+            Err(error) => panic!("failed to create test manager: {error}"),
+        }
+    }
 
-        // Temporary socket path for testing
-        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
-        let socket_path = PathBuf::from(socket_name);
-
-        // Create a new WindowManager instance
-        let wm = match WindowManager::new(receiver, Some(socket_path.clone())) {
-            Ok(manager) => manager,
-            Err(e) => {
-                panic!("Failed to create WindowManager: {e}");
-            }
-        };
-
-        (
-            wm,
-            TestContext {
-                socket_path: Some(socket_path),
-            },
+    fn identity_monitor(device_id: &str, serial_number_id: Option<&str>) -> Monitor {
+        monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            String::new(),
+            String::new(),
+            device_id.to_string(),
+            serial_number_id.map(str::to_string),
         )
+    }
+
+    #[test]
+    fn test_disconnected_monitors_without_serial_numbers() {
+        let attached = vec![
+            identity_monitor("DELA0DE-5&42b49c9&0&UID264", None),
+            identity_monitor("GSM76E4-5&42b49c9&0&UID256", None),
+        ];
+        let mut tracked = attached.clone();
+        tracked.push(identity_monitor(
+            "Default_Monitor-1&1f0c3c2f&1&UID256",
+            None,
+        ));
+        tracked.push(identity_monitor("UNKNOWN", None));
+
+        assert_eq!(tracked.len(), 4);
+        assert_eq!(attached.len(), 2);
+        let disconnected: Vec<_> = tracked
+            .iter()
+            .filter(|monitor| monitor_is_disconnected(monitor, &attached))
+            .map(|monitor| monitor.device_id.as_str())
+            .collect();
+        assert_eq!(
+            disconnected,
+            ["Default_Monitor-1&1f0c3c2f&1&UID256", "UNKNOWN"]
+        );
+    }
+
+    #[test]
+    fn test_same_count_monitor_replacement() {
+        let tracked: std::collections::VecDeque<_> = [identity_monitor("console", None)].into();
+        let attached = [identity_monitor("RDP", None)];
+        assert_eq!(tracked.len(), attached.len());
+        assert!(!monitor_topology_matches(&tracked, &attached));
+        assert!(monitor_topology_matches(
+            &tracked,
+            &[identity_monitor("console", None)]
+        ));
+        assert!(!monitor_topology_matches(&tracked, &[]));
+
+        let tracked = [identity_monitor("old-device", Some("serial"))].into();
+        assert!(monitor_topology_matches(
+            &tracked,
+            &[identity_monitor("new-device", Some("serial"))]
+        ));
+    }
+
+    #[test]
+    fn test_attached_monitor_identity() {
+        let cases = [
+            ("same-device", None, "same-device", None, true),
+            (
+                "old-device",
+                Some("serial"),
+                "new-device",
+                Some("serial"),
+                true,
+            ),
+            (
+                "old-device",
+                Some("old-serial"),
+                "new-device",
+                Some("new-serial"),
+                false,
+            ),
+            ("old-device", None, "new-device", None, false),
+            ("old-device", Some("serial"), "new-device", None, false),
+            ("old-device", None, "new-device", Some("serial"), false),
+            ("same-device", Some("serial"), "same-device", None, true),
+            ("same-device", None, "same-device", Some("serial"), true),
+            (
+                "same-device",
+                Some("old-serial"),
+                "same-device",
+                Some("new-serial"),
+                true,
+            ),
+        ];
+
+        for (device, serial, attached_device, attached_serial, expected) in cases {
+            let monitor = identity_monitor(device, serial);
+            let attached = identity_monitor(attached_device, attached_serial);
+            assert_eq!(
+                !monitor_is_disconnected(&monitor, &[attached]),
+                expected,
+                "tracked: ({device}, {serial:?}), attached: ({attached_device}, {attached_serial:?})"
+            );
+        }
+
+        assert!(monitor_is_disconnected(
+            &identity_monitor("device", Some("serial")),
+            &[]
+        ));
     }
 
     #[test]
@@ -1121,6 +1355,7 @@ mod tests {
 
     #[test]
     fn test_insert_in_monitor_cache() {
+        let _context = TestContext::new();
         let m = monitor::new(
             0,
             Rect::default(),
@@ -1146,6 +1381,7 @@ mod tests {
 
     #[test]
     fn test_insert_two_monitors_cache() {
+        let _context = TestContext::new();
         let m1 = monitor::new(
             0,
             Rect::default(),
@@ -1193,29 +1429,32 @@ mod tests {
     }
 
     #[test]
-    fn test_listen_for_notifications() {
-        // Create a WindowManager instance for testing
-        let (wm, _test_context) = setup_window_manager();
+    fn test_handle_display_connection_notification() -> color_eyre::Result<()> {
+        let (_context, wm) = setup_window_manager();
+        assert!(wm.monitors().is_empty());
+        let wm = Arc::new(Mutex::new(wm));
+        let device = MockDevice {
+            hmonitor: 1,
+            device_path: r"\\?\DISPLAY#TEST#instance#{test}".to_string(),
+            device_name: r"\\.\DISPLAY1".to_string(),
+            device_description: String::new(),
+            serial_number_id: None,
+            size: RECT::default(),
+            work_area_size: RECT::default(),
+            device_key: String::new(),
+            output_technology: None,
+        };
+        let provider = || std::iter::once(Ok(device.clone().into()));
+        let (sender, receiver) = bounded(1);
+        sender.send(MonitorNotification::DisplayConnectionChange)?;
+        drop(sender);
 
-        // Start the notification listener
-        let result = listen_for_notifications(Arc::new(Mutex::new(wm)));
+        handle_notifications_with_receiver(Arc::clone(&wm), provider, receiver)?;
 
-        // Check if the listener started successfully
-        assert!(result.is_ok(), "Failed to start notification listener");
-
-        // Test sending a notification
-        send_notification(MonitorNotification::DisplayConnectionChange);
-
-        // Receive the notification from the channel
-        let received = event_rx().try_recv();
-
-        // Check if we received the notification and if it matches what we sent
-        match received {
-            Ok(notification) => {
-                assert_eq!(notification, MonitorNotification::DisplayConnectionChange);
-            }
-            Err(e) => panic!("Failed to receive MonitorNotification: {e}"),
-        }
+        let wm = wm.lock();
+        assert_eq!(wm.monitors().len(), 1);
+        assert_eq!(wm.monitors()[0].device_id, "TEST-instance");
+        Ok(())
     }
 
     #[test]

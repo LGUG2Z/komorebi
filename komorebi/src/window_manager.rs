@@ -175,6 +175,54 @@ impl WindowManager {
         })
     }
 
+    /// Removes monitors and remaps focus, user monitor indices and workspace rules.
+    ///
+    /// Refreshes known HWNDs for the surviving monitors.
+    pub(crate) fn remove_monitors(&mut self, removed_indices: &[usize]) {
+        let mut next_index = 0;
+        let index_map: Vec<_> = (0..self.monitors().len())
+            .map(|index| {
+                if removed_indices.contains(&index) {
+                    None
+                } else {
+                    let new_index = next_index;
+                    next_index += 1;
+                    Some(new_index)
+                }
+            })
+            .collect();
+
+        let focused = index_map
+            .get(self.focused_monitor_idx())
+            .copied()
+            .flatten()
+            .unwrap_or_default();
+        let mut index = 0;
+        self.monitors_mut().retain(|_| {
+            let keep = index_map[index].is_some();
+            index += 1;
+            keep
+        });
+        self.monitors.focus(focused);
+        self.monitor_usr_idx_map.retain(|_, index| {
+            if let Some(new_index) = index_map.get(*index).copied().flatten() {
+                *index = new_index;
+                true
+            } else {
+                false
+            }
+        });
+        WORKSPACE_MATCHING_RULES.lock().retain_mut(|rule| {
+            if let Some(new_index) = index_map.get(rule.monitor_index).copied().flatten() {
+                rule.monitor_index = new_index;
+                true
+            } else {
+                false
+            }
+        });
+        self.update_known_hwnds();
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn init(&mut self) -> eyre::Result<()> {
         tracing::info!("initialising");
@@ -3994,54 +4042,163 @@ impl WindowManager {
 mod tests {
     use super::*;
     use crate::monitor;
+    use crate::test_support::TestContext;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
-    use std::path::PathBuf;
-    use uuid::Uuid;
 
-    struct TestContext {
-        socket_path: Option<PathBuf>,
-    }
-
-    impl Drop for TestContext {
-        fn drop(&mut self) {
-            if let Some(socket_path) = &self.socket_path {
-                // Clean up the socket file
-                std::fs::remove_file(socket_path).unwrap();
-            }
-        }
-    }
-
-    fn setup_window_manager() -> (WindowManager, TestContext) {
+    fn setup_window_manager() -> (TestContext, WindowManager) {
+        let context = TestContext::new();
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
+        let wm = WindowManager::new(receiver, Some(context.socket_path())).unwrap();
+        (context, wm)
+    }
 
-        // Temporary socket path for testing
-        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
-        let socket_path = PathBuf::from(socket_name);
+    #[test]
+    fn test_monitor_replacement_repairs_references() {
+        use crate::DISPLAY_INDEX_PREFERENCES;
+        use crate::config_generation::MatchingRule;
+        use crate::config_generation::WorkspaceMatchingRule;
 
-        // Create a new WindowManager instance
-        let wm = WindowManager::new(receiver, Some(socket_path.clone()));
+        let (_context, mut wm) = setup_window_manager();
+        let make_monitor = |id: &str| {
+            monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                id.to_string(),
+                id.to_string(),
+                id.to_string(),
+                None,
+            )
+        };
+        for preference in [0, 1] {
+            wm.monitors = Ring::default();
+            wm.monitors_mut()
+                .extend([make_monitor("A"), make_monitor("B")]);
+            wm.monitors.focus(1);
+            wm.monitors_mut()[1].workspaces_mut()[0]
+                .floating_windows_mut()
+                .push_back(Window::from(123));
+            *WORKSPACE_MATCHING_RULES.lock() = vec![WorkspaceMatchingRule {
+                monitor_index: 1,
+                workspace_index: 0,
+                matching_rule: MatchingRule::Composite(vec![]),
+                initial_only: false,
+            }];
+            DISPLAY_INDEX_PREFERENCES.write().clear();
+            DISPLAY_INDEX_PREFERENCES
+                .write()
+                .insert(preference, "C".to_string());
+            assert_eq!(wm.focused_monitor().unwrap().device_id, "B");
 
-        // Window Manager should be created successfully
-        assert!(wm.is_ok());
+            wm.remove_monitors(&[0]);
+            // This verified snapshot is sufficient; applying it must not enumerate Windows again.
+            WindowsApi::apply_monitor_information(&mut wm, &[make_monitor("C"), make_monitor("B")]);
 
-        (
-            wm.unwrap(),
-            TestContext {
-                socket_path: Some(socket_path),
-            },
-        )
+            assert_eq!(wm.monitors().len(), 2);
+            let survivor = wm
+                .monitors()
+                .iter()
+                .position(|m| m.device_id == "B")
+                .unwrap();
+            assert_eq!(wm.focused_monitor_idx(), survivor);
+            assert_eq!(WORKSPACE_MATCHING_RULES.lock()[0].monitor_index, survivor);
+            assert_eq!(wm.known_hwnds[&123], (survivor, 0));
+            assert_eq!(wm.monitor_usr_idx_map[&preference], 1 - survivor);
+        }
+
+        wm.remove_monitors(&[0, 1]);
+        assert!(wm.monitors().is_empty());
+        WindowsApi::apply_monitor_information(&mut wm, &[make_monitor("RDP")]);
+        assert_eq!(wm.focused_monitor().unwrap().device_id, "RDP");
+    }
+
+    #[test]
+    fn test_remove_monitors_repairs_references() {
+        use crate::config_generation::MatchingRule;
+        use crate::config_generation::WorkspaceMatchingRule;
+
+        let (_context, mut wm) = setup_window_manager();
+        for mask in 0..16 {
+            for focused in 0..4 {
+                wm.monitors = Ring::default();
+                wm.monitor_usr_idx_map.clear();
+                let rules: Vec<_> = (0..4)
+                    .map(|index| WorkspaceMatchingRule {
+                        monitor_index: index,
+                        workspace_index: 0,
+                        matching_rule: MatchingRule::Composite(vec![]),
+                        initial_only: index % 2 == 0,
+                    })
+                    .collect();
+                *WORKSPACE_MATCHING_RULES.lock() = rules.clone();
+                for index in 0..4 {
+                    let mut monitor = Monitor::placeholder();
+                    monitor.device_id = index.to_string();
+                    let mut workspace = Workspace::default();
+                    workspace
+                        .floating_windows_mut()
+                        .push_back(Window::from(100 + index as isize));
+                    monitor.workspaces_mut().push_back(workspace);
+                    wm.monitors_mut().push_back(monitor);
+                    wm.monitor_usr_idx_map.insert(index + 10, index);
+                }
+                wm.monitors.focus(focused);
+                wm.update_known_hwnds();
+                assert_eq!(wm.known_hwnds.len(), 4);
+                let removed: Vec<_> = (0..4).filter(|index| mask & (1 << index) != 0).collect();
+                let survivors: Vec<_> = (0..4).filter(|index| !removed.contains(index)).collect();
+
+                wm.remove_monitors(&removed);
+
+                assert_eq!(
+                    wm.monitors()
+                        .iter()
+                        .map(|m| m.device_id.clone())
+                        .collect::<Vec<_>>(),
+                    survivors.iter().map(usize::to_string).collect::<Vec<_>>()
+                );
+                assert_eq!(
+                    wm.focused_monitor_idx(),
+                    survivors
+                        .iter()
+                        .position(|index| *index == focused)
+                        .unwrap_or_default()
+                );
+                assert_eq!(wm.known_hwnds.len(), survivors.len());
+                assert_eq!(wm.monitor_usr_idx_map.len(), survivors.len());
+                let expected_rules: Vec<_> = survivors
+                    .iter()
+                    .enumerate()
+                    .map(|(new, old)| {
+                        assert_eq!(wm.known_hwnds[&(100 + *old as isize)], (new, 0));
+                        assert_eq!(wm.monitor_usr_idx_map[&(old + 10)], new);
+                        let mut rule = rules[*old].clone();
+                        rule.monitor_index = new;
+                        rule
+                    })
+                    .collect();
+                assert_eq!(*WORKSPACE_MATCHING_RULES.lock(), expected_rules);
+                assert_eq!(*crate::reaper::HWNDS_CACHE.lock(), wm.known_hwnds);
+                if survivors.is_empty() {
+                    wm.monitors_mut().push_back(Monitor::placeholder());
+                    assert!(wm.focused_monitor().is_some());
+                }
+            }
+        }
+        wm.monitors_mut().clear();
+        wm.update_known_hwnds();
     }
 
     #[test]
     fn test_create_window_manager() {
-        let (_wm, _test_context) = setup_window_manager();
+        let (_test_context, _wm) = setup_window_manager();
     }
 
     #[test]
     fn test_focus_workspace() {
-        let (mut wm, _test_context) = setup_window_manager();
+        let (_test_context, mut wm) = setup_window_manager();
 
         let m = monitor::new(
             0,
@@ -4087,7 +4244,7 @@ mod tests {
 
     #[test]
     fn test_remove_focused_workspace() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         let m = monitor::new(
             0,
@@ -4138,7 +4295,7 @@ mod tests {
 
     #[test]
     fn test_set_workspace_name() {
-        let (mut wm, _test_context) = setup_window_manager();
+        let (_test_context, mut wm) = setup_window_manager();
 
         let m = monitor::new(
             0,
@@ -4181,7 +4338,7 @@ mod tests {
 
     #[test]
     fn test_switch_focus_monitors() {
-        let (mut wm, _test_context) = setup_window_manager();
+        let (_test_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4272,7 +4429,7 @@ mod tests {
 
     #[test]
     fn test_switch_focus_to_nonexistent_monitor() {
-        let (mut wm, _test_context) = setup_window_manager();
+        let (_test_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4310,7 +4467,7 @@ mod tests {
 
     #[test]
     fn test_focused_monitor_size() {
-        let (mut wm, _test_context) = setup_window_manager();
+        let (_test_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4342,7 +4499,7 @@ mod tests {
 
     #[test]
     fn test_focus_container_in_cycle_direction() {
-        let (mut wm, _test_context) = setup_window_manager();
+        let (_test_context, mut wm) = setup_window_manager();
 
         // Create a monitor
         let mut m = monitor::new(
@@ -4393,7 +4550,7 @@ mod tests {
 
     #[test]
     fn test_transfer_window() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4499,7 +4656,7 @@ mod tests {
         // transfer. The test will test for the result of the transfer_window function but not if
         // the window is in the container after the transfer fails.
 
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4551,7 +4708,7 @@ mod tests {
 
     #[test]
     fn test_transfer_container() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4651,7 +4808,7 @@ mod tests {
 
     #[test]
     fn test_remove_window_from_container() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4715,7 +4872,7 @@ mod tests {
 
     #[test]
     fn test_remove_nonexistent_window_from_container() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4753,7 +4910,7 @@ mod tests {
 
     #[test]
     fn cycle_container_window_in_direction() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             let mut m = monitor::new(
@@ -4822,7 +4979,7 @@ mod tests {
 
     #[test]
     fn test_cycle_nonexistent_windows() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -4860,7 +5017,7 @@ mod tests {
 
     #[test]
     fn test_cycle_container_window_index_in_direction() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             let mut m = monitor::new(
@@ -4929,7 +5086,7 @@ mod tests {
 
     #[test]
     fn test_swap_containers() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -5018,7 +5175,7 @@ mod tests {
 
     #[test]
     fn test_swap_container_with_nonexistent_container() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -5083,7 +5240,7 @@ mod tests {
 
     #[test]
     fn test_swap_monitor_workspaces() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -5167,7 +5324,7 @@ mod tests {
 
     #[test]
     fn test_swap_workspace_with_nonexistent_monitor() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             let mut m = monitor::new(
@@ -5213,7 +5370,7 @@ mod tests {
 
     #[test]
     fn test_move_workspace_to_monitor() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             let mut m = monitor::new(
@@ -5282,7 +5439,7 @@ mod tests {
 
     #[test]
     fn test_move_workspace_to_nonexistent_monitor() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             let mut m = monitor::new(
@@ -5318,7 +5475,7 @@ mod tests {
 
     #[test]
     fn test_toggle_tiling() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             let mut m = monitor::new(
@@ -5359,7 +5516,7 @@ mod tests {
 
     #[test]
     fn test_toggle_lock() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Add monitor with default workspace to
@@ -5412,7 +5569,7 @@ mod tests {
 
     #[test]
     fn test_float_window() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5490,7 +5647,7 @@ mod tests {
 
     #[test]
     fn test_float_nonexistent_window() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             let mut m = monitor::new(
@@ -5524,7 +5681,7 @@ mod tests {
 
     #[test]
     fn test_maximize_and_unmaximize_window() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5614,7 +5771,7 @@ mod tests {
 
     #[test]
     fn test_toggle_maximize() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5670,7 +5827,7 @@ mod tests {
 
     #[test]
     fn test_toggle_maximize_nonexistent_window() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5705,7 +5862,7 @@ mod tests {
 
     #[test]
     fn test_monocle_on_and_monocle_off() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5776,7 +5933,7 @@ mod tests {
 
     #[test]
     fn test_monocle_on_and_off_nonexistent_container() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5811,7 +5968,7 @@ mod tests {
 
     #[test]
     fn test_toggle_monocle() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5882,7 +6039,7 @@ mod tests {
 
     #[test]
     fn test_toggle_monocle_nonexistent_container() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5910,7 +6067,7 @@ mod tests {
 
     #[test]
     fn test_ensure_named_workspace_for_monitor() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
 
         {
             // Create a monitor
@@ -5983,7 +6140,7 @@ mod tests {
 
     #[test]
     fn test_add_window_handle_to_move_based_on_workspace_rule() {
-        let (wm, _context) = setup_window_manager();
+        let (_context, wm) = setup_window_manager();
 
         // Mock Data representing a window and its workspace/movement details
         let window_title = String::from("TestWindow");
