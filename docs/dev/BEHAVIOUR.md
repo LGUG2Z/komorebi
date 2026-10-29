@@ -73,6 +73,21 @@ from the enum rather than the hand-written deserializer, describes the type as o
 description of the case and the reason, and records the case that way, whether the daemon does not
 start or puts the windows elsewhere. The other four cases give the same order on both ports.
 
+**`hotplug` on kfw.** After a display is unplugged, Windows reports one display within a second,
+but kfw's `komorebic state` can keep listing two monitors for as long as it is watched (90 s,
+every round of a probe, on master as well as on `0ffc502c`). The daemon's log loops: "potential
+monitor removal detected (2 vs 1), verifying in 3s", "verified monitor removal", "removing
+disconnected monitors", and again, about every 3 seconds, and the removal never takes effect.
+The kfw session's reading, not proven: in `monitor_reconciliator/mod.rs` a monitor counts as
+still attached when `serial_number_id` or `device_id` is equal, and a virtual display has no
+EDID serial, so `None == None` makes the removed one match the primary; the loop before it
+guards with `if let (Some, Some)` and this one does not. Real monitors have serial numbers, so it
+may show only with virtual displays. `hotplug` passed 19/19 in several runs and failed that one
+check (18/19) in two of three runs of a five-run series, so it is not marked a known failure: a
+known failure that holds fails the suite, and this one holds only sometimes. kfde is not
+affected: it has no reconciliator loop of this kind, and `hotplug` passes 34/0 there. Until
+someone decides about the fix, the check stays red when it fails.
+
 **`resize` on kfw.** Dragging the edge between two tiles by 30, 60 and 120 pixels moved it by 27,
 53 and 96 on kfw's master, and by 27, 51 and 106 on its animation branch (`0c9acdf4`), where kfde
 moves it by exactly the pointer's distance. The pointer is not the cause: the same drag of the
