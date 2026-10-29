@@ -9,10 +9,12 @@
 //!   `komorebic ignore-rule exe <name>` for its own executables before it creates a window, so komorebi never sees a
 //!   titled window that it has not been told to ignore. That is komorebi's live runtime rule: nothing is written to
 //!   `komorebi.json`, and running it on every start is harmless. The window is titled.
+//! - **komorebi for KDE is running and `komorebic` can be found**: the same, with `komorebic ignore-rule class
+//!   komorebi-recorder`, the application id the window has on Wayland ([`Scheme::KdeClass`]).
 //! - **komorebi is not running**: there is nothing to tile the window, so it is titled, and nothing is said.
 //! - **`komorebic` is missing, or the rule could not be registered**: the window stays untitled, as it always was,
 //!   and the recorder says so once on standard error.
-//! - **Anywhere that is not Windows**: komorebi for Mac manages any window that has a title and has no ignore rule
+//! - **On a Mac**: komorebi for Mac manages any window that has a title and has no ignore rule
 //!   to rely on, so the windows stay untitled.
 //!
 //! The decisions are plain functions of an [`Outcome`], and the commands run through a [`Runner`], so all of it is
@@ -41,6 +43,60 @@ pub const GUI_EXE: &str = "komorebi-recorder-gui.exe";
 
 /// How long `komorebic ignore-rule` has before it is killed.
 pub const TIMEOUT: Duration = Duration::from_secs(3);
+
+/// The application id of the recorder's window on Wayland, which is the `class` komorebi for KDE sees.
+pub const APP_ID: &str = "komorebi-recorder";
+
+/// How a host asks its komorebi to ignore the recorder's windows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Scheme {
+    /// There is no rule to register: komorebi for Mac manages any window with a title.
+    Nothing,
+    /// komorebi for Windows: `komorebic.exe ignore-rule exe <executable>`.
+    WindowsExe,
+    /// komorebi for KDE: `komorebic ignore-rule class <application id>`.
+    KdeClass,
+}
+
+impl Scheme {
+    /// The scheme of the host this is built for.
+    #[must_use]
+    pub fn of_host() -> Self {
+        if cfg!(windows) {
+            Self::WindowsExe
+        } else if cfg!(target_os = "linux") {
+            Self::KdeClass
+        } else {
+            Self::Nothing
+        }
+    }
+
+    /// The file name of `komorebic` on this scheme's host.
+    fn komorebic(self) -> &'static str {
+        match self {
+            Self::WindowsExe => "komorebic.exe",
+            Self::KdeClass | Self::Nothing => "komorebic",
+        }
+    }
+
+    /// The arguments of each `komorebic` command that ignores the recorder's windows, `current`
+    /// being this executable's file name.
+    fn rules(self, current: &str) -> Vec<Vec<String>> {
+        match self {
+            Self::Nothing => Vec::new(),
+            Self::WindowsExe => exe_names(current)
+                .iter()
+                .map(|name| ignore_args(name))
+                .collect(),
+            Self::KdeClass => vec![
+                ["ignore-rule", "class", APP_ID]
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect(),
+            ],
+        }
+    }
+}
 
 /// What came of asking komorebi to ignore the recorder's windows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -119,13 +175,26 @@ pub fn ignore_args(name: &str) -> Vec<String> {
 /// `komorebic.exe` next to the running komorebi comes first, then `PATH`. `windows` is whether the host is
 /// Windows; anywhere else there is nothing to do.
 pub fn check(runner: &mut dyn Runner, windows: bool) -> Readiness {
-    if !windows {
+    let scheme = if windows {
+        Scheme::WindowsExe
+    } else {
+        Scheme::Nothing
+    };
+    check_for(runner, scheme)
+}
+
+/// [`check`] for a [`Scheme`].
+pub fn check_for(runner: &mut dyn Runner, scheme: Scheme) -> Readiness {
+    if scheme == Scheme::Nothing {
         return Readiness::NotApplicable;
     }
     let Some(exe) = runner.komorebi() else {
         return Readiness::KomorebiNotRunning;
     };
-    match candidates(runner, exe.as_deref()).into_iter().next() {
+    match candidates(runner, exe.as_deref(), scheme.komorebic())
+        .into_iter()
+        .next()
+    {
         Some(candidate) => Readiness::Ready(candidate),
         None => Readiness::KomorebicNotFound,
     }
@@ -137,13 +206,13 @@ pub fn check(runner: &mut dyn Runner, windows: bool) -> Readiness {
 /// More than one is common on a machine that builds komorebi: a debug build next to a dev komorebi, and a release
 /// build from `cargo install` on `PATH`. A debug build can be unusable (see [`describe_exit`]), so
 /// [`ensure_with`] tries them in turn.
-fn candidates(runner: &mut dyn Runner, komorebi: Option<&Path>) -> Vec<PathBuf> {
+fn candidates(runner: &mut dyn Runner, komorebi: Option<&Path>, binary: &str) -> Vec<PathBuf> {
     let mut wanted = Vec::new();
     if let Some(dir) = komorebi.and_then(Path::parent) {
-        wanted.push(dir.join("komorebic.exe"));
+        wanted.push(dir.join(binary));
     }
     for dir in runner.path_dirs() {
-        wanted.push(dir.join("komorebic.exe"));
+        wanted.push(dir.join(binary));
     }
     let mut found: Vec<PathBuf> = Vec::new();
     for candidate in wanted {
@@ -198,20 +267,31 @@ pub fn describe_exit(code: i32) -> String {
 /// wins. One that crashes or refuses does not end the attempt while another is left; if none works the
 /// failure names every one tried and how it failed.
 pub fn ensure_with(runner: &mut dyn Runner, current: &str, windows: bool) -> Outcome {
-    if !windows {
+    let scheme = if windows {
+        Scheme::WindowsExe
+    } else {
+        Scheme::Nothing
+    };
+    ensure_for(runner, current, scheme)
+}
+
+/// [`ensure_with`] for a [`Scheme`].
+pub fn ensure_for(runner: &mut dyn Runner, current: &str, scheme: Scheme) -> Outcome {
+    if scheme == Scheme::Nothing {
         return Outcome::NotApplicable;
     }
     let Some(exe) = runner.komorebi() else {
         return Outcome::KomorebiNotRunning;
     };
-    let candidates = candidates(runner, exe.as_deref());
+    let candidates = candidates(runner, exe.as_deref(), scheme.komorebic());
     if candidates.is_empty() {
         return Outcome::KomorebicNotFound;
     }
 
+    let rules = scheme.rules(current);
     let mut failures = Vec::new();
     for komorebic in candidates {
-        match register_all(runner, &komorebic, current) {
+        match register_all(runner, &komorebic, &rules) {
             Ok(()) => return Outcome::Registered,
             Err(why) => failures.push(format!("{}: {why}", komorebic.display())),
         }
@@ -221,19 +301,21 @@ pub fn ensure_with(runner: &mut dyn Runner, current: &str, windows: bool) -> Out
 
 /// Runs the ignore rule for each of the recorder's executables with one `komorebic`, stopping at the first that
 /// does not work, and says why.
-fn register_all(runner: &mut dyn Runner, komorebic: &Path, current: &str) -> Result<(), String> {
-    for name in exe_names(current) {
-        match runner.run(komorebic, &ignore_args(&name), TIMEOUT) {
+fn register_all(
+    runner: &mut dyn Runner,
+    komorebic: &Path,
+    rules: &[Vec<String>],
+) -> Result<(), String> {
+    for args in rules {
+        let command = args.join(" ");
+        match runner.run(komorebic, args, TIMEOUT) {
             Ok(Ran::Exited(0)) => {}
             Ok(Ran::Exited(code)) => {
-                return Err(format!(
-                    "`komorebic ignore-rule exe {name}` {}",
-                    describe_exit(code)
-                ));
+                return Err(format!("`komorebic {command}` {}", describe_exit(code)));
             }
             Ok(Ran::TimedOut) => {
                 return Err(format!(
-                    "`komorebic ignore-rule exe {name}` did not finish in {} seconds",
+                    "`komorebic {command}` did not finish in {} seconds",
                     TIMEOUT.as_secs()
                 ));
             }
@@ -257,20 +339,40 @@ pub fn title_for(outcome: &Outcome, windows: bool) -> &'static str {
 /// there is nothing to say (the window is titled, or this host has no rule to register).
 #[must_use]
 pub fn note(outcome: &Outcome, current: &str) -> Option<String> {
+    note_for(outcome, current, Scheme::WindowsExe)
+}
+
+/// [`note`] for a [`Scheme`]: the rule to add is the one that scheme registers.
+#[must_use]
+pub fn note_for(outcome: &Outcome, current: &str, scheme: Scheme) -> Option<String> {
     let why = match outcome {
         Outcome::KomorebicNotFound => "komorebic not found".to_string(),
         Outcome::Failed(error) => error.clone(),
         _ => return None,
     };
+    let rule = scheme
+        .rules(current)
+        .first()
+        .map_or_else(String::new, |args| args.join(" "));
     Some(format!(
-        "{TITLE}: window left untitled so komorebi will not tile it ({why}); add the rule yourself: komorebic ignore-rule exe {current}"
+        "{TITLE}: window left untitled so komorebi will not tile it ({why}); add the rule yourself: komorebic {rule}"
     ))
 }
 
 /// A sentence for `doctor`: whether the windows will be titled and why, from a check that runs nothing.
 #[must_use]
 pub fn describe(readiness: &Readiness) -> String {
+    describe_for(readiness, Scheme::WindowsExe)
+}
+
+/// [`describe`] for a [`Scheme`].
+#[must_use]
+pub fn describe_for(readiness: &Readiness, scheme: Scheme) -> String {
     match readiness {
+        Readiness::KomorebicNotFound if scheme == Scheme::KdeClass => {
+            "untitled: komorebi is running and komorebic was not found to ask it to ignore them"
+                .to_string()
+        }
         Readiness::Ready(path) => format!(
             "titled \"{TITLE}\": the recorder registers an ignore rule with {} first",
             path.display()
@@ -362,7 +464,7 @@ pub fn ensure_self_ignored() -> Outcome {
     if std::env::var_os(SKIP_VARIABLE).is_some_and(|value| !value.is_empty()) {
         return Outcome::NotApplicable;
     }
-    ensure_with(&mut SystemRunner, &current_exe_name(), cfg!(windows))
+    ensure_for(&mut SystemRunner, &current_exe_name(), Scheme::of_host())
 }
 
 /// What a window needs before it is created: its title, and what to tell the user.
@@ -379,12 +481,12 @@ pub struct WindowSetup {
 /// Runs [`ensure_self_ignored`], prints [`WindowSetup::note`] (if any) on standard error, and returns the title.
 pub fn prepare_window() -> WindowSetup {
     let outcome = ensure_self_ignored();
-    let note = note(&outcome, &current_exe_name());
+    let note = note_for(&outcome, &current_exe_name(), Scheme::of_host());
     if let Some(note) = &note {
         eprintln!("{note}");
     }
     WindowSetup {
-        title: title_for(&outcome, cfg!(windows)),
+        title: title_for(&outcome, Scheme::of_host() != Scheme::Nothing),
         outcome,
         note,
     }
@@ -393,7 +495,8 @@ pub fn prepare_window() -> WindowSetup {
 /// [`describe`] for this machine, running nothing: for `doctor`.
 #[must_use]
 pub fn describe_here() -> String {
-    describe(&check(&mut SystemRunner, cfg!(windows)))
+    let scheme = Scheme::of_host();
+    describe_for(&check_for(&mut SystemRunner, scheme), scheme)
 }
 
 /// The rules a user can put in their own komorebi configuration to ignore the recorder's windows, as entries of the
@@ -677,5 +780,41 @@ mod tests {
     fn the_rule_text_names_both_executables() {
         let text = rule_text();
         assert!(text.contains("komorebi-recorder.exe") && text.contains(GUI_EXE));
+    }
+
+    #[test]
+    fn on_kde_the_application_id_is_ignored_by_class_with_komorebic() {
+        let mut fake = Fake::running();
+        fake.komorebi = Some(Some(PathBuf::from("/usr/bin/komorebi")));
+        fake.files = vec![PathBuf::from("/usr/bin/komorebic")];
+        let outcome = ensure_for(&mut fake, "komorebi-recorder", Scheme::KdeClass);
+        assert_eq!(outcome, Outcome::Registered);
+        assert_eq!(fake.calls.len(), 1);
+        assert_eq!(fake.calls[0].0, PathBuf::from("/usr/bin/komorebic"));
+        assert_eq!(
+            fake.calls[0].1,
+            ["ignore-rule", "class", "komorebi-recorder"]
+        );
+    }
+
+    #[test]
+    fn on_kde_the_note_names_the_class_rule() {
+        let note = note_for(
+            &Outcome::KomorebicNotFound,
+            "komorebi-recorder",
+            Scheme::KdeClass,
+        )
+        .expect("a note");
+        assert!(note.ends_with("komorebic ignore-rule class komorebi-recorder"));
+    }
+
+    #[test]
+    fn a_host_with_no_rule_registers_nothing() {
+        let mut fake = Fake::running();
+        assert_eq!(
+            ensure_for(&mut fake, "x", Scheme::Nothing),
+            Outcome::NotApplicable
+        );
+        assert!(fake.calls.is_empty());
     }
 }
