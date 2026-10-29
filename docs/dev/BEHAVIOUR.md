@@ -1,0 +1,94 @@
+# What the shared scenarios say about kfde and kfw
+
+[COMPARE.md](COMPARE.md) compares komorebi for KDE Plasma (kfde) with komorebi for Windows (kfw)
+from their sources. This document compares them from running them: the scenarios in
+`nix/tests/vm/lib/komorebi_vm/core/scenarios` are written once, against the `Platform` of
+[vm-tests.md](vm-tests.md), and run on a real KWin and on a real Windows 11 desktop. A scenario that
+passes on both says the two ports behave the same in that respect, as far as the scenario looks. A
+scenario that fails on one says where they differ, and is a finding to look into, not an assertion
+to loosen.
+
+Everything here is a dated result, and says who got it. It is not generated: it is written from the
+runs, and goes stale when the code changes.
+
+## Where the results come from
+
+- **kfde**: the suites of this repository, run on 2026-10-29 on a Windows 11 machine's WSL 2 (a
+  Ryzen 9 5900X, nested KVM), at `scale` 1.5.
+- **kfw**: a Windows 11 guest under QEMU on the same machine, running kfw's daemon, driven from
+  kfw's tree with a copy of `core/` that `scripts/sync-e2e-core` keeps in step. These results were
+  reported by the session that ran them, and are not repeated here. The guest is a Windows 11
+  evaluation image. Its display driver was the basic one for the scenarios that have run; a second
+  display, added and removed while it runs, has since worked with a QXL device and Red Hat's signed
+  driver for it, which the current image carries. The windows are `komorebi-testwin`, a test window
+  of its own, where kfde's are `foot` terminals.
+
+## The scenarios
+
+| Scenario | What it checks | kfde | kfw |
+|---|---|---|---|
+| `tiling` | three windows are tiled: where the layout says, inside the work area, clear of each other | pass | pass |
+| `focus` | `focus` and `cycle-focus` move the focus, and the OS and the daemon agree on it | pass | pass |
+| `moving` | `move` and `cycle-move` swap tiles, and the focus stays with the window | pass | pass |
+| `stacks` | `stack`, `cycle-stack` and `unstack`: the window in view has the focus, the others are put away | pass | pass |
+| `monocle` | `toggle-monocle` gives one window the work area and puts the others away | pass | pass |
+| `workspaces` | `send-to-workspace` and `focus-workspace` put windows away and bring them back | pass | pass |
+| `closing` | a closed window leaves the state, and the others take its room | pass | pass |
+| `resize` | dragging the edge two tiles share moves it by what the pointer moved | pass | **fails**, cause found |
+| `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | not run |
+| `rules` | initial, permanent and ignore rules by title | see below | not run |
+| `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | not run |
+
+`rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
+is not the scenario's, that the daemon had exited after `komorebic stop`; the next run passed it,
+and the cause is not known.
+
+## What they have found
+
+**`resize` on kfw.** Dragging the edge between two tiles by 30, 60 and 120 pixels moved it by 27,
+53 and 96 on kfw's master, and by 27, 51 and 106 on its animation branch (`0c9acdf4`), where kfde
+moves it by exactly the pointer's distance. The pointer is not the cause: the same drag of the
+border of a window that nothing manages moved it by 30, 60 and 120 exactly, with the cursor where
+it was asked to be. The loss is in what kfw does with the drag.
+
+A recording of a 60-pixel drag, made with komorebi-recorder on the Windows guest, shows where.
+The window grew steadily from 596 to 656 pixels, exactly the distance dragged, which is why the
+unmanaged window followed the pointer. kfw's `MoveResizeStart` handler (`process_event.rs`)
+reads the rectangle the drag started from with `WindowsApi::window_rect` when it handles the
+event, which the recording puts about 100 ms after the drag began, when the window was already
+603 to 608 pixels wide. The distance kfw measured was 656 - 603 = 53, and its trace log shows the
+resize it asked for with a delta of 106, twice that. A longer drag moves further before the event
+is handled, so the loss grows with the distance, as measured. A fix that reads the starting
+rectangle from the tile in `latest_layout`, or in the event callback before the event is queued,
+is not tried yet. kfde reads nothing of the kind and passes. The recording is on the machine that
+made it (`~/e2e-w0/rec1/resize/session/rec`), and the write-up is `W1.md` in kfw's tree.
+
+Nothing else moved: no tile went up
+or down, none overlapped, and every window stayed inside the work area.
+
+## What the scenarios had to allow for
+
+These are differences between the ports that a scenario does not hide, and are not failures:
+
+- **A terminal's size.** A `foot` window sizes itself to whole cells of its font, so its frame is
+  up to a cell short of the tile (924 by 504 for 925 by 505 in a recorded state). kfw's test window
+  has no granularity. `Platform.tolerance` is a cell on kfde and 2 pixels on kfw, for the rounding between the DWM
+  frame and the layout (whether 0 would pass there has not been tried).
+- **What "put away" is.** A stack's other windows, the windows of another workspace and those
+  behind a monocle are on a parking desktop on kfde, and cloaked on kfw. `Platform.hidden` says it
+  for both.
+- **The work area.** A kfw screen of 1280 by 800 has a work area of 1280 by 752, because of the
+  taskbar. A scenario asks the platform for it.
+- **Identity.** A window is told by the title the scenario gave it. kfde's state has its own ids
+  for windows and monitors, and kfw's has handles, so a scenario never compares them.
+- **State shape.** The two `komorebic state` outputs differ in how a window is written and in a few
+  fields each. `core/snapshot.py` reads both, and its tests read a state recorded from each.
+
+## What is not covered
+
+- Pointer input on a second display, on Windows. The tablet there spans only the first.
+- Suspend and resume, which no guest can test.
+- `commands`, `rules` and `hotplug` on kfw, which have not run there. Displays can be added and
+  removed on the Windows guest and kfw follows; it is the scenario that has not run.
+- Most of what is particular to one port: kfw's cloak and borders, kfde's parking desktop and
+  KWin effects. Those stay in the suites of each port.

@@ -169,7 +169,7 @@ the run.
   there too, and the edge moved less than the pointer did (+53 px for a drag of 60): a
   finding about kfw, not about the setup, because an unmanaged window followed the same
   drag exactly. `scripts/sync-e2e-core` keeps kfw's copy of `core/` in step until `core/`
-  moves there.
+  moves there. [BEHAVIOUR.md](BEHAVIOUR.md) says what each scenario found on each port.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines
