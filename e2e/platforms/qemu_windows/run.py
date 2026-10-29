@@ -141,6 +141,7 @@ EXTRAS = {
     "windows_padding": "padding", "windows_cloaking": "cloaking",
     "windows_config_file": "config_file", "windows_tracking": "tracking",
     "windows_second_display": "second_display",
+    "windows_display_change": "display_change",
 }
 
 # a small configuration for the sweep's `replace-configuration`
