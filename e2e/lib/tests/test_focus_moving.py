@@ -16,6 +16,7 @@ from komorebi_vm.core.scenarios import (
     lifecycle,
     lifecycle_hidden,
     locking,
+    manage_rules,
     maximizing,
     minimizing,
     monocle,
@@ -32,6 +33,7 @@ from komorebi_vm.core.scenarios import (
     scrolling,
     stacks,
     startup_rules,
+    state_fidelity,
     tiling,
     tiling_off,
     workspace_moves,
@@ -504,6 +506,45 @@ def test_a_daemon_that_does_not_tile_again_on_unlock_fails_locking() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     locking.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_manage_rules() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    manage_rules.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 8
+
+
+def test_a_daemon_that_ignores_manage_rules_fails_manage_rules() -> None:
+    class Deaf(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args[0] == "manage-rule" else super().komorebic(*args)
+
+    platform = Deaf()
+    checks = Checks()
+    manage_rules.run(platform, checks)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_shows_what_a_window_was_given_passes_state_fidelity() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    state_fidelity.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_loses_the_class_fails_state_fidelity() -> None:
+    class Forgetful(FakePlatform):
+        def spawn(self, title, app_id=None, exe=None):  # noqa: ANN001, ANN202
+            client = super().spawn(title, app_id=None, exe=exe)
+            return client
+
+    platform = Forgetful()
+    checks = Checks()
+    state_fidelity.run(platform, checks)
     assert checks.failed > 0
 
 
