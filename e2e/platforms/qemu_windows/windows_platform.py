@@ -222,6 +222,12 @@ class WindowsPlatform:
         # the daemon watches the file it was started with and reads it again
         self._agent.put_file(local, CONFIG_PATH)
 
+    def resizable_display(self) -> int | None:
+        """The index of a display whose mode can change: the second, which is a
+        QXL display. The first is the basic display adapter, with one mode, and
+        there is no second until one is plugged in."""
+        return 1 if len(self.displays()) > 1 else None
+
     def resize_display(self, index: int, width: int, height: int) -> None:
         """Changes the mode of display `index` and returns when the operating
         system has it. Only a display of a QXL device lists modes: the first
