@@ -27,7 +27,6 @@ sysinfo = { workspace = true }
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
 dispatch2 = "0.3"
-libc = "0.2"
 objc2 = { version = "0.6", default-features = false, features = ["std"] }
 objc2-av-foundation = { version = "0.3", default-features = false, features = [
   "std",
@@ -101,6 +100,9 @@ objc2-screen-capture-kit = { version = "0.3", default-features = false, features
   "SCShareableContent",
   "SCStream",
 ] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 uds_windows = "1"
