@@ -39,6 +39,7 @@ LAUNCHES = 3
 POLICY_SYSTEM = "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System"
 # the account the image logs in to
 PASSWORD = "komorebi"
+DISPLAY_SCRIPT = "C:\\e2e\\display.ps1"
 CONFIG_PATH = "C:\\e2e\\komorebi.json"
 
 
@@ -98,6 +99,7 @@ class WindowsPlatform:
         self._agent = agent
         self._out = out
         self._scale = scale
+        self._display_script = False
         self._daemon_pid: int | None = None
         self.start_notes: list[str] = []
         self._pointer = WindowsPointer(qmp, agent)
@@ -219,6 +221,29 @@ class WindowsPlatform:
         local.write_text(json.dumps(config, indent=2))
         # the daemon watches the file it was started with and reads it again
         self._agent.put_file(local, CONFIG_PATH)
+
+    def resize_display(self, index: int, width: int, height: int) -> None:
+        """Changes the mode of display `index` and returns when the operating
+        system has it. Only a display of a QXL device lists modes: the first
+        one is the basic display adapter, which has the one."""
+        if not self._display_script:
+            self._agent.exec("cmd", "/c", "mkdir C:\\e2e 2>nul")
+            self._agent.put_file(
+                Path(__file__).parent / "display.ps1", DISPLAY_SCRIPT
+            )
+            self._display_script = True
+        result = self._agent.exec(
+            "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-File", DISPLAY_SCRIPT, "set", f"\\\\.\\DISPLAY{index + 1}",
+            str(width), str(height),
+        )
+        if not result["stdout"].strip().endswith(": 0"):
+            raise RuntimeError(f"could not change the display: {result}")
+        if not self.wait_for(
+            lambda: (d := self.displays())[index].w == width
+            and d[index].h == height
+        ):
+            raise RuntimeError("the display did not take the mode")
 
     def exe_id(self, program: str) -> str:
         # kfw names the exe of a window with its extension
