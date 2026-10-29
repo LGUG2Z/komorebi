@@ -258,6 +258,31 @@ class Platform(Protocol):
         size."""
         ...
 
+    def put_file(self, path: str, data: bytes) -> None:
+        """Writes `data` to `path` on the machine, where the daemon can read it, and makes the
+        directories above it. `path` is one `temp_path` made."""
+        ...
+
+    def wallpaper(self, display: int = 0) -> str:
+        """The path of the picture a display shows, as the operating system says it (the Plasma
+        shell on KDE, `IDesktopWallpaper` on Windows), or the empty string when it does not know."""
+        ...
+
+    def set_wallpaper(self, path: str, display: int = 0) -> None:
+        """Sets the wallpaper of a display as the user does, and returns when it is set."""
+        ...
+
+    def resize_grab(self, frame: Rect, grab: str) -> tuple[int, int]:
+        """Where the pointer is pressed to take a window of this frame by `grab`: `left`, `right`,
+        `top`, `bottom`, or a corner (`topleft`, `topright`, `bottomleft`, `bottomright`).
+
+        It is the platform's knowledge, because where a window's resize zone is differs: on KDE it
+        is the gap outside the frame on every side (`resize.outside_grab`), on Windows the left,
+        right and bottom zones are an invisible border outside the visible frame, and the top one
+        is inside it.
+        """
+        ...
+
     def fullscreen(self, client: Client, on: bool = True) -> None:
         """Takes the window fullscreen, as the program's own key does it (`on`), or brings it back
         from fullscreen (`on` false). The daemon is not asked: it learns of it from the system, and

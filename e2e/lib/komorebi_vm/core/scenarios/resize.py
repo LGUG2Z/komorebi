@@ -5,7 +5,8 @@ from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, Platform
 from komorebi_vm.core.scenarios.layouts import tiled
 
-# how far outside a window's frame its resize border is pressed: the gap between two tiles
+# how far outside a window's frame its resize border is pressed by a platform whose border is the
+# gap between two tiles (`outside_grab`)
 OFFSET = 4
 # the shortest drag, in pixels: far enough to be a drag on any display
 MIN_DRAG = 60
@@ -48,7 +49,7 @@ def run(platform: Platform, checks: Checks, clients: list[Client], dx: int | Non
     window = platform.os_window(Client(titles[left]))
     assert window is not None
     before = list(layout)
-    grab = (window.frame.x + window.frame.w + OFFSET, window.frame.y + window.frame.h // 2)
+    grab = platform.resize_grab(window.frame, "right")
 
     platform.pointer.drag(grab, (grab[0] + dx, grab[1]))
 
@@ -140,8 +141,9 @@ def _settled(platform: Platform, clients: list[Client]) -> dict[str, Rect]:
     return last
 
 
-def _press_point(grab: str, r: Rect) -> tuple[int, int]:
-    """Where the pointer is pressed for a grab: in the gap outside the frame."""
+def outside_grab(r: Rect, grab: str) -> tuple[int, int]:
+    """Where the pointer is pressed for a grab by a platform whose resize border is the gap outside
+    the frame, `OFFSET` pixels from it: what KDE has on every side."""
     left, right, top, bottom = r.x - OFFSET, r.x + r.w + OFFSET, r.y - OFFSET, r.y + r.h + OFFSET
     cx, cy = r.x + r.w // 2, r.y + r.h // 2
     return {
@@ -184,7 +186,9 @@ def _stacked(layout: list[Rect]) -> tuple[int, int] | None:
     return None
 
 
-def _cases(layout: list[Rect], titles: list[str], area: Rect) -> list[tuple[str, str, int, int]]:
+def _cases(
+    platform: Platform, layout: list[Rect], titles: list[str], area: Rect
+) -> list[tuple[str, str, int, int]]:
     """Drags to make, as (window, grab, dx, dy), from the layout: both sides of an edge that two
     tiles share, a horizontal one, a corner next to two neighbours, and an edge of the screen."""
     cases: list[tuple[str, str, int, int]] = []
@@ -212,7 +216,7 @@ def _cases(layout: list[Rect], titles: list[str], area: Rect) -> list[tuple[str,
             cases.append((titles[k], "bottomleft", -72, 72))
             break
     first = min(range(len(layout)), key=lambda i: layout[i].x)
-    if _press_point("left", layout[first])[0] >= area.x:
+    if platform.resize_grab(layout[first], "left")[0] >= area.x:
         cases.append((titles[first], "left", -72, 0))
     return cases
 
@@ -230,7 +234,7 @@ def _problems(
     before = _settled(platform, clients)
     tiles_before = _tiles(platform)
 
-    px, py = _press_point(grab, before[name])
+    px, py = platform.resize_grab(before[name], grab)
     end = (max(area.x, px + dx), max(area.y, py + dy))
     platform.pointer.drag((px, py), end)
     platform.wait_for(lambda: _tiles(platform) != tiles_before, timeout=3)
@@ -303,7 +307,7 @@ def edge_cases(platform: Platform, checks: Checks, clients: list[Client]) -> Non
     tiles = _tiles(platform)
     titles = list(tiles)
     layout = [tiles[t] for t in titles]
-    for case in _cases(layout, titles, platform.work_area()):
+    for case in _cases(platform, layout, titles, platform.work_area()):
         problems = _problems(platform, clients, case)
         name, grab, dx, dy = case
         checks.check(

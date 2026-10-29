@@ -13,6 +13,7 @@ from PIL import Image
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, OsWindow
 from komorebi_vm.core.scenarios.commands import PRINTED
+from komorebi_vm.core.scenarios.resize import outside_grab
 from komorebi_vm.core.snapshot import Snapshot, parse
 
 SCREEN = Rect(0, 0, 1920, 1080)
@@ -213,6 +214,18 @@ class FakePlatform:
         self.locked = False
         if self.retiles_on_unlock:
             self.moved.clear()
+
+    def put_file(self, path: str, data: bytes) -> None:  # noqa: ARG002
+        pass
+
+    def wallpaper(self, display: int = 0) -> str:  # noqa: ARG002
+        return ""
+
+    def set_wallpaper(self, path: str, display: int = 0) -> None:
+        pass
+
+    def resize_grab(self, frame, grab):  # noqa: ANN001, ANN201
+        return outside_grab(frame, grab)
 
     def move_window(self, client: Client, x: int, y: int) -> None:
         here = self.os_window(client)
