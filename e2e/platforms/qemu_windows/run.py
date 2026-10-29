@@ -80,15 +80,10 @@ KNOWN_STEPS = {
 
 
 # the commit of komorebi's `next` that fixed what a step is known to fail, and
-# what it still fails on a build that has it: the marker is the first reason
-# before it and the second after it
+# what it still fails on a build that has it (None: nothing): the marker is the
+# first reason before it and the second after it
 KNOWN_STEPS_FIXED_BY = {
-    "maximizing.user": (
-        "3fa3d429",
-        "kfw tracks a user's maximize and toggle-float ends it, but "
-        "toggle-monocle is not ignored while a window is maximized (kfw "
-        "enters the monocle and the window stays maximized)",
-    ),
+    "maximizing.user": ("3fa3d429", None),
 }
 
 

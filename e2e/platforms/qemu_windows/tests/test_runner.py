@@ -340,9 +340,30 @@ def test_a_known_step_has_the_narrower_marker_on_a_commit_that_has_the_fix(
 
     user.__module__ = "komorebi_vm.core.scenarios.maximizing"
     monkeypatch.setattr(run, "_contains", lambda fix, repo=None: True)
+    monkeypatch.setitem(
+        run.KNOWN_STEPS_FIXED_BY, "maximizing.user", ("fix", "a narrower one")
+    )
     checks = run.RecordedChecks()
 
     run._suite(checks, shared(user, checks))
 
     assert checks.failed == 0
-    assert "toggle-float" in checks.known[0]
+    assert "a narrower one" in checks.known[0]
+
+
+def test_a_known_step_with_no_marker_after_the_fix_fails_as_it_did(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from komorebi_vm.core.suite import shared
+
+    def user(checks: run.RecordedChecks) -> None:
+        checks.check("b", False)
+
+    user.__module__ = "komorebi_vm.core.scenarios.maximizing"
+    monkeypatch.setattr(run, "_contains", lambda fix, repo=None: True)
+    checks = run.RecordedChecks()
+
+    run._suite(checks, shared(user, checks))
+
+    assert checks.failed == 1
+    assert checks.known == []
