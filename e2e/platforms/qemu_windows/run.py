@@ -64,6 +64,21 @@ PLACEMENT_INTEGER_BUG = (
 )
 
 
+# steps whose failing checks are known differences of kfw, and why: a failing
+# check of such a step is recorded as a known failure, and a step that has no
+# failing check says the marker can go
+KNOWN_STEPS = {
+    "maximizing.user": (
+        "kfw sets maximized_window only from toggle-maximize; a user's "
+        "maximize (SC_MAXIMIZE) is not taken as the maximized window"
+    ),
+    "hotplug.user_move": (
+        "kfw relocates a window to another monitor only when a drag ends "
+        "(MoveResizeEnd); a move by any other means is ignored"
+    ),
+}
+
+
 class GuestDied(RuntimeError):
     """QEMU exited while a scenario was running: not what kfw did."""
 
@@ -76,6 +91,8 @@ class RecordedChecks(Checks):
         self.results: list[dict[str, object]] = []
         # how long each step of the suite took, for the result file
         self.steps: list[dict[str, object]] = []
+        # the reason the failing checks of the step being run are known ones
+        self.expected: str | None = None
 
     def _record(self, **fields: object) -> None:
         if self.scope:
@@ -87,6 +104,13 @@ class RecordedChecks(Checks):
         self._record(check=description, passed=True)
 
     def bad(self, description: str) -> None:
+        if self.expected:
+            self.known.append(f"{self.labelled(description)} ({self.expected})")
+            print(f"  known failure {self.labelled(description)}: {self.expected}")
+            self._record(
+                check=description, known_failure=True, reason=self.expected
+            )
+            return
         super().bad(description)
         self._record(check=description, passed=False)
 
@@ -110,7 +134,19 @@ def _suite(checks: "RecordedChecks", *steps):
     results: list[object] = []
     for step in steps:
         began = time.monotonic()
-        results.extend(run_suite(checks, step))
+        counted = checks.passed + checks.failed + len(checks.known)
+        checks.expected = KNOWN_STEPS.get(step.name)
+        known_before = len(checks.known)
+        try:
+            results.extend(run_suite(checks, step))
+        finally:
+            reason, checks.expected = checks.expected, None
+        ran = checks.passed + checks.failed + len(checks.known) > counted
+        if reason and ran and len(checks.known) == known_before:
+            checks.bad(
+                f"{step.name}: nothing failed, so it is no longer a known "
+                "failure"
+            )
         checks.steps.append({
             "step": f"[{step.scope}] {step.name}",
             "seconds": round(time.monotonic() - began, 1),

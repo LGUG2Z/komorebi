@@ -244,3 +244,38 @@ def test_a_guest_that_died_says_how_and_a_live_one_says_nothing(tmp_path: Path) 
 
     assert "signal 6" in guest.died()
     assert "assertion failed" in guest.died()
+
+
+def test_a_known_step_turns_its_failures_into_known_failures_and_says_when_it_passes() -> None:
+    from komorebi_vm.core.suite import shared
+
+    def user(checks: run.RecordedChecks, holds: bool) -> None:
+        checks.check("a", True)
+        checks.check("b", holds)
+
+    user.__module__ = "komorebi_vm.core.scenarios.maximizing"
+    checks = run.RecordedChecks()
+
+    run._suite(checks, shared(user, checks, False))
+
+    assert checks.failed == 0
+    assert len(checks.known) == 1
+    assert checks.results[-1]["known_failure"] is True
+
+    run._suite(checks, shared(user, checks, True))
+
+    assert checks.failed == 1
+    assert "no longer a known failure" in checks.failures[0]
+
+
+def test_a_step_that_is_not_known_fails_as_it_did() -> None:
+    from komorebi_vm.core.suite import shared
+
+    def other(checks: run.RecordedChecks) -> None:
+        checks.check("x", False)
+
+    checks = run.RecordedChecks()
+    run._suite(checks, shared(other, checks))
+
+    assert checks.failed == 1
+    assert checks.known == []
