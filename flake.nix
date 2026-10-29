@@ -81,7 +81,7 @@
               KOMOREBI_WINDOWS_COMMIT
               ;
           }
-          // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
             nativeBuildInputs = [
               pkgs.darwin.cctools
             ];
