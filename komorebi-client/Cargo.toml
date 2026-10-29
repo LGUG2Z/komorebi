@@ -10,7 +10,7 @@ komorebi-themes = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
-parking_lot = "0.12"
+parking_lot = "0.13"
 
 [features]
 default = ["schemars"]

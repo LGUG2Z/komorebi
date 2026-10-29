@@ -69,7 +69,7 @@ impl Daemon {
 
 /// Starts the window manager once, and waits for the other tests to be done with it
 fn daemon() -> (parking_lot::MutexGuard<'static, ()>, &'static Daemon) {
-    static TURN: Mutex<()> = parking_lot::const_mutex(());
+    static TURN: Mutex<()> = Mutex::new(());
     static DAEMON: OnceLock<Daemon> = OnceLock::new();
 
     let turn = TURN.lock();
