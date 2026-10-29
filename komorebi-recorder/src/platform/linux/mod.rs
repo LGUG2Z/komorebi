@@ -1,13 +1,9 @@
 //! Linux, as KDE Plasma: the host that records komorebi for KDE.
 //!
-//! The master clock, the child processes, the shell, the screen capture, power, the session lock
-//! and the window list are Linux's own. The OS trace is still the `unsupported` host's, and is
-//! replaced when it is written (see `docs/PLATFORM.md`).
-
-// the pieces of the fallback that Linux has its own version of are not used
-#[allow(dead_code)]
-#[path = "../unsupported.rs"]
-mod fallback;
+//! The master clock is `CLOCK_MONOTONIC`; the screen is the compositor's screencast, read through
+//! PipeWire and written by GStreamer; sleep and the lock are heard on D-Bus; the windows are
+//! komorebi for KDE's own; and the OS trace is the journal. What each does, and what it cannot,
+//! is in `docs/PLATFORM.md`.
 
 pub mod apps;
 pub mod capture;
@@ -17,9 +13,8 @@ pub mod process;
 mod screencast;
 pub mod session;
 pub mod shell;
+pub mod trace;
 pub mod wayland;
-
-pub use fallback::trace;
 
 /// Nothing to do first.
 pub fn init() {}

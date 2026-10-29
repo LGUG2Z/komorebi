@@ -18,6 +18,15 @@
 //! reading it uses are tested in [`crate::sources::wintrace`], and the taps are checked on a real
 //! machine (see `docs/dev/windows-checkpoints.md`).
 
+/// What the manifest calls the stream of `WinEvent`s.
+pub const SYSTEM_NAME: &str = "winevents";
+/// What the manifest calls the stream of the Event Log.
+pub const EVENT_LOG_NAME: &str = "eventlog";
+/// What the stream of `WinEvent`s is, for the manifest.
+pub const SYSTEM_ABOUT: &str = "WinEvent hook on every top-level window";
+/// What the stream of the Event Log is, for the manifest.
+pub const EVENT_LOG_ABOUT: &str = "System Event Log: warnings, errors, display and power providers";
+
 use crate::clock;
 use crate::sources::wintrace::Coalescer;
 use crate::sources::wintrace::Offer;

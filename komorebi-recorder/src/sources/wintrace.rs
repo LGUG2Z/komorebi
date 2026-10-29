@@ -625,8 +625,18 @@ impl TraceSet {
     /// Returns an error if either file cannot be created (see [`TraceStream::create`]). A tap that
     /// fails to start is not an error.
     pub fn start(dir: &Path) -> eyre::Result<Self> {
-        let system = TraceStream::create(dir, "winevents", "oslog:system", SYSTEM_FILE)?;
-        let event_log = TraceStream::create(dir, "eventlog", "oslog:eventlog", EVENT_LOG_FILE)?;
+        let system = TraceStream::create(
+            dir,
+            crate::platform::trace::SYSTEM_NAME,
+            "oslog:system",
+            SYSTEM_FILE,
+        )?;
+        let event_log = TraceStream::create(
+            dir,
+            crate::platform::trace::EVENT_LOG_NAME,
+            "oslog:eventlog",
+            EVENT_LOG_FILE,
+        )?;
 
         let (taps, problems) = crate::platform::trace::start(system.clone(), event_log.clone());
         Ok(Self {
@@ -659,12 +669,12 @@ impl TraceSet {
         };
         vec![
             self.system.info(
-                "WinEvent hook on every top-level window",
-                error("winevents"),
+                crate::platform::trace::SYSTEM_ABOUT,
+                error(crate::platform::trace::SYSTEM_NAME),
             ),
             self.event_log.info(
-                "System Event Log: warnings, errors, display and power providers",
-                error("eventlog"),
+                crate::platform::trace::EVENT_LOG_ABOUT,
+                error(crate::platform::trace::EVENT_LOG_NAME),
             ),
         ]
     }

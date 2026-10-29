@@ -8,6 +8,15 @@
 use crate::sources::wintrace::TraceStream;
 use std::sync::Arc;
 
+/// What the manifest calls the first stream, on a host that has one.
+pub const SYSTEM_NAME: &str = "winevents";
+/// What the manifest calls the second stream, on a host that has one.
+pub const EVENT_LOG_NAME: &str = "eventlog";
+/// What the first stream is, for the manifest.
+pub const SYSTEM_ABOUT: &str = "";
+/// What the second stream is, for the manifest.
+pub const EVENT_LOG_ABOUT: &str = "";
+
 /// The running taps, which listen until dropped. Never constructed on this host: [`start`]
 /// returns none.
 pub struct Taps;
