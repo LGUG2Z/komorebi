@@ -29,6 +29,7 @@ use crate::analysis::os_trace::GroupKind;
 use crate::analysis::os_trace::OsTraceData;
 use crate::analysis::os_trace::Phase;
 use crate::analysis::trace::TraceData;
+use crate::analysis::views::TimeSource;
 use crate::annotations::Kind;
 use crate::asc::Platform;
 use crate::asc::rule::Rule;
@@ -363,7 +364,16 @@ impl Open {
                         wants.select_event = Some(event.seq);
                     }
                     ui.label(
-                        RichText::new(format!("{:.1} s ago", time - event.video_s))
+                        RichText::new(format!(
+                            "{} {}  {:.1} s ago",
+                            timecode::format(event.komorebi_time.video_s),
+                            if event.komorebi_time.source == TimeSource::Pushed {
+                                "p"
+                            } else {
+                                "r"
+                            },
+                            time - event.komorebi_time.video_s
+                        ))
                             .small()
                             .color(theme::TEXT_DIM),
                     );
@@ -394,9 +404,27 @@ impl Open {
         });
         ui.label(RichText::new(&event.reason).small().color(theme::TEXT_DIM));
         ui.horizontal(|ui| {
+            let pushed = event.komorebi_time.source == TimeSource::Pushed;
             ui.label(
-                RichText::new(format!("received {}", timecode::format(event.video_s))).monospace(),
-            );
+                RichText::new(format!(
+                    "komorebi {} ({})",
+                    timecode::format(event.komorebi_time.video_s),
+                    if pushed { "pushed" } else { "received" }
+                ))
+                .monospace(),
+            )
+            .on_hover_text(if pushed {
+                "when komorebi pushed the notification, from its log"
+            } else {
+                "the log has no `pushed notification` line for this event (komorebi must log at DEBUG), so this is when the recorder received it, which can be up to a couple of seconds after komorebi sent it"
+            });
+            if pushed && (event.video_s - event.komorebi_time.video_s) > 0.1 {
+                ui.label(
+                    RichText::new(format!("received {}", timecode::format(event.video_s)))
+                        .small()
+                        .color(theme::TEXT_DIM),
+                );
+            }
             if let Some(handler) = &event.handler {
                 if ui
                     .small_button("go to its start")
