@@ -39,16 +39,24 @@ def _chain(disk: Path) -> list[str]:
         disk = (disk.parent / backing).resolve()
 
 
+def _machine() -> list[str]:
+    """The command line of the guest that is saved, with the paths and the
+    port, which differ from run to run, as placeholders: a change to what the
+    guest is (its devices, memory, clock) makes a new state, and a change to
+    the rest of guest.py does not."""
+    guest = Guest(Path("golden"), Path("run"), ahci=True)
+    guest.agent_port = 0
+    return guest.qemu_args(Path("ovmf"), Path("run"), Path("run/overlay.qcow2"))
+
+
 def _key(golden: Path) -> str:
     qemu = subprocess.run(
         ["qemu-system-x86_64", "--version"], capture_output=True, text=True,
         check=True,
     ).stdout
-    # guest.py holds the command line: a change to it makes a new state
-    source = (Path(__file__).parent / "guest.py").read_bytes()
     parts = [
         *_chain(golden / "disk.qcow2"), qemu,
-        os.environ.get("OVMF_FD", ""), hashlib.sha256(source).hexdigest(),
+        os.environ.get("OVMF_FD", ""), json.dumps(_machine()),
     ]
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 

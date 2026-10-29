@@ -102,42 +102,45 @@ class Guest:
              "--ctrl", f"type=unixio,path={run / 'tpm.sock'}"]
         )
         ovmf = Path(os.environ["OVMF_FD"]) / "FV"
-        self._start(
-            ["qemu-system-x86_64", "-name", "e2e-windows", "-accel", "kvm",
-             "-machine", "q35,smm=off", "-cpu", "host",
-             "-smp", str(self._vcpus), "-m", self._mem,
-             *(["-rtc", f"base={self._rtc_base}"] if self._rtc_base else []),
-             "-drive", f"if=pflash,format=raw,readonly=on,unit=0,"
-                       f"file={ovmf / 'OVMF_CODE.fd'}",
-             "-drive", f"if=pflash,format=raw,unit=1,file={run / 'vars.fd'}",
-             "-chardev", f"socket,id=chrtpm,path={run / 'tpm.sock'}",
-             "-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
-             "-device", "tpm-crb,tpmdev=tpm0",
-             "-drive", f"if=none,id=disk,file={overlay},format=qcow2",
-             *self._disk_device(),
-             "-netdev", f"user,id=net0,hostfwd=tcp:127.0.0.1:"
-                        f"{self.agent_port}-:7878",
-             "-device", "e1000e,netdev=net0",
-             "-device", "qemu-xhci", "-device", "usb-tablet",
-             "-device", "usb-kbd", "-device", "VGA,vgamem_mb=64",
-             # hotplug slots for extra displays (see `WindowsPlatform`)
-             *[arg for n in range(1, HOTPLUG_PORTS + 1) for arg in
-               ("-device", f"pcie-root-port,id=rp{n},chassis={n},slot={n}")],
-             *self._extra,
-             # a QXL device wants a SPICE server behind it; without one QEMU
-             # aborts in handle_dev_oom when the device runs short of memory
-             "-spice", f"unix=on,addr={run / 'spice.sock'},"
-                       "disable-ticketing=on",
-             "-display", "none",
-             "-qmp", f"unix:{run / 'qmp.sock'},server=on,wait=off",
-             *(["-incoming", "defer"] if self._state else [])]
-        )
+        self._start(self.qemu_args(ovmf, run, overlay))
         self.qmp = Qmp(run / "qmp.sock")
         if self._state:
             self._restore()
         self.agent = Agent(port=self.agent_port)
         self.agent.connect(timeout=180)
         return self
+
+    def qemu_args(self, ovmf: Path, run: Path, overlay: Path) -> list[str]:
+        """The command line of QEMU. A saved state only fits a guest with the
+        same one apart from its paths, so `state.py` hashes it."""
+        return ["qemu-system-x86_64", "-name", "e2e-windows", "-accel", "kvm",
+                "-machine", "q35,smm=off", "-cpu", "host",
+                "-smp", str(self._vcpus), "-m", self._mem,
+                *(["-rtc", f"base={self._rtc_base}"] if self._rtc_base else []),
+                "-drive", f"if=pflash,format=raw,readonly=on,unit=0,"
+                          f"file={ovmf / 'OVMF_CODE.fd'}",
+                "-drive", f"if=pflash,format=raw,unit=1,file={run / 'vars.fd'}",
+                "-chardev", f"socket,id=chrtpm,path={run / 'tpm.sock'}",
+                "-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
+                "-device", "tpm-crb,tpmdev=tpm0",
+                "-drive", f"if=none,id=disk,file={overlay},format=qcow2",
+                *self._disk_device(),
+                "-netdev", f"user,id=net0,hostfwd=tcp:127.0.0.1:"
+                           f"{self.agent_port}-:7878",
+                "-device", "e1000e,netdev=net0",
+                "-device", "qemu-xhci", "-device", "usb-tablet",
+                "-device", "usb-kbd", "-device", "VGA,vgamem_mb=64",
+                # hotplug slots for extra displays (see `WindowsPlatform`)
+                *[arg for n in range(1, HOTPLUG_PORTS + 1) for arg in
+                  ("-device", f"pcie-root-port,id=rp{n},chassis={n},slot={n}")],
+                *self._extra,
+                # a QXL device wants a SPICE server behind it; without one QEMU
+                # aborts in handle_dev_oom when the device runs short of memory
+                "-spice", f"unix=on,addr={run / 'spice.sock'},"
+                          "disable-ticketing=on",
+                "-display", "none",
+                "-qmp", f"unix:{run / 'qmp.sock'},server=on,wait=off",
+                *(["-incoming", "defer"] if self._state else [])]
 
     def _disk_device(self) -> list[str]:
         if self._state is None and not self._ahci:
