@@ -376,6 +376,14 @@ anchors sampled every 5 seconds during the recording and at every sleep, so cloc
 - subscriber events are stamped when the recorder receives them. komorebi sends the notification _after_ it has handled
   the event, so the stamp is when the handler **finished**; the `processing event` line in `komorebi.log` is when it
   began.
+  The `events` listing shows one **komorebi time** per event, so the two clocks are not mixed up: when komorebi pushed
+  the notification (`p`, from its DEBUG log line `pushed notification to subscriber:`), or, where the log has no such
+  line for the event, when the recorder received it (`r`). The fallback is stated in the listing's header and as
+  `komorebi_time_note` in `--json`, never silent. In JSON every event has `komorebi_time` with `source` (`pushed` or
+  `received`), `video_s`, `mach_ns` and `wall_utc`. The pushed line needs komorebi at `--log-level debug`. Matching it
+  to an event does not depend on the flavor, but it has only been checked against komorebi for Mac's log format and a
+  synthetic one; whether komorebi for Windows and for KDE log the line at all has not been checked against a
+  recording, and without it the listing falls back to `r`.
   `komorebi-recorder trace` ties the two together.
 
 `komorebi-recorder selftest` checks this on your machine: it records a rendered on-screen clock and compares the clock

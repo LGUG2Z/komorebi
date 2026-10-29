@@ -169,6 +169,10 @@ the same.
   `pushed notification to subscriber:` DEBUG line; `events --json` shows it as `pushed_video_s` next to the received
   `video_s`, with `delivery_ms` between them, and `overview` reports a `delivery-batching` finding (info) instead of a
   slow handler. A `slow-handler` finding in a log without push lines is marked as possibly delivery delay.
+- The `events` listing's time is one **komorebi time** per event: `p` when it is komorebi's pushed time, `r` when the log
+  has no pushed line and it is only the received time (the header says so; `--json` has `komorebi_time.source` and
+  `komorebi_time_note`). The received time is still given as `video_s`. The pushed line is checked only for komorebi for
+  Mac's log; for Windows and KDE it is unverified, so expect `r` there if the log lacks it.
 - At the default `info` level there is no log line for the end of an event handler, and few for the decisions inside it.
   Start komorebi with `--log-level trace` before recording a bug you intend to investigate.
 - The `rect` of a window in the state is read live from the accessibility API when the state is serialized: it is where

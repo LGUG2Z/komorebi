@@ -86,6 +86,10 @@ locations as hints.
   push. A large `delivery_ms`, or a `delivery-batching` finding, means delay between komorebi and
   the recorder, not komorebi being slow: go by the pushed time. A `slow-handler` finding without a
   push time may be the same thing, and says so.
+- The `events` listing's time is one **komorebi time** per event: `p` when it is komorebi's pushed time, `r` when the log
+  has no pushed line and it is only the received time (the header says so; `--json` has `komorebi_time.source` and
+  `komorebi_time_note`). The received time is still given as `video_s`. The pushed line is checked only for komorebi for
+  Mac's log; for Windows and KDE it is unverified, so expect `r` there if the log lacks it.
 - Every command that takes a time takes the same forms: video time (`12.5`, `1:02.5`, `1:02:03`),
   `logtime:15:46:22.743` (a UTC time of day as komorebi's log writes it, on the session's date;
   `wall:15:46:22.743` is the same), `wall:<RFC 3339>`, `mach:<ns>`, `event:N`, `log:N`, `incident:N`,
