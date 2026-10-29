@@ -217,7 +217,9 @@ pub fn build(lines: &[Line], clock: &ClockMap, rules: &dyn Rules) -> Vec<Block> 
             continue;
         }
 
-        let Some(root @ ("process_event" | "process_command")) = line.root_span() else {
+        // komorebi for KDE names the span of its event handler `handle_event`
+        let Some(root @ ("process_event" | "handle_event" | "process_command")) = line.root_span()
+        else {
             continue;
         };
         let Some(index) = open else {
@@ -226,7 +228,8 @@ pub fn build(lines: &[Line], clock: &ClockMap, rules: &dyn Rules) -> Vec<Block> 
         let block = &mut blocks[index];
         let belongs = matches!(
             (root, block.kind),
-            ("process_event", BlockKind::Event) | ("process_command", BlockKind::Command)
+            ("process_event" | "handle_event", BlockKind::Event)
+                | ("process_command", BlockKind::Command)
         );
         if !belongs {
             continue;
