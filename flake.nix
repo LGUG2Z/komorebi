@@ -447,6 +447,14 @@
 
             RUST_BACKTRACE = "full";
 
+            # the Windows e2e guest (e2e/platforms/qemu_windows): the build
+            # scripts and the runner find OVMF here, and the vendored core
+            # and the platform on PYTHONPATH
+            OVMF_FD = "${ovmfWithTpm}";
+            shellHook = ''
+              export PYTHONPATH="$PWD/e2e/lib:$PWD/e2e''${PYTHONPATH:+:$PYTHONPATH}"
+            '';
+
             # cross-compilation environment
             inherit (build.msvcEnv)
               CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER
@@ -474,6 +482,17 @@
               pkgs.jq
               pkgs.just
               pkgs.prettier
+
+              # the Windows e2e guest
+              pkgs.qemu
+              pkgs.swtpm
+              pkgs.xorriso
+              pkgs.socat
+              pkgs.git
+              (pkgs.python3.withPackages (p: [
+                p.pillow
+                p.pytest # the tests of e2e/lib
+              ]))
             ];
           };
 
