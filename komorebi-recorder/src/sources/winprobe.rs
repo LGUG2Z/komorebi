@@ -196,7 +196,7 @@ fn shortened(text: String) -> String {
     cut
 }
 
-type Inspect = Box<dyn FnMut(u32) -> Option<WindowFacts> + Send>;
+type Inspect = Box<dyn FnMut(u32, &Value) -> Option<WindowFacts> + Send>;
 type Ask = Box<dyn FnMut(u32) -> Option<String> + Send>;
 
 /// Reads the real state of the window a komorebi event is about.
@@ -239,6 +239,7 @@ type Ask = Box<dyn FnMut(u32) -> Option<String> + Send>;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub struct EventProber {
+    flavor: Flavor,
     inspect: Inspect,
     ask: Ask,
     policy: AskPolicy,
@@ -250,14 +251,34 @@ impl EventProber {
     /// Both are given a window handle. `inspect` returns `None` for a window it cannot read, and
     /// `ask` returns komorebi's answer, or `None` for none.
     pub fn new(
-        inspect: impl FnMut(u32) -> Option<WindowFacts> + Send + 'static,
+        mut inspect: impl FnMut(u32) -> Option<WindowFacts> + Send + 'static,
+        ask: impl FnMut(u32) -> Option<String> + Send + 'static,
+    ) -> Self {
+        Self::reading(Flavor::Windows, move |hwnd, _| inspect(hwnd), ask)
+    }
+
+    /// Returns a prober of the komorebi of `flavor`, that reads a window with `inspect`, which is
+    /// given the id and komorebi's own description of the window, and asks komorebi with `ask`.
+    pub fn reading(
+        flavor: Flavor,
+        inspect: impl FnMut(u32, &Value) -> Option<WindowFacts> + Send + 'static,
         ask: impl FnMut(u32) -> Option<String> + Send + 'static,
     ) -> Self {
         Self {
+            flavor,
             inspect: Box::new(inspect),
             ask: Box::new(ask),
             policy: AskPolicy::default(),
         }
+    }
+
+    /// Returns the prober of komorebi for KDE: KWin is asked about each window ([`crate::platform::window::inspect_window`]).
+    /// komorebi for KDE has no query that says why it would not manage a window, so it is not asked.
+    #[must_use]
+    pub fn kde() -> Self {
+        Self::reading(Flavor::Kde, crate::platform::window::inspect_window, |_| {
+            None
+        })
     }
 
     /// Returns the real prober: Win32 for the window ([`crate::platform::window::inspect`]),
@@ -289,13 +310,19 @@ impl EventProber {
     /// handle, and when the window cannot be read. komorebi is asked about the window only if it
     /// still exists and the [`AskPolicy`] says it is due.
     pub fn probe(&mut self, event: &Value, now_ns: u64) -> Option<WindowFacts> {
-        let info = Flavor::Windows.rules().describe_event(event);
+        let info = self.flavor.rules().describe_event(event);
         if info.family != Family::WindowManager {
             return None;
         }
 
         let hwnd = info.window_id?;
-        let mut facts = (self.inspect)(hwnd)?;
+        // the window an event is about is the last of its content: the notification, then the window
+        let window = event
+            .get("content")
+            .and_then(Value::as_array)
+            .and_then(|content| content.last())
+            .unwrap_or(&Value::Null);
+        let mut facts = (self.inspect)(hwnd, window)?;
         facts.at_ns = now_ns;
         if facts.exists && self.policy.should_ask(hwnd, &info.name, now_ns) {
             facts.komorebi_says = (self.ask)(hwnd);

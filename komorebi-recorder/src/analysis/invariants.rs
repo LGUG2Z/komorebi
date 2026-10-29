@@ -251,6 +251,12 @@ pub fn check_probed(snapshot: &Snapshot, facts: &WindowFacts, exe: Option<&str>)
     }
 
     let id = u64::from(facts.hwnd);
+    // who was asked about the window
+    let os = if snapshot.flavor == crate::analysis::flavor::Flavor::Kde {
+        "KWin"
+    } else {
+        "Windows"
+    };
     let named = |window: Option<&Window>| match (window, exe) {
         (Some(window), _) => name(window),
         (None, Some(exe)) => format!("{exe} window {id}"),
@@ -291,7 +297,7 @@ pub fn check_probed(snapshot: &Snapshot, facts: &WindowFacts, exe: Option<&str>)
                     "visible-window-hidden",
                     Severity::Error,
                     format!(
-                        "{} is in front on {}, which is showing, but Windows has it {how}",
+                        "{} is in front on {}, which is showing, but {os} has it {how}",
                         named(Some(window)),
                         location.describe()
                     ),
@@ -322,7 +328,7 @@ pub fn check_probed(snapshot: &Snapshot, facts: &WindowFacts, exe: Option<&str>)
                 "hidden-window-visible",
                 Severity::Warn,
                 format!(
-                    "{} is on {}, which is not showing its windows, but Windows has it on screen",
+                    "{} is on {}, which is not showing its windows, but {os} has it on screen",
                     named(Some(window)),
                     location.describe()
                 ),
