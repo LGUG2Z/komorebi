@@ -29,6 +29,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicIsize;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
@@ -108,6 +109,31 @@ pub fn is_catching_up(hwnd: isize, layout: &Rect) -> bool {
     }
 
     true
+}
+
+/// How long after a drag ends the windows are looked at for ones that did not get
+/// where it left them, and then again, for the ones that were sent again
+const SETTLE_AFTER: [Duration; 2] = [Duration::from_millis(250), Duration::from_millis(350)];
+
+/// How many pixels a window can be from where it is to be, on any side, and be there: what
+/// rounding, a terminal's grid of cells and the frame a window has are.
+const SETTLE_TOLERANCE: i32 = 2;
+
+/// Which drag the windows are being looked at after
+static GENERATION: AtomicUsize = AtomicUsize::new(0);
+
+static SETTLE: OnceLock<Sender<(usize, usize, usize)>> = OnceLock::new();
+
+/// Whether a window that is at `rect` is not where it is to be, `layout`
+fn is_off(rect: &Rect, layout: &Rect) -> bool {
+    [
+        rect.left - layout.left,
+        rect.top - layout.top,
+        rect.right - layout.right,
+        rect.bottom - layout.bottom,
+    ]
+    .iter()
+    .any(|difference| difference.abs() > SETTLE_TOLERANCE)
 }
 
 /// Whether what is laid out is for a step of a drag, and not for its end
@@ -247,6 +273,47 @@ pub fn listen_for_steps(wm: Arc<Mutex<WindowManager>>) {
         return;
     }
 
+    // A window can be sent where it is to be and not get there: one that is busy with
+    // what an earlier move made it do is seen to be left where that put it. So when
+    // a drag is over the windows are looked at, a quarter of a second after, when
+    // they have done what they were going to, and any that are not where they are to
+    // be are sent there again, and looked at once more after that.
+    let (settle_tx, settle_rx) = bounded::<(usize, usize, usize)>(1);
+    if SETTLE.set(settle_tx).is_ok() {
+        let wm = wm.clone();
+
+        std::thread::spawn(move || {
+            while let Ok((generation, monitor_idx, workspace_idx)) = settle_rx.recv() {
+                for wait in SETTLE_AFTER {
+                    std::thread::sleep(wait);
+
+                    // another drag has begun
+                    if GENERATION.load(Ordering::SeqCst) != generation {
+                        break;
+                    }
+
+                    match wm.lock().live_resize_settle(monitor_idx, workspace_idx) {
+                        Ok(0) => {
+                            tracing::debug!(
+                                "live resize: after the drag, every window is where it is to be"
+                            );
+                            break;
+                        }
+                        Ok(sent) => {
+                            tracing::debug!(
+                                "live resize: after the drag, {sent} window(s) were not where they are to be"
+                            );
+                        }
+                        Err(error) => {
+                            tracing::debug!("live resize: {error}");
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     std::thread::spawn(move || {
         while rx.recv().is_ok() {
             let began = Instant::now();
@@ -287,6 +354,7 @@ impl WindowManager {
     /// is not known to be either yet: what the workspace is is kept in case it
     /// is an edge.
     pub fn live_resize_begin(&mut self, hwnd: isize, started_from: Rect) {
+        GENERATION.fetch_add(1, Ordering::SeqCst);
         *KEPT.lock() = None;
         SENT.lock().take();
 
@@ -414,7 +482,73 @@ impl WindowManager {
             workspace.scrolling = kept.scrolling;
         }
 
+        // a step may have left a window short of where the end of the drag sends it
+        if let Some(settle) = SETTLE.get() {
+            let _ = settle.try_send((
+                GENERATION.load(Ordering::SeqCst),
+                kept.monitor_idx,
+                kept.workspace_idx,
+            ));
+        }
+
         Some(snapping)
+    }
+
+    /// Send the windows of the workspace that are not where its layout puts them
+    /// to where it does, and say how many there were. Nothing is done for another
+    /// workspace than the one that is on show.
+    pub fn live_resize_settle(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> eyre::Result<usize> {
+        if self.is_paused
+            || self.focused_monitor_idx() != monitor_idx
+            || self.focused_workspace_idx()? != workspace_idx
+        {
+            return Ok(0);
+        }
+
+        let workspace = self.focused_workspace()?;
+
+        if !workspace.tile
+            || workspace.monocle_container.is_some()
+            || workspace.maximized_window.is_some()
+        {
+            return Ok(0);
+        }
+
+        let mut sent = 0;
+
+        for (idx, container) in workspace.containers().iter().enumerate() {
+            let (Some(layout), Some(window)) =
+                (workspace.latest_layout.get(idx), container.focused_window())
+            else {
+                continue;
+            };
+
+            if crate::HIDDEN_HWNDS.lock().contains(&window.hwnd)
+                || is_dragging(window.hwnd)
+                || window.is_miminized()
+            {
+                continue;
+            }
+
+            let Ok(rect) = WindowsApi::window_rect(window.hwnd) else {
+                continue;
+            };
+
+            if is_off(&rect, layout) {
+                tracing::debug!(
+                    "live resize: hwnd {} is at {rect:?} after the drag, sent again to {layout:?}",
+                    window.hwnd
+                );
+                let _ = WindowsApi::position_window(window.hwnd, layout, false, true);
+                sent += 1;
+            }
+        }
+
+        Ok(sent)
     }
 }
 
@@ -487,6 +621,17 @@ mod tests {
         assert!(is_resized(&rect(0, 0, 100, 50), &rect(0, 0, 101, 50)));
         assert!(is_resized(&rect(0, 0, 100, 50), &rect(0, 0, 100, 49)));
         assert!(!is_resized(&rect(0, 0, 100, 50), &rect(40, 30, 100, 50)));
+    }
+
+    #[test]
+    fn a_window_is_where_it_is_to_be_to_within_a_couple_of_pixels() {
+        let layout = rect(100, 50, 400, 300);
+
+        assert!(!is_off(&layout, &layout));
+        assert!(!is_off(&rect(102, 48, 402, 298), &layout));
+        // the 48 pixels that a window was found short of the end of a drag by
+        assert!(is_off(&rect(100, 50, 352, 300), &layout));
+        assert!(is_off(&rect(103, 50, 400, 300), &layout));
     }
 
     #[test]
