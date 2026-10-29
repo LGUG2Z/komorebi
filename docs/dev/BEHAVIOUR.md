@@ -116,6 +116,16 @@ These are differences between the ports that a scenario does not hide, and are n
   manages it on the first workspace, but a minimized window stays minimized and is not taken up.
   The scenario counts the windows that were in view, so it does not ask for the minimized one.
 
+## Does a broken daemon turn them red
+
+On kfde, with a real KWin: `komorebi/src/workspace.rs` was changed, for one run and never
+committed, to make every tile 200 pixels too wide after the layout is calculated, so that tiles
+overlap. `core-e2e` failed 7 checks and passed 139: the overlap checks of the suite's own first
+tiling and of the `tiling` scenario (two each), the one in the suite that says two windows share
+the screen again after a close, and the "not on each other" checks of `stacks` and of `closing`
+or `lifecycle`. Nothing else turned red, so the checks name what
+is wrong. The same mutation on kfw is for its side to run.
+
 ## What is not covered
 
 - Pointer input on a second display, on Windows (kfw). `has("pointer")` is true, but the pointer
