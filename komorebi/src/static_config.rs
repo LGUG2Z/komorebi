@@ -555,6 +555,10 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_MOUSE_FOLLOWS_FOCUS)))]
     pub mouse_follows_focus: Option<bool>,
+    /// Raise visible tiled windows in the current workspace when a tiled window is focused
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
+    pub tiled_layer_auto_show: Option<bool>,
     /// Path to applications.json from komorebi-application-specific-configurations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<AppSpecificConfigurationPath>,
@@ -907,6 +911,7 @@ impl From<&WindowManager> for StaticConfig {
             #[allow(deprecated)]
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
+            tiled_layer_auto_show: Some(value.tiled_layer_auto_show),
             app_specific_configuration_path: None,
             border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
             border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
@@ -1371,6 +1376,7 @@ impl StaticConfig {
             mouse_follows_focus: value
                 .mouse_follows_focus
                 .unwrap_or(DEFAULT_MOUSE_FOLLOWS_FOCUS),
+            tiled_layer_auto_show: value.tiled_layer_auto_show.unwrap_or_default(),
             hotwatch: Hotwatch::new()?,
             has_pending_raise_op: false,
             pending_move_op: Arc::new(None),
@@ -1771,6 +1777,7 @@ impl StaticConfig {
         wm.mouse_follows_focus = value
             .mouse_follows_focus
             .unwrap_or(DEFAULT_MOUSE_FOLLOWS_FOCUS);
+        wm.tiled_layer_auto_show = value.tiled_layer_auto_show.unwrap_or_default();
         wm.work_area_offset = value.global_work_area_offset;
         #[allow(deprecated)]
         {
@@ -1993,6 +2000,35 @@ mod tests {
 
     use crate::StaticConfig;
     use crate::WorkspaceConfig;
+
+    #[test]
+    fn tiled_layer_auto_show_defaults_to_disabled() {
+        for raw in ["{}", r#"{"tiled_layer_auto_show": false}"#] {
+            let config = StaticConfig::read_raw(raw).unwrap();
+            assert!(!config.tiled_layer_auto_show.unwrap_or_default());
+        }
+    }
+
+    #[test]
+    fn tiled_layer_auto_show_uses_snake_case_key_and_round_trips() {
+        let config = StaticConfig::read_raw(r#"{"tiled_layer_auto_show": true}"#).unwrap();
+        assert_eq!(config.tiled_layer_auto_show, Some(true));
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["tiled_layer_auto_show"], true);
+        assert!(json.get("tiled-layer-auto-show").is_none());
+        let decoded: StaticConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(decoded.tiled_layer_auto_show, Some(true));
+        assert!(StaticConfig::read_raw(r#"{"tiled_layer_auto_show": "true"}"#).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "schemars")]
+    fn tiled_layer_auto_show_schema_documents_default() {
+        let schema = serde_json::to_value(schemars::schema_for!(StaticConfig)).unwrap();
+        let property = &schema["properties"]["tiled_layer_auto_show"];
+        assert_eq!(property["default"], false);
+        assert_eq!(property["type"], serde_json::json!(["boolean", "null"]));
+    }
 
     #[test]
     #[ignore = "this fails on github actions due to rate limiting changes introduced in may 2025"]

@@ -979,6 +979,40 @@ impl Window {
         Ok(())
     }
 
+    /// Position this window below the anchor, keeping its border behind the window.
+    pub fn position_behind(self, anchor: isize) -> eyre::Result<()> {
+        let border_hwnd =
+            crate::border_manager::window_border(self.hwnd).map(|border| border.border_hwnd);
+        self.position_behind_with_border(anchor, border_hwnd)
+    }
+
+    pub(crate) fn position_behind_with_border(
+        self,
+        anchor: isize,
+        border_hwnd: Option<isize>,
+    ) -> eyre::Result<()> {
+        // Inserting across topmost groups can change WS_EX_TOPMOST. Preserve app policy.
+        if self.ex_style()?.contains(ExtendedWindowStyle::TOPMOST)
+            || Window::from(anchor)
+                .ex_style()?
+                .contains(ExtendedWindowStyle::TOPMOST)
+        {
+            tracing::info!(
+                hwnd = self.hwnd,
+                anchor,
+                "tiled-layer-auto-show: skipped topmost app"
+            );
+            return Ok(());
+        }
+        WindowsApi::position_window_behind(self.hwnd, anchor)?;
+        if let Some(border_hwnd) = border_hwnd {
+            // Borders cover the whole window rectangle and are not input-transparent.
+            // Keep the app above its border so clicks reach the app's client area.
+            WindowsApi::position_window_behind(border_hwnd, self.hwnd)?;
+        }
+        Ok(())
+    }
+
     /// Lower the window to the bottom of the Z order, but do not activate or focus
     /// it.
     /// It also checks if there is a border attached to this window and if it is

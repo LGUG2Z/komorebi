@@ -566,6 +566,28 @@ impl WindowsApi {
         )
     }
 
+    /// Position an already-visible window directly behind another window without activation.
+    pub fn position_window_behind(hwnd: isize, anchor: isize) -> eyre::Result<()> {
+        let mut flags = SetWindowPosition::NO_MOVE
+            | SetWindowPosition::NO_SIZE
+            | SetWindowPosition::NO_ACTIVATE
+            | SetWindowPosition::NO_OWNER_Z_ORDER;
+
+        if matches!(
+            WINDOW_HANDLING_BEHAVIOUR.load(),
+            WindowHandlingBehaviour::Async
+        ) {
+            flags |= SetWindowPosition::ASYNC_WINDOW_POS;
+        }
+
+        Self::set_window_pos(
+            HWND(as_ptr!(hwnd)),
+            &Rect::default(),
+            HWND(as_ptr!(anchor)),
+            flags.bits(),
+        )
+    }
+
     /// Lower the window to the bottom of the Z order, but do not activate or focus
     /// it.
     pub fn lower_window(hwnd: isize) -> eyre::Result<()> {
@@ -1522,5 +1544,154 @@ impl WindowsApi {
                 .and_then(|pwstr| pwstr.to_string().map_err(|e| e.into()))
         }
         .process()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use windows::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
+    use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
+    use windows::core::w;
+
+    struct TestWindow(HWND);
+
+    impl TestWindow {
+        fn new() -> Self {
+            // Hidden tool windows exercise native stacking without appearing on the desktop.
+            Self(unsafe {
+                CreateWindowExW(
+                    WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                    w!("STATIC"),
+                    w!("komorebi z-order test"),
+                    WS_POPUP,
+                    -32000,
+                    -32000,
+                    32,
+                    32,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap()
+            })
+        }
+
+        fn hwnd(&self) -> isize {
+            self.0.0 as isize
+        }
+    }
+
+    impl Drop for TestWindow {
+        fn drop(&mut self) {
+            unsafe {
+                let _ = DestroyWindow(self.0);
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "requires an interactive Windows desktop; run native z-order tests explicitly"]
+    fn relative_position_changes_native_z_order_without_showing_or_activating() {
+        let target = TestWindow::new();
+        let middle = TestWindow::new();
+        let anchor = TestWindow::new();
+        let active = unsafe { GetActiveWindow() };
+        let rect = WindowsApi::window_rect(target.hwnd()).unwrap();
+
+        WindowsApi::position_window_behind(middle.hwnd(), anchor.hwnd()).unwrap();
+        WindowsApi::position_window_behind(target.hwnd(), middle.hwnd()).unwrap();
+        assert_eq!(
+            WindowsApi::next_window(anchor.hwnd()).unwrap(),
+            middle.hwnd()
+        );
+
+        Window::from(target.hwnd())
+            .position_behind(anchor.hwnd())
+            .unwrap();
+        assert_eq!(
+            WindowsApi::next_window(anchor.hwnd()).unwrap(),
+            target.hwnd()
+        );
+        assert_eq!(
+            WindowsApi::next_window(target.hwnd()).unwrap(),
+            middle.hwnd()
+        );
+        assert_eq!(WindowsApi::window_rect(target.hwnd()).unwrap(), rect);
+        assert!(!WindowsApi::is_window_visible(target.hwnd()));
+        assert_eq!(unsafe { GetActiveWindow() }, active);
+    }
+    #[test]
+    #[ignore = "requires an interactive Windows desktop; run native z-order tests explicitly"]
+    fn relative_position_preserves_app_topmost_status() {
+        let normal = TestWindow::new();
+        let topmost = TestWindow::new();
+        unsafe {
+            SetWindowPos(
+                topmost.0,
+                Some(windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST),
+                0,
+                0,
+                0,
+                0,
+                SET_WINDOW_POS_FLAGS(
+                    (SetWindowPosition::NO_MOVE
+                        | SetWindowPosition::NO_SIZE
+                        | SetWindowPosition::NO_ACTIVATE)
+                        .bits(),
+                ),
+            )
+            .unwrap();
+        }
+        let normal_window = Window::from(normal.hwnd());
+        let topmost_window = Window::from(topmost.hwnd());
+        let before_normal = normal_window.ex_style().unwrap();
+        let before_topmost = topmost_window.ex_style().unwrap();
+        normal_window.position_behind(topmost.hwnd()).unwrap();
+        topmost_window.position_behind(normal.hwnd()).unwrap();
+        assert_eq!(
+            normal_window.ex_style().unwrap().bits(),
+            before_normal.bits()
+        );
+        assert_eq!(
+            topmost_window.ex_style().unwrap().bits(),
+            before_topmost.bits()
+        );
+    }
+    #[test]
+    #[ignore = "requires an interactive Windows desktop; run native z-order tests explicitly"]
+    fn relative_position_keeps_border_behind_its_app() {
+        let target = TestWindow::new();
+        let border = TestWindow::new();
+        let anchor = TestWindow::new();
+        let active = unsafe { GetActiveWindow() };
+
+        // Reproduce the regression: the border above its app intercepts client-area clicks.
+        WindowsApi::position_window_behind(target.hwnd(), anchor.hwnd()).unwrap();
+        WindowsApi::position_window_behind(border.hwnd(), anchor.hwnd()).unwrap();
+        assert_eq!(
+            WindowsApi::next_window(anchor.hwnd()).unwrap(),
+            border.hwnd()
+        );
+        assert_eq!(
+            WindowsApi::next_window(border.hwnd()).unwrap(),
+            target.hwnd()
+        );
+
+        Window::from(target.hwnd())
+            .position_behind_with_border(anchor.hwnd(), Some(border.hwnd()))
+            .unwrap();
+        assert_eq!(
+            WindowsApi::next_window(anchor.hwnd()).unwrap(),
+            target.hwnd()
+        );
+        assert_eq!(
+            WindowsApi::next_window(target.hwnd()).unwrap(),
+            border.hwnd()
+        );
+        assert_eq!(unsafe { GetActiveWindow() }, active);
+        assert!(!WindowsApi::is_window_visible(target.hwnd()));
+        assert!(!WindowsApi::is_window_visible(border.hwnd()));
     }
 }

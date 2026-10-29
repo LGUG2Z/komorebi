@@ -464,6 +464,14 @@
         }
       ]
     },
+    "tiled_layer_auto_show": {
+      "description": "Raise visible tiled windows in the current workspace when a tiled window is focused",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": false
+    },
     "toggle_float_placement": {
       "description": "Determines the placement of a new window when toggling to float",
       "anyOf": [
