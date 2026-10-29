@@ -3,6 +3,32 @@
 # The MSVC CRT and the Windows SDK come from xwin, the compiler and linker from LLVM, so nothing
 # here needs a Windows machine. Copied from komorebi for Windows' own flake, with the same pinned
 # versions.
+let
+  # The SDK is made with `--disable-symlinks`, so that it is the same tree, and has the same hash,
+  # on every host: xwin switches symlinks off by itself on a case-insensitive filesystem (macOS)
+  # and leaves them on a case-sensitive one (Linux), and the two trees hash differently. The
+  # linker asks for `kernel32.lib` of a file that is `Kernel32.lib`, which only a case-sensitive
+  # filesystem needs an alias for, so on those hosts this adds a lowercase one for each name that
+  # has a capital in it.
+  caseFolded =
+    { pkgs, windowsSdk }:
+    if pkgs.stdenv.hostPlatform.isDarwin then
+      windowsSdk
+    else
+      pkgs.runCommandLocal "${windowsSdk.name}-case-folded" { } ''
+        cp -rs ${windowsSdk} $out
+        chmod -R u+w $out
+        cd $out
+        find . -name '*[A-Z]*' | while read -r path; do
+          directory=$(dirname "$path")
+          name=$(basename "$path")
+          lower=$(echo "$name" | tr 'A-Z' 'a-z')
+          if [ ! -e "$directory/$lower" ] && [ ! -L "$directory/$lower" ]; then
+            ln -s "$name" "$directory/$lower"
+          fi
+        done
+      '';
+in
 {
   windowsSdkVersion = "10.0.26100";
   windowsCrtVersion = "14.44.17.14";
@@ -16,35 +42,49 @@
     pkgs.stdenvNoCC.mkDerivation {
       name = "windows-sdk-${windowsSdkVersion}-crt-${windowsCrtVersion}";
 
-      nativeBuildInputs = [ pkgs.xwin ];
+      nativeBuildInputs = [
+        pkgs.xwin
+        pkgs.cacert
+      ];
 
       outputHashAlgo = "sha256";
       outputHashMode = "recursive";
-      # NOT the hash komorebi for Windows' own flake pins (sha256-6cLS5q1BDRpLPScfmmKpTTEHUzsgKTKD1+mKvGX9Deo=):
-      # that did not reproduce on aarch64-darwin on 2026-10-27 with xwin 0.7.0, which produced this one.
-      # Whether Microsoft re-published that SDK or the splat differs by host is not known.
+      # The hash of `xwin splat --disable-symlinks` of this SDK, with xwin 0.9.0 (nixpkgs' at the
+      # time). macOS produced it on 2026-10-27, where xwin switched symlinks off by itself (the filesystem
+      # is case-insensitive), and Linux produces it on 2026-10-29 with the flag. Not checked on macOS
+      # since the flag, the CA bundle and the cache directory were added.
+      # It is NOT what komorebi for Windows' own flake pins (sha256-6cLS5q1BDRpLPScfmmKpTTEHUzsgKTKD1+mKvGX9Deo=),
+      # which this does not reproduce; the cause of that is not known. Without `--disable-symlinks` the
+      # hash depends on the host: xwin makes case-alias symlinks on a case-sensitive filesystem and
+      # none on a case-insensitive one, and the tree with them (2914 links) hashes to
+      # sha256-UFQjsFVBwcF/9e9tVFoG0Z1JySxyTnFqoaRwr/tUWzA=. A new xwin may change the tree: if the
+      # hash does not reproduce after an update of nixpkgs, look at that first.
       outputHash = "sha256-YjmEfoxtcmQXvUc+WtaElnyP/4osNvtSI7X6MDaNTjg=";
 
       buildCommand = ''
         export HOME=$(mktemp -d)
+        mkdir -p $out
         xwin --accept-license \
+          --cache-dir $out/.xwin-cache \
           --sdk-version ${windowsSdkVersion} \
           --crt-version ${windowsCrtVersion} \
-          splat --output $out
+          splat --disable-symlinks --output $out
+        rm -rf $out/.xwin-cache
       '';
     };
 
   mkMsvcEnv =
     { pkgs, windowsSdk }:
     let
+      sdk = caseFolded { inherit pkgs windowsSdk; };
       clangVersion = pkgs.lib.versions.major pkgs.llvmPackages.clang.version;
       includes = [
         # IMPORTANT: libclang include path MUST come first to avoid header conflicts
         "/imsvc${pkgs.llvmPackages.libclang.lib}/lib/clang/${clangVersion}/include"
-        "/imsvc${windowsSdk}/crt/include"
-        "/imsvc${windowsSdk}/sdk/include/ucrt"
-        "/imsvc${windowsSdk}/sdk/include/um"
-        "/imsvc${windowsSdk}/sdk/include/shared"
+        "/imsvc${sdk}/crt/include"
+        "/imsvc${sdk}/sdk/include/ucrt"
+        "/imsvc${sdk}/sdk/include/um"
+        "/imsvc${sdk}/sdk/include/shared"
       ];
       cflags = builtins.concatStringsSep " " (
         [
@@ -69,9 +109,9 @@
       # target-specific rust flags with linker flavor and library search paths
       CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS = builtins.concatStringsSep " " [
         "-Clinker-flavor=lld-link"
-        "-Lnative=${windowsSdk}/crt/lib/x86_64"
-        "-Lnative=${windowsSdk}/sdk/lib/um/x86_64"
-        "-Lnative=${windowsSdk}/sdk/lib/ucrt/x86_64"
+        "-Lnative=${sdk}/crt/lib/x86_64"
+        "-Lnative=${sdk}/sdk/lib/um/x86_64"
+        "-Lnative=${sdk}/sdk/lib/ucrt/x86_64"
       ];
 
       # cargo target
