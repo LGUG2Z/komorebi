@@ -349,6 +349,53 @@ pub fn listen_for_steps(wm: Arc<Mutex<WindowManager>>) {
     });
 }
 
+/// How far a window can have got between the user taking hold of an edge and the start of the
+/// drag being handled, which a fast drag makes a good many pixels
+const DRAG_LAG_ALLOWANCE: i32 = 64;
+
+/// Where a drag by the edges of a window began, given the rect the window had when the start of
+/// the drag was handled, the rect it has now and the tile it was put in.
+///
+/// The start is handled after the drag has begun, so an edge that has moved since then was taken
+/// from the tile's edge, not from where it had got to: measuring from the latter loses what the
+/// user dragged before that, which is more the longer the drag. An edge that has not moved is
+/// not being dragged and is left as it was read, as is an edge that is too far from its tile
+/// for that to be the reason (a window that cannot be as small as its tile).
+pub fn drag_origin(started_from: &Rect, now: &Rect, tile: Option<&Rect>) -> Rect {
+    let Some(tile) = tile else {
+        return *started_from;
+    };
+
+    let edge = |started: i32, now: i32, tile: i32| {
+        if now != started && (started - tile).abs() <= DRAG_LAG_ALLOWANCE {
+            tile
+        } else {
+            started
+        }
+    };
+
+    // A Rect is (left, top, width, height); work in edges instead
+    let left = edge(started_from.left, now.left, tile.left);
+    let top = edge(started_from.top, now.top, tile.top);
+    let right = edge(
+        started_from.left + started_from.right,
+        now.left + now.right,
+        tile.left + tile.right,
+    );
+    let bottom = edge(
+        started_from.top + started_from.bottom,
+        now.top + now.bottom,
+        tile.top + tile.bottom,
+    );
+
+    Rect {
+        left,
+        top,
+        right: right - left,
+        bottom: bottom - top,
+    }
+}
+
 impl WindowManager {
     /// The user has taken hold of a window by its title bar or an edge, which
     /// is not known to be either yet: what the workspace is is kept in case it
@@ -438,7 +485,12 @@ impl WindowManager {
             workspace.focus_container(idx);
         }
 
-        for (edge, sizing, by) in edges_moved(&kept.started_from, &now) {
+        let tile = workspace
+            .container_idx_for_window(kept.hwnd)
+            .and_then(|idx| kept.latest_layout.get(idx));
+        let started_from = drag_origin(&kept.started_from, &now, tile);
+
+        for (edge, sizing, by) in edges_moved(&started_from, &now) {
             self.resize_window(edge, sizing, by, false)?;
         }
 
@@ -685,5 +737,57 @@ mod tests {
         assert!(!is_catching_up(hwnd, &elsewhere));
 
         SENT.lock().take();
+    }
+
+    fn edges_rect(left: i32, top: i32, right: i32, bottom: i32) -> Rect {
+        Rect {
+            left,
+            top,
+            right: right - left,
+            bottom: bottom - top,
+        }
+    }
+
+    #[test]
+    fn an_edge_dragged_before_the_start_was_handled_is_measured_from_the_tile() {
+        let tile = edges_rect(27, 27, 623, 725);
+        // read after the right edge had gone 7px
+        let started_from = edges_rect(27, 27, 630, 725);
+        let now = edges_rect(27, 27, 683, 725);
+
+        assert_eq!(
+            drag_origin(&started_from, &now, Some(&tile)),
+            edges_rect(27, 27, 623, 725)
+        );
+    }
+
+    #[test]
+    fn an_edge_that_did_not_move_is_left_as_it_was_read() {
+        // a window that cannot be as narrow as its tile, dragged by the other edge
+        let tile = edges_rect(27, 27, 623, 725);
+        let started_from = edges_rect(27, 27, 650, 725);
+        let now = edges_rect(27, 27, 650, 760);
+
+        assert_eq!(
+            drag_origin(&started_from, &now, Some(&tile)),
+            edges_rect(27, 27, 650, 725)
+        );
+    }
+
+    #[test]
+    fn an_edge_far_from_its_tile_is_left_as_it_was_read() {
+        let tile = edges_rect(27, 27, 623, 725);
+        let started_from = edges_rect(27, 27, 800, 725);
+        let now = edges_rect(27, 27, 830, 725);
+
+        assert_eq!(drag_origin(&started_from, &now, Some(&tile)), started_from);
+    }
+
+    #[test]
+    fn there_is_nothing_to_go_by_without_a_tile() {
+        let started_from = edges_rect(27, 27, 630, 725);
+        let now = edges_rect(27, 27, 683, 725);
+
+        assert_eq!(drag_origin(&started_from, &now, None), started_from);
     }
 }

@@ -857,9 +857,19 @@ impl WindowManager {
                         // Resize the container of the dragged window, which is not necessarily
                         // the focused one if the press that began the drag did not focus it yet
                         let workspace = self.focused_workspace_mut()?;
+                        let mut tile = None;
                         if let Some(idx) = workspace.container_idx_for_window(window.hwnd) {
                             workspace.focus_container(idx);
+                            tile = workspace.latest_layout.get(idx).copied();
                         }
+
+                        // The window has moved some way by the time the start of the drag is
+                        // handled, so what was read then is not where the edge was taken from
+                        let old_position = crate::live_resize::drag_origin(
+                            &old_position,
+                            &new_position,
+                            tile.as_ref(),
+                        );
 
                         for (edge, sizing, by) in
                             crate::live_resize::edges_moved(&old_position, &new_position)
