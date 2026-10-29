@@ -486,6 +486,12 @@
 
             RUST_BACKTRACE = "full";
 
+            # komorebic's build script runs on the host and wants OpenSSL, as in
+            # the nix build
+            OPENSSL_NO_VENDOR = "1";
+            OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
+            OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
+
             # the Windows e2e guest (e2e/platforms/qemu_windows): the build
             # scripts and the runner find OVMF here, and the vendored core
             # and the platform on PYTHONPATH
@@ -514,6 +520,10 @@
               pkgs.llvmPackages.clang-unwrapped # provides clang-cl
               pkgs.llvmPackages.lld # provides lld-link
               pkgs.llvmPackages.llvm # provides llvm-lib
+
+              # komorebic's build script (reqwest) runs on the build host
+              pkgs.pkg-config
+              pkgs.openssl
 
               pkgs.cargo-deny
               pkgs.cargo-nextest
