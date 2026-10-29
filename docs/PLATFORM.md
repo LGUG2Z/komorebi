@@ -160,10 +160,10 @@ KDE. What is written from the sources and has not been seen to work on a real Pl
 | the window track | komorebi for KDE's own state: a Wayland client cannot list other programs' windows, so only windows komorebi manages are listed, each shown when its workspace is showing and it is in front of its stack |
 | komorebi's sockets | `$XDG_RUNTIME_DIR/komorebi/` (the command socket `komorebi.sock` and the subscribers'), and the data directory where there is no runtime directory |
 | komorebi's log | `~/.local/share/komorebi/komorebi_plaintext.log.<UTC date>`; the span of an event's handler is `handle_event` and of a command's `process_command` |
-| the program's own windows | not left out of the video: the compositor's screencast of an output has every window on it. komorebi is told to ignore them by their application id, `komorebic ignore-rule class komorebi-recorder`, run before the window exists |
+| the program's own windows | left out of the video by a KWin window rule (`excludefromcapture`, forced for the window class `komorebi-recorder`), which `record` writes to `~/.config/kwinrulesrc` and has KWin read; komorebi is told to ignore them by their application id, `komorebic ignore-rule class komorebi-recorder`, run before the window exists. Whether KWin honours the rule for a screencast of an output is a check still to make (K3) |
 | the window's application id | the window's application id is `komorebi-recorder`, which is the `class` komorebi for KDE sees |
 | `--probe-windows` | Windows only |
-| ghost tiles | not found: they need the Windows probe or a picture of the screen read for them, and neither is written for KDE |
+| ghost tiles | found from the frames komorebi has in its state, as on a Mac (a window in front on a showing workspace that has no frame anyone can see). No rule is proposed for one: komorebi for KDE's rules are in its own repository |
 
 komorebi for KDE's rules are checked against the log and the events of a running komorebi (`komorebi --fake-backend`, an
 in-memory desktop with no windows), and against its source. They are not checked against a recording of a real

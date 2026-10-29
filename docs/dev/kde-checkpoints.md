@@ -83,8 +83,10 @@ Status: not run.
 1. `komorebi-recorder` with no command opens the window. Expect it to be titled `komorebi-recorder` and not tiled.
 2. If it was tiled, `komorebic ignore-rule class komorebi-recorder` was not applied in time, or the window's class is not
    what is expected: `komorebic state` says what the window's class is.
-3. The window is in the video of the screen. Whether that matters, and whether a screencast of the other windows only is
-   wanted, is open (`stream_window` of the protocol takes one window).
+3. `record` writes a KWin window rule (`~/.config/kwinrulesrc`, group `komorebi-recorder-exclude-from-capture`) that
+   forces `excludefromcapture` for the class `komorebi-recorder`. Record with the window open and play the video: the
+   window should not be in it. If it is, say whether `kwinrulesrc` has the rule, whether System Settings > Window
+   Rules shows it, and what `qdbus6 org.kde.KWin /KWin supportInformation` says of the window's class.
 
 ## K4: the OS trace and the window track
 
