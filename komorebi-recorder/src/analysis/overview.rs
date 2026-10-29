@@ -175,6 +175,8 @@ pub struct SessionInfo {
     /// `host-clock` if the video's frame timestamps were verified to be on the same clock as the
     /// logs, `unverified` if not (then the alignment of video and logs is unreliable).
     pub sync_quality: String,
+    /// What the recording has in it and the commands that read each part ([`Analysis::available`]).
+    pub available: Vec<super::available::Available>,
     /// Things the recorder said went wrong while recording.
     pub warnings: Vec<String>,
 }
@@ -393,6 +395,7 @@ impl Analysis {
             log_lines: self.log().lines.len(),
             incidents: self.incidents().len(),
             sync_quality: manifest.sync_quality.clone(),
+            available: self.available(),
             warnings: manifest.warnings.clone(),
         }
     }

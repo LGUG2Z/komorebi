@@ -425,3 +425,21 @@ fn every_command_names_a_schema_that_exists() {
 fn json_stdout(args: &[&str]) -> Value {
     json(args)
 }
+
+#[test]
+fn the_brief_says_what_the_recording_has_and_lacks() {
+    let dir = session("brief-available", true);
+    let printed = text(&["brief", &dir]);
+    assert!(printed.contains("what this recording has"), "{printed}");
+    assert!(printed.contains("MISSING window-track"), "{printed}");
+
+    let data = json(&["brief", &dir, "--json"]);
+    let available = data["data"]["session"]["available"]
+        .as_array()
+        .expect("session.available is a list");
+    assert_eq!(available.len(), 6);
+    assert_eq!(available[0]["name"], "events");
+
+    let compact = text(&["brief", &dir, "--compact"]);
+    assert!(compact.contains("not recorded:"), "{compact}");
+}

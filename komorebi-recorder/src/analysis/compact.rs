@@ -79,6 +79,9 @@ pub struct CompactBrief {
     pub top_findings: Vec<CompactFinding>,
     /// How many findings an agent has already recorded (`findings` lists them).
     pub recorded_findings: usize,
+    /// What the recording does not have (`events`, `log`, `video`, `window-track`, `window-probes`,
+    /// `os-trace`), so the commands that read it have nothing to say; `brief` and `overview` say more.
+    pub missing: Vec<String>,
     /// Commands to run next, exactly as they can be pasted.
     pub next: Vec<String>,
 }
@@ -203,6 +206,13 @@ impl BriefData {
                 })
                 .collect(),
             recorded_findings: self.findings_recorded.len(),
+            missing: self
+                .session
+                .available
+                .iter()
+                .filter(|part| !part.present)
+                .map(|part| part.name.clone())
+                .collect(),
             next,
         }
     }
@@ -245,6 +255,13 @@ impl CompactBrief {
         }
 
         let _ = writeln!(out, "\nrecording {}\n  {}", self.session, self.state);
+        if !self.missing.is_empty() {
+            let _ = writeln!(
+                out,
+                "  not recorded: {} (`brief` says what that rules out)",
+                self.missing.join(", ")
+            );
+        }
 
         let _ = writeln!(
             out,

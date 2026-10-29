@@ -235,7 +235,7 @@ fn rank(kind: GroupKind) -> u8 {
 
 impl Analysis {
     /// Whether the session has any OS trace at all, however it got there.
-    fn has_os_trace(&self) -> bool {
+    pub(super) fn has_os_trace(&self) -> bool {
         !self.manifest.oslog.is_empty()
             || ["oslog", "oslog/apps"].iter().any(|dir| {
                 std::fs::read_dir(self.session.path(dir)).is_ok_and(|entries| {
