@@ -70,6 +70,8 @@ class RecordedChecks(Checks):
     def __init__(self) -> None:
         super().__init__()
         self.results: list[dict[str, object]] = []
+        # how long each step of the suite took, for the result file
+        self.steps: list[dict[str, object]] = []
 
     def _record(self, **fields: object) -> None:
         if self.scope:
@@ -97,6 +99,19 @@ class RecordedChecks(Checks):
                 check=description, known_failure=True, reason=reason
             )
         return holds
+
+
+def _suite(checks: "RecordedChecks", *steps):
+    """`run_suite`, one step at a time, keeping how long each took."""
+    results: list[object] = []
+    for step in steps:
+        began = time.monotonic()
+        results.extend(run_suite(checks, step))
+        checks.steps.append({
+            "step": f"[{step.scope}] {step.name}",
+            "seconds": round(time.monotonic() - began, 1),
+        })
+    return results
 
 
 def _with(fn, **kwargs):
@@ -152,7 +167,17 @@ WITH_CLIENTS = {
     "focus_follows_mouse", "layouts", "floating", "minimizing", "padding",
     "maximizing", "workspace_moves", "resize_commands", "promoting",
     "flipping", "pausing", "tiling_off", "lifecycle_hidden",
-    "scrolling", "locking",
+    "scrolling", "locking", "handover", "fullscreen", "display_change",
+}
+
+# what a scenario file has besides `run`, which its suite runs after it
+MORE = {
+    "hotplug": ("user_move",),
+    "resize": ("edge_cases",),
+    "maximizing": ("user",),
+    "lifecycle_hidden": ("crash",),
+    "monocle": ("focus_behaviour",),
+    "monitors": ("at_cursor",),
 }
 
 # what only Windows can check, `extras/<name>.py`, after the tiling windows
@@ -311,10 +336,10 @@ def run_one(
                 extra = importlib.import_module(
                     f"platforms.qemu_windows.extras.{EXTRAS[name]}"
                 )
-                clients = run_suite(
+                clients = _suite(
                     checks, shared(tiling.run, platform, checks)
                 )[0]
-                run_suite(checks, platform_only(
+                _suite(checks, platform_only(
                     "windows", extra.run, platform, checks, clients
                 ))
                 return checks
@@ -333,7 +358,7 @@ def run_one(
                     if os.environ.get("SWEEP_TWO_DISPLAYS"):
                         platform.add_display()
                         time.sleep(5)
-                    run_suite(
+                    _suite(
                         checks,
                         shared(scenario.layouts, platform, checks, clients),
                         shared(
@@ -347,7 +372,7 @@ def run_one(
                     commands = importlib.import_module(
                         "komorebi_vm.core.scenarios.commands"
                     )
-                    run_suite(checks, shared(
+                    _suite(checks, shared(
                         _with(
                             commands.unknown_monitor,
                             known_failure=None
@@ -362,15 +387,23 @@ def run_one(
                     kwargs["closing"] = clients[-1]
                 if name == "focus_follows_mouse":
                     # two tiles that are in view and do not overlap
-                    run_suite(checks, shared(
+                    _suite(checks, shared(
                         scenario.run, platform, checks, *clients[:2]
                     ))
                     return checks
-                run_suite(checks, shared(
-                    _with(scenario.run, **kwargs), platform, checks, clients
-                ))
+                _suite(
+                    checks,
+                    shared(
+                        _with(scenario.run, **kwargs), platform, checks,
+                        clients,
+                    ),
+                    *(
+                        shared(getattr(scenario, more), platform, checks, clients)
+                        for more in MORE.get(name, ())
+                    ),
+                )
             elif name == "placement":
-                run_suite(checks, shared(
+                _suite(checks, shared(
                     _with(scenario.run, known_failures=None
                           if _contains(PLACEMENT_INTEGER_FIX) else {
                               PLACEMENT_INTEGER_CASE: PLACEMENT_INTEGER_BUG
@@ -378,7 +411,14 @@ def run_one(
                     platform, checks,
                 ))
             else:
-                run_suite(checks, shared(scenario.run, platform, checks))
+                _suite(
+                    checks,
+                    shared(scenario.run, platform, checks),
+                    *(
+                        shared(getattr(scenario, more), platform, checks)
+                        for more in MORE.get(name, ())
+                    ),
+                )
         except AgentLost as e:
             print(f"     AGENT LOST: {e}")
             checks.bad(str(e))
@@ -403,6 +443,7 @@ def run_one(
                 "known_failures": len(checks.known),
                 "start_retries": platform.start_notes,
                 "seconds": timings,
+                "steps": checks.steps,
                 "checks": checks.results,
             }, indent=2))
     return checks
