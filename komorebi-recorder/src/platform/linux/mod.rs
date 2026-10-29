@@ -10,6 +10,7 @@ pub mod capture;
 pub mod clock;
 pub mod exclude;
 pub mod power;
+pub mod probe;
 pub mod process;
 mod screencast;
 pub mod session;

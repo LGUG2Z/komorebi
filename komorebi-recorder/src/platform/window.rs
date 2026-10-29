@@ -54,6 +54,24 @@ pub const PROBE_VARIABLE: &str = "KOMOREBI_RECORDER_PROBE_WINDOW";
 /// // only Windows has windows to ask about
 /// assert_eq!(inspect(0x20000).is_some(), cfg!(windows));
 /// ```
+/// Returns what the host says about the window of an event, which komorebi describes as `window` (its
+/// `id`, `rect` and `details`), or `None` on a host that cannot say.
+///
+/// This is [`inspect`] for a host whose handles are not komorebi's: KWin's windows are found by what
+/// komorebi says they are. On Windows the handle is all that is needed.
+#[must_use]
+pub fn inspect_window(hwnd: u32, window: &serde_json::Value) -> Option<WindowFacts> {
+    #[cfg(target_os = "linux")]
+    {
+        super::linux::probe::inspect(hwnd, window)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = window;
+        inspect(hwnd)
+    }
+}
+
 #[must_use]
 pub fn inspect(hwnd: u32) -> Option<WindowFacts> {
     #[cfg(windows)]
@@ -66,6 +84,10 @@ pub fn inspect(hwnd: u32) -> Option<WindowFacts> {
         None
     }
 }
+
+/// Whether the host can be asked about a window komorebi has reported an event about (`record
+/// --probe-windows`, see `crate::sources::winprobe`): Windows can, and so can KWin; macOS cannot.
+pub const CAN_PROBE: bool = cfg!(any(windows, target_os = "linux"));
 
 /// Whether this host can list its windows (see [`list`]). Where it cannot, `--window-track` is
 /// refused rather than recording nothing.
