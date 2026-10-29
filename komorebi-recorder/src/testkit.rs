@@ -125,6 +125,8 @@ impl SessionBuilder {
                                 visible: true,
                                 minimized: false,
                                 cloaked: Some(false),
+                                border: false,
+                                border_of: None,
                             },
                         )
                         .collect(),

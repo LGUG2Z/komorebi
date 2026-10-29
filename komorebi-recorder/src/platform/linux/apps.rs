@@ -41,6 +41,8 @@ fn sample(window: &Window, visible: bool) -> Option<WindowSample> {
         visible,
         minimized: false,
         cloaked: None,
+        border: false,
+        border_of: None,
     })
 }
 

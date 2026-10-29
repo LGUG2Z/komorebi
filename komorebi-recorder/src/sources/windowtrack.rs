@@ -30,6 +30,20 @@
 //! macOS. Both are the units of a display's `frame` in `session.json`, which is how the `sheet
 //! --windows` overlay places them on a frame. `cloaked` is `null` or absent on macOS.
 //!
+//! # Borders
+//!
+//! komorebi for Windows draws each border as a top-level window of its own (class and title
+//! `komoborder-<id>`, a topmost tool window). Those are kept in the track, marked `"border":true`,
+//! so a reader can ask whether a border was N px off its window at time T. When the border is
+//! named for a window (a floating window's border is `komoborder-<hwnd>`), `"border_of"` is that
+//! handle. A tiled or monocle container's border is named for the *container* (a UUID, in the
+//! border's `title`), which komorebi's `State` maps to the container's focused window: that join
+//! is exact but is the analysis's to make; when the container id is not enough (or the state is
+//! missing), pairing a border with a window by rect and z-order is a heuristic and is not done
+//! here. Neither field is ever guessed. macOS komorebi has no such windows this crate knows of
+//! (any border window there is not layer 0, which the Mac listing leaves out), and komorebi for KDE
+//! draws no border windows at all: KWin's rounded-corners effect paints them.
+//!
 //! # Threads and cost
 //!
 //! A [`WindowTracker`] owns one thread (`window-track`) that owns the file, as the event recorder's
@@ -53,6 +67,8 @@
 //!     visible: true,
 //!     minimized: false,
 //!     cloaked: Some(false),
+//!     border: false,
+//!     border_of: None,
 //! };
 //!
 //! let mut filter = ChangeFilter::default();
@@ -115,6 +131,20 @@ pub struct WindowSample {
     /// still "visible"). `None` where the host has no such thing (a Mac).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cloaked: Option<bool>,
+    /// Whether this is one of komorebi's own border windows (on Windows, a top-level window of
+    /// class `komoborder-<id>`), which komorebi draws around a window as a window of its own. A
+    /// reader asks "is the border N px off its window at time T" by comparing the rect of a
+    /// border with the rect of the window it belongs to. Absent when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub border: bool,
+    /// For a border, the id of the window it was drawn for, when the border says so by itself: the
+    /// border of a floating window is named for that window's handle (`komoborder-<hwnd>`), so this
+    /// is exact. The border of a tiled or monocle container is named for the container (a UUID),
+    /// which is *not* a window: it is in `title`, and the pairing with a window goes through the
+    /// container ids of `State` (its focused window). Absent otherwise; it is never guessed from
+    /// rects.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub border_of: Option<u32>,
 }
 
 impl WindowSample {
@@ -127,6 +157,8 @@ impl WindowSample {
             && self.visible == other.visible
             && self.minimized == other.minimized
             && self.cloaked == other.cloaked
+            && self.border == other.border
+            && self.border_of == other.border_of
     }
 }
 
@@ -140,6 +172,26 @@ pub struct TrackRow {
     pub key: bool,
     /// The windows, front to back.
     pub windows: Vec<WindowSample>,
+}
+
+/// What a window class says about komorebi's borders: `None` if it is not a border's class, else
+/// `Some(window)` where `window` is the handle the border is named for, if it is named for one.
+///
+/// komorebi for Windows names a border's class and title `komoborder-<id>`, where `<id>` is the
+/// container's id (a UUID) for a tiled or monocle container and the window's handle in decimal for
+/// a floating window.
+///
+/// ```rust
+/// use komorebi_recorder::sources::windowtrack::border_class;
+///
+/// assert_eq!(border_class("komoborder-5d1c-uuid"), Some(None));
+/// assert_eq!(border_class("komoborder-131072"), Some(Some(131072)));
+/// assert_eq!(border_class("Chrome_WidgetWin_1"), None);
+/// ```
+#[must_use]
+pub fn border_class(class: &str) -> Option<Option<u32>> {
+    let id = class.strip_prefix("komoborder")?;
+    Some(id.strip_prefix('-').and_then(|id| id.parse().ok()))
 }
 
 /// Decides which samples become rows: the first, any that differ from the previous sample, and one
@@ -361,6 +413,8 @@ mod tests {
             visible: true,
             minimized: false,
             cloaked: None,
+            border: false,
+            border_of: None,
         }
     }
 
@@ -413,6 +467,25 @@ mod tests {
         assert!(changed(&mut filter, 4, vec![window(2, 0), window(1, 5), hidden]).is_some());
         assert!(changed(&mut filter, 5, vec![window(2, 0)]).is_some());
         assert!(changed(&mut filter, 6, vec![window(2, 0)]).is_none());
+    }
+
+    #[test]
+    fn borders_are_told_by_their_class_and_the_old_format_still_reads() {
+        assert_eq!(border_class("komoborder-9f"), Some(None));
+        assert_eq!(border_class("komoborder-42"), Some(Some(42)));
+        assert_eq!(border_class("komoborder"), Some(None));
+        assert_eq!(border_class("notkomoborder-1"), None);
+        let old = r#"{"mach_ns":1,"windows":[{"id":1,"owner":"a","rect":[0,0,1,1],"visible":true,"minimized":false}]}"#;
+        let row: TrackRow = serde_json::from_str(old).unwrap();
+        assert!(!row.windows[0].border && row.windows[0].border_of.is_none());
+        let mut border = window(2, 0);
+        border.border = true;
+        border.border_of = Some(1);
+        let text = serde_json::to_string(&border).unwrap();
+        assert!(
+            text.contains("\"border\":true") && text.contains("\"border_of\":1"),
+            "{text}"
+        );
     }
 
     #[test]

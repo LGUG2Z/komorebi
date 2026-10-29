@@ -187,6 +187,8 @@ pub fn window_list() -> Vec<WindowSample> {
             visible: onscreen.unwrap_or(false),
             minimized: false,
             cloaked: None,
+            border: false,
+            border_of: None,
         });
     }
 

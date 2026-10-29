@@ -31,6 +31,7 @@ use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
+use windows::Win32::UI::WindowsAndMessaging::GetClassNameW;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowLongW;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowTextW;
@@ -181,7 +182,8 @@ fn program_of(pid: u32) -> String {
 /// `EnumWindows` pass, then a few cheap reads of each window.
 ///
 /// Left out: windows that are not visible (`IsWindowVisible`), tool windows (`WS_EX_TOOLWINDOW`:
-/// tooltips, toasts, floating palettes), windows with an empty frame, and this process's own
+/// tooltips, toasts, floating palettes) except komorebi's borders (class `komoborder-<id>`, listed
+/// with `border` true, see [`WindowSample::border`]), windows with an empty frame, and this process's own
 /// windows (the recorder and the viewer are not in the video either). The rect is the visible
 /// frame, as [`inspect`] reads it. A cloaked window (another virtual desktop, or hidden by
 /// komorebi) is listed with `cloaked` true. The program name is looked up once for each process
@@ -202,8 +204,18 @@ pub fn list() -> Vec<WindowSample> {
             if !IsWindowVisible(window).as_bool() {
                 continue;
             }
+            // komorebi's borders are tool windows too, and are kept: they are what the track is
+            // asked about when a border has fallen behind its window
+            let mut border = None;
             if GetWindowLongW(window, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW.0 != 0 {
-                continue;
+                let mut class = [0_u16; 128];
+                let length = GetClassNameW(window, &mut class).max(0) as usize;
+                border = crate::sources::windowtrack::border_class(&String::from_utf16_lossy(
+                    &class[..length.min(class.len())],
+                ));
+                if border.is_none() {
+                    continue;
+                }
             }
             let mut pid = 0_u32;
             GetWindowThreadProcessId(window, Some(&raw mut pid));
@@ -246,6 +258,8 @@ pub fn list() -> Vec<WindowSample> {
                 visible: true,
                 minimized: IsIconic(window).as_bool(),
                 cloaked: Some(cloaked != 0),
+                border: border.is_some(),
+                border_of: border.flatten(),
             });
         }
     }

@@ -36,7 +36,7 @@
 //! With [`SheetOptions::windows`] (the `--windows` flag), each frame also has the rect of every
 //! window drawn on it, from the session's window track (see [`super::window_track`]): a 2 pixel
 //! border in a colour taken from the window's id and a label of the owner and id, front windows
-//! drawn last. Windows that are minimized or not visible are not drawn; a cloaked window (Windows
+//! drawn last. Windows that are minimized or not visible, and komorebi's borders (`border`), are not drawn; a cloaked window (Windows
 //! only: hidden but still "visible") has a thin dim border, so that a window komorebi has hidden
 //! can be told from one that is shown. The windows are those of the moment of the picture
 //! shown, which is how [`SheetFrame::windows`] names them. [`rect_in_cell`] is the conversion from
@@ -394,7 +394,8 @@ impl Canvas {
     ) -> Vec<u32> {
         let mut drawn = Vec::new();
         for window in windows.iter().rev() {
-            if !window.visible || window.minimized {
+            // a border is a thin frame right around its window: drawn, it would hide it
+            if !window.visible || window.minimized || window.border {
                 continue;
             }
             let Some([left, top, w, h]) = rect_in_cell(window.rect, frame, width, height) else {
