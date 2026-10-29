@@ -116,7 +116,10 @@ BINARIES = ["komorebi.exe", "komorebic.exe", "komorebi-testwin.exe"]
 WITH_CLIENTS = {
     "focus", "moving", "stacks", "workspaces", "resize", "monocle", "closing",
     "commands", "hotplug", "unknown_monitor", "lifecycle",
-    "focus_follows_mouse",
+    "focus_follows_mouse", "layouts", "floating", "minimizing", "padding",
+    "maximizing", "workspace_moves", "resize_commands", "promoting",
+    "flipping", "pausing", "tiling_off", "lifecycle_hidden",
+    "scrolling", "locking",
 }
 
 # a small configuration for the sweep's `replace-configuration`
