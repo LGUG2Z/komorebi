@@ -89,3 +89,48 @@ def test_a_step_says_what_it_runs(capsys: pytest.CaptureFixture[str]) -> None:
     run_suite(Checks(), shared(scenario), platform_only("kde", scenario))
     out = capsys.readouterr().out
     assert "== [shared] test_suite.scenario" in out and "== [kde] test_suite.scenario" in out
+
+
+def test_a_step_prints_how_long_it_took(capsys: pytest.CaptureFixture[str]) -> None:
+    def scenario() -> None:
+        pass
+
+    run_suite(Checks(), shared(scenario))
+    out = capsys.readouterr().out
+    assert "   [shared] test_suite.scenario: " in out and " s\n" in out
+
+
+def test_steps_not_named_in_the_list_are_left_out(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("KFDE_ONLY", "second, nothing")
+    ran: list[str] = []
+
+    def first() -> str:
+        ran.append("first")
+        return "a"
+
+    def second() -> str:
+        ran.append("second")
+        return "b"
+
+    def setup() -> str:
+        ran.append("setup")
+        return "c"
+
+    results = run_suite(
+        Checks(),
+        platform_only("kde", setup, always=True),
+        shared(first),
+        shared(second),
+    )
+    assert ran == ["setup", "second"]
+    assert results == ["c", None, "b"]
+    assert "test_suite.first: left out by KFDE_ONLY" in capsys.readouterr().out
+
+
+def test_with_no_list_every_step_runs(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("KFDE_ONLY", raising=False)
+    ran: list[int] = []
+    run_suite(Checks(), shared(lambda: ran.append(1)), shared(lambda: ran.append(2)))
+    assert ran == [1, 2]
