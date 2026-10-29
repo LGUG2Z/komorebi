@@ -100,6 +100,10 @@ These are differences between the ports that a scenario does not hide, and are n
   for windows and monitors, and kfw's has handles, so a scenario never compares them.
 - **State shape.** The two `komorebic state` outputs differ in how a window is written and in a few
   fields each. `core/snapshot.py` reads both, and its tests read a state recorded from each.
+- **What a restart takes up.** `lifecycle` expects every window that was in view to be managed
+  again. On kfw `komorebic stop` uncloaks a window that was on another workspace, and a new daemon
+  manages it on the first workspace, but a minimized window stays minimized and is not taken up.
+  The scenario counts the windows that were in view, so it does not ask for the minimized one.
 
 ## What is not covered
 
