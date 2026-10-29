@@ -35,7 +35,7 @@ runs, and goes stale when the code changes.
 | `workspaces` | `send-to-workspace` and `focus-workspace` put windows away and bring them back | pass | pass |
 | `closing` | a closed window leaves the state, and the others take its room | pass | pass |
 | `resize` | dragging the edge two tiles share moves it by what the pointer moved | pass | pass on kfw's `0ffc502c`, **fails** on its master |
-| `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | pass with a second display, none skipped, see below |
+| `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | pass with a second display, none skipped, when the host is quiet |
 | `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **known failure** | **known failure** |
 | `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
@@ -103,9 +103,14 @@ These are differences between the ports that a scenario does not hide, and are n
 
 ## What is not covered
 
-- Pointer input on a second display, on Windows. The tablet there spans only the first.
+- Pointer input on a second display, on Windows (kfw). `has("pointer")` is true, but the pointer
+  is QMP's absolute tablet, which Windows maps onto the first display only: with a second display
+  at (1280, 0) the whole tablet range gave cursor x 0..1279. A scenario that drags across monitors,
+  or acts on a second display with the pointer, cannot run there; none exists. Source: kfw's
+  `e2e/platforms/qemu_windows/W1.md`, "The pointer with two displays".
 - Suspend and resume, which no guest can test.
-- `commands`, `rules` and `hotplug` on kfw, which have not run there. Displays can be added and
-  removed on the Windows guest and kfw follows; it is the scenario that has not run.
+- `commands` on kfw under load: it passed 247/0 in the two of four repeat runs that had the host
+  to themselves, and the two that ran beside a VM suite and a build failed, with `komorebic state`
+  replies slowing from milliseconds to about a second. Load is the likely cause, not shown.
 - Most of what is particular to one port: kfw's cloak and borders, kfde's parking desktop and
   KWin effects. Those stay in the suites of each port.
