@@ -31,6 +31,7 @@ pub mod guard;
 pub mod history;
 pub mod ids;
 pub mod invariants;
+pub mod lag;
 pub mod logparse;
 pub mod logq;
 pub mod lookup;
