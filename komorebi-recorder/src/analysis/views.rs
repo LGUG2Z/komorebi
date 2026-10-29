@@ -56,6 +56,62 @@ pub struct HandlerView {
     pub warnings: u32,
 }
 
+/// Which moment a [`KomorebiTime`] is.
+///
+/// Serialized in kebab case (`pushed`, `received`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum TimeSource {
+    /// When komorebi pushed the notification: its DEBUG log line `pushed notification to
+    /// subscriber`, tied to the event.
+    Pushed,
+    /// When the recorder received the notification. The fallback when the log has no pushed line
+    /// for the event (komorebi not logging at DEBUG, or a log that lacks the line); it can be a
+    /// couple of seconds after komorebi sent it.
+    Received,
+}
+
+/// The one time to quote for when komorebi did something: the pushed time where the log has it,
+/// else the received time, and which of the two it is.
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
+pub struct KomorebiTime {
+    /// Which moment this is. `received` means the log had no pushed line for the event, so the time
+    /// may be later than komorebi's own.
+    pub source: TimeSource,
+    /// The moment in video time.
+    pub video_s: f64,
+    /// The moment as nanoseconds on the master clock.
+    pub mach_ns: u64,
+    /// The moment on the wall clock, as RFC 3339 UTC with microseconds.
+    pub wall_utc: Option<String>,
+}
+
+/// Picks the moment to show as komorebi's time for an event: `pushed_mach_ns` when the log gave
+/// one, else `recv_mach_ns`, and which it was.
+#[must_use]
+pub fn select_komorebi_time(recv_mach_ns: u64, pushed_mach_ns: Option<u64>) -> (u64, TimeSource) {
+    match pushed_mach_ns {
+        Some(pushed) => (pushed, TimeSource::Pushed),
+        None => (recv_mach_ns, TimeSource::Received),
+    }
+}
+
+/// Returns a sentence saying that some of `events` show the received time as komorebi's time, or
+/// `None` when every one has its pushed time (or there are no events).
+#[must_use]
+pub fn komorebi_time_note(events: &[EventView]) -> Option<String> {
+    let received = events
+        .iter()
+        .filter(|event| event.komorebi_time.source == TimeSource::Received)
+        .count();
+    (received > 0).then(|| {
+        format!(
+            "{received} of {} events have no `pushed notification to subscriber` line in the log (komorebi must log at DEBUG; the line is only checked against komorebi for Mac), so their komorebi_time is when the recorder received them, which can be up to a couple of seconds after komorebi sent them",
+            events.len()
+        )
+    })
+}
+
 /// One komorebi event as a reader sees it: what it was, when, what kind of event, whether it
 /// changed the state, and the handler that ran.
 ///
@@ -75,6 +131,10 @@ pub struct EventView {
     /// The same moment on the wall clock, as RFC 3339 UTC with microseconds
     /// (`2026-10-26T19:43:35.062613Z`). `None` if the session's clock anchors cannot place it.
     pub wall_utc: Option<String>,
+    /// The time to quote for when komorebi did this: when it pushed the notification if the log
+    /// says, else the received time, with `source` saying which. Go by this, not `video_s`, for
+    /// when komorebi acted.
+    pub komorebi_time: KomorebiTime,
     /// The notification, as the flavor's rules read it.
     #[serde(flatten)]
     pub info: EventInfo,
@@ -128,7 +188,17 @@ impl Analysis {
                 warnings: block.warnings,
             });
 
+        let (komorebi_mach_ns, source) =
+            select_komorebi_time(event.recv_mach_ns, pair.pushed_mach_ns);
+        let komorebi_time = KomorebiTime {
+            source,
+            video_s: self.video_s(komorebi_mach_ns),
+            mach_ns: komorebi_mach_ns,
+            wall_utc: self.wall_utc(komorebi_mach_ns),
+        };
+
         Some(EventView {
+            komorebi_time,
             seq: event.seq,
             video_s: self.video_s(event.recv_mach_ns),
             mach_ns: event.recv_mach_ns,
@@ -234,4 +304,73 @@ pub fn headline(snapshot: &Snapshot) -> String {
         if monitors == 1 { "" } else { "s" },
         if windows == 1 { "" } else { "s" }
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testkit::SessionBuilder;
+    use serde_json::json;
+
+    const HEADER: &str = "process_event: komorebi::process_event: processing event: MoveEnd for process 10 with notification AXWindowMoved";
+    const PUSH: &str =
+        "process_event: komorebi::notify: pushed notification to subscriber: komorebi-recorder-7";
+
+    fn move_end() -> serde_json::Value {
+        json!({"type": "MoveEnd", "content": [{"type": "Accessibility", "content": "AXWindowMoved"}, 10, 7]})
+    }
+
+    fn views(name: &str, pushed: bool) -> Vec<EventView> {
+        let mut builder = SessionBuilder::new(name)
+            .subscriber("komorebi-recorder-7")
+            .subscriber("komorebi-recorder-7")
+            .event(5.0, move_end(), None)
+            .log(2.0, "INFO", HEADER);
+        if pushed {
+            builder = builder.log(2.005, "DEBUG", PUSH);
+        }
+        let (session, _) = builder.build();
+        let analysis = crate::analysis::Analysis::open(&session.dir).expect("open");
+        (0..analysis.events().len())
+            .filter_map(|index| analysis.event_view(index))
+            .collect()
+    }
+
+    #[test]
+    fn the_pushed_time_wins_and_the_received_time_is_the_fallback() {
+        assert_eq!(
+            select_komorebi_time(5_000, Some(2_000)),
+            (2_000, TimeSource::Pushed)
+        );
+        assert_eq!(
+            select_komorebi_time(5_000, None),
+            (5_000, TimeSource::Received)
+        );
+    }
+
+    #[test]
+    fn an_event_with_a_pushed_line_shows_when_komorebi_pushed_it() {
+        let views = views("komorebi-time-pushed", true);
+        let time = &views[0].komorebi_time;
+        assert_eq!(time.source, TimeSource::Pushed);
+        assert!((time.video_s - 2.005).abs() < 1e-3, "{time:?}");
+        assert!((views[0].video_s - 5.0).abs() < 1e-3);
+        assert_eq!(komorebi_time_note(&views), None);
+    }
+
+    #[test]
+    fn an_event_without_one_falls_back_to_received_and_the_note_says_so() {
+        let views = views("komorebi-time-received", false);
+        let time = &views[0].komorebi_time;
+        assert_eq!(time.source, TimeSource::Received);
+        assert!((time.video_s - 5.0).abs() < 1e-3, "{time:?}");
+        assert_eq!(time.mach_ns, views[0].mach_ns);
+        let note = komorebi_time_note(&views).expect("a note");
+        assert!(note.starts_with("1 of 1 events have no `pushed"), "{note}");
+    }
+
+    #[test]
+    fn no_events_need_no_note() {
+        assert_eq!(komorebi_time_note(&[]), None);
+    }
 }
