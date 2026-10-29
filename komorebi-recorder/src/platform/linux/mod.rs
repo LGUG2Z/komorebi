@@ -8,6 +8,7 @@
 pub mod apps;
 pub mod capture;
 pub mod clock;
+pub mod exclude;
 pub mod power;
 pub mod process;
 mod screencast;

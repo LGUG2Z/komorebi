@@ -63,6 +63,13 @@ pub fn supported() -> bool {
     true
 }
 
+/// Returns `true` if and only if KWin has been told to leave the recorder's own window out of the
+/// screencast (see [`super::exclude`]).
+#[must_use]
+pub fn own_window_excluded() -> bool {
+    super::exclude::installed()
+}
+
 /// Returns `true` if and only if the compositor offers this program its screencast.
 ///
 /// KWin offers `zkde_screencast_unstable_v1` only to a program whose desktop file asks for it
@@ -83,6 +90,9 @@ pub fn has_permission() -> bool {
 /// screencast to this program.
 pub fn ensure_permission() -> eyre::Result<()> {
     wayland::outputs()?;
+    // the recorder's own window is left out of the video; if that cannot be arranged the video has
+    // the window in it, which `doctor` says
+    let _ = super::exclude::ensure();
     if wayland::screencast_offered() {
         Ok(())
     } else {

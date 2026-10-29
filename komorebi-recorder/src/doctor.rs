@@ -344,6 +344,14 @@ pub fn report() -> Report {
     if supported && !permitted && cfg!(target_os = "linux") {
         warnings.push(permission_note());
     }
+    #[cfg(target_os = "linux")]
+    if permitted && !platform::capture::own_window_excluded() {
+        warnings.push(
+            "the recorder's own window is not left out of the screen capture: the KWin window rule \
+             that does it is written when a recording starts (`record`), and is not there yet"
+                .to_string(),
+        );
+    }
     if !capture.video_decoding {
         warnings.push(format!(
             "playing back a recording's video is not built for {} yet",
