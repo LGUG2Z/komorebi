@@ -176,6 +176,7 @@ nav:
       - cli/scrolling-layout-full-width.md
       - cli/center-focus.md
       - cli/expand.md
+      - cli/pan.md
       - cli/consume.md
       - cli/expel.md
       - cli/toggle-column-stack.md

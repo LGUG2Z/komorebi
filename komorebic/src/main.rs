@@ -55,6 +55,7 @@ use komorebi_client::HidingBehaviour;
 use komorebi_client::MoveBehaviour;
 use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
+use komorebi_client::PanDirection;
 use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
@@ -1010,6 +1011,13 @@ struct ScrollingLayoutColumns {
 }
 
 #[derive(Parser)]
+struct Pan {
+    /// The way that the view goes
+    #[clap(value_enum)]
+    direction: PanDirection,
+}
+
+#[derive(Parser)]
 struct LayoutRatios {
     /// Column width ratios (space-separated values between 0.1 and 0.9)
     #[clap(short, long, num_args = 1..)]
@@ -1302,6 +1310,10 @@ enum SubCommand {
     /// Stack the windows of the focused column of the Scrolling layout, or spread the focused
     /// stack out into a column with a window in each slot
     ToggleColumnStack,
+    /// Move the view of the Scrolling layout a column to the left or the right, which does
+    /// nothing in any other layout
+    #[clap(arg_required_else_help = true)]
+    Pan(Pan),
     /// Set the layout column and row ratios for the focused workspace
     LayoutRatios(LayoutRatios),
     /// Load a custom layout from file for the focused workspace
@@ -2991,6 +3003,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::ToggleColumnStack => {
             send_message(&SocketMessage::ToggleColumnStack)?;
+        }
+        SubCommand::Pan(args) => {
+            send_message(&SocketMessage::Pan(args.direction))?;
         }
         SubCommand::LayoutRatios(args) => {
             if args.columns.is_none() && args.rows.is_none() {

@@ -929,6 +929,7 @@ impl WindowManager {
                 self.focused_workspace_mut()?.expel_scrolling();
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::Pan(direction) => self.pan(direction)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::LayoutRatios(ref columns, ref rows) => {

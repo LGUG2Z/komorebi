@@ -61,6 +61,7 @@ pub use komorebi::core::MonocleFocusBehaviour;
 pub use komorebi::core::MoveBehaviour;
 pub use komorebi::core::OperationBehaviour;
 pub use komorebi::core::OperationDirection;
+pub use komorebi::core::PanDirection;
 pub use komorebi::core::PathExt;
 pub use komorebi::core::Rect;
 pub use komorebi::core::Sizing;

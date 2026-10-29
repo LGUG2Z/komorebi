@@ -132,6 +132,20 @@ and the screen scrolls back to where it was. If you have, focus goes to the wind
 on the right, or to the one before it if there is none. A window that is closed without having focus does not take focus
 with it.
 
+## Panning
+
+[`komorebic pan`](../cli/pan.md) moves the view along the row without moving focus first. `pan left` brings what is to the
+left of the screen into view, and `pan right` what is to the right, by a column. The row
+comes to rest with a column against an edge of the screen, and focus goes to the nearest column on the screen if the
+focused one has gone off it.
+
+```
+alt + wheelup   : komorebic pan left
+alt + wheeldown : komorebic pan right
+```
+
+It does nothing in the other layouts.
+
 ## Resizing
 
 [`komorebic resize-edge`](../cli/resize-edge.md) and [`komorebic resize-axis`](../cli/resize-axis.md) change the width of

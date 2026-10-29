@@ -13,6 +13,7 @@ pub mod live_resize;
 pub mod lockable_sequence;
 pub mod monitor;
 pub mod monitor_reconciliator;
+pub mod pan;
 pub mod process_command;
 pub mod process_event;
 pub mod process_movement;

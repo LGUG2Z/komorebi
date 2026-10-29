@@ -23,7 +23,9 @@ use crate::workspace::Workspace;
 use color_eyre::eyre;
 use komorebi_layouts::scrolling;
 use komorebi_layouts::scrolling::ScrollingPlacement;
+use komorebi_scrolling::ColumnWidth;
 use komorebi_scrolling::Options;
+use komorebi_scrolling::ScrollingSpace;
 use komorebi_scrolling::Visibility;
 use std::sync::atomic::Ordering;
 
@@ -712,6 +714,70 @@ impl Workspace {
         }
     }
 
+    /// Start moving the strip across the screen by hand, and give back the strip as it is, for
+    /// putting it back if the pan is given up. Only the Scrolling layout has a strip to move, and
+    /// not before a layout has made it.
+    pub(crate) fn begin_scrolling_pan(&mut self) -> Option<ScrollingSpace<String>> {
+        if !self.is_scrolling() || self.scrolling.is_none() {
+            return None;
+        }
+
+        self.sync_scrolling_containers();
+
+        let space = self.scrolling.as_mut()?;
+        let saved = space.clone();
+        space.begin_pan();
+
+        Some(saved)
+    }
+
+    /// Move the strip by `dx` pixels on the screen, to the right if it is positive. Nothing else
+    /// changes: not which container has focus, nor the width of any.
+    pub(crate) fn pan_scrolling(&mut self, dx: f64) {
+        if let Some(space) = self.scrolling.as_mut() {
+            space.pan_by(dx);
+        }
+    }
+
+    /// Let go of the strip, going at `velocity` pixels a second on the screen, to the right if it
+    /// is positive, and let it come to rest, which is with a column against an edge of the screen.
+    /// Focus goes to the nearest column that is fully in view if the focused one is not, and
+    /// this tells whether it moved.
+    pub(crate) fn end_scrolling_pan(&mut self, velocity: f64) -> bool {
+        let Some(space) = self.scrolling.as_mut() else {
+            return false;
+        };
+
+        if space.pan_end(velocity).is_none() {
+            return false;
+        }
+
+        let focused = space.active_tile_index();
+        let before = self.focused_container_idx();
+
+        match focused {
+            Some(idx) if idx != before => {
+                self.focus_container(idx);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// How far one step of a pan goes, if nothing says: a column of the width that a new one
+    /// is given.
+    pub(crate) fn scrolling_pan_step(&self) -> Option<i32> {
+        let space = self.scrolling.as_ref()?;
+        let viewport = f64::from(space.viewport().width);
+
+        let step = match space.options().default_width {
+            ColumnWidth::Proportion(share) => viewport * share,
+            ColumnWidth::Fixed(width) => f64::from(width),
+        };
+
+        Some(step.round() as i32)
+    }
+
     /// Centre the focused column on the screen, this once.
     pub(crate) fn center_scrolling_column(&mut self) {
         if self.focused_scrolling_column().is_some()
@@ -1045,5 +1111,66 @@ mod tests {
         workspace.expand_scrolling_column();
 
         assert!(workspace.scrolling.is_none());
+    }
+
+    #[test]
+    fn panning_moves_the_strip_and_leaves_focus_where_it_is_until_it_is_let_go() {
+        let mut workspace = workspace(3, 6);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(0);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        assert!(workspace.begin_scrolling_pan().is_some());
+        workspace.pan_scrolling(-300.0);
+        let panned = workspace.layout_scrolling(&AREA, 0);
+
+        assert_eq!(
+            panned[1].rect.left,
+            before[1].rect.left - 300,
+            "the strip moved"
+        );
+        assert_eq!(workspace.focused_container_idx(), 0, "and focus did not");
+    }
+
+    #[test]
+    fn a_strip_that_is_let_go_comes_to_rest_and_focus_goes_to_a_column_in_view() {
+        let mut workspace = workspace(3, 6);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(0);
+
+        assert!(workspace.begin_scrolling_pan().is_some());
+        // three columns to the left of the screen, which is where the first three are
+        workspace.pan_scrolling(-1200.0);
+        assert!(workspace.end_scrolling_pan(0.0), "focus moved");
+
+        let rested = workspace.layout_scrolling(&AREA, 0);
+        let focused = workspace.focused_container_idx();
+
+        assert!(focused >= 3, "to a column that is in view, not {focused}");
+        assert_eq!(rested[focused].visibility, Visibility::Visible);
+    }
+
+    #[test]
+    fn there_is_no_strip_to_pan_in_another_layout_or_before_there_is_one() {
+        let mut workspace = workspace(3, 6);
+        assert!(workspace.begin_scrolling_pan().is_none(), "no layout yet");
+        assert!(!workspace.end_scrolling_pan(0.0));
+
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.layout = Layout::Default(DefaultLayout::BSP);
+        assert!(workspace.begin_scrolling_pan().is_none());
+    }
+
+    #[test]
+    fn a_step_of_a_pan_is_a_column_of_the_width_that_a_new_one_has() {
+        let mut workspace = workspace(3, 6);
+        assert_eq!(workspace.scrolling_pan_step(), None, "no layout yet");
+
+        workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(workspace.scrolling_pan_step(), Some(400));
+
+        workspace.set_scrolling_columns(4);
+        workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(workspace.scrolling_pan_step(), Some(300));
     }
 }
