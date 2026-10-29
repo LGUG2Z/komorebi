@@ -76,12 +76,16 @@ def parked() -> list[str]:
     if PARK not in names:
         return []
     park = names.index(PARK) + 1
-    return sorted(t for t in ["win1", "win2"] if kde.wid(t) != "" and kde.desk(kde.wid(t)) == park)
+    return sorted(
+        t for t in ["win1", "win2"] if kde.wid(t) != "" and kde.desk(kde.wid(t)) == park
+    )
 
 
 def on_a_workspace_desktop() -> bool:
     """Every window that is open is on a desktop that is a workspace, not on the parking one."""
-    return all(kde.desk(kde.wid(t)) in (1, 2) for t in ["win1", "win2"] if kde.wid(t) != "")
+    return all(
+        kde.desk(kde.wid(t)) in (1, 2) for t in ["win1", "win2"] if kde.wid(t) != ""
+    )
 
 
 def state_agrees() -> bool:
@@ -108,14 +112,18 @@ checks.check(
     kde.wait_for(lambda: "loaded the KWin bridge script" in daemon_log(), timeout=30),
 )
 checks.check("KWin runs the script", kde.script_loaded())
-checks.check("the daemon is up and answering komorebic", kde.wait_for(answering, timeout=30))
+checks.check(
+    "the daemon is up and answering komorebic", kde.wait_for(answering, timeout=30)
+)
 
 print("== 2. three windows are tiled")
 titles = ["win1", "win2", "win3"]
 for title in titles:
     kde.spawn(f"foot -T {title} sleep 3000")
     kde.wait_for(lambda title=title: kde.wid(title) != "", timeout=30)
-    kde.wait_for(lambda title=title: title in daemon.window_ids(daemon_log()), timeout=10)
+    kde.wait_for(
+        lambda title=title: title in daemon.window_ids(daemon_log()), timeout=10
+    )
 settled = kde.wait_for(lambda: all(where_asked(t) for t in titles), timeout=20)
 report(titles)
 checks.check("every window is where the daemon asked for it", settled)
@@ -125,14 +133,24 @@ for title, rect in zip(titles, rects, strict=True):
 checks.check("win1 and win2 do not overlap", not rects[0].overlaps(rects[1]))
 checks.check("win1 and win3 do not overlap", not rects[0].overlaps(rects[2]))
 checks.check("win2 and win3 do not overlap", not rects[1].overlaps(rects[2]))
-checks.check("the windows share the screen: none is full width", all(r.w < W - 20 for r in rects))
-checks.check("KWin and the daemon agree on the focused window", kde.wait_for(focus_agrees))
-checks.check("komorebi manages the three windows", kde.wait_for(lambda: kde.managed() == 3))
-checks.check("komorebi's state focuses the window KWin does", kde.wait_for(state_agrees))
+checks.check(
+    "the windows share the screen: none is full width", all(r.w < W - 20 for r in rects)
+)
+checks.check(
+    "KWin and the daemon agree on the focused window", kde.wait_for(focus_agrees)
+)
+checks.check(
+    "komorebi manages the three windows", kde.wait_for(lambda: kde.managed() == 3)
+)
+checks.check(
+    "komorebi's state focuses the window KWin does", kde.wait_for(state_agrees)
+)
 
 print("== 3. the focus moves by hand")
 kde.activate(kde.wid("win1"))
-checks.check("KWin focused win1", kde.wait_for(lambda: kde.title(kde.active()) == "win1"))
+checks.check(
+    "KWin focused win1", kde.wait_for(lambda: kde.title(kde.active()) == "win1")
+)
 checks.check("... and the daemon followed", kde.wait_for(focus_agrees))
 checks.check("... and its state says so", kde.wait_for(state_agrees))
 
@@ -142,10 +160,13 @@ checks.check(
     "after 'focus right' KWin has given the focus to another window",
     kde.wait_for(lambda: kde.title(kde.active()) not in ("", "win1")),
 )
-checks.check("... and komorebi's state focuses the same one", kde.wait_for(state_agrees))
+checks.check(
+    "... and komorebi's state focuses the same one", kde.wait_for(state_agrees)
+)
 kde.komorebic("focus", "left")
 checks.check(
-    "'focus left' gives it back to win1", kde.wait_for(lambda: kde.title(kde.active()) == "win1")
+    "'focus left' gives it back to win1",
+    kde.wait_for(lambda: kde.title(kde.active()) == "win1"),
 )
 checks.check("... and komorebi's state says so", kde.wait_for(state_agrees))
 kde.komorebic("cycle-focus", "next")
@@ -201,13 +222,17 @@ checks.check(
 checks.check(
     "komorebi's state has it as the monocle container",
     kde.wait_for(
-        lambda: kde.state()["monitors"]["elements"][0]["workspaces"]["elements"][0][
-            "monocle_container"
-        ]
-        is not None
+        lambda: (
+            kde.state()["monitors"]["elements"][0]["workspaces"]["elements"][0][
+                "monocle_container"
+            ]
+            is not None
+        )
     ),
 )
-checks.check("... and it still has the focus", kde.title(kde.active()) == kde.title(focused))
+checks.check(
+    "... and it still has the focus", kde.title(kde.active()) == kde.title(focused)
+)
 kde.komorebic("toggle-monocle")
 checks.check(
     "toggling back puts it on its tile",
@@ -225,7 +250,8 @@ kde.komorebic("focus", "right")
 checks.check(
     "with the cycle behaviour, focusing in a direction gives another window the work area",
     kde.wait_for(
-        lambda: kde.active() != focused and fills_the_work_area(kde.active()), timeout=20
+        lambda: kde.active() != focused and fills_the_work_area(kde.active()),
+        timeout=20,
     ),
 )
 kde.komorebic("toggle-monocle")
@@ -270,7 +296,9 @@ report(titles)
 
 print("== 8. close")
 kde.close(kde.wid("win3"))
-checks.check("KWin closed win3", kde.wait_for(lambda: kde.wid("win3") == "", timeout=10))
+checks.check(
+    "KWin closed win3", kde.wait_for(lambda: kde.wid("win3") == "", timeout=10)
+)
 checks.check(
     "the two that are left share the screen again",
     kde.wait_for(
@@ -282,8 +310,12 @@ checks.check(
     ),
 )
 report(["win1", "win2"])
-checks.check("komorebi manages the two that are left", kde.wait_for(lambda: kde.managed() == 2))
-checks.check("KWin carried out every command", "the bridge could not do" not in daemon_log())
+checks.check(
+    "komorebi manages the two that are left", kde.wait_for(lambda: kde.managed() == 2)
+)
+checks.check(
+    "KWin carried out every command", "the bridge could not do" not in daemon_log()
+)
 
 print("== 9. a clean stop undoes what a monocle did")
 kde.komorebic("toggle-monocle")
@@ -293,7 +325,9 @@ checks.check(
 )
 kde.komorebic("stop")
 checks.check("the daemon exited", kde.wait_for(lambda: not kde.komorebi_running()))
-checks.check("the parking desktop is gone", kde.wait_for(lambda: PARK not in kde.desktop_names()))
+checks.check(
+    "the parking desktop is gone", kde.wait_for(lambda: PARK not in kde.desktop_names())
+)
 checks.check(
     "and every window is on a workspace's desktop", kde.wait_for(on_a_workspace_desktop)
 )
@@ -301,7 +335,9 @@ checks.check(
 print("== 10. a crash with a monocle on leaves nothing stuck behind")
 kde.start_komorebi()
 checks.check("the daemon answers", kde.wait_for(answering, timeout=30))
-checks.check("it manages the two windows again", kde.wait_for(lambda: kde.managed() == 2))
+checks.check(
+    "it manages the two windows again", kde.wait_for(lambda: kde.managed() == 2)
+)
 kde.komorebic("toggle-monocle")
 checks.check(
     "a window is parked and a parking desktop exists",
@@ -318,53 +354,94 @@ checks.check(
     kde.wait_for(lambda: answering() and PARK not in kde.desktop_names()),
 )
 checks.check("and brought the parked window back", kde.wait_for(on_a_workspace_desktop))
-checks.check("it manages the two windows again", kde.wait_for(lambda: kde.managed() == 2))
+checks.check(
+    "it manages the two windows again", kde.wait_for(lambda: kde.managed() == 2)
+)
 kde.komorebic("toggle-monocle")
 checks.check(
     "after a crash and a restart a monocle still hides the other window",
     kde.wait_for(lambda: len(parked()) == 1),
 )
 kde.komorebic("toggle-monocle")
-checks.check("and turned off, nothing is out of sight", kde.wait_for(lambda: parked() == []))
+checks.check(
+    "and turned off, nothing is out of sight", kde.wait_for(lambda: parked() == [])
+)
 
 print("== 11. KWin restarts under the daemon")
 kde.restart_kwin()
 checks.check(
     "the daemon loaded its script into the new KWin",
-    kde.wait_for(lambda: daemon_log().count("loaded the KWin bridge script") == 2, timeout=30),
+    kde.wait_for(
+        lambda: daemon_log().count("loaded the KWin bridge script") == 2, timeout=30
+    ),
 )
 checks.check(
-    "komorebi let go of the windows of the old KWin", kde.wait_for(lambda: kde.managed() == 0)
+    "komorebi let go of the windows of the old KWin",
+    kde.wait_for(lambda: kde.managed() == 0),
 )
 kde.spawn("foot -T afterwards sleep 3000")
 kde.wait_for(lambda: kde.wid("afterwards") != "", timeout=30)
-checks.check("a window opened in the new KWin is managed", kde.wait_for(lambda: kde.managed() == 1))
+checks.check(
+    "a window opened in the new KWin is managed",
+    kde.wait_for(lambda: kde.managed() == 1),
+)
 checks.check(
     "... and tiled on its own",
     kde.wait_for(
-        lambda: where_asked("afterwards") and kde.rect(kde.wid("afterwards")).w > W - 100,
+        lambda: (
+            where_asked("afterwards") and kde.rect(kde.wid("afterwards")).w > W - 100
+        ),
         timeout=20,
     ),
 )
 report(["afterwards"])
 
-print("== 12. tiling, focus, moving, stacks and workspaces, through the neutral platform")
+print(
+    "== 12. tiling, focus, moving, stacks and workspaces, through the neutral platform"
+)
 # the scenarios of komorebi_vm.core.scenarios are what runs on Windows too: it asks the
 # operating system where the windows are, and not the daemon's log
 kde.close(kde.wid("afterwards"))
-checks.check("the window of the last section is closed", kde.wait_for(lambda: kde.managed() == 0))
+checks.check(
+    "the window of the last section is closed", kde.wait_for(lambda: kde.managed() == 0)
+)
 platform = KdePlatform(kde, (W, H))
 neutral = tiling.run(platform, checks, titles=("neutral1", "neutral2", "neutral3"))
 focus.run(platform, checks, neutral)
 moving.run(platform, checks, neutral)
 stacks.run(platform, checks, neutral)
+
+# what `komorebic state` prints, kept as a file of the run so that the unit tests of the neutral
+# core (tests/fixtures) are of a real state and not of one written from the serializer
+(machine.out_dir / "state-kfde-tiled.json").write_text(
+    json.dumps(kde.state(), indent=2)
+)
+platform.activate(neutral[-1])
+kde.komorebic("stack", "left")
+checks.check(
+    "the windows are stacked",
+    kde.wait_for(lambda: sorted(map(len, kde.containers())) == [1, 2]),
+)
+(machine.out_dir / "state-kfde-stack.json").write_text(
+    json.dumps(kde.state(), indent=2)
+)
+kde.komorebic("unstack")
+checks.check(
+    "and unstacked",
+    kde.wait_for(lambda: sorted(map(len, kde.containers())) == [1, 1, 1]),
+)
 workspaces.run(platform, checks, neutral)
 
 print("== 13. komorebic stop")
 kde.komorebic("stop")
 checks.check("the daemon exited", kde.wait_for(lambda: not kde.komorebi_running()))
-checks.check("its socket is gone", kde.run(f"test -e {kde.runtime}/komorebi/komorebi.sock")[0] != 0)
-checks.check("the script is no longer in KWin", kde.wait_for(lambda: not kde.script_loaded()))
+checks.check(
+    "its socket is gone",
+    kde.run(f"test -e {kde.runtime}/komorebi/komorebi.sock")[0] != 0,
+)
+checks.check(
+    "the script is no longer in KWin", kde.wait_for(lambda: not kde.script_loaded())
+)
 checks.check("the windows stay", kde.wid("neutral1") != "")
 
 kde.stop()

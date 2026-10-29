@@ -146,9 +146,10 @@ the run.
 - `Snapshot` (`core/snapshot.py`) is the daemon's state in one shape for every port:
   `snapshot.parse(json)` reads the `komorebic state` of kfde and of kfw into
   monitors, workspaces, containers and windows. What only one port's state has
-  goes in `Snapshot.extra`. Its unit tests use fixtures written from the two
-  ports' serializers; recorded states replace them once a run on each port
-  exists.
+  goes in `Snapshot.extra`. Its unit tests read states recorded from a real run of each
+  port (`tests/fixtures`: kfde's from `core-e2e`, which writes them into its output, and
+  kfw's from a Windows guest), and a scene written from the serializers for the shapes
+  that no run has recorded.
 - `Platform` (`core/platform.py`) is what a scenario needs of a platform: start the
   daemon, run `komorebic`, read the `Snapshot`, open a window, ask whether the
   daemon put it away (`hidden`), ask the operating system for its frame

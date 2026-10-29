@@ -4,7 +4,8 @@
 # package komorebi_vm.core, and the unit tests that belong to it. The source is this repository until
 # the move is made, and the script goes with it.
 #
-#   scripts/sync-e2e-core DEST          copy into DEST/komorebi_vm/core and DEST/tests
+#   scripts/sync-e2e-core DEST          copy into DEST/komorebi_vm/core, DEST/tests and
+#                                       DEST/tests/fixtures
 #   scripts/sync-e2e-core --check DEST  say what differs, and exit 1 if anything does
 #
 # Nothing else of DEST is touched, and a file of DEST that is not here is reported and left alone.
@@ -19,7 +20,8 @@ dest=${1:?usage: sync-e2e-core [--check] DEST}
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 lib=$repo/nix/tests/vm/lib
 
-tests=(fake_platform.py test_checks.py test_pixels.py test_snapshot.py test_tiling.py test_focus_moving.py)
+tests=(fake_platform.py test_checks.py test_pixels.py test_snapshot.py test_recorded.py test_tiling.py
+  test_focus_moving.py)
 
 status=0
 sync() {
@@ -33,6 +35,7 @@ sync() {
 }
 
 sync "$lib/komorebi_vm/core" "$dest/komorebi_vm/core"
+sync "$lib/tests/fixtures" "$dest/tests/fixtures"
 
 for t in "${tests[@]}"; do
   if [ "$check" = 1 ]; then

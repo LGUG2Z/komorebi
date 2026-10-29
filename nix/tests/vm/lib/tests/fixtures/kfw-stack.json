@@ -1,0 +1,159 @@
+{
+  "monitors": {
+    "elements": [
+      {
+        "id": 65537,
+        "name": "DISPLAY1",
+        "device": "Default_Monitor",
+        "device_id": "Default_Monitor-4&183790ca&0&UID0",
+        "serial_number_id": null,
+        "size": {
+          "left": 0,
+          "top": 0,
+          "right": 1280,
+          "bottom": 800
+        },
+        "work_area_size": {
+          "left": 0,
+          "top": 0,
+          "right": 1280,
+          "bottom": 752
+        },
+        "work_area_offset": null,
+        "window_based_work_area_offset": null,
+        "window_based_work_area_offset_limit": 1,
+        "workspaces": {
+          "elements": [
+            {
+              "name": null,
+              "containers": {
+                "elements": [
+                  {
+                    "id": "lHDkMLvTxsJGQfBTiKnkt",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "hwnd": 262540,
+                          "title": "win1",
+                          "exe": "komorebi-testwin.exe",
+                          "class": "KomorebiTestWin",
+                          "rect": {
+                            "left": 27,
+                            "top": 27,
+                            "right": 596,
+                            "bottom": 698
+                          }
+                        },
+                        {
+                          "hwnd": 327778,
+                          "title": "win3",
+                          "exe": "komorebi-testwin.exe",
+                          "class": "KomorebiTestWin",
+                          "rect": {
+                            "left": 27,
+                            "top": 27,
+                            "right": 596,
+                            "bottom": 698
+                          }
+                        }
+                      ],
+                      "focused": 1
+                    }
+                  },
+                  {
+                    "id": "Zqsuvee3D_fegP33OgBnq",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "hwnd": 131234,
+                          "title": "win2",
+                          "exe": "komorebi-testwin.exe",
+                          "class": "KomorebiTestWin",
+                          "rect": {
+                            "left": 657,
+                            "top": 27,
+                            "right": 596,
+                            "bottom": 698
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 0
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "BSP"
+              },
+              "layout_options": null,
+              "layout_rules": [],
+              "layout_options_rules": [],
+              "work_area_offset_rules": [],
+              "layout_flip": null,
+              "workspace_padding": 10,
+              "container_padding": 10,
+              "latest_layout": [
+                {
+                  "left": 27,
+                  "top": 27,
+                  "right": 596,
+                  "bottom": 698
+                },
+                {
+                  "left": 657,
+                  "top": 27,
+                  "right": 596,
+                  "bottom": 698
+                }
+              ],
+              "resize_dimensions": [
+                null,
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            }
+          ],
+          "focused": 0
+        },
+        "workspace_names": {},
+        "container_padding": null,
+        "workspace_padding": null,
+        "wallpaper": null,
+        "floating_layer_behaviour": null
+      }
+    ],
+    "focused": 0
+  },
+  "monitor_usr_idx_map": {
+    "0": 0
+  },
+  "is_paused": false,
+  "resize_delta": 50,
+  "new_window_behaviour": "Create",
+  "float_override": false,
+  "cross_monitor_move_behaviour": "Swap",
+  "monocle_focus_behaviour": "NoOp",
+  "unmanaged_window_operation_behaviour": "Op",
+  "work_area_offset": null,
+  "focus_follows_mouse": null,
+  "mouse_follows_focus": true,
+  "has_pending_raise_op": false,
+  "virtual_desktop_id": null
+}
