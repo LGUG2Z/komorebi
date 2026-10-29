@@ -70,28 +70,30 @@ class RecordedChecks(Checks):
         super().__init__()
         self.results: list[dict[str, object]] = []
 
+    def _record(self, **fields: object) -> None:
+        if self.scope:
+            fields["scope"] = self.scope
+        self.results.append(fields)
+
     def ok(self, description: str) -> None:
         super().ok(description)
-        self.results.append({"check": description, "passed": True})
+        self._record(check=description, passed=True)
 
     def bad(self, description: str) -> None:
         super().bad(description)
-        self.results.append({"check": description, "passed": False})
+        self._record(check=description, passed=False)
 
     def skip(self, description: str, reason: str) -> None:
         super().skip(description, reason)
-        self.results.append(
-            {"check": description, "skipped": True, "reason": reason}
-        )
+        self._record(check=description, skipped=True, reason=reason)
 
     def known_failure(
         self, description: str, condition: bool, reason: str
     ) -> bool:
         holds = super().known_failure(description, condition, reason)
         if not holds:
-            self.results.append(
-                {"check": description, "known_failure": True,
-                 "reason": reason}
+            self._record(
+                check=description, known_failure=True, reason=reason
             )
         return holds
 
