@@ -165,6 +165,7 @@ class _Agent:
     def __init__(self, titles: list[str]) -> None:
         self.titles = titles
         self.spawned: list[tuple[str, ...]] = []
+        self.put: list[tuple[str, bytes]] = []
         self.executed: list[tuple[str, ...]] = []
 
     def os_windows(self) -> list[dict]:
@@ -174,6 +175,9 @@ class _Agent:
 
     def spawn(self, *args: str) -> None:
         self.spawned.append(args)
+
+    def put_file(self, local: Path, remote: str) -> None:
+        self.put.append((remote, local.read_bytes() if local.exists() else b""))
 
     def exec(self, *args: str) -> dict:
         self.executed.append(args)
@@ -295,3 +299,28 @@ def test_the_press_points_of_a_resize_are_outside_but_for_the_top() -> None:
     assert platform.resize_grab(frame, "topleft") == (653, 395)
     assert platform.resize_grab(frame, "topright") == (1257, 395)
     assert platform.resize_grab(frame, "bottomright") == (1257, 729)
+
+
+def test_a_file_is_put_in_a_folder_that_has_a_space(tmp_path: Path) -> None:
+    agent = _Agent([])
+    platform = WindowsPlatform(SimpleNamespace(), agent, tmp_path)
+    path = "C:\\e2e\\tmp\\wallpapers\\my pictures\\cool.png"
+
+    platform.put_file(path, b"png")
+
+    assert agent.put == [(path, b"png")]
+    assert "C:\\e2e\\tmp\\wallpapers\\my pictures" in agent.executed[0][-1]
+
+
+def test_the_wallpaper_is_asked_of_the_shell_for_a_display() -> None:
+    agent = _Agent([])
+    agent.exec = lambda *args: (
+        agent.executed.append(args) or {"status": 0, "stdout": "C:\\w.png\r\n", "stderr": ""}
+    )
+    platform = WindowsPlatform(SimpleNamespace(), agent, Path("."))
+
+    assert platform.wallpaper(1) == "C:\\w.png"
+    platform.set_wallpaper("C:\\x y.png", 1)
+
+    assert agent.executed[-2][-2:] == ("get", "1")
+    assert agent.executed[-1][-3:] == ("set", "1", "C:\\x y.png")

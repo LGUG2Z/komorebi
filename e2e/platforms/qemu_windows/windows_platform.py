@@ -45,6 +45,7 @@ WM_FULLSCREEN = 0x8000 + 2
 WM_SYSCOMMAND = 0x0112
 SC_MAXIMIZE = 0xF030
 SC_RESTORE = 0xF120
+WALLPAPER_SCRIPT = "C:\\e2e\\wallpaper.ps1"
 DISPLAY_SCRIPT = "C:\\e2e\\display.ps1"
 CONFIG_PATH = "C:\\e2e\\komorebi.json"
 
@@ -106,6 +107,7 @@ class WindowsPlatform:
         self._out = out
         self._scale = scale
         self._display_script = False
+        self._wallpaper_script = False
         self._daemon_pid: int | None = None
         self.start_notes: list[str] = []
         self._pointer = WindowsPointer(qmp, agent)
@@ -233,6 +235,37 @@ class WindowsPlatform:
             raise ValueError(f"not a file name: {name!r}")
         self._agent.exec("cmd", "/c", f"mkdir {TEMP_DIR} 2>nul")
         return f"{TEMP_DIR}\\{name}"
+
+    def put_file(self, path: str, data: bytes) -> None:
+        parent = path.rsplit("\\", 1)[0]
+        self._agent.exec(
+            "powershell", "-NoProfile", "-Command",
+            f"New-Item -ItemType Directory -Force -Path '{parent}' | Out-Null",
+        )
+        local = self._out / "put_file.tmp"
+        local.write_bytes(data)
+        self._agent.put_file(local, path)
+
+    def _wallpaper(self, *args: str) -> str:
+        if not self._wallpaper_script:
+            self._agent.exec("cmd", "/c", "mkdir C:\\e2e 2>nul")
+            self._agent.put_file(
+                Path(__file__).parent / "wallpaper.ps1", WALLPAPER_SCRIPT
+            )
+            self._wallpaper_script = True
+        result = self._agent.exec(
+            "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-File", WALLPAPER_SCRIPT, *args,
+        )
+        if result["status"] != 0:
+            raise RuntimeError(f"wallpaper {args}: {result['stderr'] or result}")
+        return result["stdout"].strip()
+
+    def wallpaper(self, display: int = 0) -> str:
+        return self._wallpaper("get", str(display))
+
+    def set_wallpaper(self, path: str, display: int = 0) -> None:
+        self._wallpaper("set", str(display), path)
 
     def crash(self) -> None:
         # a process that is killed puts nothing back: windows it cloaked stay so
