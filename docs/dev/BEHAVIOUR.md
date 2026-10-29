@@ -39,6 +39,7 @@ runs, and goes stale when the code changes.
 | `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **known failure** | **known failure** |
 | `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
+| `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure**: the number 2 |
 | `lifecycle` | a daemon that stops and starts again takes the windows that were in view up again | pass | pass |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
@@ -61,6 +62,14 @@ reason, with which its checks are recorded by `Checks.known_failure`. They do no
 the totals say `known failures: N`, and one that holds fails the suite to say the marker can go.
 `core-e2e` runs it last (section 12c), because the window is lost. The sweep of `commands` is not affected on kfde, which has two outputs, and on
 kfw the sweep now plugs in a second display first.
+
+**`placement` on kfw.** The rule `initial_window_placement_rules: 2`, with the place as a JSON
+number, makes `komorebi.exe` exit at start with `data did not match any variant of untagged enum
+InitialWindowPlacementRules`, while the string `"2"` works, and kfde accepts both. kfw's own docs
+for the type say an integer is accepted, but its `PlacementTarget` deserializes with
+`String::deserialize`. It is a known failure to follow up on later: `placement.run` takes the
+description of the case and the reason, and records the case that way, whether the daemon does not
+start or puts the windows elsewhere. The other four cases give the same order on both ports.
 
 **`resize` on kfw.** Dragging the edge between two tiles by 30, 60 and 120 pixels moved it by 27,
 53 and 96 on kfw's master, and by 27, 51 and 106 on its animation branch (`0c9acdf4`), where kfde

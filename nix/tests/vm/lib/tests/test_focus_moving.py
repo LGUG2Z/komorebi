@@ -300,3 +300,21 @@ def test_a_daemon_that_ignores_the_placement_rules_fails() -> None:
     checks = Checks()
     placement.run(platform, checks)
     assert checks.failed == len(placement.CASES) - 1, checks.failures
+
+
+def test_a_case_a_port_cannot_start_is_a_known_failure_and_the_rest_run() -> None:
+    number = "by the number of the place, counted from 1"
+
+    class Refuses(FakePlatform):
+        def restart_with(self, config: dict) -> None:
+            workspace = config["monitors"][0]["workspaces"][0]
+            if isinstance(workspace.get("initial_window_placement_rules"), int):
+                raise AssertionError("exited at start")
+            super().restart_with(config)
+
+    platform = Refuses()
+    checks = Checks()
+    placement.run(platform, checks, {number: "an integer is not accepted"})
+    assert checks.failed == 0, checks.failures
+    assert checks.passed == len(placement.CASES) - 1
+    assert len(checks.known) == 1 and "exited at start" in checks.known[0]
