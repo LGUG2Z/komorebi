@@ -3,6 +3,7 @@
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, Platform
+from komorebi_vm.core.scenarios.layouts import tiled
 
 # how far outside a window's frame its resize border is pressed: the gap between two tiles
 OFFSET = 4
@@ -233,6 +234,8 @@ def _problems(
     end = (max(area.x, px + dx), max(area.y, py + dy))
     platform.pointer.drag((px, py), end)
     platform.wait_for(lambda: _tiles(platform) != tiles_before, timeout=3)
+    # a neighbour's frame follows its tile a moment later; it is read when it has
+    platform.wait_for(lambda: tiled(platform, clients), timeout=10)
     after = _settled(platform, clients)
     tiles_after = _tiles(platform)
 

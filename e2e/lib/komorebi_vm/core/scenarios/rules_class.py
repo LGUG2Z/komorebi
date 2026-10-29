@@ -1,5 +1,5 @@
-"""Rules that match a window by its class (its app id on Wayland) decide where it goes, or that it
-is left alone."""
+"""Rules that match a window by its class (the app id on Wayland, the window class on Windows)
+decide where it goes, or that it is left alone."""
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Platform

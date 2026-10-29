@@ -103,7 +103,7 @@ def test_a_step_prints_how_long_it_took(capsys: pytest.CaptureFixture[str]) -> N
 def test_steps_not_named_in_the_list_are_left_out(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("KFDE_ONLY", "second, nothing")
+    monkeypatch.setenv("E2E_ONLY", "second, nothing")
     ran: list[str] = []
 
     def first() -> str:
@@ -126,11 +126,44 @@ def test_steps_not_named_in_the_list_are_left_out(
     )
     assert ran == ["setup", "second"]
     assert results == ["c", None, "b"]
-    assert "test_suite.first: left out by KFDE_ONLY" in capsys.readouterr().out
+    assert "test_suite.first: left out by E2E_ONLY" in capsys.readouterr().out
 
 
 def test_with_no_list_every_step_runs(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("KFDE_ONLY", raising=False)
+    monkeypatch.delenv("E2E_ONLY", raising=False)
     ran: list[int] = []
     run_suite(Checks(), shared(lambda: ran.append(1)), shared(lambda: ran.append(2)))
     assert ran == [1, 2]
+
+
+def test_the_older_name_of_the_variable_still_works(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("E2E_ONLY", raising=False)
+    monkeypatch.setenv("KFDE_ONLY", "second")
+    ran: list[str] = []
+
+    def first() -> None:
+        ran.append("first")
+
+    def second() -> None:
+        ran.append("second")
+
+    run_suite(Checks(), shared(first), shared(second))
+    assert ran == ["second"]
+    assert "test_suite.first: left out by KFDE_ONLY" in capsys.readouterr().out
+
+
+def test_the_new_name_wins_over_the_older_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("E2E_ONLY", "second")
+    monkeypatch.setenv("KFDE_ONLY", "first")
+    ran: list[str] = []
+
+    def first() -> None:
+        ran.append("first")
+
+    def second() -> None:
+        ran.append("second")
+
+    run_suite(Checks(), shared(first), shared(second))
+    assert ran == ["second"]

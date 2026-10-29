@@ -39,8 +39,8 @@ def ring(image: Image.Image, frame: Rect, color: Color, margin: int = 5) -> list
     """Returns what is wrong with the ring around a window: a line for each side that has none.
 
     The ring is looked for `margin` pixels outside the middle of each of the four edges of
-    `frame`, which is the window with its title bar, as KWin reports it. A side where that pixel is
-    not near `color` is named, with the pixel it has. An empty list is a ring all round.
+    `frame`, which is the window with its title bar, as the platform reports it. A side where that
+    pixel is not near `color` is named, with the pixel it has. An empty list is a ring all round.
     """
     middle_x = frame.x + frame.w // 2
     middle_y = frame.y + frame.h // 2

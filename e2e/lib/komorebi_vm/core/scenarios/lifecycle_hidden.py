@@ -2,7 +2,7 @@
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client, Platform
-from komorebi_vm.core.scenarios.support import focus_agrees
+from komorebi_vm.core.scenarios.support import describe, focus_agrees
 
 
 def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
@@ -54,10 +54,28 @@ def crash(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     """Turns a monocle on, which puts the other windows away, kills the daemon, and starts it
     again: nothing is left out of sight for the new daemon to find, and it manages every window.
 
-    `clients` are two tiled windows or more of the first workspace, each in a container of its own.
-    The monocle is off at the end.
+    `clients` are two windows or more, each in a container of its own. They are gathered on the
+    first workspace, which is shown, first: a window another scenario left on a workspace that is
+    not in view would be out of sight after the restart on a platform that keeps it there. The
+    monocle is off at the end.
     """
     target, other = clients[-1], clients[0]
+
+    def gather() -> None:
+        platform.komorebic("focus-workspace", "0")
+        for client in clients:
+            home = platform.state().workspace_of(client.title)
+            if home not in (0, None):
+                platform.komorebic("focus-workspace", str(home))
+                platform.activate(client)
+                platform.komorebic("move-to-workspace", "0")
+        platform.komorebic("focus-workspace", "0")
+        platform.wait_for(
+            lambda: all(platform.state().workspace_of(c.title) == 0 for c in clients), timeout=20
+        )
+        platform.wait_for(lambda: not any(platform.hidden(c) for c in clients), timeout=20)
+
+    gather()
 
     def in_front() -> None:
         # a window that already has the focus gives the daemon no event: another one first
@@ -87,10 +105,11 @@ def crash(platform: Platform, checks: Checks, clients: list[Client]) -> None:
         "the next daemon manages every window",
         platform.wait_for(lambda: platform.state().managed() >= len(clients), timeout=30),
     )
-    checks.check(
+    if not checks.check(
         "... and none is left out of sight",
         platform.wait_for(lambda: not any(platform.hidden(c) for c in clients), timeout=20),
-    )
+    ):
+        print(describe(platform, clients))
     area = platform.work_area()
     frames = [w.frame for c in clients if (w := platform.os_window(c)) is not None]
     checks.check(
@@ -107,7 +126,8 @@ def crash(platform: Platform, checks: Checks, clients: list[Client]) -> None:
         platform.wait_for(only_target_in_view, timeout=20),
     )
     platform.komorebic("toggle-monocle")
-    checks.check(
+    if not checks.check(
         "... and turned off, nothing is out of sight",
         platform.wait_for(lambda: not any(platform.hidden(c) for c in clients), timeout=20),
-    )
+    ):
+        print(describe(platform, clients))

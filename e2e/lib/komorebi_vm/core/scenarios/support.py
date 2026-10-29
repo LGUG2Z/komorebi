@@ -9,6 +9,21 @@ from komorebi_vm.core.platform import Client, Platform
 QUIET = 3
 
 
+def describe(platform: Platform, clients: list[Client]) -> str:
+    """What the daemon and the system say of each of `clients`, for a failed check to print."""
+    state = platform.state()
+    layout = [str(r) for r in state.workspace().latest_layout]
+    lines = [f"     work area {platform.work_area()}; the layout {layout}"]
+    for client in clients:
+        window = platform.os_window(client)
+        frame = window.frame if window is not None else None
+        lines.append(
+            f"     {client.title}: workspace {state.workspace_of(client.title)},"
+            f" hidden {platform.hidden(client)}, frame {frame}"
+        )
+    return "\n".join(lines)
+
+
 def os_focused(platform: Platform, clients: list[Client]) -> str:
     """The title of the window the operating system says has the focus, among `clients`.
 
