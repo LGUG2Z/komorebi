@@ -65,6 +65,15 @@ const FLAVORS: &[Flavor] = &[
             ("komorebi-layouts/src", "komorebi_layouts"),
         ],
     },
+    Flavor {
+        name: "KDE",
+        source_env: "KOMOREBI_KDE_SRC",
+        commit_env: &["KOMOREBI_KDE_COMMIT"],
+        crates: &[
+            ("komorebi/src", "komorebi"),
+            ("komorebi-client/src", "komorebi_client"),
+        ],
+    },
 ];
 
 struct Entry {
