@@ -524,6 +524,9 @@ pub struct GhostWindow {
     origin: (i32, i32),
     /// How big the picture is, in pixels
     source_size: (i32, i32),
+    /// How far the picture reaches out of the window on every side: the room
+    /// for its border
+    margin: i32,
     /// What the ghost was last made to show
     shown: Mutex<Option<Shown>>,
     disposed: bool,
@@ -561,6 +564,11 @@ impl GhostWindow {
     ) -> eyre::Result<Self> {
         let captured = start.elapsed();
         let source_size = (snapshot.width, snapshot.height);
+        let margin = snapshot.margin;
+
+        // the picture is the window and its border, which is bigger than it
+        let mut start_rect = start_rect;
+        start_rect.add_margin(margin);
 
         let (reply_tx, reply_rx) = bounded::<eyre::Result<(isize, (i32, i32))>>(1);
         ghost_owner()
@@ -584,6 +592,7 @@ impl GhostWindow {
             hthumb,
             origin,
             source_size,
+            margin,
             // it is registered where the window is, with all of its picture that
             // is to be seen, and opaque
             shown: Mutex::new(Some(Shown {
@@ -608,6 +617,8 @@ impl GhostWindow {
     /// part of it that is outside is cut off, and it is not shown at all when
     /// all of it is.
     pub fn update_clipped(&self, rect: Rect, opacity: u8, clip: Option<Rect>) -> eyre::Result<()> {
+        let mut rect = rect;
+        rect.add_margin(self.margin);
         let drawn = drawn_part(rect, self.source_size, clip);
 
         if !needs_update(&mut self.shown.lock(), Shown { drawn, opacity }) {

@@ -4067,7 +4067,17 @@ fn workspace_transition_plan(
         .map(|window| window.hwnd)
         .collect();
 
-    transition::plan(direction, monitor.size, &outgoing, &incoming)
+    let plan = transition::plan(direction, monitor.size, &outgoing, &incoming)?;
+
+    // the borders of the windows that slide are drawn into their ghosts
+    border_manager::set_ghost_kinds(
+        leaving
+            .border_kinds_on_show()
+            .into_iter()
+            .chain(entering.border_kinds_on_show()),
+    );
+
+    Some(plan)
 }
 
 #[cfg(test)]

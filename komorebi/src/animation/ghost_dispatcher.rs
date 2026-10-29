@@ -230,7 +230,13 @@ impl GhostDispatcher {
                 // picture of itself then, as it is hidden
                 snapshot::remember(self.hwnd, &picture);
 
-                GhostWindow::create_from(picture, self.hwnd, self.start_rect, Some(clip), start)
+                GhostWindow::create_from(
+                    self.with_border(picture),
+                    self.hwnd,
+                    self.start_rect,
+                    Some(clip),
+                    start,
+                )
             });
 
             match ghost {
@@ -253,7 +259,13 @@ impl GhostDispatcher {
         {
             let start = std::time::Instant::now();
 
-            match GhostWindow::create_from(picture, self.hwnd, self.start_rect, Some(clip), start) {
+            match GhostWindow::create_from(
+                self.with_border(picture),
+                self.hwnd,
+                self.start_rect,
+                Some(clip),
+                start,
+            ) {
                 Ok(ghost) => {
                     *self.ghost.lock() = Some(ghost);
                     self.lay_out_entering_window();
@@ -268,6 +280,15 @@ impl GhostDispatcher {
         }
 
         self.show_entered_at_once();
+    }
+
+    /// The picture with the border the window has drawn around it, as the
+    /// border window cannot slide with it: it would be seen on the monitors
+    /// beside this one.
+    fn with_border(&self, picture: Snapshot) -> Snapshot {
+        border_manager::border_look(self.hwnd)
+            .and_then(|look| picture.with_border(&look).ok())
+            .unwrap_or(picture)
     }
 
     /// What the ghost of a window that is coming in shows. The window is hidden, so

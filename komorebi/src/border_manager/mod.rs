@@ -166,6 +166,57 @@ pub(crate) fn leaves_border_alone(hwnd: isize) -> bool {
     is_ghosted(hwnd) || is_held(hwnd)
 }
 
+lazy_static! {
+    /// What kind of border the windows of the workspaces that are being slid
+    /// in and out are to be given in their ghosts: the borders themselves
+    /// do not slide, so the ghosts carry theirs
+    static ref GHOST_KINDS: Mutex<HashMap<isize, WindowKind>> = Mutex::new(HashMap::new());
+}
+
+/// How a border is drawn, for a picture of the window it is around
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BorderLook {
+    pub width: i32,
+    pub offset: i32,
+    pub rounded: bool,
+    /// As a `COLORREF`: 0x00BBGGRR
+    pub colour: u32,
+}
+
+/// Say what kind of border each of these windows has, or would have if it were
+/// shown, for `border_look`
+pub fn set_ghost_kinds(kinds: impl IntoIterator<Item = (isize, WindowKind)>) {
+    let mut ghost_kinds = GHOST_KINDS.lock();
+    // only what was asked about most lately is of any use
+    if ghost_kinds.len() > 256 {
+        ghost_kinds.clear();
+    }
+    ghost_kinds.extend(kinds);
+}
+
+/// The border to draw into the picture of a window that is sliding, if it has
+/// one
+pub fn border_look(hwnd: isize) -> Option<BorderLook> {
+    if !BORDER_ENABLED.load(Ordering::Relaxed) {
+        return None;
+    }
+
+    let kind = GHOST_KINDS.lock().get(&hwnd).copied()?;
+
+    let rounded = match STYLE.load() {
+        BorderStyle::System => *crate::WINDOWS_11,
+        BorderStyle::Rounded => true,
+        BorderStyle::Square => false,
+    };
+
+    Some(BorderLook {
+        width: BORDER_WIDTH.load(Ordering::Relaxed),
+        offset: BORDER_OFFSET.load(Ordering::Relaxed),
+        rounded,
+        colour: window_kind_colour(kind),
+    })
+}
+
 pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
     let id = WINDOWS_BORDERS.lock().get(&hwnd)?.clone();
     BORDER_STATE.lock().get(&id).map(|b| BorderInfo {

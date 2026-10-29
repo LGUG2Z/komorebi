@@ -59,6 +59,7 @@ use windows::core::PCWSTR;
 use windows::core::w;
 
 use crate::WindowsApi;
+use crate::border_manager::BorderLook;
 
 /// Ask for what the window looks like to the compositor, which is the only
 /// way to capture a window that is drawn with DirectComposition
@@ -76,6 +77,9 @@ pub struct Snapshot {
     pixels: usize,
     pub width: i32,
     pub height: i32,
+    /// How much of the picture, on every side, is room for a border around the
+    /// window, which is not the window: a ghost is bigger than the window by this
+    pub margin: i32,
 }
 
 // A GDI bitmap is not tied to the thread that made it
@@ -183,6 +187,64 @@ fn round_corners(pixels: &mut [u32], width: i32, height: i32, radius: i32) {
                     pixels[(y * width + x) as usize] = 0;
                 }
             }
+        }
+    }
+}
+
+/// Draw a border into a picture that has room for it: the outline of a
+/// rectangle with rounded corners, or square ones, as wide as `look.width` and
+/// where the border window would draw it, which is in from the picture's edge by
+/// half of its width less the offset. Over what is there, with the edges of the
+/// line smoothed.
+fn draw_border(pixels: &mut [u32], width: i32, height: i32, look: &BorderLook, margin: i32) {
+    let stroke = look.width as f32;
+    let inset = (look.width / 2 - look.offset) as f32;
+    let half_width = width as f32 / 2.0 - inset;
+    let half_height = height as f32 / 2.0 - inset;
+    let radius = if look.rounded {
+        8.0 + stroke / 2.0
+    } else {
+        0.0
+    }
+    .min(half_width)
+    .min(half_height)
+    .max(0.0);
+
+    let red = (look.colour & 0xFF) as f32;
+    let green = ((look.colour >> 8) & 0xFF) as f32;
+    let blue = ((look.colour >> 16) & 0xFF) as f32;
+
+    // nothing of the line is further in than this
+    let band = (margin + (stroke as i32) + 2).min(width).min(height);
+
+    for y in 0..height {
+        for x in 0..width {
+            if x >= band && x < width - band && y >= band && y < height - band {
+                continue;
+            }
+
+            // the distance from the line along the middle of the border, which
+            // is negative inside of the rounded rectangle it makes
+            let px = (x as f32 + 0.5 - width as f32 / 2.0).abs() - (half_width - radius);
+            let py = (y as f32 + 0.5 - height as f32 / 2.0).abs() - (half_height - radius);
+            let distance = px.max(0.0).hypot(py.max(0.0)) + px.max(py).min(0.0) - radius;
+
+            let coverage = (stroke / 2.0 + 0.5 - distance.abs()).clamp(0.0, 1.0);
+            if coverage <= 0.0 {
+                continue;
+            }
+
+            // premultiplied, over what is there
+            let below = pixels[(y * width + x) as usize];
+            let keep = 1.0 - coverage;
+            let channel = |shift: u32, colour: f32| {
+                let below = ((below >> shift) & 0xFF) as f32;
+                ((colour * coverage + below * keep).round() as u32).min(255) << shift
+            };
+            let alpha = ((255.0 * coverage + (below >> 24) as f32 * keep).round() as u32).min(255);
+
+            pixels[(y * width + x) as usize] =
+                (alpha << 24) | channel(16, red) | channel(8, green) | channel(0, blue);
         }
     }
 }
@@ -319,6 +381,7 @@ impl Snapshot {
                     pixels: pixels.as_ptr() as usize,
                     width: rendered.width,
                     height: rendered.height,
+                    margin: 0,
                 }
             });
 
@@ -350,6 +413,7 @@ impl Snapshot {
                 pixels: pixels.as_ptr() as usize,
                 width,
                 height,
+                margin: 0,
             }
         }
     }
@@ -372,6 +436,50 @@ impl Snapshot {
                     pixels: pixels.as_ptr() as usize,
                     width: self.width,
                     height: self.height,
+                    margin: self.margin,
+                }
+            });
+
+            let _ = DeleteDC(dc);
+            ReleaseDC(None, screen);
+
+            result
+        }
+    }
+
+    /// The same picture with a border drawn around the window, as its own border
+    /// would be: in a margin that the picture is given, and over the edge of the
+    /// window as far as the border reaches in.
+    pub fn with_border(&self, look: &BorderLook) -> eyre::Result<Self> {
+        let margin = (look.width + look.offset).max(0);
+        let width = self.width + margin * 2;
+        let height = self.height + margin * 2;
+
+        unsafe {
+            let screen = GetDC(None);
+            let dc = CreateCompatibleDC(Some(screen));
+
+            let result = create_dib(dc, width, height).map(|(bitmap, pixels)| {
+                let source = std::slice::from_raw_parts(
+                    self.pixels as *const u32,
+                    (self.width * self.height) as usize,
+                );
+
+                for row in 0..self.height {
+                    let from = (row * self.width) as usize;
+                    let to = ((row + margin) * width + margin) as usize;
+                    pixels[to..to + self.width as usize]
+                        .copy_from_slice(&source[from..from + self.width as usize]);
+                }
+
+                draw_border(pixels, width, height, look, margin);
+
+                Self {
+                    bitmap,
+                    pixels: pixels.as_ptr() as usize,
+                    width,
+                    height,
+                    margin,
                 }
             });
 
@@ -831,5 +939,44 @@ mod tests {
         };
         assert_eq!(pixels(&original), pixels(&copy));
         assert_ne!(original.pixels, copy.pixels);
+    }
+
+    #[test]
+    fn a_border_is_drawn_in_the_room_around_a_window_and_over_its_edge() {
+        let look = BorderLook {
+            width: 8,
+            offset: -1,
+            rounded: false,
+            colour: 0x0000_00FF,
+        };
+        let margin = look.width + look.offset;
+        let (width, height) = (100 + margin * 2, 80 + margin * 2);
+        let mut pixels = vec![0u32; (width * height) as usize];
+        let at = |pixels: &[u32], x: i32, y: i32| pixels[(y * width + x) as usize];
+
+        draw_border(&mut pixels, width, height, &look, margin);
+
+        // red along the middle of the line, which is 5 in from the edge
+        assert_eq!(at(&pixels, width / 2, 5), 0xFFFF_0000);
+        assert_eq!(at(&pixels, 5, height / 2), 0xFFFF_0000);
+        // the line reaches in over the window, but not to its middle, and out
+        // as far as the margin and no further
+        assert_eq!(at(&pixels, width / 2, margin + 1) >> 24, 0xFF);
+        assert_eq!(at(&pixels, width / 2, height / 2), 0);
+        assert_eq!(at(&pixels, width / 2, 0), 0);
+    }
+
+    #[test]
+    fn a_picture_given_a_border_has_room_for_it() {
+        let look = BorderLook {
+            width: 8,
+            offset: -1,
+            rounded: true,
+            colour: 0x00FF_0000,
+        };
+        let bordered = picture(100, 80).with_border(&look).unwrap();
+
+        assert_eq!(bordered.margin, 7);
+        assert_eq!((bordered.width, bordered.height), (114, 94));
     }
 }

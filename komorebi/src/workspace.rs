@@ -35,6 +35,7 @@ use crate::core::OperationDirection;
 use crate::core::PlacementMatchingRules;
 use crate::core::PlacementTarget;
 use crate::core::Rect;
+use crate::core::WindowKind;
 use crate::core::WindowPlacement;
 use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
@@ -2031,6 +2032,46 @@ impl Workspace {
             .flatten()
             .copied()
             .collect()
+    }
+
+    /// What kind of border each of the windows that are on show has
+    pub fn border_kinds_on_show(&self) -> Vec<(isize, WindowKind)> {
+        if let Some(monocle) = &self.monocle_container {
+            return monocle
+                .focused_window()
+                .map(|window| (window.hwnd, WindowKind::Monocle))
+                .into_iter()
+                .collect();
+        }
+
+        let mut kinds: Vec<(isize, WindowKind)> = self
+            .containers()
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, container)| {
+                let kind = if idx != self.focused_container_idx() {
+                    if container.locked {
+                        WindowKind::UnfocusedLocked
+                    } else {
+                        WindowKind::Unfocused
+                    }
+                } else if container.windows().len() > 1 {
+                    WindowKind::Stack
+                } else {
+                    WindowKind::Single
+                };
+
+                container.focused_window().map(|window| (window.hwnd, kind))
+            })
+            .collect();
+
+        kinds.extend(
+            self.floating_windows()
+                .iter()
+                .map(|window| (window.hwnd, WindowKind::Unfocused)),
+        );
+
+        kinds
     }
 
     pub fn visible_window_details(&self) -> Vec<WindowDetails> {
