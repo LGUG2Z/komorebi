@@ -80,6 +80,8 @@
               KOMOREBI_WINDOWS_SRC
               KOMOREBI_WINDOWS_COMMIT
               ;
+          }
+          // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
             nativeBuildInputs = [
               pkgs.darwin.cctools
             ];
@@ -181,6 +183,7 @@
       systems = [
         "aarch64-darwin"
         "x86_64-darwin"
+        "x86_64-linux"
       ];
 
       imports = [
