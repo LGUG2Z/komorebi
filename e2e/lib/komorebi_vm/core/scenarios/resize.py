@@ -231,6 +231,9 @@ def _problems(
     name, grab, dx, dy = case
     area = platform.work_area()
     platform.komorebic("retile")
+    # the frames follow the tiles a moment later, and a press on a frame that is still on its way
+    # lands on the window and not on its border (a drop on another tile, a swap)
+    platform.wait_for(lambda: tiled(platform, clients), timeout=10)
     before = _settled(platform, clients)
     tiles_before = _tiles(platform)
 
