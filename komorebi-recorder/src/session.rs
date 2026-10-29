@@ -213,7 +213,7 @@ pub struct Manifest {
     pub apps: Vec<AppRecord>,
     /// What was recorded of komorebi's subscriber events.
     pub events: EventSummary,
-    /// The sampled window track (`windows.jsonl`), if `--window-track` was asked for.
+    /// The sampled window track (`windows.jsonl`), unless `--no-window-track` (it is on by default where windows can be listed).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window_track: Option<WindowTrackInfo>,
     /// `host-clock` when frame timestamps were verified to be on the mach clock.

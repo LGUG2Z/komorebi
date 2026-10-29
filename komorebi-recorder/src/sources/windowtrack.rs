@@ -5,8 +5,9 @@
 //! times, and the per-event probe (`winprobe`) reads one window at the moment of one event. This
 //! source asks the OS for every window's rect, many times a second, so any frame has an answer.
 //!
-//! It is off unless asked for (`record --window-track[=HZ]`, 30 Hz when no rate is given, clamped
-//! to [`MIN_HZ`]..=[`MAX_HZ`]), and writes `windows.jsonl` in the session directory.
+//! It is on by default wherever windows can be listed (`record`, at [`DEFAULT_HZ`]); `record
+//! --window-track=HZ` picks another rate (clamped to [`MIN_HZ`]..=[`MAX_HZ`]) and
+//! `--no-window-track` turns it off. It writes `windows.jsonl` in the session directory.
 //!
 //! # The file
 //!
@@ -82,7 +83,7 @@ use std::time::Instant;
 /// The file the track is written to, in the session directory.
 pub const WINDOWS_FILE: &str = "windows.jsonl";
 
-/// The rate used for `--window-track` given without one.
+/// The rate used when `record` is not told one.
 pub const DEFAULT_HZ: u32 = 30;
 /// The slowest rate that can be asked for.
 pub const MIN_HZ: u32 = 1;

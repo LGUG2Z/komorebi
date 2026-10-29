@@ -93,19 +93,25 @@ pub struct RecordArgs {
     /// Windows has hidden, such as a ghost tile
     #[arg(long)]
     pub no_probe_windows: bool,
-    /// Also sample every top-level window's rect, visibility and minimized (and, on Windows,
-    /// cloaked) state at HZ samples a second [default when given without a value: 30; 1 to 120]
-    /// into `windows.jsonl`, so that "which window was where in this frame" has an answer for
-    /// every frame; `sheet --windows` draws it. Written only when something changed, plus a full
-    /// row each second, so a still desktop costs almost nothing. Off unless asked for
+    /// Sample every top-level window's rect, visibility and minimized (and, on Windows,
+    /// cloaked) state at HZ samples a second [default: 30; 1 to 120] into `windows.jsonl`, so
+    /// that "which window was where in this frame" has an answer for every frame; `sheet
+    /// --windows` draws it. Written only when something changed, plus a full row each second, so
+    /// a still desktop costs almost nothing. On by default wherever windows can be listed, so
+    /// this is for choosing another rate (`--window-track=60`); see `--no-window-track`
     #[arg(
         long,
         value_name = "HZ",
         num_args = 0..=1,
         require_equals = true,
-        default_missing_value = "30"
+        default_missing_value = "30",
+        conflicts_with = "no_window_track"
     )]
     pub window_track: Option<u32>,
+    /// Do not sample the windows (see `--window-track`, which is on by default on a host that
+    /// can list windows): the recording then cannot say where a window was in a given frame
+    #[arg(long)]
+    pub no_window_track: bool,
     /// Do not capture the screen: record everything else (komorebi's events and log, the OS
     /// trace and incidents) on the same clock
     #[arg(long, conflicts_with = "displays")]
@@ -168,6 +174,7 @@ impl Default for RecordArgs {
             probe_windows: false,
             no_probe_windows: false,
             window_track: None,
+            no_window_track: false,
             no_oslog: false,
             oslog_apps: AppsMode::Managed,
             oslog_all: false,
@@ -236,8 +243,40 @@ impl RecordArgs {
             no_komorebi: self.no_komorebi,
             no_video: self.no_video,
             probe_windows: self.probes_windows(),
-            window_track: self.window_track,
+            window_track: self.window_track_hz(),
         }
+    }
+
+    /// Returns the rate the recording samples its windows at, or `None` for no window track.
+    ///
+    /// The track is on by default ([`DEFAULT_HZ`](crate::sources::windowtrack::DEFAULT_HZ))
+    /// wherever windows can be listed ([`CAN_LIST`](crate::platform::window::CAN_LIST)), unless
+    /// `--no-window-track` says not to. `--window-track[=HZ]` asked for outright is kept as asked,
+    /// so that a host that cannot do it says so instead of recording without it.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi_recorder::cli::RecordArgs;
+    /// use komorebi_recorder::platform::window::CAN_LIST;
+    ///
+    /// // the default follows the host
+    /// assert_eq!(RecordArgs::default().window_track_hz().is_some(), CAN_LIST);
+    ///
+    /// // a rate asked for is kept, and the track can be turned off
+    /// let faster = RecordArgs { window_track: Some(60), ..RecordArgs::default() };
+    /// assert_eq!(faster.window_track_hz(), Some(60));
+    /// let off = RecordArgs { no_window_track: true, ..RecordArgs::default() };
+    /// assert_eq!(off.window_track_hz(), None);
+    /// ```
+    #[must_use]
+    pub fn window_track_hz(&self) -> Option<u32> {
+        if self.no_window_track {
+            return None;
+        }
+        self.window_track.or_else(|| {
+            crate::platform::window::CAN_LIST.then_some(crate::sources::windowtrack::DEFAULT_HZ)
+        })
     }
 
     /// Returns whether the recording reads what Windows says about each window.
