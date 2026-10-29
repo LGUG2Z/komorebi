@@ -159,6 +159,13 @@ the run.
   it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a `Platform`, and
   the `core-e2e` suite runs the scenarios through it after its own sections.
   [Writing a scenario](#writing-a-scenario) says how to add one.
+
+  The scenarios run on two platforms. KDE runs all five, in `core-e2e`. A Windows 11
+  guest under QEMU, which kfw drives from its own tree, has run `tiling` against kfw's
+  daemon (10 of 10 checks on 2026-10-29, reported by the session that ran it, with this
+  `core/` copied unchanged); `focus`, `moving`, `stacks` and `workspaces` have not run
+  there yet. `scripts/sync-e2e-core` keeps kfw's copy of `core/` in step until `core/`
+  moves there.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines
