@@ -631,6 +631,23 @@ impl GhostWindow {
         )
     }
 
+    /// What the ghost was last made to show: where it is drawn and which part of its
+    /// picture goes there, and how big the picture is, for the log
+    pub fn describe(&self) -> String {
+        let drawn = self.shown.lock().and_then(|shown| shown.drawn);
+
+        match drawn {
+            Some((destination, source)) => format!(
+                "destination {destination:?} of source {source:?} of a picture {}x{}",
+                self.source_size.0, self.source_size.1
+            ),
+            None => format!(
+                "not drawn, of a picture {}x{}",
+                self.source_size.0, self.source_size.1
+            ),
+        }
+    }
+
     /// Fade the ghost out over a few frames, where it is, for when there is no
     /// animation left to do it in.
     pub fn fade_out(&self, rect: Rect, clip: Option<Rect>) {

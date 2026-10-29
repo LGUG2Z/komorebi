@@ -399,6 +399,7 @@ impl Window {
                     "live resize: hwnd {} is where it is to be, {layout:?}",
                     self.hwnd
                 );
+                live_resize::follow(self.hwnd, &window_rect, layout);
             }
 
             return Ok(());
@@ -407,6 +408,13 @@ impl Window {
         // the neighbours of a window being dragged follow it as it goes, which is
         // not to be seen catching up
         if live_resize::is_stepping() {
+            // what a window that is resized is seen to do is covered: the cover is where the
+            // window is to be, which is the pointer's, and the window is sent there when
+            // the drag is over
+            if live_resize::follow(self.hwnd, &window_rect, layout) {
+                return Ok(());
+            }
+
             if live_resize::is_catching_up(self.hwnd, layout) {
                 tracing::debug!(
                     "live resize: hwnd {} is at {window_rect:?}, not yet where it was sent, left alone for {layout:?}",

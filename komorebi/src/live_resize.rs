@@ -14,9 +14,17 @@
 //! it began puts the neighbours back.
 
 use crate::WindowsApi;
+use crate::animation::GHOST_MOVEMENT_ENABLED;
+use crate::animation::ghost::GhostWindow;
+use crate::animation::ghost::is_swap_chain_window;
+use crate::animation::ghost::nudge_swap_chain_window;
+use crate::animation::snapshot;
+use crate::border_manager;
+use crate::com::SetCloak;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::Sizing;
+use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
@@ -41,7 +49,10 @@ const STEP_INTERVAL: Duration = Duration::from_millis(16);
 /// Lays out what is laid out while it is alive at once, and not animated: the
 /// neighbours of a window that is dragged follow it as it goes, and are not to be
 /// seen catching up
-pub struct Snapping;
+pub struct Snapping {
+    /// Whether it is for a step of a drag, and not for its end
+    paced: bool,
+}
 
 impl Snapping {
     /// `paced` is for the steps of a drag, which leave a window that has not
@@ -50,7 +61,7 @@ impl Snapping {
     fn new(paced: bool) -> Self {
         PACED.store(paced, Ordering::SeqCst);
         STEPPING.store(true, Ordering::SeqCst);
-        Self
+        Self { paced }
     }
 }
 
@@ -58,6 +69,18 @@ impl Drop for Snapping {
     fn drop(&mut self) {
         STEPPING.store(false, Ordering::SeqCst);
         PACED.store(false, Ordering::SeqCst);
+
+        // the end of a drag has laid the workspace out, which is where the windows that
+        // were covered are to go: they are sent there, hidden, and shown from where they
+        // are not waited for by the window manager
+        if !self.paced
+            && COVERS
+                .lock()
+                .as_ref()
+                .is_some_and(|covers| !covers.is_empty())
+        {
+            std::thread::spawn(|| uncover(true));
+        }
     }
 }
 
@@ -146,6 +169,180 @@ pub fn sent(hwnd: isize, layout: &Rect) {
     SENT.lock()
         .get_or_insert_with(HashMap::new)
         .insert(hwnd, (*layout, Instant::now()));
+}
+
+/// What a window that is resized by a drag is covered by while it is
+struct Cover {
+    /// A picture of the window
+    ghost: GhostWindow,
+    /// Where the picture is
+    at: Rect,
+    /// Where the window is to go, which is where the last step put the picture
+    target: Rect,
+}
+
+static COVERS: Mutex<Option<HashMap<isize, Cover>>> = Mutex::new(None);
+
+/// Whether a window is covered, which is to say hidden, and put where it is to go when
+/// the drag is over
+pub fn is_covered(hwnd: isize) -> bool {
+    COVERS
+        .lock()
+        .as_ref()
+        .is_some_and(|covers| covers.contains_key(&hwnd))
+}
+
+/// A window that is to be resized for a step of a drag, from `from` to `to`, and
+/// whether it is not to be sent there: it is covered.
+///
+/// A window that is resized has nothing to show for the frames between the old size
+/// going and the new one having anything in it (a terminal that renders through a swap
+/// chain is not there at all, and the wallpaper shows through where it was), and
+/// one that is slow to take a move, which File Explorer is, is seen at every size
+/// that it is on the way through, laying itself out again. So a picture of it is put
+/// where it is, the window is hidden under it, and every step moves the picture, with
+/// one call to DWM, and does nothing to the window. When the drag is over the window
+/// is put where it is to go, and made to lay itself out, unseen, as for a move that is
+/// animated, and then shown, and the picture fades out over it.
+///
+/// Only with ghost movement, which is what puts pictures of windows on the screen.
+pub fn follow(hwnd: isize, from: &Rect, to: &Rect) -> bool {
+    if !GHOST_MOVEMENT_ENABLED.load(Ordering::Relaxed) {
+        return false;
+    }
+
+    let mut covers = COVERS.lock();
+    let covers = covers.get_or_insert_with(HashMap::new);
+
+    if let std::collections::hash_map::Entry::Vacant(vacant) = covers.entry(hwnd) {
+        // a window that is not where anyone can see it has nothing to cover
+        if from == to
+            || crate::HIDDEN_HWNDS.lock().contains(&hwnd)
+            || WindowsApi::is_window_cloaked(hwnd).unwrap_or(false)
+        {
+            return false;
+        }
+
+        // the picture is taken before the window is touched
+        match GhostWindow::create(hwnd, *from, None) {
+            Ok(ghost) => {
+                border_manager::set_ghosted(hwnd, true);
+                SetCloak(Window { hwnd }.hwnd(), 1, 2);
+
+                vacant.insert(Cover {
+                    ghost,
+                    at: *from,
+                    target: *to,
+                });
+            }
+            Err(error) => {
+                tracing::debug!("live resize: no cover for hwnd {hwnd}: {error}");
+                return false;
+            }
+        }
+    }
+
+    let Some(cover) = covers.get_mut(&hwnd) else {
+        return false;
+    };
+
+    cover.target = *to;
+    match cover.ghost.update(*to, 255) {
+        Ok(()) => {
+            cover.at = *to;
+
+            // the border of a covered window is left to the cover, which is to say that it
+            // is where the picture is: nothing else tells it
+            border_manager::animate_to(hwnd, *to);
+
+            tracing::trace!(
+                "live resize: cover of hwnd {hwnd} to {to:?}: {}",
+                cover.ghost.describe()
+            );
+        }
+        Err(error) => {
+            tracing::debug!(
+                "live resize: the cover of hwnd {hwnd} was not moved to {to:?}: {error}"
+            );
+        }
+    }
+
+    true
+}
+
+/// Take the covers away. After a drag `show` is true: each window is put where it is
+/// to go, made to lay itself out there and to build its swap chain again, all of it
+/// hidden, and then shown, and the picture fades out over it. For another drag, which
+/// has begun before that, they are just taken away, and the windows put where they
+/// were last to go.
+pub fn uncover(show: bool) {
+    let covers = COVERS.lock().take().unwrap_or_default();
+
+    if !show {
+        for (hwnd, cover) in covers {
+            if WindowsApi::is_window(hwnd) {
+                let _ = WindowsApi::position_window(hwnd, &cover.target, false, true);
+            }
+            finish_cover(hwnd, cover.ghost);
+        }
+
+        return;
+    }
+
+    // a window that is slow to lay itself out is not waited for by the others
+    let reveals: Vec<_> = covers
+        .into_iter()
+        .map(|(hwnd, cover)| std::thread::spawn(move || reveal(hwnd, cover)))
+        .collect();
+
+    for reveal in reveals {
+        let _ = reveal.join();
+    }
+}
+
+/// Put a window that was covered where it is to go, show it, and fade its picture out
+fn reveal(hwnd: isize, cover: Cover) {
+    let Cover { ghost, at, target } = cover;
+
+    if WindowsApi::is_window(hwnd) {
+        if WindowsApi::position_window(hwnd, &target, false, false).is_ok() {
+            // it is hidden, so it is not going to lay itself out before it is shown, and
+            // File Explorer takes its time over it when it is
+            snapshot::paint_now(hwnd);
+
+            // and the last thing to be done to the size of a window that renders through
+            // a swap chain before it is shown is the size change that makes it build it again
+            if is_swap_chain_window(hwnd) {
+                nudge_swap_chain_window(hwnd, &target, false);
+            }
+        }
+
+        if is_still_ours(hwnd) {
+            SetCloak(Window { hwnd }.hwnd(), 1, 0);
+            ghost.fade_out(at, None);
+        }
+    }
+
+    finish_cover(hwnd, ghost);
+}
+
+/// A window of the workspace that is not hidden by anything but the cover
+fn is_still_ours(hwnd: isize) -> bool {
+    !crate::HIDDEN_HWNDS.lock().contains(&hwnd)
+}
+
+/// The picture is gone, and the window, if it is there, has its border back
+fn finish_cover(hwnd: isize, ghost: GhostWindow) {
+    if WindowsApi::is_window(hwnd) && is_still_ours(hwnd) {
+        SetCloak(Window { hwnd }.hwnd(), 1, 0);
+    }
+
+    border_manager::set_ghosted(hwnd, false);
+    let _ = ghost.dispose();
+
+    if WindowsApi::is_window(hwnd) {
+        border_manager::send_notification(Some(hwnd));
+    }
 }
 
 /// How soon a window that a step left alone, as it had not got where it was sent, is
@@ -310,6 +507,12 @@ pub fn listen_for_steps(wm: Arc<Mutex<WindowManager>>) {
                         }
                     }
                 }
+
+                // the windows have done what they were going to, if there is
+                // no other drag that the pictures are for
+                if GENERATION.load(Ordering::SeqCst) == generation {
+                    uncover(true);
+                }
             }
         });
     }
@@ -402,6 +605,7 @@ impl WindowManager {
     /// is an edge.
     pub fn live_resize_begin(&mut self, hwnd: isize, started_from: Rect) {
         GENERATION.fetch_add(1, Ordering::SeqCst);
+        uncover(false);
         *KEPT.lock() = None;
         SENT.lock().take();
 
@@ -535,6 +739,7 @@ impl WindowManager {
         }
 
         // a step may have left a window short of where the end of the drag sends it
+        // a step may have left a window short of where the end of the drag sends it
         if let Some(settle) = SETTLE.get() {
             let _ = settle.try_send((
                 GENERATION.load(Ordering::SeqCst),
@@ -580,6 +785,7 @@ impl WindowManager {
             };
 
             if crate::HIDDEN_HWNDS.lock().contains(&window.hwnd)
+                || is_covered(window.hwnd)
                 || is_dragging(window.hwnd)
                 || window.is_miminized()
             {
