@@ -3877,6 +3877,30 @@
           "type": "integer",
           "format": "uint",
           "minimum": 0
+        },
+        "fixed_column_width": {
+          "description": "Keep columns at their full width when there are fewer containers than\nvisible columns, instead of expanding them to fill the work area.\n\nWith `columns: 3` and a single container, the default behaviour gives that\ncontainer the entire work area. When this is enabled the container keeps\none third of the work area and the rest of the strip is left empty, which\nis how scrollable tiling window managers such as PaperWM and niri behave.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "width_steps": {
+          "description": "Width steps (ratios of the work area between 0.1 and 0.9) that\n`komorebic scrolling-cycle-column-width` snaps the focused column to.\n\nUnlike `column_ratios` these are alternatives rather than a partition of\nthe work area, so they are not required to sum to less than 1.0. Values\nare clamped, sorted ascending and deduplicated.\n\nDefaults to the golden ratio steps `[0.382, 0.5, 0.618]`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
         }
       },
       "required": [

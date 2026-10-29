@@ -1693,23 +1693,35 @@ impl Workspace {
     }
 
     fn enforce_resize_for_scrolling(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                let len = resize_dimensions.len();
+        // With `fixed_column_width` a column's width is meaningful on its own
+        // rather than being whatever is left over, so the usual constraints are
+        // relaxed: a lone column can be resized, and the last column can be
+        // widened because the strip simply grows longer instead of stealing
+        // space from a neighbour.
+        let fixed_column_width = self
+            .layout_options
+            .and_then(|options| options.scrolling)
+            .and_then(|scrolling| scrolling.fixed_column_width)
+            .unwrap_or_default();
 
-                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        rect.top = 0;
-                        rect.bottom = 0;
+        let len = self.resize_dimensions.len();
 
-                        if i == 0 {
-                            rect.left = 0;
-                        } else if i == len - 1 {
-                            rect.right = 0;
-                        }
-                    }
+        if len == 0 || (len == 1 && !fixed_column_width) {
+            self.enforce_no_resize();
+            return;
+        }
+
+        for (i, rect) in self.resize_dimensions.iter_mut().enumerate() {
+            if let Some(rect) = rect {
+                rect.top = 0;
+                rect.bottom = 0;
+
+                if i == 0 {
+                    rect.left = 0;
+                }
+
+                if i == len - 1 && !fixed_column_width {
+                    rect.right = 0;
                 }
             }
         }

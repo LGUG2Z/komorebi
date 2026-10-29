@@ -57,6 +57,7 @@ use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
 use crate::core::BorderImplementation;
+use crate::core::DefaultLayout;
 use crate::core::FocusFollowsMouseImplementation;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
@@ -944,6 +945,8 @@ impl WindowManager {
                         scrolling: Some(ScrollingLayoutOptions {
                             columns: count.into(),
                             center_focused_column: Default::default(),
+                            fixed_column_width: Default::default(),
+                            width_steps: Default::default(),
                         }),
                         grid: None,
                         column_ratios: None,
@@ -953,6 +956,78 @@ impl WindowManager {
 
                 focused_workspace.layout_options = Some(options);
                 self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::ScrollingCycleColumnWidth(direction) => {
+                use komorebi_layouts::DEFAULT_WIDTH_STEPS;
+                use komorebi_layouts::cycle_width_step;
+
+                let work_area = self.focused_monitor_work_area()?;
+                let workspace = self.focused_workspace_mut()?;
+
+                if !matches!(workspace.layout, Layout::Default(DefaultLayout::Scrolling)) {
+                    tracing::warn!(
+                        "scrolling column width cycling is only available on the Scrolling layout"
+                    );
+                } else if work_area.right > 0 {
+                    let scrolling = workspace.layout_options.and_then(|o| o.scrolling);
+
+                    let columns = scrolling.map_or(3, |s| s.columns).max(1);
+
+                    let steps: Vec<f32> = scrolling
+                        .and_then(|s| s.width_steps)
+                        .map(|arr| arr.iter().flatten().copied().collect::<Vec<f32>>())
+                        .filter(|steps| !steps.is_empty())
+                        .unwrap_or_else(|| DEFAULT_WIDTH_STEPS.to_vec());
+
+                    // A column's natural width, before any resize delta. This
+                    // mirrors the divisor used by the Scrolling arrangement.
+                    let container_count = workspace.containers().len();
+                    let fixed = scrolling
+                        .and_then(|s| s.fixed_column_width)
+                        .unwrap_or_default();
+                    let divisor = if fixed {
+                        columns
+                    } else {
+                        columns.min(container_count.max(1))
+                    };
+
+                    #[allow(clippy::cast_possible_truncation)]
+                    let base = work_area.right / divisor as i32;
+
+                    let idx = workspace.focused_container_idx();
+
+                    // resize deltas are halved when applied (see `resize_right`)
+                    let current_delta = workspace
+                        .resize_dimensions
+                        .get(idx)
+                        .copied()
+                        .flatten()
+                        .map_or(0, |rect| rect.right / 2);
+
+                    #[allow(clippy::cast_precision_loss)]
+                    let current_ratio = (base + current_delta) as f32 / work_area.right as f32;
+
+                    if let Some(target_ratio) = cycle_width_step(current_ratio, &steps, direction) {
+                        #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+                        let target = (target_ratio * work_area.right as f32) as i32;
+                        let delta = (target - base) * 2;
+
+                        if idx < workspace.resize_dimensions.len() {
+                            workspace.resize_dimensions[idx] = if delta == 0 {
+                                None
+                            } else {
+                                Some(Rect {
+                                    left: 0,
+                                    top: 0,
+                                    right: delta,
+                                    bottom: 0,
+                                })
+                            };
+                        }
+
+                        self.update_focused_workspace(false, false)?;
+                    }
+                }
             }
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
