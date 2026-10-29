@@ -84,7 +84,8 @@ pub struct RecordArgs {
     /// cloaked, minimized, where it is) and, now and then, komorebi's own answer to "would you manage
     /// this window, and why", so that a window komorebi shows but Windows has hidden (or the
     /// reverse) can be found. This is what a recording on Windows does unless told not to
-    /// (`--no-probe-windows`); on a Mac there is nothing to read, and asking for it is an error
+    /// (`--no-probe-windows`), and on KDE, where KWin is asked the same (and the window is told from the
+    /// others by its class, title and frame); on a Mac there is nothing to read, and asking for it is an error
     #[arg(long, conflicts_with = "no_probe_windows")]
     pub probe_windows: bool,
     /// Do not read what Windows says about each window (see `--probe-windows`, which Windows
@@ -241,8 +242,8 @@ impl RecordArgs {
 
     /// Returns whether the recording reads what Windows says about each window.
     ///
-    /// It does on Windows, unless `--no-probe-windows` says not to, and it does not elsewhere,
-    /// where there is nothing to read: `--probe-windows` asked for outright is kept as asked, so
+    /// It does on Windows and on KDE, unless `--no-probe-windows` says not to, and it does not on a
+    /// Mac, where there is nothing to read: `--probe-windows` asked for outright is kept as asked, so
     /// that a host that cannot do it says so instead of recording without it. The recorder window
     /// takes its options from [`RecordArgs::default`], so it follows the same rule.
     ///
@@ -251,8 +252,11 @@ impl RecordArgs {
     /// ```rust
     /// use komorebi_recorder::cli::RecordArgs;
     ///
-    /// // the default follows the host: Windows can be asked, a Mac cannot
-    /// assert_eq!(RecordArgs::default().probes_windows(), cfg!(windows));
+    /// // the default follows the host: Windows and KWin can be asked, macOS cannot
+    /// assert_eq!(
+    ///     RecordArgs::default().probes_windows(),
+    ///     komorebi_recorder::platform::window::CAN_PROBE
+    /// );
     ///
     /// // and can be turned off
     /// let off = RecordArgs {
@@ -270,7 +274,7 @@ impl RecordArgs {
     /// ```
     #[must_use]
     pub fn probes_windows(&self) -> bool {
-        !self.no_probe_windows && (self.probe_windows || cfg!(windows))
+        !self.no_probe_windows && (self.probe_windows || crate::platform::window::CAN_PROBE)
     }
 }
 

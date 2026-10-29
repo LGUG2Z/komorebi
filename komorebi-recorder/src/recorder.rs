@@ -736,10 +736,10 @@ impl<'a> Recording<'a> {
     /// Start every source, in the order that makes the non-video sources a superset of the video.
     #[allow(clippy::too_many_lines)]
     fn begin(options: &'a RecordOptions, live: &'a Live) -> eyre::Result<Self> {
-        if options.probe_windows && !cfg!(windows) {
+        if options.probe_windows && !crate::platform::window::CAN_PROBE {
             eyre::bail!(
-                "--probe-windows reads the state of komorebi for Windows' windows from Windows, \
-                 and this is not Windows"
+                "--probe-windows reads what the OS says about a window komorebi has reported on, \
+                 which Windows and KWin can say, and this host cannot"
             );
         }
 
@@ -964,7 +964,13 @@ impl<'a> Recording<'a> {
         let events = if options.no_komorebi {
             None
         } else {
-            let prober = options.probe_windows.then(EventProber::windows);
+            let prober = options.probe_windows.then(|| {
+                if cfg!(windows) {
+                    EventProber::windows()
+                } else {
+                    EventProber::kde()
+                }
+            });
             match EventRecorder::start_with(&session.dir, Some(discovery_tx), prober) {
                 Ok(recorder) => {
                     manifest.komorebi.subscriber = Some(recorder.subscriber_name().to_string());

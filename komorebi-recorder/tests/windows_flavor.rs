@@ -257,9 +257,10 @@ fn a_recording_without_probes_says_nothing_about_them() {
     assert!(trace["data"].get("window_probe").is_none(), "{trace}");
 }
 
-#[cfg(not(windows))]
+// Windows and KDE can be asked what the OS says about a window; macOS cannot
+#[cfg(not(any(windows, target_os = "linux")))]
 #[test]
-fn a_host_that_is_not_windows_refuses_to_probe_windows_before_it_records_anything() {
+fn a_host_that_cannot_be_asked_refuses_to_probe_windows_before_it_records_anything() {
     let out = std::env::temp_dir().join(format!("komorebi-probe-refused-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&out);
 
@@ -278,7 +279,7 @@ fn a_host_that_is_not_windows_refuses_to_probe_windows_before_it_records_anythin
 
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("not Windows"), "{stderr}");
+    assert!(stderr.contains("this host cannot"), "{stderr}");
     assert!(!out.exists(), "no session was started");
 }
 
