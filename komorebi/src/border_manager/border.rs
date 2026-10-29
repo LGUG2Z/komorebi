@@ -122,16 +122,16 @@ static BRUSH_PROPERTIES: LazyLock<D2D1_BRUSH_PROPERTIES> =
 unsafe fn apply_tracked_rect(border_pointer: *mut Border, rect: Rect) {
     unsafe {
         let reference_hwnd = (*border_pointer).tracking_hwnd;
-        let old_rect = (*border_pointer).window_rect;
+        // what was last drawn, and not `window_rect`, which the border manager sets from its
+        // own thread to where it found the window, whether the border has been drawn there or not
+        let drawn = (*border_pointer).rendered_rect;
         (*border_pointer).window_rect = rect;
 
         if let Err(error) = (*border_pointer).set_position(&rect, reference_hwnd) {
             tracing::error!("failed to update border position {error}");
         }
 
-        if (rect.is_same_size_as(&old_rect) && rect.has_same_position_as(&old_rect))
-            || (*border_pointer).render_target.is_none()
-        {
+        if !needs_redraw(&drawn, &rect) || (*border_pointer).render_target.is_none() {
             return;
         }
 
@@ -201,7 +201,14 @@ unsafe fn apply_tracked_rect(border_pointer: *mut Border, rect: Rect) {
         }
 
         let _ = render_target.EndDraw(None, None);
+        (*border_pointer).rendered_rect = rect;
     }
+}
+
+/// Whether a border that was last drawn around `drawn` is to be drawn again for a window that
+/// is at `rect`
+fn needs_redraw(drawn: &Rect, rect: &Rect) -> bool {
+    !(rect.is_same_size_as(drawn) && rect.has_same_position_as(drawn))
 }
 
 pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -225,6 +232,9 @@ pub struct Border {
     pub render_target: Option<RenderTarget>,
     pub tracking_hwnd: isize,
     pub window_rect: Rect,
+    /// The rect that the border was last drawn around: nothing is drawn again for a window that
+    /// is where it was drawn, whatever `window_rect` says
+    pub rendered_rect: Rect,
     pub window_kind: WindowKind,
     pub style: BorderStyle,
     pub width: i32,
@@ -244,6 +254,7 @@ impl From<isize> for Border {
             render_target: None,
             tracking_hwnd: 0,
             window_rect: Rect::default(),
+            rendered_rect: Rect::default(),
             window_kind: WindowKind::Unfocused,
             style: STYLE.load(),
             width: BORDER_WIDTH.load(Ordering::Relaxed),
@@ -293,6 +304,7 @@ impl Border {
                 render_target: None,
                 tracking_hwnd,
                 window_rect: WindowsApi::window_rect(tracking_hwnd).unwrap_or_default(),
+                rendered_rect: Rect::default(),
                 window_kind: WindowKind::Unfocused,
                 style: STYLE.load(),
                 width: BORDER_WIDTH.load(Ordering::Relaxed),
@@ -694,4 +706,31 @@ pub fn post_animated_rect(border_hwnd: isize) {
             LPARAM(0),
         )
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rect(left: i32, top: i32, width: i32, height: i32) -> Rect {
+        Rect {
+            left,
+            top,
+            right: width,
+            bottom: height,
+        }
+    }
+
+    #[test]
+    fn a_border_is_drawn_again_for_a_window_that_is_not_where_it_was_drawn() {
+        let drawn = rect(1310, 37, 2500, 2086);
+
+        assert!(!needs_redraw(&drawn, &rect(1310, 37, 2500, 2086)));
+        assert!(needs_redraw(&drawn, &rect(1210, 37, 2700, 2086)), "bigger");
+        assert!(needs_redraw(&drawn, &rect(1210, 37, 2500, 2086)), "moved");
+        assert!(needs_redraw(&drawn, &rect(1310, 37, 2500, 2000)), "shorter");
+
+        // a border that has been drawn nowhere is drawn for every window
+        assert!(needs_redraw(&Rect::default(), &drawn));
+    }
 }
