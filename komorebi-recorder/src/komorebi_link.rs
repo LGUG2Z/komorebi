@@ -104,10 +104,10 @@ const IO_TIMEOUT: Duration = Duration::from_secs(1);
 /// # Example
 ///
 /// ```rust
-/// use komorebi_recorder::komorebi_link::{data_dir, socket_path, KOMOREBI_SOCKET};
+/// use komorebi_recorder::komorebi_link::{data_dir, socket_dir, socket_path, KOMOREBI_SOCKET};
 ///
 /// assert!(data_dir().ends_with("komorebi"));
-/// assert_eq!(socket_path(KOMOREBI_SOCKET), data_dir().join("komorebi.sock"));
+/// assert_eq!(socket_path(KOMOREBI_SOCKET), socket_dir().join("komorebi.sock"));
 /// ```
 #[must_use]
 pub fn data_dir() -> &'static Path {
@@ -119,7 +119,35 @@ pub fn data_dir() -> &'static Path {
     })
 }
 
-/// Returns the path of the socket called `name` in komorebi's data directory ([`data_dir`]).
+/// Returns the directory komorebi's sockets are in.
+///
+/// That is [`data_dir`] for komorebi for Mac and for Windows. komorebi for KDE keeps them in
+/// `$XDG_RUNTIME_DIR/komorebi`, and in [`data_dir`] only where the session has no runtime
+/// directory, so on Linux this is the same.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::komorebi_link::{data_dir, socket_dir};
+///
+/// assert!(socket_dir().ends_with("komorebi"));
+/// # let _ = data_dir();
+/// ```
+#[must_use]
+pub fn socket_dir() -> &'static Path {
+    static SOCKET_DIR: OnceLock<PathBuf> = OnceLock::new();
+    SOCKET_DIR.get_or_init(|| {
+        if cfg!(target_os = "linux")
+            && let Some(runtime) = std::env::var_os("XDG_RUNTIME_DIR").filter(|dir| !dir.is_empty())
+        {
+            return PathBuf::from(runtime).join("komorebi");
+        }
+        data_dir().to_path_buf()
+    })
+}
+
+/// Returns the path of the socket called `name` in komorebi's socket directory
+/// ([`socket_dir`]).
 ///
 /// The name is joined as given, without checking that it is a plain file name, and the socket
 /// need not exist. A unix socket path is limited to about 104 bytes on macOS and 108 on Windows
@@ -127,7 +155,7 @@ pub fn data_dir() -> &'static Path {
 /// the recorder's subscriber socket fits.
 #[must_use]
 pub fn socket_path(name: &str) -> PathBuf {
-    data_dir().join(name)
+    socket_dir().join(name)
 }
 
 /// What a subscriber asks komorebi for.
@@ -437,7 +465,7 @@ mod tests {
     #[test]
     fn the_data_dir_is_komorebis() {
         assert!(data_dir().ends_with("komorebi"));
-        assert_eq!(socket_path("x.sock"), data_dir().join("x.sock"));
+        assert_eq!(socket_path("x.sock"), socket_dir().join("x.sock"));
     }
 
     #[test]
