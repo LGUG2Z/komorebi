@@ -68,6 +68,7 @@ class FakePlatform:
         self.rules: dict[str, int] = {}
         self.ignored: set[str] = set()
         self.placing = False
+        self.prefix_rules: list[tuple[str, int]] = []
         self.unmanaged: list[str] = []
         self.display_count = 2
         self.display_of: dict[str, int] = {}
@@ -133,6 +134,8 @@ class FakePlatform:
             self.spaces[self.initial_rules.pop(title)].append([title])
         elif title in self.rules:
             self.spaces[self.rules[title]].append([title])
+        elif (target := self._by_prefix(title)) is not None:
+            self.spaces[target].append([title])
         elif self.placing:
             self._place(title)
         else:
@@ -159,11 +162,33 @@ class FakePlatform:
         self.containers.insert(index, [title])
         self.focus = index
 
+    def _by_prefix(self, title: str) -> int | None:
+        for prefix, space in self.prefix_rules:
+            if title.startswith(prefix):
+                return space
+        return None
+
     def restart_with(self, config: dict[str, Any]) -> None:
         self.start_komorebi()
-        workspace = config["monitors"][0]["workspaces"][0]
-        self.placement = workspace.get("initial_window_placement_rules")
+        workspaces = config["monitors"][0]["workspaces"]
+        self.placement = workspaces[0].get("initial_window_placement_rules")
+        self.prefix_rules = [
+            (rule["id"], index)
+            for index, workspace in enumerate(workspaces)
+            for rule in workspace.get("workspace_rules", [])
+            if rule["matching_strategy"] == "StartsWith"
+        ]
+        for title in [t for stack in self.spaces[0] for t in stack]:
+            target = self._by_prefix(title)
+            if target not in (None, 0):
+                self._find_remove(title)
+                self.spaces[target].append([title])
+        self._relayout()
         self.placing = True
+
+    def _find_remove(self, title: str) -> None:
+        space, index = self._find(title)
+        self.spaces[space].pop(index)
 
     def _find(self, title: str) -> tuple[int, int]:
         for s, containers in enumerate(self.spaces):

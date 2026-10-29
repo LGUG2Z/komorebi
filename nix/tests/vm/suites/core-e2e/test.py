@@ -24,6 +24,7 @@ from komorebi_vm.core.scenarios import (
     placement,
     rules,
     stacks,
+    startup_rules,
     tiling,
     workspaces,
 )
@@ -461,6 +462,10 @@ rules.run(platform, checks)
 
 print("== 12a. where a window that opens goes, from the placement rules of the config")
 placement.run(platform, checks)
+checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
+
+print("== 12a2. the workspace rules of the config, with a window open before the daemon")
+startup_rules.run(platform, checks)
 checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
 # a window for the stop to leave behind
 platform.spawn("afterwards")
