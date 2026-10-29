@@ -215,8 +215,12 @@ def test_a_temp_path_is_in_the_guest_and_a_bad_name_is_rejected() -> None:
     platform = WindowsPlatform(SimpleNamespace(), agent, Path("."))
 
     assert platform.temp_path("e2e-resize.json") == "C:\\e2e\\tmp\\e2e-resize.json"
-    with pytest.raises(ValueError):
-        platform.temp_path("..\\x")
+    assert platform.temp_path("wallpapers/my pictures/cool.png") == (
+        "C:\\e2e\\tmp\\wallpapers\\my pictures\\cool.png"
+    )
+    for bad in ("..\\x", "a/../../x", "/abs", "C:\\x", ""):
+        with pytest.raises(ValueError):
+            platform.temp_path(bad)
 
 
 def test_acting_on_a_window_that_is_not_there_raises_a_clear_error() -> None:

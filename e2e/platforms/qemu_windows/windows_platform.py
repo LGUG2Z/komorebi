@@ -231,10 +231,16 @@ class WindowsPlatform:
         self._agent.put_file(local, CONFIG_PATH)
 
     def temp_path(self, name: str) -> str:
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
+        # a path under the temp folder, with folders in it, which may have a
+        # space: never one that leaves the folder
+        parts = name.replace("\\", "/").split("/")
+        if not all(
+            re.fullmatch(r"[A-Za-z0-9_.-][A-Za-z0-9 _.-]*", part) and part != ".."
+            for part in parts
+        ):
             raise ValueError(f"not a file name: {name!r}")
         self._agent.exec("cmd", "/c", f"mkdir {TEMP_DIR} 2>nul")
-        return f"{TEMP_DIR}\\{name}"
+        return TEMP_DIR + "\\" + "\\".join(parts)
 
     def put_file(self, path: str, data: bytes) -> None:
         parent = path.rsplit("\\", 1)[0]
