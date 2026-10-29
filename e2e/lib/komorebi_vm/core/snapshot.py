@@ -85,6 +85,13 @@ class Snapshot:
         m = self.monitors[monitor]
         return m.workspaces[m.focused_workspace if workspace is None else workspace]
 
+    def workspace_of(self, title: str, monitor: int = 0) -> int | None:
+        """The place of the workspace of a monitor that has a window with this title, or `None`."""
+        for i, workspace in enumerate(self.monitors[monitor].workspaces):
+            if any(w.title == title for w in workspace.windows()):
+                return i
+        return None
+
     def containers(self, workspace: int | None = None, monitor: int = 0) -> list[list[str]]:
         """The titles of the windows of each tiled container of a workspace."""
         return [[w.title for w in c] for c in self.workspace(workspace, monitor).containers]

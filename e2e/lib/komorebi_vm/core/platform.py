@@ -97,6 +97,11 @@ class Platform(Protocol):
         """Runs `komorebic` with `args` and returns what it printed. Fails if it does."""
         ...
 
+    def komorebic_status(self, *args: str) -> tuple[int, str]:
+        """Runs `komorebic` with `args` and returns its exit status and what it printed, whether
+        it succeeded or not."""
+        ...
+
     def state(self) -> Snapshot:
         """The daemon's state."""
         ...
@@ -116,6 +121,22 @@ class Platform(Protocol):
         That is a window parked on a desktop of its own on KDE, and cloaked on Windows. A window
         the user minimized is not hidden in this sense.
         """
+        ...
+
+    def displays(self) -> list[Rect]:
+        """The displays the operating system has, left to right: each one's rectangle in the
+        coordinates of the desktop. The daemon is not asked."""
+        ...
+
+    def add_display(self) -> None:
+        """Plugs in another display, to the right of the others, and returns when the operating
+        system has it. The daemon learns of it later, so a scenario waits for its state to follow.
+        A platform may give it another size than the others; `displays()` says which."""
+        ...
+
+    def remove_display(self) -> None:
+        """Unplugs the display that was plugged in last, and returns when the operating system no
+        longer has it."""
         ...
 
     def close(self, client: Client) -> None:
