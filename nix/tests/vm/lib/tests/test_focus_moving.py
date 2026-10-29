@@ -9,6 +9,7 @@ from komorebi_vm.core.scenarios import (
     lifecycle,
     monocle,
     moving,
+    placement,
     resize,
     rules,
     stacks,
@@ -279,3 +280,23 @@ def test_a_known_failure_does_not_fail_the_suite_until_it_is_fixed() -> None:
     clients = opened(fixed, checks)
     commands.unknown_monitor(fixed, checks, clients, known_failure=reason)
     assert checks.failed == 2 and checks.known == []
+
+
+def test_a_daemon_that_follows_the_placement_rules_passes() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    placement.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed == len(placement.CASES)
+
+
+def test_a_daemon_that_ignores_the_placement_rules_fails() -> None:
+    class Ignores(FakePlatform):
+        def restart_with(self, config: dict) -> None:
+            super().restart_with(config)
+            self.placement = None
+
+    platform = Ignores()
+    checks = Checks()
+    placement.run(platform, checks)
+    assert checks.failed == len(placement.CASES) - 1, checks.failures

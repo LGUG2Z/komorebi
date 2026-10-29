@@ -63,6 +63,9 @@ class FakePlatform:
     def start_komorebi(self) -> None:
         pass
 
+    def restart_with(self, config: dict) -> None:
+        pass
+
     def komorebic(self, *args: str) -> str:
         return ""
 

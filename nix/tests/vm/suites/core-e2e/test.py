@@ -21,6 +21,7 @@ from komorebi_vm.core.scenarios import (
     lifecycle,
     monocle,
     moving,
+    placement,
     rules,
     stacks,
     tiling,
@@ -457,6 +458,10 @@ for title in ("neutral2", "neutral3"):
 checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
 platform.komorebic("focus-workspace", "0")
 rules.run(platform, checks)
+
+print("== 12a. where a window that opens goes, from the placement rules of the config")
+placement.run(platform, checks)
+checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
 # a window for the stop to leave behind
 platform.spawn("afterwards")
 checks.check("it is managed", kde.wait_for(lambda: kde.managed_all() == 1, timeout=20))

@@ -1,7 +1,9 @@
 """KDE as a [`Platform`](komorebi_vm.core.platform.Platform): a `Kde` session, seen through the
 neutral vocabulary."""
 
+import json
 import shlex
+from typing import Any
 
 from PIL import Image
 
@@ -50,6 +52,16 @@ class KdePlatform:
         if not status:
             raise AssertionError("the daemon did not answer komorebic")
 
+    def restart_with(self, config: dict[str, Any]) -> None:
+        if self.kde.komorebi_running():
+            self.kde.komorebic("stop")
+            self.kde.wait_for(lambda: not self.kde.komorebi_running(), timeout=30)
+        path = "/tmp/e2e-restart-config.json"
+        self.kde.sh(f"printf %s {shlex.quote(json.dumps(config))} > {path}")
+        self.kde.start_komorebi("--config", path)
+        if not self.kde.wait_for(lambda: self.kde.run("komorebic state")[0] == 0, timeout=30):
+            raise AssertionError("the daemon did not answer komorebic")
+
     def komorebic(self, *args: str) -> str:
         return self.kde.komorebic(*args)
 
@@ -60,7 +72,7 @@ class KdePlatform:
         return snapshot.parse(self.kde.state())
 
     def spawn(self, title: str) -> Client:
-        self.kde.spawn(f"foot -T {title} sleep 3000")
+        self.kde.spawn(f"foot -T {shlex.quote(title)} sleep 3000")
         self.kde.wait_for(lambda: self.kde.wid(title) != "", timeout=30)
         return Client(title)
 

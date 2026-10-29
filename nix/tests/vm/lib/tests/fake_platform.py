@@ -17,6 +17,11 @@ from komorebi_vm.core.snapshot import Snapshot, parse
 TILES = [Rect(0, 0, 640, 1080), Rect(640, 0, 640, 1080), Rect(1280, 0, 640, 1080)]
 
 
+def _place_index(place: str, count: int) -> int:
+    """The index a placement rule's place stands for: `Primary`, `Last`, or a number from 1."""
+    return int(place) - 1 if place.isdigit() else {"Primary": 0, "Last": count}[place]
+
+
 class FakePointer:
     """A pointer that, dragged from just outside the right edge of a tile, moves that edge."""
 
@@ -62,11 +67,13 @@ class FakePlatform:
         self.initial_rules: dict[str, int] = {}
         self.rules: dict[str, int] = {}
         self.ignored: set[str] = set()
+        self.placing = False
         self.unmanaged: list[str] = []
         self.display_count = 2
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.running = True
+        self.placement: Any = None
         self.moves = moves
         self.focus_follows_move = focus_follows_move
 
@@ -126,11 +133,37 @@ class FakePlatform:
             self.spaces[self.initial_rules.pop(title)].append([title])
         elif title in self.rules:
             self.spaces[self.rules[title]].append([title])
+        elif self.placing:
+            self._place(title)
         else:
             self.containers.append([title])
         if len(self.containers) > len(self.tiles):
             self._relayout()
         return Client(title)
+
+    def _place(self, title: str) -> None:
+        """A window goes where the placement rules say, or after the one in focus, and has the
+        focus."""
+        n = len(self.containers)
+        index = min(self.focus + 1, n) if n else 0
+        rules = self.placement
+        if isinstance(rules, dict):
+            for place, matches in rules.items():
+                for match in matches if isinstance(matches, list) else [matches]:
+                    equals = match["matching_strategy"] == "Equals"
+                    if (title == match["id"]) if equals else (match["id"] in title):
+                        index = _place_index(place, n)
+        elif rules is not None:
+            index = 0 if rules == "Primary" else int(rules) - 1
+        index = max(0, min(index, n))
+        self.containers.insert(index, [title])
+        self.focus = index
+
+    def restart_with(self, config: dict[str, Any]) -> None:
+        self.start_komorebi()
+        workspace = config["monitors"][0]["workspaces"][0]
+        self.placement = workspace.get("initial_window_placement_rules")
+        self.placing = True
 
     def _find(self, title: str) -> tuple[int, int]:
         for s, containers in enumerate(self.spaces):
