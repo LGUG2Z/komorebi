@@ -6,6 +6,7 @@ from komorebi_vm.core.scenarios import (
     commands,
     focus,
     hotplug,
+    lifecycle,
     monocle,
     moving,
     resize,
@@ -107,6 +108,28 @@ def test_a_daemon_that_is_right_passes_closing() -> None:
     closing.run(platform, checks, clients, clients[-1])
     assert checks.failed == 0, checks.failures
     assert checks.passed > 4
+
+
+def test_a_daemon_that_is_right_passes_lifecycle() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    lifecycle.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 5
+
+
+def test_a_daemon_that_does_not_take_its_windows_up_again_fails_lifecycle() -> None:
+    class Forgetful(FakePlatform):
+        def start_komorebi(self) -> None:
+            self.running = True
+            self.spaces = [[], [], []]
+
+    platform = Forgetful()
+    checks = Checks()
+    clients = opened(platform, checks)
+    lifecycle.run(platform, checks, clients)
+    assert checks.failed > 0
 
 
 def test_a_command_the_port_lacks_is_skipped_by_name() -> None:
