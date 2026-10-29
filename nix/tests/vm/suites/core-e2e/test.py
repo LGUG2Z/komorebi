@@ -13,6 +13,8 @@
 import json
 
 from komorebi_vm import Checks, Kde, Rect, daemon
+from komorebi_vm.core.scenarios import tiling
+from komorebi_vm.kde_platform import KdePlatform
 
 W, H = 1920, 1080
 PARK = "komorebi-park"
@@ -346,12 +348,19 @@ checks.check(
 )
 report(["afterwards"])
 
-print("== 12. komorebic stop")
+print("== 12. the same tiling, through the neutral platform")
+# the scenario of komorebi_vm.core.scenarios.tiling is what runs on Windows too: it asks the
+# operating system where the windows are, and not the daemon's log
+kde.close(kde.wid("afterwards"))
+checks.check("the window of the last section is closed", kde.wait_for(lambda: kde.managed() == 0))
+tiling.run(KdePlatform(kde, (W, H)), checks, titles=("neutral1", "neutral2", "neutral3"))
+
+print("== 13. komorebic stop")
 kde.komorebic("stop")
 checks.check("the daemon exited", kde.wait_for(lambda: not kde.komorebi_running()))
 checks.check("its socket is gone", kde.run(f"test -e {kde.runtime}/komorebi/komorebi.sock")[0] != 0)
 checks.check("the script is no longer in KWin", kde.wait_for(lambda: not kde.script_loaded()))
-checks.check("the window stays", kde.wid("afterwards") != "")
+checks.check("the windows stay", kde.wid("neutral1") != "")
 
 kde.stop()
 checks.finish()

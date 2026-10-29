@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 dependencies = ["pillow"]
 
 [tool.setuptools]
-packages = ["komorebi_vm", "komorebi_vm.core"]
+packages = ["komorebi_vm", "komorebi_vm.core", "komorebi_vm.core.scenarios"]
 
 [tool.setuptools.package-data]
 komorebi_vm = ["py.typed"]

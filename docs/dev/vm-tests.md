@@ -149,6 +149,14 @@ the run.
   goes in `Snapshot.extra`. Its unit tests use fixtures written from the two
   ports' serializers; recorded states replace them once a run on each port
   exists.
+- `Platform` (`core/platform.py`) is what a scenario needs of a platform: start the
+  daemon, run `komorebic`, read the `Snapshot`, open a window, ask the operating
+  system for its frame (`os_window`, the oracle: the daemon's state is the thing
+  under test), and take a screenshot. `core/scenarios` has the scenarios written
+  against it; `tiling` is the first. A method is added with the first scenario
+  that needs it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a
+  `Platform`, and the `core-e2e` suite runs `tiling` through it after its own
+  sections.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines
