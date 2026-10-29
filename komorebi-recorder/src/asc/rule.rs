@@ -249,6 +249,13 @@ impl Rule {
                 }
                 identifiers.push(Identifier::title(&ghost.title));
             }
+            Platform::Kde => {
+                return Err(NoRule(
+                    "the rules of komorebi for KDE are in its own repository, and a rule for it is \
+                     not written here yet"
+                        .to_string(),
+                ));
+            }
         }
 
         Ok(Self::ignore(&app_name(&ghost.exe), identifiers))

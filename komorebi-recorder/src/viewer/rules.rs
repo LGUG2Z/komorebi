@@ -308,7 +308,7 @@ fn what_was_seen(ghost: &GhostTile) -> String {
              window exists.",
             ghost.exe, ghost.class, ghost.reads, ghost.hidden_how,
         ),
-        Platform::Macos => format!(
+        Platform::Macos | Platform::Kde => format!(
             "komorebi gave `{}` ({}) a tile, and on {} reads between {from} and {to} the frame it \
              had for the window was {}, never one a person could see. The tile is empty for as long \
              as the window exists.",

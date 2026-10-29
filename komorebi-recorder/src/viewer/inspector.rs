@@ -68,8 +68,8 @@ fn chip(ui: &mut egui::Ui, text: &str, colour: Color32) {
 fn ghost_name(ghost: &GhostTile) -> String {
     match ghost.platform {
         Platform::Windows => format!("{} ({})", ghost.exe, ghost.class),
-        Platform::Macos if ghost.title.is_empty() => ghost.exe.clone(),
-        Platform::Macos => format!("{} ({:?})", ghost.exe, ghost.title),
+        Platform::Macos | Platform::Kde if ghost.title.is_empty() => ghost.exe.clone(),
+        Platform::Macos | Platform::Kde => format!("{} ({:?})", ghost.exe, ghost.title),
     }
 }
 

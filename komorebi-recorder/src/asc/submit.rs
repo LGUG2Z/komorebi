@@ -165,7 +165,7 @@ impl Proposal {
                 class = ghost.class,
                 titled = quoted_title(&ghost.title),
             ),
-            Platform::Macos => format!(
+            Platform::Macos | Platform::Kde => format!(
                 "window {hwnd} of `{exe}` ({titled})",
                 hwnd = ghost.hwnd,
                 exe = ghost.exe,
@@ -185,14 +185,21 @@ impl Proposal {
                  whether a window is drawn, so this is the frame komorebi had for it)",
                 how = ghost.hidden_how
             ),
+            Platform::Kde => format!(
+                "in every one of those states the frame of the window, as KWin reports it, was {how}, \
+                 and it was never a frame a person could see. (this is the frame komorebi had for \
+                 the window, and not KWin saying that the window is not drawn)",
+                how = ghost.hidden_how
+            ),
         };
         let recorded_with = match platform {
             Platform::Windows => "with window probes on (komorebi-recorder's default on Windows)",
             Platform::Macos => "of komorebi for Mac",
+            Platform::Kde => "of komorebi for KDE",
         };
         let reads = match platform {
             Platform::Windows => "read the state of",
-            Platform::Macos => "recorded the state of",
+            Platform::Macos | Platform::Kde => "recorded the state of",
         };
         let others = if ghost.siblings.is_empty() {
             format!(
@@ -210,7 +217,7 @@ impl Proposal {
                         sibling.class,
                         quoted_title(&sibling.title)
                     ),
-                    Platform::Macos => quoted_title(&sibling.title),
+                    Platform::Macos | Platform::Kde => quoted_title(&sibling.title),
                 })
                 .collect();
             seen.sort();
@@ -234,7 +241,7 @@ impl Proposal {
                     "the program **and** the class"
                 }
             }
-            Platform::Macos => "the application **and** the title",
+            Platform::Macos | Platform::Kde => "the application **and** the title",
         };
         let body = format!(
             "Ignore {what}: {komorebi} gives it a tile that a person can never see.\n\

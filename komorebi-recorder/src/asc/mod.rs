@@ -32,6 +32,9 @@ pub enum Platform {
     /// komorebi for Mac: `applications.mac.json`. Programs are application names, and a window has
     /// no class.
     Macos,
+    /// komorebi for KDE. Its rules are in `komorebic/applications.json` of its own repository, and
+    /// nothing here writes or proposes one yet. Programs are application ids, as are classes.
+    Kde,
 }
 
 impl Platform {
@@ -40,9 +43,8 @@ impl Platform {
     pub fn of(flavor: Flavor) -> Self {
         match flavor {
             Flavor::Windows => Self::Windows,
-            // komorebi for KDE has no rule file here yet, and no ghost tiles are found for it
-            // (see `Analysis::ghost_tiles`), so nothing asks for the platform of one
-            Flavor::Macos | Flavor::Kde => Self::Macos,
+            Flavor::Macos => Self::Macos,
+            Flavor::Kde => Self::Kde,
         }
     }
 
@@ -52,6 +54,7 @@ impl Platform {
         match self {
             Self::Windows => "applications.json",
             Self::Macos => "applications.mac.json",
+            Self::Kde => "komorebic/applications.json",
         }
     }
 
@@ -61,6 +64,7 @@ impl Platform {
         match self {
             Self::Windows => "komorebi for Windows",
             Self::Macos => "komorebi for Mac",
+            Self::Kde => "komorebi for KDE",
         }
     }
 }
