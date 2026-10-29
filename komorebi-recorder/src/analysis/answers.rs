@@ -179,6 +179,11 @@ pub struct EventsData {
     /// The name komorebi knew this recorder by. When komorebi logs at DEBUG it names it for each
     /// notification pushed, which makes pairing events with handlers exact.
     pub subscriber: Option<String>,
+    /// Set when some of the returned events show the received time as their `komorebi_time`
+    /// because the log has no `pushed notification` line for them: says so and why. Absent when
+    /// every event has its pushed time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub komorebi_time_note: Option<String>,
 }
 
 /// Which windows, monitors and workspaces a state answer is about.
@@ -476,6 +481,7 @@ impl Analysis {
             .iter()
             .filter_map(|index| self.event_view(*index))
             .collect();
+        let komorebi_time_note = super::views::komorebi_time_note(&events);
         let next_cursor = (count < remaining.len())
             .then(|| events.last().map(|view| view.seq.to_string()))
             .flatten();
@@ -486,6 +492,7 @@ impl Analysis {
                 matching: wanted.len(),
                 total: all.len(),
                 subscriber: self.pairing().subscriber.clone(),
+                komorebi_time_note,
             },
             next_cursor,
         }

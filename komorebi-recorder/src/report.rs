@@ -757,7 +757,8 @@ pub fn diff_text(data: &DiffData) -> String {
 /// let analysis = Analysis::open(&session.dir)?;
 ///
 /// let text = events_text(&analysis.events_answer(&EventQuery::default()).data, false);
-/// assert!(text.starts_with("1 of 1 events\n#1     00:02.000  command"));
+/// assert!(text.contains("\n#1     00:02.000 r  command"));
+/// assert!(text.contains("note: 1 of 1 events have no `pushed notification"));
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[must_use]
@@ -774,6 +775,13 @@ pub fn events_text(data: &EventsData, verbose: bool) -> String {
                 " (recorded as subscriber {name})"
             ))
     );
+    let _ = writeln!(
+        out,
+        "times: p = when komorebi pushed the notification, r = when the recorder received it (no pushed line in the log){}",
+        data.komorebi_time_note
+            .as_ref()
+            .map_or_else(String::new, |note| format!("\nnote: {note}"))
+    );
 
     for event in &data.events {
         let handler = event.handler.as_ref().map_or_else(String::new, |handler| {
@@ -785,8 +793,9 @@ pub fn events_text(data: &EventsData, verbose: bool) -> String {
             } else {
                 String::new()
             };
-            format!("  handler{ms}{problems}{}", pushed_text(handler))
+            format!("  handler{ms}{problems}")
         });
+        let received = received_text(event);
         let state = match event.state_changed {
             Some(true) => "  state changed",
             Some(false) => "  state unchanged",
@@ -794,9 +803,10 @@ pub fn events_text(data: &EventsData, verbose: bool) -> String {
         };
         let _ = writeln!(
             out,
-            "#{:<5} {}  {:<9}  {}{handler}{state}",
+            "#{:<5} {}{}  {:<9}  {}{handler}{received}{state}",
             event.seq,
-            timecode::format(event.video_s),
+            timecode::format(event.komorebi_time.video_s),
+            source_marker(event),
             format!("{:?}", event.class).to_lowercase(),
             event.summary,
         );
@@ -1258,6 +1268,31 @@ fn pushed_text(handler: &crate::analysis::views::HandlerView) -> String {
             )
         }
         _ => String::new(),
+    }
+}
+
+/// `p` after a time when it is when komorebi pushed the notification, `r` when it is when the
+/// recorder received it (the log has no pushed line, so that is all there is).
+fn source_marker(event: &EventView) -> &'static str {
+    match event.komorebi_time.source {
+        crate::analysis::views::TimeSource::Pushed => " p",
+        crate::analysis::views::TimeSource::Received => " r",
+    }
+}
+
+/// `  received 00:05.000`: when the recorder got the notification, if that was well after komorebi
+/// pushed it.
+fn received_text(event: &EventView) -> String {
+    let delay_ms = (event.video_s - event.komorebi_time.video_s) * 1000.0;
+    if event.komorebi_time.source == crate::analysis::views::TimeSource::Pushed
+        && delay_ms >= DELIVERY_NOTE_MS
+    {
+        format!(
+            "  received {} ({delay_ms:.0} ms after pushed)",
+            timecode::format(event.video_s)
+        )
+    } else {
+        String::new()
     }
 }
 

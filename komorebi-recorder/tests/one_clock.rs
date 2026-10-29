@@ -232,3 +232,30 @@ fn a_handler_that_really_was_slow_is_still_a_slow_handler() {
             .all(|finding| finding["kind"] != "delivery-batching")
     );
 }
+
+#[test]
+fn the_events_listing_shows_komorebis_time_and_which_it_is() {
+    // pushed lines present: the time is komorebi's, and the received time follows
+    let dir = batched("one-clock-ktime-pushed", true);
+    let events = json(&["events", &dir, "--json"]);
+    let first = &events["data"]["events"][0];
+    assert_eq!(first["komorebi_time"]["source"], "pushed");
+    assert!((first["komorebi_time"]["video_s"].as_f64().expect("time") - 2.005).abs() < 1e-3);
+    assert!(
+        events["data"].get("komorebi_time_note").is_none(),
+        "{events}"
+    );
+    let text = String::from_utf8_lossy(&run(&["events", &dir]).stdout).into_owned();
+    assert!(text.contains("00:02.005 p"), "{text}");
+    assert!(text.contains("received 00:05.000"), "{text}");
+
+    // no subscriber to match the lines against: received, and it says so
+    let dir = batched("one-clock-ktime-received", false);
+    let events = json(&["events", &dir, "--json"]);
+    let first = &events["data"]["events"][0];
+    assert_eq!(first["komorebi_time"]["source"], "received", "{first}");
+    assert!(events["data"]["komorebi_time_note"].is_string(), "{events}");
+    let text = String::from_utf8_lossy(&run(&["events", &dir]).stdout).into_owned();
+    assert!(text.contains("00:05.000 r"), "{text}");
+    assert!(text.contains("note: "), "{text}");
+}
