@@ -67,6 +67,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
+#[cfg(target_os = "linux")]
+pub mod gst;
 pub mod manager;
 #[cfg(target_os = "macos")]
 pub mod sck;
@@ -79,8 +81,8 @@ pub mod wgc;
 /// The text forms are `hevc` and `h264`. [`Display`](std::fmt::Display) writes them, `session.json`
 /// stores them, and the `--codec` option of `record` accepts them.
 ///
-/// The default is [`Codec::Hevc`] on a Mac and [`Codec::H264`] on Windows. The macOS backend
-/// records either. The Windows backend records only H.264 and refuses [`Codec::Hevc`] when a
+/// The default is [`Codec::Hevc`] on a Mac and [`Codec::H264`] on Windows and Linux. The macOS backend
+/// records either. The Windows and Linux backends record only H.264 and refuse [`Codec::Hevc`] when a
 /// capture starts.
 ///
 /// # Example
@@ -97,7 +99,7 @@ pub mod wgc;
 /// assert_eq!(possible.get_name(), "h264");
 ///
 /// // The default depends on the host the crate was built for.
-/// let expected = if cfg!(windows) { Codec::H264 } else { Codec::Hevc };
+/// let expected = if cfg!(any(windows, target_os = "linux")) { Codec::H264 } else { Codec::Hevc };
 /// assert_eq!(Codec::default(), expected);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -116,7 +118,7 @@ impl Default for Codec {
     /// HEVC Video Extensions to be installed, and its MP4 writer cannot write HEVC without a
     /// hand-built sample description.
     fn default() -> Self {
-        if cfg!(windows) {
+        if cfg!(any(windows, target_os = "linux")) {
             Codec::H264
         } else {
             Codec::Hevc
