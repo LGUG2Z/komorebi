@@ -221,6 +221,10 @@ class WindowsPlatform:
         # the daemon reads the file again when told to: it does not watch it
         self.komorebic("replace-configuration", CONFIG_PATH)
 
+    def exe_id(self, program: str) -> str:
+        # kfw names the exe of a window with its extension
+        return f"{program}.exe"
+
     def _locked(self) -> bool:
         listing = self._agent.exec(
             "tasklist", "/fi", "imagename eq LogonUI.exe"
