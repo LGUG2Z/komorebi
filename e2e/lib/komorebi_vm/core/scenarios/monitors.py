@@ -107,6 +107,7 @@ def _after(
     """Checks what `command` did: each of `expected` is on its monitor and workspace, in view
     where its monitor shows it, and the focus is on `monitor`."""
     titles = list(expected)
+    failed_before = checks.failed
     checks.check(
         f"after '{command}' the daemon has every window on the monitor and the workspace that "
         "were asked for, and the others where they were",
@@ -130,6 +131,36 @@ def _after(
     problem = _focus_problem(platform, monitor, title)
     where = f"monitor {monitor}" + (f", on {title}" if title else "")
     checks.check(f"after '{command}' the focus is on {where}: {problem or 'ok'}", problem is None)
+    if checks.failed > failed_before:
+        print(_dump(platform))
+
+
+def _filled(platform: Platform, monitor: int) -> int:
+    """How many of a monitor's workspaces have a window."""
+    return sum(1 for w in platform.state().monitors[monitor].workspaces if w.windows())
+
+
+def _shows_a_workspace(platform: Platform, monitor: int) -> bool:
+    """The monitor shows one of the workspaces it has."""
+    state = platform.state().monitors[monitor]
+    return 0 <= state.focused_workspace < len(state.workspaces)
+
+
+def _dump(platform: Platform) -> str:
+    """What the daemon has of each monitor: where it is, which workspace it shows, and the windows
+    of each of its workspaces, for a failed check to print."""
+    state = platform.state()
+    lines = []
+    for index, monitor in enumerate(state.monitors):
+        shown = monitor.focused_workspace
+        lines.append(
+            f"     monitor {index} at ({monitor.size.x}, {monitor.size.y}), shows workspace {shown}"
+            + (", focused" if index == state.focused_monitor else "")
+        )
+        for number, workspace in enumerate(monitor.workspaces):
+            titles = [w.title for w in workspace.windows()]
+            lines.append(f"       workspace {number} {workspace.name or ''}: {titles}")
+    return "\n".join(lines)
 
 
 def _focus(platform: Platform, title: str, monitor: int) -> None:
@@ -184,8 +215,10 @@ def run(platform: Platform, checks: Checks) -> None:
       `focus-monitor-workspace` shows a workspace of a monitor and focuses it.
     - `cycle-move-workspace-to-monitor` takes the focused workspace, with its windows, to the end
       of the other monitor's workspaces, shows it there and focuses the monitor. The monitor it
-      left shows the workspace before it. It is done here to a workspace the monitor can spare:
-      done to the only workspace a monitor has, it leaves an empty one in its place.
+      left shows a workspace it has: the one before it (kfw), or, where the monitors share their
+      workspaces and one with more makes the other have as many (KDE, whose virtual desktops
+      are common to the outputs), the last of its empty ones. It is done here to a workspace the
+      monitor can spare: done to the only workspace a monitor has, it leaves an empty one.
 
     Surprising, and so not asserted: `focus-monitor` to a monitor with no window does not move the
     focus of the operating system, since there is no window to give it to, while the daemon's
@@ -224,8 +257,6 @@ def run(platform: Platform, checks: Checks) -> None:
         "... in view and apart, on the first display",
         platform.wait_for(lambda: _view_problem(platform, names) is None, timeout=20),
     )
-    count_a = len(platform.state().monitors[a].workspaces)
-    count_b = len(platform.state().monitors[b].workspaces)
 
     # send-to-monitor: the window goes, the focus stays
     _focus(platform, w4, a)
@@ -304,28 +335,31 @@ def run(platform: Platform, checks: Checks) -> None:
 
     # a workspace to the other monitor and back: the workspace with the two windows is the one
     # the second monitor can spare. A workspace that is moved goes to the end of the monitor's
+    # (the counts are read now, not earlier: on a platform whose workspaces are shared by the
+    # monitors, one monitor having more makes the other have as many, empty ones)
+    filled_a = _filled(platform, a)
+    at_a = len(platform.state().monitors[a].workspaces)
     platform.komorebic("cycle-move-workspace-to-monitor", "next")
-    expected[w1] = expected[w2] = (a, count_a)
-    _after(
-        platform, checks, "cycle-move-workspace-to-monitor next", expected, a, shown={a: count_a}
-    )
+    expected[w1] = expected[w2] = (a, at_a)
+    _after(platform, checks, "cycle-move-workspace-to-monitor next", expected, a, shown={a: at_a})
     checks.check(
-        "... the monitor it left shows the first workspace it has",
-        platform.wait_for(lambda: platform.state().monitors[b].focused_workspace == 0),
+        "... the monitor it left still has a workspace to show",
+        platform.wait_for(lambda: _shows_a_workspace(platform, b)),
     )
+    at_b = len(platform.state().monitors[b].workspaces)
     platform.komorebic("cycle-move-workspace-to-monitor", "next")
-    expected[w1] = expected[w2] = (b, count_b - 1)
+    expected[w1] = expected[w2] = (b, at_b)
     _after(
         platform,
         checks,
         "cycle-move-workspace-to-monitor next, back",
         expected,
         b,
-        shown={b: count_b - 1},
+        shown={b: at_b},
     )
     checks.check(
-        "... and the first monitor has the workspaces it had",
-        platform.wait_for(lambda: len(platform.state().monitors[a].workspaces) == count_a),
+        "... and the first monitor has the workspaces with windows it had",
+        platform.wait_for(lambda: _filled(platform, a) == filled_a),
     )
 
     for client in clients:
