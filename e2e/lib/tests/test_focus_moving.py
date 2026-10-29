@@ -1,7 +1,16 @@
 """The focus and moving scenarios against a daemon that is right, and against ones that are not."""
 
 from komorebi_vm.core.checks import Checks
-from komorebi_vm.core.scenarios import focus, moving, resize, stacks, tiling, workspaces
+from komorebi_vm.core.scenarios import (
+    closing,
+    focus,
+    monocle,
+    moving,
+    resize,
+    stacks,
+    tiling,
+    workspaces,
+)
 from tests.fake_platform import FakePlatform
 
 
@@ -77,3 +86,21 @@ def test_a_platform_with_no_pointer_skips_resize() -> None:
     passed = checks.passed
     resize.run(platform, checks, clients)
     assert (checks.passed, checks.failed) == (passed, 0)
+
+
+def test_a_daemon_that_is_right_passes_monocle() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    monocle.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 5
+
+
+def test_a_daemon_that_is_right_passes_closing() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    closing.run(platform, checks, clients, clients[-1])
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
