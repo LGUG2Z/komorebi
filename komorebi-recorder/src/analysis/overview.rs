@@ -18,6 +18,7 @@
 //! | `kind` | what it is | severity |
 //! |---|---|---|
 //! | `invariant:<kind>` | a violation found by [`invariants::check`] in the recorded states (`invariants::check_probed` for a recording made with `--probe-windows`), from the first state that has it to the first that does not, or to the end of the recording | the violation's own; one that was gone again within 0.5 s (for the probe's findings: seen at a single probe and gone at the window's next) is a transition in progress and is lowered one step (error to warn, anything else to info) |
+//! | `geometry-lag:window`, `geometry-lag:border` | a window off the rect komorebi's layout gave it, or its border not evenly around it, for longer than a grace after a layout change and by more than a tolerance (see [`super::lag`]); needs `--window-track`, and none on KDE, whose track is not independent of the layout | warn for 1 s or more or still so at the end, else info |
 //! | `window-flapping` | one window's hidden state flipping (parked in komorebi's hiding position, or brought back) at least 4 times within 10 s | warn |
 //! | `focus-oscillation` | focus changing at least 4 times within 5 s between at most two windows | warn |
 //! | `event-storm` | 20 or more events within 1 s | warn for 60 or more, else info |
@@ -411,6 +412,7 @@ impl Analysis {
         let mut found = Vec::new();
         self.find_state_problems(&mut found)?;
         self.find_probed_problems(&mut found)?;
+        self.find_lag_problems(&mut found)?;
         self.find_event_problems(&mut found);
         self.find_log_problems(&mut found);
         self.find_incidents(&mut found);

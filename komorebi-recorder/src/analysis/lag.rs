@@ -1109,3 +1109,111 @@ mod tests {
         assert!(rows[1].windows[0].shown);
     }
 }
+
+#[cfg(test)]
+mod session_tests {
+    use super::*;
+    use crate::testkit::SessionBuilder;
+    use crate::testkit::container;
+    use crate::testkit::monitor;
+    use crate::testkit::state;
+    use crate::testkit::window;
+    use crate::testkit::workspace;
+    use serde_json::json;
+
+    fn builder(name: &str, flavor: Flavor) -> SessionBuilder {
+        let layout = [[0, 0, 960, 1040]];
+        let one = state(
+            vec![monitor(
+                1,
+                [0, 0, 1920, 1080],
+                vec![workspace(
+                    "main",
+                    vec![container("c", vec![window(7, "term", Some(layout[0]))])],
+                    0,
+                    &layout,
+                )],
+                0,
+            )],
+            0,
+        );
+        SessionBuilder::new(name)
+            .flavor(flavor)
+            .length(10.0)
+            .event(1.0, json!({"type": "Retile"}), Some(one))
+            .window_track(&[
+                (1.0, &[(7, "term", [100, 0, 1060, 1040])]),
+                (4.0, &[(7, "term", [0, 0, 960, 1040])]),
+            ])
+    }
+
+    #[test]
+    fn lag_is_a_finding_with_a_window_and_a_command_to_dig_in() {
+        let (session, _) = builder("lag-finding", Flavor::Macos).build();
+        let found = Analysis::open(&session.dir).unwrap().findings().unwrap();
+        let lag: Vec<_> = found
+            .iter()
+            .filter(|finding| finding.kind == "geometry-lag:window")
+            .collect();
+        assert_eq!(lag.len(), 1, "{found:#?}");
+        assert_eq!(lag[0].severity, Severity::Warn);
+        assert_eq!(lag[0].window_ids, [7]);
+        assert!(lag[0].summary.contains("2.5 s"), "{}", lag[0].summary);
+        assert!(lag[0].next.as_deref().unwrap().contains("lag "));
+    }
+
+    #[test]
+    fn a_mac_reports_points() {
+        let (session, _) = builder("lag-mac", Flavor::Macos).build();
+        let data = Analysis::open(&session.dir)
+            .unwrap()
+            .geometry_lag(&LagOptions::default())
+            .unwrap();
+        assert_eq!(data.unit, "points");
+        assert_eq!(data.episodes.len(), 1);
+    }
+
+    #[test]
+    fn kde_says_the_track_is_not_independent_and_raises_nothing() {
+        let (session, _) = builder("lag-kde", Flavor::Kde).build();
+        let analysis = Analysis::open(&session.dir).unwrap();
+        let data = analysis.geometry_lag(&LagOptions::default()).unwrap();
+        assert!(!data.independent);
+        assert!(data.episodes.is_empty());
+        assert!(data.note.unwrap().contains("not independent"));
+        assert!(
+            analysis
+                .findings()
+                .unwrap()
+                .iter()
+                .all(|finding| !finding.kind.starts_with("geometry-lag"))
+        );
+    }
+
+    #[test]
+    fn a_recording_without_a_track_says_so() {
+        let (session, _) = SessionBuilder::new("lag-no-track").build();
+        let data = Analysis::open(&session.dir)
+            .unwrap()
+            .geometry_lag(&LagOptions::default())
+            .unwrap();
+        assert!(!data.track_available);
+        assert!(data.note.unwrap().contains("--window-track"));
+    }
+
+    #[test]
+    fn a_window_filter_and_a_wider_grace_narrow_it() {
+        let (session, _) = builder("lag-options", Flavor::Macos).build();
+        let analysis = Analysis::open(&session.dir).unwrap();
+        let other = LagOptions {
+            window: Some(8),
+            ..LagOptions::default()
+        };
+        assert!(analysis.geometry_lag(&other).unwrap().episodes.is_empty());
+        let patient = LagOptions {
+            grace_ms: 5000,
+            ..LagOptions::default()
+        };
+        assert!(analysis.geometry_lag(&patient).unwrap().episodes.is_empty());
+    }
+}
