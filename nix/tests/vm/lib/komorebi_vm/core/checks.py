@@ -15,6 +15,7 @@ class Checks:
         self.passed = 0
         self.failed = 0
         self.failures: list[str] = []
+        self.skipped: list[str] = []
 
     def ok(self, description: str) -> None:
         """Records a check that passed."""
@@ -26,6 +27,11 @@ class Checks:
         self.failed += 1
         self.failures.append(description)
         print(f"  FAIL {description}")
+
+    def skip(self, description: str, reason: str) -> None:
+        """Records a check that was not made, and why: the platform cannot do what it asks."""
+        self.skipped.append(f"{description} ({reason})")
+        print(f"  skip {description}: {reason}")
 
     def check(self, description: str, condition: bool | Callable[[], bool]) -> bool:
         """Records `condition` (or what calling it returns) and returns it."""
@@ -43,5 +49,7 @@ class Checks:
         are all `nix build` shows, say which they were.
         """
         print(f"passed: {self.passed} failed: {self.failed}")
+        if self.skipped:
+            print(f"skipped: {len(self.skipped)}")
         if self.failed:
             raise AssertionError(f"{self.failed} checks failed: {'; '.join(self.failures)}")

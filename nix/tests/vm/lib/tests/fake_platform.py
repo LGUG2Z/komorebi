@@ -11,6 +11,7 @@ from PIL import Image
 
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, OsWindow
+from komorebi_vm.core.scenarios.commands import PRINTED
 from komorebi_vm.core.snapshot import Snapshot, parse
 
 TILES = [Rect(0, 0, 640, 1080), Rect(640, 0, 640, 1080), Rect(1280, 0, 640, 1080)]
@@ -52,12 +53,19 @@ class FakePlatform:
         self.tiles = list(TILES)
         self.has_pointer = pointer
         self.follows_pointer = follows_pointer
-        self.spaces: list[list[list[str]]] = [[], []]
+        self.spaces: list[list[list[str]]] = [[], [], []]
         """The two workspaces: for each, the stack of each container, in the order of the tiles,
         and the first window of a stack is the one in view."""
-        self.focuses = [0, 0]
+        self.focuses = [0, 0, 0]
         self.current = 0
         self.monocle: str | None = None
+        self.initial_rules: dict[str, int] = {}
+        self.rules: dict[str, int] = {}
+        self.ignored: set[str] = set()
+        self.unmanaged: list[str] = []
+        self.display_count = 2
+        self.display_of: dict[str, int] = {}
+        self.forgets_displays = False
         self.moves = moves
         self.focus_follows_move = focus_follows_move
 
@@ -104,7 +112,14 @@ class FakePlatform:
         return [stack[0] for stack in self.containers]
 
     def spawn(self, title: str) -> Client:
-        self.containers.append([title])
+        if title in self.ignored:
+            self.unmanaged.append(title)
+        elif title in self.initial_rules:
+            self.spaces[self.initial_rules.pop(title)].append([title])
+        elif title in self.rules:
+            self.spaces[self.rules[title]].append([title])
+        else:
+            self.containers.append([title])
         return Client(title)
 
     def _find(self, title: str) -> tuple[int, int]:
@@ -114,7 +129,22 @@ class FakePlatform:
                     return s, i
         raise KeyError(title)
 
+    def displays(self) -> list[Rect]:
+        return [Rect(i * 1920, 0, 1920, 1080) for i in range(self.display_count)]
+
+    def add_display(self) -> None:
+        self.display_count += 1
+
+    def remove_display(self) -> None:
+        self.display_count -= 1
+        for title, display in self.display_of.items():
+            if display >= self.display_count:
+                self.display_of[title] = 0
+
     def close(self, client: Client) -> None:
+        if client.title in self.unmanaged:
+            self.unmanaged.remove(client.title)
+            return
         s, i = self._find(client.title)
         stack = self.spaces[s][i]
         stack.remove(client.title)
@@ -137,6 +167,8 @@ class FakePlatform:
         return self._find(title)[1]
 
     def hidden(self, client: Client) -> bool:
+        if client.title in self.unmanaged:
+            return False
         s, i = self._find(client.title)
         away = self.monocle is not None and client.title != self.monocle
         return s != self.current or self.spaces[s][i][0] != client.title or away
@@ -153,6 +185,8 @@ class FakePlatform:
         return Image.new("RGB", (4, 4))
 
     def os_window(self, client: Client) -> OsWindow | None:
+        if client.title in self.unmanaged:
+            return OsWindow(client.title, Rect(100, 100, 400, 300), focused=False)
         try:
             s, i = self._find(client.title)
         except KeyError:
@@ -162,7 +196,18 @@ class FakePlatform:
         focused = (
             s == self.current and i == self.focuses[s] and self.spaces[s][i][0] == client.title
         )
-        return OsWindow(client.title, self.tiles[i], focused=focused)
+        tile = self.tiles[i]
+        shift = 1920 * self.display_of.get(client.title, 0)
+        return OsWindow(client.title, Rect(tile.x + shift, tile.y, tile.w, tile.h), focused=focused)
+
+    def komorebic_status(self, *args: str) -> tuple[int, str]:
+        """The fake's answer as a real `komorebic` gives it: exit 0, or 2 for what it lacks."""
+        if args[:1] == ("state",) or " ".join(args) in PRINTED:
+            return 0, "{}"
+        try:
+            return 0, self.komorebic(*args)
+        except AssertionError:
+            return 2, f"error: unrecognized subcommand '{args[0]}'"
 
     def komorebic(self, *args: str) -> str:
         n = len(self.containers)
@@ -194,9 +239,37 @@ class FakePlatform:
                     self.containers.pop(self.focus)
                     self.focus = max(0, min(self.focus, len(self.containers) - 1))
                 self.spaces[int(number)].append([window])
+            case ("change-layout", _):
+                pass
+            case ("move-to-monitor", number):
+                if int(number) < self.display_count:
+                    self.display_of[self.containers[self.focus][0]] = int(number)
             case ("toggle-monocle",):
                 top = self.containers[self.focus][0]
                 self.monocle = None if self.monocle else top
+            case ("ensure-workspaces", _, _) | ("clear-all-workspace-rules",):
+                if args[0] == "clear-all-workspace-rules":
+                    self.rules.clear()
+                    self.initial_rules.clear()
+            case ("initial-workspace-rule", "title", title, _, number):
+                self.initial_rules[title] = int(number)
+            case ("workspace-rule", "title", title, _, number):
+                self.rules[title] = int(number)
+            case ("ignore-rule", "title", title):
+                self.ignored.add(title)
+            case ("move-to-workspace", number):
+                self.komorebic("send-to-workspace", number)
+                self.current = int(number)
+            case ("enforce-workspace-rules",):
+                for title, number in self.rules.items():
+                    for s, containers in enumerate(self.spaces):
+                        for stack in containers:
+                            if title in stack and s != number:
+                                stack.remove(title)
+                                if not stack:
+                                    containers.remove(stack)
+                                self.spaces[number].append([title])
+                                break
             case ("focus-workspace", number):
                 self.current = int(number)
             case ("unstack",):
@@ -268,4 +341,12 @@ class FakePlatform:
                 "focused": self.current,
             },
         }
-        return parse({"monitors": {"elements": [monitor], "focused": 0}})
+        extra = [
+            {
+                "id": n + 1,
+                "size": rect(Rect(n * 1920, 0, 1920, 1080)),
+                "workspaces": {"elements": [workspace([], 0, False)], "focused": 0},
+            }
+            for n in range(1, 1 if self.forgets_displays else self.display_count)
+        ]
+        return parse({"monitors": {"elements": [monitor, *extra], "focused": 0}})

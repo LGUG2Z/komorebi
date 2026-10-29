@@ -1,6 +1,8 @@
 """KDE as a [`Platform`](komorebi_vm.core.platform.Platform): a `Kde` session, seen through the
 neutral vocabulary."""
 
+import shlex
+
 from PIL import Image
 
 from komorebi_vm.core import snapshot
@@ -51,6 +53,9 @@ class KdePlatform:
     def komorebic(self, *args: str) -> str:
         return self.kde.komorebic(*args)
 
+    def komorebic_status(self, *args: str) -> tuple[int, str]:
+        return self.kde.run(shlex.join(["komorebic", *args]))
+
     def state(self) -> Snapshot:
         return snapshot.parse(self.kde.state())
 
@@ -79,6 +84,28 @@ class KdePlatform:
         if PARK in names and desk == names.index(PARK) + 1:
             return True
         return desk != 0 and desk != self.kde.shown()
+
+    def displays(self) -> list[Rect]:
+        """The enabled outputs, which this session gives the size it was started with, side by side
+        from the left (at the scale of 1 that a scenario leaves them at)."""
+        width, height = self.size
+        return [Rect(i * width, 0, width, height) for i in range(len(self.kde.outputs.names()))]
+
+    def add_display(self) -> None:
+        """Enables an output that was disabled, which is as near to a plug as KWin gets."""
+        disabled = self.kde.outputs.names(enabled=False)
+        if not disabled:
+            raise AssertionError("every output is plugged in")
+        self.kde.outputs.enable(disabled[0])
+        self.kde.wait_for(lambda: self.kde.outputs() == len(self.kde.outputs.names()), timeout=20)
+
+    def remove_display(self) -> None:
+        """Disables the last of the enabled outputs, which is KWin's way to unplug one."""
+        names = self.kde.outputs.names()
+        if len(names) < 2:
+            raise AssertionError("there is only one output to remove")
+        self.kde.outputs.disable(names[-1])
+        self.kde.wait_for(lambda: len(self.kde.outputs.names()) == len(names) - 1, timeout=20)
 
     def close(self, client: Client) -> None:
         self.kde.close(self.kde.wid(client.title))

@@ -10,6 +10,9 @@
 import time
 
 from komorebi_vm import Checks, Kde, Rect, daemon
+from komorebi_vm.core.platform import Client
+from komorebi_vm.core.scenarios import hotplug
+from komorebi_vm.kde_platform import KdePlatform
 
 W, H = 1920, 1080
 
@@ -220,6 +223,11 @@ checks.check(
 )
 show("after the second move")
 print("     " + "\n     ".join(output_lines()))
+
+print("== 7b. the same, through the neutral platform")
+# the scenario of komorebi_vm.core.scenarios.hotplug is what runs on Windows too: it unplugs a
+# display, plugs one in and sends a window to it, and asks the operating system where the windows are
+hotplug.run(KdePlatform(kde, (W, H)), checks, [Client(t) for t in TITLES])
 
 print("== 8. nothing is left behind")
 checks.check(

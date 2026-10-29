@@ -19,6 +19,7 @@ from komorebi_vm.core.scenarios import (
     focus,
     monocle,
     moving,
+    rules,
     stacks,
     tiling,
     workspaces,
@@ -333,7 +334,11 @@ checks.check(
     kde.wait_for(lambda: len(parked()) == 1),
 )
 kde.komorebic("stop")
-checks.check("the daemon exited", kde.wait_for(lambda: not kde.komorebi_running()))
+exited = kde.wait_for(lambda: not kde.komorebi_running())
+if not exited:
+    print(kde.systemctl("status", "komorebi@main.service", "--no-pager", "-l"))
+    print("\n".join(daemon_log().splitlines()[-15:]))
+checks.check("the daemon exited", exited)
 checks.check(
     "the parking desktop is gone", kde.wait_for(lambda: PARK not in kde.desktop_names())
 )
@@ -444,6 +449,16 @@ workspaces.run(platform, checks, neutral)
 # the third window is on workspace 1 now: the first is closed, and the second takes its room
 closing.run(platform, checks, neutral, Client("neutral1"))
 
+# the rules start from a workspace with no window: close what is left, wherever it is
+for title in ("neutral2", "neutral3"):
+    platform.close(Client(title))
+checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
+platform.komorebic("focus-workspace", "0")
+rules.run(platform, checks)
+# a window for the stop to leave behind
+platform.spawn("afterwards")
+checks.check("it is managed", kde.wait_for(lambda: kde.managed_all() == 1, timeout=20))
+
 print("== 13. komorebic stop")
 kde.komorebic("stop")
 checks.check("the daemon exited", kde.wait_for(lambda: not kde.komorebi_running()))
@@ -454,7 +469,7 @@ checks.check(
 checks.check(
     "the script is no longer in KWin", kde.wait_for(lambda: not kde.script_loaded())
 )
-checks.check("the windows stay", kde.wid("neutral2") != "")
+checks.check("the window stays", kde.wid("afterwards") != "")
 
 kde.stop()
 checks.finish()

@@ -38,6 +38,18 @@ class FakePlatform:
     def close(self, client: Client) -> None:
         pass
 
+    def displays(self) -> list[Rect]:
+        return [Rect(0, 0, 1920, 1080)]
+
+    def add_display(self) -> None:
+        pass
+
+    def remove_display(self) -> None:
+        pass
+
+    def komorebic_status(self, *args: str) -> tuple[int, str]:
+        return 0, ""
+
     def has(self, feature: str) -> bool:
         return False
 
