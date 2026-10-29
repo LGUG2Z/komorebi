@@ -46,6 +46,22 @@
 
       version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
 
+      # what GStreamer needs on Linux: the libraries to link, and the plugins that decode (libav,
+      # for H.264 and HEVC) and encode (x264, in ugly) the recorded video
+      gstreamerPackages =
+        pkgs: with pkgs.gst_all_1; [
+          gstreamer
+          gst-plugins-base
+          gst-plugins-good
+          gst-plugins-bad
+          gst-plugins-ugly
+          gst-libav
+          pkgs.pipewire
+        ];
+
+      gstreamerPluginPath =
+        pkgs: pkgs.lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" (gstreamerPackages pkgs);
+
       # what the build needs of the repository: Cargo sources, and the files the crate embeds or
       # its tests read
       mkSource =
@@ -95,6 +111,24 @@
                 fi
               done
             '';
+          }
+          # on Linux the video is encoded and decoded by GStreamer (the OS media stack there, as
+          # AVFoundation is on a Mac), and found at run time through its plugin path
+          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            nativeBuildInputs = [
+              pkgs.pkg-config
+              pkgs.makeWrapper
+              # the tests that record a video to read back make it with ffmpeg
+              pkgs.ffmpeg-headless
+            ];
+            buildInputs = gstreamerPackages pkgs;
+            postFixup = ''
+              for bin in $out/bin/*; do
+                if [ -f "$bin" ] && [ -x "$bin" ]; then
+                  wrapProgram "$bin" --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : ${gstreamerPluginPath pkgs}
+                fi
+              done
+            '';
           };
 
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -107,11 +141,20 @@
 
           fullBuild = craneLib.buildPackage individualCrateArgs;
 
-          # `komorebi-recorder-gui` is the same program as `komorebi-recorder` on a Mac
-          komorebi-recorder = pkgs.runCommand "komorebi-recorder" { meta = fullBuild.meta // { }; } ''
-            mkdir -p $out/bin
-            cp ${fullBuild}/bin/komorebi-recorder $out/bin/
-          '';
+          # `komorebi-recorder-gui` is the same program as `komorebi-recorder` on a Mac; on Linux
+          # the wrapped programs are all copied, so that the wrappers keep what they wrap
+          komorebi-recorder = pkgs.runCommand "komorebi-recorder" { meta = fullBuild.meta // { }; } (
+            if pkgs.stdenv.hostPlatform.isLinux then
+              ''
+                mkdir -p $out/bin
+                cp -a ${fullBuild}/bin/. $out/bin/
+              ''
+            else
+              ''
+                mkdir -p $out/bin
+                cp ${fullBuild}/bin/komorebi-recorder $out/bin/
+              ''
+          );
         in
         {
           inherit

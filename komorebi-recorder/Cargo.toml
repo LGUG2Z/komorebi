@@ -145,6 +145,11 @@ windows = { version = "0.62", features = [
   "Win32_UI_WindowsAndMessaging",
 ] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+gstreamer = "0.25.4"
+gstreamer-app = "0.25.2"
+gstreamer-video = "0.25.4"
+
 [build-dependencies]
 embed-resource = "3"
 proc-macro2 = { version = "1", features = ["span-locations"] }
