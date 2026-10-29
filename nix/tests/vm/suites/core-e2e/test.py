@@ -13,7 +13,7 @@
 import json
 
 from komorebi_vm import Checks, Kde, Rect, daemon
-from komorebi_vm.core.scenarios import tiling
+from komorebi_vm.core.scenarios import focus, moving, tiling
 from komorebi_vm.kde_platform import KdePlatform
 
 W, H = 1920, 1080
@@ -348,12 +348,15 @@ checks.check(
 )
 report(["afterwards"])
 
-print("== 12. the same tiling, through the neutral platform")
-# the scenario of komorebi_vm.core.scenarios.tiling is what runs on Windows too: it asks the
+print("== 12. tiling, focus and moving, through the neutral platform")
+# the scenarios of komorebi_vm.core.scenarios are what runs on Windows too: it asks the
 # operating system where the windows are, and not the daemon's log
 kde.close(kde.wid("afterwards"))
 checks.check("the window of the last section is closed", kde.wait_for(lambda: kde.managed() == 0))
-tiling.run(KdePlatform(kde, (W, H)), checks, titles=("neutral1", "neutral2", "neutral3"))
+platform = KdePlatform(kde, (W, H))
+neutral = tiling.run(platform, checks, titles=("neutral1", "neutral2", "neutral3"))
+focus.run(platform, checks, neutral)
+moving.run(platform, checks, neutral)
 
 print("== 13. komorebic stop")
 kde.komorebic("stop")

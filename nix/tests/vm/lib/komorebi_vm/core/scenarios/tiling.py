@@ -2,7 +2,7 @@
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
-from komorebi_vm.core.platform import Platform
+from komorebi_vm.core.platform import Client, Platform
 
 
 def _where_the_layout_says(frame: Rect, want: Rect, tolerance: int) -> bool:
@@ -16,11 +16,12 @@ def _where_the_layout_says(frame: Rect, want: Rect, tolerance: int) -> bool:
 
 def run(
     platform: Platform, checks: Checks, titles: tuple[str, ...] = ("win1", "win2", "win3")
-) -> None:
+) -> list[Client]:
     """Opens a window for each title and checks, against the OS's own account of the frames, that
     the daemon has tiled them.
 
-    The daemon must be running, on a workspace with no window, with a tiling layout.
+    The daemon must be running, on a workspace with no window, with a tiling layout. Returns the
+    windows it opened, for a scenario that goes on from them.
     """
     clients = [platform.spawn(title) for title in titles]
     area = platform.work_area()
@@ -63,3 +64,4 @@ def run(
         "the windows share the work area: none takes all of its width",
         all(f.w < area.w - platform.tolerance for f in frames),
     )
+    return clients
