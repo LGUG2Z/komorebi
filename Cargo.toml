@@ -15,11 +15,11 @@ version = "0.1.0"
 [workspace.dependencies]
 # upstream's layouts, at a revision that has the fix for resizing a tile by dragging its edge
 # (LGUG2Z/komorebi#1765) and the placement helpers komorebi for KDE uses
-komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "f08aa55511d77ca56ab0e789efabeb0a237a463e", features = [
+komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "efe91ce33223afd2a41da35afcf0670a3ea39050", features = [
   "schemars",
 ] }
 # the themes (and the palettes made from pictures), from the same upstream revision
-komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "f08aa55511d77ca56ab0e789efabeb0a237a463e" }
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "efe91ce33223afd2a41da35afcf0670a3ea39050" }
 
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "wrap_help"] }
