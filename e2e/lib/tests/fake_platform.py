@@ -24,7 +24,6 @@ ASKED_OF_THE_LAYOUT = (
     "unstack",
     "cycle-move",
     "promote",
-    "toggle-monocle",
     "resize-edge",
     "send-to-workspace",
     "move-to-workspace",

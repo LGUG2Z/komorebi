@@ -60,8 +60,9 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
 
 # What is asked of the layout, which a maximized window is not in: none of it does anything. Not in
 # the list, because komorebi for Windows does not ignore them either: `toggle-float`, which floats
-# the maximized window (`user` ends with it), and `stack left` and `stack right`, which stack the
-# tiles that are left.
+# the maximized window (`user` ends with it), `stack left` and `stack right`, which stack the tiles
+# that are left, and `toggle-monocle`, which turns the monocle of the tiles that are left on while
+# the window stays maximized (`user` has it too).
 IGNORED = (
     "move left",
     "move right",
@@ -70,7 +71,6 @@ IGNORED = (
     "unstack",
     "cycle-move next",
     "promote",
-    "toggle-monocle",
     "resize-edge left increase",
     "send-to-workspace 1",
     "move-to-workspace 1",
@@ -133,6 +133,34 @@ def user(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     checks.check(
         "... and nothing floats or is in the monocle",
         containers() == count - 1 and workspace.floating == [] and workspace.monocle is None,
+    )
+
+    # `toggle-monocle` is not ignored: the monocle of the tiles that are left comes on and goes off,
+    # and the window stays maximized, as on komorebi for Windows
+    platform.komorebic("toggle-monocle")
+    checks.check(
+        "toggle-monocle turns the monocle of the tiles that are left on, and the window stays"
+        " maximized",
+        platform.wait_for(
+            lambda: (
+                platform.state().workspace().monocle is not None and maximized() == target.title
+            ),
+            timeout=20,
+        )
+        and fills(target),
+    )
+    platform.komorebic("toggle-monocle")
+    checks.check(
+        "... and again turns it off, with the window still maximized",
+        platform.wait_for(
+            lambda: (
+                platform.state().workspace().monocle is None
+                and maximized() == target.title
+                and containers() == count - 1
+            ),
+            timeout=20,
+        )
+        and fills(target),
     )
 
     platform.komorebic("toggle-maximize")
