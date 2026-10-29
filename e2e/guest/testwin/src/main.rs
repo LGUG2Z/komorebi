@@ -108,7 +108,7 @@ static BEFORE_FULLSCREEN: Mutex<Option<(isize, RECT)>> = Mutex::new(None);
 
 static COMMANDS: Mutex<VecDeque<String>> = Mutex::new(VecDeque::new());
 static HWND_RAW: AtomicIsize = AtomicIsize::new(0);
-static COLOR: AtomicU32 = AtomicU32::new(0x0080_5030);
+static COLOR: AtomicU32 = AtomicU32::new(0x0070_7070);
 static MIN_SIZE: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 static FIXED: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 
