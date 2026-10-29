@@ -39,6 +39,12 @@ LAUNCHES = 3
 POLICY_SYSTEM = "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System"
 # the account the image logs in to
 PASSWORD = "komorebi"
+TEMP_DIR = "C:\\e2e\\tmp"
+# the messages the test window and the title bar buttons understand
+WM_FULLSCREEN = 0x8000 + 2
+WM_SYSCOMMAND = 0x0112
+SC_MAXIMIZE = 0xF030
+SC_RESTORE = 0xF120
 DISPLAY_SCRIPT = "C:\\e2e\\display.ps1"
 CONFIG_PATH = "C:\\e2e\\komorebi.json"
 
@@ -222,6 +228,71 @@ class WindowsPlatform:
         # the daemon watches the file it was started with and reads it again
         self._agent.put_file(local, CONFIG_PATH)
 
+    def temp_path(self, name: str) -> str:
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
+            raise ValueError(f"not a file name: {name!r}")
+        self._agent.exec("cmd", "/c", f"mkdir {TEMP_DIR} 2>nul")
+        return f"{TEMP_DIR}\\{name}"
+
+    def crash(self) -> None:
+        # a process that is killed puts nothing back: windows it cloaked stay so
+        self._agent.exec("taskkill", "/F", "/IM", "komorebi.exe")
+        if not self.wait_for(self._daemon_gone, timeout=20):
+            raise RuntimeError("komorebi did not go")
+
+    def _daemon_gone(self) -> bool:
+        listing = self._agent.exec("tasklist", "/fi", "imagename eq komorebi.exe")
+        return "komorebi.exe" not in listing["stdout"]
+
+    def _post(self, client: Client, message: int, wparam: int) -> int:
+        """Posts a message to the window and returns its handle."""
+        window = self._find(client.title)
+        if window is None:
+            raise RuntimeError(f"no window titled {client.title!r}")
+        self._agent.exec(
+            "powershell", "-NoProfile", "-Command",
+            "Add-Type -Name P -Namespace K -MemberDefinition "
+            "'[DllImport(\"user32.dll\")] public static extern bool "
+            "PostMessageW(IntPtr h, uint m, IntPtr w, IntPtr l);'; "
+            f"[void][K.P]::PostMessageW([IntPtr]{window['hwnd']}, {message}, "
+            f"[IntPtr]{wparam}, [IntPtr]::Zero)",
+        )
+        return window["hwnd"]
+
+    def fullscreen(self, client: Client, on: bool = True) -> None:
+        # the test window takes itself fullscreen on this message, borderless
+        # over its monitor, as a program's own key does
+        self._post(client, WM_FULLSCREEN, 1 if on else 0)
+
+        def covers() -> bool:
+            window = self.os_window(client)
+            return window is not None and any(
+                window.frame == display for display in self.displays()
+            )
+
+        if not self.wait_for(lambda: covers() == on):
+            raise RuntimeError(
+                f"{client.title!r} did not go {'fullscreen' if on else 'back'}"
+            )
+
+    def user_maximize(self, client: Client, on: bool = True) -> None:
+        # what the maximize and restore buttons of the title bar send
+        hwnd = self._post(client, WM_SYSCOMMAND, SC_MAXIMIZE if on else SC_RESTORE)
+
+        def zoomed() -> bool:
+            result = self._agent.exec(
+                "powershell", "-NoProfile", "-Command",
+                "Add-Type -Name Z -Namespace K -MemberDefinition "
+                "'[DllImport(\"user32.dll\")] public static extern bool "
+                f"IsZoomed(IntPtr h);'; [K.Z]::IsZoomed([IntPtr]{hwnd})",
+            )
+            return result["stdout"].strip() == "True"
+
+        if not self.wait_for(lambda: zoomed() == on):
+            raise RuntimeError(
+                f"{client.title!r} did not {'maximize' if on else 'restore'}"
+            )
+
     def resizable_display(self) -> int | None:
         """The index of a display whose mode can change: the second, which is a
         QXL display. The first is the basic display adapter, with one mode, and
@@ -342,11 +413,19 @@ class WindowsPlatform:
             ) from e
 
     def spawn(
-        self, title: str, app_id: str | None = None, exe: str | None = None
+        self,
+        title: str,
+        app_id: str | None = None,
+        exe: str | None = None,
+        rename_to: str | None = None,
+        after: float = 0,
     ) -> Client:
         args = ["--title", title]
         if app_id is not None:
             args += ["--class", app_id]
+        if rename_to is not None:
+            # the window gives itself this title `after` seconds from now
+            args += ["--rename-to", rename_to, "--after", str(after)]
         program = f"{GUEST_BIN}\\komorebi-testwin.exe"
         if exe is not None:
             if not re.fullmatch(r"[A-Za-z0-9_-]+", exe):
@@ -359,7 +438,7 @@ class WindowsPlatform:
         self._agent.spawn(program, *args)
         if not self.wait_for(lambda: self._find(title) is not None):
             raise RuntimeError(f"no window titled {title!r} appeared")
-        return Client(title)
+        return Client(rename_to if rename_to is not None else title)
 
     def _find(self, title: str) -> dict | None:
         for window in self._agent.os_windows():

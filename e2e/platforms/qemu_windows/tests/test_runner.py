@@ -88,6 +88,26 @@ def test_a_step_wrapper_keeps_the_name_and_passes_keywords() -> None:
     assert step.__module__ == scenario.__module__
 
 
+def test_the_suite_keeps_how_long_each_step_took() -> None:
+    from komorebi_vm.core.suite import platform_only, shared
+
+    def scenario() -> str:
+        return "opened"
+
+    def extra() -> None:
+        return None
+
+    checks = run.RecordedChecks()
+    results = run._suite(checks, shared(scenario), platform_only("windows", extra))
+
+    assert results == ["opened", None]
+    assert [s["step"] for s in checks.steps] == [
+        "[shared] test_runner.scenario",
+        "[windows] test_runner.extra",
+    ]
+    assert all(isinstance(s["seconds"], float) for s in checks.steps)
+
+
 def test_the_state_key_follows_the_machine_and_not_the_run() -> None:
     first = state._machine()
 
@@ -137,3 +157,72 @@ def test_the_result_file_names_a_known_json_shape(tmp_path: Path) -> None:
     checks.check("a", True)
 
     json.dumps(checks.results)
+
+
+class _Agent:
+    """An agent that has one window and records what it is asked to run."""
+
+    def __init__(self, titles: list[str]) -> None:
+        self.titles = titles
+        self.spawned: list[tuple[str, ...]] = []
+        self.executed: list[tuple[str, ...]] = []
+
+    def os_windows(self) -> list[dict]:
+        return [{"title": t, "hwnd": 7, "cloaked": False,
+                 "frame": {"left": 0, "top": 0, "right": 1, "bottom": 1}}
+                for t in self.titles]
+
+    def spawn(self, *args: str) -> None:
+        self.spawned.append(args)
+
+    def exec(self, *args: str) -> dict:
+        self.executed.append(args)
+        return {"status": 0, "stdout": "", "stderr": ""}
+
+
+def test_a_window_that_renames_itself_is_known_by_the_new_title() -> None:
+    agent = _Agent(["opens-as"])
+    platform = WindowsPlatform(SimpleNamespace(), agent, Path("."))
+
+    client = platform.spawn("opens-as", rename_to="becomes", after=6)
+
+    assert client.title == "becomes"
+    assert agent.spawned[0][-4:] == ("--rename-to", "becomes", "--after", "6")
+
+
+def test_a_spawn_that_never_shows_raises() -> None:
+    platform = WindowsPlatform(SimpleNamespace(), _Agent([]), Path("."), scale=0.01)
+
+    with pytest.raises(RuntimeError, match="no window titled 'ghost'"):
+        platform.spawn("ghost")
+
+
+def test_a_program_name_windows_would_reject_is_rejected() -> None:
+    platform = WindowsPlatform(SimpleNamespace(), _Agent(["w"]), Path("."))
+
+    with pytest.raises(ValueError, match="not a program name"):
+        platform.spawn("w", exe="a b")
+    with pytest.raises(ValueError, match="not a program name"):
+        platform.spawn("w", exe="..\\evil")
+
+
+def test_a_temp_path_is_in_the_guest_and_a_bad_name_is_rejected() -> None:
+    agent = _Agent([])
+    platform = WindowsPlatform(SimpleNamespace(), agent, Path("."))
+
+    assert platform.temp_path("e2e-resize.json") == "C:\\e2e\\tmp\\e2e-resize.json"
+    with pytest.raises(ValueError):
+        platform.temp_path("..\\x")
+
+
+def test_acting_on_a_window_that_is_not_there_raises_a_clear_error() -> None:
+    from komorebi_vm.core.platform import Client
+
+    platform = WindowsPlatform(SimpleNamespace(), _Agent([]), Path("."))
+    gone = Client("gone")
+
+    for act in (platform.close, platform.minimize, platform.activate,
+                lambda c: platform.move_window(c, 1, 1),
+                platform.fullscreen, platform.user_maximize):
+        with pytest.raises(RuntimeError, match="no window titled 'gone'"):
+            act(gone)
