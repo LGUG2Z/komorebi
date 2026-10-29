@@ -34,6 +34,7 @@ pub mod invariants;
 pub mod logparse;
 pub mod logq;
 pub mod lookup;
+pub mod measure;
 pub mod motion;
 pub mod os_trace;
 pub mod overview;
