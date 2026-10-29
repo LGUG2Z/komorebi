@@ -258,3 +258,24 @@ def test_a_daemon_that_ignores_a_monitor_that_does_not_exist_passes() -> None:
     clients = opened(platform, checks)
     commands.unknown_monitor(platform, checks, clients)
     assert checks.failed == 0, checks.failures
+
+
+def test_a_known_failure_does_not_fail_the_suite_until_it_is_fixed() -> None:
+    class Loses(FakePlatform):
+        def komorebic_status(self, *args: str) -> tuple[int, str]:
+            if args[:1] == ("send-to-monitor",):
+                self.containers[self.focus].clear()
+                return 0, ""
+            return super().komorebic_status(*args)
+
+    reason = "the container goes first"
+    broken, checks = Loses(), Checks()
+    clients = opened(broken, checks)
+    commands.unknown_monitor(broken, checks, clients, known_failure=reason)
+    assert checks.failed == 0, checks.failures
+    assert len(checks.known) >= 1
+
+    fixed, checks = FakePlatform(), Checks()
+    clients = opened(fixed, checks)
+    commands.unknown_monitor(fixed, checks, clients, known_failure=reason)
+    assert checks.failed == 2 and checks.known == []

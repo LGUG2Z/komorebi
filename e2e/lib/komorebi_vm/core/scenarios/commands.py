@@ -359,18 +359,28 @@ def prints(platform: Platform, checks: Checks) -> None:
         checks.check(f"komorebic {line}", status == 0)
 
 
-def unknown_monitor(platform: Platform, checks: Checks, clients: list[Client]) -> None:
+def unknown_monitor(
+    platform: Platform, checks: Checks, clients: list[Client], known_failure: str | None = None
+) -> None:
     """Sends the focused window to a monitor that does not exist, and checks that no window is lost.
 
     A port may refuse the command or ignore it, but a window that was managed has to stay managed:
     a daemon that stops managing it leaves it on the screen with nothing tiling it. The platform
     has fewer than seven displays.
+
+    With `known_failure`, the reason a port is known to lose the window, the checks are recorded as
+    known failures: they do not fail the suite, and one that holds says the marker can go. The
+    window is lost then, so the scenario belongs at the end of a suite.
     """
     managed = platform.state().managed()
     for command in ("send-to-monitor", "move-to-monitor"):
         platform.komorebic_status(command, "7")
         platform.wait_for(lambda: unhealthy(platform, clients) is None, timeout=5)
-        checks.check(
-            f"after {command} 7, which no display has, the daemon still manages every window",
-            platform.state().managed() == managed and unhealthy(platform, clients) is None,
+        description = (
+            f"after {command} 7, which no display has, the daemon still manages every window"
         )
+        holds = platform.state().managed() == managed and unhealthy(platform, clients) is None
+        if known_failure is None:
+            checks.check(description, holds)
+        else:
+            checks.known_failure(description, holds, known_failure)

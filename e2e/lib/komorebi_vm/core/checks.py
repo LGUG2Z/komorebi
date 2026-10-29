@@ -16,6 +16,7 @@ class Checks:
         self.failed = 0
         self.failures: list[str] = []
         self.skipped: list[str] = []
+        self.known: list[str] = []
 
     def ok(self, description: str) -> None:
         """Records a check that passed."""
@@ -32,6 +33,19 @@ class Checks:
         """Records a check that was not made, and why: the platform cannot do what it asks."""
         self.skipped.append(f"{description} ({reason})")
         print(f"  skip {description}: {reason}")
+
+    def known_failure(self, description: str, condition: bool, reason: str) -> bool:
+        """Records a check that is known to fail, with the reason, to follow up on later.
+
+        The suite does not fail while it does. When it holds, that is a failure, to say that
+        the marker can go.
+        """
+        if condition:
+            self.bad(f"{description}: it holds now, so it is no longer a known failure")
+        else:
+            self.known.append(f"{description} ({reason})")
+            print(f"  known failure {description}: {reason}")
+        return condition
 
     def check(self, description: str, condition: bool | Callable[[], bool]) -> bool:
         """Records `condition` (or what calling it returns) and returns it."""
@@ -51,5 +65,7 @@ class Checks:
         print(f"passed: {self.passed} failed: {self.failed}")
         if self.skipped:
             print(f"skipped: {len(self.skipped)}")
+        if self.known:
+            print(f"known failures: {len(self.known)}")
         if self.failed:
             raise AssertionError(f"{self.failed} checks failed: {'; '.join(self.failures)}")
