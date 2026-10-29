@@ -112,7 +112,7 @@ that a contact sheet never decodes more pixels than it shows.
 
 ### The window track
 
-`record --window-track[=HZ]` samples every top-level window into `windows.jsonl` (see
+`record` samples every top-level window (on by default; `--window-track=HZ` picks the rate, `--no-window-track` turns it off) into `windows.jsonl` (see
 `src/sources/windowtrack.rs`), listed by `platform::window::list`.
 
 | | macOS | Windows |
@@ -123,6 +123,7 @@ that a contact sheet never decodes more pixels than it shows.
 | `visible` | `kCGWindowIsOnscreen` (false for windows on other spaces) | `IsWindowVisible`; invisible windows and tool windows are not listed |
 | `minimized` | always false: the window server does not say | `IsIconic` |
 | `cloaked` | absent | `DWMWA_CLOAKED` |
+| `border` | never set | `komoborder-<id>` tool windows are listed (other tool windows are not), with `border` true, and `border_of` when the id is a window handle (a floating window); a tiled window's border is named for its container, see `windowtrack.rs` |
 | `title` | `kCGWindowName` | `GetWindowTextW` |
 | status | written against the `objc2` sources and not built or run | built and run |
 
@@ -157,7 +158,7 @@ KDE. What is written from the sources and has not been seen to work on a real Pl
 | the video | H.264 only, written by GStreamer (`x264enc` and `mp4mux`) as fragmented MP4 in segments, as on the other hosts. HEVC is refused. A display of an odd size, or one H.264 cannot take, is scaled by the pipeline |
 | decoding | GStreamer: `decodebin` to BGRA at the size asked for, seeking to the key frame before the time and decoding forward. A frame's time is its stream time, because an MP4's edit list puts the media time of the first frame after zero |
 | the OS trace | the journal: `oslog/system.ndjson` (`journalctl --user`, of `kwin_wayland`, `plasmashell` and `komorebi`, stream `journal`) and `oslog/eventlog.ndjson` (every warning and worse, stream `journal-warnings`). An entry's time is `__MONOTONIC_TIMESTAMP`, which is the master clock |
-| the window track | komorebi for KDE's own state: a Wayland client cannot list other programs' windows, so only windows komorebi manages are listed, each shown when its workspace is showing and it is in front of its stack |
+| the window track | komorebi for KDE's own *beliefs*, not KWin's geometry: only windows komorebi manages are listed, with komorebi's rect, each shown when its workspace is showing and it is in front of its stack. **Not done:** listing KWin's real windows. KWin has no D-Bus call that lists windows: `getWindowInfo` needs a UUID, and the only listing the recorder uses is `/WindowsRunner` `Match(query)`, which is a KRunner text search (it may need a minimum query length; not checked, so not relied on) and costs one `getWindowInfo` per window per tick. A complete, cheap source needs a KWin script (`loadScript` over `org.kde.kwin.Scripting`) that pushes `frameGeometryChanged`/`windowAdded` to a D-Bus service of the recorder's, or the `org.komorebi.Bridge` events; that was not built or tried on the Plasma guest. Until then the track on KDE cannot show a window komorebi does not manage, nor a frame that disagrees with komorebi's `rect` (use `--probe-windows` for per-event real frames). komorebi for KDE has no border windows (KWin's rounded-corners effect paints them), so there is nothing to mark `border` there |
 | komorebi's sockets | `$XDG_RUNTIME_DIR/komorebi/` (the command socket `komorebi.sock` and the subscribers'), and the data directory where there is no runtime directory |
 | komorebi's log | `~/.local/share/komorebi/komorebi_plaintext.log.<UTC date>`; the span of an event's handler is `handle_event` and of a command's `process_command` |
 | the program's own windows | left out of the video by a KWin window rule (`excludefromcapture`, forced for the window class `komorebi-recorder`), which `record` writes to `~/.config/kwinrulesrc` and has KWin read; komorebi is told to ignore them by their application id, `komorebic ignore-rule class komorebi-recorder`, run before the window exists. Whether KWin honours the rule for a screencast of an output is a check still to make (K3) |

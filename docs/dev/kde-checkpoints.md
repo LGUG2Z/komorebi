@@ -113,5 +113,5 @@ Status: the journal was followed on a machine with no Plasma.
 1. `record --duration 30`, and cause some noise: open a program that is not in the session, plug something in.
    Expect `oslog/system.ndjson` to have `kwin_wayland` and `plasmashell` entries, and `oslog/eventlog.ndjson` the warnings.
    A user who is not in the `systemd-journal` group may see none of the system's: the problems say so.
-2. `record --window-track --duration 30`. Expect `windows.jsonl` with the windows komorebi manages, a window behind a
+2. `record --duration 30` (the window track is on by default). Expect `windows.jsonl` with the windows komorebi manages, a window behind a
    stack not shown, and a window of another workspace not shown.
