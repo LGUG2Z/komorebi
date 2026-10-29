@@ -79,10 +79,16 @@ KNOWN_STEPS = {
 }
 
 
-# the commit of komorebi's `next` that fixed what a step is known to fail, so
-# that a build that has it does not get the marker
+# the commit of komorebi's `next` that fixed what a step is known to fail, and
+# what it still fails on a build that has it: the marker is the first reason
+# before it and the second after it
 KNOWN_STEPS_FIXED_BY = {
-    "maximizing.user": "3fa3d429",
+    "maximizing.user": (
+        "3fa3d429",
+        "kfw tracks a user's maximize, but toggle-float (it floats the window "
+        "and ends the maximize) and stack left/right (they stack the others) "
+        "are not ignored while a window is maximized",
+    ),
 }
 
 
@@ -142,9 +148,10 @@ def _suite(checks: "RecordedChecks", *steps):
     for step in steps:
         began = time.monotonic()
         counted = checks.passed + checks.failed + len(checks.known)
-        fix = KNOWN_STEPS_FIXED_BY.get(step.name)
+        fixed = KNOWN_STEPS_FIXED_BY.get(step.name)
         checks.expected = (
-            None if fix and _contains(fix) else KNOWN_STEPS.get(step.name)
+            fixed[1] if fixed and _contains(fixed[0])
+            else KNOWN_STEPS.get(step.name)
         )
         known_before = len(checks.known)
         try:

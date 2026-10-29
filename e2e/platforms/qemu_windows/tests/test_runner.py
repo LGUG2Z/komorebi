@@ -330,7 +330,7 @@ def test_the_wallpaper_is_asked_of_the_shell_for_a_display() -> None:
     assert agent.executed[-1][-3:] == ("set", "1", "C:\\x y.png")
 
 
-def test_a_known_step_has_no_marker_on_a_commit_that_has_its_fix(
+def test_a_known_step_has_the_narrower_marker_on_a_commit_that_has_the_fix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from komorebi_vm.core.suite import shared
@@ -344,5 +344,5 @@ def test_a_known_step_has_no_marker_on_a_commit_that_has_its_fix(
 
     run._suite(checks, shared(user, checks))
 
-    assert checks.failed == 1
-    assert checks.known == []
+    assert checks.failed == 0
+    assert "toggle-float" in checks.known[0]
