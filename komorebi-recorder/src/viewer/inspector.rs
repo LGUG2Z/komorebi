@@ -959,8 +959,11 @@ fn os_trace_ui(ui: &mut egui::Ui, dir: &std::path::Path, os: &OsTraceData, wants
 /// marked.
 ///
 /// The prompt names the session and tells the agent to begin with `komorebi-recorder brief` on it
-/// (where the user's description of the bug is the ground truth) and to read `komorebi-recorder
-/// guide` for how to work from there to the cause. The Bugs tab copies it to the clipboard.
+/// (where the user's description of the bug is the ground truth, and which lists what this
+/// recording has in it and the commands that read each part) and to read `komorebi-recorder
+/// guide` for how to work from there to the cause, and for what each command can do. It says that
+/// every command takes `--json` and has a schema, so an agent does not have to guess what is
+/// available. The Bugs tab copies it to the clipboard.
 ///
 /// This lives in a module that is not public, so it has no example; the test
 /// `the_agent_prompt_names_the_session_and_the_commands_to_start_with` in `viewer::app` pins what it
@@ -971,8 +974,14 @@ pub fn agent_prompt(dir: &std::path::Path) -> String {
     format!(
         "Investigate the komorebi bug recorded in this session: {dir}\n\n\
          Start with `komorebi-recorder brief '{dir}'`: the user marked where the bug starts and ends \
-         and described what is wrong, and that description is the ground truth. Read \
-         `komorebi-recorder guide` for how to work from there to the cause, then propose a fix \
+         and described what is wrong, and that description is the ground truth. The brief also lists \
+         what this recording has (events, komorebi's log, video, the window track, window probes, \
+         the OS trace) and what it lacks, with the commands that read each part, so use only those \
+         and say what a missing part stops you from knowing. Read `komorebi-recorder guide` for how \
+         to work from there to the cause: it describes every command, among them `events`, `state`, \
+         `diff`, `trace`, `code`, `logq`, `window`, `lag` (windows off their layout), `motion`, \
+         `blank`, `framediff` and `measure` (the picture), `sheet` and `assert`. Every command takes \
+         `--json`, and `komorebi-recorder schema <name>` describes its output. Then propose a fix \
          grounded in what the recording shows, citing evidence by event, log line and source line."
     )
 }

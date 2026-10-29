@@ -2873,5 +2873,19 @@ mod tests {
         assert!(prompt.contains("/tmp/a session"));
         assert!(prompt.contains("komorebi-recorder brief"));
         assert!(prompt.contains("komorebi-recorder guide"));
+        // the prompt says what is available, so an agent does not have to guess
+        for command in [
+            "lag",
+            "measure",
+            "motion",
+            "trace",
+            "--json",
+            "komorebi-recorder schema",
+        ] {
+            assert!(
+                prompt.contains(command),
+                "the prompt does not mention {command}"
+            );
+        }
     }
 }
