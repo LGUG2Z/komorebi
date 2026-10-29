@@ -106,7 +106,8 @@ locations as hints.
   `overview` says nothing about it.
 - To measure the picture instead of scripting `ffmpeg`: `motion` (when a display or `--region x,y,w,h` moved,
   and how hard), `framediff <a> <b>` (what changed between two moments; `--png` shows where),
-  `blank --region x,y,w,h` (when a region went one colour, such as white, or froze) and
+  `blank --region x,y,w,h` (when a region went one colour, such as white, or froze),
+  `measure [--region x,y,w,h] [--stat mean|peak|width] [--hz N]` (mean or peak brightness, or drawn width, of a region on a fixed-rate timeline: the frame on screen at each sample time, so the numbers can be plotted or compared though the video has no fixed frame rate) and
   `compare <a> <b>` (two recordings' frames, motion and findings side by side). Regions are in display
   points, the same as the `bbox_points` of `changes`. They need a host that can decode the video.
 - A session recorded with the window track (on by default; `--no-window-track` turns it off) has `windows.jsonl`: every top-level window's rect,
