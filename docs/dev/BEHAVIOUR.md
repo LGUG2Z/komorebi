@@ -246,6 +246,14 @@ say so, and `title_rule` asserts it on both ports. Passes on a real KWin (5 chec
 KDE: a window that opens with no title and gets one later is decided by the rules on the empty
 title only.
 
+**On KDE every monitor has as many workspaces as the one with the most.** Workspaces are KWin's
+virtual desktops, and the number of desktops is common to the outputs, so a monitor that gets a
+workspace makes the others get empty ones. `cycle-move-workspace-to-monitor` shows it: the
+workspace goes to the end of the other monitor's list and is shown there on both ports, but on KDE
+the monitor it left is padded back to the common count and shows its last (empty) workspace, where
+kfw's shows the one before the removed one (and has no padding). The `monitors` scenario reads the
+counts when it needs them and asks only that the monitor it left shows a workspace it has.
+
 ## What the scenarios had to allow for
 
 These are differences between the ports that a scenario does not hide, and are not failures:
