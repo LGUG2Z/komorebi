@@ -12,29 +12,15 @@ import re
 
 from komorebi_vm import daemon
 from komorebi_vm.core.checks import Checks
-from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client
-from komorebi_vm.kde_platform import CELL, PARK, KdePlatform
+from komorebi_vm.kde_platform import PARK, KdePlatform
+from komorebi_vm.platforms.kde.support import where_asked
 
 OUTPUT_WIDTH = 1920
 
 
-def _asked(platform: KdePlatform, title: str) -> Rect | None:
-    return daemon.asked(platform.kde.komorebi_log(), title)
-
-
 def _where_asked(platform: KdePlatform, title: str) -> bool:
-    """KWin has the window where the daemon asked: the same place, and the size up to a cell."""
-    kde = platform.kde
-    want, wid = _asked(platform, title), kde.wid(title)
-    if want is None or wid == "":
-        return False
-    have = kde.rect(wid)
-    return (
-        (have.x, have.y) == (want.x, want.y)
-        and 0 <= want.w - have.w < CELL
-        and 0 <= want.h - have.h < CELL
-    )
+    return where_asked(platform, title)
 
 
 def _focus_agrees(platform: KdePlatform) -> bool:
