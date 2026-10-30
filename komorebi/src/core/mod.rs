@@ -766,3 +766,36 @@ impl FromStr for SocketMessage {
         serde_json::from_str(s)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn placement_target_accepts_a_number_or_a_string() {
+        let parse = |json: &str| serde_json::from_str::<InitialWindowPlacementRules>(json);
+
+        let index = InitialWindowPlacementRules::Target(PlacementTarget::Index(2));
+        assert_eq!(parse("2").unwrap(), index);
+        assert_eq!(parse(r#""2""#).unwrap(), index);
+        assert_eq!(
+            parse(r#""Primary""#).unwrap(),
+            InitialWindowPlacementRules::Target(PlacementTarget::Placement(
+                WindowPlacement::Primary
+            ))
+        );
+
+        assert!(parse("-1").is_err());
+        assert!(parse("1.5").is_err());
+        assert!(parse("true").is_err());
+
+        // the keys of the map form are always strings
+        let Ok(InitialWindowPlacementRules::Rules(rules)) =
+            parse(r#"{"2": {"kind": "Exe", "id": "a.exe"}, "Primary": []}"#)
+        else {
+            panic!("expected the map form");
+        };
+        assert!(rules.contains_key(&PlacementTarget::Index(2)));
+        assert!(rules.contains_key(&PlacementTarget::Placement(WindowPlacement::Primary)));
+    }
+}
