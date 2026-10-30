@@ -197,28 +197,59 @@ impl AnimationEngine {
     }
 
     /// Land animations that have reached their end.
+    ///
+    /// Each lands on a thread of its own, drawing its last frame there too: landing one means
+    /// calling into its window, which can be slow or never come back, and that is not to keep
+    /// the others from landing. A batch that is not landed by `LANDING_DEADLINE` is left to the
+    /// threads that have not come back, so that what comes after it is not kept waiting.
     fn finish(animations: Vec<(String, Animation)>) {
-        for (key, animation) in &animations {
+        for (key, _) in &animations {
             ANIMATION_MANAGER.lock().end(key.as_str());
-
-            // limit progress to 1.0 if animation took longer, and process
-            // the animation for 1.0 to set the target position
-            animation.dispatcher.render(1.0).ok();
         }
 
-        // Landing an animation can take a while (a ghost fades out over
-        // several frames), and they are all landing at the same time.
-        std::thread::scope(|scope| {
-            for (_, animation) in animations {
-                scope.spawn(move || {
-                    if let Err(error) = animation.dispatcher.post_render() {
-                        tracing::warn!("animation could not be completed: {error}");
-                    }
-                });
+        let (landed_tx, landed_rx) = std::sync::mpsc::channel();
+        let count = animations.len();
+
+        for (key, animation) in animations {
+            let landed_tx = landed_tx.clone();
+
+            std::thread::spawn(move || {
+                // limit progress to 1.0 if animation took longer, and process
+                // the animation for 1.0 to set the target position
+                animation.dispatcher.render(1.0).ok();
+
+                if let Err(error) = animation.dispatcher.post_render() {
+                    tracing::warn!("animation {key} could not be completed: {error}");
+                }
+
+                let _ = landed_tx.send(key);
+            });
+        }
+
+        drop(landed_tx);
+
+        let deadline = Instant::now() + LANDING_DEADLINE;
+        let mut landed = 0;
+
+        while landed < count {
+            match landed_rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                Ok(_) => landed += 1,
+                Err(_) => break,
             }
-        });
+        }
+
+        if landed < count {
+            tracing::warn!(
+                "{} of {count} animations did not land in {} ms; they are left to land on their own",
+                count - landed,
+                LANDING_DEADLINE.as_millis()
+            );
+        }
     }
 }
+
+/// How long a batch of animations is waited for to land
+const LANDING_DEADLINE: Duration = Duration::from_secs(2);
 
 /// What the frames of a group of animations cost, to see whether they keep up
 #[derive(Default)]
@@ -430,6 +461,47 @@ mod tests {
         }
 
         wait_for(&events, "post nested");
+    }
+
+    /// Lands never: its last frame does not come back
+    struct Stuck(Recorder);
+
+    impl RenderDispatcher for Stuck {
+        fn get_animation_key(&self) -> String {
+            self.0.get_animation_key()
+        }
+
+        fn pre_render(&self) -> eyre::Result<()> {
+            self.0.pre_render()
+        }
+
+        fn render(&self, progress: f64) -> eyre::Result<()> {
+            if progress >= 1.0 {
+                std::thread::sleep(Duration::from_secs(3600));
+            }
+            Ok(())
+        }
+
+        fn post_render(&self) -> eyre::Result<()> {
+            self.0.post_render()
+        }
+
+        fn cleanup_on_cancel(&self) {}
+    }
+
+    #[test]
+    fn an_animation_that_does_not_come_back_does_not_keep_the_others_from_landing() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        {
+            let _batch = AnimationBatch::begin();
+            AnimationEngine::animate(Stuck(recorder("stuck", &events)), Duration::from_millis(20))
+                .unwrap();
+            AnimationEngine::animate(recorder("fine", &events), Duration::from_millis(20)).unwrap();
+        }
+
+        wait_for(&events, "post fine");
+        assert!(!events.lock().iter().any(|e| e == "post stuck"));
     }
 
     #[test]
