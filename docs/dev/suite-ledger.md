@@ -175,3 +175,41 @@ read, which is the stage hook that was left out. Sections 10 and 11 (a crash, a 
 Ported whole as the extra `kwin_restart.run` (two restarts, 19 checks as run). `core-e2e` had a section
 that restarted KWin once with the same four checks; it is gone, and `core-e2e` now only opens the
 window `afterwards` that its last section looks for.
+
+## The KDE-only suites
+
+Moved as they were into `komorebi_vm.platforms.kde.extras`, one module per suite (`kwin`,
+`kwin_events`, `kwin_contract`, `client_geometry`, `module`, `restart_survival`, `user_maximize`,
+`check`, `features`, `look`, `render_smoke`, `wallpaper`, `rdp`, `latency`, `run_kde`,
+`live_resize`, `focus_follows_mouse`, `lock_sleep`, `keys_engine`, `keys_static`, `keys_corpus`).
+Each module has `run(machine, checks, scale)`, which is the body of the old script; the suite script
+only starts the machine and calls `run_suite(checks, platform_only("kde", ...))`. The three
+`keys-*` suites share one script, `keys-corpus.py`, as before. No check was dropped and none was
+added; these have no shared scenario to repeat. What each makes on a real KDE, run once after the
+move:
+
+| Suite | Passed |
+|---|---|
+| kwin | 8 |
+| kwin-events | 22 |
+| kwin-contract | 15 |
+| client-geometry | 26 |
+| user-maximize | 14 |
+| check | 23 |
+| latency | 5 (once 4 and 1 failed: a p95 of 173 ms against 150 while the machine was loaded) |
+| render-smoke | 4 |
+| rdp | 6 |
+| keys-static, keys-skhd, keys-whkd, keys-sxhkd | 6, 4, 4, 4 |
+| lock-sleep | 11 |
+| focus-follows-mouse | 11 |
+| restart-survival | 17 |
+| module | 33 |
+| live-resize | 7 |
+| look | 40 |
+| wallpaper | 22 |
+| features | 30 |
+| keys-engine | 34 |
+| run-kde | 22 |
+
+The moved modules have long lines the suite scripts were never linted for, so `pyproject.toml` lets
+them keep them (`E501` per file); new extras do not get that.

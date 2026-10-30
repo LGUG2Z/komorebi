@@ -143,8 +143,11 @@ or down, none overlapped, and every window stayed inside the work area.
 **The padding the state says is not the padding the frames show.** On kfde the state says a
 workspace padding of 0 and a container padding of 0, while the windows sit 10 px in from the work
 area; on kfw the state says 10 and 10, and the frames of three tiled windows sit 27 px in, 7
-more than the 20 the state predicts, on every edge. Neither offset is explained. `padding` is
-not affected: it measures from the padding it sets itself.
+more than the 20 the state predicts, on every edge. The kfw 7 px is explained by the kfw session:
+it is the room for the borders (a border width of 8 and an offset of -1), taken off the layout when
+borders are on, so windows sit padding + container padding + 7 px from each edge and twice
+(container padding + 7) apart; a Windows extra checks it. The kfde offset is not explained.
+`padding` is not affected: it measures from the padding it sets itself.
 
 ## What the scenarios had to allow for
 

@@ -377,6 +377,28 @@ a suite, as `core-e2e` does, and run that suite on KVM: a scenario that passes
 the fake and fails on KDE has found a bug in the fake, the library or the daemon.
 `Snapshot.focused_title` was found wrong this way, by the `stacks` scenario.
 
+## A faster loop
+
+- **The daemon is built once, not once per commit.** The VM tests install the daemon built with the
+  constant commit `nix-check` (`nixosModules.forVmTests`), as the checks do, so a new commit does not
+  build it again. The version a VM test sees is therefore not the commit. The source of the build
+  leaves out `nix/tests/vm/`, so editing a test, the library or a fixture does not rebuild it either.
+  `nix build .#komorebi-full`, and what a user installs, still has the real commit.
+- **Each step says how long it took.** `run_suite` prints `[scope] module.function: 12.3 s` after
+  every step, so a log shows which scenario the time went to.
+- **Run only some of the steps.** Set `KFDE_ONLY` to a comma-separated list, and only the steps
+  whose name (as printed, `module.function`) contains one of the words run; the others are printed
+  as left out. A step that the others depend on (the one that opens the windows) is made with
+  `always=True` and runs whatever the list says. Evaluate with `--impure` for the variable to reach
+  the test:
+
+  ```sh
+  KFDE_ONLY=stacks,monocle nix build --impure .#checks.x86_64-linux.vm-core-e2e -L
+  ```
+
+  A step that is left out returns `None`, so a suite that uses what a step returned must run that
+  step with `always=True`.
+
 ## Recording a run with komorebi-recorder
 
 `komorebi-recorder`'s repository is private, so it is not an input of the flake. A run that wants
