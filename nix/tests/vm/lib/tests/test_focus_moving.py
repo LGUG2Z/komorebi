@@ -308,6 +308,26 @@ def test_a_daemon_that_does_not_resize_fails_resize_commands() -> None:
     assert checks.failed > 0
 
 
+def test_a_decrease_that_gives_back_less_than_the_increase_fails_resize_commands() -> None:
+    """Within what a terminal rounds to (24 px), so the window alone cannot tell."""
+
+    class Short(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            if args == ("resize-axis", "horizontal", "decrease"):
+                i = self.focus
+                a, b = self.tiles[i], self.tiles[i + 1]
+                self.tiles[i] = Rect(a.x, a.y, a.w - 30, a.h)
+                self.tiles[i + 1] = Rect(b.x - 30, b.y, b.w + 30, b.h)
+                return ""
+            return super().komorebic(*args)
+
+    platform = Short()
+    checks = Checks()
+    clients = opened(platform, checks)
+    resize_commands.run(platform, checks, clients)
+    assert any("the layout gives it the width it had" in f for f in checks.failures)
+
+
 def test_a_daemon_that_is_right_passes_promoting() -> None:
     platform = FakePlatform()
     checks = Checks()

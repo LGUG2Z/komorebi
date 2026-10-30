@@ -81,7 +81,14 @@ class Platform(Protocol):
     def tolerance(self) -> int:
         """How far a window's frame may be short of the one asked for, in pixels.
 
-        A terminal sizes itself to whole cells; a test window has no granularity.
+        A client that sizes itself to a grid (a terminal's cells) ends up short of the tile; one
+        that does not (a test window) has only the rounding of the system's own frame. The frame
+        is never past what was asked, so a check that something is inside an area allows no slack
+        for it, and a check that two sizes are the same allows this much.
+
+        It is a bound on what a client rounds to, not a measure of a change: a scenario that
+        asks whether the daemon changed a size compares the daemon's layout (`latest_layout`,
+        which no client rounds) and then that the frame follows it within this.
         """
         ...
 
