@@ -65,6 +65,73 @@ runs, and goes stale when the code changes.
 is not the scenario's, that the daemon had exited after `komorebic stop`; the next run passed it,
 and the cause is not known.
 
+## What the last runs said
+
+The table above says what each scenario checks. This one is made from the runs themselves, by
+`scripts/scenario-status`, from the logs of the suites on KDE and the result files of kfw
+(`result.json` for each scenario), so it says what happened and not what somebody wrote. A scenario
+a run did not include shows as `-`; kfw's counts are of the checks labelled `shared`. Regenerate
+it after a run:
+
+```sh
+scripts/scenario-status --kde LOG... --windows DIR --update docs/dev/BEHAVIOUR.md
+```
+
+<!-- scenario-status:begin -->
+| scenario | kde | windows |
+|---|---|---|
+| `closing` | pass 5 | pass 5 |
+| `commands` | pass 237 | pass 237 |
+| `config_reload` | pass 8 | pass 8 |
+| `flipping` | pass 3 | pass 3 |
+| `floating` | pass 7 | pass 7 |
+| `focus` | pass 7 | pass 7 |
+| `focus_follows_mouse` | pass 7 | pass 7 |
+| `hotplug` | pass 9 | FAIL 1 of 9 |
+| `layouts` | pass 50 | pass 50 |
+| `lifecycle` | pass 7 | pass 7 |
+| `lifecycle_hidden` | pass 6 | pass 6 |
+| `locking` | pass 6 | pass 6 |
+| `maximizing` | pass 5 | pass 5 |
+| `minimizing` | pass 4 | pass 4 |
+| `monocle` | pass 7 | pass 7 |
+| `moving` | pass 4 | pass 4 |
+| `padding` | pass 7 | pass 7 |
+| `pausing` | pass 4 | pass 4 |
+| `placement` | pass 5 | pass 4, 1 known |
+| `promoting` | pass 4 | pass 4 |
+| `resize` | pass 8 | pass 8 |
+| `resize_commands` | pass 4 | pass 4 |
+| `rules` | pass 9 | pass 9 |
+| `rules_class` | pass 5 | pass 5 |
+| `rules_exe` | pass 5 | pass 5 |
+| `scrolling` | pass 4 | pass 4 |
+| `stacks` | pass 13 | pass 13 |
+| `startup_rules` | pass 6 | pass 5 |
+| `tiling` | pass 10 | pass 10 |
+| `tiling_off` | pass 6 | pass 6 |
+| `unknown_monitor` | pass 0, 2 known | pass 0, 2 known |
+| `workspace_moves` | pass 8 | pass 8 |
+| `workspaces` | pass 8 | pass 8 |
+
+Only on one port:
+
+| extra | kde | windows |
+|---|---|---|
+| `commands` | pass 33 | - |
+| `core_e2e` | pass 63 | - |
+| `drag_resize` | pass 9 | - |
+| `hotplug` | pass 19 | - |
+| `placement` | pass 5 | - |
+| `windows_cloaking` | - | pass 4 |
+| `windows_config_file` | - | pass 3 |
+| `windows_display_change` | - | pass 7 |
+| `windows_padding` | - | pass 2 |
+| `windows_second_display` | - | pass 6 |
+| `windows_tracking` | - | pass 3 |
+| `workspace_rules` | pass 10 | - |
+<!-- scenario-status:end -->
+
 ## What they have found
 
 **`ignore-rule` drops a rule whose id an earlier rule has, whatever the kind.** `komorebi`'s
