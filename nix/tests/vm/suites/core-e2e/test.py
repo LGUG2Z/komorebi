@@ -31,6 +31,7 @@ from komorebi_vm.core.scenarios import (
     stacks,
     startup_rules,
     tiling,
+    workspace_moves,
     workspaces,
 )
 from komorebi_vm.kde_platform import KdePlatform
@@ -459,6 +460,7 @@ minimizing.run(platform, checks, neutral)
 maximizing.run(platform, checks, neutral)
 padding.run(platform, checks, neutral)
 monocle.run(platform, checks, neutral)
+workspace_moves.run(platform, checks, neutral)
 workspaces.run(platform, checks, neutral)
 # the third window is on workspace 1 now: the first is closed, and the second takes its room
 closing.run(platform, checks, neutral, Client("neutral1"))

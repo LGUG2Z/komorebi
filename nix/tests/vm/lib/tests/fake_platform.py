@@ -80,6 +80,7 @@ class FakePlatform:
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.floats: list[str] = []
+        self.last = 0
         self.maximized: str | None = None
         self.workspace_padding = 0
         self.container_padding = 0
@@ -378,7 +379,8 @@ class FakePlatform:
                 self.ignored.add(title)
             case ("move-to-workspace", number):
                 self.komorebic("send-to-workspace", number)
-                self.current = int(number)
+                self.last, self.current = self.current, int(number)
+                self.focus = len(self.containers) - 1
             case ("enforce-workspace-rules",):
                 for title, number in self.rules.items():
                     for s, containers in enumerate(self.spaces):
@@ -390,7 +392,9 @@ class FakePlatform:
                                 self.spaces[number].append([title])
                                 break
             case ("focus-workspace", number):
-                self.current = int(number)
+                self.last, self.current = self.current, int(number)
+            case ("focus-last-workspace",):
+                self.last, self.current = self.current, self.last
             case ("focused-workspace-padding", size):
                 self.workspace_padding = int(size)
                 self._relayout()

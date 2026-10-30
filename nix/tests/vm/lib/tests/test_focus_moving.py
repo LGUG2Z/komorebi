@@ -22,6 +22,7 @@ from komorebi_vm.core.scenarios import (
     stacks,
     startup_rules,
     tiling,
+    workspace_moves,
     workspaces,
 )
 from tests.fake_platform import FakePlatform
@@ -246,6 +247,29 @@ def test_a_daemon_that_does_not_maximize_fails_maximizing() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     maximizing.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_workspace_moves() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    workspace_moves.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 6
+
+
+def test_a_daemon_that_does_not_follow_the_window_fails_workspace_moves() -> None:
+    class Staying(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            if args[0] == "move-to-workspace":
+                return super().komorebic("send-to-workspace", args[1])
+            return super().komorebic(*args)
+
+    platform = Staying()
+    checks = Checks()
+    clients = opened(platform, checks)
+    workspace_moves.run(platform, checks, clients)
     assert checks.failed > 0
 
 
