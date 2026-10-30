@@ -20,7 +20,7 @@ dest=${1:?usage: sync-e2e-core [--check] DEST}
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 lib=$repo/nix/tests/vm/lib
 
-tests=(fake_platform.py test_checks.py test_pixels.py test_snapshot.py test_recorded.py test_tiling.py
+tests=(fake_platform.py test_checks.py test_suite.py test_pixels.py test_snapshot.py test_recorded.py test_tiling.py
   test_focus_moving.py)
 
 status=0
