@@ -410,6 +410,9 @@ class FakePlatform:
                     a, b = self.tiles[i], self.tiles[i + 1]
                     self.tiles[i] = Rect(a.x, a.y, a.w + d, a.h)
                     self.tiles[i + 1] = Rect(b.x + d, b.y, b.w - d, b.h)
+            case ("promote",):
+                self.containers.insert(0, self.containers.pop(self.focus))
+                self.focus = 0
             case ("toggle-float",):
                 if self.floats:
                     self.containers.insert(self.focus, [self.floats.pop()])

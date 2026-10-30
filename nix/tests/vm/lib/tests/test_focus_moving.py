@@ -17,6 +17,7 @@ from komorebi_vm.core.scenarios import (
     moving,
     padding,
     placement,
+    promoting,
     resize,
     resize_commands,
     rules,
@@ -292,6 +293,27 @@ def test_a_daemon_that_does_not_resize_fails_resize_commands() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     resize_commands.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_promoting() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    promoting.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_does_not_promote_fails_promoting() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("promote",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    promoting.run(platform, checks, clients)
     assert checks.failed > 0
 
 
