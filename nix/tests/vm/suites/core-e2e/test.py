@@ -17,6 +17,7 @@ from komorebi_vm.core.platform import Client
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
+    config_reload,
     flipping,
     floating,
     focus,
@@ -34,6 +35,7 @@ from komorebi_vm.core.scenarios import (
     resize_commands,
     rules,
     rules_class,
+    rules_exe,
     scrolling,
     stacks,
     startup_rules,
@@ -488,6 +490,8 @@ rules.run(platform, checks)
 checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
 print("== 12. rules by class")
 rules_class.run(platform, checks)
+print("== 12. rules by exe")
+rules_exe.run(platform, checks)
 
 print("== 12a. where a window that opens goes, from the placement rules of the config")
 placement.run(platform, checks)
@@ -495,6 +499,11 @@ checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, t
 
 print("== 12a2. the workspace rules of the config, with a window open before the daemon")
 startup_rules.run(platform, checks)
+checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
+
+print("== 12a3. the file is reloaded when it changes")
+config_reload.run(platform, checks)
+platform.close(Client("reload-stays"))
 checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
 # a window for the stop to leave behind
 platform.spawn("afterwards")

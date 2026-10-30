@@ -21,7 +21,7 @@ class FakePlatform:
     def wait_for(self, predicate, timeout: float = 10) -> bool:  # noqa: ANN001
         return predicate()
 
-    def spawn(self, title: str, app_id: str | None = None) -> Client:
+    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
         self.opened.append(title)
         return Client(title)
 
@@ -70,6 +70,18 @@ class FakePlatform:
         return ""
 
     def minimize(self, client: Client) -> None:
+        pass
+
+    def rewrite_config(self, config: dict) -> None:
+        pass
+
+    def lock(self) -> None:
+        pass
+
+    def unlock(self) -> None:
+        pass
+
+    def move_window(self, client: Client, x: int, y: int) -> None:
         pass
 
     def activate(self, client: Client) -> None:

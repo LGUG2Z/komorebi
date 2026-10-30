@@ -6,6 +6,7 @@ from komorebi_vm.core.platform import OsWindow
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
+    config_reload,
     flipping,
     floating,
     focus,
@@ -14,6 +15,7 @@ from komorebi_vm.core.scenarios import (
     layouts,
     lifecycle,
     lifecycle_hidden,
+    locking,
     maximizing,
     minimizing,
     monocle,
@@ -26,6 +28,7 @@ from komorebi_vm.core.scenarios import (
     resize_commands,
     rules,
     rules_class,
+    rules_exe,
     scrolling,
     stacks,
     startup_rules,
@@ -450,6 +453,57 @@ def test_a_daemon_that_ignores_class_rules_fails_rules_class() -> None:
     platform = Deaf()
     checks = Checks()
     rules_class.run(platform, checks)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_rules_exe() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    rules_exe.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_ignores_exe_rules_fails_rules_exe() -> None:
+    class Deaf(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if "exe" in args else super().komorebic(*args)
+
+    platform = Deaf()
+    checks = Checks()
+    rules_exe.run(platform, checks)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_reloads_the_file_passes_config_reload() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    config_reload.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 6
+
+
+def test_a_daemon_that_does_not_reload_the_file_fails_config_reload() -> None:
+    platform = FakePlatform(reloads=False)
+    checks = Checks()
+    config_reload.run(platform, checks)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_tiles_again_on_unlock_passes_locking() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    locking.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_does_not_tile_again_on_unlock_fails_locking() -> None:
+    platform = FakePlatform(retiles_on_unlock=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    locking.run(platform, checks, clients)
     assert checks.failed > 0
 
 

@@ -58,6 +58,8 @@ class FakePlatform:
         focus_follows_move: bool = True,
         pointer: bool = True,
         follows_pointer: bool = True,
+        reloads: bool = True,
+        retiles_on_unlock: bool = True,
     ) -> None:
         self.tiles = list(TILES)
         self.has_pointer = pointer
@@ -82,6 +84,15 @@ class FakePlatform:
         self.floats: list[str] = []
         self.class_rules: dict[str, int] = {}
         self.ignored_classes: set[str] = set()
+        self.exe_rules: dict[str, int] = {}
+        self.ignored_exes: set[str] = set()
+        self.exes: dict[str, str] = {}
+        self.names: list[str | None] = [None, None, None]
+        self.layout_name = "Columns"
+        self.reloads = reloads
+        self.locked = False
+        self.moved: dict[str, Rect] = {}
+        self.retiles_on_unlock = retiles_on_unlock
         self.tiling = True
         self.paused = False
         self.flipped = False
@@ -96,7 +107,20 @@ class FakePlatform:
         self.focus_follows_move = focus_follows_move
 
     def has(self, feature: str) -> bool:
-        return feature == "pointer" and self.has_pointer
+        return feature == "lock" or (feature == "pointer" and self.has_pointer)
+
+    def lock(self) -> None:
+        self.locked = True
+
+    def unlock(self) -> None:
+        self.locked = False
+        if self.retiles_on_unlock:
+            self.moved.clear()
+
+    def move_window(self, client: Client, x: int, y: int) -> None:
+        here = self.os_window(client)
+        assert here is not None
+        self.moved[client.title] = Rect(x, y, here.frame.w, here.frame.h)
 
     @property
     def pointer(self) -> FakePointer:
@@ -146,7 +170,14 @@ class FakePlatform:
         """The titles in view, in the order of the tiles."""
         return [stack[0] for stack in self.containers]
 
-    def spawn(self, title: str, app_id: str | None = None) -> Client:
+    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+        self.exes[title] = exe or ""
+        if exe in self.ignored_exes:
+            self.unmanaged.append(title)
+            return Client(title)
+        if exe in self.exe_rules:
+            self.spaces[self.exe_rules[exe]].append([title])
+            return Client(title)
         if app_id in self.ignored_classes:
             self.unmanaged.append(title)
             return Client(title)
@@ -196,16 +227,26 @@ class FakePlatform:
                 return space
         return None
 
-    def restart_with(self, config: dict[str, Any]) -> None:
-        self.start_komorebi()
+    def rewrite_config(self, config: dict[str, Any]) -> None:
+        if self.reloads:
+            self._load(config)
+
+    def _load(self, config: dict[str, Any]) -> None:
         workspaces = config["monitors"][0]["workspaces"]
-        self.placement = workspaces[0].get("initial_window_placement_rules")
+        self.names = [w.get("name") for w in workspaces] + [None] * (3 - len(workspaces))
+        self.layout_name = workspaces[0]["layout"].title()
         self.prefix_rules = [
             (rule["id"], index)
             for index, workspace in enumerate(workspaces)
             for rule in workspace.get("workspace_rules", [])
             if rule["matching_strategy"] == "StartsWith"
         ]
+
+    def restart_with(self, config: dict[str, Any]) -> None:
+        self.start_komorebi()
+        self._load(config)
+        workspaces = config["monitors"][0]["workspaces"]
+        self.placement = workspaces[0].get("initial_window_placement_rules")
         for title in [t for stack in self.spaces[0] for t in stack]:
             target = self._by_prefix(title)
             if target not in (None, 0):
@@ -326,6 +367,8 @@ class FakePlatform:
         )
         tile = self.tiles[i]
         shift = 1920 * self.display_of.get(client.title, 0)
+        if client.title in self.moved:
+            return OsWindow(client.title, self.moved[client.title], focused=focused)
         return OsWindow(client.title, Rect(tile.x + shift, tile.y, tile.w, tile.h), focused=focused)
 
     def komorebic_status(self, *args: str) -> tuple[int, str]:
@@ -388,6 +431,7 @@ class FakePlatform:
             case ("ensure-workspaces", _, _) | ("clear-all-workspace-rules",):
                 if args[0] == "clear-all-workspace-rules":
                     self.class_rules.clear()
+                    self.exe_rules.clear()
                     self.rules.clear()
                     self.initial_rules.clear()
             case ("initial-workspace-rule", "title", title, _, number):
@@ -396,6 +440,10 @@ class FakePlatform:
                 self.rules[title] = int(number)
             case ("workspace-rule", "class", name, _, number):
                 self.class_rules[name] = int(number)
+            case ("workspace-rule", "exe", name, _, number):
+                self.exe_rules[name] = int(number)
+            case ("ignore-rule", "exe", name):
+                self.ignored_exes.add(name)
             case ("ignore-rule", "class", name):
                 self.ignored_classes.add(name)
             case ("ignore-rule", "title", title):
@@ -474,13 +522,20 @@ class FakePlatform:
             return {
                 "id": hash(title) % 1000,
                 "rect": {"left": tile.x, "top": tile.y, "right": tile.w, "bottom": tile.h},
-                "details": {"title": title, "exe": "", "class": "", "path": ""},
+                "details": {
+                    "title": title,
+                    "exe": self.exes.get(title, ""),
+                    "class": "",
+                    "path": "",
+                },
             }
 
         def rect(r: Rect) -> dict[str, int]:
             return {"left": r.x, "top": r.y, "right": r.w, "bottom": r.h}
 
-        def workspace(containers: list[list[str]], focus: int, current: bool) -> dict[str, Any]:
+        def workspace(
+            index: int, containers: list[list[str]], focus: int, current: bool
+        ) -> dict[str, Any]:
             floats = self.floats if current else []
             monocle = None
             if current and self.monocle is not None:
@@ -488,7 +543,7 @@ class FakePlatform:
                 windows = {"elements": [window(self.monocle, whole)], "focused": 0}
                 monocle = {"id": "m", "locked": False, "windows": windows}
             return {
-                "name": None,
+                "name": self.names[index],
                 "containers": {
                     "elements": [
                         {
@@ -513,7 +568,7 @@ class FakePlatform:
                     "elements": [window(t, Rect(300, 300, 600, 400)) for t in floats],
                     "focused": 0,
                 },
-                "layout": {"Default": "Columns"},
+                "layout": {"Default": self.layout_name},
                 "tile": self.tiling,
                 "workspace_padding": self.workspace_padding,
                 "container_padding": self.container_padding,
@@ -525,7 +580,7 @@ class FakePlatform:
             "size": rect(Rect(0, 0, 1920, 1080)),
             "workspaces": {
                 "elements": [
-                    workspace(c, f, i == self.current)
+                    workspace(i, c, f, i == self.current)
                     for i, (c, f) in enumerate(zip(self.spaces, self.focuses, strict=True))
                 ],
                 "focused": self.current,
@@ -535,7 +590,7 @@ class FakePlatform:
             {
                 "id": n + 1,
                 "size": rect(Rect(n * 1920, 0, 1920, 1080)),
-                "workspaces": {"elements": [workspace([], 0, False)], "focused": 0},
+                "workspaces": {"elements": [workspace(0, [], 0, False)], "focused": 0},
             }
             for n in range(1, 1 if self.forgets_displays else self.display_count)
         ]
