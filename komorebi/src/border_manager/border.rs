@@ -343,6 +343,10 @@ impl Border {
         });
 
         let mut border = border_receiver.recv()?;
+        tracing::trace!(
+            "border {}: created for {id} to track {tracking_hwnd}",
+            border.hwnd
+        );
 
         // I have literally no idea, apparently this is to get rid of the black pixels
         // around the edges of rounded corners? @lukeyou05 borrowed this from PowerToys
@@ -467,6 +471,10 @@ impl Border {
         // a border that is held is put where it is to be and left hidden: it is
         // shown along with its window, not when it is created
         let show = !crate::border_manager::is_held(reference_hwnd);
+        tracing::trace!(
+            "border {}: set to {rect:?} above {reference_hwnd}, shown: {show}",
+            self.hwnd
+        );
         WindowsApi::set_border_pos(self.hwnd, &rect, reference_hwnd, show)?;
 
         Ok(())
@@ -569,15 +577,31 @@ impl Border {
                     LRESULT(0)
                 }
                 WM_PAINT => {
+                    tracing::trace!("border {}: WM_PAINT", window.0 as isize);
+                    if let Err(error) = WindowsApi::window_rect(window.0 as isize) {
+                        tracing::trace!(
+                            "border {}: not painted, its own rect cannot be read: {error}",
+                            window.0 as isize
+                        );
+                    }
+
                     if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
                         let border_pointer: *mut Border =
                             GetWindowLongPtrW(window, GWLP_USERDATA) as _;
 
                         if border_pointer.is_null() {
+                            tracing::trace!(
+                                "border {}: not painted, it has no border data",
+                                window.0 as isize
+                            );
                             return LRESULT(0);
                         }
 
                         if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                            tracing::trace!(
+                                "border {}: not painted, it is being destroyed",
+                                window.0 as isize
+                            );
                             return LRESULT(0);
                         }
 
@@ -593,9 +617,20 @@ impl Border {
                             tracing::error!("failed to update border position {error}");
                         }
 
+                        if (*border_pointer).render_target.is_none() {
+                            tracing::trace!(
+                                "border {}: not painted, it has no render target",
+                                window.0 as isize
+                            );
+                        }
+
                         if let Some(render_target) = (*border_pointer).render_target.as_ref() {
                             // double-check destruction flag before rendering
                             if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                                tracing::trace!(
+                                    "border {}: not painted, it is being destroyed",
+                                    window.0 as isize
+                                );
                                 return LRESULT(0);
                             }
 
@@ -619,7 +654,18 @@ impl Border {
 
                             // Get window kind and color
                             let window_kind = (*border_pointer).window_kind;
+                            if !(*border_pointer).brushes.contains_key(&window_kind) {
+                                tracing::trace!(
+                                    "border {}: not painted, it has no brush for {window_kind:?}",
+                                    window.0 as isize
+                                );
+                            }
+
                             if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
+                                tracing::trace!(
+                                    "border {}: painting {window_kind:?}",
+                                    window.0 as isize
+                                );
                                 render_target.BeginDraw();
                                 render_target.Clear(None);
 

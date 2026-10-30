@@ -381,6 +381,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
         drop(state);
 
+        tracing::trace!(
+            "border notification {notification:?}: foreground {foreground_window} (zoomed: {})",
+            WindowsApi::is_zoomed(foreground_window)
+        );
+
         match IMPLEMENTATION.load() {
             BorderImplementation::Windows => {
                 'monitors: for (monitor_idx, m) in monitors.elements().iter().enumerate() {
@@ -571,6 +576,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                         new_border = true;
                                         entry.insert(border)
                                     } else {
+                                        tracing::trace!(
+                                            "border: could not create one for monocle {} ({focused_window_hwnd})",
+                                            monocle.id
+                                        );
                                         continue 'monitors;
                                     }
                                 }
@@ -675,6 +684,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             foreground_monitor_id == m.id && WindowsApi::is_zoomed(foreground_hwnd);
 
                         if is_maximized {
+                            tracing::trace!(
+                                "border: removing the borders of monitor {monitor_idx}, the foreground window {foreground_hwnd} is maximized"
+                            );
                             // Remove all borders on this monitor
                             remove_borders(
                                 &mut borders,
@@ -685,6 +697,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             continue 'monitors;
                         }
+
+                        tracing::trace!(
+                            "border: {} container(s) on monitor {monitor_idx}, {} border(s) known",
+                            ws.containers().len(),
+                            borders.len()
+                        );
 
                         // Collect focused workspace container and floating windows ID's
                         let mut container_and_floating_window_ids = ws
@@ -721,6 +739,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                         new_border = true;
                                         entry.insert(border)
                                     } else {
+                                        tracing::trace!(
+                                            "border: could not create one for container {} ({focused_window_hwnd})",
+                                            c.id
+                                        );
                                         continue 'monitors;
                                     }
                                 }
