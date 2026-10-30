@@ -87,6 +87,14 @@ I know it's buggy, and I know that most of the time it sucks, but this is someth
 you should be bring up with the billion dollar company and not with me, the
 solo developer.
 
+### Automatically maximize a single window
+
+Set `auto_maximize_single_window` to `true` in `komorebi.json` to maximize a
+tiled window when it is the only tiled window on its workspace. Floating windows
+are not auto-maximized. The option is disabled by default; when another window
+is added or tiling is disabled, the automatically maximized window returns to
+the workspace layout.
+
 ### Border colours
 
 If you choose to use the active window border, you can set different colours to

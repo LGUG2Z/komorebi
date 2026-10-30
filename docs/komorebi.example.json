@@ -7,6 +7,7 @@
   "default_container_padding": 20,
   "border": true,
   "border_width": 8,
+  "auto_maximize_single_window": false,
   "border_offset": -1,
   "theme": {
     "palette": "Base16",

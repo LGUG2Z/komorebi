@@ -1,3 +1,4 @@
+use crate::AUTO_MAXIMIZE_SINGLE_WINDOW;
 use crate::AspectRatio;
 use crate::Axis;
 use crate::CrossBoundaryBehaviour;
@@ -563,6 +564,10 @@ pub struct StaticConfig {
     #[serde(alias = "active_window_border_width")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_WIDTH)))]
     pub border_width: Option<i32>,
+    /// Automatically maximize the only tiled window on a workspace
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
+    pub auto_maximize_single_window: Option<bool>,
     /// Offset of window borders
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_offset")]
@@ -909,6 +914,9 @@ impl From<&WindowManager> for StaticConfig {
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
             border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
+            auto_maximize_single_window: Option::from(
+                AUTO_MAXIMIZE_SINGLE_WINDOW.load(Ordering::SeqCst),
+            ),
             border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
             border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
             border_colours,
@@ -1072,6 +1080,11 @@ impl StaticConfig {
         if let Some(border_width) = self.border_width {
             border_manager::BORDER_WIDTH.store(border_width, Ordering::SeqCst);
         }
+
+        AUTO_MAXIMIZE_SINGLE_WINDOW.store(
+            self.auto_maximize_single_window.unwrap_or(false),
+            Ordering::SeqCst,
+        );
 
         if let Some(border_offset) = self.border_offset {
             border_manager::BORDER_OFFSET.store(border_offset, Ordering::SeqCst);
