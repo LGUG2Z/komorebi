@@ -1,7 +1,9 @@
 # The scrolling layout in a real KWin. The strip runs past the edge of the work area, and KWin is
-# expected to leave the windows exactly where komorebi puts them, off the screen too. What only a
-# real KWin can tell is in `komorebi_vm.platforms.kde.extras.scrolling`: that KWin keeps them there
-# and that the strip scrolls with the focus `komorebic focus` moves. The shared scenario
+# expected to leave the windows exactly where komorebi puts them: a window that is out of view rests
+# at the edge it left by, with a few pixels of it on the screen. What only a real KWin can tell is in
+# `komorebi_vm.platforms.kde.extras.scrolling`: that KWin keeps them there, that the strip scrolls
+# with the focus `komorebic focus` moves, and the commands of the columns that hold several windows
+# (`consume`, `expel`, `toggle-column-stack`, `scrolling-layout-full-width`, `pan`). The shared scenario
 # (`komorebi_vm.core.scenarios.scrolling`), which `core-e2e` runs and which runs on Windows too,
 # checks the focused window is in view. `komorebi/tests/layout_options.rs` checks where komorebi
 # puts the columns against the fake.

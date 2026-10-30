@@ -1,11 +1,14 @@
 """What only KDE can tell about the scrolling layout, beside the shared `scrolling` scenario.
 
 The strip runs past the edge of the work area, and KWin is expected to leave the windows exactly
-where the daemon puts them, off the screen too: KWin keeps part of a window it resizes on an
-output, and the bridge asks again for the position of a window that was pulled back (`settle` in
-`bridge.js`). The shared scenario checks that the focused window is in view; these check where
-KWin keeps the ones that are not, and that the strip scrolls with the focus `komorebic focus`
-moves.
+where the daemon puts them: a window that is out of view rests at the edge of the work area it left
+by, with a few pixels of it on the screen and its size unchanged. KWin keeps part of a window it
+resizes on an output, and the bridge asks again for the position of a window that was pulled back
+(`settle` in `bridge.js`). The shared scenario checks that the focused window is in view; these
+check where KWin keeps the ones that are not, that the strip scrolls with the focus `komorebic
+focus` moves, and the commands of the columns that hold several windows (`consume`, `expel`,
+`toggle-column-stack`, `scrolling-layout-full-width`, `pan`). Those commands are kfde's: the shared
+scenario is also run against komorebi for Windows, which has them only on its `next` branch.
 """
 
 from komorebi_vm.core.checks import Checks
@@ -14,6 +17,10 @@ from komorebi_vm.core.platform import Client
 from komorebi_vm.kde_platform import KdePlatform
 
 WINDOWS = 5
+
+# how many pixels of a window that rests at an edge of the work area are on the screen (5 of them
+# by design, and the paddings and what the compositor rounds are the rest)
+PARKED_AT_MOST = 30
 
 
 def run(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
@@ -30,7 +37,7 @@ def run(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
         return r.x >= 0 and r.x + r.w <= width
 
     def out_of_view(r: Rect) -> bool:
-        return r.x >= width or r.x + r.w <= 0
+        return r.x >= width - PARKED_AT_MOST or r.x + r.w <= PARKED_AT_MOST
 
     def focused_monitor() -> int:
         return platform.state().focused_monitor
@@ -55,12 +62,16 @@ def run(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
     )
     for i in range(1, WINDOWS + 1):
         print(f"     win{i}: {n(i)}")
-    # not an absolute x: the paddings move every column
-    pitch = n(5).x - n(4).x
+    # the window rests with its right edge a few pixels inside the work area, and is as wide as
+    # the one in view: KWin did not pull it further onto the screen, and nothing was resized
     checks.check(
-        f"KWin left them where the daemon put them: win1 is three columns left of win4"
-        f" ({n(1).x} = {n(4).x} - 3 x {pitch}), not pulled back",
-        kde.wait_for(lambda: n(1).x == n(4).x - 3 * pitch, timeout=10),
+        f"KWin left win1 at the left edge with a few pixels of it on the screen"
+        f" (right edge at {n(1).x + n(1).w}), not pulled back",
+        kde.wait_for(lambda: 0 < n(1).x + n(1).w <= PARKED_AT_MOST, timeout=10),
+    )
+    checks.check(
+        f"... and it kept its width ({n(1).w} against {n(4).w})",
+        kde.wait_for(lambda: abs(n(1).w - n(4).w) <= platform.tolerance, timeout=10),
     )
     checks.check("KWin and the daemon agree on the focus", kde.wait_for(lambda: agree("win5")))
 
@@ -81,6 +92,66 @@ def run(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
     checks.check("walking right again reaches win5", kde.wait_for(lambda: agree("win5")))
     checks.check("... without the focus having left the first monitor", focused_monitor() == 0)
     checks.check("... and win5 is in view", kde.wait_for(lambda: in_view(n(5)), timeout=10))
+
+    # the view moves a column without the focus moving first
+    kde.komorebic("pan", "left")
+    checks.check(
+        "panning left brings win3 into view and puts win5 out of it",
+        kde.wait_for(lambda: in_view(n(3)) and out_of_view(n(5)), timeout=10),
+    )
+    checks.check(
+        "... and the focus goes to the nearest column in view, win4",
+        kde.wait_for(lambda: agree("win4")),
+    )
+    kde.komorebic("pan", "right")
+    checks.check("panning right puts win5 in view again", kde.wait_for(lambda: in_view(n(5))))
+
+    # a column of two windows: win4 is put at the top of the column of win5
+    kde.komorebic("focus", "right")
+    kde.wait_for(lambda: agree("win5"))
+    kde.komorebic("consume", "left")
+    checks.check(
+        "consuming left puts win4 above win5, in one column",
+        kde.wait_for(
+            lambda: abs(n(4).x - n(5).x) <= platform.tolerance and n(4).y < n(5).y, timeout=10
+        ),
+    )
+    checks.check(
+        "... each with a share of the height of the column",
+        kde.wait_for(lambda: n(4).h < platform.size[1] * 0.6 and n(5).h < platform.size[1] * 0.6),
+    )
+    checks.check("... and the focus stays on win5", kde.wait_for(lambda: agree("win5")))
+
+    kde.komorebic("toggle-column-stack")
+    stacked = [Client("win4"), Client("win5")]
+    checks.check(
+        "stacking the column shows one window of the two",
+        kde.wait_for(lambda: sum(platform.hidden(c) for c in stacked) == 1, timeout=10),
+    )
+    kde.komorebic("toggle-column-stack")
+    checks.check(
+        "spreading it out shows both again, one above the other",
+        kde.wait_for(
+            lambda: not any(platform.hidden(c) for c in stacked) and n(4).y < n(5).y, timeout=10
+        ),
+    )
+
+    kde.komorebic("expel")
+    checks.check(
+        "expelling puts the focused window in a column of its own on the right",
+        kde.wait_for(lambda: n(5).x > n(4).x + platform.tolerance and n(5).y == n(4).y, timeout=10),
+    )
+
+    kde.komorebic("scrolling-layout-full-width")
+    checks.check(
+        "the full width makes the focused column as wide as the work area",
+        kde.wait_for(lambda: n(5).w >= width - 60 and in_view(n(5)), timeout=10),
+    )
+    kde.komorebic("scrolling-layout-full-width")
+    checks.check(
+        "and again puts it back to the width it had",
+        kde.wait_for(lambda: abs(n(5).w - n(4).w) <= platform.tolerance, timeout=10),
+    )
 
     kde.komorebic("stop")
     kde.wait_for(lambda: not kde.komorebi_running())
