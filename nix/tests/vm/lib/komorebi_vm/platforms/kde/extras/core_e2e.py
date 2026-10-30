@@ -289,39 +289,13 @@ def parking(platform: KdePlatform, checks: Checks, clients: list[Client]) -> Non
         platform.close(client)
 
 
-def kwin_restart(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """KWin restarts under the daemon: it loads its script into the new KWin, lets go of the
-    windows of the old one, and tiles what opens there. The suite ends with a window of the new
-    KWin, `afterwards`."""
-    kde = platform.kde
-    loaded = kde.komorebi_log().count("loaded the KWin bridge script")
-    kde.restart_kwin()
-    checks.check(
-        "the daemon loaded its script into the new KWin",
-        kde.wait_for(
-            lambda: kde.komorebi_log().count("loaded the KWin bridge script") == loaded + 1,
-            timeout=30,
-        ),
-    )
-    checks.check(
-        "the daemon let go of the windows of the old KWin",
-        kde.wait_for(lambda: kde.managed_all() == 0),
-    )
+def leave_a_window(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
+    """Opens the window `afterwards`, which `stopped` finds still open after the daemon stops. The
+    `kwin-restart` suite covers KWin restarting under the daemon."""
     platform.spawn("afterwards")
     checks.check(
-        "a window opened in the new KWin is managed",
-        kde.wait_for(lambda: kde.managed_all() == 1),
-    )
-    width = platform.size[0]
-    checks.check(
-        "... and tiled on its own",
-        kde.wait_for(
-            lambda: (
-                _where_asked(platform, "afterwards")
-                and kde.rect(kde.wid("afterwards")).w > width - 100
-            ),
-            timeout=20,
-        ),
+        "a window opened is managed",
+        platform.kde.wait_for(lambda: platform.kde.managed_all() >= 1, timeout=20),
     )
 
 

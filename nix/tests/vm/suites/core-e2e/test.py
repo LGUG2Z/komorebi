@@ -176,7 +176,7 @@ run_suite(
     ),
     # what only KDE can tell about the daemon stopping, crashing, and KWin restarting
     platform_only("kde", kde_core.parking, platform, checks, []),
-    platform_only("kde", kde_core.kwin_restart, platform, checks, []),
+    platform_only("kde", kde_core.leave_a_window, platform, checks, []),
     platform_only("kde", kde_core.stopped, platform, checks, []),
 )
 
