@@ -52,7 +52,8 @@ runs, and goes stale when the code changes.
 | `resize_commands` | `resize-axis horizontal increase` and `decrease` widen the focused window and give the width back, with no pointer | pass | pass |
 | `promoting` | `promote` puts the window on the first tile and keeps its focus | pass | pass |
 | `flipping` | `flip-layout horizontal` mirrors every window's place, and flipping back restores it | pass | pass |
-| `pausing` | a paused daemon leaves a new window alone, and an unpaused one takes the next | pass | not run yet |
+| `pausing` | a paused daemon leaves a new window alone, and an unpaused one takes the next | pass | pass |
+| `tiling_off` | `toggle-tiling` leaves the windows where they are, a layout change moves none, and tiling again tiles them | pass | not run yet |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
 is not the scenario's, that the daemon had exited after `komorebic stop`; the next run passed it,
