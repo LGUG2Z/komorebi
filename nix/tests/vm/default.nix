@@ -23,6 +23,10 @@ let
     in
     if path == "" then null else builtins.storePath path;
 
+  # `KFDE_ONLY=stacks,monocle` (with `--impure`) runs only the steps of a suite whose name has one
+  # of the words; see `komorebi_vm.core.suite`
+  only = builtins.getEnv "KFDE_ONLY";
+
   # the library the suites import, built for the python of the test driver
   komorebiVm =
     ps:
@@ -100,6 +104,10 @@ let
       testScript = ''
         SCALE = ${toString scale}
         RECORDER = ${if recorder == null then "False" else "True"}
+      ''
+      + lib.optionalString (only != "") ''
+        import os
+        os.environ["KFDE_ONLY"] = ${builtins.toJSON only}
       ''
       + builtins.readFile (dir + "/${suite.script or "test.py"}");
     };

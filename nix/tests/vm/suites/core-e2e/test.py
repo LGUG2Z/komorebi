@@ -69,8 +69,8 @@ recorder.start("core-e2e")
 NEUTRAL = ("neutral1", "neutral2", "neutral3")
 opened = run_suite(
     checks,
-    platform_only("kde", kde_core.start, platform, checks, []),
-    shared(tiling.run, platform, checks, NEUTRAL),
+    platform_only("kde", kde_core.start, platform, checks, [], always=True),
+    shared(tiling.run, platform, checks, NEUTRAL, always=True),
 )
 neutral = cast(list[Client], opened[1])
 args = (platform, checks, neutral)
