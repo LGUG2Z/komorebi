@@ -2883,6 +2883,14 @@
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/PlacementMatchingRules"
+          },
+          "patternProperties": {
+            "^[0-9]+$": {
+              "$ref": "#/$defs/PlacementMatchingRules"
+            },
+            "^\\d+$": {
+              "$ref": "#/$defs/PlacementMatchingRules"
+            }
           }
         }
       ]
@@ -3748,35 +3756,20 @@
       ]
     },
     "PlacementTarget": {
-      "description": "A target position for window placement, used as a key in `InitialWindowPlacementRules::Rules`.\n\nCan be either a `WindowPlacement` variant name (e.g. `\"Primary\"`, `\"Last\"`)\nor a 1-based container index (e.g. `\"1\"`, `\"3\"`).\n\nNOTE: Integer indices are 1-based in the config for user-friendliness.",
-      "oneOf": [
+      "description": "A target position for window placement, used as a key in `InitialWindowPlacementRules::Rules`.\n\nCan be either a `WindowPlacement` variant name (e.g. `\"Primary\"`, `\"Last\"`)\nor a 1-based container index (e.g. `\"1\"`, `\"3\"`, or the integer `3`).\n\nNOTE: Integer indices are 1-based in the config for user-friendliness.",
+      "anyOf": [
         {
-          "description": "A named placement strategy",
-          "type": "object",
-          "properties": {
-            "Placement": {
-              "$ref": "#/$defs/WindowPlacement"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Placement"
-          ]
+          "$ref": "#/$defs/WindowPlacement"
+        },
+        {
+          "description": "A 1-based container index as a string",
+          "type": "string",
+          "pattern": "^[0-9]+$"
         },
         {
           "description": "A 1-based container index",
-          "type": "object",
-          "properties": {
-            "Index": {
-              "type": "integer",
-              "format": "uint",
-              "minimum": 0
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Index"
-          ]
+          "type": "integer",
+          "minimum": 0
         }
       ]
     },

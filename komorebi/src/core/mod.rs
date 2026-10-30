@@ -541,7 +541,6 @@ pub enum WindowPlacement {
 ///
 /// NOTE: Integer indices are 1-based in the config for user-friendliness.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum PlacementTarget {
     /// A named placement strategy
     Placement(WindowPlacement),
@@ -582,6 +581,39 @@ impl PartialOrd for PlacementTarget {
     }
 }
 
+// Written by hand because the (de)serialization is: a `WindowPlacement` name or a container index,
+// as a string or as an integer, never the externally tagged object a derive would describe
+#[cfg(feature = "schemars")]
+impl schemars::JsonSchema for PlacementTarget {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "PlacementTarget".into()
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "description": "A target position for window placement, used as a key in `InitialWindowPlacementRules::Rules`.
+
+Can be either a `WindowPlacement` variant name (e.g. `\"Primary\"`, `\"Last\"`)
+or a 1-based container index (e.g. `\"1\"`, `\"3\"`, or the integer `3`).
+
+NOTE: Integer indices are 1-based in the config for user-friendliness.",
+            "anyOf": [
+                generator.subschema_for::<WindowPlacement>(),
+                {
+                    "description": "A 1-based container index as a string",
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                },
+                {
+                    "description": "A 1-based container index",
+                    "type": "integer",
+                    "minimum": 0
+                }
+            ]
+        })
+    }
+}
+
 impl Ord for PlacementTarget {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.to_string().cmp(&other.to_string())
@@ -596,8 +628,33 @@ impl Serialize for PlacementTarget {
 
 impl<'de> Deserialize<'de> for PlacementTarget {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        s.parse().map_err(serde::de::Error::custom)
+        struct PlacementTargetVisitor;
+
+        impl serde::de::Visitor<'_> for PlacementTargetVisitor {
+            type Value = PlacementTarget;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a WindowPlacement name or a non-negative container index")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<Self::Value, E> {
+                s.parse().map_err(E::custom)
+            }
+
+            fn visit_u64<E: serde::de::Error>(self, n: u64) -> Result<Self::Value, E> {
+                usize::try_from(n)
+                    .map(PlacementTarget::Index)
+                    .map_err(E::custom)
+            }
+
+            fn visit_i64<E: serde::de::Error>(self, n: i64) -> Result<Self::Value, E> {
+                usize::try_from(n)
+                    .map(PlacementTarget::Index)
+                    .map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_any(PlacementTargetVisitor)
     }
 }
 
@@ -778,5 +835,33 @@ mod tests {
         };
 
         assert_eq!(path, PathBuf::from("/path/VALUE/d"));
+    }
+
+    #[test]
+    fn placement_target_accepts_a_number_or_a_string() {
+        let parse = |json: &str| serde_json::from_str::<InitialWindowPlacementRules>(json);
+
+        let index = InitialWindowPlacementRules::Target(PlacementTarget::Index(2));
+        assert_eq!(parse("2").unwrap(), index);
+        assert_eq!(parse(r#""2""#).unwrap(), index);
+        assert_eq!(
+            parse(r#""Primary""#).unwrap(),
+            InitialWindowPlacementRules::Target(PlacementTarget::Placement(
+                WindowPlacement::Primary
+            ))
+        );
+
+        assert!(parse("-1").is_err());
+        assert!(parse("1.5").is_err());
+        assert!(parse("true").is_err());
+
+        // the keys of the map form are always strings
+        let Ok(InitialWindowPlacementRules::Rules(rules)) =
+            parse(r#"{"2": {"kind": "Exe", "id": "a.exe"}, "Primary": []}"#)
+        else {
+            panic!("expected the map form");
+        };
+        assert!(rules.contains_key(&PlacementTarget::Index(2)));
+        assert!(rules.contains_key(&PlacementTarget::Placement(WindowPlacement::Primary)));
     }
 }
