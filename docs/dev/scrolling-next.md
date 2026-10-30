@@ -21,7 +21,7 @@ is, whether it is hidden, how wide it really is) is a call to the backend in kfd
 | `cb127204c` platform-free glue | `komorebi_layouts::scrolling` (options, `place`, `resize`, hand-over between workspaces), `ScrollingCentering` replaces the `bool` of `center_focused_column`; Workspace methods for focus, order, consume, expel, stack. | **Ported:** the layouts half by the bump, the Workspace half in `komorebi/src/scrolling.rs`. |
 | `249709e60` commands and config | Socket messages and `komorebic` commands `consume`, `expel`, `toggle-column-stack`, `scrolling-layout-full-width`, `center-focus`, `expand`; focus, move, resize, retile and close go through the strip. The message says a top level `scrolling` section too. | **Ported**, except the `scrolling` section: neither kfw nor kfde has one (only komorebi for Mac has; COMPARE.md says so). |
 | `9ff278eb5` schemas | `center_focused_column` is a boolean or a name; docs for the new commands; `schema.bar.json`. | **Ported:** `schema.json`, `nix/komorebi-options.nix`, `docs/cli/`. `schema.bar.json` is kfw's (kfde has no bar). |
-| `2dff53095` room for windows that will not get narrow | After windows are placed, a window wider than its column widens the column (never narrower again, never wider than the screen), for an overhang of 16 px or more. | **Ported, with a different trigger.** kfde cannot ask a window how wide it is right after moving it: the frame comes back from KWin a moment later. The widths are read at the first layout after the frames have settled (`WIDTH_SETTLE`), as upstream does with animations on. Unverified in a VM. |
+| `2dff53095` room for windows that will not get narrow | After windows are placed, a window wider than its column widens the column (never narrower again, never wider than the screen), for an overhang of 16 px or more. | **Ported, with a different trigger.** kfde cannot ask a window how wide it is right after moving it: the frame comes back from KWin a moment later. The widths are read at the first layout after the frames have settled (`WIDTH_SETTLE`), as upstream does with animations on. Covered by unit tests in `scrolling.rs`; no VM check, because it needs a client that will not get narrower and foot has no minimum width. |
 | `e75f3db47` rest windows at the edge | A window out of view rests at the edge it left by with 5 px on screen and keeps its size. | **Ported** (`parked`). On KDE this also keeps the window from being resized while it moves out of view, which is what KWin pulls back (PLATFORM.md). |
 | `ab1896330` docs | `docs/usage/scrolling-layout.md`, `mkdocs.yml`. | **Ported**, rewritten for KDE (no animation, no borders at the edges, no touchpad). |
 | `1531a892a` more than one monitor | Removes the single-monitor restriction; a window out of view past an edge with a monitor next to it is hidden, not parked; a partly visible one is cut to its work area; a window that comes back is shown first, only the one at the front of a stack. | **Ported** (`rest`, `other_monitors`, `should_restore_when_placed`, from `backend().monitors()` and `Window::hide`). kfde never had the restriction. This answers the open question in PLATFORM.md about a strip that spills onto the next monitor. |
@@ -56,8 +56,7 @@ is, whether it is hidden, how wide it really is) is a call to the backend in kfd
   drag of the left edge of a column.
 - `komorebic/tests/cli.rs`: each new subcommand sends its message.
 - `nix/tests/vm/lib/komorebi_vm/platforms/kde/extras/scrolling.py`, run by `vm-scrolling`: where KWin
-  keeps a window at the edge and the commands of the columns, in a real session. **Not run**: the VM
-  suites are verified later. What to look at first is that KWin leaves a window with a right edge
-  5 pixels inside the work area where it was put (the bridge's `settle` is what is meant to see to it),
-  and that `toggle-column-stack` parks and restores the right windows.
-
+  keeps a window at the edge and the commands of the columns, in a real session. Run on KDE: 24 passed,
+  0 failed. KWin leaves a window resting at the left edge with its right edge a few pixels inside the
+  work area, or a cell short of them, because foot rounds its frame to whole cells. The shared
+  `scrolling` scenario passes in `core-e2e` too.
