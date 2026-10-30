@@ -88,13 +88,25 @@ def run(platform: Platform, checks: Checks) -> None:
         return platform.wait_for(lambda: hue_of(platform.screenshot(name)) == hue, timeout=20)
 
     def has_ring(client: Client, hue: str, name: str) -> bool:
-        """The window has a ring of `hue` in a screenshot taken until it does."""
+        """The window has a ring of `hue` in a screenshot taken until it does. When it has not,
+        what the last screenshot had is printed: the frame, and the colors it was read from."""
 
         def ring() -> bool:
             window = platform.os_window(client)
             return window is not None and ring_hue(window.frame, platform.screenshot(name)) == hue
 
-        return platform.wait_for(ring, timeout=20)
+        if platform.wait_for(ring, timeout=20):
+            return True
+        window = platform.os_window(client)
+        if window is None:
+            print(f"     {client.title} has no window")
+        else:
+            image = platform.screenshot(name)
+            f = window.frame
+            y = f.y + f.h // 2
+            row = [pixels.pixel(image, x, y) for x in range(max(0, f.x - 12), f.x + 12, 2)]
+            print(f"     {client.title} {f}: ring {ring_hue(f, image)}, wanted {hue}; pixels {row}")
+        return False
 
     platform.set_wallpaper(other)
     checks.check(
