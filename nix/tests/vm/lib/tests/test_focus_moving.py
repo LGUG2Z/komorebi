@@ -11,6 +11,7 @@ from komorebi_vm.core.scenarios import (
     hotplug,
     layouts,
     lifecycle,
+    maximizing,
     minimizing,
     monocle,
     moving,
@@ -224,6 +225,27 @@ def test_a_daemon_that_ignores_the_padding_fails_padding() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     padding.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_maximizing() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    maximizing.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_does_not_maximize_fails_maximizing() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("toggle-maximize",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    maximizing.run(platform, checks, clients)
     assert checks.failed > 0
 
 

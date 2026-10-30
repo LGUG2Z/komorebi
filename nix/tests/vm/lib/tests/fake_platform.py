@@ -80,6 +80,7 @@ class FakePlatform:
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.floats: list[str] = []
+        self.maximized: str | None = None
         self.workspace_padding = 0
         self.container_padding = 0
         self.minimized: list[str] = []
@@ -287,6 +288,8 @@ class FakePlatform:
         return Image.new("RGB", (4, 4))
 
     def os_window(self, client: Client) -> OsWindow | None:
+        if client.title == self.maximized:
+            return OsWindow(client.title, Rect(0, 0, 1920, 1080), focused=True)
         if client.title in self.minimized:
             return OsWindow(client.title, Rect(0, 0, 0, 0), focused=False)
         if client.title in self.floats:
@@ -394,6 +397,8 @@ class FakePlatform:
             case ("focused-workspace-container-padding", size):
                 self.container_padding = int(size)
                 self._relayout()
+            case ("toggle-maximize",):
+                self.maximized = None if self.maximized else self.containers[self.focus][0]
             case ("toggle-float",):
                 if self.floats:
                     self.containers.insert(self.focus, [self.floats.pop()])
@@ -455,7 +460,11 @@ class FakePlatform:
                     "focused": focus,
                 },
                 "monocle_container": monocle,
-                "maximized_window": None,
+                "maximized_window": (
+                    window(self.maximized, Rect(0, 0, 1920, 1080))
+                    if current and self.maximized
+                    else None
+                ),
                 "floating_windows": {
                     "elements": [window(t, Rect(300, 300, 600, 400)) for t in floats],
                     "focused": 0,

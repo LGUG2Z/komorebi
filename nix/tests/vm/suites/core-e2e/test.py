@@ -21,6 +21,7 @@ from komorebi_vm.core.scenarios import (
     focus,
     layouts,
     lifecycle,
+    maximizing,
     minimizing,
     monocle,
     moving,
@@ -455,6 +456,7 @@ checks.check(
 layouts.run(platform, checks, neutral)
 floating.run(platform, checks, neutral)
 minimizing.run(platform, checks, neutral)
+maximizing.run(platform, checks, neutral)
 padding.run(platform, checks, neutral)
 monocle.run(platform, checks, neutral)
 workspaces.run(platform, checks, neutral)
