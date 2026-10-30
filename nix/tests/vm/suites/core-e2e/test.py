@@ -33,6 +33,7 @@ from komorebi_vm.core.scenarios import (
     promoting,
     resize_commands,
     rules,
+    scrolling,
     stacks,
     startup_rules,
     tiling,
@@ -469,6 +470,7 @@ promoting.run(platform, checks, neutral)
 flipping.run(platform, checks, neutral)
 pausing.run(platform, checks, neutral)
 tiling_off.run(platform, checks, neutral)
+scrolling.run(platform, checks, neutral)
 padding.run(platform, checks, neutral)
 monocle.run(platform, checks, neutral)
 workspace_moves.run(platform, checks, neutral)

@@ -2,6 +2,7 @@
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
+from komorebi_vm.core.platform import OsWindow
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
@@ -24,6 +25,7 @@ from komorebi_vm.core.scenarios import (
     resize,
     resize_commands,
     rules,
+    scrolling,
     stacks,
     startup_rules,
     tiling,
@@ -404,6 +406,30 @@ def test_a_daemon_that_loses_the_put_away_window_fails_lifecycle_hidden() -> Non
     checks = Checks()
     clients = opened(platform, checks)
     lifecycle_hidden.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_scrolling() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    scrolling.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_loses_the_focused_window_off_screen_fails_scrolling() -> None:
+    class Off(FakePlatform):
+        def os_window(self, client):  # noqa: ANN001, ANN201
+            window = super().os_window(client)
+            if window is not None and window.focused:
+                return OsWindow(window.title, Rect(5000, 0, 100, 100), focused=True)
+            return window
+
+    platform = Off()
+    checks = Checks()
+    clients = opened(platform, checks)
+    scrolling.run(platform, checks, clients)
     assert checks.failed > 0
 
 
