@@ -1,4 +1,4 @@
-# schema-sha256: 03b13ffd266a4432379c1dc2dc69b84b180484acd196ffda7dd436e511ad4170
+# schema-sha256: b12084cc7a60e3c4502f56bf4f9c72cee957324c21ec9d6b17890243143da1fd
 { lib, ... }:
 let
   animationStyle = (
@@ -212,9 +212,16 @@ let
               lib.types.submodule {
                 options = {
                   center_focused_column = lib.mkOption {
-                    type = (lib.types.nullOr lib.types.bool);
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          lib.types.bool
+                          scrollingCentering
+                        ]
+                      )
+                    );
                     default = null;
-                    description = "With an odd number of visible columns, keep the focused window column centered";
+                    description = "When to centre the focused column: `Never` (the default), `Always`, or `OnOverflow`, which\nis when it does not fit on the screen together with the column that focus came from. A\nboolean is also accepted, where `true` is `Always` and `false` is `Never`";
                   };
                   columns = lib.mkOption {
                     type = lib.types.int;
@@ -271,6 +278,13 @@ let
         };
       };
     }
+  );
+  scrollingCentering = (
+    lib.types.enum [
+      "Never"
+      "Always"
+      "OnOverflow"
+    ]
   );
   wallpaper = (
     lib.types.submodule {
