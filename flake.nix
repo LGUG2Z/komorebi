@@ -44,21 +44,26 @@
             src = ./.;
             filter =
               path: type:
-              (craneLib.filterCargoSources path type)
-              # the script komorebi loads into KWin, which the daemon includes
-              || (pkgs.lib.hasSuffix ".js" path)
-              # the messages the tests of the bridge and of the daemon share, the configurations
-              # the tests load, and the schemas
-              || (pkgs.lib.hasSuffix ".json" path)
-              # the page of the docs that shows the example configuration, which a test compares
-              # with the example file
-              || (pkgs.lib.hasSuffix "docs/example-configurations.md" path)
-              # the example a test loads, to see that the docs show one that works
-              || (pkgs.lib.hasSuffix "docs/usage/wallpapers.md" path)
-              # the sample key bindings that `komorebic quickstart` includes
-              || (pkgs.lib.hasSuffix "docs/skhdrc.sample" path)
-              # the key binding files the komorebi-hotkeys tests read
-              || (pkgs.lib.hasInfix "/komorebi-hotkeys/tests/fixtures/" path);
+              # the VM tests (their library, scripts and the states they keep) are not built, so
+              # editing one does not change the source the daemon is built from
+              !(pkgs.lib.hasInfix "/nix/tests/vm/" path)
+              && (
+                (craneLib.filterCargoSources path type)
+                # the script komorebi loads into KWin, which the daemon includes
+                || (pkgs.lib.hasSuffix ".js" path)
+                # the messages the tests of the bridge and of the daemon share, the configurations
+                # the tests load, and the schemas
+                || (pkgs.lib.hasSuffix ".json" path)
+                # the page of the docs that shows the example configuration, which a test compares
+                # with the example file
+                || (pkgs.lib.hasSuffix "docs/example-configurations.md" path)
+                # the example a test loads, to see that the docs show one that works
+                || (pkgs.lib.hasSuffix "docs/usage/wallpapers.md" path)
+                # the sample key bindings that `komorebic quickstart` includes
+                || (pkgs.lib.hasSuffix "docs/skhdrc.sample" path)
+                # the key binding files the komorebi-hotkeys tests read
+                || (pkgs.lib.hasInfix "/komorebi-hotkeys/tests/fixtures/" path)
+              );
           };
 
           commonArgs = {
@@ -87,12 +92,17 @@
             }
           );
 
-          extractBinary =
-            binaryName:
-            pkgs.runCommand "komorebi-${binaryName}" { meta = fullBuild.meta // { }; } ''
+          # the same build with the constant commit of the checks: the VM tests install this one, so
+          # that a new commit does not build the daemon again
+          vmBuild = craneLib.buildPackage individualCrateArgs;
+
+          extractBinaryOf =
+            package: binaryName:
+            pkgs.runCommand "komorebi-${binaryName}" { meta = package.meta // { }; } ''
               mkdir -p $out/bin
-              cp ${fullBuild}/bin/${binaryName} $out/bin/
+              cp ${package}/bin/${binaryName} $out/bin/
             '';
+          extractBinary = extractBinaryOf fullBuild;
         in
         {
           inherit
@@ -102,9 +112,12 @@
             commonArgs
             individualCrateArgs
             fullBuild
+            vmBuild
             ;
           komorebi = extractBinary "komorebi";
           komorebic = extractBinary "komorebic";
+          komorebiForVm = extractBinaryOf vmBuild "komorebi";
+          komorebicForVm = extractBinaryOf vmBuild "komorebic";
           # komorebic with the constant commit of the checks, whose output the schemas are
           # checked against: it is the same for every commit
           komorebicForChecks = craneLib.buildPackage (
@@ -143,7 +156,7 @@
           build = mkKomorebiPackages { inherit pkgs; };
           isLinux = pkgs.stdenv.hostPlatform.isLinux;
           # the guests install komorebi through the module, as a NixOS user does
-          komorebiModule = self.nixosModules.default;
+          komorebiModule = self.nixosModules.forVmTests;
           # a Mac runs the guests under HVF, which is slower than KVM. A Linux host is no faster
           # than a Mac to the suites that time the daemon: on a 24-core WSL2 machine, under nested
           # KVM and with nothing else running, `latency` measured a p95 of 129 ms against its
@@ -547,6 +560,18 @@
             kwin-effect-geometry-change-komorebi = final.callPackage ./nix/kwin-effect-geometry-change.nix { };
           };
         overlays.komorebi = self.overlays.default;
+        # the same packages built with the constant commit of the checks, for the VM tests
+        overlays.forVmTests =
+          final: prev:
+          let
+            build = mkKomorebiPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; };
+          in
+          (self.overlays.default final prev)
+          // {
+            komorebi = build.komorebiForVm;
+            komorebic = build.komorebicForVm;
+            komorebi-full = build.vmBuild;
+          };
 
         # `services.komorebi`, with the overlay that provides its package, so that a NixOS
         # configuration needs this flake as an input and one module line (docs/installation.md)
@@ -555,6 +580,11 @@
           nixpkgs.overlays = [ self.overlays.default ];
         };
         nixosModules.komorebi = self.nixosModules.default;
+        # `services.komorebi` with the packages the VM tests install
+        nixosModules.forVmTests = {
+          imports = [ ./nix/nixos-module.nix ];
+          nixpkgs.overlays = [ self.overlays.forVmTests ];
+        };
 
         # Plasma guests to develop against (docs/dev/utm.md). For an Apple silicon Mac, QEMU runs
         # the first two under HVF, and UTM boots the third from a disk image. For a Linux machine
