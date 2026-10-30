@@ -47,10 +47,13 @@ class KdePlatform:
         return self.kde.wait_for(predicate, timeout=timeout)
 
     def start_komorebi(self) -> None:
+        # a unit that is still stopping is not started again by `systemctl start`
+        self.kde.wait_for(lambda: not self.kde.komorebi_running(), timeout=30)
         self.kde.start_komorebi()
         status = self.kde.wait_for(lambda: self.kde.run("komorebic state")[0] == 0, timeout=30)
         if not status:
-            raise AssertionError("the daemon did not answer komorebic")
+            tail = "\n".join(self.kde.komorebi_log().splitlines()[-30:])
+            raise AssertionError(f"the daemon did not answer komorebic; its log ends:\n{tail}")
 
     def restart_with(self, config: dict[str, Any]) -> None:
         if self.kde.komorebi_running():

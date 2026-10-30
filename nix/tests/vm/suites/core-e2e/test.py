@@ -22,6 +22,7 @@ from komorebi_vm.core.scenarios import (
     focus,
     layouts,
     lifecycle,
+    lifecycle_hidden,
     maximizing,
     minimizing,
     monocle,
@@ -495,6 +496,9 @@ checks.check("it is managed", kde.wait_for(lambda: kde.managed_all() == 1, timeo
 
 print("== 12b. a daemon that stops and starts again takes the windows up")
 lifecycle.run(platform, checks, [Client("afterwards"), platform.spawn("beside")])
+checks.check("the daemon answers", kde.wait_for(answering, timeout=30))
+print("== 12b2. the same, with a window put away on another workspace")
+lifecycle_hidden.run(platform, checks, [Client("afterwards"), Client("beside")])
 checks.check("the daemon answers", kde.wait_for(answering, timeout=30))
 platform.close(Client("after-the-restart"))
 platform.close(Client("beside"))

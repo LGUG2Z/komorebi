@@ -12,6 +12,7 @@ from komorebi_vm.core.scenarios import (
     hotplug,
     layouts,
     lifecycle,
+    lifecycle_hidden,
     maximizing,
     minimizing,
     monocle,
@@ -380,6 +381,29 @@ def test_a_daemon_that_ignores_toggle_tiling_fails_tiling_off() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     tiling_off.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_lifecycle_hidden() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    lifecycle_hidden.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_loses_the_put_away_window_fails_lifecycle_hidden() -> None:
+    class Forgetful(FakePlatform):
+        def start_komorebi(self) -> None:
+            super().start_komorebi()
+            self.spaces = [[c for c in self.spaces[0] if c != ["win3"]], [], []]
+            self.unmanaged.append("win3")
+
+    platform = Forgetful()
+    checks = Checks()
+    clients = opened(platform, checks)
+    lifecycle_hidden.run(platform, checks, clients)
     assert checks.failed > 0
 
 
