@@ -41,8 +41,8 @@
 //!   of its own ([`WindowManager::adopt_maximize_change`]). The maximize and the restore that
 //!   `ToggleMaximize` asks for come back as this event too, and change nothing. A window that
 //!   opens maximized is taken the same way, after its Show.
-//! - **TitleUpdate**: a window komorebi does not have, and that was not minimized, is announced
-//!   again as a Show, so that a rule that matches on the title it has now decides.
+//! - **TitleUpdate**: nothing. The rules decide when a window opens; a window an ignore rule
+//!   matched stays unmanaged when its title changes, and a managed one stays managed, as in kfw.
 //! - **MoveStart** and **MoveEnd**: the user dragged a window with the pointer. When they let go
 //!   on another monitor, the window's container goes there and takes the place of the container
 //!   whose tile the pointer is on ([`WindowManager::transfer_window`]). When they let go on the
@@ -112,10 +112,7 @@ use crate::window::live_resize_ends;
 use crate::window::should_act;
 use crate::window_manager::LiveResize;
 use crate::window_manager::WindowManager;
-use crate::window_manager_event::KWinNotification;
-use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
-use crate::window_manager_event_listener;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -556,17 +553,9 @@ impl WindowManager {
                 }
             },
             WindowManagerEvent::TitleUpdate(_, _) => {
-                // Windows are routinely announced before their title is set. Now that it is, a rule
-                // that matches on the title can finally decide, so a window that was not picked up
-                // gets another chance to be.
-                if !self.known_window_ids.contains_key(&window_id)
-                    && !self.minimized_windows.contains_key(&window_id)
-                {
-                    window_manager_event_listener::send_notification(WindowManagerEvent::Show(
-                        SystemNotification::KWin(KWinNotification::WindowAdded),
-                        window,
-                    ));
-                }
+                // The rules decide when a window opens, by the title it has then. A later title
+                // change does not make the daemon look at the window again: one an ignore rule
+                // matched stays unmanaged, and one that is managed stays so. kfw does the same.
             }
             WindowManagerEvent::MoveStart(_, window) => {
                 let window_id = window.id;

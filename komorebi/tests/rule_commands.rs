@@ -176,7 +176,7 @@ fn a_session_float_rule_floats_the_focused_window_and_the_ones_like_it_until_it_
 }
 
 #[test]
-fn a_window_whose_title_no_longer_matches_an_ignore_rule_is_tiled_when_the_title_changes() {
+fn a_window_an_ignore_rule_matched_stays_unmanaged_when_its_title_changes() {
     let (fake, mut wm) = desktop();
     send(
         &fake,
@@ -195,19 +195,28 @@ fn a_window_whose_title_no_longer_matches_an_ignore_rule_is_tiled_when_the_title
     with_backend(fake.clone(), || wm.process_event(title_changed(29_031))).unwrap();
     forget_ignore_rule("pending-29");
 
-    // the title update announces the window again, on the channel the events thread reads
+    // the title change announces nothing: the window is not looked at again
     let events = window_manager_event_listener::event_rx();
-    let shown = loop {
-        let event = events
-            .recv_timeout(Duration::from_secs(5))
-            .expect("the window is announced again");
-        if event.window_id() == Some(29_031) {
-            break event;
-        }
-    };
-    assert!(matches!(shown, WindowManagerEvent::Show(..)), "{shown:?}");
-    with_backend(fake.clone(), || wm.process_event(shown)).unwrap();
-    assert_eq!(tiled(&wm), [29_031]);
+    let announced = std::iter::from_fn(|| events.recv_timeout(Duration::from_millis(300)).ok())
+        .any(|event| event.window_id() == Some(29_031));
+    assert!(!announced, "the window is not announced again");
+    assert!(tiled(&wm).is_empty());
+}
+
+#[test]
+fn a_managed_window_stays_managed_when_its_title_changes() {
+    let (fake, mut wm) = desktop();
+    open(
+        &fake,
+        &mut wm,
+        29_032,
+        ("browser-29", "org.example.browser", "a page"),
+    );
+    assert_eq!(tiled(&wm), [29_032]);
+
+    fake.set_title(29_032, "another page");
+    with_backend(fake.clone(), || wm.process_event(title_changed(29_032))).unwrap();
+    assert_eq!(tiled(&wm), [29_032]);
 }
 
 #[test]

@@ -709,10 +709,10 @@ the workspaces in front; `SessionFloatRule` adds a float rule made of the focuse
 executable, title and class, all three to be equal, and floats it, and `ClearSessionFloatRules`
 takes those rules out again. `GlobalState` answers with the ignore and the manage rules
 ([`GlobalState`]), and `DebugWindow` with what [`Window::should_manage`] read of a window and
-which rules matched ([`RuleDebug`]). A rule decides when a window is shown; the bridge reports
-a title change (`caption`), which is a `TitleUpdate` event, and a `TitleUpdate` about a window
-the index does not have, and that is not minimized, is sent again as a `Show`, so that a rule
-about the title it has now decides.
+which rules matched ([`RuleDebug`]). A rule decides when a window is shown, by the title it has
+then; the bridge reports a title change (`caption`), which is a `TitleUpdate` event, and the
+window manager does nothing with it, so a window an ignore rule matched stays unmanaged when its
+title changes, as in kfw.
 
 `TogglePause` sets [`WindowManager::is_paused`]: while it is set, `handle_event` returns at once
 for every event, and [`read_commands_uds`] hands only `TogglePause`, `State`, `GlobalState` and
