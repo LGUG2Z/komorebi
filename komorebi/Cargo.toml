@@ -8,6 +8,7 @@ edition = "2024"
 komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 komorebi-themes = { workspace = true }
 komorebi-layouts = { workspace = true }
+komorebi-scrolling = { workspace = true }
 version = { path = "../version" }
 
 clap = { workspace = true }

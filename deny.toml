@@ -59,6 +59,11 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
+crate = "komorebi-scrolling"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
 crate = "komorebic"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []

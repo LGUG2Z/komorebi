@@ -13,13 +13,17 @@ members = [
 version = "0.1.0"
 
 [workspace.dependencies]
-# upstream's layouts, at a revision that has the fix for resizing a tile by dragging its edge
-# (LGUG2Z/komorebi#1765) and the placement helpers komorebi for KDE uses
-komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "efe91ce33223afd2a41da35afcf0670a3ea39050", features = [
+# upstream's layouts, at a revision of its `next` branch that has the fix for resizing a tile by
+# dragging its edge (LGUG2Z/komorebi#1765), the placement helpers komorebi for KDE uses and the
+# platform-free half of the rework of the Scrolling layout
+komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "6d862a11471b819236000a463c575abce2ed13c3", features = [
   "schemars",
 ] }
+# the model of a strip of columns that the Scrolling layout is laid out with, from the same
+# revision, whose layouts re-export it as `komorebi_layouts::scrolling::model`
+komorebi-scrolling = { git = "https://github.com/LGUG2Z/komorebi", rev = "6d862a11471b819236000a463c575abce2ed13c3" }
 # the themes (and the palettes made from pictures), from the same upstream revision
-komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "efe91ce33223afd2a41da35afcf0670a3ea39050" }
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "6d862a11471b819236000a463c575abce2ed13c3" }
 
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "wrap_help"] }
