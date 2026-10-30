@@ -499,8 +499,10 @@ class Kde:
         return status == 0
 
     def wid(self, title: str) -> str:
-        """The id of the first window whose title is exactly `title`, or the empty string."""
-        pattern = shlex.quote(f"^{title}$")
+        """The id of the first window whose title is exactly `title` (it is not a pattern), or the
+        empty string."""
+        literal = re.sub(r"([\\.+*?()|\[\]{}^$])", r"\\\1", title)
+        pattern = shlex.quote(f"^{literal}$")
         return self.run(f"kdotool search --name {pattern} | head -1")[1].strip()
 
     def wid_by_class(self, app: str) -> str:
@@ -702,43 +704,49 @@ class Kde:
             )
         return [line for line in self.kwin_reports(name) if line != "done"]
 
-    def work_area(self) -> Rect | None:
-        """The area of the first output that windows may take, as KWin has it (its placement
-        area: the output less the panels), or `None` when KWin does not say.
+    def screens(self) -> list[tuple[Rect, Rect]] | None:
+        """What KWin says of each enabled output, left to right: its rectangle in the coordinates
+        of the desktop, and the area of it that windows may take (KWin's placement area: the
+        output less the panels, as the daemon's bridge reads it). `None` when KWin does not say.
 
-        The first output is the leftmost one. It is the area of the desktop the output shows, as
-        the daemon's bridge reads it. A KWin script asks, because `kdotool` has no call for it.
+        A KWin script asks, because `kdotool` has no call for either.
         """
         source = """
-        var first = null;
         for (var i = 0; i < workspace.screens.length; i++) {
             var s = workspace.screens[i];
-            if (first === null || s.geometry.x < first.geometry.x
-                || (s.geometry.x === first.geometry.x && s.geometry.y < first.geometry.y)) {
-                first = s;
-            }
-        }
-        if (first !== null) {
+            var g = s.geometry;
             var a = workspace.clientArea(
-                KWin.PlacementArea, first, workspace.currentDesktopForScreen(first));
-            report("area", Math.round(a.x), Math.round(a.y), Math.round(a.width),
+                KWin.PlacementArea, s, workspace.currentDesktopForScreen(s));
+            report("screen", Math.round(g.x), Math.round(g.y), Math.round(g.width),
+                Math.round(g.height), Math.round(a.x), Math.round(a.y), Math.round(a.width),
                 Math.round(a.height));
         }
         report("done");
         """
         try:
-            lines = self.kwin_script(f"work-area-{next(_PROBES)}", source)
+            lines = self.kwin_script(f"screens-{next(_PROBES)}", source)
         except AssertionError:
             return None
+        found: list[tuple[Rect, Rect]] = []
         for line in lines:
             words = line.split()
-            if words[:1] == ["area"] and len(words) == 5:
-                try:
-                    x, y, w, h = (int(word) for word in words[1:])
-                except ValueError:
-                    return None
-                return Rect(x, y, w, h) if w > 0 and h > 0 else None
-        return None
+            if words[:1] != ["screen"] or len(words) != 9:
+                continue
+            try:
+                n = [int(word) for word in words[1:]]
+            except ValueError:
+                return None
+            if n[2] <= 0 or n[3] <= 0 or n[6] <= 0 or n[7] <= 0:
+                return None
+            found.append((Rect(*n[0:4]), Rect(*n[4:8])))
+        found.sort(key=lambda pair: (pair[0].x, pair[0].y))
+        return found or None
+
+    def work_area(self) -> Rect | None:
+        """The area of the first (leftmost) output that windows may take, as KWin has it, or `None`
+        when KWin does not say ([`Kde.screens`][])."""
+        screens = self.screens()
+        return screens[0][1] if screens else None
 
     def kwin_reports(self, name: str) -> list[str]:
         """Every line the KWin script `name` has reported so far ([`Kde.kwin_script`][])."""

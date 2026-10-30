@@ -2,6 +2,7 @@
 neutral vocabulary."""
 
 import json
+import re
 import shlex
 from typing import Any
 
@@ -21,6 +22,9 @@ PARK = "komorebi-park"
 # the file the daemon is started with, and where a program with a name of its own is made
 CONFIG = "/tmp/e2e-restart-config.json"
 BIN = "/tmp/e2e-bin"
+# what a program name may be made of: the same on every platform, so that a scenario cannot pass
+# one that another port rejects
+PROGRAM = re.compile(r"[A-Za-z0-9_-]+")
 
 
 class KdePlatform:
@@ -91,7 +95,9 @@ class KdePlatform:
     def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
         name = f"-a {shlex.quote(app_id)} " if app_id else ""
         program = "foot"
-        if exe:
+        if exe is not None:
+            if not PROGRAM.fullmatch(exe):
+                raise ValueError(f"not a program name: {exe!r}")
             # the daemon reads the executable from /proc, where a link shows its target: a copy
             # of the terminal is what has the name, made once: a copy that is running cannot be
             # written over
@@ -100,8 +106,17 @@ class KdePlatform:
                 f"mkdir -p {BIN} && {{ test -x {program} || cp -L $(command -v foot) {program}; }}"
             )
         self.kde.spawn(f"{program} {name}-T {shlex.quote(title)} sleep 3000")
-        self.kde.wait_for(lambda: self.kde.wid(title) != "", timeout=30)
+        if not self.kde.wait_for(lambda: self.kde.wid(title) != "", timeout=30):
+            raise AssertionError(f"no window titled {title!r} appeared")
         return Client(title)
+
+    def _wid(self, client: Client) -> str:
+        """The id of the window of `client`, which has to exist: a command for a window that is
+        not there fails, as it does on every platform."""
+        wid = self.kde.wid(client.title)
+        if wid == "":
+            raise AssertionError(f"no window titled {client.title!r}")
+        return wid
 
     def exe_id(self, program: str) -> str:
         return program
@@ -131,8 +146,14 @@ class KdePlatform:
         return desk != 0 and desk != self.kde.shown()
 
     def displays(self) -> list[Rect]:
-        """The enabled outputs, which this session gives the size it was started with, side by side
-        from the left (at the scale of 1 that a scenario leaves them at)."""
+        """The enabled outputs, as KWin has them, left to right.
+
+        Where KWin does not say, they are the size the session was started with, side by side
+        from the left (at the scale of 1 that a scenario leaves them at).
+        """
+        screens = self.kde.screens()
+        if screens:
+            return [display for display, _ in screens]
         width, height = self.size
         return [Rect(i * width, 0, width, height) for i in range(len(self.kde.outputs.names()))]
 
@@ -153,7 +174,7 @@ class KdePlatform:
         self.kde.wait_for(lambda: len(self.kde.outputs.names()) == len(names) - 1, timeout=20)
 
     def close(self, client: Client) -> None:
-        self.kde.close(self.kde.wid(client.title))
+        self.kde.close(self._wid(client))
 
     def _session_id(self) -> str:
         """The id of the user's Wayland session, which is the one that gets locked."""
@@ -180,7 +201,7 @@ class KdePlatform:
             raise AssertionError("the screen did not unlock")
 
     def move_window(self, client: Client, x: int, y: int) -> None:
-        self.kde.sh(f"kdotool windowmove {self.kde.wid(client.title)} {x} {y}")
+        self.kde.sh(f"kdotool windowmove {self._wid(client)} {x} {y}")
 
     def work_area(self) -> Rect:
         """What KWin says windows may take of the first output, which is the output less the
@@ -193,10 +214,10 @@ class KdePlatform:
         return area if area is not None else Rect(0, 0, *self.size)
 
     def minimize(self, client: Client) -> None:
-        self.kde.minimize(self.kde.wid(client.title))
+        self.kde.minimize(self._wid(client))
 
     def activate(self, client: Client) -> None:
-        self.kde.activate(self.kde.wid(client.title))
+        self.kde.activate(self._wid(client))
 
     def screenshot(self, name: str) -> Image.Image:
         return self.kde.shot(name)

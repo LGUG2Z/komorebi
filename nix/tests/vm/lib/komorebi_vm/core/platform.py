@@ -34,8 +34,12 @@ class OsWindow:
 
     title: str
     frame: Rect
-    """The visible frame: the compositor's on KDE, the DWM's extended frame on Windows."""
+    """The visible frame: the compositor's on KDE, the DWM's extended frame on Windows, without
+    the invisible borders and the shadow. A scenario does not read the frame of a window that is
+    minimized: it is where the system keeps it, which is not the same on every port."""
     focused: bool
+    """The window has the keyboard focus, as the operating system says. At most one window of a
+    desktop does; none does while another program's window has it."""
 
 
 class Pointer(Protocol):
@@ -93,7 +97,12 @@ class Platform(Protocol):
         ...
 
     def wait_for(self, predicate: "Predicate", timeout: float = 10) -> bool:
-        """Polls `predicate` until it holds or `timeout` seconds, scaled for this host, pass."""
+        """Polls `predicate` until it holds or `timeout` seconds, scaled for this host, pass.
+
+        A predicate answers false for what it cannot tell yet. A port may treat a `komorebic`
+        that fails, in a predicate, as a false (Windows does, while the host is busy), and one may
+        not (KDE raises): a predicate does not rely on either.
+        """
         ...
 
     def start_komorebi(self) -> None:
@@ -128,7 +137,10 @@ class Platform(Protocol):
         ...
 
     def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
-        """Opens a window with this title and waits until the platform has it.
+        """Opens a window with this title and waits until the platform has it, and raises if it
+        never does: a scenario that waits for a window to stay unmanaged must be sure it is there.
+
+        A title is a name that no other window has, taken as it is: it is never a pattern.
 
         `app_id` is the class of the window (its app id on Wayland, its window class on Windows)
         for a rule that matches by it; the platform's own when there is none.
@@ -164,7 +176,11 @@ class Platform(Protocol):
 
     def displays(self) -> list[Rect]:
         """The displays the operating system has, left to right: each one's rectangle in the
-        coordinates of the desktop. The daemon is not asked."""
+        coordinates of the desktop. The daemon is not asked.
+
+        Displays are not the same size (the one `add_display` plugs in may be smaller than the
+        first) and need not touch: a scenario uses each one's own rectangle and does not compute
+        where the next begins."""
         ...
 
     def add_display(self) -> None:
@@ -174,16 +190,22 @@ class Platform(Protocol):
         ...
 
     def remove_display(self) -> None:
-        """Unplugs the display that was plugged in last, and returns when the operating system no
-        longer has it."""
+        """Unplugs the last display (the rightmost, which is the one `add_display` plugged in last),
+        and returns when the operating system no longer has it.
+
+        Only a display `add_display` plugged in is certain to be removable: Windows refuses
+        any other, KDE unplugs the last of the outputs it has. A scenario unplugs a display only
+        after it plugged one in, unless its suite started the platform with more than one."""
         ...
 
     def close(self, client: Client) -> None:
-        """Closes the window, as its close button would."""
+        """Closes the window, as its close button would, and returns without waiting for it to be
+        gone. Raises if there is no such window."""
         ...
 
     def minimize(self, client: Client) -> None:
-        """Minimizes the window, as its title bar button would. `activate` restores it."""
+        """Minimizes the window, as its title bar button would. `activate` restores it. Raises if
+        there is no such window."""
         ...
 
     def lock(self) -> None:
@@ -213,7 +235,8 @@ class Platform(Protocol):
         ...
 
     def activate(self, client: Client) -> None:
-        """Gives the window the focus, as a click on it would."""
+        """Gives the window the focus, as a click on it would, and restores it if it was minimized.
+        Raises if there is no such window."""
         ...
 
     def screenshot(self, name: str) -> Image.Image:

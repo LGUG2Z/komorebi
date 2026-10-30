@@ -824,3 +824,12 @@ def test_shortcut_actions_are_the_action_names_of_the_component(machine: FakeMac
     machine.replies.clear()
     machine.reply("allActionsForComponent", status=1)
     assert Kde(machine, "main").shortcut_actions() == []
+
+
+def test_wid_takes_a_title_as_it_is_and_not_as_a_pattern(machine: FakeMachine) -> None:
+    machine.reply("kdotool search", output="{one}\n")
+
+    Kde(machine, "main").wid("a (b) [c].d+")
+
+    command = inner(machine.commands[0])
+    assert r"'^a \(b\) \[c\]\.d\+$'" in command
