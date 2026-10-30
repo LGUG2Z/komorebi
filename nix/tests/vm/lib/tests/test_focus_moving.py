@@ -5,6 +5,7 @@ from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
+    flipping,
     floating,
     focus,
     focus_follows_mouse,
@@ -314,6 +315,27 @@ def test_a_daemon_that_does_not_promote_fails_promoting() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     promoting.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_flipping() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    flipping.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_does_not_flip_fails_flipping() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args[0] == "flip-layout" else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    flipping.run(platform, checks, clients)
     assert checks.failed > 0
 
 

@@ -80,6 +80,7 @@ class FakePlatform:
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.floats: list[str] = []
+        self.flipped = False
         self.last = 0
         self.maximized: str | None = None
         self.workspace_padding = 0
@@ -254,6 +255,10 @@ class FakePlatform:
                 Rect(w + i * width + c, w + c, width - 2 * c, 1080 - 2 * w - 2 * c)
                 for i in range(n)
             ] + list(TILES[n:])
+            if self.flipped:
+                self.tiles = [Rect(1920 - t.x - t.w, t.y, t.w, t.h) for t in self.tiles[:n]] + list(
+                    TILES[n:]
+                )
 
     def _container(self, title: str) -> int:
         return self._find(title)[1]
@@ -413,6 +418,9 @@ class FakePlatform:
             case ("promote",):
                 self.containers.insert(0, self.containers.pop(self.focus))
                 self.focus = 0
+            case ("flip-layout", "horizontal"):
+                self.flipped = not self.flipped
+                self._relayout()
             case ("toggle-float",):
                 if self.floats:
                     self.containers.insert(self.focus, [self.floats.pop()])
