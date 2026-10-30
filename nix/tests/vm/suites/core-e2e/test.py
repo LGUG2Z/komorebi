@@ -171,8 +171,10 @@ run_suite(
     shared(lifecycle_hidden.crash, platform, checks, [Client("afterwards"), Client("beside")]),
     platform_only("kde", kde_core.start, platform, checks, []),
 )
-platform.close(Client("after-the-restart"))
-platform.close(Client("beside"))
+# a step the filter left out has not opened these
+for title in ("after-the-restart", "beside"):
+    if kde.wid(title) != "":
+        platform.close(Client(title))
 checks.check(
     "one window is left", kde.wait_for(lambda: kde.managed_all() == 1, timeout=20)
 )
