@@ -24,6 +24,7 @@ from komorebi_vm.core.scenarios import (
     layouts,
     lifecycle,
     lifecycle_hidden,
+    manage_rules,
     maximizing,
     minimizing,
     monocle,
@@ -39,6 +40,7 @@ from komorebi_vm.core.scenarios import (
     scrolling,
     stacks,
     startup_rules,
+    state_fidelity,
     tiling,
     tiling_off,
     workspace_moves,
@@ -133,6 +135,8 @@ run_suite(
     platform_only("kde", kde_core.no_window_is_left, *nothing),
     shared(rules_class.run, platform, checks),
     shared(rules_exe.run, platform, checks),
+    shared(manage_rules.run, platform, checks),
+    shared(state_fidelity.run, platform, checks),
     shared(placement.run, platform, checks),
     platform_only("kde", kde_core.no_window_is_left, *nothing),
     shared(startup_rules.run, platform, checks),
@@ -162,18 +166,11 @@ checks.check(
     "one window is left", kde.wait_for(lambda: kde.managed_all() == 1, timeout=20)
 )
 
-# KNOWN FAILURE, to follow up on: move_container_to_monitor takes the container out before it
-# looks the monitor up. See docs/dev/BEHAVIOUR.md. The window is lost, so this stays last of the
-# shared scenarios.
+# `move-to-monitor` and `send-to-monitor` check the monitor before they take the window out of its
+# workspace (fixed: it used to be lost, as a known failure on both ports; docs/dev/BEHAVIOUR.md).
 run_suite(
     checks,
-    shared(
-        commands.unknown_monitor,
-        platform,
-        checks,
-        [Client("afterwards")],
-        "the container is removed before the monitor is looked up, on both ports",
-    ),
+    shared(commands.unknown_monitor, platform, checks, [Client("afterwards")]),
     # what only KDE can tell about the daemon stopping, crashing, and KWin restarting
     platform_only("kde", kde_core.parking, platform, checks, []),
     platform_only("kde", kde_core.leave_a_window, platform, checks, []),
