@@ -75,6 +75,7 @@ class FakePlatform:
         clears_rules: bool = True,
         cycles_in_monocle: bool = True,
         no_op_in_monocle: bool = True,
+        follows_user_moves: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -83,6 +84,7 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.follows_user_moves = follows_user_moves
         self.cycles_in_monocle = cycles_in_monocle
         self.no_op_in_monocle = no_op_in_monocle
         self.monocle_cycles = False
@@ -179,6 +181,10 @@ class FakePlatform:
     def move_window(self, client: Client, x: int, y: int) -> None:
         here = self.os_window(client)
         assert here is not None
+        target = min(max(x, 0) // 1920, self.display_count - 1)
+        if self.follows_user_moves and target != self.display_of.get(client.title, 0):
+            self.display_of[client.title] = target
+            return
         self.moved[client.title] = Rect(x, y, here.frame.w, here.frame.h)
 
     @property
@@ -484,8 +490,13 @@ class FakePlatform:
         focused = (
             s == self.current and i == self.focuses[s] and self.spaces[s][i][0] == client.title
         )
-        tile = self.tiles[i]
         elsewhere = self.display_of.get(client.title, 0)
+        rank = sum(
+            1
+            for stack in self.spaces[s][:i]
+            if stack and self.display_of.get(stack[0], 0) == elsewhere
+        )
+        tile = self.tiles[rank]
         if client.title in self.moved:
             return OsWindow(client.title, self.moved[client.title], focused=focused)
         if elsewhere:
@@ -758,13 +769,23 @@ class FakePlatform:
                 "latest_layout": [rect(r) for r in self.tiles[: len(containers)]],
             }
 
+        def on_display(stacks: list[list[str]], display: int) -> list[list[str]]:
+            # a stack with no window is the first display's
+            return [
+                stack
+                for stack in stacks
+                if (self.display_of.get(stack[0], 0) if stack else 0) == display
+            ]
+
         monitor = {
             "id": 1,
             "size": rect(SCREEN),
             "work_area_size": rect(self.area),
             "workspaces": {
                 "elements": [
-                    workspace(i, c, f, i == self.current)
+                    workspace(
+                        i, on_display(c, 0), min(f, len(on_display(c, 0)) - 1), i == self.current
+                    )
                     for i, (c, f) in enumerate(zip(self.spaces, self.focuses, strict=True))
                 ],
                 "focused": self.current,
@@ -774,7 +795,10 @@ class FakePlatform:
             {
                 "id": n + 1,
                 "size": rect(self._others()[n - 1]),
-                "workspaces": {"elements": [workspace(0, [], 0, False)], "focused": 0},
+                "workspaces": {
+                    "elements": [workspace(0, on_display(self.containers, n), 0, False)],
+                    "focused": 0,
+                },
             }
             for n in range(1, 1 if self.forgets_displays else self.display_count)
         ]

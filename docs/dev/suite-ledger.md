@@ -15,7 +15,7 @@ platform". The sections the shared scenario repeats are gone; the rest are `kde_
 | 1, the daemon answers with both monitors; three windows on the left; the monitor's size; tiled | extra `setup` |
 | 2, the scale of the left output changes and returns | extra `scale` |
 | 3, `move-to-monitor 1`: containers, KWin's `OutputChange`, tiled on the right | extra `sent_by_the_daemon` |
-| 4, the user moves a window to the right output | extra `sent_by_the_user` |
+| 4, the user moves a window to the right output | shared `hotplug.user_move` (the suite runs it before the unplug) |
 | 5, one monitor after the unplug | shared "after a display is unplugged the daemon has one monitor fewer" |
 | 5, all three windows on the left monitor | shared "... the daemon still manages every window", and "every window is on the displays that are left" |
 | 5, tiled inside the screen that is left, not on each other | shared "... tiled and clear of each other" |
@@ -23,7 +23,7 @@ platform". The sections the shared scenario repeats are gone; the rest are `kde_
 | 6, two monitors again | shared "after a display is plugged in the daemon has a monitor for it again" |
 | 6, still three windows | shared "... still manages every window" |
 | 6, each window somewhere it can be seen | shared "... each where it can be seen" |
-| 7, a window moved to the other output again is followed | extra `after` |
+| 7, a window moved to the other output again is followed | shared `hotplug.user_move`, run again after the replug |
 | 8, the daemon runs and answers | extra `after` |
 
 Not kept: that the daemon's container count on the left monitor is 3 after the unplug. The shared

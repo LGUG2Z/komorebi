@@ -1,15 +1,14 @@
 """What only KDE can tell about monitors that change, round the shared `hotplug` scenario.
 
 A scale that `kscreen-doctor` changes reaches the daemon as a change of the monitor's size; KWin
-tells the daemon that a window is on another output, whether the daemon or the user sent it
-there; and what the daemon believes of its monitors is what the compositor has.
+tells the daemon that a window is on another output when the daemon sent it there; and what the
+daemon believes of its monitors is what the compositor has.
 
-The suite runs `setup`, `scale`, `sent_by_the_daemon` and `sent_by_the_user`, then the shared
-scenario, which unplugs a display and plugs it in again, then `after`. The daemon runs on a
-session with two outputs, and `clients` are three windows on the left one.
+The suite runs `setup`, `scale` and `sent_by_the_daemon`, then the shared `user_move`, then the
+shared `run`, which unplugs a display and plugs it in again, then `user_move` once more, then
+`after`. The daemon runs on a session with two outputs, and `clients` are three windows on the
+left one.
 """
-
-import time
 
 from komorebi_vm import daemon
 from komorebi_vm.core.checks import Checks
@@ -58,29 +57,6 @@ def _output_changes(platform: KdePlatform) -> int:
     """How many times KWin has told the daemon that a window is on another output."""
     events = daemon.events(platform.kde.komorebi_log())
     return sum(1 for e in events if e.kind == "OutputChange")
-
-
-def _let_komorebi_finish(platform: KdePlatform) -> None:
-    """Waits until the bridge has stopped asking again for the position of the windows the daemon
-    just moved.
-
-    The bridge asks again for a second after each command (`WANT_MS` in `bridge.js`), which puts
-    back a window that somebody moves in that time. A user moves a window later than that, so a
-    test that plays the user does too.
-    """
-    time.sleep(2 * platform.kde.scale)
-
-
-def _show(platform: KdePlatform, clients: list[Client], what: str) -> None:
-    """Prints where the daemon has the windows and where KWin has them, for a failure to be read."""
-    state = f"{_containers_on(platform, 0)} on the left monitor, {_containers_on(platform, 1)} on"
-    frames = ", ".join(
-        f"{c.title} {r}" for c, r in zip(clients, _rects(platform, clients), strict=True)
-    )
-    print(f"     {what}: komorebi has {state} the right; KWin has {frames}")
-    log = platform.kde.komorebi_log().splitlines()
-    lines = [x[-160:] for x in log if "OutputChange" in x or "following them" in x][-8:]
-    print("     " + "\n     ".join(lines))
 
 
 def setup(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
@@ -164,45 +140,10 @@ def sent_by_the_daemon(platform: KdePlatform, checks: Checks, clients: list[Clie
     )
 
 
-def _send_by_the_user(platform: KdePlatform, clients: list[Client]) -> Client:
-    """Moves a window that is on the left output to the right one, as a shortcut that sends a
-    window to the next screen does: not by the daemon."""
-    right = _on_the_right(platform, clients)
-    window = next(c for c in clients if c not in right)
-    _let_komorebi_finish(platform)
-    platform.move_window(window, platform.size[0] + 180, 300)
-    return window
-
-
-def sent_by_the_user(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """A window the user moves to the other output is tiled on that monitor."""
-    _send_by_the_user(platform, clients)
-    checks.check(
-        "the daemon has one container on the left monitor and two on the right",
-        platform.wait_for(
-            lambda: _containers_on(platform, 0) == 1 and _containers_on(platform, 1) == 2
-        ),
-    )
-    checks.check(
-        "the two are tiled on the right output, and the third fills the left one",
-        platform.wait_for(lambda: _split_tiled(platform, clients, 2)),
-    )
-    _show(platform, clients, "after the user's move")
-
-
-def _split_tiled(platform: KdePlatform, clients: list[Client], on_right: int) -> bool:
-    right = _on_the_right(platform, clients)
-    left = [c for c in clients if c not in right]
-    return (
-        len(right) == on_right
-        and _tiled_in(platform, right, _monitor(platform, 1))
-        and (not left or _tiled_in(platform, left, _monitor(platform, 0)))
-    )
-
-
 def after(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
     """After the display was unplugged and plugged in again the daemon is alive and agrees with
-    KWin on the focus, and a window the user moves to the other output is followed."""
+    KWin on the focus. The shared `user_move` runs once more before it, for a window the user moves
+    to the other output."""
     kde = platform.kde
 
     def focus_agrees() -> bool:
@@ -217,17 +158,6 @@ def after(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
     checks.check(
         "the daemon is alive and its idea of the focus is KWin's", platform.wait_for(focus_agrees)
     )
-    on_right = len(_on_the_right(platform, clients))
-    _send_by_the_user(platform, clients)
-    checks.check(
-        "the daemon follows a window moved to the other output again",
-        platform.wait_for(lambda: _containers_on(platform, 1) == on_right + 1),
-    )
-    checks.check(
-        "it is tiled on the right output, and the others on the left",
-        platform.wait_for(lambda: _split_tiled(platform, clients, on_right + 1)),
-    )
-    _show(platform, clients, "after the second move")
     checks.check(
         "the daemon is running and answers",
         kde.komorebi_running() and kde.run("komorebic state")[0] == 0,

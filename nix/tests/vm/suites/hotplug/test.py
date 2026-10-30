@@ -2,9 +2,9 @@
 # `komorebi_vm.core.scenarios.hotplug`, which runs on Windows too: it unplugs a display, plugs one in
 # and sends a window to it, and asks the operating system where the windows are. What only a real
 # KWin can tell is in `komorebi_vm.platforms.kde.extras.hotplug`: that `kscreen-doctor` changing
-# the scale of an output reaches komorebi as a change of that monitor's size, that KWin reports a
-# window on another output whether komorebi or the user sent it there, and that a window the user
-# moves to the other output is tiled on that monitor. `komorebi/tests/monitor_resize.rs`,
+# the scale of an output reaches komorebi as a change of that monitor's size, and that KWin
+# reports a window on another output when komorebi sent it there. A window the user moves to the
+# other output is the shared `user_move`. `komorebi/tests/monitor_resize.rs`,
 # `komorebi/tests/hotplug.rs` and `komorebi/tests/follow_output.rs` check the same against the fake.
 from komorebi_vm import Checks, Kde
 from komorebi_vm.core.scenarios import hotplug
@@ -31,8 +31,9 @@ run_suite(
     platform_only("kde", kde_hotplug.setup, platform, checks, clients),
     platform_only("kde", kde_hotplug.scale, platform, checks, clients),
     platform_only("kde", kde_hotplug.sent_by_the_daemon, platform, checks, clients),
-    platform_only("kde", kde_hotplug.sent_by_the_user, platform, checks, clients),
+    shared(hotplug.user_move, platform, checks, clients),
     shared(hotplug.run, platform, checks, clients),
+    shared(hotplug.user_move, platform, checks, clients),
     platform_only("kde", kde_hotplug.after, platform, checks, clients),
 )
 

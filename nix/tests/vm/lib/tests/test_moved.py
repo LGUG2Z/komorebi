@@ -6,6 +6,7 @@ from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.scenarios import (
     commands,
     handover,
+    hotplug,
     monocle,
     placement,
     queries,
@@ -182,3 +183,21 @@ def test_a_daemon_that_cycles_a_monocle_with_no_op_fails_monocle_behaviour() -> 
     clients = opened(platform, checks)
     monocle.focus_behaviour(platform, checks, clients)
     assert any("with the no-op behaviour" in f for f in checks.failures), checks.failures
+
+
+def test_a_daemon_that_follows_a_window_moved_to_the_other_display_passes() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    hotplug.user_move(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 2
+
+
+def test_a_daemon_that_ignores_a_window_moved_to_the_other_display_fails() -> None:
+    platform = FakePlatform(follows_user_moves=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    hotplug.user_move(platform, checks, clients)
+    assert any("the daemon has the window on the other monitor" in f for f in checks.failures)
