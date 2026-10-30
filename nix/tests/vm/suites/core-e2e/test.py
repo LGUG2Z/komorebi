@@ -13,6 +13,7 @@
 import json
 
 from komorebi_vm import Checks, Kde, Rect, daemon
+from komorebi_vm.recorder import Recorder
 from komorebi_vm.core.platform import Client
 from komorebi_vm.core.scenarios import (
     closing,
@@ -137,6 +138,8 @@ def report(titles: list[str]) -> None:
 
 print("== 1. start")
 kde.start_komorebi()
+recorder = Recorder(kde, RECORDER)
+recorder.start("core-e2e")
 checks.check(
     "the daemon loaded its script into KWin",
     kde.wait_for(lambda: "loaded the KWin bridge script" in daemon_log(), timeout=30),
@@ -541,5 +544,6 @@ checks.check(
 )
 checks.check("the window stays", kde.wid("afterwards") != "")
 
+recorder.stop()
 kde.stop()
 checks.finish()

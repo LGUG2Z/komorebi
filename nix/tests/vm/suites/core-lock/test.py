@@ -3,6 +3,7 @@
 # desktop, not the daemon's log. The same scenario runs against a Windows guest (`LockWorkStation`).
 # `lock-sleep` keeps what is only KDE's: the daemon's log of the lock screen, and the signals.
 from komorebi_vm import Checks, Kde
+from komorebi_vm.recorder import Recorder
 from komorebi_vm.core.scenarios import locking
 from komorebi_vm.kde_platform import KdePlatform
 
@@ -21,6 +22,8 @@ checks.check(
 )
 # the daemon tiles again when it learns of the panel's room, so the windows open after that
 kde.wait_for_panel_room()
+recorder = Recorder(kde, RECORDER)
+recorder.start("core-lock")
 clients = [platform.spawn(title) for title in TITLES]
 checks.check(
     "the daemon manages the three windows",
@@ -30,4 +33,5 @@ checks.check(
 print("== the screen is locked and unlocked")
 locking.run(platform, checks, clients)
 
+recorder.stop()
 checks.finish()

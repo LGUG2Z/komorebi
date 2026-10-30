@@ -15,6 +15,14 @@
 let
   inherit (hostPkgs) lib;
 
+  # `komorebi-recorder`, when the run is given one: its repository is private, so it is not an
+  # input of the flake. `KOMOREBI_RECORDER=$(nix build --print-out-paths ...)` and `--impure`.
+  recorder =
+    let
+      path = builtins.getEnv "KOMOREBI_RECORDER";
+    in
+    if path == "" then null else builtins.storePath path;
+
   # the library the suites import, built for the python of the test driver
   komorebiVm =
     ps:
@@ -86,10 +94,12 @@ let
       nodes.machine = {
         # a suite's `node`, if it has one, adds to the node of its kind
         imports = [ (./nodes + "/${suite.kind}.nix") ] ++ lib.optional (suite ? node) suite.node;
+        environment.systemPackages = lib.optional (recorder != null) recorder;
       };
 
       testScript = ''
         SCALE = ${toString scale}
+        RECORDER = ${if recorder == null then "False" else "True"}
       ''
       + builtins.readFile (dir + "/${suite.script or "test.py"}");
     };
