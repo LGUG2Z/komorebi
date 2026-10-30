@@ -67,3 +67,46 @@ reads the daemon's tiles and the frames together, and the shared one reads only 
 
 One run of the suite failed `win2:left:-240,0` ("frame R moved -96 but was not dragged": the
 terminal's frame four cells short of an unchanged tile) and the next passed; not seen again.
+
+## core-e2e
+
+The suite had sections 1 to 11 of its own, written against KWin and the daemon's log, and then ran
+the shared scenarios in section 12 through the neutral platform. Sections 2 to 8 made, with KDE's
+tools, the checks the shared `tiling`, `focus`, `moving`, `monocle`, `minimizing` and `closing`
+make. They are gone; what only KDE can read stayed, as `kde_core` steps after the shared one.
+
+| Was (section) | Now |
+|---|---|
+| 1, the script is loaded into KWin, which runs it; the daemon answers | extra `start` |
+| 2, every window is where the daemon asked for it | extra `windows_where_asked`, after each shared step that moves windows |
+| 2, inside the screen; windows apart; none takes the full width; the daemon manages the three | shared `tiling` ("where the layout says", "do not overlap", "share the work area") |
+| 2, KWin and the daemon agree on the focus, by the daemon's log | extra `focus_agrees_with_the_log` |
+| 2, the daemon's state focuses the window KWin does | shared `tiling` and `focus` |
+| 3, 4, the focus by hand, `focus right/left`, `cycle-focus` | shared `focus` |
+| 4, moving the focus moved no window | extra `windows_where_asked` after `focus` |
+| 5, `move right`, `cycle-move previous`, the focus kept | shared `moving`; extra `windows_where_asked` after it |
+| 6, monocle fills the work area, the state says so, back on the tile | shared `monocle` |
+| 6, monocle focus behaviour `cycle` | extra `monocle_focus_behaviour` (a candidate for the shared scenario) |
+| 7, minimize and restore | shared `minimizing`; extra `windows_where_asked` after it |
+| 8, close, the others share the screen, the daemon manages the rest | shared `closing` |
+| 8, KWin carried out every command | extra `bridge_did_everything` |
+| 9, a clean stop undoes what a monocle did | extra `parking` (opens two windows of its own) |
+| 10, a crash with a monocle on leaves nothing stuck | extra `parking` |
+| 11, KWin restarts under the daemon | extra `kwin_restart` (the `kwin-restart` suite also covers it) |
+| 13, `komorebic stop`: the socket, the script, the window stays | extra `stopped` |
+
+Changed on purpose: the lifecycle sections run after the shared scenarios, on windows of their
+own, so that the stop and the crash no longer depend on windows a shared scenario left behind. The
+daemon's frame log is read after four shared steps, not after every one.
+
+Also learned while moving it:
+
+- `KWin carried out every command` was one check after section 8, over a log of three windows' worth
+  of commands. After every shared step, over the whole corpus, the bridge logs `could not do` for a
+  `geo` that targets a window a scenario closed a moment later. That is a race, not a failure, so
+  the check now counts only a command for a window that is still open, and runs after each shared
+  step so that a real failure names its scenario. A failure there with the window alive is a
+  finding.
+- After a daemon restart the daemon's focused window can differ from the one KWin has active, and
+  activating a window KWin already has active sends no event. `parking` activates another window
+  first. Whether the daemon should pick up KWin's active window at start is not decided here.
