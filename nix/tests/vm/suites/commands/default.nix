@@ -1,5 +1,5 @@
 {
   tier = "fast";
   kind = "headless";
-  timeoutMinutes = 15;
+  timeoutMinutes = 30;
 }

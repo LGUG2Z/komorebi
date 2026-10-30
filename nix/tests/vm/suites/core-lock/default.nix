@@ -1,5 +1,5 @@
 {
   tier = "slow";
   kind = "session";
-  timeoutMinutes = 15;
+  timeoutMinutes = 20;
 }

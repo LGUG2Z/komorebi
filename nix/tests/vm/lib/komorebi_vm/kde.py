@@ -15,6 +15,8 @@ from komorebi_vm.machine import Machine
 
 # a KWin script is told apart by its name in the journal, so each probe has a name of its own
 _PROBES = count(1)
+# how long what KWin said of the outputs is kept, in seconds
+SCREENS_TTL = 1.0
 
 
 class Outputs:
@@ -47,15 +49,18 @@ class Outputs:
         """Unplugs an output, as far as KWin can tell: it is disabled, and its windows go to the
         outputs that are left."""
         self._kde.sh(f"kscreen-doctor output.{name}.disable")
+        self._kde.invalidate_screens()
 
     def enable(self, name: str) -> None:
         """Plugs an output back in, as far as KWin can tell."""
         self._kde.sh(f"kscreen-doctor output.{name}.enable")
+        self._kde.invalidate_screens()
 
     def scale(self, name: str, factor: float) -> None:
         """Gives an output another scale: its size in pixels, as the windows see it, becomes
         its mode divided by `factor`."""
         self._kde.sh(f"kscreen-doctor output.{name}.scale.{factor:g}")
+        self._kde.invalidate_screens()
 
 
 class Kde:
@@ -704,13 +709,29 @@ class Kde:
             )
         return [line for line in self.kwin_reports(name) if line != "done"]
 
+    _screens_cache: tuple[float, list[tuple[Rect, Rect]] | None] | None = None
+
+    def invalidate_screens(self) -> None:
+        """Forgets what [`Kde.screens`][] last said: the outputs changed."""
+        self._screens_cache = None
+
     def screens(self) -> list[tuple[Rect, Rect]] | None:
         """What KWin says of each enabled output, left to right: its rectangle in the coordinates
         of the desktop, and the area of it that windows may take (KWin's placement area: the
         output less the panels, as the daemon's bridge reads it). `None` when KWin does not say.
 
-        A KWin script asks, because `kdotool` has no call for either.
+        A KWin script asks, because `kdotool` has no call for either, and a script is slow, so the
+        answer is kept for a second, and forgotten when the outputs are changed through
+        [`Outputs`][].
         """
+        now = time.monotonic()
+        if self._screens_cache is not None and now - self._screens_cache[0] < SCREENS_TTL:
+            return self._screens_cache[1]
+        found = self._read_screens()
+        self._screens_cache = (time.monotonic(), found)
+        return found
+
+    def _read_screens(self) -> list[tuple[Rect, Rect]] | None:
         source = """
         for (var i = 0; i < workspace.screens.length; i++) {
             var s = workspace.screens[i];
@@ -750,8 +771,12 @@ class Kde:
 
     def kwin_reports(self, name: str) -> list[str]:
         """Every line the KWin script `name` has reported so far ([`Kde.kwin_script`][])."""
-        log = self.machine.execute(f"journalctl _UID={self.uid} --no-pager -o cat")[1]
         mark = f"KS:{name} "
+        # the guest picks the lines: the whole journal of the user, read back through the test
+        # driver on every call, is what made a run slower the longer it went
+        log = self.machine.execute(
+            f"journalctl _UID={self.uid} --no-pager -o cat | grep -F {shlex.quote(mark)}"
+        )[1]
         return [line.split(mark, 1)[1] for line in log.splitlines() if mark in line]
 
     @property
