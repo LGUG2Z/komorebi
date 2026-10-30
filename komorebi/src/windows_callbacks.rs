@@ -98,6 +98,49 @@ fn has_filtered_style(hwnd: HWND) -> bool {
         || ex_style & WS_EX_NOACTIVATE.0 != 0
 }
 
+lazy_static::lazy_static! {
+    /// The windows of the window manager that were maximized when last looked at
+    static ref ZOOMED: parking_lot::Mutex<std::collections::HashSet<isize>> =
+        parking_lot::Mutex::new(std::collections::HashSet::new());
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ZoomChange {
+    Maximized,
+    Restored,
+}
+
+fn zoom_change(was_zoomed: bool, is_zoomed: bool) -> Option<ZoomChange> {
+    match (was_zoomed, is_zoomed) {
+        (false, true) => Some(ZoomChange::Maximized),
+        (true, false) => Some(ZoomChange::Restored),
+        _ => None,
+    }
+}
+
+/// A window of the window manager that has been maximized or restored since the last time it was
+/// looked at, which the user does with the button or the title bar of the window. This is read
+/// for the location change of every window that moves, so it is a lookup of the handle and one
+/// call, before anything is asked of the window.
+fn zoom_event(winevent: WinEvent, window: Window) -> Option<WindowManagerEvent> {
+    if !crate::reaper::HWNDS_CACHE.lock().contains_key(&window.hwnd) {
+        ZOOMED.lock().remove(&window.hwnd);
+        return None;
+    }
+
+    let is_zoomed = WindowsApi::is_zoomed(window.hwnd);
+    let was_zoomed = if is_zoomed {
+        !ZOOMED.lock().insert(window.hwnd)
+    } else {
+        ZOOMED.lock().remove(&window.hwnd)
+    };
+
+    match zoom_change(was_zoomed, is_zoomed)? {
+        ZoomChange::Maximized => Some(WindowManagerEvent::Maximize(winevent, window)),
+        ZoomChange::Restored => Some(WindowManagerEvent::Unmaximize(winevent, window)),
+    }
+}
+
 pub extern "system" fn win_event_hook(
     _h_win_event_hook: HWINEVENTHOOK,
     event: u32,
@@ -165,6 +208,12 @@ pub extern "system" fn win_event_hook(
             // is moved, and what a window is takes a call into it for each of the
             // exe, the title and the class: the hook is held up for as long as that takes
             if matches!(winevent, WinEvent::ObjectLocationChange) {
+                if let Some(event) = zoom_event(winevent, window) {
+                    winevent_listener::event_tx()
+                        .send(event)
+                        .expect("could not send message on winevent_listener::event_tx");
+                }
+
                 return;
             }
 
@@ -184,4 +233,17 @@ pub extern "system" fn win_event_hook(
     winevent_listener::event_tx()
         .send(event_type)
         .expect("could not send message on winevent_listener::event_tx");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_window_is_maximized_or_restored_only_when_it_changes() {
+        assert_eq!(zoom_change(false, true), Some(ZoomChange::Maximized));
+        assert_eq!(zoom_change(true, false), Some(ZoomChange::Restored));
+        assert_eq!(zoom_change(true, true), None);
+        assert_eq!(zoom_change(false, false), None);
+    }
 }

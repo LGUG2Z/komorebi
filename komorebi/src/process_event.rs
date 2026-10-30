@@ -884,6 +884,40 @@ impl WindowManager {
                     }
                 }
             }
+            WindowManagerEvent::Maximize(_, window) => {
+                // The user maximized a tiled window themselves, with its button or by
+                // double-clicking its title bar: it is the window that is maximized as if it had
+                // been by the command. It may have been restored again by the time this is read,
+                // and a maximize that the command made is already known.
+                let workspace = self.focused_workspace_mut()?;
+
+                if WindowsApi::is_zoomed(window.hwnd)
+                    && workspace.maximized_window.is_none()
+                    && workspace.monocle_container.is_none()
+                    && workspace.container_idx_for_window(window.hwnd).is_some()
+                {
+                    tracing::info!("window maximized by the user");
+                    workspace.focus_container_by_window(window.hwnd)?;
+                    workspace.layer = WorkspaceLayer::Tiling;
+                    workspace.new_maximized_window()?;
+                    self.update_focused_workspace(false, false)?;
+                }
+            }
+            WindowManagerEvent::Unmaximize(_, window) => {
+                // The user restored the window that is maximized, which puts it back in its
+                // tile as the command does. A restore that the command made is already known.
+                let workspace = self.focused_workspace_mut()?;
+
+                if !WindowsApi::is_zoomed(window.hwnd)
+                    && workspace
+                        .maximized_window
+                        .is_some_and(|maximized| maximized.hwnd == window.hwnd)
+                {
+                    tracing::info!("window restored by the user");
+                    workspace.reintegrate_maximized_window()?;
+                    self.update_focused_workspace(false, false)?;
+                }
+            }
             WindowManagerEvent::MouseCapture(..)
             | WindowManagerEvent::Cloak(..)
             | WindowManagerEvent::TitleUpdate(..) => {}
