@@ -11,7 +11,7 @@ from tests.fake_platform import FakePlatform
 HUES = {"warm": (230, 40, 40), "cool": (40, 60, 230), "other": (60, 230, 60)}
 
 
-# the ring is the 4 pixels of the wallpaper's hue that the window leaves at its left
+# the ring is the wallpaper's hue outside the window, which is the color of what is inside it
 class FakeWallpaper(FakePlatform):
     def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
         super().__init__(*args, **kwargs)
@@ -20,6 +20,8 @@ class FakeWallpaper(FakePlatform):
         self.workspace_wallpapers: dict[int, str] = {}
         self.workspace = 0
         self.puts_back = True
+        # room outside the first window for its ring
+        self.workspace_padding = 10
 
     def put_file(self, path: str, data: bytes) -> None:
         assert data.startswith(b"\x89PNG"), "a picture"
@@ -46,7 +48,8 @@ class FakeWallpaper(FakePlatform):
 
     def komorebic(self, *args: str) -> str:
         if args[0] == "focus-workspace":
-            self.workspace = int(args[1])
+            self.workspace = self.current = int(args[1])
+            self.focus = min(self.focus, max(0, len(self.containers) - 1))
             if self.puts_back or self.shown != self.wallpaper():
                 self._show()
             return ""
@@ -60,5 +63,5 @@ class FakeWallpaper(FakePlatform):
             window = self.os_window(client)
             if window is not None and window.focused:
                 f = window.frame
-                draw.rectangle((f.x + 4, f.y, f.x + f.w, f.y + f.h), fill=(48, 48, 48))
+                draw.rectangle((f.x, f.y, f.x + f.w, f.y + f.h), fill=(48, 48, 48))
         return image

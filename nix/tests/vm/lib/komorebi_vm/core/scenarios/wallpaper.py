@@ -58,11 +58,11 @@ def hue_of(image: Image.Image) -> str:
 
 
 def ring_hue(frame: Rect, image: Image.Image, reach: int = 12) -> str:
-    """The hue of the ring around a window: the colors within `reach` pixels of the left edge of
-    its frame, on either side of it, at its middle. The window's own color is neutral, so what has
-    a hue is the border; where the ports draw it, outside the frame or on its edge, differs."""
+    """The hue of the ring around a window: the colors within `reach` pixels outside the left edge
+    of its frame, at its middle. Both ports draw the border outside the frame. What is inside it is
+    the window's own, whatever its color, and is not read."""
     seen = set()
-    for x in range(max(0, frame.x - reach), min(image.size[0], frame.x + reach)):
+    for x in range(max(0, frame.x - reach), min(image.size[0], frame.x)):
         red, _, blue = pixels.pixel(image, x, frame.y + frame.h // 2)
         seen.add(_hue(red, blue))
     seen.discard("neither")
@@ -104,7 +104,7 @@ def run(platform: Platform, checks: Checks) -> None:
             image = platform.screenshot(name)
             f = window.frame
             y = f.y + f.h // 2
-            row = [pixels.pixel(image, x, y) for x in range(max(0, f.x - 12), f.x + 12, 2)]
+            row = [pixels.pixel(image, x, y) for x in range(max(0, f.x - 12), f.x + 4, 2)]
             print(f"     {client.title} {f}: ring {ring_hue(f, image)}, wanted {hue}; pixels {row}")
         return False
 
