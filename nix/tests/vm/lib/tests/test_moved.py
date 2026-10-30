@@ -6,8 +6,10 @@ from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.scenarios import (
     commands,
     display_change,
+    fullscreen,
     handover,
     hotplug,
+    maximizing,
     monocle,
     placement,
     queries,
@@ -272,3 +274,41 @@ def test_a_platform_with_no_pointer_skips_the_edge_cases() -> None:
     base = checks.passed
     resize.edge_cases(platform, checks, clients)
     assert (checks.passed, checks.failed) == (base, 0)
+
+
+def test_a_daemon_that_leaves_a_fullscreen_window_alone_passes_fullscreen() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    fullscreen.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 6
+    assert platform.state().managed() == len(clients)
+
+
+def test_a_daemon_that_takes_a_window_out_of_fullscreen_fails_fullscreen() -> None:
+    platform = FakePlatform(keeps_fullscreen=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    fullscreen.run(platform, checks, clients)
+    assert any("does not take the window out of fullscreen" in f for f in checks.failures)
+
+
+def test_a_daemon_that_takes_up_a_maximize_passes_user_maximize() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    maximizing.user(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 8
+
+
+def test_a_daemon_that_obeys_commands_when_maximized_fails_user_maximize() -> None:
+    platform = FakePlatform(ignores_commands_when_maximized=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    platform.activate(clients[-1])
+    maximizing.user(platform, checks, clients)
+    assert any("what is asked of the layout does nothing" in f for f in checks.failures)

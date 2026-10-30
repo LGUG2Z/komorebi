@@ -252,6 +252,18 @@ class Platform(Protocol):
         size."""
         ...
 
+    def fullscreen(self, client: Client, on: bool = True) -> None:
+        """Takes the window fullscreen, as the program's own key does it (`on`), or brings it back
+        from fullscreen (`on` false). The daemon is not asked: it learns of it from the system, and
+        has to leave the window alone. Returns when the system has done it."""
+        ...
+
+    def user_maximize(self, client: Client, on: bool = True) -> None:
+        """Maximizes the window, as its title bar button does (`on`), or restores it from being
+        maximized (`on` false). The daemon is not asked: it learns of it from the system. Returns
+        when the system has done it."""
+        ...
+
     def work_area(self) -> Rect:
         """The area of the first display that windows may take, in the coordinates of the
         desktop: the display less what the operating system keeps for itself (a panel, a dock, the

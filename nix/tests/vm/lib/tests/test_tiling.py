@@ -106,6 +106,12 @@ class FakePlatform:
     def activate(self, client: Client) -> None:
         pass
 
+    def fullscreen(self, client: Client, on: bool = True) -> None:
+        pass
+
+    def user_maximize(self, client: Client, on: bool = True) -> None:
+        pass
+
     def screenshot(self, name: str) -> Image.Image:
         return Image.new("RGB", (4, 4))
 

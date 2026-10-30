@@ -226,6 +226,13 @@ class KdePlatform:
     def move_window(self, client: Client, x: int, y: int) -> None:
         self.kde.sh(f"kdotool windowmove {self._wid(client)} {x} {y}")
 
+    def fullscreen(self, client: Client, on: bool = True) -> None:
+        self.kde.fullscreen(self.kde.wid(client.title), on)
+
+    def user_maximize(self, client: Client, on: bool = True) -> None:
+        wid = self.kde.wid(client.title)
+        self.kde.maximize(wid) if on else self.kde.unmaximize(wid)
+
     def work_area(self) -> Rect:
         """What KWin says windows may take of the first output, which is the output less the
         panels and docks the shell has made (a headless session has none, so it is all of it).

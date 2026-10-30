@@ -17,11 +17,12 @@
 # pixels just outside the frame of the window (`pixels.ring`); section E reads the frames KWin
 # reports for the windows, not a screenshot. `komorebi/tests/maximize.rs`, `maximize_commands.rs`
 # and `fullscreen.rs` check what the window manager does with a maximize and a fullscreen against
-# the fake; section A checks that KWin's own maximize does it, and section E that a window KWin has
-# taken fullscreen is left alone.
+# the fake; section A checks that KWin's own maximize does it, and the shared `fullscreen`, run
+# after the sections, that a window KWin has taken fullscreen is left alone.
 
 from komorebi_vm import Checks
-from komorebi_vm.core.suite import platform_only, run_suite
+from komorebi_vm.core.scenarios import fullscreen
+from komorebi_vm.core.suite import platform_only, run_suite, shared
 from komorebi_vm.platforms.kde.extras import features as kde_features
 
 start_all()
@@ -29,5 +30,16 @@ machine.wait_for_unit("multi-user.target")
 
 checks = Checks()
 
-run_suite(checks, platform_only("kde", kde_features.run, machine, checks, SCALE))
+
+
+def taken_fullscreen() -> None:
+    platform, clients = kde_features.fullscreen_setup(machine, SCALE)
+    fullscreen.run(platform, checks, clients)
+
+
+run_suite(
+    checks,
+    platform_only("kde", kde_features.run, machine, checks, SCALE),
+    shared(taken_fullscreen),
+)
 checks.finish()

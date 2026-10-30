@@ -16,6 +16,20 @@ from komorebi_vm.core.scenarios.commands import PRINTED
 from komorebi_vm.core.snapshot import Snapshot, parse
 
 SCREEN = Rect(0, 0, 1920, 1080)
+# what a maximized window is not in, so that asking it does nothing
+ASKED_OF_THE_LAYOUT = (
+    "move",
+    "stack",
+    "unstack",
+    "cycle-move",
+    "promote",
+    "toggle-float",
+    "toggle-monocle",
+    "resize-edge",
+    "send-to-workspace",
+    "move-to-workspace",
+    "toggle-lock",
+)
 
 
 def _place_index(place: str, count: int) -> int:
@@ -78,6 +92,8 @@ class FakePlatform:
         follows_user_moves: bool = True,
         resizable: bool = True,
         follows_modes: bool = True,
+        keeps_fullscreen: bool = True,
+        ignores_commands_when_maximized: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -86,6 +102,11 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.keeps_fullscreen = keeps_fullscreen
+        self.ignores_commands_when_maximized = ignores_commands_when_maximized
+        self.fullscreened: str | None = None
+        self.max_home: tuple[int, int] | None = None
+        """Where the window the user maximized was, to put it back."""
         self.resizable = resizable
         self.follows_modes = follows_modes
         self.mode: dict[int, tuple[int, int]] = {}
@@ -311,6 +332,8 @@ class FakePlatform:
             self.containers.append([title])
         if len(self.containers) > len(self.tiles):
             self._relayout()
+        if not self.keeps_fullscreen:
+            self.fullscreened = None
         if self.applies_rules_on_event:
             self.komorebic("enforce-workspace-rules")
         return Client(title)
@@ -462,6 +485,26 @@ class FakePlatform:
     def work_area(self) -> Rect:
         return self.area
 
+    def fullscreen(self, client: Client, on: bool = True) -> None:
+        self.fullscreened = client.title if on else None
+
+    def user_maximize(self, client: Client, on: bool = True) -> None:
+        if on:
+            self.max_home = self._find(client.title)
+            self._find_remove(client.title)
+            self.maximized = client.title
+            self.focus = max(0, min(self.focus, len(self.containers) - 1))
+        elif self.maximized == client.title:
+            self._restore_maximized()
+        self._relayout()
+
+    def _restore_maximized(self) -> None:
+        if self.max_home is not None and self.maximized is not None:
+            space, index = self.max_home
+            self.spaces[space].insert(min(index, len(self.spaces[space])), [self.maximized])
+        self.max_home = None
+        self.maximized = None
+
     def minimize(self, client: Client) -> None:
         self._find_remove(client.title)
         self.minimized.append(client.title)
@@ -487,6 +530,8 @@ class FakePlatform:
         return f"/tmp/{name}"
 
     def os_window(self, client: Client) -> OsWindow | None:
+        if client.title == self.fullscreened:
+            return OsWindow(client.title, Rect(0, 0, 1920, 1080), focused=True)
         if client.title == self.maximized:
             return OsWindow(client.title, self.tiled_area, focused=True)
         if client.title in self.minimized:
@@ -532,6 +577,10 @@ class FakePlatform:
 
     def komorebic(self, *args: str) -> str:
         n = len(self.containers)
+        # a daemon that is wrong obeys one of them, to be told by the windows that moved
+        obeyed = not self.ignores_commands_when_maximized and args[0] == "promote"
+        if self.maximized is not None and args[0] in ASKED_OF_THE_LAYOUT and not obeyed:
+            return ""
         match args:
             case ("stop",):
                 self.running = False
@@ -637,7 +686,11 @@ class FakePlatform:
                 self.container_padding = int(size)
                 self._relayout()
             case ("toggle-maximize",):
-                self.maximized = None if self.maximized else self.containers[self.focus][0]
+                if self.maximized is not None:
+                    self._restore_maximized()
+                    self._relayout()
+                else:
+                    self.maximized = self.containers[self.focus][0]
             case ("resize-axis", "horizontal", way):
                 d = 50 if way == "increase" else -50
                 i = self.focus

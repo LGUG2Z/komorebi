@@ -203,6 +203,24 @@ Ported whole as the extra `kwin_restart.run` (two restarts, 19 checks as run). `
 that restarted KWin once with the same four checks; it is gone, and `core-e2e` now only opens the
 window `afterwards` that its last section looks for.
 
+## features and user-maximize
+
+`Platform.fullscreen(client, on)` and `Platform.user_maximize(client, on)` are the user's fullscreen
+and maximize, which the daemon is not asked to do.
+
+| Was | Now |
+|---|---|
+| features A, the window fills the work area, is in the daemon's state as the maximized window, and goes back to its tile in a container | shared `maximizing.run`; extra `features.run` keeps what KWin says: the frame of the tile before and after, and that it is on top, by a screenshot |
+| features E, a fullscreen window covers the monitor, a window opening meanwhile does not take it out, back from fullscreen it is in a tile and not on another window | shared `fullscreen` (the suite runs it after the extra, on the windows the sections leave: `features.fullscreen_setup`) |
+| user-maximize 1, the user maximizes: the daemon has it as its maximized window, it fills the work area, its tile is gone | shared `maximizing.user` |
+| user-maximize 2, what is asked of the layout does nothing; the others did not move; nothing floats or is in the monocle | shared `maximizing.user` |
+| user-maximize 2, the daemon's log notes that it ignored it; 1, the log has the `MaximizeChange` event | extra `user_maximize.log` |
+| user-maximize 3 and 4, `toggle-maximize` and the user's restore put it back in its tile | shared `maximizing.user` |
+
+Not kept: for features A, "komorebi still has all three" (the shared scenario checks the count where
+it is a check of the window it moves). The shared `fullscreen` is looser than E in one way: the
+window covers the display up to a pixel, where E compared the frame with the monitor exactly.
+
 ## The KDE-only suites
 
 Moved as they were into `komorebi_vm.platforms.kde.extras`, one module per suite (`kwin`,
