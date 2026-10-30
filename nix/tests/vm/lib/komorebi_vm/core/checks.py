@@ -19,8 +19,8 @@ class Checks:
         self.skipped: list[str] = []
         self.known: list[str] = []
         self.scope = ""
-        """Where the checks being made come from (`shared`, `kde`, `windows`), or empty. It prefixes
-        the description of each check, and a subclass that records checks may read it."""
+        """Where the checks being made come from (`shared`, or the name of a port), or empty. It
+        prefixes the description of each check, and a subclass that records checks may read it."""
 
     @contextmanager
     def scoped(self, scope: str) -> Generator[None]:
@@ -33,7 +33,8 @@ class Checks:
             self.scope = before
 
     def labelled(self, description: str) -> str:
-        """The description with the scope in front of it, `[kde] ...`, when there is one."""
+        """The description with the scope in front of it, `[shared] ...` or `[<port>] ...`, when
+        there is one."""
         return f"[{self.scope}] {description}" if self.scope else description
 
     def ok(self, description: str) -> None:

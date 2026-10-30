@@ -2,12 +2,13 @@
 
 A suite file says what runs, in order, and each step labels the checks it makes: `shared` for a
 scenario that runs on every platform, and a platform's own name for what only that platform can
-check. The output reads `[shared] ...` and `[kde] ...`, and the same labels say, for each check,
+check. The output reads `[shared] ...` and `[<port>] ...`, and the same labels say, for each check,
 which port it belongs to.
 
 Each step prints the time it took, so that a log says which scenario the time went to.
 
-To run only some of the steps, set `KFDE_ONLY` to a comma-separated list: a step runs when its
+To run only some of the steps, set `E2E_ONLY` (or `KFDE_ONLY`, its older name) to a
+comma-separated list: a step runs when its
 name (`module.function`, as printed) contains one of the words, and a step made with `always=True`
 (what the others depend on, such as the one that opens the windows) runs whatever the list says.
 The steps that do not run are printed, and return `None`.
@@ -20,7 +21,9 @@ from dataclasses import dataclass
 
 from komorebi_vm.core.checks import Checks
 
-ONLY = "KFDE_ONLY"
+# the variable that names the steps to run, and the older name of it
+ONLY = "E2E_ONLY"
+OLD_ONLY = "KFDE_ONLY"
 
 
 @dataclass(frozen=True)
@@ -35,7 +38,7 @@ class Step:
 
 def _name(fn: Callable[..., object]) -> str:
     """`module.function` of a scenario or an extra, for the line that says what runs."""
-    module = getattr(fn, "__module__", "").rsplit(".", 1)[-1]
+    module = (getattr(fn, "__module__", None) or "").rsplit(".", 1)[-1]
     return f"{module}.{getattr(fn, '__name__', '')}".strip(".")
 
 
@@ -51,20 +54,25 @@ def platform_only(
     return Step(scope, lambda: extra(*args), _name(extra), always)
 
 
+def _variable() -> str:
+    """The name of the variable that is set: `E2E_ONLY` before `KFDE_ONLY`."""
+    return ONLY if os.environ.get(ONLY) else OLD_ONLY
+
+
 def _wanted() -> list[str]:
-    return [word.strip() for word in os.environ.get(ONLY, "").split(",") if word.strip()]
+    return [word.strip() for word in os.environ.get(_variable(), "").split(",") if word.strip()]
 
 
 def run_suite(checks: Checks, *steps: Step) -> list[object]:
     """Runs the steps in order, each with its scope on `checks`, and returns what each returned,
     so that a later part of a suite can use the windows a scenario opened.
 
-    A step that `KFDE_ONLY` leaves out is not run. A step that is run prints how long it took."""
+    A step that the list leaves out is not run. A step that is run prints how long it took."""
     wanted = _wanted()
     results: list[object] = []
     for step in steps:
         if wanted and not step.always and not any(word in step.name for word in wanted):
-            print(f"== [{step.scope}] {step.name}: left out by {ONLY}")
+            print(f"== [{step.scope}] {step.name}: left out by {_variable()}")
             results.append(None)
             continue
         if step.name:

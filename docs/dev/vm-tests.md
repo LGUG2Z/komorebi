@@ -387,14 +387,14 @@ the fake and fails on KDE has found a bug in the fake, the library or the daemon
   `nix build .#komorebi-full`, and what a user installs, still has the real commit.
 - **Each step says how long it took.** `run_suite` prints `[scope] module.function: 12.3 s` after
   every step, so a log shows which scenario the time went to.
-- **Run only some of the steps.** Set `KFDE_ONLY` to a comma-separated list, and only the steps
+- **Run only some of the steps.** Set `E2E_ONLY` (`KFDE_ONLY` is the older name, still read) to a comma-separated list, and only the steps
   whose name (as printed, `module.function`) contains one of the words run; the others are printed
   as left out. A step that the others depend on (the one that opens the windows) is made with
   `always=True` and runs whatever the list says. Evaluate with `--impure` for the variable to reach
   the test:
 
   ```sh
-  KFDE_ONLY=stacks,monocle nix build --impure .#checks.x86_64-linux.vm-core-e2e -L
+  E2E_ONLY=stacks,monocle nix build --impure .#checks.x86_64-linux.vm-core-e2e -L
   ```
 
   A step that is left out returns `None`, so a suite that uses what a step returned must run that

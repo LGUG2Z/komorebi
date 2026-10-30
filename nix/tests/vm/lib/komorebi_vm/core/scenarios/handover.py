@@ -3,7 +3,7 @@ again."""
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client, Platform
-from komorebi_vm.core.scenarios.support import focus_agrees
+from komorebi_vm.core.scenarios.support import describe, focus_agrees
 from komorebi_vm.core.scenarios.tiling import _where_the_layout_says
 
 
@@ -56,9 +56,10 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
             window is not None and window.frame.inside(area, 2) and not _on_a_tile(platform, target)
         )
 
-    checks.check(
+    if not checks.check(
         f"{title} is inside the work area and not on a tile of the layout",
         platform.wait_for(left_alone, timeout=10),
-    )
+    ):
+        print(describe(platform, clients))
     platform.komorebic("manage")
     checks.check(f"manage: {title} is tiled again", platform.wait_for(has_it, timeout=10))
