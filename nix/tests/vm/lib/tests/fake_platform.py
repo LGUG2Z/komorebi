@@ -87,6 +87,8 @@ class FakePlatform:
         self.exe_rules: dict[str, int] = {}
         self.ignored_exes: set[str] = set()
         self.exes: dict[str, str] = {}
+        self.classes: dict[str, str] = {}
+        self.manage: set[tuple[str, str]] = set()
         self.names: list[str | None] = [None, None, None]
         self.layout_name = "Columns"
         self.reloads = reloads
@@ -171,7 +173,17 @@ class FakePlatform:
         return [stack[0] for stack in self.containers]
 
     def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
-        self.exes[title] = exe or ""
+        self.exes[title] = exe or "foot"
+        self.classes[title] = app_id or ""
+        forced = (
+            ("exe", exe) in self.manage
+            or ("class", app_id) in self.manage
+            or any(kind == "title" and title.startswith(i) for kind, i in self.manage)
+        )
+        if forced:
+            self.containers.append([title])
+            self._relayout()
+            return Client(title)
         if exe in self.ignored_exes:
             self.unmanaged.append(title)
             return Client(title)
@@ -187,7 +199,7 @@ class FakePlatform:
         if self.paused:
             self.unmanaged.append(title)
             return Client(title)
-        if title in self.ignored:
+        if any(title.startswith(i) for i in self.ignored):
             self.unmanaged.append(title)
         elif title in self.initial_rules:
             self.spaces[self.initial_rules.pop(title)].append([title])
@@ -451,6 +463,8 @@ class FakePlatform:
                 self.ignored_classes.add(name)
             case ("ignore-rule", "title", title):
                 self.ignored.add(title)
+            case ("manage-rule", kind, name):
+                self.manage.add((kind, name))
             case ("move-to-workspace", number):
                 self.komorebic("send-to-workspace", number)
                 self.last, self.current = self.current, int(number)
@@ -528,7 +542,7 @@ class FakePlatform:
                 "details": {
                     "title": title,
                     "exe": self.exes.get(title, ""),
-                    "class": "",
+                    "class": self.classes.get(title, ""),
                     "path": "",
                 },
             }

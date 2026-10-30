@@ -93,9 +93,12 @@ class KdePlatform:
         program = "foot"
         if exe:
             # the daemon reads the executable from /proc, where a link shows its target: a copy
-            # of the terminal is what has the name
+            # of the terminal is what has the name, made once: a copy that is running cannot be
+            # written over
             program = f"{BIN}/{exe}"
-            self.kde.sh(f"mkdir -p {BIN} && cp -L $(command -v foot) {program}")
+            self.kde.sh(
+                f"mkdir -p {BIN} && {{ test -x {program} || cp -L $(command -v foot) {program}; }}"
+            )
         self.kde.spawn(f"{program} {name}-T {shlex.quote(title)} sleep 3000")
         self.kde.wait_for(lambda: self.kde.wid(title) != "", timeout=30)
         return Client(title)
