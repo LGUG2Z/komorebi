@@ -234,6 +234,18 @@ borders are on, so windows sit padding + container padding + 7 px from each edge
 (container padding + 7) apart; a Windows extra checks it. The kfde offset is not explained.
 `padding` is not affected: it measures from the padding it sets itself.
 
+**A title change does not make the daemon look at a window again. Decided: kfw's behaviour.** A
+window an ignore rule matched when it opened stays unmanaged when it gives itself another title,
+and a managed window stays managed. kfw's `TitleUpdate` arm is empty; kfde used to announce a
+window it did not have again as a `Show` on a title change, so that a rule on the title it has now
+decided (windows are often announced before their title is set), and a window that renamed itself
+away from an ignore rule was tiled. The `title_rule` scenario found the difference (kfw's first
+Windows run: the window was never managed). The decision is that the ports match, and kfde changed:
+`WindowManagerEvent::TitleUpdate` does nothing, the unit tests in `komorebi/tests/rule_commands.rs`
+say so, and `title_rule` asserts it on both ports. Passes on a real KWin (5 checks). The price on
+KDE: a window that opens with no title and gets one later is decided by the rules on the empty
+title only.
+
 ## What the scenarios had to allow for
 
 These are differences between the ports that a scenario does not hide, and are not failures:
