@@ -6077,4 +6077,55 @@ mod tests {
         assert_eq!(wm.focused_monitor().unwrap().workspaces().len(), 1);
         assert_eq!(wm.focused_workspace().unwrap().containers().len(), 3);
     }
+
+    /// What dragging the edge that two stacked tiles share, from either of them, gives the
+    /// tile that is dragged: three tiles laid out as BSP, one on the left and two on the right
+    fn dragged_dimensions(
+        focused: usize,
+        edge: OperationDirection,
+        sizing: Sizing,
+    ) -> Vec<Option<Rect>> {
+        let (mut wm, _context) = setup_window_manager();
+        let area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        let mut monitor = monitor::new(
+            0,
+            area,
+            area,
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        let workspace = monitor.focused_workspace_mut().unwrap();
+        workspace.layout = Layout::Default(DefaultLayout::BSP);
+        for _ in 0..3 {
+            workspace.containers_mut().push_back(Container::default());
+        }
+        workspace.resize_dimensions = vec![None; 3];
+        workspace.focus_container(focused);
+
+        wm.monitors_mut().push_back(monitor);
+        wm.resize_window(edge, sizing, 144, false).unwrap();
+
+        wm.focused_workspace().unwrap().resize_dimensions.clone()
+    }
+
+    #[test]
+    fn test_resize_the_top_edge_of_the_lower_tile() {
+        let dragged_up = dragged_dimensions(2, OperationDirection::Up, Sizing::Increase);
+        assert!(
+            dragged_up[2].is_some() || dragged_up[1].is_some(),
+            "dragging the top edge of the lower tile up changed nothing: {dragged_up:?}"
+        );
+
+        // the same edge from the tile above
+        let dragged_down = dragged_dimensions(1, OperationDirection::Down, Sizing::Increase);
+        assert!(dragged_down[1].is_some(), "{dragged_down:?}");
+    }
 }

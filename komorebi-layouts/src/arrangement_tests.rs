@@ -1843,3 +1843,34 @@ mod flip_resize_adjacency_tests {
         }
     }
 }
+
+// The edge that win2 and win3 share is moved the same way whichever of the two it is dragged
+// from, in a BSP layout with a tile on the left and two stacked on the right
+#[test]
+fn bsp_shared_edge_moves_the_same_dragged_from_either_tile() {
+    let area = test_area();
+    let len = NonZeroUsize::new(3).unwrap();
+    let layout = |dimensions: &[Option<Rect>]| {
+        DefaultLayout::BSP.calculate(&area, len, None, None, dimensions, 0, None, &[])
+    };
+    let rect = |left, top, right, bottom| Rect {
+        left,
+        top,
+        right,
+        bottom,
+    };
+
+    let before = layout(&[None, None, None]);
+    let shared_edge = before[1].top + before[1].bottom;
+    assert_eq!(shared_edge, before[2].top);
+
+    // the bottom edge of the tile above, taken down by 72 (a request of 144, as a shared edge
+    // is moved by half of what the layout is given)
+    let from_above = layout(&[None, Some(rect(0, 0, 0, 144)), None]);
+    assert_eq!(from_above[2].top, shared_edge + 72);
+
+    // the top edge of the tile below, taken up by 72
+    let from_below = layout(&[None, None, Some(rect(0, -144, 0, 0))]);
+    assert_eq!(from_below[2].top, shared_edge - 72);
+    assert_eq!(from_below[1].top + from_below[1].bottom, shared_edge - 72);
+}
