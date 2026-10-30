@@ -551,22 +551,7 @@ impl WindowManager {
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
 
-                let mut should_push = true;
-                for m in &*manage_identifiers {
-                    if let MatchingRule::Simple(m) = m
-                        && m.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    manage_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut manage_identifiers, identifier, id);
             }
             SocketMessage::SessionFloatRule => {
                 let foreground_window = WindowsApi::foreground_window()?;
@@ -618,22 +603,7 @@ impl WindowManager {
             SocketMessage::IgnoreRule(identifier, ref id) => {
                 let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
 
-                let mut should_push = true;
-                for i in &*ignore_identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut ignore_identifiers, identifier, id);
 
                 let offset = self.work_area_offset;
 
@@ -1825,61 +1795,16 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::IdentifyObjectNameChangeApplication(identifier, ref id) => {
                 let mut identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
 
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut identifiers, identifier, id);
             }
             SocketMessage::IdentifyTrayApplication(identifier, ref id) => {
                 let mut identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut identifiers, identifier, id);
             }
             SocketMessage::IdentifyLayeredApplication(identifier, ref id) => {
                 let mut identifiers = LAYERED_WHITELIST.lock();
 
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut identifiers, identifier, id);
             }
             SocketMessage::ManageFocusedWindow => {
                 self.manage_focused_window()?;
@@ -2271,22 +2196,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::RemoveTitleBar(identifier, ref id) => {
                 let mut identifiers = NO_TITLEBAR.lock();
 
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut identifiers, identifier, id);
             }
             SocketMessage::ToggleTitleBars => {
                 let current = REMOVE_TITLEBARS.load(Ordering::SeqCst);
@@ -2424,11 +2334,31 @@ pub fn read_commands_tcp(
     Ok(())
 }
 
+/// Add a simple socket-created rule unless one with the same kind and id is already present;
+/// a rule of another kind with the same id is a different rule
+fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, id: &str) {
+    let exists = rules
+        .iter()
+        .any(|r| matches!(r, MatchingRule::Simple(r) if r.kind == kind && r.id.eq(id)));
+
+    if !exists {
+        rules.push(MatchingRule::Simple(IdWithIdentifier {
+            kind,
+            id: id.to_string(),
+            matching_strategy: Option::from(MatchingStrategy::Legacy),
+        }));
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::push_simple_rule;
     use crate::Rect;
     use crate::SocketMessage;
     use crate::WindowManagerEvent;
+    use crate::core::ApplicationIdentifier;
+    use crate::core::config_generation::IdWithIdentifier;
+    use crate::core::config_generation::MatchingRule;
     use crate::monitor;
     use crate::window_manager::WindowManager;
     use crossbeam_channel::Receiver;
@@ -2491,5 +2421,27 @@ mod tests {
         assert_eq!(wm.focused_workspace_idx().unwrap(), 5);
 
         std::fs::remove_file(socket_path).unwrap();
+    }
+
+    #[test]
+    fn push_simple_rule_keeps_rules_of_another_kind_with_the_same_id() {
+        let mut rules = vec![];
+
+        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        assert_eq!(rules.len(), 2);
+
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
+        assert_eq!(rules.len(), 2);
+
+        rules.clear();
+        rules.push(MatchingRule::Composite(vec![IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: "foo".to_string(),
+            matching_strategy: None,
+        }]));
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        assert_eq!(rules.len(), 2);
     }
 }
