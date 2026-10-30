@@ -84,6 +84,11 @@ pub const WM_UPDATE_BRUSHES: u32 = WM_USER + 1;
 /// new tracked rect.
 pub const WM_ANIMATE_RECT: u32 = WM_USER + 2;
 
+/// Custom WM_USER message that tells the border window thread to invalidate its own window, so
+/// that it is painted after the window has been shown, which is done on this thread too when
+/// windows are handled asynchronously.
+pub const WM_INVALIDATE: u32 = WM_USER + 3;
+
 pub struct RenderFactory(ID2D1Factory);
 unsafe impl Sync for RenderFactory {}
 unsafe impl Send for RenderFactory {}
@@ -480,9 +485,18 @@ impl Border {
         Ok(())
     }
 
-    // this triggers WM_PAINT in the callback below
+    // this triggers WM_PAINT in the callback below, from the thread of the border's window: a
+    // window that is shown asynchronously is shown by that thread, and what is invalidated before
+    // it is shown is not painted when it is, as the show does not redraw it
     pub fn invalidate(&self) {
-        let _ = unsafe { InvalidateRect(Option::from(self.hwnd()), None, false) };
+        let _ = unsafe {
+            PostMessageW(
+                Option::from(self.hwnd()),
+                WM_INVALIDATE,
+                WPARAM(0),
+                LPARAM(0),
+            )
+        };
     }
 
     pub extern "system" fn callback(
@@ -711,6 +725,10 @@ impl Border {
                     let _ = ValidateRect(Option::from(window), None);
                     LRESULT(0)
                 }
+                WM_INVALIDATE => {
+                    let _ = InvalidateRect(Option::from(window), None, false);
+                    LRESULT(0)
+                }
                 WM_UPDATE_BRUSHES => {
                     let border_pointer: *mut Border = GetWindowLongPtrW(window, GWLP_USERDATA) as _;
                     if border_pointer.is_null() {
@@ -778,5 +796,75 @@ mod tests {
 
         // a border that has been drawn nowhere is drawn for every window
         assert!(needs_redraw(&Rect::default(), &drawn));
+    }
+
+    /// Whether a border that is made and shown the way the border manager does is painted
+    #[allow(clippy::expect_used)]
+    fn is_painted(handling: crate::WindowHandlingBehaviour) -> bool {
+        use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
+        use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
+        use windows::Win32::UI::WindowsAndMessaging::WINDOW_EX_STYLE;
+        use windows::Win32::UI::WindowsAndMessaging::WS_OVERLAPPEDWINDOW;
+        use windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
+        use windows::core::w;
+
+        let tracked = unsafe {
+            CreateWindowExW(
+                WINDOW_EX_STYLE(0),
+                w!("STATIC"),
+                w!("komorebi-border-test"),
+                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                200,
+                200,
+                400,
+                300,
+                None,
+                None,
+                None,
+                None,
+            )
+        }
+        .expect("a window to put a border around");
+
+        let tracked_hwnd = tracked.0 as isize;
+        let previous = crate::WINDOW_HANDLING_BEHAVIOUR.load();
+        crate::WINDOW_HANDLING_BEHAVIOUR.store(handling);
+
+        let mut border =
+            Border::create("komorebi-border-test", tracked_hwnd, 0).expect("a border to paint");
+        let rect = rect(200, 200, 400, 300);
+        border.window_rect = rect;
+
+        // as the border manager makes a border for a window
+        border
+            .set_position(&rect, tracked_hwnd)
+            .expect("a border to put in place");
+        border.invalidate();
+
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        // the paint sizes what it draws to its window, which it does for nothing else
+        let painted =
+            unsafe { std::ptr::read_volatile(&raw const border.rounded_rect.rect.right) } > 0.0;
+
+        crate::WINDOW_HANDLING_BEHAVIOUR.store(previous);
+
+        let border = Box::into_raw(border);
+        unsafe {
+            let _ = (*border).destroy();
+            let _ = DestroyWindow(tracked);
+        }
+
+        painted
+    }
+
+    #[test]
+    fn a_new_border_is_painted_when_windows_are_handled_synchronously() {
+        assert!(is_painted(crate::WindowHandlingBehaviour::Sync));
+    }
+
+    #[test]
+    fn a_new_border_is_painted_when_windows_are_handled_asynchronously() {
+        assert!(is_painted(crate::WindowHandlingBehaviour::Async));
     }
 }
