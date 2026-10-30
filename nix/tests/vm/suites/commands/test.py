@@ -5,12 +5,13 @@
 # (`komorebi_vm.core.scenarios.commands`, which run on Windows too) check that, for every layout with
 # five windows and for every command, and that a command is understood (exit status 0). What only
 # a real KWin can tell is in `komorebi_vm.platforms.kde.extras.commands`: every layout with fewer
-# windows, that what the daemon asks KWin for is what KWin carries out, and the commands that take
-# a window out of the daemon's hands. The Rust tests check what each command does against the fake.
+# windows, and that what the daemon asks KWin for is what KWin carries out. The commands that take
+# a window out of the daemon's hands and a title rule are shared scenarios. The Rust tests check
+# what each command does against the fake.
 import shlex
 
 from komorebi_vm import Checks, Kde
-from komorebi_vm.core.scenarios import commands, title_rule
+from komorebi_vm.core.scenarios import commands, handover, title_rule
 from komorebi_vm.core.suite import platform_only, run_suite, shared
 from komorebi_vm.kde_platform import KdePlatform
 from komorebi_vm.platforms.kde.extras import commands as kde_commands
@@ -44,7 +45,7 @@ run_suite(
     platform_only("kde", kde.komorebic, "change-layout", "bsp"),
     shared(commands.sweep, *args, CONFIG),
     platform_only("kde", kde_commands.replace_configuration, *args),
-    platform_only("kde", kde_commands.handover, *args),
+    shared(handover.run, *args),
     shared(title_rule.run, platform, checks),
     shared(commands.prints, platform, checks),
     platform_only("kde", kde_commands.queries, *args),

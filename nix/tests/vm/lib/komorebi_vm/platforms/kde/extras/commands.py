@@ -6,7 +6,7 @@ command is understood and leaves the daemon healthy, as the operating system see
 reads KWin (`kdotool`) and the daemon's log.
 
 The suite runs `setup`, `layouts_by_count`, the shared `layouts` and `sweep`,
-`replace_configuration`, `handover`, the shared `title_rule` and `prints`, `queries` and
+`replace_configuration`, the shared `handover`, `title_rule` and `prints`, `queries` and
 `at_the_end`.
 The daemon runs on a session with two outputs, and `clients` are five windows on the first.
 """
@@ -170,49 +170,6 @@ def replace_configuration(platform: KdePlatform, checks: Checks, clients: list[C
     checks.check(
         "replace-configuration made the window manager again from the file",
         first["name"] == "again",
-    )
-
-
-def handover(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """`minimize`, `unmanage` and `manage` on the focused window: the daemon lets go of it, and
-    takes it up again.
-
-    They take a window out of the daemon's hands, so the shared sweep does not run them.
-    """
-    kde = platform.kde
-    focused = kde.active()
-    title = kde.title(focused)
-    before = kde.managed()
-    kde.wait_for(lambda: kde.focused_title() == title, timeout=10)
-    kde.komorebic("minimize")
-    checks.check(
-        f"minimize: the daemon lets go of {title} when KWin minimizes it",
-        kde.wait_for(lambda: kde.managed() == before - 1, timeout=10) and kde.wid(title) != "",
-    )
-    kde.activate(focused)
-    checks.check(
-        f"{title}, restored, is tiled again",
-        kde.wait_for(lambda: kde.managed() == before and healthy(platform) == 0, timeout=10),
-    )
-    kde.wait_for(lambda: kde.focused_title() == title, timeout=10)
-    kde.komorebic("unmanage")
-    checks.check(
-        f"unmanage: the daemon lets go of {title}, which stays open",
-        kde.wait_for(lambda: kde.managed() == before - 1, timeout=10) and kde.wid(title) != "",
-    )
-    width, height = platform.size[0] // OUTPUTS, platform.size[1]
-
-    def centered() -> bool:
-        r = kde.rect(focused)
-        return (
-            abs(r.x + r.w // 2 - width // 2) <= CELL and abs(r.y + r.h // 2 - height // 2) <= CELL
-        )
-
-    checks.check(f"{title} is in the middle of the work area", kde.wait_for(centered, timeout=10))
-    kde.komorebic("manage")
-    checks.check(
-        f"manage: {title} is tiled again",
-        kde.wait_for(lambda: kde.managed() == before and healthy(platform) == 0, timeout=10),
     )
 
 

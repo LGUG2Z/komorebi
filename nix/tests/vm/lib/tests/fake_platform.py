@@ -65,6 +65,8 @@ class FakePlatform:
         second: Rect | None = None,
         follows_renames: bool = True,
         honours_ignore: bool = True,
+        unmanages: bool = True,
+        manages: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -73,6 +75,10 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.unmanages = unmanages
+        self.manages = manages
+        self.let_go: list[str] = []
+        """The windows `unmanage` let go of, the last one at the end."""
         self.follows_renames = follows_renames
         self.honours_ignore = honours_ignore
         self.clock = 0.0
@@ -579,6 +585,23 @@ class FakePlatform:
             case ("flip-layout", "horizontal"):
                 self.flipped = not self.flipped
                 self._relayout()
+            case ("minimize",):
+                self.minimize(Client(self.containers[self.focus][0]))
+            case ("unmanage",):
+                title = self.containers[self.focus][0]
+                if self.unmanages:
+                    self._find_remove(title)
+                    self.unmanaged.append(title)
+                    self.let_go.append(title)
+                    self.focus = max(0, min(self.focus, len(self.containers) - 1))
+                    self._relayout()
+            case ("manage",):
+                if self.let_go and self.manages:
+                    title = self.let_go.pop()
+                    self.unmanaged.remove(title)
+                    self.containers.append([title])
+                    self.focus = len(self.containers) - 1
+                    self._relayout()
             case ("toggle-pause",):
                 self.paused = not self.paused
             case ("toggle-tiling",):
