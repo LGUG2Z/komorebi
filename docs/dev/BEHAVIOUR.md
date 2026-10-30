@@ -43,6 +43,11 @@ runs, and goes stale when the code changes.
 | `startup_rules` | the workspace rules of the config apply to a window open before the daemon and to one after | pass | pass |
 | `focus_follows_mouse` | the pointer over a window gives it the focus when it is on, not when it is off | pass | pass |
 | `lifecycle` | a daemon that stops and starts again takes the windows that were in view up again | pass | pass |
+| `layouts` | eight layouts, with three and with five windows: each window where the layout says, none over another | pass | pass |
+| `floating` | `toggle-float` takes a window out of the tiling, the others take its room, and again it is tiled | pass | pass |
+| `minimizing` | a minimized window leaves its room to the others, and a restored one takes it back | pass | pass |
+| `padding` | more workspace padding moves the windows in from the edge, more container padding shrinks them, and setting it back restores them | pass | pass |
+| `maximizing` | `toggle-maximize` gives a window the work area and the daemon names it, the others stay put | pass | pass |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
 is not the scenario's, that the daemon had exited after `komorebic stop`; the next run passed it,
@@ -117,6 +122,12 @@ made it (`~/e2e-w0/rec1/resize/session/rec`), and the write-up is `W1.md` in kfw
 
 Nothing else moved: no tile went up
 or down, none overlapped, and every window stayed inside the work area.
+
+**The padding the state says is not the padding the frames show.** On kfde the state says a
+workspace padding of 0 and a container padding of 0, while the windows sit 10 px in from the work
+area; on kfw the state says 10 and 10, and the frames of three tiled windows sit 27 px in, 7
+more than the 20 the state predicts, on every edge. Neither offset is explained. `padding` is
+not affected: it measures from the padding it sets itself.
 
 ## What the scenarios had to allow for
 
