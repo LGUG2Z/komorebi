@@ -23,7 +23,7 @@ def test_kde_counts_are_by_scenario_and_scope() -> None:
     tiling = found.shared["tiling"]["kde"]
     assert (tiling.passed, tiling.failed) == (1, 1)
     assert "focus" not in found.shared
-    unknown = found.shared["commands"]["kde"]
+    unknown = found.shared["unknown_monitor"]["kde"]
     assert (unknown.known, unknown.skipped) == (1, 1)
     assert found.extras["core_e2e"]["kde"].passed == 1
 
@@ -57,7 +57,7 @@ def test_the_table_has_a_row_for_each_scenario_and_a_dash_for_a_port_that_did_no
     found = status.Status()
     status.read_kde(found, KDE_LOG)
     out = status.table(found)
-    assert "| `tiling` | FAIL 1 of 2 | not run |" in out or "| `tiling` | FAIL 1 of 2 | - |" in out
+    assert "| `tiling` | FAIL 1 of 2 | - |" in out
 
 
 def test_the_region_between_the_markers_is_replaced() -> None:
@@ -65,3 +65,23 @@ def test_the_region_between_the_markers_is_replaced() -> None:
     assert status.replace_region(document, "new\n") == (
         f"before\n{status.BEGIN}\nnew\n{status.END}\nafter\n"
     )
+
+
+def test_a_scenario_two_logs_have_is_counted_from_the_newer() -> None:
+    older, newer, found = status.Status(), status.Status(), status.Status()
+    status.read_kde(older, "== [shared] rules.run\n  ok   [shared] a\n  ok   [shared] b\n")
+    status.read_kde(newer, "== [shared] rules.run\n  ok   [shared] a\n")
+    status.merge(found, older)
+    status.merge(found, newer)
+    assert found.shared["rules"]["kde"].passed == 1
+
+
+def test_unknown_monitor_is_a_scenario_of_its_own() -> None:
+    found = status.Status()
+    status.read_kde(
+        found,
+        "== [shared] commands.sweep\n  ok   [shared] x\n"
+        "== [shared] commands.unknown_monitor\n  known failure [shared] y: why\n",
+    )
+    assert found.shared["commands"]["kde"].passed == 1
+    assert found.shared["unknown_monitor"]["kde"].known == 1

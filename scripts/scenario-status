@@ -25,8 +25,11 @@ parser.add_argument("--update", type=Path, help="the document to put the table i
 args = parser.parse_args()
 
 found = status.Status()
-for log in args.kde:
-    status.read_kde(found, log.read_text(errors="replace"))
+# oldest first, so that a scenario two logs have is counted from the newer
+for log in sorted(args.kde, key=lambda path: path.stat().st_mtime):
+    one = status.Status()
+    status.read_kde(one, log.read_text(errors="replace"))
+    status.merge(found, one)
 for directory in args.windows:
     status.read_windows(found, directory)
 text = status.table(found)

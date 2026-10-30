@@ -18,6 +18,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+# steps that are scenarios of their own, though their module has others: kfw runs them apart
+SCENARIOS = {"commands.unknown_monitor": "unknown_monitor"}
+
 PREFIX = re.compile(r"^[\w.-]+> ")
 STEP = re.compile(r"^== \[(?P<scope>[\w-]+)\] (?P<name>[\w.]+)(?P<left_out>: left out by \w+)?\s*$")
 RESULT = re.compile(r"^  (?P<kind>ok  |FAIL|skip|known failure) ")
@@ -63,6 +66,14 @@ class Status:
         return table.setdefault(name, {}).setdefault(port, Counts())
 
 
+def merge(status: Status, newer: Status) -> None:
+    """Puts what `newer` has into `status`, instead of what it had of the same scenario: a scenario
+    that two suites run (the shared `rules` runs in two) is counted once, from the later log."""
+    for mine, theirs in ((status.shared, newer.shared), (status.extras, newer.extras)):
+        for name, ports in theirs.items():
+            mine.setdefault(name, {}).update(ports)
+
+
 def read_kde(status: Status, text: str) -> None:
     """Adds the checks of a log of a run on KDE."""
     scenario: str | None = None
@@ -73,8 +84,7 @@ def read_kde(status: Status, text: str) -> None:
             if step["left_out"]:
                 scenario = None
                 continue
-            module = step["name"].split(".")[0]
-            scenario = module
+            scenario = SCENARIOS.get(step["name"], step["name"].split(".")[0])
             table = status.shared if step["scope"] == "shared" else status.extras
             continue
         if scenario is None:
@@ -143,13 +153,7 @@ def table(status: Status) -> str:
     out = ["| scenario | kde | windows |", "|---|---|---|"]
     for name in sorted(status.shared):
         cells = [status.shared[name].get(port, Counts()) for port in ports]
-        out.append(
-            f"| `{name}` | "
-            + " | ".join(
-                c.cell() if c.passed + c.failed + c.known + c.skipped else "not run" for c in cells
-            )
-            + " |"
-        )
+        out.append(f"| `{name}` | " + " | ".join(_cell(c) for c in cells) + " |")
     out += ["", "Only on one port:", "", "| extra | kde | windows |", "|---|---|---|"]
     for name in sorted(status.extras):
         cells = [status.extras[name].get(port, Counts()) for port in ports]
