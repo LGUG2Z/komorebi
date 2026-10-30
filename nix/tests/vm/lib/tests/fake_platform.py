@@ -63,6 +63,8 @@ class FakePlatform:
         panel: int = 0,
         ignores_panel: bool = False,
         second: Rect | None = None,
+        follows_renames: bool = True,
+        honours_ignore: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -71,6 +73,11 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.follows_renames = follows_renames
+        self.honours_ignore = honours_ignore
+        self.clock = 0.0
+        self.renames: list[tuple[float, str, str]] = []
+        """The windows that will give themselves a title: when, the old one, the new one."""
         self.tiles = self._base()
         self.has_pointer = pointer
         self.follows_pointer = follows_pointer
@@ -166,7 +173,25 @@ class FakePlatform:
                 return
 
     def wait_for(self, predicate: Any, timeout: float = 10) -> bool:
+        """Time passes by `timeout`, and the windows that were to rename themselves have."""
+        self.clock += timeout
+        for entry in [r for r in self.renames if r[0] <= self.clock]:
+            self.renames.remove(entry)
+            self._rename(entry[1], entry[2])
         return bool(predicate())
+
+    def _rename(self, old: str, new: str) -> None:
+        for table in (self.exes, self.classes):
+            if old in table:
+                table[new] = table.pop(old)
+        if old not in self.unmanaged or not self.follows_renames:
+            for stack in [s for cs in self.spaces for s in cs]:
+                stack[:] = [new if t == old else t for t in stack]
+            self.unmanaged[:] = [new if t == old else t for t in self.unmanaged]
+            return
+        self.unmanaged.remove(old)
+        self.containers.append([new])
+        self._relayout()
 
     def start_komorebi(self) -> None:
         """A new daemon knows nothing: every window is tiled on the first workspace."""
@@ -197,7 +222,16 @@ class FakePlatform:
         """The titles in view, in the order of the tiles."""
         return [stack[0] for stack in self.containers]
 
-    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+    def spawn(
+        self,
+        title: str,
+        app_id: str | None = None,
+        exe: str | None = None,
+        rename_to: str | None = None,
+        after: float = 0,
+    ) -> Client:
+        if rename_to is not None:
+            self.renames.append((self.clock + after, title, rename_to))
         self.exes[title] = exe or "foot"
         self.classes[title] = app_id or ""
         forced = (
@@ -224,7 +258,7 @@ class FakePlatform:
         if self.paused:
             self.unmanaged.append(title)
             return Client(title)
-        if any(title.startswith(i) for i in self.ignored):
+        if self.honours_ignore and any(title.startswith(i) for i in self.ignored):
             self.unmanaged.append(title)
         elif title in self.initial_rules:
             self.spaces[self.initial_rules.pop(title)].append([title])

@@ -92,7 +92,14 @@ class KdePlatform:
     def state(self) -> Snapshot:
         return snapshot.parse(self.kde.state())
 
-    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+    def spawn(
+        self,
+        title: str,
+        app_id: str | None = None,
+        exe: str | None = None,
+        rename_to: str | None = None,
+        after: float = 0,
+    ) -> Client:
         name = f"-a {shlex.quote(app_id)} " if app_id else ""
         program = "foot"
         if exe is not None:
@@ -105,7 +112,12 @@ class KdePlatform:
             self.kde.sh(
                 f"mkdir -p {BIN} && {{ test -x {program} || cp -L $(command -v foot) {program}; }}"
             )
-        self.kde.spawn(f"{program} {name}-T {shlex.quote(title)} sleep 3000")
+        command = "sleep 3000"
+        if rename_to is not None:
+            # foot takes the title from the terminal escape OSC 0
+            script = f'sleep {after}; printf "\\033]0;{rename_to}\\007"; sleep 3000'
+            command = f"sh -c {shlex.quote(script)}"
+        self.kde.spawn(f"{program} {name}-T {shlex.quote(title)} {command}")
         if not self.kde.wait_for(lambda: self.kde.wid(title) != "", timeout=30):
             raise AssertionError(f"no window titled {title!r} appeared")
         return Client(title)

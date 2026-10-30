@@ -21,7 +21,14 @@ class FakePlatform:
     def wait_for(self, predicate, timeout: float = 10) -> bool:  # noqa: ANN001
         return predicate()
 
-    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+    def spawn(
+        self,
+        title: str,
+        app_id: str | None = None,
+        exe: str | None = None,
+        rename_to: str | None = None,
+        after: float = 0,
+    ) -> Client:
         self.opened.append(title)
         return Client(title)
 

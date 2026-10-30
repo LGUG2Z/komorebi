@@ -10,7 +10,7 @@
 import shlex
 
 from komorebi_vm import Checks, Kde
-from komorebi_vm.core.scenarios import commands
+from komorebi_vm.core.scenarios import commands, title_rule
 from komorebi_vm.core.suite import platform_only, run_suite, shared
 from komorebi_vm.kde_platform import KdePlatform
 from komorebi_vm.platforms.kde.extras import commands as kde_commands
@@ -45,7 +45,7 @@ run_suite(
     shared(commands.sweep, *args, CONFIG),
     platform_only("kde", kde_commands.replace_configuration, *args),
     platform_only("kde", kde_commands.handover, *args),
-    platform_only("kde", kde_commands.title_rule, *args),
+    shared(title_rule.run, platform, checks),
     shared(commands.prints, platform, checks),
     platform_only("kde", kde_commands.queries, *args),
     platform_only("kde", kde_commands.at_the_end, *args),

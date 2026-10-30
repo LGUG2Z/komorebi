@@ -136,7 +136,14 @@ class Platform(Protocol):
         """The daemon's state."""
         ...
 
-    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+    def spawn(
+        self,
+        title: str,
+        app_id: str | None = None,
+        exe: str | None = None,
+        rename_to: str | None = None,
+        after: float = 0,
+    ) -> Client:
         """Opens a window with this title and waits until the platform has it, and raises if it
         never does: a scenario that waits for a window to stay unmanaged must be sure it is there.
 
@@ -148,6 +155,10 @@ class Platform(Protocol):
         `exe` is the name of the program that opens it, without an extension (`e2e-exe` is
         `e2e-exe.exe` on Windows and `e2e-exe` on Linux), for a rule that matches by it. The
         platform makes a program of that name, and `exe_id` spells the id of a rule for it.
+
+        `rename_to` is a title the window gives itself `after` seconds after it opens (a terminal
+        escape on KDE, a title update on Windows), as a program that sets its title late does. The
+        window is then known to the platform by the new title: `Client(rename_to)`.
         """
         ...
 

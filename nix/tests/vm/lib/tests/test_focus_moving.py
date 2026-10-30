@@ -575,7 +575,7 @@ def test_a_daemon_that_shows_what_a_window_was_given_passes_state_fidelity() -> 
 
 def test_a_daemon_that_loses_the_class_fails_state_fidelity() -> None:
     class Forgetful(FakePlatform):
-        def spawn(self, title, app_id=None, exe=None):  # noqa: ANN001, ANN202
+        def spawn(self, title, app_id=None, exe=None, rename_to=None, after=0):  # noqa: ANN001, ANN202
             client = super().spawn(title, app_id=None, exe=exe)
             return client
 

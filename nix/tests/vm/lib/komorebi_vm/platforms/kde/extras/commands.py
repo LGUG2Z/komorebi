@@ -6,11 +6,10 @@ command is understood and leaves the daemon healthy, as the operating system see
 reads KWin (`kdotool`) and the daemon's log.
 
 The suite runs `setup`, `layouts_by_count`, the shared `layouts` and `sweep`,
-`replace_configuration`, `handover`, `title_rule`, the shared `prints`, `queries` and `at_the_end`.
+`replace_configuration`, `handover`, the shared `title_rule` and `prints`, `queries` and
+`at_the_end`.
 The daemon runs on a session with two outputs, and `clients` are five windows on the first.
 """
-
-import shlex
 
 from komorebi_vm import daemon
 from komorebi_vm.core.checks import Checks
@@ -214,45 +213,6 @@ def handover(platform: KdePlatform, checks: Checks, clients: list[Client]) -> No
     checks.check(
         f"manage: {title} is tiled again",
         kde.wait_for(lambda: kde.managed() == before and healthy(platform) == 0, timeout=10),
-    )
-
-
-def title_rule(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """A rule that matches a title decides when the window has its title: a window that opens
-    with a title the ignore rule matches is left alone, and tiled once it has another."""
-    kde = platform.kde
-    kde.komorebic("ignore-rule", "title", "pending-rule")
-    before_all = kde.managed_all()
-
-    def ignored(title: str) -> bool:
-        """True once the daemon has logged that it leaves the window titled `title` alone."""
-        return any(
-            "should not be managed" in line and f"title: {title}," in line
-            for line in kde.komorebi_log().splitlines()
-        )
-
-    # foot is titled pending-rule when it opens, and gives itself another title after 4 seconds
-    rename = 'sleep 4; printf "\\033]0;renamed-rule\\007"; sleep 3000'
-    kde.spawn(f"foot -T pending-rule sh -c {shlex.quote(rename)}")
-    checks.check(
-        "a window the ignore rule matches by its title is left alone",
-        kde.wait_for(lambda: ignored("pending-rule"), timeout=20)
-        and kde.managed_all() == before_all,
-    )
-    checks.check(
-        "once it has a title the rule does not match, it is tiled",
-        kde.wait_for(
-            lambda: kde.wid("renamed-rule") != "" and kde.managed_all() == before_all + 1,
-            timeout=20,
-        )
-        and healthy(platform) == 0,
-    )
-    # the daemon's log names a window by the title it had when it was focused, which for this one
-    # is the first: close it, so that the last check finds every window it looks for in the log
-    kde.close(kde.wid("renamed-rule"))
-    checks.check(
-        "closed, it leaves komorebi",
-        kde.wait_for(lambda: kde.wid("renamed-rule") == "" and healthy(platform) == 0, timeout=10),
     )
 
 

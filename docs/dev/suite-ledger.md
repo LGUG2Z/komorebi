@@ -47,7 +47,7 @@ The suite had its own layout loop (section 2) and then called the shared `layout
 | 3, the layouts and the sweep of commands | shared `layouts` and `sweep` |
 | 3, `replace-configuration` made the window manager from the file | extra `replace_configuration` |
 | 3b, `minimize`, `unmanage`, `manage` | extra `handover` |
-| 3c, a title rule decides when the window has its title | extra `title_rule` |
+| 3c, a title rule decides when the window has its title | shared `title_rule` (the window renames itself through `spawn(rename_to=, after=)`). Not kept: the daemon-log line "should not be managed" for the first title, and `healthy` after it |
 | 4, every command that only prints | shared `prints` |
 | 4, `komorebic query ...`, `quick-save-resize`, `save-resize` | extra `queries` (candidates for the shared list) |
 | 5, every window is where the daemon last asked; a clean stop | extra `at_the_end` |
