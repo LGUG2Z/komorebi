@@ -1,11 +1,10 @@
 """What only KDE can tell about the placement rules of the config, beside the shared `placement`.
 
 The rules match a window by what it is called: its Wayland app id (`Class`) and its program
-(`Exe`), as well as its title. The shared scenario checks the places, by number and by title; these
-check that the names a rule matches are the ones a real KWin window has, and that `foot.exe` is
-`foot`.
+(`Exe`), as well as its title. The shared scenario checks the places, by number, by title and by
+class; this checks that `foot.exe` is `foot`.
 
-The suite runs the shared scenario, then `by_app_id` and `by_program`, with no window open.
+The suite runs the shared scenario, then `by_program`, with no window open.
 """
 
 from typing import Any
@@ -45,38 +44,6 @@ def _close(platform: KdePlatform, opened: list[Client]) -> None:
     for client in opened:
         platform.close(client)
     platform.wait_for(lambda: platform.state().managed() == 0, timeout=20)
-
-
-def by_app_id(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """A window with the app id `special` goes first, one titled `chat` goes last, and one no rule
-    matches goes after the one in focus."""
-    platform.restart_with(
-        _config(
-            {
-                "Primary": {"kind": "Class", "id": "special", "matching_strategy": "Equals"},
-                "Last": [{"kind": "Title", "id": "chat", "matching_strategy": "Contains"}],
-            }
-        )
-    )
-    opened: list[Client] = []
-    for title in ("one", "two"):
-        _open(platform, opened, title, None)
-    _open(platform, opened, "three", "special")
-    checks.check(
-        f"the window with the app id special is first ({_order(platform)})",
-        _order(platform) == ["three", "one", "two"],
-    )
-    _open(platform, opened, "a chat room", None)
-    checks.check(
-        f"the chat room is last ({_order(platform)})",
-        _order(platform) == ["three", "one", "two", "a chat room"],
-    )
-    _open(platform, opened, "four", None)
-    checks.check(
-        f"a window no rule matches goes after the one in focus, the chat room ({_order(platform)})",
-        _order(platform) == ["three", "one", "two", "a chat room", "four"],
-    )
-    _close(platform, opened)
 
 
 def by_program(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:

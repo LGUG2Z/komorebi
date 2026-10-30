@@ -2,8 +2,8 @@
 # opens goes. The daemon reads the rules from a `komorebi.json` it is started with. The shared
 # scenario (`komorebi_vm.core.scenarios.placement`, which runs on Windows too) checks the places, by
 # number and by title. What only a real KWin can tell is in
-# `komorebi_vm.platforms.kde.extras.placement`: that the names the rules match are the ones a real
-# window has (its Wayland app id, its program, and `foot.exe` being `foot`).
+# `komorebi_vm.platforms.kde.extras.placement`: that the program a rule matches is the one a real
+# window has (`foot.exe` being `foot`). The class (the Wayland app id) is a case of the shared one.
 # `komorebi/tests/placement.rs` checks the same against the fake.
 from komorebi_vm import Checks, Kde
 from komorebi_vm.core.scenarios import placement
@@ -24,7 +24,6 @@ args = (platform, checks, [])
 run_suite(
     checks,
     shared(placement.run, platform, checks),
-    platform_only("kde", kde_placement.by_app_id, *args),
     platform_only("kde", kde_placement.by_program, *args),
 )
 

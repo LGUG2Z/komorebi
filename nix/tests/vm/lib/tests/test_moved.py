@@ -3,7 +3,7 @@ are wrong in one way."""
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
-from komorebi_vm.core.scenarios import commands, handover, queries, title_rule
+from komorebi_vm.core.scenarios import commands, handover, placement, queries, title_rule
 from tests.fake_platform import FakePlatform
 
 
@@ -118,3 +118,11 @@ def test_a_daemon_that_does_not_load_a_resize_fails_queries() -> None:
     queries.run(platform, checks)
     assert any("quick-save-resize: a resize is undone" in f for f in checks.failures)
     assert any("save-resize: a resize is undone" in f for f in checks.failures)
+
+
+def test_a_daemon_that_ignores_the_class_of_a_placement_rule_fails_placement() -> None:
+    platform = FakePlatform(matches_class=False)
+    checks = Checks()
+    placement.run(platform, checks)
+    assert [f for f in checks.failures if "by the class" in f], checks.failures
+    assert checks.failed == 1

@@ -138,7 +138,7 @@ daemon with none.
 | 1, no rules: after the one in focus | shared `placement` |
 | 2, every window to the primary tile | shared `placement` |
 | 3, by the number of the place, as a number and as text | shared `placement` |
-| 4, by the app id (`Class`), by the title, and after the one in focus | extra `by_app_id` (the shared scenario matches by title only; a candidate for it) |
+| 4, by the app id (`Class`), by the title, and after the one in focus | shared `placement`, its case "by the class: first, and by the title: last" |
 | 5, `Exe` `foot.exe` matches `foot` | extra `by_program` (KDE: no `.exe` on this port) |
 
 ## monitors and layout_flip

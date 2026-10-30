@@ -69,6 +69,7 @@ class FakePlatform:
         manages: bool = True,
         loads_resize: bool = True,
         answers_queries: bool = True,
+        matches_class: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -77,6 +78,7 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.matches_class = matches_class
         self.loads_resize = loads_resize
         self.answers_queries = answers_queries
         self.saved: dict[str, list[Rect]] = {}
@@ -295,8 +297,11 @@ class FakePlatform:
         if isinstance(rules, dict):
             for place, matches in rules.items():
                 for match in matches if isinstance(matches, list) else [matches]:
+                    if match["kind"] == "Class" and not self.matches_class:
+                        continue
                     equals = match["matching_strategy"] == "Equals"
-                    if (title == match["id"]) if equals else (match["id"] in title):
+                    value = self.classes.get(title, "") if match["kind"] == "Class" else title
+                    if (value == match["id"]) if equals else (match["id"] in value):
                         index = _place_index(place, n)
         elif rules is not None:
             index = 0 if rules == "Primary" else int(rules) - 1
