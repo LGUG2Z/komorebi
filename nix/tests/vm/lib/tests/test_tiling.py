@@ -54,6 +54,12 @@ class FakePlatform:
     def remove_display(self) -> None:
         pass
 
+    def resizable_display(self) -> int | None:
+        return None
+
+    def resize_display(self, index: int, width: int, height: int) -> None:
+        pass
+
     def komorebic_status(self, *args: str) -> tuple[int, str]:
         return 0, ""
 

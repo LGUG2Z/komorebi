@@ -188,6 +188,14 @@ class KdePlatform:
         self.kde.outputs.disable(names[-1])
         self.kde.wait_for(lambda: len(self.kde.outputs.names()) == len(names) - 1, timeout=20)
 
+    def resizable_display(self) -> int | None:
+        """None: the outputs of the headless KWin are virtual and have the one mode they were
+        started with (`kscreen-doctor` can only change their scale, which is not a mode)."""
+        return None
+
+    def resize_display(self, index: int, width: int, height: int) -> None:
+        raise AssertionError("no output of this session has another mode to change to")
+
     def close(self, client: Client) -> None:
         self.kde.close(self._wid(client))
 

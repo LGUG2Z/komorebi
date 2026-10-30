@@ -76,6 +76,8 @@ class FakePlatform:
         cycles_in_monocle: bool = True,
         no_op_in_monocle: bool = True,
         follows_user_moves: bool = True,
+        resizable: bool = True,
+        follows_modes: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -84,6 +86,10 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.resizable = resizable
+        self.follows_modes = follows_modes
+        self.mode: dict[int, tuple[int, int]] = {}
+        """The mode of the displays that are not 1920 by 1080."""
         self.follows_user_moves = follows_user_moves
         self.cycles_in_monocle = cycles_in_monocle
         self.no_op_in_monocle = no_op_in_monocle
@@ -376,14 +382,20 @@ class FakePlatform:
     def displays(self) -> list[Rect]:
         return [SCREEN, *self._others()][: self.display_count]
 
+    def resizable_display(self) -> int | None:
+        return self.display_count - 1 if self.resizable and self.display_count > 1 else None
+
     def _others(self) -> list[Rect]:
         """The displays after the first, side by side to its right."""
         found = []
         x = SCREEN.w
         for n in range(1, max(self.display_count, 1)):
             size = self.second if self.second is not None and n == 1 else SCREEN
-            found.append(Rect(x, 0, size.w, size.h))
-            x += size.w
+            width, height = (size.w, size.h)
+            if self.follows_modes:
+                width, height = self.mode.get(n, (width, height))
+            found.append(Rect(x, 0, width, height))
+            x += width
         return found
 
     def add_display(self) -> None:

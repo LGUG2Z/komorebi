@@ -13,7 +13,7 @@ platform". The sections the shared scenario repeats are gone; the rest are `kde_
 | Was (section) | Now |
 |---|---|
 | 1, the daemon answers with both monitors; three windows on the left; the monitor's size; tiled | extra `setup` |
-| 2, the scale of the left output changes and returns | extra `scale` |
+| 2, the scale of the left output changes and returns | extra `scale` (KDE's scale is not a mode, so the shared `display_change` is skipped on KDE) |
 | 3, `move-to-monitor 1`: containers, KWin's `OutputChange`, tiled on the right | extra `sent_by_the_daemon` |
 | 4, the user moves a window to the right output | shared `hotplug.user_move` (the suite runs it before the unplug) |
 | 5, one monitor after the unplug | shared "after a display is unplugged the daemon has one monitor fewer" |

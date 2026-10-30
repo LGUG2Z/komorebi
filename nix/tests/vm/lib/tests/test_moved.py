@@ -5,6 +5,7 @@ from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.scenarios import (
     commands,
+    display_change,
     handover,
     hotplug,
     monocle,
@@ -201,3 +202,30 @@ def test_a_daemon_that_ignores_a_window_moved_to_the_other_display_fails() -> No
     clients = opened(platform, checks)
     hotplug.user_move(platform, checks, clients)
     assert any("the daemon has the window on the other monitor" in f for f in checks.failures)
+
+
+def test_a_daemon_that_follows_a_mode_change_passes_display_change() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    display_change.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 4
+    assert platform.displays()[1].w == 1920
+
+
+def test_a_platform_with_no_resizable_display_skips_display_change() -> None:
+    platform = FakePlatform(resizable=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    display_change.run(platform, checks, clients)
+    assert checks.failed == 0 and len(checks.skipped) == 1, checks.skipped
+
+
+def test_a_daemon_that_does_not_follow_a_mode_change_fails_display_change() -> None:
+    platform = FakePlatform(follows_modes=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    display_change.run(platform, checks, clients)
+    assert any("the daemon's monitor follows" in f for f in checks.failures)

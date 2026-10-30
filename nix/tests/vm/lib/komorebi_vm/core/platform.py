@@ -214,6 +214,18 @@ class Platform(Protocol):
         after it plugged one in, unless its suite started the platform with more than one."""
         ...
 
+    def resizable_display(self) -> int | None:
+        """The place in `displays()` of a display whose mode (its resolution) can be changed, or
+        `None` when the platform has none that can, and a scenario that needs one is skipped with
+        the reason. A scenario plugs in a display with `add_display` before it asks."""
+        ...
+
+    def resize_display(self, index: int, width: int, height: int) -> None:
+        """Gives the display `resizable_display` named another mode, `width` by `height` pixels,
+        and returns when the operating system has it: `displays()` says so. The daemon learns of
+        it later, so a scenario waits for its state to follow."""
+        ...
+
     def close(self, client: Client) -> None:
         """Closes the window, as its close button would, and returns without waiting for it to be
         gone. Raises if there is no such window."""
