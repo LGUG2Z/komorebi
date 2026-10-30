@@ -21,6 +21,7 @@ from komorebi_vm.core.scenarios import (
     flipping,
     floating,
     focus,
+    layout_flip,
     layouts,
     lifecycle,
     lifecycle_hidden,
@@ -144,6 +145,9 @@ run_suite(
     shared(placement.run, platform, checks),
     platform_only("kde", kde_core.no_window_is_left, *nothing),
     shared(startup_rules.run, platform, checks),
+    platform_only("kde", kde_core.no_window_is_left, *nothing),
+    # the option of a workspace in the config, on a daemon started with it
+    shared(layout_flip.run, platform, checks),
     platform_only("kde", kde_core.no_window_is_left, *nothing),
     shared(config_reload.run, platform, checks),
     platform_only(
