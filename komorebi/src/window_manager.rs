@@ -1659,6 +1659,11 @@ impl WindowManager {
         follow: bool,
         move_direction: Option<OperationDirection>,
     ) -> eyre::Result<()> {
+        // check the target before anything is taken out of the workspace it is in
+        if monitor_idx >= self.monitors().len() {
+            bail!("there is no monitor at index {monitor_idx}");
+        }
+
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("moving container");
@@ -1827,6 +1832,12 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn move_workspace_to_monitor(&mut self, idx: usize) -> eyre::Result<()> {
         tracing::info!("moving workspace");
+
+        // check the target before the workspace is taken out of its monitor
+        if idx >= self.monitors().len() {
+            bail!("there is no monitor at index {idx}");
+        }
+
         let mouse_follows_focus = self.mouse_follows_focus;
         let offset = self.work_area_offset;
         let workspace = self
@@ -6018,5 +6029,51 @@ mod tests {
         assert_eq!(op.target_monitor_idx, target_monitor_idx); // 2
         assert_eq!(op.target_workspace_idx, target_workspace_idx); // 3
         assert_eq!(op.floating, floating); // false
+    }
+
+    fn monitor_with_containers(containers: usize) -> Monitor {
+        let mut m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        for _ in 0..containers {
+            m.focused_workspace_mut()
+                .unwrap()
+                .containers_mut()
+                .push_back(Container::default());
+        }
+
+        m
+    }
+
+    #[test]
+    fn test_move_container_to_missing_monitor_keeps_the_container() {
+        let (mut wm, _context) = setup_window_manager();
+        wm.monitors_mut().push_back(monitor_with_containers(3));
+
+        assert!(wm.move_container_to_monitor(7, None, false, None).is_err());
+        assert!(
+            wm.move_container_to_monitor(7, Some(1), true, None)
+                .is_err()
+        );
+
+        assert_eq!(wm.focused_workspace().unwrap().containers().len(), 3);
+    }
+
+    #[test]
+    fn test_move_workspace_to_missing_monitor_keeps_the_workspace() {
+        let (mut wm, _context) = setup_window_manager();
+        wm.monitors_mut().push_back(monitor_with_containers(3));
+
+        assert!(wm.move_workspace_to_monitor(7).is_err());
+
+        assert_eq!(wm.focused_monitor().unwrap().workspaces().len(), 1);
+        assert_eq!(wm.focused_workspace().unwrap().containers().len(), 3);
     }
 }
