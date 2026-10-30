@@ -41,7 +41,7 @@ runs, and goes stale when the code changes.
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
 | `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure**: the number 2 |
 | `startup_rules` | the workspace rules of the config apply to a window open before the daemon and to one after | pass | pass |
-| `focus_follows_mouse` | the pointer over a window gives it the focus when it is on, not when it is off | pass | 6 of 7 checks pass, **fails** the last, cause not known |
+| `focus_follows_mouse` | the pointer over a window gives it the focus when it is on, not when it is off | pass | pass |
 | `lifecycle` | a daemon that stops and starts again takes the windows that were in view up again | pass | pass |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
@@ -90,16 +90,12 @@ known failure that holds fails the suite, and this one holds only sometimes. kfd
 affected: it has no reconciliator loop of this kind, and `hotplug` passes 34/0 there. Until
 someone decides about the fix, the check stays red when it fails.
 
-**`focus_follows_mouse` on kfw.** The scenario's last check, "on again, the pointer over the second
-window gives it the focus", fails on kfw, in the scenario twice and in a probe twice. kfw's setting
-is Windows' own active window tracking, which gave each pointer move over a window the focus in
-0.2 to 0.4 s, and "off" moved nothing. The sequence that fails: turn it off with the pointer parked
-on the second window, `focus-follows-mouse enable`, pointer on the first (already focused), then
-the second: the second gets no focus in 15 s, with small wiggles too. After `disable` then
-`enable`, or two `toggle`s, the same moves work. So it depends on how it was turned off and on, or
-on where the pointer rested while it was off. Whether that is Windows or kfw is not known, and
-the scenario is unchanged: it stays red there until the cause is known. Next to try: the pointer
-off both windows before the last `enable`.
+**`focus_follows_mouse` on kfw.** The scenario's last check failed on kfw five times in five, and
+a replica of its steps passed. The scenario was at fault: it moved the pointer over the window that
+already had the focus, waited for a focus that was already there, and moved on at once, so that a
+platform that follows the pointer by a hover delay, as Windows' active window tracking does,
+never saw the pointer rest there. With the pointer resting for a moment it passes, three times in
+three on Windows. A scenario that waits for a state that already holds waits for nothing.
 
 **`resize` on kfw.** Dragging the edge between two tiles by 30, 60 and 120 pixels moved it by 27,
 53 and 96 on kfw's master, and by 27, 51 and 106 on its animation branch (`0c9acdf4`), where kfde
@@ -143,6 +139,14 @@ These are differences between the ports that a scenario does not hide, and are n
   again. On kfw `komorebic stop` uncloaks a window that was on another workspace, and a new daemon
   manages it on the first workspace, but a minimized window stays minimized and is not taken up.
   The scenario counts the windows that were in view, so it does not ask for the minimized one.
+
+## Is it stable
+
+On kfw, five consecutive runs of 14 scenarios each (the 13 without `hotplug` and
+`focus_follows_mouse`, plus `startup_rules`) on restored guests, komorebi `0ffc502c`, with the
+golden image built from scratch by the repo's scripts, had no failure but the two known-failure
+markers. `hotplug` is outside that set, because of the monitor-removal finding above. An earlier
+set of five had one run lose its agent for over a minute, mid-sweep, which nothing explains.
 
 ## Does a broken daemon turn them red
 
