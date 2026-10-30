@@ -58,12 +58,15 @@ every count, with the extra's own check left to say only where KWin has the wind
 
 ## drag-resize
 
-The suite's own cases are all KDE's: the pointer put to the pixel, and eight drags of edges and
-corners checked against frames, tiles and neighbors. None of them is removed; they moved to
-`kde_drag_resize` as `pointer_is_exact` and `edge_cases`, and the suite calls the shared `resize`
-and `focus_follows_mouse` after them, as before. The shared `resize` makes one drag of one edge,
-which the extra's `win1:right:...` cases also make: that is a repeat by design, because the extra
-reads the daemon's tiles and the frames together, and the shared one reads only the system.
+The suite's own cases were all KDE's: the pointer put to the pixel, and eight drags of edges and
+corners checked against frames, tiles and neighbors. The pointer check is the extra
+`pointer_is_exact`. The eight drags are the shared `resize.edge_cases`, which makes its cases from
+the daemon's layout (`latest_layout`) and reads the frames from the operating system, not from
+KWin: both sides of an edge two tiles share, a horizontal edge, a corner and an edge of the screen.
+With three windows in BSP the cases are the same eight as before. What changed: the wait for the
+end of a drag is the layout changing (three seconds at most) and the frames settling, not the
+daemon's log line `ResizeEnd`; and the strict checks use the platform's `tolerance` where the extra
+used the cell of the font. The shared `resize.run` makes one drag of one edge, as before.
 
 One run of the suite failed `win2:left:-240,0` ("frame R moved -96 but was not dragged": the
 terminal's frame four cells short of an unchanged tile) and the next passed; not seen again.

@@ -203,7 +203,9 @@ class FakePlatform:
         if not self.follows_pointer:
             return
         for i, tile in enumerate(self.tiles[:-1]):
-            if abs(start[0] - (tile.x + tile.w + 4)) <= 1:
+            right_of_it = abs(start[0] - (tile.x + tile.w + 4)) <= 1
+            left_of_next = abs(start[0] - (self.tiles[i + 1].x - 4)) <= 1
+            if right_of_it or left_of_next:
                 a, b = tile, self.tiles[i + 1]
                 self.tiles[i] = Rect(a.x, a.y, a.w + dx, a.h)
                 self.tiles[i + 1] = Rect(b.x + dx, b.y, b.w - dx, b.h)
@@ -659,6 +661,8 @@ class FakePlatform:
                 self.saved[path] = list(self.tiles)
             case ("load-resize", path):
                 self._load_resize(path)
+            case ("retile",):
+                self._relayout()
             case ("minimize",):
                 self.minimize(Client(self.containers[self.focus][0]))
             case ("unmanage",):

@@ -11,6 +11,7 @@ from komorebi_vm.core.scenarios import (
     monocle,
     placement,
     queries,
+    resize,
     rules,
     title_rule,
 )
@@ -229,3 +230,45 @@ def test_a_daemon_that_does_not_follow_a_mode_change_fails_display_change() -> N
     clients = opened(platform, checks)
     display_change.run(platform, checks, clients)
     assert any("the daemon's monitor follows" in f for f in checks.failures)
+
+
+def test_a_daemon_that_follows_the_pointer_passes_the_edge_cases() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    resize.edge_cases(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 4
+
+
+def test_a_daemon_that_ignores_the_pointer_fails_the_edge_cases() -> None:
+    platform = FakePlatform(follows_pointer=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    resize.edge_cases(platform, checks, clients)
+    assert checks.failed == 4, checks.failures
+
+
+def test_a_daemon_that_moves_the_other_edges_fails_the_edge_cases() -> None:
+    class Sloppy(FakePlatform):
+        def resize(self, start: tuple[int, int], dx: int) -> None:
+            super().resize(start, dx)
+            # the third tile is moved too, though no edge of it was dragged
+            a = self.tiles[2]
+            self.tiles[2] = Rect(a.x + dx, a.y, a.w, a.h) if dx else a
+
+    platform = Sloppy()
+    checks = Checks()
+    clients = opened(platform, checks)
+    resize.edge_cases(platform, checks, clients)
+    assert any("outside the work area" in f or "overlap" in f for f in checks.failures)
+
+
+def test_a_platform_with_no_pointer_skips_the_edge_cases() -> None:
+    platform = FakePlatform(pointer=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    resize.edge_cases(platform, checks, clients)
+    assert (checks.passed, checks.failed) == (base, 0)

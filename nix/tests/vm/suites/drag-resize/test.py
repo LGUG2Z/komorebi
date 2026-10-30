@@ -1,8 +1,9 @@
 # Resizing a tile by dragging its edge, in a Plasma session, with a pointer device the test drives
 # from inside the guest (`komorebi_vm.Pointer`). What only a real KWin and a real pointer can tell is in
-# `komorebi_vm.platforms.kde.extras.drag_resize`: edges and corners of three tiles are grabbed and
-# dragged, and what happened is checked against what a user expects. The shared scenarios
-# (`resize`, `focus_follows_mouse`) run on Windows too and make one drag and the focus changes.
+# `komorebi_vm.platforms.kde.extras.drag_resize`: that the pointer is put to the pixel. The shared
+# scenarios run on Windows too: `resize.edge_cases` grabs edges and corners of three tiles and drags
+# them, and checks what happened against what a user expects; `resize.run` makes one more drag, and
+# `focus_follows_mouse` the focus changes.
 from komorebi_vm import Checks, Kde, Pointer
 from komorebi_vm.core.platform import Client
 from komorebi_vm.core.scenarios import focus_follows_mouse, resize
@@ -53,7 +54,7 @@ args = (platform, checks, clients)
 run_suite(
     checks,
     platform_only("kde", kde_drag_resize.pointer_is_exact, *args),
-    platform_only("kde", kde_drag_resize.edge_cases, *args),
+    shared(resize.edge_cases, *args),
     shared(resize.run, platform, checks, clients),
     shared(focus_follows_mouse.run, platform, checks, clients[0], clients[2]),
 )
