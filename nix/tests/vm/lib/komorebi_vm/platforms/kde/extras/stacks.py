@@ -1,0 +1,286 @@
+"""What only KDE can tell about stacks and monocle, on a real KWin.
+
+What the daemon believes (`komorebic state`) against what KWin actually has (`kdotool`). A stack
+shows one window, and the rest of it is out of sight on the parking desktop, a virtual desktop
+nobody looks at; the window that is shown is the one that has the focus. KWin keeps its virtual
+desktops in `kwinrc` as soon as one is made, so what only a real KWin can tell is that the parking
+desktop is made when it is needed, that it is removed when the daemon stops, and that one a crashed
+daemon left behind is swept by the next. The windows a stack hides are on a desktop of their own,
+not minimized: their events are not the user's, and the window that is in view is always the one
+the daemon and KWin both have focused, also after the stack is cycled or a window of it is focused
+by its place in it. A monocle puts the windows of the other containers out of sight in the same
+way, and over a stack leaves the stack as it was.
+
+The shared `stacks` and `monocle` scenarios, which `core-e2e` runs, check which window is in view
+and which is put away as the operating system sees it. This reads the parking desktop itself, so
+it still makes some of the same checks (cycling, focus by place, monocle over a stack), but on
+KWin's desktops: the ledger says which.
+"""
+
+from komorebi_vm.core.checks import Checks
+from komorebi_vm.core.geometry import Rect
+from komorebi_vm.core.platform import Client
+from komorebi_vm.kde_platform import PARK, KdePlatform
+
+TITLES = ["win1", "win2", "win3"]
+
+
+def run(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
+    """Three windows, stacked and cycled and focused by place, a monocle, a crash and a clean
+    stop. The daemon must not be running, with no window open. The daemon is not running at the
+    end."""
+    kde = platform.kde
+    W, H = platform.size  # noqa: N806
+
+    def sizes() -> list[int]:
+        """How many windows each container of the first workspace has, in order."""
+        return [len(container) for container in kde.containers()]
+
+    def park_desktop() -> int:
+        """The number of the parking desktop, counted from 1 as kdotool counts, or 0 for none."""
+        names = kde.desktop_names()
+        return names.index(PARK) + 1 if PARK in names else 0
+
+    def parked() -> list[str]:
+        """The titles of the windows that are on the parking desktop."""
+        park = park_desktop()
+        if park == 0:
+            return []
+        found = [t for t in TITLES if kde.wid(t) != "" and kde.desk(kde.wid(t)) == park]
+        return sorted(found)
+
+    def active_title() -> str:
+        active = kde.active()
+        return kde.title(active) if active else ""
+
+    def agree() -> bool:
+        """KWin and komorebi have the same window focused."""
+        return active_title() != "" and active_title() == kde.focused_title()
+
+    def inside(r: Rect) -> bool:
+        return r.x >= 0 and r.y >= 0 and r.x + r.w <= W and r.y + r.h <= H
+
+    def fills_the_work_area(title: str) -> bool:
+        """The window is as large as the screen, less the room a panel could take."""
+        r = kde.rect(kde.wid(title))
+        return r.w > W - 120 and r.h > H - 120
+
+    def on_a_workspace_desktop() -> bool:
+        """Every window that is left is on a desktop that is a workspace, not on the parking one."""
+        return all(kde.desk(kde.wid(t)) in (1, 2) for t in TITLES if kde.wid(t) != "")
+
+    print("== 1. three windows")
+    platform.start_komorebi()
+    kde.wait_for(lambda: kde.run("komorebic monitor-information")[0] == 0, timeout=30)
+    for title in TITLES:
+        kde.spawn(f"foot -T {title} sleep 3000")
+        kde.wait_for(lambda title=title: kde.wid(title) != "", timeout=30)
+    checks.check("komorebi manages the three", kde.wait_for(lambda: kde.managed() == 3, timeout=20))
+    checks.check("there are three tiles", sizes() == [1, 1, 1])
+    checks.check(
+        "nothing is out of sight, and there is no parking desktop yet", park_desktop() == 0
+    )
+
+    print("== 2. stack the focused window onto its neighbour")
+    kde.komorebic("stack", "left")
+    checks.check(
+        "two containers, one of them a stack of two",
+        kde.wait_for(lambda: sorted(sizes()) == [1, 2]),
+    )
+    print(f"     containers: {kde.containers()}, out of sight: {parked()}")
+    checks.check(
+        "there is a parking desktop, and exactly one window is on it",
+        kde.wait_for(lambda: park_desktop() != 0 and len(parked()) == 1),
+    )
+    checks.check("the window in view is the one with the focus", kde.wait_for(agree))
+    shown = active_title()
+    checks.check("and the one out of sight is not it", parked() != [shown])
+    checks.check(
+        "the parking desktop is the last, so it is not a workspace",
+        park_desktop() == kde.desktops(),
+    )
+    checks.check(
+        "komorebi still has all three windows on workspace 0, the hidden one among them",
+        kde.managed(0) == 3,
+    )
+    rect_shown = kde.rect(kde.wid(shown))
+    checks.check("the one in view is inside the screen", inside(rect_shown))
+
+    print("== 3. cycle the stack")
+    kde.komorebic("cycle-stack", "next")
+    checks.check(
+        "the other window is in view now, and the first is the one out of sight",
+        kde.wait_for(lambda: active_title() != shown and parked() == [shown]),
+    )
+    checks.check("komorebi and KWin agree on the focus", kde.wait_for(agree))
+    checks.check(
+        "it fills the tile the first one had",
+        kde.wait_for(lambda: kde.rect(kde.wid(active_title())) == rect_shown),
+    )
+    checks.check("still exactly one window is out of sight", len(parked()) == 1)
+    kde.komorebic("cycle-stack", "previous")
+    checks.check(
+        "cycling back, the first is in view again",
+        kde.wait_for(
+            lambda: active_title() == shown and parked() != [shown] and len(parked()) == 1
+        ),
+    )
+    checks.check("and the focus agrees", kde.wait_for(agree))
+
+    print("== 4. focus a window of the stack by its place in it, and move the one in view along")
+    in_view = kde.state()["monitors"]["elements"][0]["workspaces"]["elements"][0]
+    stack = in_view["containers"]["elements"][in_view["containers"]["focused"]]["windows"]
+    front = stack["focused"]
+    kde.komorebic("focus-stack-window", str(1 - front))
+    checks.check(
+        "focus-stack-window shows the other one",
+        kde.wait_for(lambda: active_title() != shown and parked() == [shown] and agree()),
+    )
+    kde.komorebic("focus-stack-window", str(front))
+    checks.check(
+        "and by the other index shows the first again",
+        kde.wait_for(lambda: active_title() == shown and parked() != [shown] and agree()),
+    )
+    order = next(c for c in kde.containers() if len(c) == 2)
+    out_of_sight = parked()
+    kde.komorebic("cycle-stack-index", "next")
+    checks.check(
+        "cycle-stack-index swaps the two places in the stack",
+        kde.wait_for(lambda: next(c for c in kde.containers() if len(c) == 2) == order[::-1]),
+    )
+    checks.check(
+        "and the window in view stays in view and keeps the focus",
+        active_title() == shown and parked() == out_of_sight and agree(),
+    )
+
+    print("== 5. a stack is still a stack after a workspace round trip")
+    before = parked()
+    kde.komorebic("focus-workspace", "1")
+    checks.check("workspace 1 is showing", kde.wait_for(lambda: kde.shown() == 2))
+    kde.komorebic("focus-workspace", "0")
+    checks.check("workspace 0 is showing again", kde.wait_for(lambda: kde.shown() == 1))
+    checks.check(
+        f"the same window is out of sight ({before})",
+        kde.wait_for(lambda: parked() == before),
+    )
+    checks.check("and the focus agrees", kde.wait_for(agree))
+
+    print("== 6. unstack")
+    kde.komorebic("unstack")
+    checks.check("three tiles again", kde.wait_for(lambda: sizes() == [1, 1, 1]))
+    checks.check("nothing is out of sight", kde.wait_for(lambda: parked() == []))
+    rects = [kde.rect(kde.wid(t)) for t in TITLES]
+    checks.check("they are inside the screen", all(inside(r) for r in rects))
+    checks.check(
+        "and they tile, not on each other",
+        not any(a.overlaps(b) for i, a in enumerate(rects) for b in rects[i + 1 :]),
+    )
+
+    print("== 7. closing the window in view brings the next one")
+    kde.komorebic("stack", "left")
+    checks.check("stacked again", kde.wait_for(lambda: len(parked()) == 1))
+    hidden_one = parked()[0]
+    kde.komorebic("close")
+    checks.check(
+        "the one that was out of sight is in view and has the focus",
+        kde.wait_for(lambda: parked() == [] and active_title() == hidden_one and agree()),
+    )
+    checks.check("two tiles are left", kde.wait_for(lambda: sizes() == [1, 1]))
+
+    print("== 8. a monocle hides the other windows, and over a stack it leaves the stack as it was")
+    tiles = {t: kde.rect(kde.wid(t)) for t in TITLES if kde.wid(t) != ""}
+    kde.komorebic("toggle-monocle")
+    checks.check(
+        "the window in monocle fills the work area and the other one is out of sight",
+        kde.wait_for(lambda: len(parked()) == 1 and fills_the_work_area(active_title())),
+    )
+    checks.check(
+        "it is the one with the focus, and komorebi's state has it as the monocle container",
+        kde.monocle() == [active_title()] and parked() != [active_title()],
+    )
+    kde.komorebic("toggle-monocle")
+    checks.check(
+        "turned off, nothing is out of sight and the windows are on their tiles again",
+        kde.wait_for(lambda: parked() == [] and {t: kde.rect(kde.wid(t)) for t in tiles} == tiles),
+    )
+    kde.komorebic("stack-all")
+    checks.check(
+        "stacked, a window is out of sight",
+        kde.wait_for(lambda: sizes() == [2] and len(parked()) == 1),
+    )
+    stacked = kde.containers()
+    out_of_sight = parked()
+    kde.komorebic("toggle-monocle")
+    checks.check(
+        "a monocle over the stack: the whole stack is the monocle,"
+        " and the same window is out of sight",
+        kde.wait_for(
+            lambda: sorted(kde.monocle()) == sorted(stacked[0]) and parked() == out_of_sight
+        ),
+    )
+    checks.check("the layout has no container left", kde.containers() == [])
+    kde.komorebic("toggle-monocle")
+    checks.check(
+        "turned off, the stack is the same and the same window is out of sight",
+        kde.wait_for(
+            lambda: kde.containers() == stacked and kde.monocle() == [] and parked() == out_of_sight
+        ),
+    )
+    checks.check("and the window in view has the focus", kde.wait_for(agree))
+    kde.komorebic("unstack-all")
+    checks.check(
+        "unstacked, there are two tiles and nothing is out of sight",
+        kde.wait_for(lambda: sizes() == [1, 1] and parked() == []),
+    )
+
+    print("== 9. stack all, and unstack all")
+    kde.komorebic("stack-all")
+    checks.check(
+        "every window is in one stack, with one in view",
+        kde.wait_for(lambda: sizes() == [2] and len(parked()) == 1),
+    )
+    checks.check("the window in view has the focus", kde.wait_for(agree))
+    kde.komorebic("unstack-all")
+    checks.check(
+        "they have a tile each again, and none is out of sight",
+        kde.wait_for(lambda: sizes() == [1, 1] and parked() == []),
+    )
+
+    print("== 10. a crash leaves a parking desktop, which the next start sweeps")
+    kde.komorebic("stack-all")
+    checks.check("a window is parked", kde.wait_for(lambda: len(parked()) == 1))
+    names_before = kde.desktop_names()
+    kde.kill_komorebi()
+    checks.check(
+        "the daemon is dead and the parking desktop is still there, with a window on it",
+        PARK in kde.desktop_names() and len(parked()) == 1,
+    )
+    platform.start_komorebi()
+    checks.check(
+        "the next start removed the stale parking desktop",
+        kde.wait_for(
+            lambda: kde.run("komorebic monitor-information")[0] == 0 and park_desktop() == 0
+        ),
+    )
+    checks.check("and brought the parked window back", kde.wait_for(on_a_workspace_desktop))
+    checks.check(
+        "the workspaces' desktops are left alone",
+        kde.desktop_names() == [n for n in names_before if n != PARK],
+    )
+    checks.check("komorebi manages the two windows again", kde.wait_for(lambda: kde.managed() == 2))
+    kde.komorebic("stack-all")
+    checks.check(
+        "this run makes a parking desktop of its own and hides the back of the stack on it",
+        kde.wait_for(lambda: park_desktop() != 0 and len(parked()) == 1),
+    )
+
+    print("== 11. a clean stop puts every window back")
+    still_open = [t for t in TITLES if kde.wid(t) != ""]
+    kde.komorebic("stop")
+    checks.check("komorebi exited", kde.wait_for(lambda: not kde.komorebi_running()))
+    checks.check("the parking desktop is gone", kde.wait_for(lambda: park_desktop() == 0))
+    checks.check(
+        "and every window is on a workspace's desktop",
+        kde.wait_for(on_a_workspace_desktop),
+    )
+    checks.check("the windows are still open", all(kde.wid(t) != "" for t in still_open))
