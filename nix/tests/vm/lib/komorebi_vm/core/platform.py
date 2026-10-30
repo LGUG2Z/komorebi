@@ -191,7 +191,13 @@ class Platform(Protocol):
         ...
 
     def work_area(self) -> Rect:
-        """The area of the first display that windows may take."""
+        """The area of the first display that windows may take, in the coordinates of the
+        desktop: the display less what the operating system keeps for itself (a panel, a dock, the
+        taskbar), as the operating system says and not the daemon.
+
+        It is the whole display only where there is nothing of the kind. A scenario that asks
+        whether a window is "inside the work area" asks this, so a platform that answers with the
+        display where the system has a bar makes that check weaker than it says."""
         ...
 
     def activate(self, client: Client) -> None:

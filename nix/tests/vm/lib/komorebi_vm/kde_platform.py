@@ -180,7 +180,14 @@ class KdePlatform:
         self.kde.sh(f"kdotool windowmove {self.kde.wid(client.title)} {x} {y}")
 
     def work_area(self) -> Rect:
-        return Rect(0, 0, *self.size)
+        """What KWin says windows may take of the first output, which is the output less the
+        panels and docks the shell has made (a headless session has none, so it is all of it).
+
+        Where KWin does not answer, the first output whole: a scenario then checks less, and does
+        not fail for it.
+        """
+        area = self.kde.work_area()
+        return area if area is not None else Rect(0, 0, *self.size)
 
     def minimize(self, client: Client) -> None:
         self.kde.minimize(self.kde.wid(client.title))

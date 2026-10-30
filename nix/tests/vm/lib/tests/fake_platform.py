@@ -14,7 +14,7 @@ from komorebi_vm.core.platform import Client, OsWindow
 from komorebi_vm.core.scenarios.commands import PRINTED
 from komorebi_vm.core.snapshot import Snapshot, parse
 
-TILES = [Rect(0, 0, 640, 1080), Rect(640, 0, 640, 1080), Rect(1280, 0, 640, 1080)]
+SCREEN = Rect(0, 0, 1920, 1080)
 
 
 def _place_index(place: str, count: int) -> int:
@@ -60,8 +60,18 @@ class FakePlatform:
         follows_pointer: bool = True,
         reloads: bool = True,
         retiles_on_unlock: bool = True,
+        panel: int = 0,
+        ignores_panel: bool = False,
+        second: Rect | None = None,
     ) -> None:
-        self.tiles = list(TILES)
+        self.panel = panel
+        """The height of a panel along the bottom of the first display, which the work area leaves
+        out."""
+        self.ignores_panel = ignores_panel
+        """A daemon that tiles on the whole display, under the panel."""
+        self.second = second
+        """The rectangle of the second display, when it is not one of the first's size."""
+        self.tiles = self._base()
         self.has_pointer = pointer
         self.follows_pointer = follows_pointer
         self.spaces: list[list[list[str]]] = [[], [], []]
@@ -107,6 +117,21 @@ class FakePlatform:
         self.placement: Any = None
         self.moves = moves
         self.focus_follows_move = focus_follows_move
+
+    @property
+    def area(self) -> Rect:
+        """What windows may take of the first display."""
+        return Rect(0, 0, SCREEN.w, SCREEN.h - self.panel)
+
+    @property
+    def tiled_area(self) -> Rect:
+        """What the daemon tiles on: the work area, or the display for a daemon that ignores the
+        panel."""
+        return SCREEN if self.ignores_panel else self.area
+
+    def _base(self) -> list[Rect]:
+        a = self.tiled_area
+        return [Rect(i * a.w // 3, 0, a.w // 3, a.h) for i in range(3)]
 
     def has(self, feature: str) -> bool:
         return feature == "lock" or (feature == "pointer" and self.has_pointer)
@@ -279,7 +304,17 @@ class FakePlatform:
         raise KeyError(title)
 
     def displays(self) -> list[Rect]:
-        return [Rect(i * 1920, 0, 1920, 1080) for i in range(self.display_count)]
+        return [SCREEN, *self._others()][: self.display_count]
+
+    def _others(self) -> list[Rect]:
+        """The displays after the first, side by side to its right."""
+        found = []
+        x = SCREEN.w
+        for n in range(1, max(self.display_count, 1)):
+            size = self.second if self.second is not None and n == 1 else SCREEN
+            found.append(Rect(x, 0, size.w, size.h))
+            x += size.w
+        return found
 
     def add_display(self) -> None:
         self.display_count += 1
@@ -312,19 +347,21 @@ class FakePlatform:
 
     def _relayout(self) -> None:
         """The tiles of each workspace share the work area in equal columns."""
-        self.tiles = list(TILES)
+        base = self._base()
+        self.tiles = list(base)
         n = len(self.containers)
         if n:
+            area = self.tiled_area
             w, c = self.workspace_padding, self.container_padding
-            width = (1920 - 2 * w) // n
+            width = (area.w - 2 * w) // n
             self.tiles = [
-                Rect(w + i * width + c, w + c, width - 2 * c, 1080 - 2 * w - 2 * c)
+                Rect(w + i * width + c, w + c, width - 2 * c, area.h - 2 * w - 2 * c)
                 for i in range(n)
-            ] + list(TILES[n:])
+            ] + list(base[n:])
             if self.flipped:
-                self.tiles = [Rect(1920 - t.x - t.w, t.y, t.w, t.h) for t in self.tiles[:n]] + list(
-                    TILES[n:]
-                )
+                self.tiles = [
+                    Rect(area.w - t.x - t.w, t.y, t.w, t.h) for t in self.tiles[:n]
+                ] + list(base[n:])
 
     def _container(self, title: str) -> int:
         return self._find(title)[1]
@@ -339,7 +376,7 @@ class FakePlatform:
         return s != self.current or self.spaces[s][i][0] != client.title or away
 
     def work_area(self) -> Rect:
-        return Rect(0, 0, 1920, 1080)
+        return self.area
 
     def minimize(self, client: Client) -> None:
         self._find_remove(client.title)
@@ -364,7 +401,7 @@ class FakePlatform:
 
     def os_window(self, client: Client) -> OsWindow | None:
         if client.title == self.maximized:
-            return OsWindow(client.title, Rect(0, 0, 1920, 1080), focused=True)
+            return OsWindow(client.title, self.tiled_area, focused=True)
         if client.title in self.minimized:
             return OsWindow(client.title, Rect(0, 0, 0, 0), focused=False)
         if client.title in self.floats:
@@ -376,15 +413,19 @@ class FakePlatform:
         except KeyError:
             return None
         if self.monocle == client.title:
-            return OsWindow(client.title, Rect(0, 0, 1920, 1080), focused=True)
+            return OsWindow(client.title, self.tiled_area, focused=True)
         focused = (
             s == self.current and i == self.focuses[s] and self.spaces[s][i][0] == client.title
         )
         tile = self.tiles[i]
-        shift = 1920 * self.display_of.get(client.title, 0)
+        elsewhere = self.display_of.get(client.title, 0)
         if client.title in self.moved:
             return OsWindow(client.title, self.moved[client.title], focused=focused)
-        return OsWindow(client.title, Rect(tile.x + shift, tile.y, tile.w, tile.h), focused=focused)
+        if elsewhere:
+            d = self.displays()[elsewhere]
+            frame = Rect(d.x + tile.x, d.y + tile.y, min(tile.w, d.w), min(tile.h, d.h))
+            return OsWindow(client.title, frame, focused=focused)
+        return OsWindow(client.title, tile, focused=focused)
 
     def komorebic_status(self, *args: str) -> tuple[int, str]:
         """The fake's answer as a real `komorebic` gives it: exit 0, or 2 for what it lacks."""
@@ -556,7 +597,7 @@ class FakePlatform:
             floats = self.floats if current else []
             monocle = None
             if current and self.monocle is not None:
-                whole = Rect(0, 0, 1920, 1080)
+                whole = self.tiled_area
                 windows = {"elements": [window(self.monocle, whole)], "focused": 0}
                 monocle = {"id": "m", "locked": False, "windows": windows}
             return {
@@ -577,9 +618,7 @@ class FakePlatform:
                 },
                 "monocle_container": monocle,
                 "maximized_window": (
-                    window(self.maximized, Rect(0, 0, 1920, 1080))
-                    if current and self.maximized
-                    else None
+                    window(self.maximized, self.tiled_area) if current and self.maximized else None
                 ),
                 "floating_windows": {
                     "elements": [window(t, Rect(300, 300, 600, 400)) for t in floats],
@@ -594,7 +633,8 @@ class FakePlatform:
 
         monitor = {
             "id": 1,
-            "size": rect(Rect(0, 0, 1920, 1080)),
+            "size": rect(SCREEN),
+            "work_area_size": rect(self.area),
             "workspaces": {
                 "elements": [
                     workspace(i, c, f, i == self.current)
@@ -606,7 +646,7 @@ class FakePlatform:
         extra = [
             {
                 "id": n + 1,
-                "size": rect(Rect(n * 1920, 0, 1920, 1080)),
+                "size": rect(self._others()[n - 1]),
                 "workspaces": {"elements": [workspace(0, [], 0, False)], "focused": 0},
             }
             for n in range(1, 1 if self.forgets_displays else self.display_count)

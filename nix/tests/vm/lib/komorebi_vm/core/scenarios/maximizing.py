@@ -33,6 +33,11 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
         f"after 'toggle-maximize' {target.title} fills the work area",
         platform.wait_for(fills, timeout=20),
     )
+    window = platform.os_window(target)
+    checks.check(
+        "... without going past the work area",
+        window is not None and window.frame.inside(area),
+    )
     checks.check(
         "... and the daemon has it as the maximized window",
         platform.wait_for(lambda: maximized() == target.title, timeout=20),

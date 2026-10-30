@@ -30,6 +30,11 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
         "in monocle the focused window fills the work area",
         platform.wait_for(fills_the_work_area, timeout=20),
     )
+    window = platform.os_window(last)
+    checks.check(
+        "... without going past the work area",
+        window is not None and window.frame.inside(area),
+    )
     checks.check(
         "... the daemon's state has it as the monocle container",
         platform.wait_for(

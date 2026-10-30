@@ -5,12 +5,16 @@ import re
 import shlex
 import time
 from collections.abc import Callable
+from itertools import count
 from typing import Any
 
 from PIL import Image
 
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.machine import Machine
+
+# a KWin script is told apart by its name in the journal, so each probe has a name of its own
+_PROBES = count(1)
 
 
 class Outputs:
@@ -697,6 +701,44 @@ class Kde:
                 f" {shlex.quote(name)}"
             )
         return [line for line in self.kwin_reports(name) if line != "done"]
+
+    def work_area(self) -> Rect | None:
+        """The area of the first output that windows may take, as KWin has it (its placement
+        area: the output less the panels), or `None` when KWin does not say.
+
+        The first output is the leftmost one. It is the area of the desktop the output shows, as
+        the daemon's bridge reads it. A KWin script asks, because `kdotool` has no call for it.
+        """
+        source = """
+        var first = null;
+        for (var i = 0; i < workspace.screens.length; i++) {
+            var s = workspace.screens[i];
+            if (first === null || s.geometry.x < first.geometry.x
+                || (s.geometry.x === first.geometry.x && s.geometry.y < first.geometry.y)) {
+                first = s;
+            }
+        }
+        if (first !== null) {
+            var a = workspace.clientArea(
+                KWin.PlacementArea, first, workspace.currentDesktopForScreen(first));
+            report("area", Math.round(a.x), Math.round(a.y), Math.round(a.width),
+                Math.round(a.height));
+        }
+        report("done");
+        """
+        try:
+            lines = self.kwin_script(f"work-area-{next(_PROBES)}", source)
+        except AssertionError:
+            return None
+        for line in lines:
+            words = line.split()
+            if words[:1] == ["area"] and len(words) == 5:
+                try:
+                    x, y, w, h = (int(word) for word in words[1:])
+                except ValueError:
+                    return None
+                return Rect(x, y, w, h) if w > 0 and h > 0 else None
+        return None
 
     def kwin_reports(self, name: str) -> list[str]:
         """Every line the KWin script `name` has reported so far ([`Kde.kwin_script`][])."""

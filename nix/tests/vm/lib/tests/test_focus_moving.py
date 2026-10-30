@@ -781,3 +781,49 @@ def test_focus_follows_mouse_is_skipped_without_a_pointer() -> None:
     base = checks.passed
     focus_follows_mouse.run(platform, checks, clients[0], clients[1])
     assert checks.failed == 0 and checks.passed == base
+
+
+def test_a_daemon_that_tiles_inside_the_work_area_passes_with_a_panel() -> None:
+    platform = FakePlatform(panel=40)
+    checks = Checks()
+    clients = opened(platform, checks)
+    for scenario in (monocle, maximizing, layouts, floating, flipping, closing):
+        if scenario is closing:
+            closing.run(platform, checks, clients, clients[0])
+        else:
+            scenario.run(platform, checks, clients)
+    assert platform.work_area().h == 1040
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 20
+
+
+def test_a_daemon_that_tiles_under_the_panel_fails_tiling() -> None:
+    platform = FakePlatform(panel=40, ignores_panel=True)
+    checks = Checks()
+    opened(platform, checks)
+    assert any("inside the work area" in f for f in checks.failures)
+
+
+def test_a_window_that_is_maximized_past_the_work_area_fails_maximizing() -> None:
+    platform = FakePlatform(panel=40, ignores_panel=True)
+    checks = Checks()
+    clients = [platform.spawn(t) for t in ("a", "b", "c")]
+    maximizing.run(platform, checks, clients)
+    assert any("without going past the work area" in f for f in checks.failures)
+
+
+def test_a_window_in_monocle_past_the_work_area_fails_monocle() -> None:
+    platform = FakePlatform(panel=40, ignores_panel=True)
+    checks = Checks()
+    clients = [platform.spawn(t) for t in ("a", "b", "c")]
+    monocle.run(platform, checks, clients)
+    assert any("without going past the work area" in f for f in checks.failures)
+
+
+def test_a_second_display_of_another_size_passes_hotplug() -> None:
+    platform = FakePlatform(second=Rect(0, 0, 1280, 800))
+    checks = Checks()
+    clients = opened(platform, checks)
+    hotplug.run(platform, checks, clients)
+    assert platform.displays()[1] == Rect(1920, 0, 1280, 800)
+    assert checks.failed == 0, checks.failures
