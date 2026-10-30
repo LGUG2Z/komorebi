@@ -21,6 +21,9 @@ def run(
     container = configured[1] if state.container_padding is None else state.container_padding
     print(f"     padding of the workspace {workspace}, of its containers {container}")
     area = platform.work_area()
+    # how much room the windows must lose or regain, in square pixels: a small part of the work
+    # area, for the display is not the same size on every platform
+    unit = area.w * area.h // 400
 
     def frames() -> list[Rect]:
         return [w.frame for c in clients if (w := platform.os_window(c)) is not None]
@@ -61,7 +64,7 @@ def run(
     platform.komorebic("focused-workspace-container-padding", str(container + 30))
     checks.check(
         "a container padding 30 px more leaves the windows less room",
-        platform.wait_for(lambda: room() < base - 5000, timeout=20),
+        platform.wait_for(lambda: room() < base - unit, timeout=20),
     )
     checks.check(
         "... and none is over another, or outside the work area",
@@ -77,5 +80,5 @@ def run(
     print(f"     margin {margin()} (was {start}), room {room()} (was {base})")
     checks.check(
         "... and have the room they had",
-        platform.wait_for(lambda: abs(room() - base) <= 2000, timeout=20),
+        platform.wait_for(lambda: abs(room() - base) <= unit // 2, timeout=20),
     )

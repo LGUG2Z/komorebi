@@ -40,7 +40,6 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     managed = platform.state().managed()
 
     platform.remove_display()
-    first = platform.displays()[0]
     checks.check(
         "after a display is unplugged the daemon has one monitor fewer",
         platform.wait_for(lambda: _monitors(platform) == len(platform.displays()), timeout=30),
@@ -50,7 +49,10 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
         platform.wait_for(
             lambda: (
                 _in_one_of(platform, clients, platform.displays())
-                and (len(platform.displays()) > 1 or _tiled_in(platform, clients, first))
+                and (
+                    len(platform.displays()) > 1
+                    or _tiled_in(platform, clients, platform.work_area())
+                )
             ),
             timeout=30,
         ),

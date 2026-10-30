@@ -3,9 +3,7 @@
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client, Platform
 from komorebi_vm.core.scenarios.layouts import tiled
-
-# how long a daemon that is paused has to leave a window alone for it to count
-QUIET = 3
+from komorebi_vm.core.scenarios.support import QUIET
 
 
 def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:

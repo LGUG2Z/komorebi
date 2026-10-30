@@ -2,6 +2,7 @@
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client, Platform
+from komorebi_vm.core.scenarios.support import QUIET
 
 
 def _middle(platform: Platform, client: Client) -> tuple[int, int] | None:
@@ -68,7 +69,7 @@ def run(platform: Platform, checks: Checks, first: Client, second: Client) -> No
     platform.pointer.move(*b)
     checks.check(
         "turned off, the pointer over the second window no longer moves the focus",
-        not platform.wait_for(lambda: _focused(platform, second), timeout=3)
+        not platform.wait_for(lambda: _focused(platform, second), timeout=QUIET)
         and _focused(platform, first),
     )
 

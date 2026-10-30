@@ -3,7 +3,7 @@
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client, Platform
 from komorebi_vm.core.scenarios.layouts import tiled
-from komorebi_vm.core.scenarios.support import positions
+from komorebi_vm.core.scenarios.support import QUIET, positions
 
 
 def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
@@ -20,7 +20,7 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     platform.komorebic("change-layout", "columns")
     checks.check(
         "... a layout change does not move them either",
-        not platform.wait_for(lambda: positions(platform, clients) != before, timeout=3),
+        not platform.wait_for(lambda: positions(platform, clients) != before, timeout=QUIET),
     )
 
     platform.komorebic("toggle-tiling")

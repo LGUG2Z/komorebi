@@ -2,6 +2,7 @@
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Platform
+from komorebi_vm.core.scenarios.support import QUIET
 
 
 def _on(platform: Platform, title: str) -> int | None:
@@ -45,7 +46,7 @@ def run(platform: Platform, checks: Checks) -> None:
     # on purpose, so what is checked is that the daemon does not send the window back on its own
     checks.check(
         "... and an initial rule does not send it there again on its own",
-        not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=3),
+        not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=QUIET),
     )
 
     always = platform.spawn("sent-always")
@@ -80,7 +81,7 @@ def run(platform: Platform, checks: Checks) -> None:
     checks.check(
         "once the rules are cleared, a window they matched stays on the workspace in view",
         platform.wait_for(lambda: _on(platform, "sent-once") == 0, timeout=20)
-        and not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=3),
+        and not platform.wait_for(lambda: _on(platform, "sent-once") != 0, timeout=QUIET),
     )
     for client in (always, ignored, later):
         platform.close(client)

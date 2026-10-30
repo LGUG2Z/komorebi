@@ -884,3 +884,37 @@ def test_focus_follows_mouse_is_driven_without_naming_an_implementation() -> Non
     focus_follows_mouse.run(platform, checks, clients[0], clients[2])
     assert checks.failed == 0, checks.failures
     assert not [a for a in platform.said if "--implementation" in a]
+
+
+def test_the_window_is_moved_inside_the_work_area_of_the_platform_while_locked() -> None:
+    class Records(FakePlatform):
+        def __init__(self) -> None:
+            super().__init__(panel=40)
+            self.targets: list[tuple[int, int]] = []
+
+        def move_window(self, client: Client, x: int, y: int) -> None:
+            self.targets.append((x, y))
+            super().move_window(client, x, y)
+
+    platform = Records()
+    checks = Checks()
+    clients = opened(platform, checks)
+    locking.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    (x, y) = platform.targets[0]
+    assert platform.work_area().x <= x < platform.work_area().w
+    assert platform.work_area().y <= y < platform.work_area().h
+
+
+def test_a_platform_that_cannot_move_a_window_while_locked_fails_locking() -> None:
+    """Else the check that the window is back in its tile after the unlock is a vacuous one."""
+
+    class Cannot(FakePlatform):
+        def move_window(self, client: Client, x: int, y: int) -> None:
+            pass
+
+    platform = Cannot()
+    checks = Checks()
+    clients = opened(platform, checks)
+    locking.run(platform, checks, clients)
+    assert any("was moved while the screen was locked" in f for f in checks.failures)

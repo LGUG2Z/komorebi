@@ -4,6 +4,7 @@ from typing import Any
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Platform
+from komorebi_vm.core.scenarios.support import QUIET
 
 
 def _config(names: list[str], layout: str, rule: str | None = None) -> dict[str, Any]:
@@ -60,7 +61,7 @@ def run(platform: Platform, checks: Checks) -> None:
 
     platform.rewrite_config(_config(["uno", "dos", "tres"], "Columns"))
     # the reload does not say when it is done: the next window shows whether the rule is
-    platform.wait_for(lambda: False, timeout=3)
+    platform.wait_for(lambda: False, timeout=QUIET)
     later = platform.spawn("reload-sent-2")
     checks.check(
         "once the file loses the rule, a window of that title stays on the first workspace",

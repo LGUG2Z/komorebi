@@ -36,7 +36,22 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
         "while the screen is locked the daemon has the same windows: the lock screen is not one",
         platform.state().managed() == len(clients),
     )
-    platform.move_window(clients[0], 400, 300)
+    # a third of the way into the work area, and not on the tile the window is on
+    area = platform.work_area()
+    tile = platform.os_window(clients[0])
+    assert tile is not None
+    target = (area.x + area.w // 3, area.y + area.h // 3)
+    if target == (tile.frame.x, tile.frame.y):
+        target = (target[0] + 50, target[1] + 50)
+    platform.move_window(clients[0], *target)
+    moved = platform.wait_for(
+        lambda: (
+            (w := platform.os_window(clients[0])) is not None
+            and (w.frame.x, w.frame.y) != (tile.frame.x, tile.frame.y)
+        ),
+        timeout=10,
+    )
+    checks.check("the window was moved while the screen was locked", moved)
     after = [platform.os_window(c) for c in clients]
     checks.check(
         "the others did not move for it",

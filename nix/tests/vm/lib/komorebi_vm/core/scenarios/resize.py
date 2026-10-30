@@ -6,6 +6,8 @@ from komorebi_vm.core.platform import Client, Platform
 
 # how far outside a window's frame its resize border is pressed: the gap between two tiles
 OFFSET = 4
+# the shortest drag, in pixels: far enough to be a drag on any display
+MIN_DRAG = 60
 # how far the edge may end up from where the pointer put it, in pixels
 SLACK = 6
 
@@ -20,8 +22,9 @@ def _side_by_side(layout: list[Rect]) -> tuple[int, int] | None:
     return None
 
 
-def run(platform: Platform, checks: Checks, clients: list[Client], dx: int = 60) -> None:
-    """Drags the edge between a tile and the one to its right by `dx` pixels, and checks that the
+def run(platform: Platform, checks: Checks, clients: list[Client], dx: int | None = None) -> None:
+    """Drags the edge between a tile and the one to its right by `dx` pixels (a thirty-second of
+    the work area's width, and at least `MIN_DRAG`, when it is not given), and checks that the
     two tiles moved the edge by what the pointer moved, that every other edge stayed, and that the
     windows still tile on the work area, as the operating system has them.
 
@@ -30,6 +33,8 @@ def run(platform: Platform, checks: Checks, clients: list[Client], dx: int = 60)
     if not platform.has("pointer"):
         print("     skipped: this platform has no pointer")
         return
+    if dx is None:
+        dx = max(MIN_DRAG, platform.work_area().w // 32)
     state = platform.state()
     workspace = state.workspace()
     layout = workspace.latest_layout

@@ -3,6 +3,11 @@
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, Platform
 
+# how long something that must not happen is waited for, in seconds (scaled for the host): a window
+# a rule leaves alone, a window that stays where it is. It is more than the daemon takes to act on
+# an event on either port, and the price of every such check
+QUIET = 3
+
 
 def os_focused(platform: Platform, clients: list[Client]) -> str:
     """The title of the window the operating system says has the focus, among `clients`.
