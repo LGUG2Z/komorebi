@@ -18,6 +18,7 @@ from komorebi_vm.core.scenarios import (
     padding,
     placement,
     resize,
+    resize_commands,
     rules,
     stacks,
     startup_rules,
@@ -270,6 +271,27 @@ def test_a_daemon_that_does_not_follow_the_window_fails_workspace_moves() -> Non
     checks = Checks()
     clients = opened(platform, checks)
     workspace_moves.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_resize_commands() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    resize_commands.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_does_not_resize_fails_resize_commands() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args[0] == "resize-axis" else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    resize_commands.run(platform, checks, clients)
     assert checks.failed > 0
 
 

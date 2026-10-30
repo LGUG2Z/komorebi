@@ -27,6 +27,7 @@ from komorebi_vm.core.scenarios import (
     moving,
     padding,
     placement,
+    resize_commands,
     rules,
     stacks,
     startup_rules,
@@ -458,6 +459,7 @@ layouts.run(platform, checks, neutral)
 floating.run(platform, checks, neutral)
 minimizing.run(platform, checks, neutral)
 maximizing.run(platform, checks, neutral)
+resize_commands.run(platform, checks, neutral)
 padding.run(platform, checks, neutral)
 monocle.run(platform, checks, neutral)
 workspace_moves.run(platform, checks, neutral)

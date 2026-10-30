@@ -403,6 +403,13 @@ class FakePlatform:
                 self._relayout()
             case ("toggle-maximize",):
                 self.maximized = None if self.maximized else self.containers[self.focus][0]
+            case ("resize-axis", "horizontal", way):
+                d = 50 if way == "increase" else -50
+                i = self.focus
+                if n > 1 and i < n - 1:
+                    a, b = self.tiles[i], self.tiles[i + 1]
+                    self.tiles[i] = Rect(a.x, a.y, a.w + d, a.h)
+                    self.tiles[i + 1] = Rect(b.x + d, b.y, b.w - d, b.h)
             case ("toggle-float",):
                 if self.floats:
                     self.containers.insert(self.focus, [self.floats.pop()])
