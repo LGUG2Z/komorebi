@@ -2,7 +2,8 @@
 are wrong in one way."""
 
 from komorebi_vm.core.checks import Checks
-from komorebi_vm.core.scenarios import handover, title_rule
+from komorebi_vm.core.geometry import Rect
+from komorebi_vm.core.scenarios import commands, handover, title_rule
 from tests.fake_platform import FakePlatform
 
 
@@ -62,3 +63,29 @@ def test_a_daemon_that_does_not_manage_again_fails_handover() -> None:
     clients = opened(platform, checks)
     handover.run(platform, checks, clients)
     assert any("manage: " in f for f in checks.failures)
+
+
+def test_every_layout_is_tried_with_fewer_windows_and_the_windows_are_opened_again() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    commands.layouts(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == len(commands.LAYOUTS) * 3 + 1
+    assert platform.state().managed() == len(clients)
+
+
+def test_a_layout_that_overlaps_two_windows_fails_commands_layouts() -> None:
+    class Overlapping(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            out = super().komorebic(*args)
+            if args == ("change-layout", "grid"):
+                self.tiles = [Rect(0, 0, 1000, 1080)] * len(self.containers)
+            return out
+
+    platform = Overlapping()
+    checks = Checks()
+    clients = opened(platform, checks)
+    commands.layouts(platform, checks, clients)
+    assert any("grid with 2 windows" in f for f in checks.failures), checks.failures

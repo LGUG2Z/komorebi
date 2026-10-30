@@ -1,9 +1,9 @@
 """What only KDE can tell about the commands, round the shared `commands` scenarios.
 
 Every window the daemon has is a window KWin has, and the frame the daemon last asked KWin for is
-the one KWin carries out. The shared scenarios check the layouts with five windows and that every
-command is understood and leaves the daemon healthy, as the operating system sees it; what is here
-reads KWin (`kdotool`) and the daemon's log.
+the one KWin carries out. The shared scenarios check the layouts with five, three, two and one
+windows and that every command is understood and leaves the daemon healthy, as the operating system
+sees it; what is here reads KWin (`kdotool`) and the daemon's log.
 
 The suite runs `setup`, `layouts_by_count`, the shared `layouts` and `sweep`,
 `replace_configuration`, the shared `handover`, `title_rule` and `prints`, `queries` and
@@ -60,29 +60,6 @@ def healthy(platform: KdePlatform) -> int:
     return 0
 
 
-def _outside_or_overlapping(platform: KdePlatform) -> list[str]:
-    """The windows that are outside the outputs, or on another window (2 pixels are allowed)."""
-    kde = platform.kde
-    width, height = platform.size
-    rects = {wid: kde.rect(wid) for wid in _live_windows(platform)}
-    bad = []
-    for wid, r in rects.items():
-        if r.x < -1 or r.y < -1 or r.x + r.w > width + 1 or r.y + r.h > height + 1:
-            bad.append(f"{kde.title(wid)} outside at {r}")
-    ids = list(rects)
-    for i, a in enumerate(ids):
-        for b in ids[i + 1 :]:
-            ra, rb = rects[a], rects[b]
-            if (
-                ra.x < rb.x + rb.w - 2
-                and rb.x < ra.x + ra.w - 2
-                and ra.y < rb.y + rb.h - 2
-                and rb.y < ra.y + ra.h - 2
-            ):
-                bad.append(f"{kde.title(a)} on {kde.title(b)}")
-    return bad
-
-
 def _open_window(platform: KdePlatform, n: int) -> None:
     platform.spawn(f"win{n}")
 
@@ -128,11 +105,12 @@ def setup(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
 
 
 def layouts_by_count(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """Every layout with five, three, two and one windows: the windows are in their outputs and
-    apart, the daemon is healthy, and KWin has each window where the daemon last asked for it.
+    """Every layout with five, three, two and one windows: KWin has each window where the daemon
+    last asked for it, and the daemon is healthy.
 
-    The shared `layouts` checks five windows. The windows that were closed are opened again, and
-    the layout is `bsp` at the end.
+    The shared `layouts` checks that the windows are inside the outputs and apart, at every one of
+    those counts. The windows that were closed are opened again, and the layout is `bsp` at the
+    end.
     """
     kde = platform.kde
     for layout in LAYOUTS:
@@ -147,14 +125,16 @@ def layouts_by_count(platform: KdePlatform, checks: Checks, clients: list[Client
                 lambda: all(_where_asked(platform, w) is None for w in _live_windows(platform)),
                 timeout=10,
             )
-            # the scrolling layout is a strip whose columns can be past the edge of the output
-            if layout != "scrolling":
-                verdict += [f"{keep}w: {bad}" for bad in _outside_or_overlapping(platform)]
+            verdict += [
+                f"{keep}w: {bad}"
+                for w in _live_windows(platform)
+                if (bad := _where_asked(platform, w))
+            ]
             if reason := healthy(platform):
                 verdict.append(f"{keep}w: not healthy ({reason})")
         checks.check(
-            f"{layout}: the windows are in their outputs and do not overlap, and the daemon is"
-            " healthy" + "".join(f"\n       {v}" for v in verdict),
+            f"{layout}: KWin has every window where the daemon last asked, with 5, 3, 2 and 1"
+            " windows" + "".join(f"\n       {v}" for v in verdict),
             verdict == [],
         )
         for n in range(kde.managed() + 1, len(clients) + 1):

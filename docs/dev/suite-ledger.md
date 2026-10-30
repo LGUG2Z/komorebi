@@ -42,7 +42,7 @@ The suite had its own layout loop (section 2) and then called the shared `layout
 |---|---|
 | 1, the daemon answers with both outputs; five windows | extra `setup` |
 | 2, every layout with five windows: inside the outputs, apart, healthy | shared `layouts`; the extra repeats it at five windows, see below |
-| 2, every layout with three, two and one windows | extra `layouts_by_count` |
+| 2, every layout with three, two and one windows | shared `commands.layouts` and `layouts.run` (they close windows from the end and open them again); the extra still goes through the counts for the log check |
 | 2, each window where the daemon last asked KWin for it | extra `layouts_by_count` (KDE only: reads the daemon's log) |
 | 3, the layouts and the sweep of commands | shared `layouts` and `sweep` |
 | 3, `replace-configuration` made the window manager from the file | extra `replace_configuration` |
@@ -52,9 +52,9 @@ The suite had its own layout loop (section 2) and then called the shared `layout
 | 4, `komorebic query ...`, `quick-save-resize`, `save-resize` | extra `queries` (candidates for the shared list) |
 | 5, every window is where the daemon last asked; a clean stop | extra `at_the_end` |
 
-The extra's layout loop still goes through five windows, for the daemon's log check at that count;
-it states its overlap verdict for five windows too, so that one is made twice. Dropping it from the
-extra would lose the five-window `where asked` check, which is KDE's.
+The extra's layout loop still goes through five, three, two and one windows, for the daemon's log
+check at each count. It no longer states an overlap verdict: the shared `layouts` makes that one at
+every count, with the extra's own check left to say only where KWin has the windows.
 
 ## drag-resize
 

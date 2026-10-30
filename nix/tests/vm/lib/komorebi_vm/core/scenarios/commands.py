@@ -10,6 +10,7 @@ command does is checked elsewhere; this says none of them breaks a running daemo
 from collections.abc import Sequence
 
 from komorebi_vm.core.checks import Checks
+from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, Platform
 
 LAYOUTS: tuple[str, ...] = (
@@ -285,15 +286,18 @@ def unhealthy(platform: Platform, clients: list[Client]) -> str | None:
     return None
 
 
-def layouts(platform: Platform, checks: Checks, clients: list[Client]) -> None:
-    """Changes to every layout, and checks that the windows stay inside the work area and apart
-    from each other, and that the daemon stays healthy. The scrolling layout is a strip whose
-    columns can be past the edge, so its frames are not looked at."""
-    area = platform.work_area()
+FEWER = (3, 2, 1)
+"""The counts of windows below the one `layouts` starts with that it tries every layout with."""
+
+
+def _each_layout(
+    platform: Platform, checks: Checks, clients: list[Client], label: str, area: Rect
+) -> None:
+    """Changes to every layout, with `clients` the windows there are, and checks them."""
     for layout in LAYOUTS:
         status, out = platform.komorebic_status("change-layout", layout)
         if status != 0 and NOT_A_COMMAND in out:
-            checks.skip(f"change-layout {layout}", "the port has no such layout")
+            checks.skip(f"change-layout {layout}{label}", "the port has no such layout")
             continue
         problems = []
         if status != 0:
@@ -313,7 +317,45 @@ def layouts(platform: Platform, checks: Checks, clients: list[Client]) -> None:
                 for b in titles[i + 1 :]
                 if frames[a].overlaps(frames[b])
             ]
-        checks.check(f"change-layout {layout}: " + ("; ".join(problems) or "ok"), not problems)
+        checks.check(
+            f"change-layout {layout}{label}: " + ("; ".join(problems) or "ok"), not problems
+        )
+
+
+def layouts(platform: Platform, checks: Checks, clients: list[Client]) -> None:
+    """Changes to every layout, and checks that the windows stay inside the work area and apart
+    from each other, and that the daemon stays healthy. The scrolling layout is a strip whose
+    columns can be past the edge, so its frames are not looked at.
+
+    It does the same with three, two and one windows (those of `FEWER` that `clients` has more
+    than): the others are closed from the end, and opened again with their own titles at the end,
+    with the layout `bsp`.
+    """
+    area = platform.work_area()
+    _each_layout(platform, checks, clients, "", area)
+    closed: list[Client] = []
+    for keep in (n for n in FEWER if n < len(clients)):
+        for client in clients[keep:]:
+            if client not in closed:
+                platform.close(client)
+                closed.append(client)
+        left = clients[:keep]
+        platform.wait_for(lambda n=keep: platform.state().managed() == n, timeout=20)
+        _each_layout(platform, checks, left, f" with {keep} windows", area)
+    if closed:
+        platform.komorebic("change-layout", "bsp")
+        for client in closed:
+            platform.spawn(client.title)
+        checks.check(
+            "the windows that were closed are opened again and managed",
+            platform.wait_for(
+                lambda: (
+                    unhealthy(platform, clients) is None
+                    and platform.state().managed() == len(clients)
+                ),
+                timeout=30,
+            ),
+        )
 
 
 def sweep(
