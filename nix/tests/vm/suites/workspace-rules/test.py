@@ -6,7 +6,8 @@
 # and the rules of a `komorebi.json` for a window that was open before the daemon. What only a real
 # KWin can tell is in `komorebi_vm.platforms.kde.extras.workspace_rules`: that the window is on the
 # desktop of its workspace and out of sight on the parking desktop while another desktop shows,
-# the rules by the name of a workspace, and a rule applied at the next event.
+# also for a rule by the name of a workspace. That a rule is applied at the next event is a check
+# of the shared `rules`.
 # `komorebi/tests/workspace_rules.rs` checks the same against the fake.
 from komorebi_vm import Checks, Kde
 from komorebi_vm.core.scenarios import rules, startup_rules

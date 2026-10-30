@@ -3,7 +3,7 @@ are wrong in one way."""
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
-from komorebi_vm.core.scenarios import commands, handover, placement, queries, title_rule
+from komorebi_vm.core.scenarios import commands, handover, placement, queries, rules, title_rule
 from tests.fake_platform import FakePlatform
 
 
@@ -126,3 +126,24 @@ def test_a_daemon_that_ignores_the_class_of_a_placement_rule_fails_placement() -
     placement.run(platform, checks)
     assert [f for f in checks.failures if "by the class" in f], checks.failures
     assert checks.failed == 1
+
+
+def test_a_daemon_that_sends_a_window_back_on_the_next_event_passes_rules() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    rules.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+
+
+def test_a_daemon_that_only_applies_rules_when_asked_fails_rules() -> None:
+    platform = FakePlatform(applies_rules_on_event=False)
+    checks = Checks()
+    rules.run(platform, checks)
+    assert any("at the next event" in f for f in checks.failures), checks.failures
+
+
+def test_a_daemon_that_keeps_its_rules_when_cleared_fails_rules() -> None:
+    platform = FakePlatform(clears_rules=False)
+    checks = Checks()
+    rules.run(platform, checks)
+    assert any("global state has none" in f for f in checks.failures), checks.failures

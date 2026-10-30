@@ -3,13 +3,10 @@
 A workspace is a virtual desktop of KWin, so a window that a rule sends to another workspace is on
 that workspace's desktop, and out of sight on the parking desktop while the desktop in front is
 showing. The shared scenarios check where the daemon puts the window and that it is put away; these
-check it on KWin's desktops, the rules by the name of a workspace, and a rule that is applied at
-the next event.
+check it on KWin's desktops, also for the rules by the name of a workspace.
 
 The suite runs the shared scenarios, then `desktops`, `named_rule` and `cleared`.
 """
-
-import json
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client
@@ -73,9 +70,9 @@ def desktops(platform: KdePlatform, checks: Checks, clients: list[Client]) -> No
 
 
 def named_rule(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """A rule by the name of a workspace (`chat`) sends a window to it, on desktop 3, and a window
-    that opens is an event that applies the rules again, so the window comes back after the user
-    moves it. Needs `desktops` to have run."""
+    """A rule by the name of a workspace (`chat`) sends a window to it, which is out of sight, and
+    on desktop 3 once shown. The shared `rules` checks the daemon's side, and that the rule is
+    applied again at the next event. Needs `desktops` to have run."""
     kde = platform.kde
     always = platform.spawn("sent-always one")
     checks.check(
@@ -90,26 +87,20 @@ def named_rule(platform: KdePlatform, checks: Checks, clients: list[Client]) -> 
         ),
     )
     kde.komorebic("move-to-workspace", "0")
-    # a new window is an event, and every event looks at the rules first
-    platform.spawn("poke one")
-    checks.check(
-        "the rule sends the window back at the next event",
-        kde.wait_for(lambda: _on(platform, always.title) == 2, timeout=30),
-    )
+    kde.wait_for(lambda: _on(platform, always.title) == 0 and kde.desk(kde.wid(always.title)) == 1)
     kde.komorebic("focus-workspace", "0")
 
 
-OPENED = ("stays here", "sent-once one", "sent-always one", "poke one", "sent-once two")
+OPENED = ("stays here", "sent-once one", "sent-always one", "sent-once two")
 
 
 def cleared(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """Once every rule is cleared the daemon's global state has none, and a window that opens stays
-    on the desktop in front. The windows of these extras are closed after, and the workspace in
-    front is the first, so that the shared scenarios find the daemon as they expect."""
+    """Once every rule is cleared a window that opens stays on the desktop in front. The shared
+    `rules` checks the workspace in view, and that the daemon's global state has no rule. The
+    windows of these extras are closed after, and the workspace in front is the first, so that the
+    shared scenarios find the daemon as they expect."""
     kde = platform.kde
     kde.komorebic("clear-all-workspace-rules")
-    rules = json.loads(kde.komorebic("global-state"))["workspace_rules"]
-    checks.check("no rule is left", rules == [])
     later = platform.spawn("sent-once two")
     checks.check(
         "a window that opens now is on the desktop that is in front",

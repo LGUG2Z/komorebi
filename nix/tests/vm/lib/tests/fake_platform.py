@@ -5,6 +5,7 @@ real daemon does with windows laid out left to right, so that a scenario can be 
 that is right, and against ones that are wrong in one way.
 """
 
+import json
 from typing import Any
 
 from PIL import Image
@@ -70,6 +71,8 @@ class FakePlatform:
         loads_resize: bool = True,
         answers_queries: bool = True,
         matches_class: bool = True,
+        applies_rules_on_event: bool = True,
+        clears_rules: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -78,6 +81,8 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.applies_rules_on_event = applies_rules_on_event
+        self.clears_rules = clears_rules
         self.matches_class = matches_class
         self.loads_resize = loads_resize
         self.answers_queries = answers_queries
@@ -286,6 +291,8 @@ class FakePlatform:
             self.containers.append([title])
         if len(self.containers) > len(self.tiles):
             self._relayout()
+        if self.applies_rules_on_event:
+            self.komorebic("enforce-workspace-rules")
         return Client(title)
 
     def _place(self, title: str) -> None:
@@ -539,11 +546,18 @@ class FakePlatform:
                 top = self.containers[self.focus][0]
                 self.monocle = None if self.monocle else top
             case ("ensure-workspaces", _, _) | ("clear-all-workspace-rules",):
-                if args[0] == "clear-all-workspace-rules":
+                if args[0] == "clear-all-workspace-rules" and self.clears_rules:
                     self.class_rules.clear()
                     self.exe_rules.clear()
                     self.rules.clear()
                     self.initial_rules.clear()
+            case ("global-state",):
+                rules = [*self.rules, *self.initial_rules, *self.class_rules, *self.exe_rules]
+                return json.dumps({"workspace_rules": rules})
+            case ("workspace-name", _, index, name):
+                self.names[int(index)] = name
+            case ("named-workspace-rule", "title", title, name):
+                self.rules[title] = self.names.index(name)
             case ("initial-workspace-rule", "title", title, _, number):
                 self.initial_rules[title] = int(number)
             case ("workspace-rule", "title", title, _, number):
