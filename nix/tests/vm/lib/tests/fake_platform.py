@@ -80,6 +80,8 @@ class FakePlatform:
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.floats: list[str] = []
+        self.workspace_padding = 0
+        self.container_padding = 0
         self.minimized: list[str] = []
         self.running = True
         self.placement: Any = None
@@ -244,8 +246,12 @@ class FakePlatform:
         self.tiles = list(TILES)
         n = len(self.containers)
         if n:
-            width = 1920 // n
-            self.tiles = [Rect(i * width, 0, width, 1080) for i in range(n)] + list(TILES[n:])
+            w, c = self.workspace_padding, self.container_padding
+            width = (1920 - 2 * w) // n
+            self.tiles = [
+                Rect(w + i * width + c, w + c, width - 2 * c, 1080 - 2 * w - 2 * c)
+                for i in range(n)
+            ] + list(TILES[n:])
 
     def _container(self, title: str) -> int:
         return self._find(title)[1]
@@ -382,6 +388,12 @@ class FakePlatform:
                                 break
             case ("focus-workspace", number):
                 self.current = int(number)
+            case ("focused-workspace-padding", size):
+                self.workspace_padding = int(size)
+                self._relayout()
+            case ("focused-workspace-container-padding", size):
+                self.container_padding = int(size)
+                self._relayout()
             case ("toggle-float",):
                 if self.floats:
                     self.containers.insert(self.focus, [self.floats.pop()])
@@ -450,6 +462,8 @@ class FakePlatform:
                 },
                 "layout": {"Default": "Columns"},
                 "tile": True,
+                "workspace_padding": self.workspace_padding,
+                "container_padding": self.container_padding,
                 "latest_layout": [rect(r) for r in self.tiles[: len(containers)]],
             }
 

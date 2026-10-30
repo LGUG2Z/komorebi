@@ -49,6 +49,10 @@ class Workspace:
     floating: list[Window]
     latest_layout: list[Rect]
     """The rectangles the layout last computed, one for each container."""
+    workspace_padding: int | None = None
+    """The padding of the workspace, when the daemon says."""
+    container_padding: int | None = None
+    """The padding of each of its containers, when the daemon says."""
 
     def windows(self) -> list[Window]:
         """Every window of the workspace: the tiled ones, the monocle ones, the maximized one and
@@ -162,6 +166,8 @@ def _workspace(value: dict[str, Any]) -> Workspace:
         maximized=_window(maximized) if maximized else None,
         floating=[_window(w) for w in _ring(value["floating_windows"])],
         latest_layout=[r for r in map(_rect, value.get("latest_layout", [])) if r is not None],
+        workspace_padding=value.get("workspace_padding"),
+        container_padding=value.get("container_padding"),
     )
 
 

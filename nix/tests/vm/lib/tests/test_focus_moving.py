@@ -14,6 +14,7 @@ from komorebi_vm.core.scenarios import (
     minimizing,
     monocle,
     moving,
+    padding,
     placement,
     resize,
     rules,
@@ -202,6 +203,27 @@ def test_a_daemon_that_keeps_the_room_of_a_minimized_window_fails_minimizing() -
     checks = Checks()
     clients = opened(platform, checks)
     minimizing.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_padding() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    padding.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 5
+
+
+def test_a_daemon_that_ignores_the_padding_fails_padding() -> None:
+    class Ignoring(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args[0].endswith("padding") else super().komorebic(*args)
+
+    platform = Ignoring()
+    checks = Checks()
+    clients = opened(platform, checks)
+    padding.run(platform, checks, clients)
     assert checks.failed > 0
 
 
