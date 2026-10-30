@@ -27,6 +27,7 @@ from komorebi_vm.core.scenarios import (
     manage_rules,
     maximizing,
     minimizing,
+    monitors,
     monocle,
     moving,
     padding,
@@ -58,8 +59,11 @@ machine.wait_for_unit("multi-user.target")
 machine.wait_for_unit("user@1000.service")
 
 checks = Checks()
-kde = Kde.headless(machine, "main", size=(W, H), scale=SCALE)
+# two outputs, of which the second is unplugged before the daemon starts: the scenarios see one
+# display, as they always did, and `monitors` plugs the second in and out again
+kde = Kde.headless(machine, "main", size=(W, H), outputs=2, scale=SCALE)
 platform = KdePlatform(kde, (W, H))
+platform.remove_display()
 
 platform.start_komorebi()
 recorder = Recorder(kde, RECORDER)
@@ -170,6 +174,10 @@ checks.check(
 # workspace (fixed: it used to be lost, as a known failure on both ports; docs/dev/BEHAVIOUR.md).
 run_suite(
     checks,
+    # the commands that take the focus, a window or a workspace to the other monitor: it plugs the
+    # second output in, and out again
+    shared(monitors.run, platform, checks),
+    shared(monitors.at_cursor, platform, checks),
     shared(commands.unknown_monitor, platform, checks, [Client("afterwards")]),
     # what only KDE can tell about the daemon stopping, crashing, and KWin restarting
     platform_only("kde", kde_core.parking, platform, checks, []),
