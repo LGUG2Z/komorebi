@@ -31,6 +31,10 @@ class FakePointer:
 
     def move(self, x: int, y: int) -> None:
         self.at = (x, y)
+        if self.platform.follows_mouse:
+            for i, tile in enumerate(self.platform.tiles[: len(self.platform.containers)]):
+                if tile.x <= x < tile.x + tile.w and tile.y <= y < tile.y + tile.h:
+                    self.platform.focus = i
 
     def down(self) -> None:
         pass
@@ -68,6 +72,8 @@ class FakePlatform:
         self.rules: dict[str, int] = {}
         self.ignored: set[str] = set()
         self.placing = False
+        self.follows_mouse = False
+        self.mouse_ignored = False
         self.prefix_rules: list[tuple[str, int]] = []
         self.unmanaged: list[str] = []
         self.display_count = 2
@@ -284,6 +290,10 @@ class FakePlatform:
         match args:
             case ("stop",):
                 self.running = False
+            case ("focus-follows-mouse", "enable" | "disable" as state):
+                self.follows_mouse = state == "enable" and not self.mouse_ignored
+            case ("toggle-focus-follows-mouse", *_):
+                self.follows_mouse = not self.follows_mouse and not self.mouse_ignored
             case ("focus", "right"):
                 self.focus = min(self.focus + 1, n - 1)
             case ("focus", "left"):

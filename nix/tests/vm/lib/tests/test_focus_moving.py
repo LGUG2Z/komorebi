@@ -5,6 +5,7 @@ from komorebi_vm.core.scenarios import (
     closing,
     commands,
     focus,
+    focus_follows_mouse,
     hotplug,
     lifecycle,
     monocle,
@@ -338,3 +339,32 @@ def test_a_daemon_that_ignores_the_rules_of_its_file_fails_startup_rules() -> No
     checks = Checks()
     startup_rules.run(platform, checks)
     assert checks.failed >= 3, checks.failures
+
+
+def test_a_daemon_that_follows_the_mouse_passes_focus_follows_mouse() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    focus_follows_mouse.run(platform, checks, clients[0], clients[1])
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 7
+    assert not platform.follows_mouse
+
+
+def test_a_daemon_that_does_not_follow_the_mouse_fails_focus_follows_mouse() -> None:
+    platform = FakePlatform()
+    platform.mouse_ignored = True
+    checks = Checks()
+    clients = opened(platform, checks)
+    focus_follows_mouse.run(platform, checks, clients[0], clients[1])
+    assert checks.failed >= 2, checks.failures
+
+
+def test_focus_follows_mouse_is_skipped_without_a_pointer() -> None:
+    platform = FakePlatform(pointer=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    focus_follows_mouse.run(platform, checks, clients[0], clients[1])
+    assert checks.failed == 0 and checks.passed == base

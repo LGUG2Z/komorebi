@@ -19,7 +19,7 @@ import time
 
 from komorebi_vm import Checks, Kde, Pointer, daemon
 from komorebi_vm.core.platform import Client
-from komorebi_vm.core.scenarios import resize
+from komorebi_vm.core.scenarios import focus_follows_mouse, resize
 from komorebi_vm.kde_platform import KdePlatform
 
 # the module's unit, which the session starts when it logs in: the daemon the suite drags against
@@ -273,5 +273,8 @@ resize.run(
     checks,
     [Client(f"win{n}") for n in range(1, WINDOWS + 1)],
 )
+
+print("== focus follows mouse, through the neutral platform")
+focus_follows_mouse.run(KdePlatform(kde, (W, H), pointer), checks, Client("win1"), Client("win3"))
 
 checks.finish()
