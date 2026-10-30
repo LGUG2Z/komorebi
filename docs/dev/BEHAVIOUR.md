@@ -48,6 +48,9 @@ runs, and goes stale when the code changes.
 | `minimizing` | a minimized window leaves its room to the others, and a restored one takes it back | pass | pass |
 | `padding` | more workspace padding moves the windows in from the edge, more container padding shrinks them, and setting it back restores them | pass | pass |
 | `maximizing` | `toggle-maximize` gives a window the work area and the daemon names it, the others stay put | pass | pass |
+| `workspace_moves` | `move-to-workspace` takes a window and the focus to another workspace, `focus-last-workspace` goes back and forth | pass | pass |
+| `resize_commands` | `resize-axis horizontal increase` and `decrease` widen the focused window and give the width back, with no pointer | pass | pass |
+| `promoting` | `promote` puts the window on the first tile and keeps its focus | pass | not run yet |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
 is not the scenario's, that the daemon had exited after `komorebic stop`; the next run passed it,
