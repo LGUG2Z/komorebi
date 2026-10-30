@@ -41,6 +41,7 @@ runs, and goes stale when the code changes.
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
 | `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure**: the number 2 |
 | `startup_rules` | the workspace rules of the config apply to a window open before the daemon and to one after | pass | pass |
+| `focus_follows_mouse` | the pointer over a window gives it the focus when it is on, not when it is off | pass | 6 of 7 checks pass, **fails** the last, cause not known |
 | `lifecycle` | a daemon that stops and starts again takes the windows that were in view up again | pass | pass |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
@@ -88,6 +89,17 @@ check (18/19) in two of three runs of a five-run series, so it is not marked a k
 known failure that holds fails the suite, and this one holds only sometimes. kfde is not
 affected: it has no reconciliator loop of this kind, and `hotplug` passes 34/0 there. Until
 someone decides about the fix, the check stays red when it fails.
+
+**`focus_follows_mouse` on kfw.** The scenario's last check, "on again, the pointer over the second
+window gives it the focus", fails on kfw, in the scenario twice and in a probe twice. kfw's setting
+is Windows' own active window tracking, which gave each pointer move over a window the focus in
+0.2 to 0.4 s, and "off" moved nothing. The sequence that fails: turn it off with the pointer parked
+on the second window, `focus-follows-mouse enable`, pointer on the first (already focused), then
+the second: the second gets no focus in 15 s, with small wiggles too. After `disable` then
+`enable`, or two `toggle`s, the same moves work. So it depends on how it was turned off and on, or
+on where the pointer rested while it was off. Whether that is Windows or kfw is not known, and
+the scenario is unchanged: it stays red there until the cause is known. Next to try: the pointer
+off both windows before the last `enable`.
 
 **`resize` on kfw.** Dragging the edge between two tiles by 30, 60 and 120 pixels moved it by 27,
 53 and 96 on kfw's master, and by 27, 51 and 106 on its animation branch (`0c9acdf4`), where kfde
