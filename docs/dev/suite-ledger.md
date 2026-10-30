@@ -86,7 +86,7 @@ make. They are gone; what only KDE can read stayed, as `kde_core` steps after th
 | 4, moving the focus moved no window | extra `windows_where_asked` after `focus` |
 | 5, `move right`, `cycle-move previous`, the focus kept | shared `moving`; extra `windows_where_asked` after it |
 | 6, monocle fills the work area, the state says so, back on the tile | shared `monocle` |
-| 6, monocle focus behaviour `cycle` | extra `monocle_focus_behaviour` (a candidate for the shared scenario) |
+| 6, monocle focus behaviour `cycle` | shared `monocle.focus_behaviour` (also `no-op`: the window keeps the work area); extra `windows_where_asked` after it |
 | 7, minimize and restore | shared `minimizing`; extra `windows_where_asked` after it |
 | 8, close, the others share the screen, the daemon manages the rest | shared `closing` |
 | 8, KWin carried out every command | extra `bridge_did_everything` |

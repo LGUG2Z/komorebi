@@ -73,6 +73,8 @@ class FakePlatform:
         matches_class: bool = True,
         applies_rules_on_event: bool = True,
         clears_rules: bool = True,
+        cycles_in_monocle: bool = True,
+        no_op_in_monocle: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -81,6 +83,10 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.cycles_in_monocle = cycles_in_monocle
+        self.no_op_in_monocle = no_op_in_monocle
+        self.monocle_cycles = False
+        """The behaviour `monocle-focus-behaviour` set: focusing in a monocle cycles it."""
         self.applies_rules_on_event = applies_rules_on_event
         self.clears_rules = clears_rules
         self.matches_class = matches_class
@@ -508,6 +514,13 @@ class FakePlatform:
                 self.follows_mouse = state == "enable" and not self.mouse_ignored
             case ("toggle-focus-follows-mouse", *_):
                 self.follows_mouse = not self.follows_mouse and not self.mouse_ignored
+            case ("monocle-focus-behaviour", way):
+                self.monocle_cycles = way == "cycle"
+            case ("focus", "right") if self.monocle is not None:
+                cycles = self.monocle_cycles if self.no_op_in_monocle else True
+                if cycles and self.cycles_in_monocle:
+                    self.focus = (self.focus + 1) % n
+                    self.monocle = self.containers[self.focus][0]
             case ("focus", "right"):
                 self.focus = min(self.focus + 1, n - 1)
             case ("focus", "left"):

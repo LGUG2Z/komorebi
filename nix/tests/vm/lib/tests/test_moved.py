@@ -3,7 +3,15 @@ are wrong in one way."""
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
-from komorebi_vm.core.scenarios import commands, handover, placement, queries, rules, title_rule
+from komorebi_vm.core.scenarios import (
+    commands,
+    handover,
+    monocle,
+    placement,
+    queries,
+    rules,
+    title_rule,
+)
 from tests.fake_platform import FakePlatform
 
 
@@ -147,3 +155,30 @@ def test_a_daemon_that_keeps_its_rules_when_cleared_fails_rules() -> None:
     checks = Checks()
     rules.run(platform, checks)
     assert any("global state has none" in f for f in checks.failures), checks.failures
+
+
+def test_a_daemon_that_cycles_a_monocle_only_when_told_passes_monocle_behaviour() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    monocle.focus_behaviour(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 4
+    assert platform.monocle is None and not platform.monocle_cycles
+
+
+def test_a_daemon_that_never_cycles_a_monocle_fails_monocle_behaviour() -> None:
+    platform = FakePlatform(cycles_in_monocle=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    monocle.focus_behaviour(platform, checks, clients)
+    assert any("with the cycle behaviour" in f for f in checks.failures), checks.failures
+
+
+def test_a_daemon_that_cycles_a_monocle_with_no_op_fails_monocle_behaviour() -> None:
+    platform = FakePlatform(no_op_in_monocle=False)
+    checks = Checks()
+    clients = opened(platform, checks)
+    monocle.focus_behaviour(platform, checks, clients)
+    assert any("with the no-op behaviour" in f for f in checks.failures), checks.failures

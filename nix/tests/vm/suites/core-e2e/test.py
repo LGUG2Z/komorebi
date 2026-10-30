@@ -119,7 +119,8 @@ run_suite(
         shared(padding.run, *args),
         shared(monocle.run, *args),
         platform_only("kde", kde_core.windows_where_asked, *args),
-        platform_only("kde", kde_core.monocle_focus_behaviour, *args),
+        shared(monocle.focus_behaviour, *args),
+        platform_only("kde", kde_core.windows_where_asked, *args),
         shared(workspace_moves.run, *args),
         shared(workspaces.run, *args),
         # the third window is on workspace 1 now: the first is closed, and the second takes its room

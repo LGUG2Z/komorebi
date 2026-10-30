@@ -95,39 +95,6 @@ def focus_agrees_with_the_log(platform: KdePlatform, checks: Checks, clients: li
     )
 
 
-def monocle_focus_behaviour(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """With the `cycle` behaviour, focusing in a direction in a monocle gives another window the
-    work area. The behaviour is set back to `no-op`."""
-    kde = platform.kde
-    width, height = platform.size
-
-    def fills(wid: str) -> bool:
-        r = kde.rect(wid)
-        return r.w > width - 120 and r.h > height - 120
-
-    focused = kde.active()
-    kde.komorebic("monocle-focus-behaviour", "cycle")
-    kde.komorebic("toggle-monocle")
-    kde.wait_for(lambda: fills(focused), timeout=20)
-    kde.komorebic("focus", "right")
-    checks.check(
-        "with the cycle behaviour, focusing in a direction gives another window the work area",
-        kde.wait_for(lambda: kde.active() != focused and fills(kde.active()), timeout=20),
-    )
-    kde.komorebic("toggle-monocle")
-    kde.komorebic("monocle-focus-behaviour", "no-op")
-    checks.check(
-        "the windows are tiled again",
-        kde.wait_for(
-            lambda: (
-                all(_where_asked(platform, c.title) for c in clients)
-                and all(kde.rect(kde.wid(c.title)).w < width - 20 for c in clients)
-            ),
-            timeout=20,
-        ),
-    )
-
-
 def fixtures(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
     """Keeps what `komorebic state` prints as files of the run, so that the unit tests of the
     neutral core (tests/fixtures) are of a real state and not of one written from the serializer,
