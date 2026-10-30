@@ -39,9 +39,9 @@ runs, and goes stale when the code changes.
 | `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **known failure** | **known failure** |
 | `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
 | `rules_class` | a workspace rule and an ignore rule by class (the app id on KDE) send a window or leave it alone | pass | pass |
-| `rules_exe` | the same by the program that opened the window | pass | not run |
-| `config_reload` | rewriting the `komorebi.json` the daemon runs on changes its names, layout and rules | pass | not run |
-| `locking` | the screen is locked, a window moved, and unlocked: every window is in its tile again (session suite `core-lock`) | pass | not run |
+| `rules_exe` | the same by the program that opened the window; the rule's id is `platform.exe_id(program)`, as kfw's has the `.exe` | pass | fail until kfw runs it with `exe_id` |
+| `config_reload` | rewriting the `komorebi.json` the daemon runs on changes its names, layout and rules | pass | pass |
+| `locking` | the screen is locked, a window moved, and unlocked: every window is in its tile again (session suite `core-lock`) | pass | pass |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
 | `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure**: the number 2 |
 | `startup_rules` | the workspace rules of the config apply to a window open before the daemon and to one after | pass | pass |
@@ -70,7 +70,7 @@ and the cause is not known.
 **`ignore-rule` drops a rule whose id an earlier rule has, whatever the kind.** `komorebi`'s
 `IgnoreRule` handler compares only the ids, so `ignore-rule exe e2e-left` after `ignore-rule
 class e2e-left` adds nothing and the window is managed. Seen on kfde; the scenarios use different
-names (`rules_exe`). Whether kfw does the same is not known.
+names (`rules_exe`). kfw does the same.
 
 **A window sent to a monitor that does not exist is lost, on both ports.** After
 `komorebic send-to-monitor 7` (or `move-to-monitor 7`) on a desktop with one monitor, the daemon
