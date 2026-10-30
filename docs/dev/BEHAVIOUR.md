@@ -254,6 +254,29 @@ the monitor it left is padded back to the common count and shows its last (empty
 kfw's shows the one before the removed one (and has no padding). The `monitors` scenario reads the
 counts when it needs them and asks only that the monitor it left shows a workspace it has.
 
+**Differences between the ports that the new shared scenarios found.** From the kfw session's
+Windows runs on `next` (komorebi `6d862a11`), with the decision of what to do with each:
+
+- **A window the user maximizes** (`maximizing.user`, the title bar button). kfde takes it as the
+  workspace's maximized window, as for `toggle-maximize`; kfw sets `maximized_window` only from
+  `toggle-maximize`, nothing turns a user's maximize into it, so every later check of the scenario
+  fails on Windows. **Decided: a known difference for now**, neither port changes; the Windows runner
+  records it as a known failure.
+- **A window moved to another display by something other than a drag** (`hotplug.user_move`,
+  `SetWindowPos` on Windows). kfde follows the window to the other monitor; kfw relocates a window
+  only when a drag ends (`MoveResizeEnd`) and a move by any other means raises no such event, so it
+  is not taken there within 45 s. **Decided: a known difference for now**, recorded as a known
+  failure on Windows.
+- **A killed daemon** (`lifecycle_hidden.crash`). On kfw, after `kill -9` during a monocle the windows
+  it cloaked stay cloaked and unmanaged, at their old frames, and the next daemon manages only the
+  windows that were in view: a clean `stop` uncloaks them, a kill does not, and a starting daemon
+  does not look for cloaked windows. On KDE it passes (the next start sweeps the parking desktop).
+  Looks like a kfw bug, with the kfw session's user.
+- **Dragging the top edge of the lower tile up** (`resize.edge_cases`, `win3:top:0,-72`). On kfw
+  nothing moves, while the same shared edge dragged from the other tile (`win2:bottom:0,72`) moves
+  by what the pointer did; the other seven drags pass. Looks like a kfw bug, with the kfw session's
+  user. (On KDE all of them pass.)
+
 ## What the scenarios had to allow for
 
 These are differences between the ports that a scenario does not hide, and are not failures:
