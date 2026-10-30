@@ -170,6 +170,7 @@ use crate::WindowManager;
 use crate::container::Container;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor_reconciliator::same_device;
 use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
@@ -318,7 +319,7 @@ impl WindowsApi {
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
 
             for monitor in monitors.elements() {
-                if device_id.eq(&monitor.device_id) {
+                if same_device((&device_id, &name), (&monitor.device_id, &monitor.name)) {
                     continue 'read;
                 }
             }
