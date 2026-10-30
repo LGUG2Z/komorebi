@@ -162,7 +162,8 @@ the run.
   `startup_rules` and `focus_follows_mouse`. A method is added with the first scenario that
   needs it: `restart_with(config)` starts the daemon afresh with a `komorebi.json` the
   scenario gives. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a `Platform`.
-  [Writing a scenario](#writing-a-scenario) says how to add one.
+  [platform-contract.md](platform-contract.md) says what each member promises both ports and
+  what a scenario may not lean on. [Writing a scenario](#writing-a-scenario) says how to add one.
 
   A check that a port is known to fail is recorded with `Checks.known_failure(description,
   condition, reason)`: it does not fail the suite, the totals say `known failures: N`, and
