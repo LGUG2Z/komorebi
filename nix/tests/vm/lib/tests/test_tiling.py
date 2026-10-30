@@ -104,6 +104,15 @@ class FakePlatform:
     def unlock(self) -> None:
         pass
 
+    def put_file(self, path: str, data: bytes) -> None:  # noqa: ARG002
+        pass
+
+    def wallpaper(self, display: int = 0) -> str:  # noqa: ARG002
+        return ""
+
+    def set_wallpaper(self, path: str, display: int = 0) -> None:
+        pass
+
     def resize_grab(self, frame: Rect, grab: str) -> tuple[int, int]:
         return outside_grab(frame, grab)
 

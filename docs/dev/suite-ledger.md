@@ -226,6 +226,16 @@ Not kept: for features A, "komorebi still has all three" (the shared scenario ch
 it is a check of the window it moves). The shared `fullscreen` is looser than E in one way: the
 window covers the display up to a pixel, where E compared the frame with the monitor exactly.
 
+## wallpaper
+
+Wallpapers and the colors of the borders that come from them are in the config of both ports, so
+the shared scenario `wallpaper.run` has what is neutral: a monitor's wallpaper at start, a
+workspace's own while it is shown (a path with a space in it), the ring of the focused window in
+the hue of the wallpaper, and a wallpaper the user changed being put back. It uses `put_file`,
+`wallpaper` and `set_wallpaper`. The extra `wallpaper.run` keeps what only the Plasma shell tells:
+the fill mode and how long a switch takes, a switch by a pager, the palette cache, and a daemon
+that starts before the shell. 12 checks went to the shared scenario, 12 stayed.
+
 ## The KDE-only suites
 
 Moved as they were into `komorebi_vm.platforms.kde.extras`, one module per suite (`kwin`,
@@ -256,7 +266,7 @@ move:
 | module | 33 |
 | live-resize | 7 |
 | look | 40 |
-| wallpaper | 22 |
+| wallpaper | 12 |
 | features | 30 |
 | keys-engine | 34 |
 | run-kde | 22 |

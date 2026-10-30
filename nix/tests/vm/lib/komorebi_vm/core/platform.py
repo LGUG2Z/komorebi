@@ -258,6 +258,20 @@ class Platform(Protocol):
         size."""
         ...
 
+    def put_file(self, path: str, data: bytes) -> None:
+        """Writes `data` to `path` on the machine, where the daemon can read it, and makes the
+        directories above it. `path` is one `temp_path` made."""
+        ...
+
+    def wallpaper(self, display: int = 0) -> str:
+        """The path of the picture a display shows, as the operating system says it (the Plasma
+        shell on KDE, `IDesktopWallpaper` on Windows), or the empty string when it does not know."""
+        ...
+
+    def set_wallpaper(self, path: str, display: int = 0) -> None:
+        """Sets the wallpaper of a display as the user does, and returns when it is set."""
+        ...
+
     def resize_grab(self, frame: Rect, grab: str) -> tuple[int, int]:
         """Where the pointer is pressed to take a window of this frame by `grab`: `left`, `right`,
         `top`, `bottom`, or a corner (`topleft`, `topright`, `bottomleft`, `bottomright`).

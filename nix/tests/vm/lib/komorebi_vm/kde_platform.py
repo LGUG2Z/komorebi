@@ -1,10 +1,12 @@
 """KDE as a [`Platform`](komorebi_vm.core.platform.Platform): a `Kde` session, seen through the
 neutral vocabulary."""
 
+import base64
 import json
 import re
 import shlex
 from typing import Any
+from urllib.parse import unquote
 
 from PIL import Image
 
@@ -75,7 +77,24 @@ class KdePlatform:
     def crash(self) -> None:
         self.kde.kill_komorebi()
 
+    def _restart_the_modules_daemon(self, config: dict[str, Any]) -> None:
+        """A real Plasma session has the module's unit run the daemon, with the user's own
+        `komorebi.json`. The unit `komorebi@session` of a headless run has a bus of its own,
+        and a daemon on it has no Plasma shell to talk to."""
+        kde = self.kde
+        kde.systemctl("stop", "komorebi.service")
+        kde.wait_for(lambda: kde.run("komorebic state")[0] != 0, timeout=30)
+        kde.close_colored_windows()
+        kde.sh("mkdir -p ~/.config/komorebi")
+        kde.sh(f"printf %s {shlex.quote(json.dumps(config))} > ~/.config/komorebi/komorebi.json")
+        kde.systemctl("start", "komorebi.service")
+        if not kde.wait_for(lambda: kde.run("komorebic state")[0] == 0, timeout=60):
+            raise AssertionError("the module's daemon did not answer komorebic")
+
     def restart_with(self, config: dict[str, Any]) -> None:
+        if self.session:
+            self._restart_the_modules_daemon(config)
+            return
         if self.kde.komorebi_running():
             self.kde.komorebic("stop")
             self.kde.wait_for(lambda: not self.kde.komorebi_running(), timeout=30)
@@ -226,6 +245,24 @@ class KdePlatform:
         self.kde.sh(f"loginctl unlock-session {self._session_id()}")
         if not self.kde.wait_for(lambda: self._locked(False), timeout=30):
             raise AssertionError("the screen did not unlock")
+
+    def put_file(self, path: str, data: bytes) -> None:
+        directory = shlex.quote(path.rsplit("/", 1)[0])
+        encoded = base64.b64encode(data).decode()
+        self.kde.sh(f"mkdir -p {directory} && chmod a+rx {directory}")
+        self.kde.sh(
+            f"echo {encoded} | base64 -d > {shlex.quote(path)} && chmod a+r {shlex.quote(path)}"
+        )
+
+    def wallpaper(self, display: int = 0) -> str:
+        shell = "org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell"
+        out = self.kde.run(f"busctl --user call {shell} wallpaper u {display}")[1]
+        image = re.search(r'"Image" s "([^"]*)"', out)
+        url = image.group(1) if image else ""
+        return unquote(url.removeprefix("file://"))
+
+    def set_wallpaper(self, path: str, display: int = 0) -> None:
+        self.kde.sh(f"plasma-apply-wallpaperimage {shlex.quote(path)}")
 
     def resize_grab(self, frame: Rect, grab: str) -> tuple[int, int]:
         return outside_grab(frame, grab)

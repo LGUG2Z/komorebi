@@ -36,11 +36,13 @@ from komorebi_vm.core.scenarios import (
     state_fidelity,
     tiling,
     tiling_off,
+    wallpaper,
     workspace_moves,
     workspaces,
 )
 from tests.fake_platform import FakePlatform
 from tests.fake_strip import FakeStrip
+from tests.fake_wallpaper import FakeWallpaper
 
 
 def opened(platform: FakePlatform, checks: Checks):  # noqa: ANN201
@@ -954,4 +956,20 @@ def test_a_daemon_that_rests_windows_on_the_next_monitor_fails_two_monitors() ->
     platform.leaks = True
     checks = Checks()
     scrolling.two_monitors(platform, checks, [])
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_sets_the_wallpapers_passes_wallpaper() -> None:
+    platform = FakeWallpaper()
+    checks = Checks()
+    wallpaper.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 8
+
+
+def test_a_daemon_that_leaves_a_changed_wallpaper_fails_wallpaper() -> None:
+    platform = FakeWallpaper()
+    platform.puts_back = False
+    checks = Checks()
+    wallpaper.run(platform, checks)
     assert checks.failed > 0
