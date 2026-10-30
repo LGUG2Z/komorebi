@@ -100,6 +100,9 @@ class KdePlatform:
         self.kde.wait_for(lambda: self.kde.wid(title) != "", timeout=30)
         return Client(title)
 
+    def exe_id(self, program: str) -> str:
+        return program
+
     def os_window(self, client: Client) -> OsWindow | None:
         wid = self.kde.wid(client.title)
         if wid == "":

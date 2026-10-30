@@ -128,8 +128,13 @@ class Platform(Protocol):
 
         `exe` is the name of the program that opens it, without an extension (`e2e-exe` is
         `e2e-exe.exe` on Windows and `e2e-exe` on Linux), for a rule that matches by it. The
-        platform makes a program of that name; a rule's `id` is the same on every platform.
+        platform makes a program of that name, and `exe_id` spells the id of a rule for it.
         """
+        ...
+
+    def exe_id(self, program: str) -> str:
+        """The `id` of a rule that matches the windows of the program `spawn(exe=program)` opens:
+        the program's file name, which is `program` on Linux and `program.exe` on Windows."""
         ...
 
     def os_window(self, client: Client) -> OsWindow | None:
