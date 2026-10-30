@@ -27,14 +27,14 @@ def opened(platform: FakePlatform, checks: Checks):  # noqa: ANN201
     return tiling.run(platform, checks)
 
 
-def test_a_daemon_that_follows_a_rename_passes_title_rule() -> None:
+def test_a_daemon_that_does_not_look_again_at_a_renamed_window_passes_title_rule() -> None:
     platform = FakePlatform()
     checks = Checks()
     opened(platform, checks)
     base = checks.passed
     title_rule.run(platform, checks)
     assert checks.failed == 0, checks.failures
-    assert checks.passed - base == 4
+    assert checks.passed - base == 5
 
 
 def test_a_daemon_that_manages_an_ignored_title_fails_title_rule() -> None:
@@ -45,12 +45,12 @@ def test_a_daemon_that_manages_an_ignored_title_fails_title_rule() -> None:
     assert any("left alone" in f for f in checks.failures)
 
 
-def test_a_daemon_that_misses_the_rename_fails_title_rule() -> None:
-    platform = FakePlatform(follows_renames=False)
+def test_a_daemon_that_looks_again_at_a_renamed_window_fails_title_rule() -> None:
+    platform = FakePlatform(reevaluates_on_rename=True)
     checks = Checks()
     opened(platform, checks)
     title_rule.run(platform, checks)
-    assert any("it is tiled" in f for f in checks.failures)
+    assert any("leaves it alone" in f for f in checks.failures)
 
 
 def test_a_daemon_that_lets_go_and_takes_up_again_passes_handover() -> None:

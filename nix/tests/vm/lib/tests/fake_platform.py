@@ -78,7 +78,7 @@ class FakePlatform:
         panel: int = 0,
         ignores_panel: bool = False,
         second: Rect | None = None,
-        follows_renames: bool = True,
+        reevaluates_on_rename: bool = False,
         honours_ignore: bool = True,
         unmanages: bool = True,
         manages: bool = True,
@@ -131,7 +131,7 @@ class FakePlatform:
         self.manages = manages
         self.let_go: list[str] = []
         """The windows `unmanage` let go of, the last one at the end."""
-        self.follows_renames = follows_renames
+        self.reevaluates_on_rename = reevaluates_on_rename
         self.honours_ignore = honours_ignore
         self.clock = 0.0
         self.renames: list[tuple[float, str, str]] = []
@@ -253,7 +253,7 @@ class FakePlatform:
         for table in (self.exes, self.classes):
             if old in table:
                 table[new] = table.pop(old)
-        if old not in self.unmanaged or not self.follows_renames:
+        if old not in self.unmanaged or not self.reevaluates_on_rename:
             for stack in [s for cs in self.spaces for s in cs]:
                 stack[:] = [new if t == old else t for t in stack]
             self.unmanaged[:] = [new if t == old else t for t in self.unmanaged]
