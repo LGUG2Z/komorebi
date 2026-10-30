@@ -27,6 +27,7 @@ use crate::animation::lerp::Lerp;
 use crate::animation::prefix::AnimationPrefix;
 use crate::animation::prefix::new_animation_key;
 use crate::border_manager;
+use crate::cloaked;
 use crate::com::SetCloak;
 use crate::core::ApplicationIdentifier;
 use crate::core::HidingBehaviour;
@@ -705,7 +706,10 @@ impl Window {
         match *hiding_behaviour {
             HidingBehaviour::Hide => WindowsApi::hide_window(self.hwnd),
             HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd),
-            HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 2),
+            HidingBehaviour::Cloak => {
+                SetCloak(self.hwnd(), 1, 2);
+                cloaked::record(&programmatically_hidden_hwnds);
+            }
         }
         if hide_border {
             border_manager::hide_border(self.hwnd);
@@ -732,7 +736,10 @@ impl Window {
             HidingBehaviour::Hide | HidingBehaviour::Minimize => {
                 WindowsApi::restore_window(self.hwnd);
             }
-            HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 0),
+            HidingBehaviour::Cloak => {
+                SetCloak(self.hwnd(), 1, 0);
+                cloaked::record(&programmatically_hidden_hwnds);
+            }
         }
         if restore_border {
             border_manager::show_border(self.hwnd);

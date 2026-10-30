@@ -178,6 +178,7 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn init(&mut self) -> eyre::Result<()> {
         tracing::info!("initialising");
+        crate::cloaked::uncloak_left_behind();
         WindowsApi::load_monitor_information(self)?;
         WindowsApi::load_workspace_information(&mut self.monitors)
     }

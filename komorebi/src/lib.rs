@@ -2,6 +2,7 @@
 
 pub mod animation;
 pub mod border_manager;
+pub mod cloaked;
 pub mod com;
 #[macro_use]
 pub mod ring;
