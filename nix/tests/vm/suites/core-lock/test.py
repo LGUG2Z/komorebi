@@ -3,9 +3,10 @@
 # desktop, not the daemon's log. The same scenario runs against a Windows guest (`LockWorkStation`).
 # `lock-sleep` keeps what is only KDE's: the daemon's log of the lock screen, and the signals.
 from komorebi_vm import Checks, Kde
-from komorebi_vm.recorder import Recorder
 from komorebi_vm.core.scenarios import locking
+from komorebi_vm.core.suite import run_suite, shared
 from komorebi_vm.kde_platform import KdePlatform
+from komorebi_vm.recorder import Recorder
 
 TITLES = ["lock-a", "lock-b", "lock-c"]
 
@@ -30,8 +31,7 @@ checks.check(
     platform.wait_for(lambda: platform.state().managed() == len(clients), timeout=30),
 )
 
-print("== the screen is locked and unlocked")
-locking.run(platform, checks, clients)
+run_suite(checks, shared(locking.run, platform, checks, clients, always=True))
 
 recorder.stop()
 checks.finish()
