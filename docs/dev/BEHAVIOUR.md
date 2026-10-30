@@ -39,7 +39,7 @@ runs, and goes stale when the code changes.
 | `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **known failure** | **known failure** |
 | `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
 | `rules_class` | a workspace rule and an ignore rule by class (the app id on KDE) send a window or leave it alone | pass | pass |
-| `rules_exe` | the same by the program that opened the window; the rule's id is `platform.exe_id(program)`, as kfw's has the `.exe` | pass | fail until kfw runs it with `exe_id` |
+| `rules_exe` | the same by the program that opened the window; the rule's id is `platform.exe_id(program)`, as kfw's has the `.exe` | pass | pass |
 | `config_reload` | rewriting the `komorebi.json` the daemon runs on changes its names, layout and rules | pass | pass |
 | `locking` | the screen is locked, a window moved, and unlocked: every window is in its tile again (session suite `core-lock`) | pass | pass |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
