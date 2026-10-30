@@ -20,7 +20,7 @@ docstrings of `Platform` are the contract; this is the audit behind them.
 | `spawn(title, app_id, exe)` | opens a window and waits until the system has it; raises if it never does | a title is taken as it is and no window has another's; `exe` is a name of letters, digits, `_` and `-`, without an extension (`exe_id(name)` spells it as the daemon names it: `name` on KDE, `name.exe` on Windows) |
 | `os_window(c)` | the system's own frame of the window, or `None`; `focused` is the keyboard focus, for at most one window | the frame of a minimized window is wherever the system keeps it; a scenario does not read it |
 | `hidden(c)` | true for a window the daemon put away: a stack's other windows, a workspace that is not shown, behind a monocle. False for a window the system does not have, one that is minimized, one that floats | true on KDE for any window on a virtual desktop that is not shown (with more than one output, the desktop of the active output), on Windows for any cloaked window (another Windows desktop included). A scenario that asks for "put away" also asks `state()` where the window is, and counts "in view" through `support.in_view`, which needs the system to have the window |
-| `displays()` | each display's rectangle in the desktop's coordinates, left to right, as the system says | displays are not one size (the second Windows display is 1280x800) and a scenario does not compute where the next begins |
+| `displays()` | each display's rectangle in the desktop's coordinates, left to right, as the system says | displays are not one size (on Windows the first is the basic adapter, 1280x800, and the second, the only one whose mode can change, is 1024x768 by default and follows `resize_display`) and a scenario does not compute where the next begins |
 | `add_display()`, `remove_display()` | plugs a display in to the right, unplugs the last; return when the system agrees | Windows removes only a display `add_display` plugged in (a hotplug port is used once); KDE enables a disabled output and disables the last enabled one, so a headless session with two outputs can unplug at once. A scenario unplugs only after plugging in, unless its suite started with more than one display |
 | `work_area()` | the area of the first display that windows may take, as the system says: the display less panels, docks and the taskbar | KDE asks KWin (a script: its placement area), and answers with the whole output only if KWin does not answer. A headless session has no panel, so there it is the output |
 | `close`, `minimize`, `activate`, `move_window` | act on the window as the user would; raise if there is no such window | `close` returns before the window is gone (a scenario waits for `os_window` to be `None`); `move_window` puts the top left of the *visible* frame at (x, y) |
@@ -70,10 +70,10 @@ docstrings of `Platform` are the contract; this is the audit behind them.
 
 ## Open items
 
-- `windows_platform.py` (kfw, a draft) builds `Rect(left, top, right, bottom)` for
-  `displays()`, `os_window` and `work_area()`. kfde's `Rect` is `(x, y, w, h)`: a display that
-  is not at the origin, and every frame, is wrong by its position unless the agent returns the
-  width and height under those names. It has to be checked on the first Windows run.
+- kfw's `windows_platform.py` builds `Rect(left, top, right, bottom)` for `displays()`, `os_window`
+  and `work_area()`. Checked with the kfw session: its agent returns the width and height under
+  `right` and `bottom` (the shape `komorebi` itself prints), so it is `(x, y, w, h)` in kfde's
+  terms; the names are misleading, not wrong.
 - `inside(area)` has no slack. On Windows the DWM frame might round one pixel past; if the
   first run says so, the slack is a `Platform` member, not a number in the scenarios.
 - KDE `hidden()` with two outputs and per-output desktops answers for the desktop of the active
