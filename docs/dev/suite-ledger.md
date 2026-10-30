@@ -110,3 +110,23 @@ Also learned while moving it:
 - After a daemon restart the daemon's focused window can differ from the one KWin has active, and
   activating a window KWin already has active sends no event. `parking` activates another window
   first. Whether the daemon should pick up KWin's active window at start is not decided here.
+
+## workspace-rules
+
+The suite made, with KDE's tools, the checks that the shared `rules` and `startup_rules` make. It
+keeps the part that is KWin's: a workspace is a virtual desktop.
+
+| Was (section) | Now |
+|---|---|
+| 1, an initial rule sends a window to workspace 1; it is put away | shared `rules` |
+| 1, it is on the parking desktop while desktop 1 shows; on desktop 2 once shown, not parked; tiled where asked | extra `desktops` |
+| 1, the other window is where it opened (desktop 1) | extra `desktops` |
+| 2, the user takes the window back; an initial rule does not send it again | shared `rules` |
+| 2, a rule by the name of a workspace (`chat`) sends a window; desktop 3 when shown | extra `named_rule` (the shared scenarios use indexes) |
+| 2, a new window is an event that applies the rules again | extra `named_rule` (a candidate for the shared `rules`) |
+| 2, `enforce-workspace-rules` sends the initial rule's window again | shared `rules` |
+| 3, the rules are cleared; a window that opens stays on the workspace in front | shared `rules`; extra `cleared` (the daemon's global state has no rule; desktop of the new window) |
+| 4, a `komorebi.json` rule, with a window open before the daemon | shared `startup_rules` |
+
+The extras open windows of their own and close them, so that the shared scenarios start from a
+daemon with none.
