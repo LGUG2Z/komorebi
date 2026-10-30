@@ -17,7 +17,9 @@ from komorebi_vm.core.platform import Client
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
+    floating,
     focus,
+    layouts,
     lifecycle,
     monocle,
     moving,
@@ -448,6 +450,8 @@ checks.check(
     "and unstacked",
     kde.wait_for(lambda: sorted(map(len, kde.containers())) == [1, 1, 1]),
 )
+layouts.run(platform, checks, neutral)
+floating.run(platform, checks, neutral)
 monocle.run(platform, checks, neutral)
 workspaces.run(platform, checks, neutral)
 # the third window is on workspace 1 now: the first is closed, and the second takes its room

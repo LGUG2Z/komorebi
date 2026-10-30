@@ -1,12 +1,15 @@
 """The focus and moving scenarios against a daemon that is right, and against ones that are not."""
 
 from komorebi_vm.core.checks import Checks
+from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
+    floating,
     focus,
     focus_follows_mouse,
     hotplug,
+    layouts,
     lifecycle,
     monocle,
     moving,
@@ -132,6 +135,51 @@ def test_a_daemon_that_does_not_take_its_windows_up_again_fails_lifecycle() -> N
     checks = Checks()
     clients = opened(platform, checks)
     lifecycle.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_layouts() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    layouts.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > len(layouts.LAYOUTS) * 6
+
+
+def test_a_layout_that_puts_tiles_over_each_other_fails_layouts() -> None:
+    class Overlapping(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            out = super().komorebic(*args)
+            if args == ("change-layout", "grid"):
+                self.tiles = [Rect(0, 0, 1000, 1080)] * len(self.containers)
+            return out
+
+    platform = Overlapping()
+    checks = Checks()
+    clients = opened(platform, checks)
+    layouts.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_floating() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    floating.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 6
+
+
+def test_a_float_that_stays_in_the_tiling_fails_floating() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("toggle-float",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    floating.run(platform, checks, clients)
     assert checks.failed > 0
 
 

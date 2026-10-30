@@ -79,6 +79,7 @@ class FakePlatform:
         self.display_count = 2
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
+        self.floats: list[str] = []
         self.running = True
         self.placement: Any = None
         self.moves = moves
@@ -109,6 +110,8 @@ class FakePlatform:
     def start_komorebi(self) -> None:
         """A new daemon knows nothing: every window is tiled on the first workspace."""
         everyone = [t for containers in self.spaces for stack in containers for t in stack]
+        everyone += self.floats
+        self.floats = []
         self.spaces = [[[t] for t in everyone], [], []]
         self.focuses = [0, 0, 0]
         self.current = 0
@@ -216,6 +219,9 @@ class FakePlatform:
                 self.display_of[title] = 0
 
     def close(self, client: Client) -> None:
+        if client.title in self.floats:
+            self.floats.remove(client.title)
+            return
         if client.title in self.unmanaged:
             self.unmanaged.remove(client.title)
             return
@@ -241,6 +247,8 @@ class FakePlatform:
         return self._find(title)[1]
 
     def hidden(self, client: Client) -> bool:
+        if client.title in self.floats:
+            return False
         if client.title in self.unmanaged:
             return False
         s, i = self._find(client.title)
@@ -259,6 +267,8 @@ class FakePlatform:
         return Image.new("RGB", (4, 4))
 
     def os_window(self, client: Client) -> OsWindow | None:
+        if client.title in self.floats:
+            return OsWindow(client.title, Rect(300, 300, 600, 400), focused=False)
         if client.title in self.unmanaged:
             return OsWindow(client.title, Rect(100, 100, 400, 300), focused=False)
         try:
@@ -356,6 +366,15 @@ class FakePlatform:
                                 break
             case ("focus-workspace", number):
                 self.current = int(number)
+            case ("toggle-float",):
+                if self.floats:
+                    self.containers.insert(self.focus, [self.floats.pop()])
+                else:
+                    title = self.containers[self.focus][0]
+                    self._find_remove(title)
+                    self.floats.append(title)
+                    self.focuses[self.current] = max(0, min(self.focus, len(self.containers) - 1))
+                self._relayout()
             case ("unstack",):
                 stack = self.containers.pop(self.focus)
                 self.containers[self.focus : self.focus] = [[t] for t in stack]
@@ -385,6 +404,7 @@ class FakePlatform:
             return {"left": r.x, "top": r.y, "right": r.w, "bottom": r.h}
 
         def workspace(containers: list[list[str]], focus: int, current: bool) -> dict[str, Any]:
+            floats = self.floats if current else []
             monocle = None
             if current and self.monocle is not None:
                 whole = Rect(0, 0, 1920, 1080)
@@ -408,7 +428,10 @@ class FakePlatform:
                 },
                 "monocle_container": monocle,
                 "maximized_window": None,
-                "floating_windows": {"elements": [], "focused": 0},
+                "floating_windows": {
+                    "elements": [window(t, Rect(300, 300, 600, 400)) for t in floats],
+                    "focused": 0,
+                },
                 "layout": {"Default": "Columns"},
                 "tile": True,
                 "latest_layout": [rect(r) for r in self.tiles[: len(containers)]],
