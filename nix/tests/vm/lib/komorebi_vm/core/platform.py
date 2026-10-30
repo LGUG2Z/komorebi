@@ -132,6 +132,11 @@ class Platform(Protocol):
         it succeeded or not."""
         ...
 
+    def temp_path(self, name: str) -> str:
+        """A path, on the machine the daemon runs on, of a file `komorebic` and the daemon may
+        write and read (`save-resize` takes one), in the form `komorebic` is given it."""
+        ...
+
     def state(self) -> Snapshot:
         """The daemon's state."""
         ...

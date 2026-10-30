@@ -89,6 +89,9 @@ class KdePlatform:
     def komorebic_status(self, *args: str) -> tuple[int, str]:
         return self.kde.run(shlex.join(["komorebic", *args]))
 
+    def temp_path(self, name: str) -> str:
+        return f"/tmp/{name}"
+
     def state(self) -> Snapshot:
         return snapshot.parse(self.kde.state())
 

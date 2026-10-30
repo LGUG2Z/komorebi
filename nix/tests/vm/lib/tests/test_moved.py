@@ -3,7 +3,7 @@ are wrong in one way."""
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
-from komorebi_vm.core.scenarios import commands, handover, title_rule
+from komorebi_vm.core.scenarios import commands, handover, queries, title_rule
 from tests.fake_platform import FakePlatform
 
 
@@ -89,3 +89,32 @@ def test_a_layout_that_overlaps_two_windows_fails_commands_layouts() -> None:
     clients = opened(platform, checks)
     commands.layouts(platform, checks, clients)
     assert any("grid with 2 windows" in f for f in checks.failures), checks.failures
+
+
+def test_a_daemon_that_answers_queries_and_loads_resizes_passes_queries() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    opened(platform, checks)
+    base = checks.passed
+    queries.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 1 + 7 * 3 + 2
+    assert platform.state().workspace().layout == "Columns"
+
+
+def test_a_daemon_that_answers_the_same_for_every_query_fails_queries() -> None:
+    platform = FakePlatform(answers_queries=False)
+    checks = Checks()
+    opened(platform, checks)
+    queries.run(platform, checks)
+    assert any("query focused-workspace-layout" in f for f in checks.failures)
+    assert any("query focused-container-kind" in f for f in checks.failures)
+
+
+def test_a_daemon_that_does_not_load_a_resize_fails_queries() -> None:
+    platform = FakePlatform(loads_resize=False)
+    checks = Checks()
+    opened(platform, checks)
+    queries.run(platform, checks)
+    assert any("quick-save-resize: a resize is undone" in f for f in checks.failures)
+    assert any("save-resize: a resize is undone" in f for f in checks.failures)

@@ -6,7 +6,7 @@ windows and that every command is understood and leaves the daemon healthy, as t
 sees it; what is here reads KWin (`kdotool`) and the daemon's log.
 
 The suite runs `setup`, `layouts_by_count`, the shared `layouts` and `sweep`,
-`replace_configuration`, the shared `handover`, `title_rule` and `prints`, `queries` and
+`replace_configuration`, the shared `handover`, `title_rule`, `prints` and `queries`, and
 `at_the_end`.
 The daemon runs on a session with two outputs, and `clients` are five windows on the first.
 """
@@ -27,16 +27,6 @@ LAYOUTS = (
     "grid",
     "right-main-vertical-stack",
     "scrolling",
-)
-QUERIES = (
-    "focused-monitor-index",
-    "focused-workspace-index",
-    "focused-container-index",
-    "focused-window-index",
-    "focused-workspace-name",
-    "focused-workspace-layout",
-    "focused-container-kind",
-    "version",
 )
 
 
@@ -150,26 +140,6 @@ def replace_configuration(platform: KdePlatform, checks: Checks, clients: list[C
     checks.check(
         "replace-configuration made the window manager again from the file",
         first["name"] == "again",
-    )
-
-
-def queries(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
-    """`komorebic query` answers, and the resize commands that save and load are understood."""
-    kde = platform.kde
-    for query in QUERIES:
-        status, out = kde.run(f"komorebic query {query}")
-        checks.check(f"query {query} answers", status == 0 and out.strip() != "")
-    checks.check(
-        "quick-save-resize and quick-load-resize",
-        kde.run("komorebic quick-save-resize && komorebic quick-load-resize")[0] == 0,
-    )
-    checks.check(
-        "save-resize and load-resize",
-        kde.run(
-            "komorebic save-resize /tmp/e2e-resize.json"
-            " && komorebic load-resize /tmp/e2e-resize.json"
-        )[0]
-        == 0,
     )
 
 

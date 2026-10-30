@@ -67,6 +67,8 @@ class FakePlatform:
         honours_ignore: bool = True,
         unmanages: bool = True,
         manages: bool = True,
+        loads_resize: bool = True,
+        answers_queries: bool = True,
     ) -> None:
         self.panel = panel
         """The height of a panel along the bottom of the first display, which the work area leaves
@@ -75,6 +77,10 @@ class FakePlatform:
         """A daemon that tiles on the whole display, under the panel."""
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
+        self.loads_resize = loads_resize
+        self.answers_queries = answers_queries
+        self.saved: dict[str, list[Rect]] = {}
+        """The tiles of each resize that `save-resize` saved, by its path."""
         self.unmanages = unmanages
         self.manages = manages
         self.let_go: list[str] = []
@@ -439,6 +445,9 @@ class FakePlatform:
     def exe_id(self, program: str) -> str:
         return program
 
+    def temp_path(self, name: str) -> str:
+        return f"/tmp/{name}"
+
     def os_window(self, client: Client) -> OsWindow | None:
         if client.title == self.maximized:
             return OsWindow(client.title, self.tiled_area, focused=True)
@@ -514,8 +523,8 @@ class FakePlatform:
                     self.containers.pop(self.focus)
                     self.focus = max(0, min(self.focus, len(self.containers) - 1))
                 self.spaces[int(number)].append([window])
-            case ("change-layout", _):
-                pass
+            case ("change-layout", name):
+                self.layout_name = "BSP" if name == "bsp" else name.title()
             case ("send-to-monitor", _):
                 pass
             case ("move-to-monitor", number):
@@ -585,6 +594,16 @@ class FakePlatform:
             case ("flip-layout", "horizontal"):
                 self.flipped = not self.flipped
                 self._relayout()
+            case ("query", name):
+                return self._answer(name)
+            case ("quick-save-resize",):
+                self.saved["quick"] = list(self.tiles)
+            case ("quick-load-resize",):
+                self._load_resize("quick")
+            case ("save-resize", path):
+                self.saved[path] = list(self.tiles)
+            case ("load-resize", path):
+                self._load_resize(path)
             case ("minimize",):
                 self.minimize(Client(self.containers[self.focus][0]))
             case ("unmanage",):
@@ -621,6 +640,25 @@ class FakePlatform:
             case _:
                 raise AssertionError(f"the fake does not know komorebic {args}")
         return ""
+
+    def _load_resize(self, key: str) -> None:
+        if self.loads_resize and key in self.saved:
+            self.tiles = list(self.saved[key])
+
+    def _answer(self, name: str) -> str:
+        if not self.answers_queries:
+            return "0"
+        stack = self.containers[self.focus] if self.containers else []
+        return {
+            "focused-monitor-index": "0",
+            "focused-workspace-index": str(self.current),
+            "focused-container-index": str(self.focus),
+            "focused-window-index": "0",
+            "focused-workspace-name": self.names[self.current] or str(self.current),
+            "focused-workspace-layout": self.layout_name,
+            "focused-container-kind": "Stack" if len(stack) > 1 else "Single",
+            "version": "0.1.0",
+        }[name]
 
     def _swap(self, other: int) -> None:
         if not self.moves:

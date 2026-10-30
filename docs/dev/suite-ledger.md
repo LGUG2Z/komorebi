@@ -49,7 +49,7 @@ The suite had its own layout loop (section 2) and then called the shared `layout
 | 3b, `minimize`, `unmanage`, `manage` | shared `handover`; the check that the unmanaged window is centered is now "inside the work area and not on a tile of the layout" |
 | 3c, a title rule decides when the window has its title | shared `title_rule` (the window renames itself through `spawn(rename_to=, after=)`). Not kept: the daemon-log line "should not be managed" for the first title, and `healthy` after it |
 | 4, every command that only prints | shared `prints` |
-| 4, `komorebic query ...`, `quick-save-resize`, `save-resize` | extra `queries` (candidates for the shared list) |
+| 4, `komorebic query ...`, `quick-save-resize`, `save-resize` | shared `queries`: each answer is compared with the daemon's state, before and after a focus and a layout change, and a saved resize is undone by loading it (was: exit status only) |
 | 5, every window is where the daemon last asked; a clean stop | extra `at_the_end` |
 
 The extra's layout loop still goes through five, three, two and one windows, for the daemon's log

@@ -79,6 +79,9 @@ class FakePlatform:
     def exe_id(self, program: str) -> str:
         return program
 
+    def temp_path(self, name: str) -> str:
+        return f"/tmp/{name}"
+
     def minimize(self, client: Client) -> None:
         pass
 
