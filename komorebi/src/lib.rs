@@ -83,6 +83,7 @@ pub mod monitor_reconciliator;
 pub mod process_command;
 pub mod process_event;
 pub mod reconcile;
+pub mod scrolling;
 pub mod state;
 pub mod static_config;
 pub mod theme_manager;

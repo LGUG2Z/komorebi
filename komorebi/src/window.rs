@@ -64,6 +64,12 @@ pub fn live_resize_ends(id: u32) {
     LIVE_RESIZED_WINDOWS.lock().retain(|w| *w != id);
 }
 
+/// Whether the user has hold of an edge of any window, whose neighbours are on their way to
+/// where the layout puts them for as long as they do
+pub fn live_resize_in_progress() -> bool {
+    !LIVE_RESIZED_WINDOWS.lock().is_empty()
+}
+
 fn is_live_resized(id: u32) -> bool {
     LIVE_RESIZED_WINDOWS.lock().contains(&id)
 }

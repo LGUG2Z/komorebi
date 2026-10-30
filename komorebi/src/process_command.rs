@@ -69,6 +69,17 @@
 //! - **ScrollingLayoutColumns** sets how many columns the scrolling layout shows on the focused
 //!   workspace, and **LayoutRatios** the share of the work area its first columns and rows take,
 //!   and both tile the workspace again.
+//! - **ScrollingLayoutFullWidth** makes the focused column of the scrolling layout as wide as the
+//!   screen, or puts it back, **CenterFocus** scrolls the strip so that the focused column is in
+//!   the middle, once, and **Expand** makes the focused column fill the room that the columns in
+//!   view leave.
+//! - **Consume** takes the first window of the column on the right, or the last of the one on the
+//!   left, into the focused column, **Expel** takes the focused window out of its column into one
+//!   of its own on the right, and **ToggleColumnStack** stacks the windows of the focused column
+//!   or spreads the focused stack out into a column. They do nothing in the other layouts.
+//! - **Pan** moves the view of the scrolling layout a column to the left or the right, without
+//!   moving the focus first, and lets it come to rest with a column against an edge of the
+//!   screen ([`WindowManager::pan`]).
 //! - **InitialWorkspaceRule**, **InitialNamedWorkspaceRule**, **WorkspaceRule** and
 //!   **NamedWorkspaceRule** add a rule that sends the windows of an application to a workspace,
 //!   given by its indices or by its name: when they open for the first time, or always;
@@ -235,7 +246,6 @@ use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
-use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
@@ -1750,30 +1760,36 @@ impl WindowManager {
                 self.adjust_workspace_padding(sizing, adjustment)?;
             }
             SocketMessage::ScrollingLayoutColumns(count) => {
-                let focused_workspace = self.focused_workspace_mut()?;
-
-                let options = match focused_workspace.layout_options {
-                    Some(mut opts) => {
-                        if let Some(scrolling) = &mut opts.scrolling {
-                            scrolling.columns = count.into();
-                        }
-
-                        opts
-                    }
-                    None => LayoutOptions {
-                        scrolling: Some(ScrollingLayoutOptions {
-                            columns: count.into(),
-                            center_focused_column: Default::default(),
-                        }),
-                        grid: None,
-                        column_ratios: None,
-                        row_ratios: None,
-                    },
-                };
-
-                focused_workspace.layout_options = Some(options);
+                self.focused_workspace_mut()?
+                    .set_scrolling_columns(count.into());
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::ScrollingLayoutFullWidth => {
+                self.focused_workspace_mut()?.toggle_scrolling_full_width();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::CenterFocus => {
+                self.focused_workspace_mut()?.center_scrolling_column();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Expand => {
+                self.focused_workspace_mut()?.expand_scrolling_column();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Consume(direction) => {
+                self.focused_workspace_mut()?.consume_scrolling(direction);
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Expel => {
+                self.focused_workspace_mut()?.expel_scrolling();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::ToggleColumnStack => {
+                self.focused_workspace_mut()?
+                    .toggle_scrolling_column_stack()?;
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Pan(direction) => self.pan(direction)?,
             SocketMessage::LayoutRatios(ref columns, ref rows) => {
                 use crate::core::validate_ratios;
 

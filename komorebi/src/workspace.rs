@@ -11,6 +11,7 @@
 //! [`Workspace::work_area_offset_rules`]), and its layout options come from the workspace or from
 //! the defaults of its layout.
 
+use crate::HIDDEN_WINDOWS;
 use crate::REGEX_IDENTIFIERS;
 use crate::backend::backend;
 use crate::container::Container;
@@ -39,6 +40,7 @@ use crate::window::should_act;
 use crate::window::should_act_individual;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::KomorebiTheme;
 use komorebi_themes::KomorebiThemeCustom;
 use serde::Deserialize;
@@ -127,6 +129,17 @@ pub struct Workspace {
     /// container
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initial_window_placement_rules: Option<InitialWindowPlacementRules>,
+    /// The strip of columns that the Scrolling layout lays containers out in, which is made when
+    /// the layout first tiles the workspace ([`Workspace::layout_scrolling`])
+    #[serde(skip)]
+    #[cfg_attr(feature = "schemars", schemars(skip))]
+    pub(crate) scrolling: Option<ScrollingSpace<String>>,
+    /// When the windows of a Scrolling workspace were last sent to where the strip puts them, and
+    /// how wide each container was made to be, for telling when the sizes that they report can be
+    /// believed ([`crate::scrolling::WIDTH_SETTLE`])
+    #[serde(skip)]
+    #[cfg_attr(feature = "schemars", schemars(skip))]
+    pub(crate) scrolling_placed: Option<crate::scrolling::Placed>,
 }
 
 /// Which of a workspace's two kinds of windows the focus, move and resize commands act on: the
@@ -188,6 +201,8 @@ impl Default for Workspace {
             preselected_container_idx: None,
             initial_window_placement_rules: None,
             promotion_swap_container_idx: None,
+            scrolling: None,
+            scrolling_placed: None,
         }
     }
 }
@@ -410,7 +425,7 @@ impl Workspace {
     ///   1. Try threshold match from rules (highest matching threshold wins)
     ///   2. If a rule matches -> use it (full replacement of base)
     ///   3. Else -> use the base `layout_options`
-    fn effective_layout_options(&self) -> Option<LayoutOptions> {
+    pub(crate) fn effective_layout_options(&self) -> Option<LayoutOptions> {
         let container_count = self.containers().len();
 
         let has_workspace_overrides =
@@ -462,6 +477,12 @@ impl Workspace {
     /// Returns the index of the container whose tile is on the `direction` side of the focused
     /// one in the workspace's layout, or `None` when there is none on that side
     pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
+        // in a strip, left and right are the neighbouring columns and up and down are the tiles of
+        // the column, which the strip is the one to say
+        if self.is_scrolling() && self.scrolling.is_some() {
+            return self.scrolling_idx_for_direction(direction);
+        }
+
         let len = NonZeroUsize::new(self.containers().len())?;
 
         direction.destination(
@@ -542,6 +563,8 @@ impl Workspace {
             next
         } else if self.containers().is_empty() {
             0
+        } else if let Some(idx) = self.scrolling_insertion_idx() {
+            idx
         } else {
             self.resolve_placement_index(window)
         };
@@ -837,8 +860,12 @@ impl Workspace {
             .ok_or_eyre("there is no window")?;
 
         if container.windows().is_empty() {
+            let container_id = container.id.clone();
             self.remove_container_by_idx(container_idx);
-            self.focus_previous_container();
+
+            if !self.focus_after_scrolling_removal(&container_id) {
+                self.focus_previous_container();
+            }
         } else {
             container.load_focused_window()?;
             if let Some(window) = container.focused_window() {
@@ -852,6 +879,9 @@ impl Workspace {
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
+        // wherever it goes next, it goes as wide as it was
+        self.note_scrolling_departure(idx);
+
         let container = self.containers_mut().remove_respecting_locks(idx);
 
         if idx < self.resize_dimensions.len() {
@@ -1826,6 +1856,22 @@ impl Workspace {
                     // the compositor's own maximize, which is the work area and not the padded one
                     window.maximize()?;
                 } else if !self.containers().is_empty() {
+                    let is_scrolling = self.is_scrolling();
+                    let around_window = container_padding + border_offset + border_width;
+
+                    // a window that would not get as narrow as its column was learned of once the
+                    // windows have had time to draw at the sizes that they were sent, and not
+                    // while one is being dragged, whose neighbours are on their way
+                    if is_scrolling
+                        && self
+                            .scrolling_placed
+                            .as_ref()
+                            .is_some_and(crate::scrolling::Placed::has_settled)
+                        && !crate::window::live_resize_in_progress()
+                    {
+                        self.adopt_actual_widths(around_window, adjusted_work_area.right);
+                    }
+
                     let effective_layout_options = self.effective_layout_options();
 
                     tracing::debug!(
@@ -1835,31 +1881,55 @@ impl Workspace {
                         self.layout_options,
                         self.layout_options_rules.len(),
                     );
-                    let mut layouts = self.layout.as_boxed_arrangement().calculate(
-                        &adjusted_work_area,
-                        NonZeroUsize::new(self.containers().len()).ok_or_eyre(
-                            "there must be at least one container to calculate a workspace layout",
-                        )?,
-                        Some(container_padding),
-                        self.layout_flip,
-                        &self.resize_dimensions,
-                        self.focused_container_idx(),
-                        effective_layout_options,
-                        &self.latest_layout,
-                    );
+                    // the containers that rest where another monitor is seen from, which are hidden
+                    let mut hidden = vec![];
+                    let mut layouts = if is_scrolling {
+                        let monitors: Vec<Rect> = backend()
+                            .monitors()
+                            .map(|monitors| monitors.iter().map(|monitor| monitor.size).collect())
+                            .unwrap_or_default();
+                        let others =
+                            crate::scrolling::other_monitors(&self.globals.work_area, &monitors);
+
+                        self.layout_scrolling(&adjusted_work_area, container_padding)
+                            .into_iter()
+                            .map(|placement| {
+                                let (rect, hide) = crate::scrolling::rest(
+                                    placement.rect,
+                                    placement.visibility,
+                                    &adjusted_work_area,
+                                    &others,
+                                );
+                                hidden.push(hide);
+                                rect
+                            })
+                            .collect()
+                    } else {
+                        self.layout.as_boxed_arrangement().calculate(
+                            &adjusted_work_area,
+                            NonZeroUsize::new(self.containers().len()).ok_or_eyre(
+                                "there must be at least one container to calculate a workspace layout",
+                            )?,
+                            Some(container_padding),
+                            self.layout_flip,
+                            &self.resize_dimensions,
+                            self.focused_container_idx(),
+                            effective_layout_options,
+                            &self.latest_layout,
+                        )
+                    };
 
                     let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
-                    let is_scrolling =
-                        matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
 
                     let containers = self.containers_mut();
 
                     for (i, container) in containers.iter_mut().enumerate() {
                         if let Some(layout) = layouts.get_mut(i) {
                             // The scrolling layout is a strip that is meant to run past the edges of
-                            // the work area, with the windows outside the viewport sitting off screen
-                            // (KWin does not constrain where a window is put). Everything else is
-                            // clamped to the work area so it cannot bleed onto an adjacent monitor.
+                            // the work area, and says itself where each window rests when it is out
+                            // of view (KWin does not constrain where a window is put). Everything
+                            // else is clamped to the work area so it cannot bleed onto an adjacent
+                            // monitor.
                             if !is_scrolling {
                                 // horizontal
                                 if layout.left < adjusted_work_area.left {
@@ -1889,6 +1959,29 @@ impl Workspace {
                             layout.add_padding(border_offset);
                             layout.add_padding(border_width);
 
+                            if hidden.get(i).copied().unwrap_or_default() {
+                                // it is seen on another monitor wherever it rests here
+                                for window in container.windows() {
+                                    window.hide();
+                                }
+                                continue;
+                            }
+
+                            // a window that was hidden for resting past an edge with another
+                            // monitor next to it is shown before it is put where the strip says
+                            let front = container.focused_window().map(|window| window.id);
+                            let restore = is_scrolling
+                                && front.is_some_and(|front| {
+                                    crate::scrolling::should_restore_when_placed(
+                                        front,
+                                        Some(front),
+                                        &HIDDEN_WINDOWS.lock(),
+                                    )
+                                });
+                            if restore && let Some(window) = container.focused_window() {
+                                window.restore();
+                            }
+
                             for window in container.windows_mut() {
                                 let current_rect = window.rect().unwrap_or_default();
                                 let current_percentage =
@@ -1896,7 +1989,9 @@ impl Workspace {
                                 let proposed_percentage =
                                     work_area.percentage_within_horizontal_bounds(layout);
 
-                                let percentage_override = proposed_percentage == 0.0
+                                // the strip puts a window where it goes, however far
+                                let percentage_override = !is_scrolling
+                                    && proposed_percentage == 0.0
                                     && current_percentage > 0.1
                                     && current_percentage < 100.0
                                     && resize_dimensions_is_empty;
@@ -1911,6 +2006,15 @@ impl Workspace {
                     }
 
                     self.latest_layout = layouts;
+
+                    if is_scrolling {
+                        self.scrolling_placed = Some(crate::scrolling::Placed::new(
+                            self.containers()
+                                .iter()
+                                .zip(self.latest_layout.iter())
+                                .map(|(container, layout)| (container.id.clone(), layout.right)),
+                        ));
+                    }
                 }
                 Ok(())
             })();
@@ -2077,9 +2181,6 @@ impl Workspace {
             }
             Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
                 self.enforce_resize_for_ultrawide();
-            }
-            Layout::Default(DefaultLayout::Scrolling) => {
-                self.enforce_resize_for_scrolling();
             }
             _ => self.enforce_no_resize(),
         }
@@ -2308,28 +2409,6 @@ impl Workspace {
         }
     }
 
-    fn enforce_resize_for_scrolling(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                let len = resize_dimensions.len();
-
-                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        rect.top = 0;
-                        rect.bottom = 0;
-
-                        if i == 0 {
-                            rect.left = 0;
-                        } else if i == len - 1 {
-                            rect.right = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
     fn enforce_no_resize(&mut self) {
         for rect in self.resize_dimensions.iter_mut().flatten() {
             rect.left = 0;

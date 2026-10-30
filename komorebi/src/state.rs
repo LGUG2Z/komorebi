@@ -226,6 +226,8 @@ impl From<&WindowManager> for State {
                                 .initial_window_placement_rules
                                 .clone(),
                             promotion_swap_container_idx: None,
+                            scrolling: None,
+                            scrolling_placed: None,
                         })
                         .collect::<VecDeque<_>>();
                     ws.focus(monitor.workspaces.focused_idx());

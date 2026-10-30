@@ -71,8 +71,10 @@ fn in_view(rect: Rect) -> bool {
     rect.left >= 0 && rect.left + rect.right <= 1920
 }
 
+/// A window out of view rests at the edge of the work area that it left by, with a few pixels of
+/// it still on the screen
 fn out_of_view(rect: Rect) -> bool {
-    rect.left >= 1920 || rect.left + rect.right <= 0
+    rect.left >= 1920 - 30 || rect.left + rect.right <= 30
 }
 
 #[test]
@@ -139,13 +141,18 @@ fn the_scrolling_strip_runs_past_the_edge_of_the_work_area_with_the_focused_wind
             "the first three are scrolled out of view: {rects:?}"
         );
     }
-    // not clamped: every column is as wide as the others, at the same distance from the next
-    let pitch = rects[4].left - rects[3].left;
-    assert_eq!(rects[0].left, rects[3].left - 3 * pitch, "{rects:?}");
+    // not clamped: every column is as wide as the others, and the ones out of view keep their
+    // size and rest against the edge that they left by
     assert!(
         rects.iter().all(|rect| rect.right == rects[0].right),
         "{rects:?}"
     );
+    for rect in &rects[..3] {
+        assert!(
+            rect.left + rect.right > 0 && rect.left + rect.right <= 30,
+            "a few pixels of it are on the screen: {rects:?}"
+        );
+    }
 }
 
 #[test]
@@ -187,17 +194,30 @@ fn scrolling_layout_columns_sets_how_many_columns_are_in_view() {
     for id in 22_031..=22_034 {
         open(&fake, &mut wm, id);
     }
+    let width = |id: u32| fake.rect_of(id).unwrap().right;
+    let three = width(22_031);
 
+    // a column is as wide as a share of the screen: a quarter of it is narrower than a third
     send(&fake, &mut wm, columns(4));
     let four: Vec<Rect> = (22_031..=22_034)
         .map(|id| fake.rect_of(id).unwrap())
         .collect();
-    assert!(four.iter().all(|rect| in_view(*rect)), "{four:?}");
+    assert!(four.iter().all(|rect| rect.right < three), "{four:?}");
+    assert!(
+        four.iter().all(|rect| rect.right * 4 <= 1920),
+        "four of them fit across the screen: {four:?}"
+    );
+    assert!(
+        four.iter()
+            .all(|rect| (rect.right - four[0].right).abs() <= 1),
+        "and they are as wide as each other: {four:?}"
+    );
 
     send(&fake, &mut wm, columns(1));
     let one: Vec<Rect> = (22_031..=22_034)
         .map(|id| fake.rect_of(id).unwrap())
         .collect();
+    assert!(one[3].right > 1800, "one fills the screen: {one:?}");
     assert_eq!(
         one.iter().filter(|rect| in_view(**rect)).count(),
         1,

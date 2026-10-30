@@ -811,6 +811,7 @@ impl WindowManager {
                                 containers: workspace.containers().len(),
                                 resize_dimensions: workspace.resize_dimensions.clone(),
                                 latest_layout: workspace.latest_layout.clone(),
+                                scrolling: workspace.scrolling.clone(),
                                 stepped: false,
                             })
                     });
@@ -842,6 +843,7 @@ impl WindowManager {
                 {
                     workspace.resize_dimensions = live.resize_dimensions;
                     workspace.latest_layout = live.latest_layout;
+                    workspace.scrolling = live.scrolling;
                 }
 
                 if let Some((wid, Some(started_from))) = pending {
@@ -1010,6 +1012,7 @@ impl WindowManager {
 
             workspace.resize_dimensions = live.resize_dimensions;
             workspace.latest_layout = live.latest_layout;
+            workspace.scrolling = live.scrolling;
         }
 
         if !self.apply_mouse_resize(window, started_from, new_position)? {

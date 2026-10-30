@@ -312,6 +312,33 @@ fn scrolling_layout_columns_and_layout_ratios_send_what_they_are_given() {
 }
 
 #[test]
+fn the_commands_of_the_columns_of_the_scrolling_layout_send_their_message() {
+    sends(
+        &["scrolling-layout-full-width"],
+        r#"{"type":"ScrollingLayoutFullWidth"}"#,
+    );
+    sends(&["center-focus"], r#"{"type":"CenterFocus"}"#);
+    sends(&["expand"], r#"{"type":"Expand"}"#);
+    sends(
+        &["consume", "right"],
+        r#"{"type":"Consume","content":"Right"}"#,
+    );
+    sends(&["expel"], r#"{"type":"Expel"}"#);
+    sends(&["toggle-column-stack"], r#"{"type":"ToggleColumnStack"}"#);
+    sends(&["pan", "left"], r#"{"type":"Pan","content":"Left"}"#);
+}
+
+#[test]
+fn pan_and_consume_want_a_direction() {
+    let runtime = Runtime::new();
+
+    for arguments in [&["pan"][..], &["pan", "up"], &["consume"]] {
+        let output = runtime.komorebic(arguments);
+        assert!(!output.status.success(), "{arguments:?}: {output:?}");
+    }
+}
+
+#[test]
 fn layout_ratios_without_ratios_sends_nothing_and_says_so() {
     let runtime = Runtime::new();
 
@@ -1118,6 +1145,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "border-width.md",
             "border.md",
             "cancel-preselect.md",
+            "center-focus.md",
             "change-layout.md",
             "check.md",
             "clear-all-workspace-rules.md",
@@ -1130,6 +1158,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "close.md",
             "completions.md",
             "configuration.md",
+            "consume.md",
             "container-padding.md",
             "cross-monitor-move-behaviour.md",
             "cycle-empty-workspace.md",
@@ -1153,6 +1182,8 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "enforce-workspace-rules.md",
             "ensure-named-workspaces.md",
             "ensure-workspaces.md",
+            "expand.md",
+            "expel.md",
             "export-kde-shortcuts.md",
             "flip-layout.md",
             "focus-last-workspace.md",
@@ -1202,6 +1233,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "named-workspace-tiling.md",
             "new-workspace.md",
             "notification-schema.md",
+            "pan.md",
             "preselect-direction.md",
             "promote-focus.md",
             "promote-swap.md",
@@ -1218,6 +1250,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "retile.md",
             "save-resize.md",
             "scrolling-layout-columns.md",
+            "scrolling-layout-full-width.md",
             "send-to-last-workspace.md",
             "send-to-monitor-workspace.md",
             "send-to-monitor.md",
@@ -1234,6 +1267,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "stop.md",
             "subscribe-socket.md",
             "swap-workspaces-with-monitor.md",
+            "toggle-column-stack.md",
             "toggle-cross-monitor-move-behaviour.md",
             "toggle-float-override.md",
             "toggle-float.md",

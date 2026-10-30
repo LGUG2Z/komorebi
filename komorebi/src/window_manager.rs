@@ -120,6 +120,9 @@ pub struct LiveResize {
     pub resize_dimensions: Vec<Option<Rect>>,
     /// The workspace's [`Workspace::latest_layout`] when the drag began
     pub latest_layout: Vec<Rect>,
+    /// The strip of a Scrolling workspace when the drag began: the widths of its columns, and
+    /// where it is scrolled to, which every step starts from as well
+    pub scrolling: Option<komorebi_scrolling::ScrollingSpace<String>>,
     /// whether the neighbours were moved while the drag was going on
     pub stepped: bool,
 }
@@ -1019,8 +1022,13 @@ impl WindowManager {
             }
             Some(new_idx) => {
                 let workspace = self.focused_workspace_mut()?;
-                workspace.swap_containers(origin_container_idx, new_idx);
-                workspace.focus_container(new_idx);
+
+                // a column of the Scrolling layout moves whole, and its tiles move within it,
+                // which is not a swap of two containers
+                if !(workspace.is_scrolling() && workspace.move_scrolling(direction)) {
+                    workspace.swap_containers(origin_container_idx, new_idx);
+                    workspace.focus_container(new_idx);
+                }
             }
         }
 
@@ -1883,6 +1891,16 @@ impl WindowManager {
             }
             WorkspaceLayer::Tiling => {
                 match workspace.layout {
+                    Layout::Default(DefaultLayout::Scrolling) => {
+                        tracing::debug!("resizing column");
+                        workspace.resize_scrolling_column(direction, sizing, delta);
+
+                        return if update {
+                            self.update_focused_workspace(false, false)
+                        } else {
+                            Ok(())
+                        };
+                    }
                     Layout::Default(layout) => {
                         tracing::debug!("resizing window");
                         let len = NonZeroUsize::new(workspace.containers().len())
@@ -2057,6 +2075,10 @@ impl WindowManager {
             // Reset any resize adjustments if we want to force a retile
             if !preserve_resize_dimensions {
                 workspace.resize_dimensions.fill(None);
+
+                // and the widths and heights of the Scrolling layout, which are resize
+                // adjustments too
+                workspace.reset_scrolling_sizes();
             }
 
             if (workspace.wallpaper.is_some() || monitor_wp.is_some())
