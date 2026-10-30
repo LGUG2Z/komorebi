@@ -377,6 +377,20 @@ a suite, as `core-e2e` does, and run that suite on KVM: a scenario that passes
 the fake and fails on KDE has found a bug in the fake, the library or the daemon.
 `Snapshot.focused_title` was found wrong this way, by the `stacks` scenario.
 
+## Recording a run with komorebi-recorder
+
+`komorebi-recorder`'s repository is private, so it is not an input of the flake. A run that wants
+it builds it elsewhere and passes the store path, evaluating with `--impure`:
+
+```sh
+KOMOREBI_RECORDER=$(nix build ~/komorebi-recorder#komorebi-recorder --no-link --print-out-paths) \
+  nix build --impure .#checks.x86_64-linux.vm-core-lock -L
+```
+
+`core-e2e` and `core-lock` then record the session without video (`komorebi_vm.recorder`), print
+the recorder's brief and findings into the log, and keep the session as `recording-NAME.tar.gz`
+with the run's other artifacts. A run without the variable records nothing.
+
 ## Looking inside a failed run
 
 `nix build -L` prints the guest's console, and a session test keeps its screenshots. Run the driver by hand, as

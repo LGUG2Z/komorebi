@@ -39,6 +39,9 @@ runs, and goes stale when the code changes.
 | `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **known failure** | **known failure** |
 | `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
 | `rules_class` | a workspace rule and an ignore rule by class (the app id on KDE) send a window or leave it alone | pass | pass |
+| `rules_exe` | the same by the program that opened the window | pass | not run |
+| `config_reload` | rewriting the `komorebi.json` the daemon runs on changes its names, layout and rules | pass | not run |
+| `locking` | the screen is locked, a window moved, and unlocked: every window is in its tile again (session suite `core-lock`) | pass | not run |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
 | `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure**: the number 2 |
 | `startup_rules` | the workspace rules of the config apply to a window open before the daemon and to one after | pass | pass |
@@ -63,6 +66,11 @@ is not the scenario's, that the daemon had exited after `komorebic stop`; the ne
 and the cause is not known.
 
 ## What they have found
+
+**`ignore-rule` drops a rule whose id an earlier rule has, whatever the kind.** `komorebi`'s
+`IgnoreRule` handler compares only the ids, so `ignore-rule exe e2e-left` after `ignore-rule
+class e2e-left` adds nothing and the window is managed. Seen on kfde; the scenarios use different
+names (`rules_exe`). Whether kfw does the same is not known.
 
 **A window sent to a monitor that does not exist is lost, on both ports.** After
 `komorebic send-to-monitor 7` (or `move-to-monitor 7`) on a desktop with one monitor, the daemon
@@ -192,12 +200,6 @@ because they only check the order of windows. Nothing else turned red.
   or acts on a second display with the pointer, cannot run there; none exists. Source: kfw's
   `e2e/platforms/qemu_windows/W1.md`, "The pointer with two displays".
 - Suspend and resume, which no guest can test.
-- Reloading the configuration. kfde reloads `komorebi.json` about two seconds after the file
-  changes; kfw does it with `komorebic reload-configuration`, and `watch-configuration` there is
-  for the legacy files. The two have no command in common, so it has no neutral scenario: each
-  port tests its own (kfde's `the_daemon_follows_the_file_it_is_given_when_the_file_changes`).
-- Rules by `exe`, which a scenario cannot give a test window on both ports without a program of
-  its own on each.
 - `commands` on kfw under load: it passed 247/0 in the two of four repeat runs that had the host
   to themselves, and the two that ran beside a VM suite and a build failed, with `komorebic state`
   replies slowing from milliseconds to about a second. Load is the likely cause, not shown.
