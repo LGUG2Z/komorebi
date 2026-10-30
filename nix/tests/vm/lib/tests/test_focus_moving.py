@@ -864,3 +864,23 @@ def test_a_second_display_of_another_size_passes_hotplug() -> None:
     hotplug.run(platform, checks, clients)
     assert platform.displays()[1] == Rect(1920, 0, 1280, 800)
     assert checks.failed == 0, checks.failures
+
+
+def test_focus_follows_mouse_is_driven_without_naming_an_implementation() -> None:
+    """The implementation is a port's own: the scenario leaves it to the command's default."""
+
+    class Records(FakePlatform):
+        def __init__(self) -> None:
+            super().__init__()
+            self.said: list[tuple[str, ...]] = []
+
+        def komorebic(self, *args: str) -> str:
+            self.said.append(args)
+            return super().komorebic(*args)
+
+    platform = Records()
+    checks = Checks()
+    clients = opened(platform, checks)
+    focus_follows_mouse.run(platform, checks, clients[0], clients[2])
+    assert checks.failed == 0, checks.failures
+    assert not [a for a in platform.said if "--implementation" in a]
