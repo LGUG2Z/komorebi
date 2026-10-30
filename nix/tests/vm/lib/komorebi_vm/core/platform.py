@@ -258,6 +258,17 @@ class Platform(Protocol):
         size."""
         ...
 
+    def resize_grab(self, frame: Rect, grab: str) -> tuple[int, int]:
+        """Where the pointer is pressed to take a window of this frame by `grab`: `left`, `right`,
+        `top`, `bottom`, or a corner (`topleft`, `topright`, `bottomleft`, `bottomright`).
+
+        It is the platform's knowledge, because where a window's resize zone is differs: on KDE it
+        is the gap outside the frame on every side (`resize.outside_grab`), on Windows the left,
+        right and bottom zones are an invisible border outside the visible frame, and the top one
+        is inside it.
+        """
+        ...
+
     def fullscreen(self, client: Client, on: bool = True) -> None:
         """Takes the window fullscreen, as the program's own key does it (`on`), or brings it back
         from fullscreen (`on` false). The daemon is not asked: it learns of it from the system, and

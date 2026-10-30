@@ -14,6 +14,7 @@ from PIL import Image
 
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, OsWindow
+from komorebi_vm.core.scenarios.resize import outside_grab
 from komorebi_vm.core.snapshot import Snapshot, parse
 
 DISPLAYS = [Rect(0, 0, 1920, 1080), Rect(1920, 0, 1280, 720), Rect(3200, 0, 1920, 1080)]
@@ -155,6 +156,9 @@ class FakeDesk:
 
     def unlock(self) -> None:
         raise NotImplementedError
+
+    def resize_grab(self, frame, grab):  # noqa: ANN001, ANN201
+        return outside_grab(frame, grab)
 
     def move_window(self, client: Client, x: int, y: int) -> None:
         raise NotImplementedError

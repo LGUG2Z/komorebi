@@ -6,6 +6,7 @@ from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
 from komorebi_vm.core.platform import Client, OsWindow, Pointer
 from komorebi_vm.core.scenarios import tiling
+from komorebi_vm.core.scenarios.resize import outside_grab
 from komorebi_vm.core.snapshot import Snapshot, parse
 
 
@@ -102,6 +103,9 @@ class FakePlatform:
 
     def unlock(self) -> None:
         pass
+
+    def resize_grab(self, frame: Rect, grab: str) -> tuple[int, int]:
+        return outside_grab(frame, grab)
 
     def move_window(self, client: Client, x: int, y: int) -> None:
         pass
