@@ -2,7 +2,7 @@
 
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.geometry import Rect
-from komorebi_vm.core.platform import OsWindow
+from komorebi_vm.core.platform import Client, OsWindow
 from komorebi_vm.core.scenarios import (
     closing,
     commands,
@@ -70,6 +70,23 @@ def test_a_move_that_loses_the_focus_fails() -> None:
     clients = opened(platform, checks)
     moving.run(platform, checks, clients)
     assert any("keeps the focus" in f for f in checks.failures)
+
+
+def test_a_window_that_is_gone_is_not_in_view_for_workspaces() -> None:
+    """`hidden` is false for a window the system does not have, which is not one that is shown."""
+
+    class Vanishes(FakePlatform):
+        def os_window(self, client: Client) -> OsWindow | None:
+            return None if client.title == "win1" else super().os_window(client)
+
+        def hidden(self, client: Client) -> bool:
+            return False if client.title == "win1" else super().hidden(client)
+
+    platform = Vanishes()
+    checks = Checks()
+    clients = opened(platform, checks)
+    workspaces.run(platform, checks, clients)
+    assert any("in view" in f for f in checks.failures)
 
 
 def test_a_daemon_that_is_right_passes_stacks() -> None:

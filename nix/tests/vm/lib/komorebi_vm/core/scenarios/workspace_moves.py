@@ -4,11 +4,7 @@ away."""
 from komorebi_vm.core.checks import Checks
 from komorebi_vm.core.platform import Client, Platform
 from komorebi_vm.core.scenarios.layouts import tiled
-from komorebi_vm.core.scenarios.support import focus_agrees
-
-
-def _in_view(platform: Platform, clients: list[Client]) -> list[str]:
-    return sorted(c.title for c in clients if not platform.hidden(c))
+from komorebi_vm.core.scenarios.support import focus_agrees, in_view
 
 
 def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
@@ -24,7 +20,7 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     platform.komorebic("move-to-workspace", "1")
     checks.check(
         "after 'move-to-workspace 1' the window is there, in view, and the others are put away",
-        platform.wait_for(lambda: _in_view(platform, clients) == [target.title], timeout=20),
+        platform.wait_for(lambda: in_view(platform, clients) == [target.title], timeout=20),
     )
     checks.check(
         "... the daemon has it on workspace 1",
@@ -38,18 +34,18 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     platform.komorebic("focus-last-workspace")
     checks.check(
         "'focus-last-workspace' brings the others back and puts the window away",
-        platform.wait_for(lambda: _in_view(platform, clients) == rest, timeout=20),
+        platform.wait_for(lambda: in_view(platform, clients) == rest, timeout=20),
     )
     platform.komorebic("focus-last-workspace")
     checks.check(
         "... and again, it goes back to the window",
-        platform.wait_for(lambda: _in_view(platform, clients) == [target.title], timeout=20),
+        platform.wait_for(lambda: in_view(platform, clients) == [target.title], timeout=20),
     )
 
     platform.komorebic("move-to-workspace", "0")
     checks.check(
         "'move-to-workspace 0' has every window in view again",
-        platform.wait_for(lambda: _in_view(platform, clients) == everyone, timeout=20),
+        platform.wait_for(lambda: in_view(platform, clients) == everyone, timeout=20),
     )
     checks.check(
         "... tiled where the layout says",

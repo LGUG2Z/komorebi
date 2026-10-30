@@ -150,10 +150,15 @@ class Platform(Protocol):
 
     def hidden(self, client: Client) -> bool:
         """The window exists but is out of sight because the daemon put it away: the other windows
-        of a stack, the windows of another workspace, those behind a monocle.
+        of a stack, the windows of a workspace that is not the one its display shows, those
+        behind a monocle.
 
-        That is a window parked on a desktop of its own on KDE, and cloaked on Windows. A window
-        the user minimized is not hidden in this sense.
+        It is false for a window the system does not have, for one the user minimized, and for one
+        that floats. A scenario that asks for a window to be put away also asks the daemon where
+        it is (`state()`), because a port may answer true for any window that is not on the
+        screen, whoever took it off: on KDE that is one on a virtual desktop that is not shown,
+        on Windows a cloaked one, which includes the windows of another virtual desktop. A scenario
+        that asks for windows to be in view counts those the system has (`support.in_view`).
         """
         ...
 

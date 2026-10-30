@@ -116,7 +116,10 @@ class KdePlatform:
         """The window is on the parking desktop, or on a desktop that is not the one in view.
 
         KDE keeps the windows of a workspace on a virtual desktop of its own and parks the ones a
-        stack or a monocle puts away, so both are out of sight.
+        stack or a monocle puts away, so both are out of sight. That is every window that is on a
+        desktop that is not shown, whoever put it there: this is the quirk
+        `Platform.hidden` warns of. With more than one output, the desktop in view is that of
+        the output KWin considers active, so only the windows of the first are certain.
         """
         wid = self.kde.wid(client.title)
         if wid == "":
