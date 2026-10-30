@@ -74,8 +74,9 @@ class KdePlatform:
     def state(self) -> Snapshot:
         return snapshot.parse(self.kde.state())
 
-    def spawn(self, title: str) -> Client:
-        self.kde.spawn(f"foot -T {shlex.quote(title)} sleep 3000")
+    def spawn(self, title: str, app_id: str | None = None) -> Client:
+        name = f"-a {shlex.quote(app_id)} " if app_id else ""
+        self.kde.spawn(f"foot {name}-T {shlex.quote(title)} sleep 3000")
         self.kde.wait_for(lambda: self.kde.wid(title) != "", timeout=30)
         return Client(title)
 

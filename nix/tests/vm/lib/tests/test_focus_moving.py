@@ -25,6 +25,7 @@ from komorebi_vm.core.scenarios import (
     resize,
     resize_commands,
     rules,
+    rules_class,
     scrolling,
     stacks,
     startup_rules,
@@ -430,6 +431,25 @@ def test_a_daemon_that_loses_the_focused_window_off_screen_fails_scrolling() -> 
     checks = Checks()
     clients = opened(platform, checks)
     scrolling.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_rules_class() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    rules_class.run(platform, checks)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_ignores_class_rules_fails_rules_class() -> None:
+    class Deaf(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if "class" in args else super().komorebic(*args)
+
+    platform = Deaf()
+    checks = Checks()
+    rules_class.run(platform, checks)
     assert checks.failed > 0
 
 

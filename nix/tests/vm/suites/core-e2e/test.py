@@ -33,6 +33,7 @@ from komorebi_vm.core.scenarios import (
     promoting,
     resize_commands,
     rules,
+    rules_class,
     scrolling,
     stacks,
     startup_rules,
@@ -484,6 +485,9 @@ for title in ("neutral2", "neutral3"):
 checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
 platform.komorebic("focus-workspace", "0")
 rules.run(platform, checks)
+checks.check("no window is left", kde.wait_for(lambda: kde.managed_all() == 0, timeout=20))
+print("== 12. rules by class")
+rules_class.run(platform, checks)
 
 print("== 12a. where a window that opens goes, from the placement rules of the config")
 placement.run(platform, checks)

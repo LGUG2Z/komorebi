@@ -114,8 +114,12 @@ class Platform(Protocol):
         """The daemon's state."""
         ...
 
-    def spawn(self, title: str) -> Client:
-        """Opens a window with this title and waits until the platform has it."""
+    def spawn(self, title: str, app_id: str | None = None) -> Client:
+        """Opens a window with this title and waits until the platform has it.
+
+        `app_id` is the class of the window (its app id on Wayland, its window class on Windows)
+        for a rule that matches by it; the platform's own when there is none.
+        """
         ...
 
     def os_window(self, client: Client) -> OsWindow | None:

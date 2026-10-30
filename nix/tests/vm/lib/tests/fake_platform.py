@@ -80,6 +80,8 @@ class FakePlatform:
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.floats: list[str] = []
+        self.class_rules: dict[str, int] = {}
+        self.ignored_classes: set[str] = set()
         self.tiling = True
         self.paused = False
         self.flipped = False
@@ -144,7 +146,13 @@ class FakePlatform:
         """The titles in view, in the order of the tiles."""
         return [stack[0] for stack in self.containers]
 
-    def spawn(self, title: str) -> Client:
+    def spawn(self, title: str, app_id: str | None = None) -> Client:
+        if app_id in self.ignored_classes:
+            self.unmanaged.append(title)
+            return Client(title)
+        if app_id in self.class_rules:
+            self.spaces[self.class_rules[app_id]].append([title])
+            return Client(title)
         if self.paused:
             self.unmanaged.append(title)
             return Client(title)
@@ -379,12 +387,17 @@ class FakePlatform:
                 self.monocle = None if self.monocle else top
             case ("ensure-workspaces", _, _) | ("clear-all-workspace-rules",):
                 if args[0] == "clear-all-workspace-rules":
+                    self.class_rules.clear()
                     self.rules.clear()
                     self.initial_rules.clear()
             case ("initial-workspace-rule", "title", title, _, number):
                 self.initial_rules[title] = int(number)
             case ("workspace-rule", "title", title, _, number):
                 self.rules[title] = int(number)
+            case ("workspace-rule", "class", name, _, number):
+                self.class_rules[name] = int(number)
+            case ("ignore-rule", "class", name):
+                self.ignored_classes.add(name)
             case ("ignore-rule", "title", title):
                 self.ignored.add(title)
             case ("move-to-workspace", number):
