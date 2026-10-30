@@ -60,6 +60,8 @@ runs, and goes stale when the code changes.
 | `pausing` | a paused daemon leaves a new window alone, and an unpaused one takes the next | pass | pass |
 | `tiling_off` | `toggle-tiling` leaves the windows where they are, a layout change moves none, and tiling again tiles them | pass | pass |
 | `scrolling` | in the scrolling layout each window in turn has the focus and is inside the work area | pass | pass |
+| `monitors` | the monitor commands (`send-to-monitor`, `move-to-monitor`, their cycle, workspace and named forms, `focus-monitor`, `cycle-monitor`, `focus-monitor-workspace`, `cycle-move-workspace-to-monitor`, `focus-monitor-at-cursor` where there is a pointer) put each window on the monitor and workspace asked for, tiled in its display, and the focus where each leaves it | not run | not run |
+| `layout_flip` | `layout_flip` in the config (`Horizontal`, `Vertical`, `HorizontalAndVertical`) mirrors a workspace's layout from the start, `flip-layout` turns it off and on, and it is the named workspace's own | not run | not run |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
 is not the scenario's, that the daemon had exited after `komorebic stop`; the next run passed it,

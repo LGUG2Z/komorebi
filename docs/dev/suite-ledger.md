@@ -141,6 +141,30 @@ daemon with none.
 | 4, by the app id (`Class`), by the title, and after the one in focus | extra `by_app_id` (the shared scenario matches by title only; a candidate for it) |
 | 5, `Exe` `foot.exe` matches `foot` | extra `by_program` (KDE: no `.exe` on this port) |
 
+## monitors and layout_flip
+
+Two shared scenarios for gaps no Rust test covers either, in `core-e2e`. Nothing was dropped: the
+sweep's multi-monitor commands (`commands`) still only say the daemon stays healthy, and these say
+what each does.
+
+- `monitors` (needs two displays; one is plugged in if there is one, and out again) opens four
+  windows and checks, from the OS and the daemon's state, `send-to-monitor`, `move-to-monitor`,
+  their `cycle-` forms, the `-monitor-workspace` forms, `send-to-named-workspace`,
+  `move-to-named-workspace`, `focus-monitor`, `cycle-monitor`, `focus-monitor-workspace` and
+  `cycle-move-workspace-to-monitor`: each window on the monitor and workspace asked for, the others
+  where they were, tiled inside the display of their monitor (read from `displays()`, which may
+  differ in size), and the focus where the command leaves it (a send keeps it, a move takes it).
+  `monitors.at_cursor` is `focus-monitor-at-cursor`, and runs only where `has("pointer")`.
+  The suite starts KWin with two outputs and unplugs the second before the daemon starts, so that
+  every other scenario still sees one display.
+- `layout_flip` starts the daemon with the workspace option set (`Horizontal`, `Vertical`,
+  `HorizontalAndVertical`) over columns, rows and BSP with two and three windows, checks the
+  mirror from the OS, that `flip-layout` turns the option off and on, that a command adds the other
+  axis, and that the option is the named workspace's own.
+
+Neither has been run on a real KWin or Windows guest yet; the fake in `tests/fake_desk.py` stands in
+for the unit tests (`tests/test_monitors.py`).
+
 ## workspace-switch
 
 Nearly everything this suite checks is KWin's: a workspace is a virtual desktop. The shared
