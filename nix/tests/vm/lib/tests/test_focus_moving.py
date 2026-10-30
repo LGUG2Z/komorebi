@@ -26,6 +26,7 @@ from komorebi_vm.core.scenarios import (
     stacks,
     startup_rules,
     tiling,
+    tiling_off,
     workspace_moves,
     workspaces,
 )
@@ -358,6 +359,27 @@ def test_a_daemon_that_manages_while_paused_fails_pausing() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     pausing.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_tiling_off() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    tiling_off.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 4
+
+
+def test_a_daemon_that_ignores_toggle_tiling_fails_tiling_off() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("toggle-tiling",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    tiling_off.run(platform, checks, clients)
     assert checks.failed > 0
 
 

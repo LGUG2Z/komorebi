@@ -35,6 +35,7 @@ from komorebi_vm.core.scenarios import (
     stacks,
     startup_rules,
     tiling,
+    tiling_off,
     workspace_moves,
     workspaces,
 )
@@ -466,6 +467,7 @@ resize_commands.run(platform, checks, neutral)
 promoting.run(platform, checks, neutral)
 flipping.run(platform, checks, neutral)
 pausing.run(platform, checks, neutral)
+tiling_off.run(platform, checks, neutral)
 padding.run(platform, checks, neutral)
 monocle.run(platform, checks, neutral)
 workspace_moves.run(platform, checks, neutral)

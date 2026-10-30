@@ -80,6 +80,7 @@ class FakePlatform:
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.floats: list[str] = []
+        self.tiling = True
         self.paused = False
         self.flipped = False
         self.last = 0
@@ -427,6 +428,8 @@ class FakePlatform:
                 self._relayout()
             case ("toggle-pause",):
                 self.paused = not self.paused
+            case ("toggle-tiling",):
+                self.tiling = not self.tiling
             case ("toggle-float",):
                 if self.floats:
                     self.containers.insert(self.focus, [self.floats.pop()])
@@ -498,7 +501,7 @@ class FakePlatform:
                     "focused": 0,
                 },
                 "layout": {"Default": "Columns"},
-                "tile": True,
+                "tile": self.tiling,
                 "workspace_padding": self.workspace_padding,
                 "container_padding": self.container_padding,
                 "latest_layout": [rect(r) for r in self.tiles[: len(containers)]],
