@@ -79,6 +79,9 @@ class FakePlatform:
     def restart_with(self, config: dict) -> None:
         pass
 
+    def crash(self) -> None:
+        pass
+
     def komorebic(self, *args: str) -> str:
         return ""
 

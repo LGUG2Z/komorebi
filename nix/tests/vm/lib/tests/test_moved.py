@@ -9,6 +9,7 @@ from komorebi_vm.core.scenarios import (
     fullscreen,
     handover,
     hotplug,
+    lifecycle_hidden,
     maximizing,
     monocle,
     placement,
@@ -312,3 +313,22 @@ def test_a_daemon_that_obeys_commands_when_maximized_fails_user_maximize() -> No
     platform.activate(clients[-1])
     maximizing.user(platform, checks, clients)
     assert any("what is asked of the layout does nothing" in f for f in checks.failures)
+
+
+def test_a_daemon_that_leaves_nothing_hidden_when_it_crashes_passes() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    base = checks.passed
+    lifecycle_hidden.crash(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed - base == 7
+    assert platform.monocle is None
+
+
+def test_a_crash_that_leaves_a_window_hidden_fails() -> None:
+    platform = FakePlatform(leaves_hidden_on_crash=True)
+    checks = Checks()
+    clients = opened(platform, checks)
+    lifecycle_hidden.crash(platform, checks, clients)
+    assert any("none is left out of sight" in f for f in checks.failures), checks.failures

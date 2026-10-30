@@ -240,18 +240,6 @@ def parking(platform: KdePlatform, checks: Checks, clients: list[Client]) -> Non
         "and brought the parked window back",
         kde.wait_for(lambda: _on_a_workspace_desktop(platform, two)),
     )
-    checks.check("it manages the two windows again", kde.wait_for(lambda: _managed(platform, two)))
-    _focus(platform, two[1], two[0])
-    kde.komorebic("toggle-monocle")
-    checks.check(
-        "after a crash and a restart a monocle still hides the other window",
-        kde.wait_for(lambda: len(_parked(platform, two)) == 1),
-    )
-    kde.komorebic("toggle-monocle")
-    checks.check(
-        "and turned off, nothing is out of sight",
-        kde.wait_for(lambda: _parked(platform, two) == []),
-    )
     for client in two:
         platform.close(client)
 

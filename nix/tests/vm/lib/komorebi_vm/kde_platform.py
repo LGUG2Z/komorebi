@@ -71,6 +71,9 @@ class KdePlatform:
             tail = "\n".join(self.kde.komorebi_log().splitlines()[-30:])
             raise AssertionError(f"the daemon did not answer komorebic; its log ends:\n{tail}")
 
+    def crash(self) -> None:
+        self.kde.kill_komorebi()
+
     def restart_with(self, config: dict[str, Any]) -> None:
         if self.kde.komorebi_running():
             self.kde.komorebic("stop")

@@ -109,6 +109,12 @@ class Platform(Protocol):
         """Starts the daemon from a clean state and waits until it answers."""
         ...
 
+    def crash(self) -> None:
+        """Kills the daemon abruptly, as a crash does, and returns when it is gone. Nothing of
+        what it had set up is put back: a window it hid is as it left it, until a daemon starts
+        again and finds it."""
+        ...
+
     def restart_with(self, config: dict[str, Any]) -> None:
         """Stops the daemon if it runs, and starts it from a clean state with `config` as its
         `komorebi.json`, and waits until it answers.

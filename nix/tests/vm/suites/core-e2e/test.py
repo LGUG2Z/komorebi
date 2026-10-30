@@ -168,6 +168,8 @@ run_suite(
         lifecycle_hidden.run, platform, checks, [Client("afterwards"), Client("beside")]
     ),
     platform_only("kde", kde_core.start, platform, checks, []),
+    shared(lifecycle_hidden.crash, platform, checks, [Client("afterwards"), Client("beside")]),
+    platform_only("kde", kde_core.start, platform, checks, []),
 )
 platform.close(Client("after-the-restart"))
 platform.close(Client("beside"))

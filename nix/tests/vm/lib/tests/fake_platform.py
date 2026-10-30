@@ -93,6 +93,7 @@ class FakePlatform:
         resizable: bool = True,
         follows_modes: bool = True,
         keeps_fullscreen: bool = True,
+        leaves_hidden_on_crash: bool = False,
         ignores_commands_when_maximized: bool = True,
     ) -> None:
         self.panel = panel
@@ -103,6 +104,9 @@ class FakePlatform:
         self.second = second
         """The rectangle of the second display, when it is not one of the first's size."""
         self.keeps_fullscreen = keeps_fullscreen
+        self.leaves_hidden_on_crash = leaves_hidden_on_crash
+        self.stuck: set[str] = set()
+        """The windows a daemon that crashed left out of sight, which no daemon found again."""
         self.ignores_commands_when_maximized = ignores_commands_when_maximized
         self.fullscreened: str | None = None
         self.max_home: tuple[int, int] | None = None
@@ -193,6 +197,11 @@ class FakePlatform:
     def _base(self) -> list[Rect]:
         a = self.tiled_area
         return [Rect(i * a.w // 3, 0, a.w // 3, a.h) for i in range(3)]
+
+    def crash(self) -> None:
+        if self.leaves_hidden_on_crash:
+            self.stuck = {t for stack in self.containers for t in stack if self.hidden(Client(t))}
+        self.running = False
 
     def has(self, feature: str) -> bool:
         return feature == "lock" or (feature == "pointer" and self.has_pointer)
@@ -474,6 +483,8 @@ class FakePlatform:
         return self._find(title)[1]
 
     def hidden(self, client: Client) -> bool:
+        if client.title in self.stuck:
+            return True
         if client.title in self.floats or client.title in self.minimized:
             return False
         if client.title in self.unmanaged:

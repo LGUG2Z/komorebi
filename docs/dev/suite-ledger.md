@@ -94,7 +94,7 @@ make. They are gone; what only KDE can read stayed, as `kde_core` steps after th
 | 8, close, the others share the screen, the daemon manages the rest | shared `closing` |
 | 8, KWin carried out every command | extra `bridge_did_everything` |
 | 9, a clean stop undoes what a monocle did | extra `parking` (opens two windows of its own) |
-| 10, a crash with a monocle on leaves nothing stuck | extra `parking` |
+| 10, a crash with a monocle on leaves nothing stuck | shared `lifecycle_hidden.crash` (every window is managed and in view after the restart, and a monocle works again); extra `parking` keeps the KDE half: the stale parking desktop is there after the kill and the next start removes it |
 | 11, KWin restarts under the daemon | extra `kwin_restart` (the `kwin-restart` suite also covers it) |
 | 13, `komorebic stop`: the socket, the script, the window stays | extra `stopped` |
 
