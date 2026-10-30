@@ -339,8 +339,7 @@ class FakePlatform:
             self._place(title)
         else:
             self.containers.append([title])
-        if len(self.containers) > len(self.tiles):
-            self._relayout()
+        self._relayout()
         if not self.keeps_fullscreen:
             self.fullscreened = None
         if self.applies_rules_on_event:
@@ -418,6 +417,9 @@ class FakePlatform:
 
     def resizable_display(self) -> int | None:
         return self.display_count - 1 if self.resizable and self.display_count > 1 else None
+
+    def resize_display(self, index: int, width: int, height: int) -> None:
+        self.mode[index] = (width, height)
 
     def _others(self) -> list[Rect]:
         """The displays after the first, side by side to its right."""

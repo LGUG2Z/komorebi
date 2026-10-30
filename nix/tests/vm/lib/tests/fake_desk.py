@@ -168,6 +168,24 @@ class FakeDesk:
     def screenshot(self, name: str) -> Image.Image:
         return Image.new("RGB", (4, 4))
 
+    def resizable_display(self) -> int | None:
+        return None
+
+    def resize_display(self, index: int, width: int, height: int) -> None:
+        pass
+
+    def crash(self) -> None:
+        pass
+
+    def temp_path(self, name: str) -> str:
+        return f"/tmp/{name}"
+
+    def fullscreen(self, client: Client, on: bool = True) -> None:
+        pass
+
+    def user_maximize(self, client: Client, on: bool = True) -> None:
+        pass
+
     def exe_id(self, program: str) -> str:
         return program
 
@@ -249,7 +267,14 @@ class FakeDesk:
             mon.spaces.append(Space())
         mon.shown = workspace
 
-    def spawn(self, title: str, app_id: str | None = None, exe: str | None = None) -> Client:
+    def spawn(
+        self,
+        title: str,
+        app_id: str | None = None,
+        exe: str | None = None,
+        rename_to: str | None = None,
+        after: float = 0,
+    ) -> Client:
         self.order.append(title)
         target = self._by_rule(title)
         if target is not None:
