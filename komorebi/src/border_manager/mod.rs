@@ -246,20 +246,26 @@ fn queue_animated_rect(
 /// there, instead of every one it was sent in turn and further and further
 /// behind.
 pub fn animate_to(source_hwnd: isize, rect: crate::core::Rect) {
-    let border = {
-        let mut ghosted = GHOSTED.lock();
-        let Some(border) = ghosted.get_mut(&source_hwnd) else {
-            return;
-        };
+    let Some(known) = GHOSTED.lock().get(&source_hwnd).copied() else {
+        return;
+    };
 
-        // a window that had no border when its ghost was made can get one
-        if border.is_none() {
-            *border = window_border(source_hwnd).map(|border| border.border_hwnd);
-        }
+    let border = match known {
+        Some(border) => border,
+        None => {
+            // A window that had no border when its ghost was made can get one. It is looked for
+            // with nothing held: the border manager has the borders locked while it handles a
+            // notification, and asks if a window is ghosted as it does, which it is not to wait
+            // for to be answered by a thread that is waiting for it.
+            let Some(border) = window_border(source_hwnd).map(|border| border.border_hwnd) else {
+                return;
+            };
 
-        match *border {
-            Some(border) => border,
-            None => return,
+            if let Some(slot) = GHOSTED.lock().get_mut(&source_hwnd) {
+                *slot = Some(border);
+            }
+
+            border
         }
     };
 
@@ -1155,6 +1161,56 @@ mod tests {
         // and undoing what was never done is fine
         set_ghosted(hwnd, false);
         assert!(!is_ghosted(hwnd));
+    }
+
+    /// The border manager holds the locks of the borders while it handles a notification, and
+    /// asks whether a window is ghosted as it does, while an animation of a ghost, which is told
+    /// the border of a window that has none as it is ghosted when it gets one, asks for it
+    #[test]
+    fn a_ghost_that_is_animated_does_not_keep_the_border_manager_from_asking_about_it() {
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+
+        // a window handle nothing else in the tests uses, that has no border to follow
+        let hwnd = 0x7e57_0100;
+        set_ghosted(hwnd, true);
+
+        let (holding_tx, holding_rx) = channel();
+        let (done_tx, done_rx) = channel();
+
+        // the border manager: it has the borders locked
+        std::thread::spawn(move || {
+            let _borders = BORDER_STATE.lock();
+            let _windows_borders = WINDOWS_BORDERS.lock();
+            holding_tx.send(()).ok();
+
+            // until the animation is waiting for them
+            std::thread::sleep(Duration::from_millis(300));
+            done_tx.send(is_ghosted(hwnd)).ok();
+        });
+
+        // the animation of the ghost, a frame of it
+        holding_rx.recv().ok();
+        std::thread::spawn(move || {
+            animate_to(
+                hwnd,
+                crate::core::Rect {
+                    left: 0,
+                    top: 0,
+                    right: 10,
+                    bottom: 10,
+                },
+            );
+        });
+
+        let asked = done_rx.recv_timeout(Duration::from_secs(5));
+        set_ghosted(hwnd, false);
+
+        assert_eq!(
+            asked,
+            Ok(true),
+            "the border manager never got to ask, as the animation held what it asks for"
+        );
     }
 
     #[test]
