@@ -157,19 +157,24 @@ the run.
   a screenshot. Where the platform has a pointer (`has("pointer")`), a scenario moves
   it with `pointer.drag`; where it has none, the scenario says so and is skipped.
   `core/scenarios` has the scenarios written against it: `tiling`, `focus`, `moving`,
-  `stacks`, `monocle`, `workspaces`, `closing` and `resize`. A method is added with the first scenario that
-  needs it. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a `Platform`.
+  `stacks`, `monocle`, `workspaces`, `closing`, `resize`, `rules`, `hotplug`, `commands`
+  (every layout and about 216 commands), `lifecycle` (stop, start again), `placement`,
+  `startup_rules` and `focus_follows_mouse`. A method is added with the first scenario that
+  needs it: `restart_with(config)` starts the daemon afresh with a `komorebi.json` the
+  scenario gives. `KdePlatform` (`kde_platform.py`) is a `Kde` session as a `Platform`.
   [Writing a scenario](#writing-a-scenario) says how to add one.
 
-  The scenarios run on two platforms. KDE runs all eight: seven at the end of `core-e2e`,
-  and `resize`, which needs a pointer, at the end of `drag-resize`. A Windows 11 guest
-  under QEMU, which kfw drives from its own tree, has run `tiling`, `focus`, `moving`,
-  `stacks`, `workspaces`, `monocle` and `closing` against kfw's daemon (reported by the
-  session that ran them, 2026-10-29, with this `core/` copied unchanged). `resize` ran
-  there too, and the edge moved less than the pointer did (+53 px for a drag of 60): a
-  finding about kfw, not about the setup, because an unmanaged window followed the same
-  drag exactly. `scripts/sync-e2e-core` keeps kfw's copy of `core/` in step until `core/`
-  moves there. [BEHAVIOUR.md](BEHAVIOUR.md) says what each scenario found on each port.
+  A check that a port is known to fail is recorded with `Checks.known_failure(description,
+  condition, reason)`: it does not fail the suite, the totals say `known failures: N`, and
+  one that holds fails the suite, so that the marker goes with the bug. Scenarios that can
+  hit one take the reason from the runner (`unknown_monitor`, `placement`).
+
+  The scenarios run on two platforms. KDE runs them in `core-e2e`, except `resize` and
+  `focus_follows_mouse`, which need a pointer and run at the end of `drag-resize`. A
+  Windows 11 guest under QEMU, which kfw drives from its own tree with this `core/` copied
+  unchanged (`scripts/sync-e2e-core` keeps the copy in step until `core/` moves there),
+  runs all of them against kfw's daemon. [BEHAVIOUR.md](BEHAVIOUR.md) says what each
+  scenario found on each port, and what turned red when the daemon was deliberately broken.
 - `Checks` counts checks and fails once, at the end, so that one failure does
   not hide the ones after it. `finish()` prints `passed: N failed: M`, and its
   error names the checks that failed, which `nix build` shows in the last lines
