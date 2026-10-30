@@ -330,7 +330,57 @@ fn window_kind_colour(focus_kind: WindowKind) -> u32 {
     }
 }
 
+lazy_static! {
+    /// What the thread that handles notifications is doing, and since when
+    static ref STEP: Mutex<(&'static str, std::time::Instant)> =
+        Mutex::new(("waiting", std::time::Instant::now()));
+}
+
+/// Say what the thread that handles notifications is doing, for the watchdog to say when it has
+/// been doing it for too long, and for the log to say what it was when it stopped
+fn step(name: &'static str) {
+    tracing::trace!("border manager: {name}");
+    *STEP.lock() = (name, std::time::Instant::now());
+}
+
+/// Says that the thread that handles notifications is waiting for one, when it goes out of scope
+struct Waiting;
+
+impl Drop for Waiting {
+    fn drop(&mut self) {
+        step("waiting");
+    }
+}
+
+/// Warn about the thread that handles notifications, once, when it has not got past one step in
+/// two seconds. It is not heard from again after that when it is stuck, and the notifications
+/// pile up until they are dropped.
+fn watch_steps() {
+    std::thread::spawn(|| {
+        let mut warned: Option<std::time::Instant> = None;
+
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+
+            let (name, since) = *STEP.lock();
+
+            if name != "waiting"
+                && since.elapsed() >= std::time::Duration::from_secs(2)
+                && warned != Some(since)
+            {
+                tracing::warn!(
+                    "border manager: stuck for {} ms in `{name}`",
+                    since.elapsed().as_millis()
+                );
+                warned = Some(since);
+            }
+        }
+    });
+}
+
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
+    watch_steps();
+
     std::thread::spawn(move || {
         loop {
             match handle_notifications(wm.clone()) {
@@ -358,6 +408,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     let mut previous_layer = WorkspaceLayer::default();
 
     'receiver: for notification in receiver {
+        step("locking the window manager");
+        // however this pass ends, `continue` included, the thread is waiting for the next
+        let _waiting = Waiting;
         // Check the wm state every time we receive a notification
         let state = wm.lock();
         let is_paused = state.is_paused;
@@ -524,8 +577,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     continue 'receiver;
                 }
 
+                step("locking the borders");
                 let mut borders = BORDER_STATE.lock();
                 let mut windows_borders = WINDOWS_BORDERS.lock();
+                step("handling the notification");
 
                 // If borders are disabled
                 if !BORDER_ENABLED.load_consume()
@@ -733,6 +788,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let border = match borders.entry(id.clone()) {
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
+                                    step("creating a border");
                                     if let Ok(border) =
                                         Border::create(&c.id, focused_window_hwnd, monitor_idx)
                                     {
@@ -822,13 +878,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     // thread mid-render holding a reference to it.
                                     border.request_brush_update();
                                 }
+                                step("putting a border in place");
                                 border.set_position(&rect, focused_window_hwnd)?;
+                                step("invalidating a border");
                                 border.invalidate();
+                                step("handling the notification");
                             }
 
                             windows_borders.insert(focused_window_hwnd, id);
                         }
 
+                        step("handling floating borders");
                         handle_floating_borders(
                             &mut borders,
                             &mut windows_borders,

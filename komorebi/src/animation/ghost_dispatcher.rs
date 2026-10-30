@@ -610,19 +610,24 @@ impl RenderDispatcher for GhostDispatcher {
         // over it, and then faded out of the way a little more quickly than
         // it otherwise would be.
         if self.reveals() && !self.revealed.load(Ordering::SeqCst) {
+            tracing::trace!("landing hwnd {}: revealing it", self.hwnd);
             self.reveal(1.0);
+            tracing::trace!("landing hwnd {}: fading its ghost out", self.hwnd);
             ghost.fade_out(self.target_rect, self.clip());
         }
 
         // a window that was laid out after it was shown is done being by now, or is
         // waited for, so that nothing is left running when the animation is over
         if matches!(self.mode, Mode::SlideIn { .. }) {
+            tracing::trace!("landing hwnd {}: waiting for its layout", self.hwnd);
             let _ = self.finish_resize();
         }
 
+        tracing::trace!("landing hwnd {}: disposing of its ghost", self.hwnd);
         border_manager::set_ghosted(self.hwnd, false);
         let _ = ghost.dispose();
 
+        tracing::trace!("landing hwnd {}: finalising", self.hwnd);
         self.finalise_managers();
 
         Ok(())

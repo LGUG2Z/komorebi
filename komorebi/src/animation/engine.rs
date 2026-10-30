@@ -209,19 +209,23 @@ impl AnimationEngine {
 
         let (landed_tx, landed_rx) = std::sync::mpsc::channel();
         let count = animations.len();
+        let keys: Vec<String> = animations.iter().map(|(key, _)| key.clone()).collect();
 
         for (key, animation) in animations {
             let landed_tx = landed_tx.clone();
 
             std::thread::spawn(move || {
+                tracing::trace!("landing {key}: drawing the last frame");
                 // limit progress to 1.0 if animation took longer, and process
                 // the animation for 1.0 to set the target position
                 animation.dispatcher.render(1.0).ok();
 
+                tracing::trace!("landing {key}: finishing");
                 if let Err(error) = animation.dispatcher.post_render() {
                     tracing::warn!("animation {key} could not be completed: {error}");
                 }
 
+                tracing::trace!("landing {key}: landed");
                 let _ = landed_tx.send(key);
             });
         }
@@ -230,19 +234,24 @@ impl AnimationEngine {
 
         let deadline = Instant::now() + LANDING_DEADLINE;
         let mut landed = 0;
+        let mut not_landed = keys;
 
         while landed < count {
             match landed_rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
-                Ok(_) => landed += 1,
+                Ok(key) => {
+                    landed += 1;
+                    not_landed.retain(|not_landed| *not_landed != key);
+                }
                 Err(_) => break,
             }
         }
 
         if landed < count {
             tracing::warn!(
-                "{} of {count} animations did not land in {} ms; they are left to land on their own",
+                "{} of {count} animations did not land in {} ms; they are left to land on their own: {}",
                 count - landed,
-                LANDING_DEADLINE.as_millis()
+                LANDING_DEADLINE.as_millis(),
+                not_landed.join(", ")
             );
         }
     }

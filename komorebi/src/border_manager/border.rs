@@ -481,6 +481,7 @@ impl Border {
             self.hwnd
         );
         WindowsApi::set_border_pos(self.hwnd, &rect, reference_hwnd, show)?;
+        tracing::trace!("border {}: put in place", self.hwnd);
 
         Ok(())
     }
