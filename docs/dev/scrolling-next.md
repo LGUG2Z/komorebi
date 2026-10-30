@@ -44,3 +44,20 @@ is, whether it is hidden, how wide it really is) is a call to the backend in kfd
   enough to follow a scroll without a flash. It is what stacks do.
 - The 16 px tolerance of `2dff53095` against the clients of `client-geometry` (`foot` rounds to
   cells, which is below it).
+
+## What is tested, and where
+
+- `komorebi/src/scrolling.rs`: the glue against a workspace with no desktop (widths, consume, expel,
+  moving a column, stacking and spreading out with the windows that are hidden, expanding, panning,
+  where a window rests, which monitors are the others, what a window that will not get narrow
+  says). The model itself has its tests in upstream's `komorebi-scrolling`.
+- `komorebi/tests/scrolling.rs` and `layout_options.rs`: the commands through
+  `WindowManager::process_command` against the fake desktop, a strip next to another monitor, and a
+  drag of the left edge of a column.
+- `komorebic/tests/cli.rs`: each new subcommand sends its message.
+- `nix/tests/vm/lib/komorebi_vm/platforms/kde/extras/scrolling.py`, run by `vm-scrolling`: where KWin
+  keeps a window at the edge and the commands of the columns, in a real session. **Not run**: the VM
+  suites are verified later. What to look at first is that KWin leaves a window with a right edge
+  5 pixels inside the work area where it was put (the bridge's `settle` is what is meant to see to it),
+  and that `toggle-column-stack` parks and restores the right windows.
+

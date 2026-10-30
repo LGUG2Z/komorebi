@@ -53,8 +53,9 @@ Terms used below:
 - **A workspace** is komorebi's name for one of the desktops of a monitor, in all three programs.
 - **A parking desktop** is a KWin virtual desktop that nobody looks at, which kfde moves windows to
   in order to hide them.
-- **The strip** is the scrolling layout of kfm, in the crate `komorebi-scrolling`. It is not the
-  `Scrolling` layout of `komorebi-layouts`.
+- **The strip** is the scrolling layout of kfm, in the crate `komorebi-scrolling`. Since upstream's
+  `next` branch it is also what the `Scrolling` layout of `komorebi-layouts` is laid out with, in
+  kfde too ([scrolling-next.md](scrolling-next.md)).
 
 ## What is the same
 
@@ -84,8 +85,9 @@ Compared file by file with the crate of kfw, kfm: 0 of 13 source files differ fr
 
 The layouts of `komorebi-layouts` are calculated by the same code in the three programs, so the same
 windows in the same order get the same rectangles, apart from what the window manager takes off for
-the work area, the padding and the borders. The exception is the `Scrolling` layout of kfm, which kfm
-lays out with the strip (see the section on configuration). What differs between the programs is
+the work area, the padding and the borders. The exception is the `Scrolling` layout, which is laid
+out with the strip of `komorebi-scrolling` in kfm and in kfde, and not in kfw before its `next`
+branch (see the section on configuration). What differs between the programs is
 what the system does with the rectangles: the next sections.
 
 ### One configuration file, largely portable
@@ -410,11 +412,13 @@ The nested structs have the same keys, except for these:
 | `AnimationsConfig` | 5 | 4 | 4 | `ghost_movement` | - |
 <!-- /gen:keys-nested -->
 
-There is one more difference that is not a key. kfm has a scrolling strip, with columns that
-hold several windows, a `scrolling` key and the commands in the "kfm scrolling strip" group above.
-kfde has the `Scrolling` layout of `komorebi-layouts`, tuned with `layout_options` and the command
-`scrolling-layout-columns`, which kfw and kfm have too. A `scrolling` key in a file written for kfm
-is skipped by kfde.
+There is one more difference that is not a key. kfm has a `scrolling` key. kfde has the `Scrolling`
+layout of `komorebi-layouts`, which is laid out with the same strip as kfm's, with columns that hold
+several windows and the commands `consume`, `expel`, `toggle-column-stack`,
+`scrolling-layout-full-width`, `center-focus`, `expand` and `pan`, and is tuned with
+`layout_options` and the command `scrolling-layout-columns`, which kfw and kfm have too. A
+`scrolling` key in a file written for kfm is skipped by kfde. The generated tables above were made
+before kfde took these commands: `scripts/compare-gen.py --update` makes them again.
 
 ## Events, and what drives them
 
@@ -793,7 +797,6 @@ From the tables above, and from what has no row in them:
 - The Win32 workarounds of the "Win32 quirks" group, the AutoHotkey and PowerShell configurations,
   the named-pipe subscribers, and whkd as a separate program.
 - The license check and the splash screen of the macOS and Windows builds.
-- kfm's scrolling strip: columns that hold several windows, and its commands.
 - The tab and title bar commands (`remove-title-bar`, `toggle-title-bars`).
 
 ## What kfde has that kfw and kfm do not

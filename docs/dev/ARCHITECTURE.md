@@ -536,17 +536,28 @@ still takes the windows that open into containers, and they are tiled when it is
 `LayoutRatios` and `ScrollingLayoutColumns` set the focused workspace's [`LayoutOptions`]
 ([`Workspace::layout_options`]): the share of the work area its first columns and rows take, and
 the number of columns of the scrolling layout in view. The layout calculates the tiles from
-them, and from the tiles it calculated last ([`Workspace::latest_layout`]), which the scrolling
-layout scrolls from.
+them, and from the tiles it calculated last ([`Workspace::latest_layout`]).
 
-The scrolling layout is a strip of columns that runs past the edges of the work area. Its tiles
-are the only ones [`Workspace::update`] does not clamp to the work area, so the windows of the
-columns out of view are off the screen; a window whose tile is out of view while part of it is
-in view is centered in the work area first. A `FocusChange` tiles a scrolling workspace after the
-focused container has changed, which scrolls the strip to it. KWin keeps part of a window it
-resizes on an output, so the bridge asks again for the position of a window KWin pulled back
-within a second of the command, three times at most ([`bridge.js`]'s `settle`), unless the window
-is maximized meanwhile.
+The scrolling layout is a strip of columns that runs past the edges of the work area, and a column
+can hold several windows ([the scrolling layout](../usage/scrolling-layout.md), and
+[scrolling-next.md](scrolling-next.md) for where it comes from). Each workspace keeps a
+`ScrollingSpace` of `komorebi-scrolling` ([`Workspace::scrolling`]), made on the first layout
+and keyed by the id of each container; [`Workspace::update`] makes it match the containers and the
+focus, and asks it where every container goes ([`Workspace::layout_scrolling`]). Its tiles are the
+only ones [`Workspace::update`] does not clamp to the work area. `consume`, `expel`,
+`toggle-column-stack`, `scrolling-layout-full-width`, `center-focus`, `expand` and `pan` act on
+the strip, and `focus`, `move`, `resize-*` and `retile` go through it in this layout; a container
+that leaves a workspace leaves what its column was given for the next one to find
+(`note_scrolling_departure`). A window that is out of view rests at the edge it left by with five
+pixels of it on the screen and keeps its size (`parked`), or is hidden ([`Window::hide`]) where
+that edge has another monitor next to it (`rest`), because KWin shows a window on every monitor it
+overlaps. A `FocusChange` tiles a scrolling workspace after the focused container has changed,
+which scrolls the strip to it. A window that did not get as narrow as its column is widens the
+column, at the first layout 400 ms after the windows were sent (`adopt_actual_widths`: the frame
+comes back from KWin a moment after the command). A drag of an edge keeps the strip with the rest
+of what it started from ([`LiveResize`]). KWin keeps part of a window it resizes on an output, so
+the bridge asks again for the position of a window KWin pulled back within a second of the
+command, three times at most ([`bridge.js`]'s `settle`), unless the window is maximized meanwhile.
 
 `Promote` moves the focused container to index 0, the largest tile of every layout but the grid,
 through `LockableSequence`, so the containers before it move one index on

@@ -58,22 +58,18 @@ The ratios stay with the workspace when its layout changes. Without `--columns` 
 
 ## The scrolling layout
 
-The scrolling layout puts every container in a column of its own, the columns side by side in a
-strip that runs past the edges of the monitor. The windows of the columns out of view are off
-the screen, and KWin leaves them there. When a window of the workspace gets the focus, the strip
-scrolls so that its column is in view, so `komorebic focus left` and `focus right` walk along
-it.
-
-[`komorebic scrolling-layout-columns`](../cli/scrolling-layout-columns.md) sets how many columns
-are in view at once on the focused workspace:
+The scrolling layout is a row of columns that runs past the edges of the monitor, and the screen
+is a view onto a part of it. A column can hold several windows, and the strip scrolls to follow the
+focus. [`komorebic scrolling-layout-columns`](../cli/scrolling-layout-columns.md) sets how many
+columns are in view at once on the focused workspace:
 
 ```sh
 komorebic change-layout scrolling
 komorebic scrolling-layout-columns 2
 ```
 
-Off the screen to the right of one monitor is on the next monitor over, if there is one, so the
-columns out of view can show on it.
+[The scrolling layout](scrolling-layout.md) says how to centre the focused column, put windows in
+the same column, resize columns and windows, and move the view along the strip.
 
 ## Flipping the layout
 

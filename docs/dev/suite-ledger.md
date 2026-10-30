@@ -182,9 +182,14 @@ per-output desktops.
 ## scrolling
 
 The shared `scrolling` scenario (run by `core-e2e`) puts each window in view in turn. This suite is
-about the windows that are not in view: where KWin keeps the columns that scroll off the screen,
-and that the strip follows the focus. All of it is KWin's; it is the extra `scrolling.run`, with
-no check dropped.
+about the windows that are not in view: where KWin keeps the columns that scroll off the screen
+(at an edge, with a few pixels of them on it), and that the strip follows the focus. It also runs
+the commands of the columns of several windows (`pan`, `consume`, `toggle-column-stack`, `expel`,
+`scrolling-layout-full-width`), which are kfde's and not in the shared scenario because komorebi
+for Windows has them only on its `next` branch. All of it is KWin's; it is the extra
+`scrolling.run`. The check that a window keeps the distance of a column from the one in view,
+which the layout does not keep any more (a window rests at the edge), was replaced by two that it
+rests there and keeps its width.
 
 ## stacks
 

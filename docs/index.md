@@ -44,6 +44,7 @@ a NixOS configuration and sample key bindings in the three formats.
 [Stacking windows](usage/stacking-windows.md) how to put windows on one tile, have the others wait
 out of sight and bring one of them to the front,
 [Layouts](usage/layouts.md) how to change the arrangement of the tiles,
+[The scrolling layout](usage/scrolling-layout.md) how its columns work,
 [Resizing windows](usage/resizing-windows.md) how to change the size of one (and
 [Resizing a tile by dragging its edge](drag-resize.md) what a drag with the pointer does),
 [Floating windows](usage/floating-windows.md) how to take a window out of the layout and work with

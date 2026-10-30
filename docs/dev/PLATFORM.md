@@ -571,7 +571,7 @@ covers part of its neighbor's.
 KWin moves a window anywhere it is asked to, off the screen too, but when it *resizes* a window
 it keeps 100 pixels of it on an output, and it does that once the client has drawn at the new
 size. A window that is moved off the screen and resized at once, as the scrolling layout does
-with the columns out of view, is pulled back onto the screen a moment later; so is one whose
+with the columns out of view that change width, is pulled back onto the screen a moment later; so is one whose
 client rounds the size, as `foot` does. The bridge therefore remembers the position it was asked
 for, for a second, and when the window's frame changes to another position in that time, asks
 for the position again, which is a plain move. It tries three times at most, so a window that
@@ -938,4 +938,6 @@ they work or that they do not.
 - The scrolling layout on a monitor that has another beside it. A strip spills onto the
   neighbor when that monitor shows the same workspace number, and a window whose middle is on a
   monitor that shows another desktop is not drawn. This is read from KWin's sources, not
-  checked with pixels.
+  checked with pixels. The layout no longer leaves a window there: one that would rest or
+  overhang past an edge with another monitor next to it is hidden, or cut down to its own work
+  area ([scrolling-next.md](scrolling-next.md)), which only the fake desktop has run.
