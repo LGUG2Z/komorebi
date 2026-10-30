@@ -40,6 +40,7 @@ runs, and goes stale when the code changes.
 | `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
 | `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure**: the number 2 |
+| `startup_rules` | the workspace rules of the config apply to a window open before the daemon and to one after | pass | pass |
 | `lifecycle` | a daemon that stops and starts again takes the windows that were in view up again | pass | pass |
 
 `rules` passes on kfde in every check. One run of the suite that holds it also failed a check that
