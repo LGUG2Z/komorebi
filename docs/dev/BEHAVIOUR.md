@@ -36,14 +36,14 @@ runs, and goes stale when the code changes.
 | `closing` | a closed window leaves the state, and the others take its room | pass | pass |
 | `resize` | dragging the edge two tiles share moves it by what the pointer moved | pass | pass on kfw's `0ffc502c`, **fails** on its master |
 | `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | pass with a second display, none skipped, when the host is quiet |
-| `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | pass (fixed) | **known failure** on `0ffc502c`; fixed on kfw's `next`, to be confirmed |
+| `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | pass (fixed) | **known failure** on `0ffc502c`; pass on kfw's `next` (`6d862a11`, 12 checks, no marker) |
 | `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
 | `rules_class` | a workspace rule and an ignore rule by class (the app id on KDE) send a window or leave it alone | pass | pass |
 | `rules_exe` | the same by the program that opened the window; the rule's id is `platform.exe_id(program)`, as kfw's has the `.exe` | pass | pass |
 | `config_reload` | rewriting the `komorebi.json` the daemon runs on changes its names, layout and rules | pass | pass |
 | `locking` | the screen is locked, a window moved, and unlocked: every window is in its tile again (session suite `core-lock`) | pass | pass |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
-| `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure** on `0ffc502c`: the number 2; fixed on kfw's `next`, to be confirmed |
+| `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure** on `0ffc502c`: the number 2; pass on kfw's `next` (5 of 5) |
 | `startup_rules` | the workspace rules of the config apply to a window open before the daemon and to one after | pass | pass |
 | `focus_follows_mouse` | the pointer over a window gives it the focus when it is on, not when it is off | pass | pass |
 | `lifecycle` | a daemon that stops and starts again takes the windows that were in view up again | pass | pass |
@@ -151,8 +151,9 @@ the error was returned; `move_workspace_to_monitor` did the same with the worksp
 upstream (`837ca257`: check the index first, so the command fails and nothing moves) and the same
 fix is in kfde (`017edb40`, with a unit test for each function). On a real KWin `core-e2e` passes
 `commands.unknown_monitor` with no known-failure marker (292 checks, 0 failed). On kfw it is fixed on
-the `next` branch and is to be confirmed by a Windows run; until then the Windows runner records
-it as a known failure on a build without the fix. `commands.unknown_monitor` can still take a
+the `next` branch and a Windows run there passes it (12 checks, no marker); the Windows runner
+drops the known-failure marker by itself when the commit under test has the fix, and records it as
+a known failure on `0ffc502c`, which does not. `commands.unknown_monitor` can still take a
 `known_failure` reason, which `Checks.known_failure` records: such a check does not fail the suite,
 and one that holds does, to say the marker can go. The sweep of `commands` is not affected on kfde,
 which has two outputs, and on kfw the sweep plugs in a second display first.
@@ -167,10 +168,10 @@ from the enum rather than the hand-written deserializer, describes the type as o
 description of the case and the reason, and records the case that way, whether the daemon does not
 start or puts the windows elsewhere. The other four cases give the same order on both ports.
 Fixed upstream in kfw (`3b424dd7`: accept an integer as well as a string, and a schema written by hand);
-kfde already had the same fix, and its unit test is in `komorebi/src/core/mod.rs`. It is to be
-confirmed on a Windows run of kfw's `next`.
+kfde already had the same fix, and its unit test is in `komorebi/src/core/mod.rs`. A Windows run
+of kfw's `next` passes all 5 cases.
 
-**`hotplug` on kfw (fixed upstream, to be confirmed).** After a display is unplugged, Windows reports one display within a second,
+**`hotplug` on kfw (fixed upstream).** After a display is unplugged, Windows reports one display within a second,
 but kfw's `komorebic state` can keep listing two monitors for as long as it is watched (90 s,
 every round of a probe, on master as well as on `0ffc502c`). The daemon's log loops: "potential
 monitor removal detected (2 vs 1), verifying in 3s", "verified monitor removal", "removing
@@ -189,7 +190,10 @@ Fixed upstream in `5c8e4770`: a serial number identifies a display only when bot
 is not empty, a display with no device path is told apart by its name, and the removal goes by index.
 kfde needs none of it: its displays are told apart by the serial number when KWin gives one and by
 the output's own name when it does not, so two outputs never match each other without a name.
-The fix is on kfw's `next`; a Windows run of `hotplug` there will confirm it.
+The fix is on kfw's `next`: `hotplug` passed 19/0 in five of the six runs there that completed
+(before the fix it failed in about two of three); the sixth crashed with a connection reset to the
+guest agent before any check, which is being looked into and is not a check failure. One green run
+was thin evidence, so this stands on those five.
 
 **`focus_follows_mouse` on kfw.** The scenario's last check failed on kfw five times in five, and
 a replica of its steps passed. The scenario was at fault: it moved the pointer over the window that
