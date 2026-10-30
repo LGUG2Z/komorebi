@@ -40,6 +40,7 @@ from komorebi_vm.core.scenarios import (
     workspaces,
 )
 from tests.fake_platform import FakePlatform
+from tests.fake_strip import FakeStrip
 
 
 def opened(platform: FakePlatform, checks: Checks):  # noqa: ANN201
@@ -918,3 +919,39 @@ def test_a_platform_that_cannot_move_a_window_while_locked_fails_locking() -> No
     clients = opened(platform, checks)
     locking.run(platform, checks, clients)
     assert any("was moved while the screen was locked" in f for f in checks.failures)
+
+
+def test_a_daemon_that_is_right_passes_the_scrolling_columns() -> None:
+    platform = FakeStrip()
+    checks = Checks()
+    scrolling.columns(platform, checks, [])
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 15
+
+
+def test_a_daemon_that_pulls_the_windows_back_fails_the_scrolling_columns() -> None:
+    class Pulls(FakeStrip):
+        def _strip_frame(self, title):  # noqa: ANN001, ANN202
+            r = super()._strip_frame(title)
+            return Rect(max(r.x, 0), r.y, r.w, r.h)
+
+    platform = Pulls()
+    checks = Checks()
+    scrolling.columns(platform, checks, [])
+    assert checks.failed > 0
+
+
+def test_a_strip_with_a_monitor_next_to_it_leaks_nothing() -> None:
+    platform = FakeStrip()
+    checks = Checks()
+    scrolling.two_monitors(platform, checks, [])
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 10
+
+
+def test_a_daemon_that_rests_windows_on_the_next_monitor_fails_two_monitors() -> None:
+    platform = FakeStrip()
+    platform.leaks = True
+    checks = Checks()
+    scrolling.two_monitors(platform, checks, [])
+    assert checks.failed > 0

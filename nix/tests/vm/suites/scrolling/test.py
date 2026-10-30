@@ -1,16 +1,14 @@
-# The scrolling layout in a real KWin. The strip runs past the edge of the work area, and KWin is
-# expected to leave the windows exactly where komorebi puts them: a window that is out of view rests
-# at the edge it left by, with a few pixels of it on the screen. What only a real KWin can tell is in
-# `komorebi_vm.platforms.kde.extras.scrolling`: that KWin keeps them there, that the strip scrolls
-# with the focus `komorebic focus` moves, and the commands of the columns that hold several windows
-# (`consume`, `expel`, `toggle-column-stack`, `scrolling-layout-full-width`, `pan`). The shared scenario
-# (`komorebi_vm.core.scenarios.scrolling`), which `core-e2e` runs and which runs on Windows too,
-# checks the focused window is in view. `komorebi/tests/layout_options.rs` checks where komorebi
-# puts the columns against the fake.
+# The scrolling layout in a real KWin, with the shared scenario `scrolling.columns`
+# (`komorebi_vm.core.scenarios.scrolling`), which runs on Windows too: the strip runs past the edge
+# of the work area, a window that is out of view rests at the edge it left by with a few pixels of
+# it on the screen, a strip with a monitor next to it leaks no window onto it (`two_monitors`), the strip scrolls with the focus and with `pan`, and the commands of the columns
+# (`consume`, `expel`, `toggle-column-stack`, `scrolling-layout-full-width`) work. `core-e2e` runs it
+# too, among the scenarios that start from a workspace with no window.
+# `komorebi/tests/layout_options.rs` checks where komorebi puts the columns against the fake.
 from komorebi_vm import Checks, Kde
-from komorebi_vm.core.suite import platform_only, run_suite
+from komorebi_vm.core.scenarios import scrolling
+from komorebi_vm.core.suite import run_suite, shared
 from komorebi_vm.kde_platform import KdePlatform
-from komorebi_vm.platforms.kde.extras import scrolling as kde_scrolling
 
 W, H = 1920, 1080
 
@@ -19,11 +17,17 @@ machine.wait_for_unit("multi-user.target")
 machine.wait_for_unit("user@1000.service")
 
 checks = Checks()
-kde = Kde.headless(machine, "main", size=(W, H), scale=SCALE)
+# two outputs, of which the second is unplugged before the daemon starts: `two_monitors` plugs it in
+kde = Kde.headless(machine, "main", size=(W, H), outputs=2, scale=SCALE)
 platform = KdePlatform(kde, (W, H))
+platform.remove_display()
 platform.start_komorebi()
 
-run_suite(checks, platform_only("kde", kde_scrolling.run, platform, checks, []))
+run_suite(
+    checks,
+    shared(scrolling.columns, platform, checks, []),
+    shared(scrolling.two_monitors, platform, checks, []),
+)
 
 kde.stop()
 checks.finish()

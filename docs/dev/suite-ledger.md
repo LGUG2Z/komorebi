@@ -181,15 +181,15 @@ per-output desktops.
 
 ## scrolling
 
-The shared `scrolling` scenario (run by `core-e2e`) puts each window in view in turn. This suite is
-about the windows that are not in view: where KWin keeps the columns that scroll off the screen
-(at an edge, with a few pixels of them on it), and that the strip follows the focus. It also runs
-the commands of the columns of several windows (`pan`, `consume`, `toggle-column-stack`, `expel`,
-`scrolling-layout-full-width`), which are kfde's and not in the shared scenario because komorebi
-for Windows has them only on its `next` branch. All of it is KWin's; it is the extra
-`scrolling.run`. The check that a window keeps the distance of a column from the one in view,
-which the layout does not keep any more (a window rests at the edge), was replaced by two that it
-rests there and keeps its width.
+The shared `scrolling` scenario (run by `core-e2e`) puts each window in view in turn. This suite
+runs the shared `scrolling.columns`: five windows in two columns, where the daemon rests the ones
+that scroll out of view (at an edge, a few pixels of them on the screen, their width kept), that the
+strip follows the focus and `pan`, and the commands of the columns of several windows (`consume`,
+`toggle-column-stack`, `expel`, `scrolling-layout-full-width`). kfde and komorebi for Windows lay
+the strip out with the same model, so none of it is KDE's: the extra `scrolling.run` is gone, and
+`core-e2e` runs `scrolling.columns` too, from a workspace with no window. The check that a window
+keeps the distance of a column from the one in view, which the layout does not keep any more (a
+window rests at the edge), was replaced by two that it rests there and keeps its width.
 
 ## stacks
 

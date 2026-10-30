@@ -150,6 +150,10 @@ run_suite(
     # the option of a workspace in the config, on a daemon started with it
     shared(layout_flip.run, platform, checks),
     platform_only("kde", kde_core.no_window_is_left, *nothing),
+    shared(scrolling.columns, platform, checks, []),
+    platform_only("kde", kde_core.no_window_is_left, *nothing),
+    shared(scrolling.two_monitors, platform, checks, []),
+    platform_only("kde", kde_core.no_window_is_left, *nothing),
     shared(config_reload.run, platform, checks),
     platform_only(
         "kde", kde_core.no_window_is_left, platform, checks, [Client("reload-stays")]

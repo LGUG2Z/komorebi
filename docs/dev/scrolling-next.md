@@ -55,8 +55,9 @@ is, whether it is hidden, how wide it really is) is a call to the backend in kfd
   `WindowManager::process_command` against the fake desktop, a strip next to another monitor, and a
   drag of the left edge of a column.
 - `komorebic/tests/cli.rs`: each new subcommand sends its message.
-- `nix/tests/vm/lib/komorebi_vm/platforms/kde/extras/scrolling.py`, run by `vm-scrolling`: where KWin
-  keeps a window at the edge and the commands of the columns, in a real session. Run on KDE: 24 passed,
-  0 failed. KWin leaves a window resting at the left edge with its right edge a few pixels inside the
+- `nix/tests/vm/lib/komorebi_vm/core/scenarios/scrolling.py` (`columns`, shared with komorebi for
+  Windows), run by `vm-scrolling` and `core-e2e`: where the daemon keeps a window at the edge and the
+  commands of the columns, in a real session. Run on KDE: the `scrolling` suite passes
+  (32 checks, with `two_monitors`). KWin leaves a window resting at the left edge with its right edge a few pixels inside the
   work area, or a cell short of them, because foot rounds its frame to whole cells. The shared
   `scrolling` scenario passes in `core-e2e` too.
