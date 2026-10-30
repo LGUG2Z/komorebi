@@ -192,6 +192,12 @@ because they only check the order of windows. Nothing else turned red.
   or acts on a second display with the pointer, cannot run there; none exists. Source: kfw's
   `e2e/platforms/qemu_windows/W1.md`, "The pointer with two displays".
 - Suspend and resume, which no guest can test.
+- Reloading the configuration. kfde reloads `komorebi.json` about two seconds after the file
+  changes; kfw does it with `komorebic reload-configuration`, and `watch-configuration` there is
+  for the legacy files. The two have no command in common, so it has no neutral scenario: each
+  port tests its own (kfde's `the_daemon_follows_the_file_it_is_given_when_the_file_changes`).
+- Rules by `exe`, which a scenario cannot give a test window on both ports without a program of
+  its own on each.
 - `commands` on kfw under load: it passed 247/0 in the two of four repeat runs that had the host
   to themselves, and the two that ran beside a VM suite and a build failed, with `komorebic state`
   replies slowing from milliseconds to about a second. Load is the likely cause, not shown.
