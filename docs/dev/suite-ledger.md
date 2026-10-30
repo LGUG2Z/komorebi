@@ -130,3 +130,48 @@ keeps the part that is KWin's: a workspace is a virtual desktop.
 
 The extras open windows of their own and close them, so that the shared scenarios start from a
 daemon with none.
+
+## placement
+
+| Was (section) | Now |
+|---|---|
+| 1, no rules: after the one in focus | shared `placement` |
+| 2, every window to the primary tile | shared `placement` |
+| 3, by the number of the place, as a number and as text | shared `placement` |
+| 4, by the app id (`Class`), by the title, and after the one in focus | extra `by_app_id` (the shared scenario matches by title only; a candidate for it) |
+| 5, `Exe` `foot.exe` matches `foot` | extra `by_program` (KDE: no `.exe` on this port) |
+
+## workspace-switch
+
+Nearly everything this suite checks is KWin's: a workspace is a virtual desktop. The shared
+`workspaces` and `workspace_moves` scenarios, which `core-e2e` runs, check that `send-to-workspace`
+and `focus-workspace` put windows away and back with the focus agreed; here the same commands are
+read on KWin's desktops. The suite is the extra `workspace_switch.run`; its one dropped check, "the
+daemon answers komorebic", is what `platform.start_komorebi()` waits for. The
+shared scenario is not called from this suite, because it starts from windows on the first
+workspace and this suite's own start state is a daemon that has not yet turned on KWin's
+per-output desktops.
+
+## scrolling
+
+The shared `scrolling` scenario (run by `core-e2e`) puts each window in view in turn. This suite is
+about the windows that are not in view: where KWin keeps the columns that scroll off the screen,
+and that the strip follows the focus. All of it is KWin's; it is the extra `scrolling.run`, with
+no check dropped.
+
+## stacks
+
+Ported whole as the extra `stacks.run`: all 54 checks. It reads the parking desktop and KWin's
+desktops (`kdotool`), which the shared `stacks` and `monocle` scenarios do not. It still repeats,
+on KWin's side, some of what they check: that cycling the stack shows the other window and puts
+the first away, focus by place in the stack, and a monocle over a stack (sections 3, 4 and 8). The
+repeats read a different oracle (the parking desktop, not the operating system's `hidden`), so
+they are kept for now; slimming them needs the shared scenarios to report what they leave to be
+read, which is the stage hook that was left out. Sections 10 and 11 (a crash, a clean stop) are the
+`stack-all` form of `core-e2e`'s `parking`.
+
+## kwin-restart
+
+Ported whole as the extra `kwin_restart.run` (two restarts, 19 checks as run). `core-e2e` had a section
+that restarted KWin once with the same four checks; it is gone, and `core-e2e` now only opens the
+window `afterwards` that its last section looks for.
