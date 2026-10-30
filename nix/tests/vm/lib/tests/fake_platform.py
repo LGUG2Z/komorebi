@@ -80,6 +80,7 @@ class FakePlatform:
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.floats: list[str] = []
+        self.minimized: list[str] = []
         self.running = True
         self.placement: Any = None
         self.moves = moves
@@ -222,6 +223,9 @@ class FakePlatform:
         if client.title in self.floats:
             self.floats.remove(client.title)
             return
+        if client.title in self.minimized:
+            self.minimized.remove(client.title)
+            return
         if client.title in self.unmanaged:
             self.unmanaged.remove(client.title)
             return
@@ -247,7 +251,7 @@ class FakePlatform:
         return self._find(title)[1]
 
     def hidden(self, client: Client) -> bool:
-        if client.title in self.floats:
+        if client.title in self.floats or client.title in self.minimized:
             return False
         if client.title in self.unmanaged:
             return False
@@ -258,7 +262,17 @@ class FakePlatform:
     def work_area(self) -> Rect:
         return Rect(0, 0, 1920, 1080)
 
+    def minimize(self, client: Client) -> None:
+        self._find_remove(client.title)
+        self.minimized.append(client.title)
+        self.focuses[self.current] = max(0, min(self.focus, len(self.containers) - 1))
+        self._relayout()
+
     def activate(self, client: Client) -> None:
+        if client.title in self.minimized:
+            self.minimized.remove(client.title)
+            self.containers.append([client.title])
+            self._relayout()
         self.current, self.focus = self._find(client.title)
         stack = self.containers[self.focus]
         stack.insert(0, stack.pop(stack.index(client.title)))
@@ -267,6 +281,8 @@ class FakePlatform:
         return Image.new("RGB", (4, 4))
 
     def os_window(self, client: Client) -> OsWindow | None:
+        if client.title in self.minimized:
+            return OsWindow(client.title, Rect(0, 0, 0, 0), focused=False)
         if client.title in self.floats:
             return OsWindow(client.title, Rect(300, 300, 600, 400), focused=False)
         if client.title in self.unmanaged:

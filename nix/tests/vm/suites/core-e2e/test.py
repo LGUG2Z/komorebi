@@ -21,6 +21,7 @@ from komorebi_vm.core.scenarios import (
     focus,
     layouts,
     lifecycle,
+    minimizing,
     monocle,
     moving,
     placement,
@@ -452,6 +453,7 @@ checks.check(
 )
 layouts.run(platform, checks, neutral)
 floating.run(platform, checks, neutral)
+minimizing.run(platform, checks, neutral)
 monocle.run(platform, checks, neutral)
 workspaces.run(platform, checks, neutral)
 # the third window is on workspace 1 now: the first is closed, and the second takes its room

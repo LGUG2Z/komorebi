@@ -11,6 +11,7 @@ from komorebi_vm.core.scenarios import (
     hotplug,
     layouts,
     lifecycle,
+    minimizing,
     monocle,
     moving,
     placement,
@@ -180,6 +181,27 @@ def test_a_float_that_stays_in_the_tiling_fails_floating() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     floating.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_minimizing() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    minimizing.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_keeps_the_room_of_a_minimized_window_fails_minimizing() -> None:
+    class Keeping(FakePlatform):
+        def _relayout(self) -> None:
+            pass
+
+    platform = Keeping()
+    checks = Checks()
+    clients = opened(platform, checks)
+    minimizing.run(platform, checks, clients)
     assert checks.failed > 0
 
 

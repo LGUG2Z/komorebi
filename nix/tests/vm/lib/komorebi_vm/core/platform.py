@@ -151,6 +151,10 @@ class Platform(Protocol):
         """Closes the window, as its close button would."""
         ...
 
+    def minimize(self, client: Client) -> None:
+        """Minimizes the window, as its title bar button would. `activate` restores it."""
+        ...
+
     def work_area(self) -> Rect:
         """The area of the first display that windows may take."""
         ...

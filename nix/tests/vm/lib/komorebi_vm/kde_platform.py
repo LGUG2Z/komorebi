@@ -125,6 +125,9 @@ class KdePlatform:
     def work_area(self) -> Rect:
         return Rect(0, 0, *self.size)
 
+    def minimize(self, client: Client) -> None:
+        self.kde.minimize(self.kde.wid(client.title))
+
     def activate(self, client: Client) -> None:
         self.kde.activate(self.kde.wid(client.title))
 
