@@ -17,6 +17,7 @@ from komorebi_vm.core.scenarios import (
     monocle,
     moving,
     padding,
+    pausing,
     placement,
     promoting,
     resize,
@@ -336,6 +337,27 @@ def test_a_daemon_that_does_not_flip_fails_flipping() -> None:
     checks = Checks()
     clients = opened(platform, checks)
     flipping.run(platform, checks, clients)
+    assert checks.failed > 0
+
+
+def test_a_daemon_that_is_right_passes_pausing() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    pausing.run(platform, checks, clients)
+    assert checks.failed == 0, checks.failures
+    assert checks.passed > 3
+
+
+def test_a_daemon_that_manages_while_paused_fails_pausing() -> None:
+    class Stubborn(FakePlatform):
+        def komorebic(self, *args: str) -> str:
+            return "" if args == ("toggle-pause",) else super().komorebic(*args)
+
+    platform = Stubborn()
+    checks = Checks()
+    clients = opened(platform, checks)
+    pausing.run(platform, checks, clients)
     assert checks.failed > 0
 
 

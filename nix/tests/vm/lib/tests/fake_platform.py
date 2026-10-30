@@ -80,6 +80,7 @@ class FakePlatform:
         self.display_of: dict[str, int] = {}
         self.forgets_displays = False
         self.floats: list[str] = []
+        self.paused = False
         self.flipped = False
         self.last = 0
         self.maximized: str | None = None
@@ -143,6 +144,9 @@ class FakePlatform:
         return [stack[0] for stack in self.containers]
 
     def spawn(self, title: str) -> Client:
+        if self.paused:
+            self.unmanaged.append(title)
+            return Client(title)
         if title in self.ignored:
             self.unmanaged.append(title)
         elif title in self.initial_rules:
@@ -421,6 +425,8 @@ class FakePlatform:
             case ("flip-layout", "horizontal"):
                 self.flipped = not self.flipped
                 self._relayout()
+            case ("toggle-pause",):
+                self.paused = not self.paused
             case ("toggle-float",):
                 if self.floats:
                     self.containers.insert(self.focus, [self.floats.pop()])
