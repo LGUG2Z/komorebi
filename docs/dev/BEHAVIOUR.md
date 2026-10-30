@@ -38,6 +38,7 @@ runs, and goes stale when the code changes.
 | `commands` | every layout, and about 216 commands, leave the daemon healthy | pass, none skipped | pass with a second display, none skipped, when the host is quiet |
 | `commands.unknown_monitor` | a window sent to a monitor that does not exist stays managed | **known failure** | **known failure** |
 | `rules` | initial, permanent and ignore rules by title, and that cleared rules stop applying | see below | pass |
+| `rules_class` | a workspace rule and an ignore rule by class (the app id on KDE) send a window or leave it alone | pass | not run yet |
 | `hotplug` | an unplugged display takes its windows to the other, a plugged one is a monitor | pass | pass |
 | `placement` | the placement rules of the config put a window first, last, or at a number | pass | 4 of 5 cases pass, **known failure**: the number 2 |
 | `startup_rules` | the workspace rules of the config apply to a window open before the daemon and to one after | pass | pass |
