@@ -24,6 +24,7 @@
 //! [`DEFAULT_WORKSPACE_PADDING`] and the others in [`crate`]), and an optional key set to `null`
 //! is the same as one that is left out.
 
+use crate::workspace::WorkspaceExt;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_MOUSE_FOLLOWS_FOCUS;
@@ -100,8 +101,10 @@ pub use komorebi_config::static_config::ThemeOptions;
 pub use komorebi_config::static_config::Wallpaper;
 pub use komorebi_config::static_config::WorkspaceConfig;
 
-impl From<&Workspace> for WorkspaceConfig {
-    fn from(value: &Workspace) -> Self {
+/// The `komorebi.json` entry that describes a workspace (the shared `Workspace` is not local, so this is
+/// a function and not a `From` impl)
+pub fn workspace_config(value: &Workspace) -> WorkspaceConfig {
+    {
         let mut layout_rules = HashMap::new();
         for (threshold, layout) in &value.layout_rules {
             match layout {
@@ -145,7 +148,7 @@ impl From<&Workspace> for WorkspaceConfig {
 
         let tile = if value.tile { None } else { Some(false) };
 
-        Self {
+        WorkspaceConfig {
             name: value
                 .name
                 .clone()
@@ -208,7 +211,7 @@ impl From<&Monitor> for MonitorConfig {
     fn from(value: &Monitor) -> Self {
         let mut workspaces = vec![];
         for w in value.workspaces() {
-            workspaces.push(WorkspaceConfig::from(w));
+            workspaces.push(workspace_config(w));
         }
 
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);

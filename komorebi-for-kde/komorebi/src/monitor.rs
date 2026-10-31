@@ -11,6 +11,7 @@
 //! workspace it is in, asks the compositor to show the focused workspace's desktop, which shows its
 //! windows and hides the others, and gives the focus to the workspace's focused window.
 
+use crate::workspace::WorkspaceExt;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::backend::backend;

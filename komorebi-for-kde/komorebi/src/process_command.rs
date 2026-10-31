@@ -219,6 +219,8 @@
 //! Once a message has been handled, every subscriber is sent a notification of it
 //! ([`notify_subscribers`]).
 
+use crate::scrolling::WorkspaceScrolling;
+use crate::workspace::WorkspaceExt;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;

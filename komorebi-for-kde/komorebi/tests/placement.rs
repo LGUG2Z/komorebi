@@ -12,6 +12,7 @@ use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event::KWinNotification;
 use komorebi::window_manager_event::SystemNotification;
 use komorebi::window_manager_event::WindowManagerEvent;
+use komorebi::workspace::WorkspaceExt;
 use std::sync::Arc;
 
 fn desktop(rules: Option<&str>) -> (Arc<FakeBackend>, WindowManager) {

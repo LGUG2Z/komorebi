@@ -11,252 +11,121 @@
 //! [`Workspace::work_area_offset_rules`]), and its layout options come from the workspace or from
 //! the defaults of its layout.
 
+use crate::scrolling::WorkspaceScrolling;
 use crate::HIDDEN_WINDOWS;
 use crate::REGEX_IDENTIFIERS;
 use crate::backend::backend;
 use crate::container::Container;
-use crate::core::Axis;
-use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
-use crate::core::FloatingLayerBehaviour;
-use crate::core::InitialWindowPlacementRules;
 use crate::core::Layout;
 use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
-use crate::core::PlacementMatchingRules;
-use crate::core::PlacementTarget;
 use crate::core::Rect;
-use crate::core::WindowContainerBehaviour;
-use crate::core::WindowPlacement;
 use crate::lockable_sequence::LockableSequence;
-use crate::ring::Ring;
 use crate::static_config::Wallpaper;
 use crate::static_config::WorkspaceConfig;
 use crate::theme_manager;
 use crate::window::PlatformWindowId;
 use crate::window::Window;
 use crate::window::WindowDetails;
-use crate::window::cursor_position;
-use crate::window::foreground_window_id;
 use crate::window::should_act_window;
 use crate::window::should_act_window_individual;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_backend::MonitorId;
-use komorebi_core::ContainerWindow;
 pub use komorebi_core::WorkspaceGlobals;
-use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::KomorebiTheme;
 use komorebi_themes::KomorebiThemeCustom;
-use serde::Deserialize;
-use serde::Serialize;
 use std::collections::HashMap;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::num::NonZeroUsize;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct Workspace {
-    pub name: Option<String>,
-    pub containers: Ring<Container>,
-    /// The container that has the whole work area, and so is the only one in view: it is not one
-    /// of `containers`, which are not given tiles until it is put back
-    /// ([`Workspace::new_monocle_container`], [`Workspace::reintegrate_monocle_container`])
-    pub monocle_container: Option<Container>,
-    /// The index in `containers` the monocle container goes back to
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub monocle_container_restore_idx: Option<usize>,
-    /// The window the compositor has maximized, which is in no container: the containers are left
-    /// where they are, behind it ([`Workspace::new_maximized_window`],
-    /// [`Workspace::reintegrate_maximized_window`])
-    pub maximized_window: Option<Window>,
-    /// The index in `containers` the maximized window goes back to, in a container of its own
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub maximized_window_restore_idx: Option<usize>,
-    pub floating_windows: Ring<Window>,
-    pub layout: Layout,
-    pub layout_options: Option<LayoutOptions>,
-    /// The layout the workspace takes when it has this many containers or more, the highest
-    /// threshold that is reached winning, in ascending order of threshold
-    pub layout_rules: Vec<(usize, Layout)>,
-    /// Threshold-based layout options rules (container_count >= threshold -> use these options).
-    /// Sorted by threshold ascending at load time.
-    #[serde(default)]
-    pub layout_options_rules: Vec<(usize, LayoutOptions)>,
-    /// Cached per-layout defaults from the global `layout_defaults` config setting.
-    /// Pre-sorted at config load time; used as fallback when workspace has no overrides.
-    #[serde(skip)]
-    pub(crate) layout_defaults_cache: HashMap<DefaultLayout, CachedLayoutDefault>,
-    pub layout_flip: Option<Axis>,
-    pub workspace_padding: Option<i32>,
-    pub container_padding: Option<i32>,
-    pub latest_layout: Vec<Rect>,
-    pub resize_dimensions: Vec<Option<Rect>>,
-    pub tile: bool,
-    /// The work area offset of this workspace, which it takes instead of its monitor's
-    pub work_area_offset: Option<Rect>,
-    /// The work area offset the workspace takes when it has this many containers or more, the
-    /// highest threshold that is reached winning, in ascending order of threshold; it comes before
-    /// [`Workspace::work_area_offset`]
-    pub work_area_offset_rules: Vec<(usize, Rect)>,
-    /// Whether this workspace takes its monitor's window-based offset (true by default)
-    pub apply_window_based_work_area_offset: bool,
-    /// What a window that opens on this workspace gets, when it is not the window manager's
-    /// default: a container of its own, or a place in the focused container
-    pub window_container_behaviour: Option<WindowContainerBehaviour>,
-    /// What a window that opens on this workspace gets when the workspace has this many containers
-    /// or more, the highest threshold that is reached winning, in ascending order of threshold;
-    /// [`Workspace::update`] sets [`Workspace::window_container_behaviour`] from it
-    pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
-    /// Whether a window that opens on this workspace floats, when it is not the window manager's
-    /// default
-    pub float_override: Option<bool>,
-    #[serde(skip)]
-    pub globals: WorkspaceGlobals,
-    /// Which of the workspace's two kinds of windows the focus commands act on
-    pub layer: WorkspaceLayer,
-    /// Whether a window that opens while this workspace is on its floating layer floats, when it
-    /// is not the monitor's or the window manager's default
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
-    /// The wallpaper this workspace shows instead of its monitor's
-    pub wallpaper: Option<Wallpaper>,
-    /// The entry of `komorebi.json` this workspace was loaded from, which keeps the rules that
-    /// send windows to it
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub workspace_config: Option<WorkspaceConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub preselected_container_idx: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub promotion_swap_container_idx: Option<usize>,
-    /// Initial window placement rules that determine where new tiled windows are placed
-    /// ([`Workspace::new_container_for_window`]); with none, a window goes after the focused
-    /// container
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub initial_window_placement_rules: Option<InitialWindowPlacementRules>,
-    /// The strip of columns that the Scrolling layout lays containers out in, which is made when
-    /// the layout first tiles the workspace ([`Workspace::layout_scrolling`])
-    #[serde(skip)]
-    #[cfg_attr(feature = "schemars", schemars(skip))]
-    pub(crate) scrolling: Option<ScrollingSpace<String>>,
-    /// When the windows of a Scrolling workspace were last sent to where the strip puts them, and
-    /// how wide each container was made to be, for telling when the sizes that they report can be
-    /// believed ([`crate::scrolling::WIDTH_SETTLE`])
-    #[serde(skip)]
-    #[cfg_attr(feature = "schemars", schemars(skip))]
+pub use komorebi_core::WorkspaceLayer;
+use komorebi_core::CachedLayoutDefault;
+pub use komorebi_core::WorkspaceWindowLocation;
+pub(crate) use komorebi_core::resolve_threshold_match;
+pub(crate) use komorebi_core::sorted_layout_options_rules;
+
+/// The workspace over KDE's [`Window`], which is `komorebi_core::Workspace` with this platform's
+/// methods added by [`WorkspaceExt`] and the scrolling ones of [`WorkspaceScrolling`]
+pub type Workspace = komorebi_core::Workspace<KdePlatform>;
+
+/// What only KDE keeps in a workspace
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct KdeWorkspaceState {
+    /// Where the scrolling layout last placed the windows, and how wide it believed them
+    /// ([`crate::scrolling::WIDTH_SETTLE`])
     pub(crate) scrolling_placed: Option<crate::scrolling::Placed>,
 }
 
-/// Which of a workspace's two kinds of windows the focus, move and resize commands act on: the
-/// tiles of its layout, or its floating windows
-#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub enum WorkspaceLayer {
-    /// The containers of the layout
-    #[default]
-    Tiling,
-    /// The floating windows
-    Floating,
-}
+/// komorebi for KDE as the platform of the shared workspace
+#[derive(Debug, Clone, PartialEq)]
+pub struct KdePlatform;
 
-impl Display for WorkspaceLayer {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            WorkspaceLayer::Tiling => write!(f, "Tiling"),
-            WorkspaceLayer::Floating => write!(f, "Floating"),
-        }
+impl komorebi_core::WorkspacePlatform for KdePlatform {
+    type Window = Window;
+    type State = KdeWorkspaceState;
+
+    fn foreground_window_id() -> Option<PlatformWindowId> {
+        crate::window::foreground_window_id()
     }
-}
 
-impl_ring_elements!(Workspace, Container);
-impl_ring_elements!(Workspace, Window, "floating_window");
-
-impl Default for Workspace {
-    fn default() -> Self {
-        Self {
-            name: None,
-            containers: Default::default(),
-            monocle_container: None,
-            monocle_container_restore_idx: None,
-            maximized_window: None,
-            maximized_window_restore_idx: None,
-            workspace_padding: None,
-            container_padding: None,
-            resize_dimensions: vec![],
-            layout: Layout::Default(DefaultLayout::BSP),
-            work_area_offset: None,
-            work_area_offset_rules: vec![],
-            latest_layout: vec![],
-            layout_flip: None,
-            layout_options: None,
-            layout_rules: vec![],
-            layout_options_rules: vec![],
-            layout_defaults_cache: HashMap::new(),
-            globals: Default::default(),
-            layer: Default::default(),
-            floating_layer_behaviour: None,
-            tile: true,
-            apply_window_based_work_area_offset: true,
-            window_container_behaviour: None,
-            window_container_behaviour_rules: None,
-            floating_windows: Default::default(),
-            float_override: None,
-            wallpaper: None,
-            workspace_config: None,
-            preselected_container_idx: None,
-            initial_window_placement_rules: None,
-            promotion_swap_container_idx: None,
-            scrolling: None,
-            scrolling_placed: None,
-        }
+    fn cursor_position() -> Option<(i32, i32)> {
+        crate::window::cursor_position()
     }
-}
 
-/// Where a workspace has a window of an application ([`Workspace::location_from_exe`])
-#[derive(Debug)]
-pub enum WorkspaceWindowLocation {
-    Monocle(usize), // window_idx
-    Maximized,
-    Container(usize, usize), // container_idx, window_idx
-    Floating(usize),         // idx in floating_windows
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-/// Cached per-layout default options (pre-sorted rules) derived from the global `layout_defaults`.
-pub(crate) struct CachedLayoutDefault {
-    pub layout_options: Option<LayoutOptions>,
-    /// Threshold-based rules, sorted by threshold ascending at load time
-    pub layout_options_rules: Vec<(usize, LayoutOptions)>,
-}
-
-/// Convert an optional HashMap of threshold-based layout options rules into a Vec sorted by
-/// threshold ascending.
-fn sorted_layout_options_rules(
-    rules: Option<&HashMap<usize, LayoutOptions>>,
-) -> Vec<(usize, LayoutOptions)> {
-    match rules {
-        Some(rules) => {
-            let mut sorted: Vec<(usize, LayoutOptions)> =
-                rules.iter().map(|(t, o)| (*t, *o)).collect();
-            sorted.sort_by_key(|(t, _)| *t);
-            sorted
-        }
-        None => vec![],
+    fn should_act_window(
+        title: &str,
+        exe_name: &str,
+        class: &str,
+        path: &str,
+        rules: &[crate::core::config_generation::MatchingRule],
+    ) -> Option<crate::core::config_generation::MatchingRule> {
+        should_act_window(
+            title,
+            exe_name,
+            class,
+            path,
+            rules,
+            &REGEX_IDENTIFIERS.lock(),
+        )
     }
-}
 
-/// Find the highest matching threshold rule for the given container count.
-/// Rules must be sorted by threshold ascending.
-fn resolve_threshold_match(
-    rules: &[(usize, LayoutOptions)],
-    container_count: usize,
-) -> Option<LayoutOptions> {
-    rules
-        .iter()
-        .rev()
-        .find(|(threshold, _)| container_count >= *threshold)
-        .map(|(_, opts)| *opts)
+    fn should_act_window_individual(
+        title: &str,
+        exe_name: &str,
+        class: &str,
+        path: &str,
+        rule: &crate::core::config_generation::IdWithIdentifier,
+    ) -> bool {
+        should_act_window_individual(
+            title,
+            exe_name,
+            class,
+            path,
+            rule,
+            &REGEX_IDENTIFIERS.lock(),
+        )
+    }
+
+    fn scrolling_idx_for_direction(
+        workspace: &Workspace,
+        direction: OperationDirection,
+    ) -> Option<usize> {
+        workspace.scrolling_idx_for_direction(direction)
+    }
+
+    fn scrolling_insertion_idx(workspace: &Workspace) -> Option<usize> {
+        workspace.scrolling_insertion_idx()
+    }
+
+    fn note_scrolling_departure(workspace: &Workspace, idx: usize) {
+        workspace.note_scrolling_departure(idx);
+    }
+
+    fn after_floating_removed(workspace: &mut Workspace) {
+        workspace.focus_previous_floating_window();
+    }
 }
 
 /// `komorebi_layouts::Rect::percentage_within_horizontal_bounds`, which that crate compiles only
@@ -282,7 +151,10 @@ impl HorizontalBounds for Rect {
     }
 }
 
-impl Workspace {
+
+
+
+pub trait WorkspaceExt {
     /// Takes the settings of `config`, which `komorebi.json` has for this workspace: its name, its
     /// layout and the rules that change it with the number of containers, its padding and offsets,
     /// what a new window gets and whether it floats, whether it tiles, how its layout is flipped,
@@ -296,7 +168,182 @@ impl Workspace {
     ///
     /// A workspace that names no layout and does not say it tiles has tiling off, as the file gave
     /// it no layout to tile with, and one that has layout rules tiles.
-    pub fn load_static_config(
+    fn load_static_config(
+        &mut self,
+        config: &WorkspaceConfig,
+        layout_defaults: Option<&HashMap<DefaultLayout, LayoutDefaultEntry>>,
+    ) -> eyre::Result<()>;
+
+    /// Compute effective layout options using the complete-replacement cascade:
+    ///
+    /// If the workspace defines EITHER `layout_options` OR `layout_options_rules`,
+    /// it completely replaces the global `layout_defaults` for this layout.
+    /// Global defaults are only used when the workspace has NEITHER setting.
+    ///
+    /// Within the effective source (workspace or global):
+    ///   1. Try threshold match from rules (highest matching threshold wins)
+    ///   2. If a rule matches -> use it (full replacement of base)
+    ///   3. Else -> use the base `layout_options`
+    fn effective_layout_options(&self) -> Option<LayoutOptions>;
+
+    fn prune_duplicate_windows(&mut self) -> eyre::Result<()>;
+
+    /// Remove every window that no longer exists
+    fn reap_invalid_windows(&mut self) -> eyre::Result<usize>;
+
+    /// Takes the window out of its container, and returns it. A container that is left with no
+    /// window is removed. One that is left with windows shows the one in front of them now and
+    /// gives it the focus in the compositor, so that closing the window in front of a stack brings
+    /// the next one up.
+    ///
+    /// # Errors
+    ///
+    /// No container of the workspace has the window.
+    fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window>;
+
+    /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
+    /// windows of every container, the maximized window and the monocle container. A scrolling
+    /// workspace is tiled again first without its resize adjustments, which are put back after,
+    /// so that the windows are hidden where the layout has them and not where they were dragged.
+    fn hide(&mut self, omit: Option<u32>);
+
+    /// Restores the window of every container that is in front, and the floating windows, and
+    /// gives the focus to the window of this workspace that had it: the focused window of the
+    /// focused container, or the focused floating window when there is no container.
+    ///
+    /// The compositor shows a workspace's windows by itself when the workspace's desktop is shown;
+    /// this is what komorebi does after it has asked for that, and it brings back what komorebi
+    /// itself has hidden (the back of a stack stays hidden). While there is a monocle container
+    /// only its window is restored and focused, for the other containers are out of sight behind
+    /// it. A maximized window is restored and given the focus ahead of the containers' windows.
+    /// It sets the wallpaper the monitor is to show ([`Workspace::apply_wallpaper`]).
+    fn restore(
+        &mut self,
+        mouse_follows_focus: bool,
+        monitor_id: u32,
+        monitor_wp: &Option<Wallpaper>,
+    ) -> eyre::Result<()>;
+
+    /// Moves the focused container to the first index, the largest tile in every layout but the
+    /// grid, and keeps the focus on it
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no containers.
+    fn promote_container(&mut self) -> eyre::Result<()>;
+
+    /// Takes the focused window out of its container, and so out of the layout, and has the
+    /// compositor maximize it: the work area, panels respected, and a restore that goes back to
+    /// where the window was. On the floating layer it is the focused floating window that is
+    /// maximized, and the window of the monocle container is the focused one while there is a
+    /// monocle container.
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no containers, the focused one has no window, or the compositor refuses
+    /// to maximize the window.
+    fn new_maximized_window(&mut self) -> eyre::Result<()>;
+
+    /// Takes a window the compositor has maximized without komorebi's being asked (the user's title
+    /// bar, a double click, a shortcut) out of the layout, as [`Workspace::new_maximized_window`]
+    /// does for the focused window: it becomes the workspace's maximized window, with the index it
+    /// goes back to, until it is restored by `toggle-maximize` or by the user. The window is
+    /// already maximized, so it is not asked to be.
+    ///
+    /// A window that is the maximized window already changes nothing. A workspace has room for one
+    /// maximized window: the one it had goes back in the layout first, and a window that was
+    /// floating or in the monocle container leaves it. The window goes back to the index of the
+    /// focused container when it was floating, to the one the monocle container was taken from when
+    /// it was in the monocle, and to its container's index otherwise. A stack or a monocle container
+    /// that the window leaves shows the window that has the focus in it now, and hides the others.
+    ///
+    /// # Errors
+    ///
+    /// - The workspace has no such window in its floating windows, its monocle container or its
+    ///   containers.
+    /// - The maximized window it had cannot be put back, for one of the reasons
+    ///   [`Workspace::reintegrate_maximized_window`] gives.
+    fn adopt_maximized_window(&mut self, window_id: u32) -> eyre::Result<()>;
+
+    /// The maximized window is a tile again, in a container of its own at the index it was taken
+    /// from, and the compositor gives it back the frame it had
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no maximized window, or the compositor refuses to restore it.
+    fn reintegrate_maximized_window(&mut self) -> eyre::Result<()>;
+
+    /// Takes the focused window out of its container, and out of the layout, into the floating
+    /// windows of the workspace; a container that is left with no window is removed, and one that
+    /// is left with windows shows the one in front now
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no containers, or the focused one has no window.
+    fn new_floating_window(&mut self) -> eyre::Result<()>;
+
+    /// Tiles the workspace: asks the layout for a tile per container in the work area, less the
+    /// offset (the workspace's own, or else the one its monitor gives it), the monitor's
+    /// window-based offset while there are no more containers than its limit and
+    /// [`Workspace::apply_window_based_work_area_offset`] is set, and the workspace padding, and
+    /// puts every window of each container on its tile.
+    ///
+    /// The offset of the highest of [`Workspace::work_area_offset_rules`] that the number of
+    /// containers reaches comes before the workspace's own, and a monocle container counts as one
+    /// container for it. The highest of [`Workspace::layout_rules`] that it reaches makes the
+    /// layout the workspace has from then on, and none that it does not reach changes it. The
+    /// highest of [`Workspace::window_container_behaviour_rules`] that it reaches is the workspace's
+    /// [`Workspace::window_container_behaviour`], which is none while it reaches none. The layout
+    /// options are the workspace's own or, when it has none, those `layout_defaults` gives the
+    /// layout, as [`Workspace::load_static_config`] copied them.
+    ///
+    /// Containers that have no windows left are dropped first, except the one a preselection
+    /// reserved, and so is a window that is in more than one container. A tile is clamped to the
+    /// work area, so it cannot bleed onto a neighboring monitor, except in the scrolling layout,
+    /// whose strip runs past the edges of the work area. Each tile then gives up the room a border
+    /// drawn by the compositor takes on every side, the border's width and its offset
+    /// ([`WorkspaceGlobals`]; nothing when no border is drawn). A window whose tile is out of view
+    /// while part of the window is in view is first centered in the work area. A workspace whose
+    /// tiling is off ([`Workspace::tile`] is false) moves no window.
+    ///
+    /// While the workspace has a monocle container ([`Workspace::monocle_container`]), the window
+    /// in front of it is put on the work area, less the container padding, and the other containers
+    /// are left where they are. The window-based offset is then applied whatever the number of
+    /// containers, if the monitor has one.
+    ///
+    /// While it has a maximized window ([`Workspace::maximized_window`]), the compositor is asked
+    /// to maximize it again, which it does in its own work area, with no padding, and the
+    /// containers are left where they are.
+    ///
+    /// The layout applies the resize adjustment of each container ([`Workspace::resize_dimensions`])
+    /// after the parts its layout cannot apply have been cleared. The tiles are kept in
+    /// [`Workspace::latest_layout`], which the scrolling layout scrolls from.
+    fn update(&mut self) -> eyre::Result<()>;
+
+    /// What the compositor says about each window [`Workspace::visible_windows`] has, as
+    /// `komorebic visible-windows` shows it: the maximized window, the one at the top of the
+    /// monocle container, the one at the top of each container, and every floating window. A
+    /// container that has no window is left out.
+    fn visible_window_details(&self) -> Vec<WindowDetails>;
+
+    /// Has the monitor show this workspace's wallpaper, or else the monitor's `monitor_wp`, and
+    /// gives the borders the colors of the palette of the picture unless the wallpaper asks for no
+    /// theme. Nothing is done for a workspace and a monitor that have no wallpaper.
+    ///
+    /// A failure to set the wallpaper is logged and does not make this fail, and the colors are
+    /// still changed: the picture may be shown a moment later, when the Plasma shell is up. The
+    /// colors are changed before this returns, so the borders drawn for the workspace that comes
+    /// into view are right at once.
+    fn apply_wallpaper(
+        &self,
+        monitor_id: u32,
+        monitor_wp: &Option<Wallpaper>,
+    ) -> eyre::Result<()>;
+
+}
+
+impl WorkspaceExt for Workspace {
+    fn load_static_config(
         &mut self,
         config: &WorkspaceConfig,
         layout_defaults: Option<&HashMap<DefaultLayout, LayoutDefaultEntry>>,
@@ -404,17 +451,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// Compute effective layout options using the complete-replacement cascade:
-    ///
-    /// If the workspace defines EITHER `layout_options` OR `layout_options_rules`,
-    /// it completely replaces the global `layout_defaults` for this layout.
-    /// Global defaults are only used when the workspace has NEITHER setting.
-    ///
-    /// Within the effective source (workspace or global):
-    ///   1. Try threshold match from rules (highest matching threshold wins)
-    ///   2. If a rule matches -> use it (full replacement of base)
-    ///   3. Else -> use the base `layout_options`
-    pub(crate) fn effective_layout_options(&self) -> Option<LayoutOptions> {
+    fn effective_layout_options(&self) -> Option<LayoutOptions> {
         let container_count = self.containers().len();
 
         let has_workspace_overrides =
@@ -435,266 +472,7 @@ impl Workspace {
         resolve_threshold_match(effective_rules, container_count).or(effective_base)
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn focus_container(&mut self, idx: usize) {
-        tracing::info!("focusing container");
-
-        self.containers.focus(idx);
-    }
-
-    pub fn swap_containers(&mut self, i: usize, j: usize) {
-        self.containers.elements_mut().swap_respecting_locks(i, j);
-        self.focus_container(j);
-    }
-
-    /// Reserves the index `insertion_idx` for the next window: an empty container is inserted
-    /// there, which the layout gives a tile, and [`Workspace::new_container_for_window`] puts the
-    /// next window in it
-    pub fn preselect_container_idx(&mut self, insertion_idx: usize) {
-        self.preselected_container_idx = Some(insertion_idx);
-        self.insert_container_at_idx(insertion_idx, Container::preselect());
-    }
-
-    /// Removes the container a preselection reserved, if there is one
-    pub fn cancel_preselect(&mut self) {
-        if let Some(idx) = self.preselected_container_idx {
-            self.containers_mut().remove_respecting_locks(idx);
-            self.preselected_container_idx = None;
-        }
-    }
-
-    /// Returns the index of the container whose tile is on the `direction` side of the focused
-    /// one in the workspace's layout, or `None` when there is none on that side
-    pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
-        // in a strip, left and right are the neighbouring columns and up and down are the tiles of
-        // the column, which the strip is the one to say
-        if self.is_scrolling() && self.scrolling.is_some() {
-            return self.scrolling_idx_for_direction(direction);
-        }
-
-        let len = NonZeroUsize::new(self.containers().len())?;
-
-        direction.destination(
-            self.layout.as_boxed_direction().as_ref(),
-            self.layout_flip,
-            self.focused_container_idx(),
-            len,
-            self.layout_options,
-        )
-    }
-
-    /// Returns the index of the container after (or before) the focused one, wrapping around at
-    /// the ends, or `None` when the workspace has no containers
-    pub fn new_idx_for_cycle_direction(&self, direction: CycleDirection) -> Option<usize> {
-        Option::from(direction.next_idx(
-            self.focused_container_idx(),
-            NonZeroUsize::new(self.containers().len())?,
-        ))
-    }
-
-    pub fn container_idx_for_window(&self, window_id: PlatformWindowId) -> Option<usize> {
-        let mut idx = None;
-        for (i, x) in self.containers().iter().enumerate() {
-            if x.contains_window(window_id) {
-                idx = Option::from(i);
-            }
-        }
-
-        idx
-    }
-
-    /// Focuses the container the window is in, and the window in it. When the window is in a stack
-    /// and was not the one in front, it is brought to the front ([`Container::load_focused_window`]).
-    ///
-    /// # Errors
-    ///
-    /// No container of the workspace has the window.
-    pub fn focus_container_by_window(&mut self, window_id: PlatformWindowId) -> eyre::Result<()> {
-        let container_idx = self
-            .container_idx_for_window(window_id)
-            .ok_or_eyre("there is no container/window")?;
-
-        let container = self
-            .containers_mut()
-            .get_mut(container_idx)
-            .ok_or_eyre("there is no container")?;
-
-        let window_idx = container
-            .idx_for_window(window_id)
-            .ok_or_eyre("there is no window")?;
-
-        let mut should_load = false;
-
-        if container.focused_window_idx() != window_idx {
-            should_load = true
-        }
-
-        container.focus_window(window_idx);
-
-        if should_load {
-            container.load_focused_window();
-        }
-
-        self.focus_container(container_idx);
-
-        Ok(())
-    }
-
-    /// Puts the window in a container of its own, and focuses that container: in the container a
-    /// preselection reserved, if there is one, and otherwise at the index the workspace's initial
-    /// window placement rules give it ([`Workspace::initial_window_placement_rules`]), which is
-    /// after the focused container unless they say otherwise (at the start of an empty workspace)
-    pub fn new_container_for_window(&mut self, window: Window) {
-        let next_idx = if let Some(idx) = self.preselected_container_idx {
-            let next = idx;
-            self.preselected_container_idx = None;
-            self.remove_container_by_idx(next);
-            next
-        } else if self.containers().is_empty() {
-            0
-        } else if let Some(idx) = self.scrolling_insertion_idx() {
-            idx
-        } else {
-            self.resolve_placement_index(&window)
-        };
-
-        let mut container = Container::default();
-        container.add_window(window);
-
-        self.insert_container_at_idx(next_idx, container);
-    }
-
-    /// Resolves the container index at which a new window should be placed,
-    /// based on the `initial_window_placement_rules` configuration.
-    ///
-    /// Falls back to the default placement (`AfterFocused`,
-    /// i.e. `focused_container_idx() + 1`) when:
-    /// - No rules are configured
-    /// - A `Rules` map has no matching rule for the window
-    /// - A resolved index is out of bounds
-    fn resolve_placement_index(&self, window: &Window) -> usize {
-        let fallback_idx = self.focused_container_idx() + 1;
-
-        let Some(rules) = &self.initial_window_placement_rules else {
-            return fallback_idx;
-        };
-
-        match rules {
-            InitialWindowPlacementRules::Target(target) => {
-                self.resolve_placement_target(target, fallback_idx)
-            }
-            InitialWindowPlacementRules::Rules(rules_map) => {
-                let (Some(title), Some(exe_name), Some(class), Some(path)) =
-                    (window.title(), window.exe(), window.class(), window.path())
-                else {
-                    return fallback_idx;
-                };
-
-                let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
-
-                // BTreeMap iterates in key order
-                for (target, placement_rules) in rules_map {
-                    let matched = match placement_rules {
-                        PlacementMatchingRules::Single(id) => should_act_window_individual(
-                            &title,
-                            &exe_name,
-                            &class,
-                            &path,
-                            id,
-                            &regex_identifiers,
-                        ),
-                        PlacementMatchingRules::Many(rules) => {
-                            // OR logic: any matching rule triggers placement at this target.
-                            // Each MatchingRule handles its own Simple/Composite (AND) logic
-                            // internally via should_act.
-                            should_act_window(
-                                &title,
-                                &exe_name,
-                                &class,
-                                &path,
-                                rules,
-                                &regex_identifiers,
-                            )
-                            .is_some()
-                        }
-                    };
-
-                    if matched {
-                        return self.resolve_placement_target(target, fallback_idx);
-                    }
-                }
-
-                // No matching rule found
-                fallback_idx
-            }
-        }
-    }
-
-    /// Resolves a `WindowPlacement` variant to a concrete container index.
-    fn resolve_window_placement(&self, placement: &WindowPlacement, fallback_idx: usize) -> usize {
-        match placement {
-            WindowPlacement::AfterFocused => self.focused_container_idx() + 1,
-            WindowPlacement::BeforeFocused => self.focused_container_idx(),
-            WindowPlacement::Primary => {
-                let idx = self.layout.primary_index();
-                if idx <= self.containers().len() {
-                    idx
-                } else {
-                    fallback_idx
-                }
-            }
-            WindowPlacement::Secondary => {
-                if let Some(idx) = self.layout.secondary_index(self.containers().len()) {
-                    if idx <= self.containers().len() {
-                        idx
-                    } else {
-                        fallback_idx
-                    }
-                } else {
-                    fallback_idx
-                }
-            }
-            WindowPlacement::Last => self.containers().len(),
-        }
-    }
-
-    /// Resolves a `PlacementTarget` (either a named placement or a 1-based index) to a concrete container index.
-    fn resolve_placement_target(&self, target: &PlacementTarget, fallback_idx: usize) -> usize {
-        match target {
-            PlacementTarget::Placement(placement) => {
-                self.resolve_window_placement(placement, fallback_idx)
-            }
-            PlacementTarget::Index(idx) => {
-                // Config indices are 1-based; convert to 0-based
-                let zero_based = idx.saturating_sub(1);
-                if zero_based <= self.containers().len() {
-                    zero_based
-                } else {
-                    fallback_idx
-                }
-            }
-        }
-    }
-
-    // this fn respects locked container indexes - we should use it for pretty much everything
-    // except monocle and maximize toggles
-    pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) -> usize {
-        let insertion_idx = self
-            .containers_mut()
-            .insert_respecting_locks(idx, container);
-
-        if insertion_idx > self.resize_dimensions.len() {
-            self.resize_dimensions.push(None);
-        } else {
-            self.resize_dimensions.insert(insertion_idx, None);
-        }
-
-        self.focus_container(insertion_idx);
-
-        insertion_idx
-    }
-
-    pub fn prune_duplicate_windows(&mut self) -> eyre::Result<()> {
+    fn prune_duplicate_windows(&mut self) -> eyre::Result<()> {
         let mut tracker = HashMap::new();
         let mut to_prune_from_containers = vec![];
         let mut to_prune_from_floating = vec![];
@@ -743,9 +521,8 @@ impl Workspace {
         Ok(())
     }
 
-    /// Remove every window that no longer exists
     #[tracing::instrument(skip(self))]
-    pub fn reap_invalid_windows(&mut self) -> eyre::Result<usize> {
+    fn reap_invalid_windows(&mut self) -> eyre::Result<usize> {
         let mut invalid_window_ids = vec![];
         let mut invalid_floating_window_ids = vec![];
 
@@ -786,15 +563,7 @@ impl Workspace {
         Ok(invalid_window_ids.len() + invalid_floating_window_ids.len())
     }
 
-    /// Takes the window out of its container, and returns it. A container that is left with no
-    /// window is removed. One that is left with windows shows the one in front of them now and
-    /// gives it the focus in the compositor, so that closing the window in front of a stack brings
-    /// the next one up.
-    ///
-    /// # Errors
-    ///
-    /// No container of the workspace has the window.
-    pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
+    fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
         if let Some(window) = self.maximized_window
             && window.id == window_id
         {
@@ -862,231 +631,7 @@ impl Workspace {
         Ok(window)
     }
 
-    // this fn respects locked container indexes - we should use it for pretty much everything
-    // except monocle and maximize toggles
-    pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
-        // wherever it goes next, it goes as wide as it was
-        self.note_scrolling_departure(idx);
-
-        let container = self.containers_mut().remove_respecting_locks(idx);
-
-        if idx < self.resize_dimensions.len() {
-            self.resize_dimensions.remove(idx);
-        }
-
-        container
-    }
-
-    pub fn focus_previous_container(&mut self) {
-        let focused_idx = self.focused_container_idx();
-        self.focus_container(focused_idx.saturating_sub(1));
-    }
-
-    /// Returns true if the window that has the focus in the compositor is the maximized window or
-    /// in the monocle container, and so out of the layout
-    ///
-    /// # Errors
-    ///
-    /// The compositor reports no focused window.
-    pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
-        let window_id = foreground_window_id().ok_or_eyre("no foreground window")?;
-        if let Some(window) = self.maximized_window
-            && window_id == window.id()
-        {
-            return Ok(true);
-        }
-
-        if let Some(container) = &self.monocle_container
-            && container.contains_window(window_id)
-        {
-            return Ok(true);
-        }
-
-        Ok(false)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.containers().is_empty()
-            && self.maximized_window.is_none()
-            && self.monocle_container.is_none()
-            && self.floating_windows().is_empty()
-    }
-
-    pub fn contains_window(&self, window_id: PlatformWindowId) -> bool {
-        for container in self.containers() {
-            if container.contains_window(window_id) {
-                return true;
-            }
-        }
-
-        if let Some(window) = self.maximized_window
-            && window_id == window.id()
-        {
-            return true;
-        }
-
-        if let Some(container) = &self.monocle_container
-            && container.contains_window(window_id)
-        {
-            return true;
-        }
-
-        for window in self.floating_windows() {
-            if window_id == window.id() {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /// Where this workspace has a window of the executable `exe`: in a container first, then the
-    /// maximized window, then the monocle container, then the floating windows
-    pub fn location_from_exe(&self, exe: &str) -> Option<WorkspaceWindowLocation> {
-        for (container_idx, container) in self.containers().iter().enumerate() {
-            if let Some(window_idx) = container.idx_from_exe(exe) {
-                return Some(WorkspaceWindowLocation::Container(
-                    container_idx,
-                    window_idx,
-                ));
-            }
-        }
-
-        if let Some(window) = self.maximized_window
-            && let Some(window_exe) = window.exe()
-            && exe == window_exe
-        {
-            return Some(WorkspaceWindowLocation::Maximized);
-        }
-
-        if let Some(container) = &self.monocle_container
-            && let Some(window_idx) = container.idx_from_exe(exe)
-        {
-            return Some(WorkspaceWindowLocation::Monocle(window_idx));
-        }
-
-        for (window_idx, window) in self.floating_windows().iter().enumerate() {
-            if let Some(window_exe) = window.exe()
-                && exe == window_exe
-            {
-                return Some(WorkspaceWindowLocation::Floating(window_idx));
-            }
-        }
-
-        None
-    }
-
-    /// Returns true if and only if the window is in one of the containers, is the maximized
-    /// window or is in the monocle container, which leaves out the floating windows: the windows
-    /// komorebi tiles
-    pub fn contains_managed_window(&self, window_id: PlatformWindowId) -> bool {
-        for container in self.containers() {
-            if container.contains_window(window_id) {
-                return true;
-            }
-        }
-
-        if let Some(window) = self.maximized_window
-            && window_id == window.id()
-        {
-            return true;
-        }
-
-        if let Some(container) = &self.monocle_container
-            && container.contains_window(window_id)
-        {
-            return true;
-        }
-
-        false
-    }
-
-    /// Moves the focused window of the focused container into the container at
-    /// `target_container_idx`, which is how a window is stacked. The window is put in front of
-    /// the target's, and the container it left is removed when it has no window left, or shows its
-    /// next window.
-    ///
-    /// # Errors
-    ///
-    /// There is no focused container or window, or no container at the target's index (counted
-    /// after the container the window left has been removed, if it goes).
-    pub fn move_window_to_container(&mut self, target_container_idx: usize) -> eyre::Result<()> {
-        let focused_idx = self.focused_container_idx();
-
-        let container = self
-            .focused_container_mut()
-            .ok_or_eyre("there is no container")?;
-
-        let window = container
-            .remove_focused_window()
-            .ok_or_eyre("there is no window")?;
-
-        // This is a little messy
-        let adjusted_target_container_index = if container.windows().is_empty() {
-            self.remove_container_by_idx(focused_idx);
-
-            if focused_idx < target_container_idx {
-                target_container_idx.saturating_sub(1)
-            } else {
-                target_container_idx
-            }
-        } else {
-            container.load_focused_window();
-            target_container_idx
-        };
-
-        let target_container = self
-            .containers_mut()
-            .get_mut(adjusted_target_container_index)
-            .ok_or_eyre("there is no container")?;
-
-        target_container.add_window(window);
-
-        self.focus_container(adjusted_target_container_index);
-        self.focused_container_mut()
-            .ok_or_eyre("there is no container")?
-            .load_focused_window();
-
-        Ok(())
-    }
-
-    /// Takes the focused window out of its container, which is how a window is unstacked, and puts
-    /// it in a container of its own, where a new window goes ([`Workspace::new_container_for_window`]):
-    /// after the focused one, unless the workspace's initial window placement rules say otherwise.
-    /// The container it left is removed when it has no window left, or shows its next window.
-    ///
-    /// # Errors
-    ///
-    /// There is no focused container or window.
-    pub fn new_container_for_focused_window(&mut self) -> eyre::Result<()> {
-        let focused_container_idx = self.focused_container_idx();
-
-        let container = self
-            .focused_container_mut()
-            .ok_or_eyre("there is no container")?;
-
-        let window = container
-            .remove_focused_window()
-            .ok_or_eyre("there is no window")?;
-
-        if container.windows().is_empty() {
-            self.remove_container_by_idx(focused_container_idx);
-        } else {
-            container.load_focused_window();
-        }
-
-        self.new_container_for_window(window);
-
-        let mut container = Container::default();
-        container.add_window(window);
-        Ok(())
-    }
-
-    /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
-    /// windows of every container, the maximized window and the monocle container. A scrolling
-    /// workspace is tiled again first without its resize adjustments, which are put back after,
-    /// so that the windows are hidden where the layout has them and not where they were dragged.
-    pub fn hide(&mut self, omit: Option<u32>) {
+    fn hide(&mut self, omit: Option<u32>) {
         for window in self.floating_windows_mut().iter_mut().rev() {
             let mut should_hide = omit.is_none();
 
@@ -1130,17 +675,7 @@ impl Workspace {
         }
     }
 
-    /// Restores the window of every container that is in front, and the floating windows, and
-    /// gives the focus to the window of this workspace that had it: the focused window of the
-    /// focused container, or the focused floating window when there is no container.
-    ///
-    /// The compositor shows a workspace's windows by itself when the workspace's desktop is shown;
-    /// this is what komorebi does after it has asked for that, and it brings back what komorebi
-    /// itself has hidden (the back of a stack stays hidden). While there is a monocle container
-    /// only its window is restored and focused, for the other containers are out of sight behind
-    /// it. A maximized window is restored and given the focus ahead of the containers' windows.
-    /// It sets the wallpaper the monitor is to show ([`Workspace::apply_wallpaper`]).
-    pub fn restore(
+    fn restore(
         &mut self,
         mouse_follows_focus: bool,
         monitor_id: u32,
@@ -1201,28 +736,7 @@ impl Workspace {
         self.apply_wallpaper(monitor_id, monitor_wp)
     }
 
-    pub fn remove_focused_container(&mut self) -> Option<Container> {
-        let focused_idx = self.focused_container_idx();
-        let container = self.remove_container_by_idx(focused_idx);
-        self.focus_previous_container();
-
-        container
-    }
-
-    pub fn remove_container(&mut self, idx: usize) -> Option<Container> {
-        let container = self.remove_container_by_idx(idx);
-        self.focus_previous_container();
-
-        container
-    }
-
-    /// Moves the focused container to the first index, the largest tile in every layout but the
-    /// grid, and keeps the focus on it
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no containers.
-    pub fn promote_container(&mut self) -> eyre::Result<()> {
+    fn promote_container(&mut self) -> eyre::Result<()> {
         let focused_idx = self.focused_container_idx();
         let container = self
             .containers_mut()
@@ -1241,135 +755,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn add_container_to_back(&mut self, container: Container) {
-        self.containers_mut().push_back(container);
-        self.focus_last_container();
-    }
-
-    pub fn add_container_to_front(&mut self, container: Container) {
-        self.containers_mut().push_front(container);
-        self.focus_first_container();
-    }
-
-    fn focus_last_container(&mut self) {
-        self.focus_container(self.containers().len().saturating_sub(1));
-    }
-
-    fn focus_first_container(&mut self) {
-        self.focus_container(0);
-    }
-
-    /// Takes the focused container out of the containers and makes it the monocle container,
-    /// remembering its index, and focuses the container before it. The window in front of the
-    /// monocle container is shown and the rest of its windows are hidden.
-    ///
-    /// The container's resize adjustment stays where it is, so that the container goes back to the
-    /// size it had.
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no containers.
-    pub fn new_monocle_container(&mut self) -> eyre::Result<()> {
-        let focused_idx = self.focused_container_idx();
-
-        // we shouldn't use remove_container_by_idx here because it doesn't make sense for
-        // monocle and maximized toggles which take over the whole screen before being reinserted
-        // at the same index to respect locked container indexes
-        let container = self
-            .containers_mut()
-            .remove(focused_idx)
-            .ok_or_eyre("there is no container")?;
-
-        // We don't remove any resize adjustments for a monocle, because when this container is
-        // inevitably reintegrated, it would be weird if it doesn't go back to the dimensions
-        // it had before
-
-        self.monocle_container = Option::from(container);
-        self.monocle_container_restore_idx = Option::from(focused_idx);
-        self.focus_previous_container();
-
-        self.monocle_container
-            .as_mut()
-            .ok_or_eyre("there is no monocle container")?
-            .load_focused_window();
-
-        Ok(())
-    }
-
-    /// Puts the monocle container back and makes the next (or the previous) container the
-    /// monocle, wrapping around at the ends
-    ///
-    /// A workspace with no other container is left as it is.
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no monocle container.
-    pub fn cycle_monocle_container(&mut self, direction: CycleDirection) -> eyre::Result<()> {
-        if self.containers().is_empty() {
-            return Ok(());
-        }
-
-        self.reintegrate_monocle_container()?;
-
-        let new_idx = self
-            .new_idx_for_cycle_direction(direction)
-            .ok_or_eyre("there is no container to cycle monocle to")?;
-
-        self.focus_container(new_idx);
-        self.new_monocle_container()?;
-
-        Ok(())
-    }
-
-    /// Puts the monocle container back in the containers at the index it was taken from, and
-    /// focuses it. The window in front of the container is shown and the rest are hidden.
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no monocle container.
-    pub fn reintegrate_monocle_container(&mut self) -> eyre::Result<()> {
-        let restore_idx = self
-            .monocle_container_restore_idx
-            .ok_or_eyre("there is no monocle restore index")?;
-
-        let container = self
-            .monocle_container
-            .as_ref()
-            .ok_or_eyre("there is no monocle container")?;
-
-        let container = container.clone();
-        if restore_idx >= self.containers().len() {
-            self.containers_mut()
-                .resize(restore_idx, Container::default());
-        }
-
-        // we shouldn't use insert_container_at_index here because it doesn't make sense for
-        // monocle and maximized toggles which take over the whole screen before being reinserted
-        // at the same index to respect locked container indexes
-        self.containers_mut().insert(restore_idx, container);
-        self.focus_container(restore_idx);
-
-        self.focused_container_mut()
-            .ok_or_eyre("there is no container")?
-            .load_focused_window();
-
-        self.monocle_container = None;
-        self.monocle_container_restore_idx = None;
-
-        Ok(())
-    }
-
-    /// Takes the focused window out of its container, and so out of the layout, and has the
-    /// compositor maximize it: the work area, panels respected, and a restore that goes back to
-    /// where the window was. On the floating layer it is the focused floating window that is
-    /// maximized, and the window of the monocle container is the focused one while there is a
-    /// monocle container.
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no containers, the focused one has no window, or the compositor refuses
-    /// to maximize the window.
-    pub fn new_maximized_window(&mut self) -> eyre::Result<()> {
+    fn new_maximized_window(&mut self) -> eyre::Result<()> {
         let focused_idx = self.focused_container_idx();
 
         if matches!(self.layer, WorkspaceLayer::Floating) {
@@ -1431,26 +817,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// Takes a window the compositor has maximized without komorebi's being asked (the user's title
-    /// bar, a double click, a shortcut) out of the layout, as [`Workspace::new_maximized_window`]
-    /// does for the focused window: it becomes the workspace's maximized window, with the index it
-    /// goes back to, until it is restored by `toggle-maximize` or by the user. The window is
-    /// already maximized, so it is not asked to be.
-    ///
-    /// A window that is the maximized window already changes nothing. A workspace has room for one
-    /// maximized window: the one it had goes back in the layout first, and a window that was
-    /// floating or in the monocle container leaves it. The window goes back to the index of the
-    /// focused container when it was floating, to the one the monocle container was taken from when
-    /// it was in the monocle, and to its container's index otherwise. A stack or a monocle container
-    /// that the window leaves shows the window that has the focus in it now, and hides the others.
-    ///
-    /// # Errors
-    ///
-    /// - The workspace has no such window in its floating windows, its monocle container or its
-    ///   containers.
-    /// - The maximized window it had cannot be put back, for one of the reasons
-    ///   [`Workspace::reintegrate_maximized_window`] gives.
-    pub fn adopt_maximized_window(&mut self, window_id: u32) -> eyre::Result<()> {
+    fn adopt_maximized_window(&mut self, window_id: u32) -> eyre::Result<()> {
         if self.maximized_window.is_some_and(|w| w.id == window_id) {
             return Ok(());
         }
@@ -1526,13 +893,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// The maximized window is a tile again, in a container of its own at the index it was taken
-    /// from, and the compositor gives it back the frame it had
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no maximized window, or the compositor refuses to restore it.
-    pub fn reintegrate_maximized_window(&mut self) -> eyre::Result<()> {
+    fn reintegrate_maximized_window(&mut self) -> eyre::Result<()> {
         let restore_idx = self
             .maximized_window_restore_idx
             .ok_or_eyre("there is no maximized restore index")?;
@@ -1565,14 +926,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// Takes the focused window out of its container, and out of the layout, into the floating
-    /// windows of the workspace; a container that is left with no window is removed, and one that
-    /// is left with windows shows the one in front now
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no containers, or the focused one has no window.
-    pub fn new_floating_window(&mut self) -> eyre::Result<()> {
+    fn new_floating_window(&mut self) -> eyre::Result<()> {
         let window = if let Some(maximized_window) = self.maximized_window {
             maximized_window.unmaximize()?;
             self.maximized_window = None;
@@ -1620,102 +974,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// Puts the floating window that has the focus in the compositor back in the layout, in a
-    /// container of its own at the index of the focused container
-    ///
-    /// # Errors
-    ///
-    /// The window the compositor has focused is not a floating window of the workspace.
-    pub fn new_container_for_floating_window(&mut self) -> eyre::Result<()> {
-        let focused_idx = self.focused_container_idx();
-        let window = self
-            .remove_focused_floating_window()
-            .ok_or_eyre("there is no floating window")?;
-
-        let mut container = Container::default();
-        container.add_window(window);
-
-        self.insert_container_at_idx(focused_idx, container);
-
-        Ok(())
-    }
-
-    pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
-        let window_id = foreground_window_id()?;
-        self.remove_floating_window(window_id)
-    }
-
-    pub fn remove_floating_window(&mut self, window_id: PlatformWindowId) -> Option<Window> {
-        let mut idx = None;
-        for (i, window) in self.floating_windows().iter().enumerate() {
-            if window_id == window.id() {
-                idx = Option::from(i);
-            }
-        }
-
-        match idx {
-            None => None,
-            Some(idx) => {
-                if self.floating_windows().get(idx).is_some() {
-                    self.focus_previous_floating_window();
-                    self.floating_windows_mut().remove(idx)
-                } else {
-                    None
-                }
-            }
-        }
-    }
-
-    pub fn focus_previous_floating_window(&mut self) {
-        let focused_idx = self.focused_floating_window_idx();
-        self.focus_floating_window(focused_idx.saturating_sub(1));
-    }
-
-    pub fn focus_floating_window(&mut self, idx: usize) {
-        tracing::info!("focusing floating window");
-
-        self.floating_windows.focus(idx);
-    }
-}
-
-impl Workspace {
-    /// Tiles the workspace: asks the layout for a tile per container in the work area, less the
-    /// offset (the workspace's own, or else the one its monitor gives it), the monitor's
-    /// window-based offset while there are no more containers than its limit and
-    /// [`Workspace::apply_window_based_work_area_offset`] is set, and the workspace padding, and
-    /// puts every window of each container on its tile.
-    ///
-    /// The offset of the highest of [`Workspace::work_area_offset_rules`] that the number of
-    /// containers reaches comes before the workspace's own, and a monocle container counts as one
-    /// container for it. The highest of [`Workspace::layout_rules`] that it reaches makes the
-    /// layout the workspace has from then on, and none that it does not reach changes it. The
-    /// highest of [`Workspace::window_container_behaviour_rules`] that it reaches is the workspace's
-    /// [`Workspace::window_container_behaviour`], which is none while it reaches none. The layout
-    /// options are the workspace's own or, when it has none, those `layout_defaults` gives the
-    /// layout, as [`Workspace::load_static_config`] copied them.
-    ///
-    /// Containers that have no windows left are dropped first, except the one a preselection
-    /// reserved, and so is a window that is in more than one container. A tile is clamped to the
-    /// work area, so it cannot bleed onto a neighboring monitor, except in the scrolling layout,
-    /// whose strip runs past the edges of the work area. Each tile then gives up the room a border
-    /// drawn by the compositor takes on every side, the border's width and its offset
-    /// ([`WorkspaceGlobals`]; nothing when no border is drawn). A window whose tile is out of view
-    /// while part of the window is in view is first centered in the work area. A workspace whose
-    /// tiling is off ([`Workspace::tile`] is false) moves no window.
-    ///
-    /// While the workspace has a monocle container ([`Workspace::monocle_container`]), the window
-    /// in front of it is put on the work area, less the container padding, and the other containers
-    /// are left where they are. The window-based offset is then applied whatever the number of
-    /// containers, if the monitor has one.
-    ///
-    /// While it has a maximized window ([`Workspace::maximized_window`]), the compositor is asked
-    /// to maximize it again, which it does in its own work area, with no padding, and the
-    /// containers are left where they are.
-    ///
-    /// The layout applies the resize adjustment of each container ([`Workspace::resize_dimensions`])
-    /// after the parts its layout cannot apply have been cleared. The tiles are kept in
-    /// [`Workspace::latest_layout`], which the scrolling layout scrolls from.
-    pub fn update(&mut self) -> eyre::Result<()> {
+    fn update(&mut self) -> eyre::Result<()> {
         // make sure we are never holding on to empty containers
         self.prune_duplicate_windows()?;
         let focused_container_idx = self.focused_container_idx();
@@ -1842,6 +1101,7 @@ impl Workspace {
                     // while one is being dragged, whose neighbours are on their way
                     if is_scrolling
                         && self
+                            .state
                             .scrolling_placed
                             .as_ref()
                             .is_some_and(crate::scrolling::Placed::has_settled)
@@ -1986,7 +1246,7 @@ impl Workspace {
                     self.latest_layout = layouts;
 
                     if is_scrolling {
-                        self.scrolling_placed = Some(crate::scrolling::Placed::new(
+                        self.state.scrolling_placed = Some(crate::scrolling::Placed::new(
                             self.containers()
                                 .iter()
                                 .zip(self.latest_layout.iter())
@@ -2018,60 +1278,7 @@ impl Workspace {
         Ok(())
     }
 
-    /// Returns the index of the container whose tile has the pointer in it, or `None` when the
-    /// pointer is on no tile, or the backend cannot say where it is
-    ///
-    /// The tiles are those the layout last calculated ([`Workspace::latest_layout`]).
-    pub fn container_idx_from_current_point(&self) -> Option<usize> {
-        let mut idx = None;
-
-        let point = cursor_position()?;
-
-        for (i, _container) in self.containers().iter().enumerate() {
-            if let Some(rect) = self.latest_layout.get(i)
-                && rect.contains_point(point)
-            {
-                idx = Option::from(i);
-            }
-        }
-
-        idx
-    }
-
-    /// The container that has the window, if one of this workspace's does
-    pub fn container_for_window(&self, window_id: PlatformWindowId) -> Option<&Container> {
-        self.containers()
-            .get(self.container_idx_for_window(window_id)?)
-    }
-
-    /// The windows that are in view on this workspace: the maximized window (an entry that is
-    /// `None` when there is none), the one at the top of the monocle container, the one at the top
-    /// of each container, and every floating window
-    pub fn visible_windows(&self) -> Vec<Option<&Window>> {
-        let mut vec = vec![];
-
-        vec.push(self.maximized_window.as_ref());
-
-        if let Some(monocle) = &self.monocle_container {
-            vec.push(monocle.focused_window());
-        }
-
-        for container in self.containers() {
-            vec.push(container.focused_window());
-        }
-
-        for window in self.floating_windows() {
-            vec.push(Some(window));
-        }
-
-        vec
-    }
-
-    /// What the compositor says about each window [`Workspace::visible_windows`] has, as
-    /// `komorebic visible-windows` shows it: the maximized window, the one at the top of the
-    /// monocle container, the one at the top of each container, and every floating window. A
-    /// container that has no window is left out.
-    pub fn visible_window_details(&self) -> Vec<WindowDetails> {
+    fn visible_window_details(&self) -> Vec<WindowDetails> {
         let mut vec: Vec<WindowDetails> = vec![];
 
         if let Some(maximized) = &self.maximized_window {
@@ -2101,15 +1308,7 @@ impl Workspace {
         vec
     }
 
-    /// Has the monitor show this workspace's wallpaper, or else the monitor's `monitor_wp`, and
-    /// gives the borders the colors of the palette of the picture unless the wallpaper asks for no
-    /// theme. Nothing is done for a workspace and a monitor that have no wallpaper.
-    ///
-    /// A failure to set the wallpaper is logged and does not make this fail, and the colors are
-    /// still changed: the picture may be shown a moment later, when the Plasma shell is up. The
-    /// colors are changed before this returns, so the borders drawn for the workspace that comes
-    /// into view are right at once.
-    pub fn apply_wallpaper(
+    fn apply_wallpaper(
         &self,
         monitor_id: u32,
         monitor_wp: &Option<Wallpaper>,
@@ -2145,261 +1344,7 @@ impl Workspace {
 
         Ok(())
     }
-}
 
-impl Workspace {
-    fn enforce_resize_constraints(&mut self) {
-        match self.layout {
-            Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
-            Layout::Default(DefaultLayout::Columns) => self.enforce_resize_for_columns(),
-            Layout::Default(DefaultLayout::Rows) => self.enforce_resize_for_rows(),
-            Layout::Default(DefaultLayout::VerticalStack) => {
-                self.enforce_resize_for_vertical_stack();
-            }
-            Layout::Default(DefaultLayout::RightMainVerticalStack) => {
-                self.enforce_resize_for_right_vertical_stack();
-            }
-            Layout::Default(DefaultLayout::HorizontalStack) => {
-                self.enforce_resize_for_horizontal_stack();
-            }
-            Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
-                self.enforce_resize_for_ultrawide();
-            }
-            _ => self.enforce_no_resize(),
-        }
-    }
-
-    fn enforce_resize_constraints_for_bsp(&mut self) {
-        for (i, rect) in self.resize_dimensions.iter_mut().enumerate() {
-            if let Some(rect) = rect {
-                // Even containers can't be resized to the bottom
-                if i % 2 == 0 {
-                    rect.bottom = 0;
-                    // Odd containers can't be resized to the right
-                } else {
-                    rect.right = 0;
-                }
-            }
-        }
-
-        // The first container can never be resized to the left or the top
-        if let Some(Some(first)) = self.resize_dimensions.first_mut() {
-            first.top = 0;
-            first.left = 0;
-        }
-
-        // The last container can never be resized to the bottom or the right
-        if let Some(Some(last)) = self.resize_dimensions.last_mut() {
-            last.bottom = 0;
-            last.right = 0;
-        }
-    }
-
-    fn enforce_resize_for_columns(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                let len = resize_dimensions.len();
-                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        rect.top = 0;
-                        rect.bottom = 0;
-
-                        if i == 0 {
-                            rect.left = 0;
-                        }
-                        if i == len - 1 {
-                            rect.right = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn enforce_resize_for_rows(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                let len = resize_dimensions.len();
-                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        rect.left = 0;
-                        rect.right = 0;
-
-                        if i == 0 {
-                            rect.top = 0;
-                        }
-                        if i == len - 1 {
-                            rect.bottom = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn enforce_resize_for_vertical_stack(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            // Single window can not be resized at all
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                // Zero is actually on the left
-                if let Some(left) = resize_dimensions[0].as_mut() {
-                    left.top = 0;
-                    left.bottom = 0;
-                    left.left = 0;
-                }
-
-                // Handle stack on the right
-                let stack_size = resize_dimensions[1..].len();
-                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        // No containers can resize to the right
-                        rect.right = 0;
-
-                        // First container in stack cant resize up
-                        if i == 0 {
-                            rect.top = 0;
-                        } else if i == stack_size - 1 {
-                            // Last cant be resized to the bottom
-                            rect.bottom = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn enforce_resize_for_right_vertical_stack(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            // Single window can not be resized at all
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                // Zero is actually on the right
-                if let Some(left) = resize_dimensions[1].as_mut() {
-                    left.top = 0;
-                    left.bottom = 0;
-                    left.right = 0;
-                }
-
-                // Handle stack on the right
-                let stack_size = resize_dimensions[1..].len();
-                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        // No containers can resize to the left
-                        rect.left = 0;
-
-                        // First container in stack cant resize up
-                        if i == 0 {
-                            rect.top = 0;
-                        } else if i == stack_size - 1 {
-                            // Last cant be resized to the bottom
-                            rect.bottom = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn enforce_resize_for_horizontal_stack(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                if let Some(left) = resize_dimensions[0].as_mut() {
-                    left.top = 0;
-                    left.left = 0;
-                    left.right = 0;
-                }
-
-                let stack_size = resize_dimensions[1..].len();
-                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        rect.bottom = 0;
-
-                        if i == 0 {
-                            rect.left = 0;
-                        }
-                        if i == stack_size - 1 {
-                            rect.right = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn enforce_resize_for_ultrawide(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            // Single window can not be resized at all
-            0 | 1 => self.enforce_no_resize(),
-            // Two windows can only be resized in the middle
-            2 => {
-                // Zero is actually on the right
-                if let Some(right) = resize_dimensions[0].as_mut() {
-                    right.top = 0;
-                    right.bottom = 0;
-                    right.right = 0;
-                }
-
-                // One is on the left
-                if let Some(left) = resize_dimensions[1].as_mut() {
-                    left.top = 0;
-                    left.bottom = 0;
-                    left.left = 0;
-                }
-            }
-            // Three or more windows means 0 is in center, 1 is at the left, 2.. are a vertical
-            // stack on the right
-            _ => {
-                // Central can be resized left or right
-                if let Some(right) = resize_dimensions[0].as_mut() {
-                    right.top = 0;
-                    right.bottom = 0;
-                }
-
-                // Left one can only be resized to the right
-                if let Some(left) = resize_dimensions[1].as_mut() {
-                    left.top = 0;
-                    left.bottom = 0;
-                    left.left = 0;
-                }
-
-                // Handle stack on the right
-                let stack_size = resize_dimensions[2..].len();
-                for (i, rect) in resize_dimensions[2..].iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        // No containers can resize to the right
-                        rect.right = 0;
-
-                        // First container in stack cant resize up
-                        if i == 0 {
-                            rect.top = 0;
-                        } else if i == stack_size - 1 {
-                            // Last cant be resized to the bottom
-                            rect.bottom = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn enforce_no_resize(&mut self) {
-        for rect in self.resize_dimensions.iter_mut().flatten() {
-            rect.left = 0;
-            rect.right = 0;
-            rect.top = 0;
-            rect.bottom = 0;
-        }
-    }
 }
 
 #[cfg(test)]

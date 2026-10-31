@@ -227,7 +227,7 @@ impl From<&WindowManager> for State {
                                 .clone(),
                             promotion_swap_container_idx: None,
                             scrolling: None,
-                            scrolling_placed: None,
+                            state: Default::default(),
                         })
                         .collect::<VecDeque<_>>();
                     ws.focus(monitor.workspaces.focused_idx());

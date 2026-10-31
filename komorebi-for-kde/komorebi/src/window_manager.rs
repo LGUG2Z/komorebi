@@ -48,6 +48,8 @@
 //!
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
+use crate::scrolling::WorkspaceScrolling;
+use crate::workspace::WorkspaceExt;
 use crate::DATA_DIR;
 use crate::HIDDEN_WINDOWS;
 use crate::LibraryError;

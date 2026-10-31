@@ -7,6 +7,7 @@
 
 use komorebi::backend::fake::Command;
 use komorebi::backend::fake::FakeBackend;
+use komorebi::workspace::WorkspaceExt;
 use komorebi::backend::with_backend;
 use komorebi::core::CycleDirection;
 use komorebi::core::OperationDirection;
