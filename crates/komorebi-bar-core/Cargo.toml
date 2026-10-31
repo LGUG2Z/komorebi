@@ -1,0 +1,5 @@
+[package]
+name = "komorebi-bar-core"
+version = "0.1.42"
+description = "The status bar shared by the Windows and macOS komorebi bars: configuration, widgets and the platform seam"
+edition = "2024"

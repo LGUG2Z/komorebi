@@ -3432,6 +3432,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-bar-core"
+version = "0.1.42"
+
+[[package]]
 name = "komorebi-client"
 version = "0.1.42"
 dependencies = [
