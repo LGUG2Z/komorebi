@@ -3549,6 +3549,17 @@ name = "komorebi-scrolling"
 version = "0.1.42"
 
 [[package]]
+name = "komorebi-settings"
+version = "0.1.42"
+dependencies = [
+ "komorebi-config",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "parking_lot",
+]
+
+[[package]]
 name = "komorebi-shortcuts"
 version = "0.1.0"
 dependencies = [
