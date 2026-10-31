@@ -637,7 +637,7 @@ impl WindowManager {
                         // Sort by window area
                         window_idx_pairs.sort_by_key(|(_, w)| {
                             let rect =
-                                Rect::from(MacosApi::window_rect(&w.element).unwrap_or_default());
+                                Rect::from(w.frame().unwrap_or_default());
                             rect.right * rect.bottom
                         });
                         window_idx_pairs.reverse();
@@ -707,7 +707,7 @@ impl WindowManager {
                             // Sort by window area
                             window_idx_pairs.sort_by_key(|w| {
                                 let rect = Rect::from(
-                                    MacosApi::window_rect(&w.element).unwrap_or_default(),
+                                    w.frame().unwrap_or_default(),
                                 );
                                 rect.right * rect.bottom
                             });

@@ -11,7 +11,6 @@
 use crate::accessibility::AccessibilityApi;
 use crate::animation::animator;
 use crate::core::Rect;
-use crate::macos_api::MacosApi;
 use crate::window::Snapping;
 use crate::window::dragged_window;
 use crate::window::is_parked;
@@ -186,7 +185,7 @@ impl WindowManager {
             }
 
             let _ = AccessibilityApi::set_messaging_timeout(&window.element, LOOK_TIMEOUT);
-            let rect = MacosApi::window_rect(&window.element).map(Rect::from);
+            let rect = window.frame().map(Rect::from);
             let _ = AccessibilityApi::set_messaging_timeout(&window.element, 0.0);
 
             if let Ok(rect) = rect

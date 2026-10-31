@@ -140,7 +140,7 @@ impl MacosBackend {
             id: WindowId::from_u32(window.id),
             pid: window.application.process_id,
             // the Accessibility position and size, in points; a failure leaves the default
-            rect: MacosApi::window_rect(&window.element)
+            rect: window.frame()
                 .map(Rect::from)
                 .unwrap_or_default(),
             minimized,

@@ -520,7 +520,7 @@ impl Serialize for Window {
         state.serialize_field("id", &self.id)?;
         state.serialize_field(
             "rect",
-            &Rect::from(MacosApi::window_rect(&self.element).unwrap_or_default()),
+            &Rect::from(self.frame().unwrap_or_default()),
         )?;
         state.serialize_field("details", &WindowDetails::from(self))?;
         state.end()
@@ -567,6 +567,11 @@ impl Window {
             observer: AccessibilityObserver(Some(observer)),
             details: None,
         })
+    }
+
+    /// The frame query (`Backend::window_rect`): the Accessibility position and size, in points.
+    pub fn frame(&self) -> Result<CGRect, AccessibilityError> {
+        MacosApi::window_rect(&self.element)
     }
 
     pub fn is_valid(&self) -> bool {
@@ -622,7 +627,7 @@ impl Window {
         // it happened to be when it was hidden
         let rect = match animator::take_over(self.id) {
             Some(target) => CGRect::from(target),
-            None => MacosApi::window_rect(&self.element)?,
+            None => self.frame()?,
         };
 
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
@@ -706,7 +711,7 @@ impl Window {
 
         let rect = match animator::target(self.id) {
             Some(target) => CGRect::from(target),
-            None => MacosApi::window_rect(&self.element)?,
+            None => self.frame()?,
         };
 
         let Some(screen) = screen.or_else(|| CoreGraphicsApi::display_bounds_for_window_rect(rect))
@@ -956,7 +961,7 @@ impl Window {
         // the window manager is waiting for this, and so is every window after this one
         let _ = AccessibilityApi::set_messaging_timeout(&self.element, ARRIVAL_TIMEOUT);
 
-        match MacosApi::window_rect(&self.element) {
+        match self.frame() {
             Ok(actual) => arrival::report(self.id, *target, Rect::from(actual)),
             Err(error) => {
                 tracing::debug!(
@@ -985,7 +990,7 @@ impl Window {
             return;
         }
 
-        let Ok(current) = MacosApi::window_rect(&self.element) else {
+        let Ok(current) = self.frame() else {
             return;
         };
 
@@ -1077,7 +1082,7 @@ impl Window {
                 motion,
                 after: None,
             },
-            || MacosApi::window_rect(&self.element).map(Rect::from),
+            || self.frame().map(Rect::from),
         )
     }
 
@@ -1192,7 +1197,7 @@ impl Window {
             let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
             (target_width, target_height)
         } else {
-            let current_rect = Rect::from(MacosApi::window_rect(&self.element)?);
+            let current_rect = Rect::from(self.frame()?);
             (current_rect.right, current_rect.bottom)
         };
 
@@ -1212,7 +1217,7 @@ impl Window {
         current_area: &Rect,
         target_area: &Rect,
     ) -> Result<(), AccessibilityError> {
-        let current_rect = Rect::from(MacosApi::window_rect(&self.element)?);
+        let current_rect = Rect::from(self.frame()?);
         let x_diff = target_area.left - current_area.left;
         let y_diff = target_area.top - current_area.top;
         let x_ratio = f32::abs((target_area.right as f32) / (current_area.right as f32));

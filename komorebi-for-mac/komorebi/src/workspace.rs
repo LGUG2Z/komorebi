@@ -553,7 +553,7 @@ impl Workspace {
                 && focused_window.application.process_id == process_id
             {
                 if !valid_window_ids.contains(&focused_window.id) {
-                    if let Ok(rect) = MacosApi::window_rect(&focused_window.element) {
+                    if let Ok(rect) = focused_window.frame() {
                         tracing::debug!(
                             "reaping window {} ({}): rect = {:?}",
                             focused_window.id,
@@ -578,7 +578,7 @@ impl Workspace {
             if focused_window.application.process_id == process_id
                 && !valid_window_ids.contains(&focused_window.id)
             {
-                if let Ok(rect) = MacosApi::window_rect(&focused_window.element) {
+                if let Ok(rect) = focused_window.frame() {
                     tracing::debug!(
                         "reaping monocle window {} ({}): rect = {:?}",
                         focused_window.id,
@@ -599,7 +599,7 @@ impl Workspace {
         for window in self.floating_windows() {
             if window.application.process_id == process_id {
                 if !valid_window_ids.contains(&window.id) {
-                    if let Ok(rect) = MacosApi::window_rect(&window.element) {
+                    if let Ok(rect) = window.frame() {
                         tracing::debug!(
                             "reaping floating window {} ({}): rect = {:?}",
                             window.id,
