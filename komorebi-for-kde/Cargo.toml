@@ -19,6 +19,8 @@ komorebi-backend = { path = "../crates/komorebi-backend" }
 # dragging its edge (LGUG2Z/komorebi#1765), the placement helpers komorebi for KDE uses and the
 # platform-free half of the rework of the Scrolling layout
 komorebi-collections = { path = "../crates/komorebi-collections" }
+# the model shared with the other komorebi daemons
+komorebi-core = { path = "../crates/komorebi-core" }
 komorebi-layouts = { path = "../komorebi-layouts", features = [
   "schemars",
 ] }

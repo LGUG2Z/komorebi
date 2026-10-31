@@ -2504,6 +2504,7 @@ dependencies = [
  "komorebi-backend",
  "komorebi-collections",
  "komorebi-config",
+ "komorebi-core",
  "komorebi-hotkeys",
  "komorebi-layouts",
  "komorebi-protocol",
@@ -2569,6 +2570,17 @@ dependencies = [
  "serde_json_lenient",
  "serde_with",
  "strum",
+]
+
+[[package]]
+name = "komorebi-core"
+version = "0.1.42"
+dependencies = [
+ "komorebi-collections",
+ "nanoid",
+ "schemars 1.2.3",
+ "serde",
+ "tracing",
 ]
 
 [[package]]

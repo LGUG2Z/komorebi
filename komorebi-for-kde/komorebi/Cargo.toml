@@ -9,6 +9,7 @@ komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 komorebi-themes = { workspace = true }
 komorebi-backend = { workspace = true }
 komorebi-collections = { workspace = true }
+komorebi-core = { workspace = true }
 komorebi-layouts = { workspace = true }
 komorebi-scrolling = { workspace = true }
 komorebi-config = { workspace = true }
@@ -55,4 +56,4 @@ uuid = { version = "1", features = ["v4"] }
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-schemars = ["dep:schemars", "komorebi-collections/schemars"]
+schemars = ["dep:schemars", "komorebi-collections/schemars", "komorebi-core/schemars"]

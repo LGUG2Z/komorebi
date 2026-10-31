@@ -1,175 +1,43 @@
 //! [`Container`], the windows that share one tile of a workspace's layout.
 //!
-//! A container is a ring of windows. The layout gives each container a tile, and every window of
-//! the container is put on that tile. A new window gets a container of its own
-//! ([`Workspace::new_container_for_window`](crate::workspace::Workspace::new_container_for_window)).
+//! The container itself is [`komorebi_core::Container`], shared with the other komorebi daemons;
+//! here it is the one over KDE's [`Window`], a handle that is the compositor's id.
 //!
 //! A container with more than one window is a stack: the focused window is the one in front, and
 //! the others are hidden ([`Window::hide`]) until they are given the tile
-//! ([`Container::load_focused_window`]).
-//!
-//! A container can be locked ([`Lockable`]): a locked container keeps its index in the workspace
-//! while others are inserted, removed or swapped around it.
+//! ([`Container::load_focused_window`](komorebi_core::Container::load_focused_window)).
 
-use crate::lockable_sequence::Lockable;
-use crate::ring::Ring;
 use crate::window::Window;
-use nanoid::nanoid;
-use serde::Deserialize;
-use serde::Serialize;
+use komorebi_core::ContainerWindow;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct Container {
-    pub id: String,
-    pub locked: bool,
-    pub windows: Ring<Window>,
-}
+/// The windows that share one tile of a workspace's layout
+pub type Container = komorebi_core::Container<Window>;
 
-impl_ring_elements!(Container, Window);
+impl ContainerWindow for Window {
+    type Id = u32;
 
-impl Default for Container {
-    fn default() -> Self {
-        Self {
-            id: nanoid!(),
-            locked: false,
-            windows: Ring::default(),
-        }
-    }
-}
-
-impl Lockable for Container {
-    fn locked(&self) -> bool {
-        self.locked
+    fn id(&self) -> u32 {
+        self.id
     }
 
-    fn set_locked(&mut self, locked: bool) -> &mut Self {
-        self.locked = locked;
-        self
-    }
-}
-
-impl Container {
-    /// Returns the empty container that holds the place a preselection reserved
-    /// ([`Workspace::preselect_container_idx`](crate::workspace::Workspace::preselect_container_idx))
-    pub fn preselect() -> Self {
-        Self {
-            id: "PRESELECT".to_string(),
-            locked: false,
-            windows: Default::default(),
-        }
+    fn exe_name(&self) -> Option<String> {
+        self.exe()
     }
 
-    /// Returns true if and only if this is the container of a preselection
-    pub fn is_preselect(&self) -> bool {
-        self.id == "PRESELECT"
+    fn hide_window(&self) {
+        self.hide();
     }
 
-    /// Hides every window of the container but `omit`, or every window when it is `None`
-    ///
-    pub fn hide(&self, omit: Option<u32>) {
-        for window in self.windows().iter().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide
-                && let Some(omit) = omit
-                && omit != window.id
-            {
-                should_hide = true
-            }
-
-            if should_hide {
-                window.hide();
-            }
-        }
+    fn restore_window(&self) {
+        self.restore();
     }
 
-    /// Restores the focused window of the container, which is the one that is in front when the
-    /// container is a stack
-    pub fn restore(&self) {
-        if let Some(window) = self.focused_window() {
-            window.restore();
-        }
+    fn hide_stacked(&self) {
+        self.hide();
     }
 
-    /// Hides the unfocused windows of the container and restores the focused one. This function
-    /// is used to make sure we update the window that should be shown on a stack. If the container
-    /// isn't a stack this function won't change anything.
-    pub fn load_focused_window(&mut self) {
-        let focused_idx = self.focused_window_idx();
-
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
-            if i == focused_idx {
-                window.restore();
-            } else {
-                window.hide();
-            }
-        }
-    }
-
-    /// The index of the first window of the executable `exe` in this container
-    pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
-        for (idx, window) in self.windows().iter().enumerate() {
-            if let Some(window_exe) = window.exe()
-                && exe == window_exe
-            {
-                return Option::from(idx);
-            }
-        }
-
-        None
-    }
-
-    pub fn contains_window(&self, window_id: u32) -> bool {
-        for window in self.windows() {
-            if window.id == window_id {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn idx_for_window(&self, window_id: u32) -> Option<usize> {
-        for (i, window) in self.windows().iter().enumerate() {
-            if window.id == window_id {
-                return Option::from(i);
-            }
-        }
-
-        None
-    }
-
-    pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
-        let window = self.windows_mut().remove(idx);
-        self.focus_window(idx.saturating_sub(1));
-        window
-    }
-
-    pub fn remove_focused_window(&mut self) -> Option<Window> {
-        let focused_idx = self.focused_window_idx();
-        self.remove_window_by_idx(focused_idx)
-    }
-
-    /// Puts a window at the back of the container and gives it the front, hiding every other
-    /// window of the container ([`Window::hide`])
-    pub fn add_window(&mut self, window: Window) {
-        self.windows_mut().push_back(window);
-        self.focus_window(self.windows().len().saturating_sub(1));
-
-        let focused_window_idx = self.focused_window_idx();
-
-        for (i, window) in self.windows().iter().enumerate() {
-            if i != focused_window_idx {
-                window.hide();
-            }
-        }
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn focus_window(&mut self, idx: usize) {
-        tracing::info!("focusing window");
-        self.windows.focus(idx);
+    fn restore_stacked(&self) {
+        self.restore();
     }
 }
 
@@ -178,114 +46,9 @@ mod tests {
     use super::*;
     use crate::backend::fake::FakeBackend;
     use crate::backend::with_backend;
+    use komorebi_core::Lockable;
     use serde_json;
     use std::sync::Arc;
-
-    #[test]
-    fn test_contains_window() {
-        let mut container = Container::default();
-
-        for i in 0..3 {
-            container.add_window(Window::from(i));
-        }
-
-        // Should return true for existing windows
-        assert!(container.contains_window(1));
-        assert_eq!(container.idx_for_window(1), Some(1));
-
-        // Should return false since window 4 doesn't exist
-        assert!(!container.contains_window(4));
-        assert_eq!(container.idx_for_window(4), None);
-    }
-
-    #[test]
-    fn test_remove_window_by_idx() {
-        let mut container = Container::default();
-
-        for i in 0..3 {
-            container.add_window(Window::from(i));
-        }
-
-        // Remove window 1
-        container.remove_window_by_idx(1);
-
-        // Should only have 2 windows left
-        assert_eq!(container.windows().len(), 2);
-
-        // Should return false since window 1 was removed
-        assert!(!container.contains_window(1));
-    }
-
-    #[test]
-    fn test_remove_focused_window() {
-        let mut container = Container::default();
-
-        for i in 0..3 {
-            container.add_window(Window::from(i));
-        }
-
-        // Should be focused on the last created window
-        assert_eq!(container.focused_window_idx(), 2);
-
-        // Remove the focused window
-        container.remove_focused_window();
-
-        // Should be focused on the window before the removed one
-        assert_eq!(container.focused_window_idx(), 1);
-
-        // Should only have 2 windows left
-        assert_eq!(container.windows().len(), 2);
-    }
-
-    #[test]
-    fn test_add_window() {
-        let mut container = Container::default();
-
-        container.add_window(Window::from(1));
-
-        assert_eq!(container.windows().len(), 1);
-        assert_eq!(container.focused_window_idx(), 0);
-        assert!(container.contains_window(1));
-    }
-
-    #[test]
-    fn test_focus_window() {
-        let mut container = Container::default();
-
-        for i in 0..3 {
-            container.add_window(Window::from(i));
-        }
-
-        // Should focus on the last created window
-        assert_eq!(container.focused_window_idx(), 2);
-
-        // focus on the window at index 1
-        container.focus_window(1);
-
-        // Should be focused on window 1
-        assert_eq!(container.focused_window_idx(), 1);
-
-        // focus on the window at index 0
-        container.focus_window(0);
-
-        // Should be focused on window 0
-        assert_eq!(container.focused_window_idx(), 0);
-    }
-
-    #[test]
-    fn test_idx_for_window() {
-        let mut container = Container::default();
-
-        for i in 0..3 {
-            container.add_window(Window::from(i));
-        }
-
-        // Should return the index of the window
-        assert_eq!(container.idx_for_window(1), Some(1));
-
-        // Should return None since window 4 doesn't exist
-        assert_eq!(container.idx_for_window(4), None);
-    }
 
     #[test]
     fn the_json_of_a_container_is_its_id_whether_it_is_locked_and_the_ring_of_windows() {
