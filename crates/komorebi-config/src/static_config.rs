@@ -583,3 +583,127 @@ pub struct StackbarConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tabs: Option<TabsConfig>,
 }
+
+impl StaticConfig {
+    /// Reads a configuration from text, as `komorebi.json` is read: comments and trailing commas
+    /// are accepted, and a key that is not known is ignored.
+    ///
+    /// ```rust
+    /// use komorebi_config::static_config::StaticConfig;
+    ///
+    /// let config = StaticConfig::read_raw(
+    ///     r#"{
+    ///         // a comment, and a trailing comma
+    ///         "resize_delta": 100,
+    ///         "a_key_that_is_not_known": true,
+    ///     }"#,
+    /// )?;
+    /// assert_eq!(config.resize_delta, Some(100));
+    ///
+    /// assert!(StaticConfig::read_raw(r#"{ "resize_delta": "wide" }"#).is_err());
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// The text is not a configuration.
+    pub fn read_raw(raw: &str) -> color_eyre::Result<Self> {
+        Ok(serde_json::from_str(raw)?)
+    }
+
+    /// Reads the file at `path`, as [`StaticConfig::read_raw`] reads text
+    ///
+    /// # Errors
+    ///
+    /// The file cannot be read, or it is not a configuration.
+    pub fn read(path: &PathBuf) -> color_eyre::Result<Self> {
+        let content = std::fs::read_to_string(path)?;
+        serde_json::from_str(&content).map_err(Into::into)
+    }
+    /// Prints the features of `raw` that are end-of-life
+    pub fn end_of_life(raw: &str) {
+        let features = vec![
+            "focus_follows_mouse",
+            "custom_layout",
+            "custom_layout_rules",
+        ];
+
+        let mut display = false;
+
+        for feature in features {
+            if raw.contains(feature) {
+                if !display {
+                    display = true;
+                    println!("\n\"{feature}\" is now end-of-life");
+                } else {
+                    println!(r#""{feature}" is now end-of-life"#);
+                }
+            }
+        }
+
+        if display {
+            println!(
+                "\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n"
+            )
+        }
+    }
+
+    /// Prints the keys of `raw` that have been renamed
+    pub fn aliases(raw: &str) {
+        let mut map = HashMap::new();
+        map.insert("border", ["active_window_border"]);
+        map.insert("border_width", ["active_window_border_width"]);
+        map.insert("border_offset", ["active_window_border_offset"]);
+        map.insert("border_colours", ["active_window_border_colours"]);
+        map.insert("border_style", ["active_window_border_style"]);
+        map.insert("applications.json", ["applications.yaml"]);
+        map.insert("ignore_rules", ["float_rules"]);
+
+        let mut display = false;
+
+        for aliases in map.values() {
+            for a in aliases {
+                if raw.contains(a) {
+                    display = true;
+                }
+            }
+        }
+
+        if display {
+            println!(
+                "\nYour configuration file contains some options that have been renamed or deprecated:\n"
+            );
+            for (canonical, aliases) in map {
+                for alias in aliases {
+                    if raw.contains(alias) {
+                        println!(r#""{alias}" is now "{canonical}""#);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Prints the keys and values of `raw` that are deprecated
+    pub fn deprecated(raw: &str) {
+        let deprecated_options = ["invisible_borders", "border_z_order"];
+        let deprecated_variants = vec![
+            ("Hide", "window_hiding_behaviour", "Cloak"),
+            ("Minimize", "window_hiding_behaviour", "Cloak"),
+        ];
+
+        for option in deprecated_options {
+            if raw.contains(option) {
+                println!(r#""{option}" is deprecated and can be removed"#);
+            }
+        }
+
+        for (variant, option, recommended) in deprecated_variants {
+            if raw.contains(option) && raw.contains(variant) {
+                println!(
+                    r#"The "{variant}" option for "{option}" is deprecated and can be removed or replaced with "{recommended}""#
+                );
+            }
+        }
+    }
+}
