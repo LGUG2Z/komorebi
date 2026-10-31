@@ -153,3 +153,24 @@ mod tests {
         forget(0x5102);
     }
 }
+
+#[cfg(test)]
+mod drop_tests {
+    use super::*;
+
+    /// `State::from` clones every window on every command and event notification; whatever a
+    /// clone's drop finds out about the window (the stand-in element answers differently with and
+    /// without Accessibility permission), the entry of a window that was not reaped stays.
+    #[test]
+    fn dropping_a_clone_does_not_deregister_a_window() {
+        let mut window = Window::from(0x5201);
+        window.application.process_id = 6_200_001;
+        register(&window);
+
+        drop(window.clone());
+
+        assert!(get(WindowId::from_u32(0x5201)).is_ok());
+
+        forget(0x5201);
+    }
+}
