@@ -5,7 +5,6 @@
 use chrono::Utc;
 use komorebi_client::PathExt;
 use komorebi_client::splash;
-mod pan;
 
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -32,6 +31,7 @@ use komorebic_core::cli::Meta;
 use komorebic_core::cli::command;
 use komorebic_core::docgen::DocFormat;
 use komorebic_core::messages::Messages;
+use komorebic_core::pan;
 use komorebic_core::platform::windows::*;
 use lazy_static::lazy_static;
 use miette::NamedSource;
@@ -155,6 +155,15 @@ fn send_or_query(messages: Messages) -> eyre::Result<()> {
         send_message(&message)?;
     }
     Ok(())
+}
+
+/// The connection to the daemon that the gesture stream tells what the fingers do over.
+struct PanLink(komorebi_client::Connection);
+
+impl pan::Link for PanLink {
+    fn send(&mut self, message: &SocketMessage) -> io::Result<()> {
+        self.0.send(message)
+    }
 }
 
 fn main() -> eyre::Result<()> {
@@ -1188,7 +1197,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
                             reversed: args.reversed,
                             paging: args.paging,
                         },
-                        &mut pan::Socket::new(komorebi_client::Connection::open),
+                        &mut pan::Socket::new(|| komorebi_client::Connection::open().map(PanLink)),
                     )?;
                 } else if let Some(direction) = args.direction {
                     send_message(&SocketMessage::Pan(direction))?;
