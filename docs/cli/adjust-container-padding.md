@@ -7,13 +7,15 @@ Usage: komorebic.exe adjust-container-padding <SIZING> <ADJUSTMENT>
 
 Arguments:
   <SIZING>
-          [possible values: increase, decrease]
+          Possible values:
+          - increase: Increase
+          - decrease: Decrease
 
   <ADJUSTMENT>
           Pixels to adjust by as an integer
 
 Options:
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 
 ```

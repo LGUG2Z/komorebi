@@ -1,7 +1,7 @@
 ```
 Take the neighbouring window on one side into the focused column of the Scrolling layout
 
-Usage: consume <OPERATION_DIRECTION>
+Usage: komorebic.exe consume <OPERATION_DIRECTION>
 
 Arguments:
   <OPERATION_DIRECTION>

@@ -10,10 +10,12 @@ Arguments:
           [possible values: left, right, up, down]
 
   <SIZING>
-          [possible values: increase, decrease]
+          Possible values:
+          - increase: Increase
+          - decrease: Decrease
 
 Options:
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 
 ```
