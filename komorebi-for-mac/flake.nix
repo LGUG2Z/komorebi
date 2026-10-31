@@ -143,7 +143,9 @@
                 cargoExtraArgs = "--locked ${packages}";
                 inherit src version;
                 strictDeps = true;
-                COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" (self.dirtyRev or "unknown"));
+                # a constant, so that the dependencies and every check are the same derivations for
+                # every commit; only fullBuild stamps the real one
+                COMMIT_HASH = "nix-check";
                 nativeBuildInputs = [
                   pkgs.darwin.cctools
                 ];
@@ -171,6 +173,7 @@
                 individualCrateArgs
                 // {
                   pname = "komorebi-workspace";
+                  COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" (self.dirtyRev or "unknown"));
                 }
               );
 
