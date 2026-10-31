@@ -2544,7 +2544,6 @@ dependencies = [
 [[package]]
 name = "komorebi-layouts"
 version = "0.1.42"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=6d862a11471b819236000a463c575abce2ed13c3#6d862a11471b819236000a463c575abce2ed13c3"
 dependencies = [
  "clap",
  "color-eyre",
@@ -2560,12 +2559,10 @@ dependencies = [
 [[package]]
 name = "komorebi-scrolling"
 version = "0.1.42"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=6d862a11471b819236000a463c575abce2ed13c3#6d862a11471b819236000a463c575abce2ed13c3"
 
 [[package]]
 name = "komorebi-themes"
 version = "0.1.42"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=6d862a11471b819236000a463c575abce2ed13c3#6d862a11471b819236000a463c575abce2ed13c3"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",
