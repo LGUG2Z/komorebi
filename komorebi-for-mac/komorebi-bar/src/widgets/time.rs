@@ -94,7 +94,6 @@ pub struct TimeConfig {
     /// ```
     pub timezone: Option<String>,
     /// Change the icon depending on the time. The default icon is used between 8:30 and 12:00
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
     pub changing_icon: Option<bool>,
 }
 
@@ -136,7 +135,7 @@ pub enum TimeFormat {
     /// Twenty-four-hour format displayed as a binary clock with rectangles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)
     BinaryRectangle,
     /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
-    #[cfg_attr(feature = "schemars", schemars(title = "Default"))]
+    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
     Custom(String),
 }
 
@@ -317,7 +316,7 @@ impl Time {
         let (response, painter) =
             ui.allocate_painter(Vec2::new(width, full_height + offset * 2.0), Sense::hover());
         let color = ctx.style().visuals.text_color();
-        let stroke = Stroke::new(1.0, color);
+        let stroke = Stroke::new(1.0_f32, color);
 
         let round_all = CornerRadius::same((response.rect.width() * 0.1) as u8);
         let round_top = CornerRadius {
