@@ -1597,10 +1597,10 @@ impl From<&CFDictionary> for WindowBounds {
 #[serde(untagged)]
 /// Aspect ratio for temporarily floating windows
 pub enum AspectRatio {
-    /// A predefined aspect ratio
+    /// Predefined aspect ratio
     #[cfg_attr(feature = "schemars", schemars(title = "Predefined"))]
     Predefined(PredefinedAspectRatio),
-    /// A custom W:H aspect ratio
+    /// Custom W:H aspect ratio
     #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
     Custom(i32, i32),
 }
