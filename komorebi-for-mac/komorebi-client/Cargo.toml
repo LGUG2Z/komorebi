@@ -5,9 +5,9 @@ edition = "2024"
 
 [dependencies]
 komorebi = { package = "komorebi-macos", path = "../komorebi", default-features = false }
-komorebi-themes = { workspace = true }
+komorebi-themes = { path = "../../komorebi-themes" }
 
-serde_json = { workspace = true }
+serde_json = { package = "serde_json_lenient", version = "0.2" }
 
 [features]
 default = ["schemars"]

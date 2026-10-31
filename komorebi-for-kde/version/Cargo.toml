@@ -1,13 +1,13 @@
 [package]
 name = "version-linux"
 edition = "2024"
-version.workspace = true
+version = "0.1.0"
 
 [dependencies]
-shadow-rs = { workspace = true }
+shadow-rs = { version = "2" }
 
 [build-dependencies]
-shadow-rs = { workspace = true }
+shadow-rs = { version = "2" }
 
 [lib]
 name = "version"

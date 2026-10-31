@@ -8,22 +8,22 @@ edition = "2024"
 [dependencies]
 komorebi-bar-core = { path = "../../crates/komorebi-bar-core", default-features = false }
 komorebi-client = { package = "komorebi-client-macos", path = "../komorebi-client", default-features = false }
-komorebi-themes = { workspace = true }
+komorebi-themes = { path = "../../komorebi-themes" }
 
-chrono = { workspace = true }
-chrono-tz = { workspace = true }
-clap = { workspace = true }
-color-eyre = { workspace = true }
-crossbeam-channel = { workspace = true }
-dirs = { workspace = true }
-dunce = { workspace = true }
-eframe = { workspace = true }
+chrono = { version = "0.4" }
+chrono-tz = { version = "0.10" }
+clap = { version = "4", features = ["derive", "wrap_help"] }
+color-eyre = { version = "0.6" }
+crossbeam-channel = { version = "0.5" }
+dirs = { version = "6" }
+dunce = { version = "1" }
+eframe = { version = "0.33" }
 egui-phosphor = { git = "https://github.com/amPerl/egui-phosphor", rev = "d13688738478ecd12b426e3e74c59d6577a85b59" }
 font-loader = "0.11"
-hotwatch = { workspace = true }
+hotwatch = { version = "0.5" }
 icns = "0.4"
 image = "0.25"
-lazy_static = { workspace = true }
+lazy_static = { version = "1" }
 netdev = "0.40"
 num = "0.4"
 num-derive = "0.4"
@@ -37,15 +37,15 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSWindow",
 ] }
 raw-window-handle = "0.6"
-parking_lot = { workspace = true }
+parking_lot = { version = "0.12" }
 random_word = { version = "0.5", features = ["en"] }
 reqwest = { version = "0.12", features = ["blocking"] }
-schemars = { workspace = true, optional = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-sysinfo = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+schemars = { version = "1.1", optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = { package = "serde_json_lenient", version = "0.2" }
+sysinfo = { version = "0.38" }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [features]
 default = ["schemars"]

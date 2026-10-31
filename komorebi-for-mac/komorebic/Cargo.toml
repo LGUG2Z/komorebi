@@ -5,23 +5,23 @@ description = "The command-line interface for Komorebi, a tiling window manager 
 edition = "2024"
 
 [dependencies]
-komorebi-config = { workspace = true }
+komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = ["schemars"] }
 komorebi-client = { package = "komorebi-client-macos", path = "../komorebi-client", default-features = false }
 komorebic-core = { path = "../../crates/komorebic-core" }
 version = { package = "version-macos", path = "../version" }
 
-clap = { workspace = true }
+clap = { version = "4", features = ["derive", "wrap_help"] }
 clap_complete = "4"
-chrono = { workspace = true }
-color-eyre = { workspace = true }
-dirs = { workspace = true }
+chrono = { version = "0.4" }
+color-eyre = { version = "0.6" }
+dirs = { version = "6" }
 fs-tail = "0.1"
-lazy_static = { workspace = true }
+lazy_static = { version = "1" }
 reqwest = { version = "0.12", features = ["blocking"] }
-schemars = { workspace = true, optional = true }
-serde_json = { workspace = true }
-shadow-rs = { workspace = true }
-sysinfo = { workspace = true }
+schemars = { version = "1.1", optional = true }
+serde_json = { package = "serde_json_lenient", version = "0.2" }
+shadow-rs = { version = "1" }
+sysinfo = { version = "0.38" }
 
 [features]
 default = ["schemars"]
