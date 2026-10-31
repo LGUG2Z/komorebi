@@ -39,8 +39,8 @@ use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::window::cursor_position;
 use crate::window::foreground_window_id;
-use crate::window::should_act;
-use crate::window::should_act_individual;
+use crate::window::should_act_window;
+use crate::window::should_act_window_individual;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_backend::MonitorId;
@@ -589,17 +589,16 @@ impl Workspace {
                 else {
                     return fallback_idx;
                 };
-                let path = path.to_string_lossy();
 
                 let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
 
                 // BTreeMap iterates in key order
                 for (target, placement_rules) in rules_map {
                     let matched = match placement_rules {
-                        PlacementMatchingRules::Single(id) => should_act_individual(
+                        PlacementMatchingRules::Single(id) => should_act_window_individual(
                             &title,
                             &exe_name,
-                            &[class.as_str()],
+                            &class,
                             &path,
                             id,
                             &regex_identifiers,
@@ -608,10 +607,10 @@ impl Workspace {
                             // OR logic: any matching rule triggers placement at this target.
                             // Each MatchingRule handles its own Simple/Composite (AND) logic
                             // internally via should_act.
-                            should_act(
+                            should_act_window(
                                 &title,
                                 &exe_name,
-                                &[class.as_str()],
+                                &class,
                                 &path,
                                 rules,
                                 &regex_identifiers,

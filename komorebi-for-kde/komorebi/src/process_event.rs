@@ -394,7 +394,7 @@ impl WindowManager {
                                 &title,
                                 &exe_name,
                                 &[&class],
-                                &path.to_string_lossy(),
+                                &path,
                                 &floating_applications,
                                 &regex_identifiers,
                             )

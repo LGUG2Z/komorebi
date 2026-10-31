@@ -48,7 +48,7 @@ fn ignored(window: Window) -> bool {
         &title,
         &exe,
         &[class.as_str()],
-        &path.to_string_lossy(),
+        &path,
         &blacklist,
         &regex_identifiers,
     )

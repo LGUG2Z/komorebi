@@ -3030,7 +3030,7 @@ impl WindowManager {
                                         &title,
                                         &exe_name,
                                         &[&class],
-                                        &path.to_string_lossy(),
+                                        &path,
                                         r,
                                         &regex_identifiers,
                                     ),
@@ -3041,7 +3041,7 @@ impl WindowManager {
                                                 &title,
                                                 &exe_name,
                                                 &[&class],
-                                                &path.to_string_lossy(),
+                                                &path,
                                                 identifier,
                                                 &regex_identifiers,
                                             ));

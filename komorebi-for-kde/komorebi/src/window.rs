@@ -45,7 +45,6 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write;
-use std::path::PathBuf;
 
 /// The windows the user is resizing by dragging an edge of: komorebi does not move them while they
 /// are (the other tiles follow the drag, and the window is put in its tile when they let go)
@@ -136,10 +135,7 @@ impl From<Window> for WindowDetails {
             title: value.title().unwrap_or_default(),
             exe: value.exe().unwrap_or_default(),
             class: value.class().unwrap_or_default(),
-            path: value
-                .path()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_default(),
+            path: value.path().map(|p| p.to_string()).unwrap_or_default(),
         }
     }
 }
@@ -234,8 +230,8 @@ impl Window {
         self.info().map(|i| i.class)
     }
 
-    pub fn path(self) -> Option<PathBuf> {
-        self.info().map(|i| PathBuf::from(i.path))
+    pub fn path(self) -> Option<String> {
+        self.info().map(|i| i.path)
     }
 
     pub fn process_id(self) -> i32 {
@@ -572,6 +568,44 @@ fn window_is_eligible(
 /// and path, if one does: a simple rule matches when its one condition does
 /// ([`should_act_individual`]), and a composite rule when all of its conditions do
 #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
+/// [`should_act`] for a window that has one class
+pub fn should_act_window(
+    title: &str,
+    exe_name: &str,
+    class: &str,
+    path: &str,
+    identifiers: &[MatchingRule],
+    regex_identifiers: &HashMap<String, Regex>,
+) -> Option<MatchingRule> {
+    should_act(
+        title,
+        exe_name,
+        &[class],
+        path,
+        identifiers,
+        regex_identifiers,
+    )
+}
+
+/// [`should_act_individual`] for a window that has one class
+pub fn should_act_window_individual(
+    title: &str,
+    exe_name: &str,
+    class: &str,
+    path: &str,
+    identifier: &IdWithIdentifier,
+    regex_identifiers: &HashMap<String, Regex>,
+) -> bool {
+    should_act_individual(
+        title,
+        exe_name,
+        &[class],
+        path,
+        identifier,
+        regex_identifiers,
+    )
+}
+
 pub fn should_act(
     title: &str,
     exe_name: &str,
@@ -921,7 +955,7 @@ mod tests {
             assert_eq!(window.title().as_deref(), Some("a terminal"));
             assert_eq!(window.exe().as_deref(), Some("foot"));
             assert_eq!(window.class().as_deref(), Some("foot"));
-            assert_eq!(window.path(), Some(PathBuf::from("/usr/bin/foot")));
+            assert_eq!(window.path(), Some("/usr/bin/foot".to_string()));
             assert_eq!(window.process_id(), 1201);
             assert_eq!(
                 window.rect()?,

@@ -557,7 +557,7 @@ impl WindowManager {
                 for window in container.windows() {
                     match identifier {
                         ApplicationIdentifier::Path => {
-                            if window.path().unwrap_or_default().to_string_lossy() == *id {
+                            if window.path().unwrap_or_default() == *id {
                                 window_ids_to_purge.push((i, window.id));
                             }
                         }
