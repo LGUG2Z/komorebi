@@ -109,3 +109,62 @@ fn the_checked_in_schemas_have_the_keys_of_each_platform() {
         );
     }
 }
+
+/// The definitions schemars generates for `T` and for everything `T` refers to, by name.
+fn generated<T: schemars::JsonSchema>() -> serde_json::Map<String, Value> {
+    let mut generator = schemars::generate::SchemaSettings::draft2020_12().into_generator();
+    let _ = generator.subschema_for::<T>();
+    let defs = generator.take_definitions(true);
+    match serde_json::to_value(&defs).expect("definitions are JSON") {
+        Value::Object(map) => map,
+        other => panic!("definitions are an object, not {other}"),
+    }
+}
+
+/// The definitions `owned` by this crate (the others come with `T` but live in the layouts,
+/// themes or protocol crates and have their own checks) must be in each of the `trees`'
+/// `schema.json` and equal to what is generated for `T`.
+fn assert_same_definitions<T: schemars::JsonSchema>(trees: &[&Tree], owned: &[&str]) {
+    let generated = generated::<T>();
+    for tree in trees {
+        let schema: Value = serde_json::from_str(&checked_in(tree, "schema.json")).unwrap();
+        let defs = schema["$defs"].as_object().unwrap();
+        for name in owned {
+            assert!(
+                defs.contains_key(*name),
+                "{} schema.json has no {name}",
+                tree.name
+            );
+            assert!(generated.contains_key(*name), "{name} was not generated");
+        }
+        for name in owned {
+            let def = &generated[*name];
+            if let Some(checked) = defs.get(*name) {
+                assert!(
+                    checked == def,
+                    "{} schema.json: the definition of {name} differs from the generated one:\n{}\n---\n{}",
+                    tree.name,
+                    serde_json::to_string_pretty(checked).unwrap(),
+                    serde_json::to_string_pretty(def).unwrap(),
+                );
+            }
+        }
+    }
+}
+
+fn all() -> Vec<&'static Tree> {
+    TREES.iter().collect()
+}
+
+#[test]
+fn the_matching_types_are_the_definitions_of_every_tree() {
+    use komorebi_config::matching::MatchingRule;
+    use komorebi_config::matching::WorkspaceMatchingRule;
+
+    assert_same_definitions::<MatchingRule>(
+        &all(),
+        &["MatchingRule", "IdWithIdentifier", "MatchingStrategy"],
+    );
+    // The workspace rules are an input of the daemons only: no schema carries them.
+    let _ = generated::<WorkspaceMatchingRule>();
+}
