@@ -84,7 +84,7 @@ pub struct WindowManagementBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Window container behavior when a new window is opened
+/// Window container behaviour when a new window is opened
 pub enum WindowContainerBehaviour {
     /// Create a new container for each new window
     #[default]
@@ -97,7 +97,7 @@ pub enum WindowContainerBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Floating layer behavior when a new window is opened
+/// Floating layer behaviour when a new window is opened
 pub enum FloatingLayerBehaviour {
     /// Tile new windows (unless they match a float rule or float override is active)
     #[default]
@@ -123,7 +123,7 @@ pub enum WindowHidingPosition {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Placement behavior for floating windows
+/// Placement behaviour for floating windows
 pub enum Placement {
     /// Does not change the size or position of the window
     #[default]
@@ -182,7 +182,7 @@ pub enum WindowPlacement {
     Secondary,
     /// Place the new window before the currently focused container
     BeforeFocused,
-    /// Place the new window after the currently focused container (default behavior)
+    /// Place the new window after the currently focused container (default behaviour)
     #[default]
     AfterFocused,
     /// Place the new window at the end of the container list
@@ -372,7 +372,7 @@ pub enum PlacementMatchingRules {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Behavior when an action would cross a monitor boundary
+/// Behaviour when an action would cross a monitor boundary
 pub enum CrossBoundaryBehaviour {
     /// Attempt to perform actions across a workspace boundary
     Workspace,

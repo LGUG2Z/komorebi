@@ -2488,7 +2488,7 @@
       ]
     },
     "CrossBoundaryBehaviour": {
-      "description": "Behavior when an action would cross a monitor boundary",
+      "description": "Behaviour when an action would cross a monitor boundary",
       "oneOf": [
         {
           "description": "Attempt to perform actions across a workspace boundary",
@@ -2553,7 +2553,7 @@
       ]
     },
     "FloatingLayerBehaviour": {
-      "description": "Floating layer behavior when a new window is opened",
+      "description": "Floating layer behaviour when a new window is opened",
       "oneOf": [
         {
           "description": "Tile new windows (unless they match a float rule or float override is active)",
@@ -3363,7 +3363,7 @@
       ]
     },
     "Placement": {
-      "description": "Placement behavior for floating windows",
+      "description": "Placement behaviour for floating windows",
       "oneOf": [
         {
           "description": "Does not change the size or position of the window",
@@ -3698,7 +3698,7 @@
       ]
     },
     "WindowContainerBehaviour": {
-      "description": "Window container behavior when a new window is opened",
+      "description": "Window container behaviour when a new window is opened",
       "oneOf": [
         {
           "description": "Create a new container for each new window",
@@ -3746,7 +3746,7 @@
           "const": "BeforeFocused"
         },
         {
-          "description": "Place the new window after the currently focused container (default behavior)",
+          "description": "Place the new window after the currently focused container (default behaviour)",
           "type": "string",
           "const": "AfterFocused"
         },
