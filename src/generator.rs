@@ -22,8 +22,8 @@ use crate::prepare::resolve_ref_name;
 use crate::types::NixOption;
 use crate::types::NixType;
 use serde_json::Value;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 /// Configuration options for the generator
 #[derive(Debug, Clone)]
@@ -56,13 +56,13 @@ pub enum GeneratorError {
 
 /// The main Nix code generator
 pub struct Generator {
-    definitions: HashMap<String, Value>,
+    definitions: BTreeMap<String, Value>,
     /// Cache for resolved type definitions to avoid infinite recursion
     resolving: Vec<String>,
     /// Count of how many times each $def is referenced
-    ref_counts: HashMap<String, usize>,
+    ref_counts: BTreeMap<String, usize>,
     /// Pre-generated types for frequently used definitions
-    type_bindings: HashMap<String, NixType>,
+    type_bindings: BTreeMap<String, NixType>,
     /// Whether we're in the second pass (using type refs)
     use_type_refs: bool,
 }
@@ -73,8 +73,8 @@ impl Generator {
         Self {
             definitions: collect_definitions(schema),
             resolving: Vec::new(),
-            ref_counts: HashMap::new(),
-            type_bindings: HashMap::new(),
+            ref_counts: BTreeMap::new(),
+            type_bindings: BTreeMap::new(),
             use_type_refs: false,
         }
     }
@@ -149,9 +149,9 @@ impl Generator {
     }
 
     /// Build a dependency graph of $defs
-    /// Returns HashMap<def_name, Vec<dependencies>>
-    fn build_dependency_graph(&self) -> HashMap<String, Vec<String>> {
-        let mut graph: HashMap<String, Vec<String>> = HashMap::new();
+    /// Returns BTreeMap<def_name, Vec<dependencies>>
+    fn build_dependency_graph(&self) -> BTreeMap<String, Vec<String>> {
+        let mut graph: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
         for (name, def) in &self.definitions {
             let deps = Self::collect_refs_in_schema(def);
@@ -233,10 +233,10 @@ impl Generator {
     }
 
     /// Topologically sort definitions so dependencies come before dependents
-    fn topological_sort(graph: &HashMap<String, Vec<String>>) -> Vec<String> {
+    fn topological_sort(graph: &BTreeMap<String, Vec<String>>) -> Vec<String> {
         let mut result = Vec::new();
-        let mut visited = HashSet::new();
-        let mut temp_visited = HashSet::new(); // For cycle detection
+        let mut visited = BTreeSet::new();
+        let mut temp_visited = BTreeSet::new(); // For cycle detection
 
         for name in graph.keys() {
             Self::topo_visit(name, graph, &mut visited, &mut temp_visited, &mut result);
@@ -248,9 +248,9 @@ impl Generator {
     /// DFS visit for topological sort
     fn topo_visit(
         name: &str,
-        graph: &HashMap<String, Vec<String>>,
-        visited: &mut HashSet<String>,
-        temp_visited: &mut HashSet<String>,
+        graph: &BTreeMap<String, Vec<String>>,
+        visited: &mut BTreeSet<String>,
+        temp_visited: &mut BTreeSet<String>,
         result: &mut Vec<String>,
     ) {
         if visited.contains(name) {
@@ -286,7 +286,7 @@ impl Generator {
         let sorted_defs = Self::topological_sort(&graph);
 
         // Only generate bindings for refs used more than once
-        let frequent_refs: HashSet<String> = self
+        let frequent_refs: BTreeSet<String> = self
             .ref_counts
             .iter()
             .filter(|&(_, &count)| count > 1)
@@ -480,7 +480,7 @@ impl Generator {
 
             // Collect all other properties from all variants (excluding the discriminator)
             // Track property types to merge them if they differ across variants
-            let mut prop_types: HashMap<String, Vec<NixType>> = HashMap::new();
+            let mut prop_types: BTreeMap<String, Vec<NixType>> = BTreeMap::new();
 
             for (_, variant_schema) in &variants {
                 if let Some(props) = variant_schema.get("properties").and_then(|p| p.as_object()) {

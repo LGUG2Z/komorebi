@@ -1,15 +1,15 @@
 //! Schema preparation utilities for normalizing JSON Schema before conversion
 
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Result type for mixed enum + object union detection
 /// Contains (enum_variants, object_variants) where object_variants are (tag_name, inner_schema) tuples
 pub type MixedUnionResult = (Vec<String>, Vec<(String, Value)>);
 
 /// Extract all definitions from the schema's $defs section
-pub fn collect_definitions(schema: &Value) -> HashMap<String, Value> {
-    let mut defs = HashMap::new();
+pub fn collect_definitions(schema: &Value) -> BTreeMap<String, Value> {
+    let mut defs = BTreeMap::new();
 
     if let Some(definitions) = schema.get("$defs").and_then(|d| d.as_object()) {
         for (name, def) in definitions {
