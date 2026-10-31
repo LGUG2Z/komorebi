@@ -485,7 +485,7 @@ resize, and what the window shows does not change.
 
 Because KWin animates with `QEasingCurve`, and a style is a curve KWin has when it is Qt's name
 without the "Ease": `EaseInOutSine` is `InOutSine`
-([`AnimationStyle::qt_curve`](../../komorebi/src/core/animation.rs)). A custom cubic Bézier is not
+([`QtCurve::qt_curve`](../../komorebi/src/core/animation.rs)). A custom cubic Bézier is not
 one of Qt's curves, and is drawn as an ease out, the kind of curve a window moving to its place
 wants. The stock Geometry Change has one curve, an exponential ease out, so komorebi's build of
 it reads a `Curve` setting ([PLATFORM.md](PLATFORM.md#the-patches)).

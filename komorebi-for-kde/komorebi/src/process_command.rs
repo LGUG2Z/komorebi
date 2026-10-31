@@ -1974,8 +1974,11 @@ impl WindowManager {
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::DebugWindow(window_id) => {
-                let window = Window::from(window_id);
-                if window.is_valid() {
+                // an id that is not a u32 is not a window
+                let window = u32::try_from(window_id).map(Window::from);
+                if let Ok(window) = window
+                    && window.is_valid()
+                {
                     let mut rule_debug = RuleDebug::default();
                     let _ = window.should_manage(None, &mut rule_debug);
                     let schema = serde_json::to_string_pretty(&rule_debug)?;
@@ -2070,6 +2073,45 @@ impl WindowManager {
             SocketMessage::HotkeysState => {
                 let state = serde_json::to_string_pretty(&crate::kwin::hotkeys::state())?;
                 reply.write_all(state.as_bytes())?;
+            }
+            // Messages of other platforms: answered, and nothing else happens
+            SocketMessage::AddSubscriberPipe(..)
+            | SocketMessage::AltFocusHack(..)
+            | SocketMessage::ApplyState(..)
+            | SocketMessage::BorderImplementation(..)
+            | SocketMessage::BorderStyle(..)
+            | SocketMessage::ChangeLayoutCustom(..)
+            | SocketMessage::CompleteConfiguration
+            | SocketMessage::ForceFocus
+            | SocketMessage::IdentifyBorderOverflowApplication(..)
+            | SocketMessage::IdentifyLayeredApplication(..)
+            | SocketMessage::IdentifyObjectNameChangeApplication(..)
+            | SocketMessage::IdentifyTrayApplication(..)
+            | SocketMessage::InvisibleBorders(..)
+            | SocketMessage::MonitorIndexPreference(..)
+            | SocketMessage::NamedWorkspaceLayoutCustom(..)
+            | SocketMessage::NamedWorkspaceLayoutCustomRule(..)
+            | SocketMessage::PanGesture(..)
+            | SocketMessage::ReloadConfiguration
+            | SocketMessage::RemoveSubscriberPipe(..)
+            | SocketMessage::RemoveTitleBar(..)
+            | SocketMessage::StackbarBackgroundColour(..)
+            | SocketMessage::StackbarFocusedTextColour(..)
+            | SocketMessage::StackbarFontFamily(..)
+            | SocketMessage::StackbarFontSize(..)
+            | SocketMessage::StackbarHeight(..)
+            | SocketMessage::StackbarLabel(..)
+            | SocketMessage::StackbarMode(..)
+            | SocketMessage::StackbarTabWidth(..)
+            | SocketMessage::StackbarUnfocusedTextColour(..)
+            | SocketMessage::ToggleTitleBars
+            | SocketMessage::WatchConfiguration(..)
+            | SocketMessage::WindowHidingBehaviour(..)
+            | SocketMessage::WorkspaceLayoutCustom(..)
+            | SocketMessage::WorkspaceLayoutCustomRule(..)
+ => {
+                reply.write_all(message.not_supported_reply().as_bytes())?;
+                return Ok(());
             }
         }
 

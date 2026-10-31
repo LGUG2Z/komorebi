@@ -23,6 +23,8 @@ komorebi-layouts = { path = "../komorebi-layouts", features = [
 # the model of a strip of columns that the Scrolling layout is laid out with, from the same
 # revision, whose layouts re-export it as `komorebi_layouts::scrolling::model`
 komorebi-scrolling = { path = "../komorebi-scrolling" }
+# the wire types shared with the other komorebi daemons
+komorebi-protocol = { path = "../crates/komorebi-protocol", default-features = false, features = ["schemars"] }
 # the themes (and the palettes made from pictures), from the same upstream revision
 komorebi-themes = { path = "../komorebi-themes" }
 

@@ -23,6 +23,7 @@ use crate::backend::Look;
 use crate::backend::backend;
 use crate::core::WindowKind;
 use crate::core::animation::AnimationStyle;
+use crate::core::animation::QtCurve;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
 use komorebi_themes::colour::Colour;

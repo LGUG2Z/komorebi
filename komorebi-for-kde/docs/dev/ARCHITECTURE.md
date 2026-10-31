@@ -1099,7 +1099,7 @@ look without a border unloads the effect, if komorebi loaded it, and puts the us
 back. `shutdown` does the same. An effect KWin did not find when it started is reported once and
 komorebi goes on without it, with `apply_look` answering false. The animation is Geometry Change:
 its `Duration` and `Curve` are the look's, and cross-fading is off. The curve is a Qt easing
-curve, the name of the style without its "Ease" ([`AnimationStyle::qt_curve`]); the stock effect
+curve, the name of the style without its "Ease" ([`QtCurve::qt_curve`]); the stock effect
 ignores `Curve` and eases out exponentially, and komorebi's build of it reads it. KWin animates
 what is painted, so the
 frame the table reads is the final one at once and nothing waits for an animation to end. The
@@ -1522,7 +1522,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | The settings of one kind of animation win over the global ones, and a global setting clears them | framework path: the arms of [`WindowManager::process_command`] for `Animation`, `AnimationDuration` and `AnimationStyle`, and [`animation::movement_animation`] and [`animation::movement_style`], which read the kind's setting before the global one | `the_animation_messages_set_the_animation_and_the_compositor_is_asked_for_it` | none |
 | A command that changes a stack is carried out with the animation off, and the animation is on again after it | framework path: the arms of [`WindowManager::process_command`] for the stack messages swap `ANIMATION_ENABLED_GLOBAL` for false and put the value back | `the_animation_is_on_again_after_a_command_that_changes_a_stack` | none |
 | The `animation` key of the file is the animation settings, and a file without it leaves them | framework path: `StaticConfig::apply_globals` sets them only when the key is there, and `duration` and `style` only when the key has one | `the_animation_key_of_the_file_is_the_animation_settings` | none |
-| Every style is a curve Qt has | test: [`AnimationStyle::qt_curve`] is a `match` of every style, and the test checks each against its name without the "Ease" | `every_style_is_a_curve_qt_has`, the doctest of `qt_curve`, `vm-features` (section D: two curves are in different places at the same moment) | a cubic Bézier is an ease out |
+| Every style is a curve Qt has | test: [`QtCurve::qt_curve`] is a `match` of every style, and the test checks each against its name without the "Ease" | `every_style_is_a_curve_qt_has`, the doctest of `qt_curve`, `vm-features` (section D: two curves are in different places at the same moment) | a cubic Bézier is an ease out |
 | Only the windows the rules make see-through are, and only while transparency is on | framework path: [`transparency_manager::apply`] asks [`transparency_manager::transparent_windows`] and sends the difference from [`WindowManager::opacity_applied`] | `unfocused_windows_are_transparent_and_the_focused_one_is_not`, `turning_transparency_off_makes_everything_opaque_again`, `a_monocled_window_is_not_transparent`, `windows_the_rules_ignore_keep_their_opacity`, `vm-features` (section B) | none |
 | The `transparency` keys of the file are the settings, and a key the file leaves out has the default | framework path: `StaticConfig::apply_globals` stores `transparency` and `transparency_alpha` whether the file has them or not, and adds the ignore rules to `TRANSPARENCY_BLACKLIST` | `the_transparency_keys_of_the_file_are_the_transparency_settings` | none |
 | A theme gives every kind of border a color, the one it names or the theme's default | framework path: [`theme_manager::send_notification`] stores a color for each of the six kinds, from the theme's own defaults for the ones the message does not name | `a_named_theme_colours_every_kind_of_border` | none |
@@ -2061,7 +2061,7 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 [`WindowManager::opacity_applied`]: ../../komorebi/src/window_manager.rs
 [`animation::movement_animation`]: ../../komorebi/src/animation/mod.rs
 [`animation::movement_style`]: ../../komorebi/src/animation/mod.rs
-[`AnimationStyle::qt_curve`]: ../../komorebi/src/core/animation.rs
+[`QtCurve::qt_curve`]: ../../komorebi/src/core/animation.rs
 [`AnimationPrefix`]: ../../komorebi/src/animation/prefix.rs
 [`Backend::set_border_colours`]: ../../komorebi/src/backend/mod.rs
 [`border_manager::window_kinds`]: ../../komorebi/src/border_manager/mod.rs

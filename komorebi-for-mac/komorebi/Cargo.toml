@@ -8,6 +8,7 @@ edition = "2024"
 komorebi-themes = { workspace = true }
 komorebi-collections = { workspace = true }
 komorebi-layouts = { workspace = true }
+komorebi-protocol = { workspace = true }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 version = { path = "../version" }
 

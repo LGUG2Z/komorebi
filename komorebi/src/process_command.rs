@@ -2214,7 +2214,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::DebugWindow(hwnd) => {
-                let window = Window::from(hwnd);
+                let window = Window::from(hwnd as isize);
                 let mut rule_debug = RuleDebug::default();
                 let _ = window.should_manage(None, &mut rule_debug);
                 let schema = serde_json::to_string_pretty(&rule_debug)?;
@@ -2224,8 +2224,14 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::Theme(ref theme) => {
                 theme_manager::send_notification(*theme.clone());
             }
-            SocketMessage::ApplyState(ref state) => {
-                self.apply_state(state.clone());
+            SocketMessage::ApplyState(ref blob) => {
+                let state: State = serde_json::from_value(blob.0.clone())?;
+                self.apply_state(state);
+            }
+            // Messages of other platforms: answered, and nothing else happens
+            SocketMessage::ReloadHotkeys | SocketMessage::HotkeysState => {
+                reply.write_all(message.not_supported_reply().as_bytes())?;
+                return Ok(());
             }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)

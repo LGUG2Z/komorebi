@@ -12,17 +12,9 @@
 //! [`OperationDirection`] is a side of the focused tile, and a [`CycleDirection`] the next or the
 //! previous container in the order of the workspace.
 
-use crate::animation::AnimationPrefix;
-use crate::core::animation::AnimationStyle;
-use crate::core::pathext::ResolvedPathBuf;
 use clap::ValueEnum;
-use color_eyre::eyre;
-use komorebi_themes::KomorebiTheme;
 use serde::Deserialize;
 use serde::Serialize;
-use std::num::NonZeroUsize;
-use std::path::PathBuf;
-use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
 
@@ -53,20 +45,15 @@ pub use komorebi_layouts::validate_ratios;
 pub mod animation;
 pub mod asc;
 pub mod config_generation;
-pub mod pathext;
-
-#[derive(
-    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Operation behavior for temporarily unmanaged and floating windows
-pub enum OperationBehaviour {
-    /// Process commands on temporarily unmanaged/floated windows
-    #[default]
-    Op,
-    /// Ignore commands on temporarily unmanaged/floated windows
-    NoOp,
-}
+pub use komorebi_protocol::pathext;
+pub use komorebi_protocol::types::ApplicationIdentifier;
+pub use komorebi_protocol::types::FocusFollowsMouseImplementation;
+pub use komorebi_protocol::types::MonocleFocusBehaviour;
+pub use komorebi_protocol::types::MoveBehaviour;
+pub use komorebi_protocol::types::OperationBehaviour;
+pub use komorebi_protocol::types::StateQuery;
+pub use komorebi_protocol::types::SubscribeOptions;
+pub use komorebi_protocol::types::WindowKind;
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct WindowManagementBehaviour {
@@ -170,19 +157,6 @@ impl Placement {
             Placement::CenterAndResize => true,
         }
     }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Focus follows mouse implementation
-///
-/// The two exist on Windows. On KDE the compositor does it, so both ask KWin for its
-/// "focus follows mouse" focus policy.
-pub enum FocusFollowsMouseImplementation {
-    /// Custom FFM implementation (slightly more CPU-intensive)
-    Komorebi,
-    /// Native (legacy) Windows FFM implementation
-    Windows,
 }
 
 #[derive(
@@ -395,21 +369,6 @@ pub enum PlacementMatchingRules {
 }
 
 #[derive(
-    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Move behavior when the operation works across a monitor boundary
-pub enum MoveBehaviour {
-    /// Swap the window container with the window container at the edge of the adjacent monitor
-    #[default]
-    Swap,
-    /// Insert the window container into the focused workspace on the adjacent monitor
-    Insert,
-    /// Do nothing if trying to move a window container in the direction of an adjacent monitor
-    NoOp,
-}
-
-#[derive(
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -422,359 +381,7 @@ pub enum CrossBoundaryBehaviour {
     Monitor,
 }
 
-#[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Behavior when focusing in a direction while a monocle container is active
-pub enum MonocleFocusBehaviour {
-    /// Cycle the monocle container to the next/previous container in the workspace
-    Cycle,
-    /// Do nothing, allowing focus to fall through to cross-monitor logic
-    #[default]
-    NoOp,
-}
-
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Application identifier
-pub enum ApplicationIdentifier {
-    /// Executable name
-    #[serde(alias = "exe")]
-    Exe,
-    /// Role or subrole
-    #[serde(alias = "class")]
-    Class,
-    /// Window title
-    #[serde(alias = "title")]
-    Title,
-    /// Executable path
-    #[serde(alias = "path")]
-    Path,
-}
-
-/// What a window is to the layout, which decides the color of its border
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    Display,
-    EnumString,
-    ValueEnum,
-    PartialEq,
-    Eq,
-    Hash,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub enum WindowKind {
-    Single,
-    Stack,
-    Monocle,
-    #[default]
-    Unfocused,
-    UnfocusedLocked,
-    Floating,
-}
-
-/// A question about the window manager that [`SocketMessage::Query`] asks, answered with one
-/// value as text: an index, the name of a layout or of a container kind, or the version of the
-/// daemon.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub enum StateQuery {
-    FocusedMonitorIndex,
-    FocusedWorkspaceIndex,
-    FocusedContainerIndex,
-    FocusedWindowIndex,
-    FocusedWorkspaceName,
-    FocusedWorkspaceLayout,
-    FocusedContainerKind,
-    Version,
-}
-
-/// The options of a subscriber, which [`SocketMessage::AddSubscriberSocketWithOptions`] sets
-///
-/// A subscriber added with [`SocketMessage::AddSubscriberSocket`] has the default options, and is
-/// sent a notification for every event and message the window manager handles. With
-/// `filter_state_changes`, it is sent one only when the event or the message changed the
-/// [`State`](crate::state::State), and always when a window is shown, when a subscriber is added
-/// (so a new subscriber receives the state as soon as it subscribes), when a theme is set (the
-/// colors of the borders are not part of the state) and when the configuration is reloaded.
-///
-/// # Example
-///
-/// ```rust
-/// use komorebi::core::SocketMessage;
-/// use komorebi::core::SubscribeOptions;
-///
-/// let options = SubscribeOptions {
-///     filter_state_changes: true,
-/// };
-/// let message = SocketMessage::AddSubscriberSocketWithOptions(String::from("bar.sock"), options);
-/// assert_eq!(
-///     String::from_utf8(message.as_bytes()?)?,
-///     r#"{"type":"AddSubscriberSocketWithOptions","content":["bar.sock",{"filter_state_changes":true}]}"#,
-/// );
-///
-/// assert!(!SubscribeOptions::default().filter_state_changes);
-///
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct SubscribeOptions {
-    /// Only emit notifications when the window manager state has changed
-    pub filter_state_changes: bool,
-}
-
-/// A message to the daemon, as it is written on its socket: JSON, with the variant's name in
-/// `type` and its arguments, if it has any, in `content`.
-///
-/// # Example
-///
-/// ```rust
-/// use komorebi::core::SocketMessage;
-/// use komorebi::core::StateQuery;
-///
-/// let query = SocketMessage::Query(StateQuery::FocusedWorkspaceIndex);
-/// assert_eq!(
-///     String::from_utf8(query.as_bytes()?)?,
-///     r#"{"type":"Query","content":"FocusedWorkspaceIndex"}"#,
-/// );
-///
-/// let stop: SocketMessage = r#"{"type":"Stop"}"#.parse()?;
-/// assert!(matches!(stop, SocketMessage::Stop));
-///
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-// serde_as must be before derive
-#[serde_with::serde_as]
-#[derive(Clone, Debug, Serialize, Deserialize, Display)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[serde(tag = "type", content = "content")]
-pub enum SocketMessage {
-    // Window / Container Commands
-    FocusWindow(OperationDirection),
-    MoveWindow(OperationDirection),
-    PreselectDirection(OperationDirection),
-    CancelPreselect,
-    CycleFocusWindow(CycleDirection),
-    CycleMoveWindow(CycleDirection),
-    StackWindow(OperationDirection),
-    UnstackWindow,
-    CycleStack(CycleDirection),
-    CycleStackIndex(CycleDirection),
-    FocusStackWindow(usize),
-    StackAll,
-    UnstackAll,
-    ResizeWindowEdge(OperationDirection, Sizing),
-    ResizeWindowAxis(Axis, Sizing),
-    MoveContainerToLastWorkspace,
-    SendContainerToLastWorkspace,
-    MoveContainerToMonitorNumber(usize),
-    CycleMoveContainerToMonitor(CycleDirection),
-    MoveContainerToWorkspaceNumber(usize),
-    MoveContainerToNamedWorkspace(String),
-    CycleMoveContainerToWorkspace(CycleDirection),
-    SendContainerToMonitorNumber(usize),
-    CycleSendContainerToMonitor(CycleDirection),
-    SendContainerToWorkspaceNumber(usize),
-    CycleSendContainerToWorkspace(CycleDirection),
-    SendContainerToMonitorWorkspaceNumber(usize, usize),
-    MoveContainerToMonitorWorkspaceNumber(usize, usize),
-    SendContainerToNamedWorkspace(String),
-    CycleMoveWorkspaceToMonitor(CycleDirection),
-    MoveWorkspaceToMonitorNumber(usize),
-    SwapWorkspacesToMonitorNumber(usize),
-    // ForceFocus,
-    Close,
-    Minimize,
-    Promote,
-    PromoteSwap,
-    PromoteFocus,
-    PromoteWindow(OperationDirection),
-    EagerFocus(String),
-    LockMonitorWorkspaceContainer(usize, usize, usize),
-    UnlockMonitorWorkspaceContainer(usize, usize, usize),
-    ToggleLock,
-    ToggleFloat,
-    ToggleMonocle,
-    ToggleMaximize,
-    // ToggleMaximize,
-    ToggleWindowContainerBehaviour,
-    ToggleFloatOverride,
-    ToggleCrossMonitorMoveBehaviour,
-    CrossMonitorMoveBehaviour(MoveBehaviour),
-    ToggleMonocleFocusBehaviour,
-    MonocleFocusBehaviour(MonocleFocusBehaviour),
-    UnmanagedWindowOperationBehaviour(OperationBehaviour),
-    // Current Workspace Commands
-    ManageFocusedWindow,
-    UnmanageFocusedWindow,
-    AdjustContainerPadding(Sizing, i32),
-    AdjustWorkspacePadding(Sizing, i32),
-    ChangeLayout(DefaultLayout),
-    CycleLayout(CycleDirection),
-    ScrollingLayoutColumns(NonZeroUsize),
-    ScrollingLayoutFullWidth,
-    CenterFocus,
-    Expand,
-    Consume(OperationDirection),
-    Expel,
-    ToggleColumnStack,
-    Pan(PanDirection),
-    LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
-    // ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    FlipLayout(Axis),
-    ToggleWorkspaceWindowContainerBehaviour,
-    ToggleWorkspaceFloatOverride,
-    // Monitor and Workspace Commands
-    // MonitorIndexPreference(usize, i32, i32, i32, i32),
-    DisplayIndexPreference(usize, String),
-    EnsureWorkspaces(usize, usize),
-    EnsureNamedWorkspaces(usize, Vec<String>),
-    NewWorkspace,
-    ToggleTiling,
-    Stop,
-    StopIgnoreRestore,
-    TogglePause,
-    Retile,
-    RetileWithResizeDimensions,
-    QuickSave,
-    QuickLoad,
-    Save(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    Load(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    CycleFocusMonitor(CycleDirection),
-    CycleFocusWorkspace(CycleDirection),
-    CycleFocusEmptyWorkspace(CycleDirection),
-    FocusMonitorNumber(usize),
-    FocusMonitorAtCursor,
-    FocusLastWorkspace,
-    CloseWorkspace,
-    FocusWorkspaceNumber(usize),
-    FocusWorkspaceNumbers(usize),
-    FocusMonitorWorkspaceNumber(usize, usize),
-    FocusNamedWorkspace(String),
-    ContainerPadding(usize, usize, i32),
-    NamedWorkspaceContainerPadding(String, i32),
-    FocusedWorkspaceContainerPadding(i32),
-    WorkspacePadding(usize, usize, i32),
-    NamedWorkspacePadding(String, i32),
-    FocusedWorkspacePadding(i32),
-    WorkspaceTiling(usize, usize, bool),
-    NamedWorkspaceTiling(String, bool),
-    WorkspaceName(usize, usize, String),
-    WorkspaceLayout(usize, usize, DefaultLayout),
-    NamedWorkspaceLayout(String, DefaultLayout),
-    // WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    // NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
-    NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
-    // WorkspaceLayoutCustomRule(
-    //     usize,
-    //     usize,
-    //     usize,
-    //     #[serde_as(as = "ResolvedPathBuf")] PathBuf,
-    // ),
-    // NamedWorkspaceLayoutCustomRule(String, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    ClearWorkspaceLayoutRules(usize, usize),
-    ClearNamedWorkspaceLayoutRules(String),
-    ToggleWorkspaceLayer,
-    // Configuration
-    // ReloadConfiguration,
-    ReplaceConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    // WatchConfiguration(bool),
-    // CompleteConfiguration,
-    // AltFocusHack(bool),
-    Theme(Box<KomorebiTheme>),
-    Transparency(bool),
-    ToggleTransparency,
-    TransparencyAlpha(u8),
-    Animation(bool, Option<AnimationPrefix>),
-    AnimationDuration(u64, Option<AnimationPrefix>),
-    AnimationFps(u64),
-    AnimationStyle(AnimationStyle, Option<AnimationPrefix>),
-    #[serde(alias = "ActiveWindowBorder")]
-    Border(bool),
-    #[serde(alias = "ActiveWindowBorderColour")]
-    BorderColour(WindowKind, u32, u32, u32),
-    // #[serde(alias = "ActiveWindowBorderStyle")]
-    // BorderStyle(BorderStyle),
-    BorderWidth(i32),
-    BorderOffset(i32),
-    // BorderImplementation(BorderImplementation),
-    // InvisibleBorders(Rect),
-    WorkAreaOffset(Rect),
-    MonitorWorkAreaOffset(usize, Rect),
-    WorkspaceWorkAreaOffset(usize, usize, Rect),
-    ToggleWindowBasedWorkAreaOffset,
-    ResizeDelta(i32),
-    InitialWorkspaceRule(ApplicationIdentifier, String, usize, usize),
-    InitialNamedWorkspaceRule(ApplicationIdentifier, String, String),
-    WorkspaceRule(ApplicationIdentifier, String, usize, usize),
-    NamedWorkspaceRule(ApplicationIdentifier, String, String),
-    ClearWorkspaceRules(usize, usize),
-    ClearNamedWorkspaceRules(String),
-    ClearAllWorkspaceRules,
-    EnforceWorkspaceRules,
-    SessionFloatRule,
-    SessionFloatRules,
-    ClearSessionFloatRules,
-    #[serde(alias = "FloatRule")]
-    IgnoreRule(ApplicationIdentifier, String),
-    ManageRule(ApplicationIdentifier, String),
-    // IdentifyObjectNameChangeApplication(ApplicationIdentifier, String),
-    // IdentifyTrayApplication(ApplicationIdentifier, String),
-    // IdentifyLayeredApplication(ApplicationIdentifier, String),
-    // IdentifyBorderOverflowApplication(ApplicationIdentifier, String),
-    State,
-    GlobalState,
-    VisibleWindows,
-    MonitorInformation,
-    Query(StateQuery),
-    FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
-    ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
-    // FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
-    // ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
-    MouseFollowsFocus(bool),
-    ToggleMouseFollowsFocus,
-    // RemoveTitleBar(ApplicationIdentifier, String),
-    // ToggleTitleBars,
-    AddSubscriberSocket(String),
-    AddSubscriberSocketWithOptions(String, SubscribeOptions),
-    RemoveSubscriberSocket(String),
-    // AddSubscriberPipe(String),
-    // RemoveSubscriberPipe(String),
-    ApplicationSpecificConfigurationSchema,
-    NotificationSchema,
-    SocketSchema,
-    StaticConfigSchema,
-    GenerateStaticConfig,
-    DebugWindow(u32),
-    ReloadHotkeys,
-    HotkeysState,
-}
-
-impl SocketMessage {
-    /// Returns the message as JSON, the way the daemon reads it from its socket
-    pub fn as_bytes(&self) -> eyre::Result<Vec<u8>> {
-        Ok(serde_json::to_string(self)?.as_bytes().to_vec())
-    }
-}
-
-impl FromStr for SocketMessage {
-    type Err = serde_json::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
+pub use komorebi_protocol::message::SocketMessage;
 
 #[cfg(test)]
 mod tests {

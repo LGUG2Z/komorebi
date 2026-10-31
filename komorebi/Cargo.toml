@@ -12,6 +12,7 @@ komorebi-collections = { path = "../crates/komorebi-collections" }
 komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
 komorebi-scrolling = { path = "../komorebi-scrolling" }
 komorebi-themes = { path = "../komorebi-themes" }
+komorebi-protocol = { path = "../crates/komorebi-protocol", default-features = false }
 
 base64 = "0.22"
 bitflags = { version = "2", features = ["serde"] }
@@ -66,4 +67,9 @@ uuid = { version = "1", features = ["v4"] }
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-schemars = ["dep:schemars", "komorebi-collections/schemars", "komorebi-layouts/schemars"]
+schemars = [
+  "dep:schemars",
+  "komorebi-collections/schemars",
+  "komorebi-layouts/schemars",
+  "komorebi-protocol/schemars",
+]

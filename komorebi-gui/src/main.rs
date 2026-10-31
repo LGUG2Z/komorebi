@@ -292,7 +292,7 @@ impl eframe::App for KomorebiGui {
                                     {
                                         let debug_rule: RuleDebug = serde_json::from_str(
                                             &komorebi_client::send_query(
-                                                &SocketMessage::DebugWindow(self.debug_hwnd),
+                                                &SocketMessage::DebugWindow(self.debug_hwnd as i64),
                                             )
                                             .unwrap(),
                                         )

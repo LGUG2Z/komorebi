@@ -549,7 +549,7 @@
         },
         {
           "title": "CubicBezier",
-          "description": "Custom Cubic Bézier function",
+          "description": "Custom Cubic Bezier function",
           "type": "object",
           "properties": {
             "CubicBezier": {
@@ -3257,7 +3257,7 @@
       ]
     },
     "MonocleFocusBehaviour": {
-      "description": "Behavior when focusing in a direction while a monocle container is active",
+      "description": "Behaviour when focusing in a direction while a monocle container is active",
       "oneOf": [
         {
           "description": "Cycle the monocle container to the next/previous container in the workspace",
@@ -3272,7 +3272,7 @@
       ]
     },
     "MoveBehaviour": {
-      "description": "Move behavior when the operation works across a monitor boundary",
+      "description": "Move behaviour when the operation works across a monitor boundary",
       "oneOf": [
         {
           "description": "Swap the window container with the window container at the edge of the adjacent monitor",
@@ -3292,7 +3292,7 @@
       ]
     },
     "OperationBehaviour": {
-      "description": "Operation behavior for temporarily unmanaged and floating windows",
+      "description": "Operation behaviour for temporarily unmanaged and floating windows",
       "oneOf": [
         {
           "description": "Process commands on temporarily unmanaged/floated windows",
@@ -3316,12 +3316,9 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "properties": {
-            "movement": {
-              "type": "boolean"
-            }
-          },
-          "additionalProperties": false
+          "additionalProperties": {
+            "type": "boolean"
+          }
         },
         {
           "description": "Animation configuration for all animation kinds",
@@ -3335,14 +3332,11 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "properties": {
-            "movement": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0
-            }
-          },
-          "additionalProperties": false
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
         },
         {
           "description": "Animation configuration for all animation kinds",
@@ -3358,12 +3352,9 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "properties": {
-            "movement": {
-              "$ref": "#/$defs/AnimationStyle"
-            }
-          },
-          "additionalProperties": false
+          "additionalProperties": {
+            "$ref": "#/$defs/AnimationStyle"
+          }
         },
         {
           "description": "Animation configuration for all animation kinds",
