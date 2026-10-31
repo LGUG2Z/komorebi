@@ -909,7 +909,7 @@ impl Workspace {
             .foreground_window()
             .and_then(WindowId::to_u32)
             .ok_or_eyre("no foreground window")?;
-        if let Some(window) = &self.maximized_window
+        if let Some(window) = self.maximized_window
             && window_id == window.id
         {
             return Ok(true);
@@ -938,7 +938,7 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = &self.maximized_window
+        if let Some(window) = self.maximized_window
             && window_id == window.id
         {
             return true;
@@ -971,7 +971,7 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = &self.maximized_window
+        if let Some(window) = self.maximized_window
             && let Some(window_exe) = window.exe()
             && exe == window_exe
         {
@@ -1005,7 +1005,7 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = &self.maximized_window
+        if let Some(window) = self.maximized_window
             && window_id == window.id
         {
             return true;
