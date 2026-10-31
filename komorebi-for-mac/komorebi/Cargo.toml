@@ -10,6 +10,7 @@ komorebi-backend = { workspace = true }
 komorebi-collections = { workspace = true }
 komorebi-layouts = { workspace = true }
 komorebi-config = { workspace = true }
+komorebi-settings = { workspace = true }
 komorebi-protocol = { workspace = true }
 komorebi-transport = { workspace = true }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }

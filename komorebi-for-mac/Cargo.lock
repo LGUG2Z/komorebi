@@ -3170,6 +3170,7 @@ dependencies = [
  "komorebi-config",
  "komorebi-layouts",
  "komorebi-protocol",
+ "komorebi-settings",
  "komorebi-themes",
  "komorebi-transport",
  "lazy_static",
@@ -3253,14 +3254,22 @@ version = "0.1.42"
 dependencies = [
  "chrono",
  "chrono-tz",
+ "color-eyre",
  "eframe",
  "egui-phosphor",
+ "image 0.25.10",
+ "komorebi-config",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "lazy_static",
  "reqwest",
  "schemars 1.2.3",
  "serde",
  "serde_json_lenient",
  "starship-battery",
  "sysinfo 0.39.6",
+ "tracing",
 ]
 
 [[package]]
@@ -3331,6 +3340,17 @@ dependencies = [
 [[package]]
 name = "komorebi-scrolling"
 version = "0.1.42"
+
+[[package]]
+name = "komorebi-settings"
+version = "0.1.42"
+dependencies = [
+ "komorebi-config",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "parking_lot",
+]
 
 [[package]]
 name = "komorebi-themes"

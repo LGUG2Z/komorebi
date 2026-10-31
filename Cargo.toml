@@ -8,6 +8,7 @@ members = [
   "crates/komorebi-backend",
   "crates/komorebi-collections",
   "crates/komorebi-config",
+  "crates/komorebi-settings",
   "komorebi-layouts",
   "komorebi-scrolling",
   "komorebic",

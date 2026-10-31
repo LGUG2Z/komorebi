@@ -1,4 +1,5 @@
 use crate::config::LabelPrefix;
+pub use komorebi_bar_core::widgets::platform_config::KeyboardConfig;
 use crate::render::RenderConfig;
 use crate::widgets::widget::BarWidget;
 use color_eyre::eyre;
@@ -9,8 +10,6 @@ use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::WidgetText;
 use eframe::egui::text::LayoutJob;
-use serde::Deserialize;
-use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -22,19 +21,6 @@ use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 
 const ERROR_TEXT: &str = "Error";
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Keyboard widget configuration
-pub struct KeyboardConfig {
-    /// Enable the Input widget
-    pub enable: bool,
-    /// Data refresh interval
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = 10)))]
-    pub data_refresh_interval: Option<u64>,
-    /// Display label prefix
-    pub label_prefix: Option<LabelPrefix>,
-}
 
 impl From<KeyboardConfig> for Keyboard {
     fn from(value: KeyboardConfig) -> Self {

@@ -1,0 +1,13 @@
+[package]
+name = "komorebi-settings"
+version = "0.1.42"
+edition = "2024"
+description = "The settings every komorebi daemon reads while it runs: one immutable snapshot, replaced as a whole, instead of process-wide statics"
+
+[dependencies]
+komorebi-config = { path = "../komorebi-config", default-features = false }
+komorebi-layouts = { path = "../../komorebi-layouts" }
+komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
+komorebi-themes = { path = "../../komorebi-themes", default-features = false }
+
+parking_lot = "0.12"

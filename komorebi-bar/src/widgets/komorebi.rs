@@ -7,7 +7,7 @@ use crate::config::WorkspacesDisplayFormat;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
-use crate::widgets::komorebi_layout::KomorebiLayout;
+use crate::widgets::komorebi_layout::KomorebiLayoutExt;
 use crate::widgets::widget::BarWidget;
 use eframe::egui::Align;
 use eframe::egui::Color32;
@@ -28,6 +28,14 @@ use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::vec2;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiConfig;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiConfigurationSwitcherConfig;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiFocusedContainerConfig;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiLayout;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiLayoutConfig;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiLockedContainerConfig;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiWorkspaceLayerConfig;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiWorkspacesConfig;
 use komorebi_client::Container;
 use komorebi_client::PathExt;
 use komorebi_client::Rect;
@@ -37,105 +45,12 @@ use komorebi_client::State;
 use komorebi_client::Window;
 use komorebi_client::Workspace;
 use komorebi_client::WorkspaceLayer;
-use serde::Deserialize;
-use serde::Serialize;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::io::Result as IoResult;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Komorebi widget configuration
-pub struct KomorebiConfig {
-    /// Configure the Workspaces widget
-    pub workspaces: Option<KomorebiWorkspacesConfig>,
-    /// Configure the Layout widget
-    pub layout: Option<KomorebiLayoutConfig>,
-    /// Configure the Workspace Layer widget
-    pub workspace_layer: Option<KomorebiWorkspaceLayerConfig>,
-    /// Configure the Focused Container widget
-    #[serde(alias = "focused_window")]
-    pub focused_container: Option<KomorebiFocusedContainerConfig>,
-    /// Configure the Locked Container widget
-    pub locked_container: Option<KomorebiLockedContainerConfig>,
-    /// Configure the Configuration Switcher widget
-    pub configuration_switcher: Option<KomorebiConfigurationSwitcherConfig>,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Komorebi widget workspaces configuration
-pub struct KomorebiWorkspacesConfig {
-    /// Enable the Komorebi Workspaces widget
-    pub enable: bool,
-    /// Hide workspaces without any windows
-    pub hide_empty_workspaces: bool,
-    /// Display format of the workspace
-    pub display: Option<WorkspacesDisplayFormat>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Komorebi widget layout configuration
-pub struct KomorebiLayoutConfig {
-    /// Enable the Komorebi Layout widget
-    pub enable: bool,
-    /// List of layout options
-    pub options: Option<Vec<KomorebiLayout>>,
-    /// Display format of the current layout
-    pub display: Option<DisplayFormat>,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Komorebi widget workspace layer configuration
-pub struct KomorebiWorkspaceLayerConfig {
-    /// Enable the Komorebi Workspace Layer widget
-    pub enable: bool,
-    /// Display format of the current layer
-    pub display: Option<DisplayFormat>,
-    /// Show the widget event if the layer is Tiling
-    pub show_when_tiling: Option<bool>,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Komorebi widget focused container configuration
-pub struct KomorebiFocusedContainerConfig {
-    /// Enable the Komorebi Focused Container widget
-    pub enable: bool,
-    /// DEPRECATED: use `display` instead (Show the icon of the currently focused container)
-    #[deprecated(note = "Use `display` instead")]
-    pub show_icon: Option<bool>,
-    /// Display format of the currently focused container
-    pub display: Option<DisplayFormat>,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Komorebi widget locked container configuration
-pub struct KomorebiLockedContainerConfig {
-    /// Enable the Komorebi Locked Container widget
-    pub enable: bool,
-    /// Display format of the current locked state
-    pub display: Option<DisplayFormat>,
-    /// Show the widget event if the layer is unlocked
-    pub show_when_unlocked: Option<bool>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Komorebi widget configuration switcher configuration
-pub struct KomorebiConfigurationSwitcherConfig {
-    /// Enable the Komorebi Configurations widget
-    pub enable: bool,
-    /// A map of display friendly name => path to configuration.json
-    pub configurations: BTreeMap<String, String>,
-}
 
 impl From<&KomorebiConfig> for Komorebi {
     fn from(cfg: &KomorebiConfig) -> Self {

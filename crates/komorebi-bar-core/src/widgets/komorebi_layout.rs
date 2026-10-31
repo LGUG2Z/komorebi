@@ -1,8 +1,9 @@
 use crate::config::DisplayFormat;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
-use crate::widgets::komorebi::KomorebiLayoutConfig;
-use color_eyre::eyre;
+use crate::platform::platform;
+use crate::widgets::komorebi_config::KomorebiLayout;
+use crate::widgets::komorebi_config::KomorebiLayoutConfig;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
 use eframe::egui::FontId;
@@ -14,70 +15,30 @@ use eframe::egui::StrokeKind;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use eframe::egui::vec2;
-use komorebi_client::SocketMessage;
-use serde::Deserialize;
-use serde::Deserializer;
-use serde::Serialize;
-use serde::de::Error;
-use serde_json::from_str;
-use std::fmt::Display;
-use std::fmt::Formatter;
+use komorebi_protocol::message::SocketMessage;
 
-#[derive(Copy, Clone, Debug, Serialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-/// Komorebi layout kind
-pub enum KomorebiLayout {
-    /// Predefined layout
-    #[cfg_attr(feature = "schemars", schemars(title = "Default"))]
-    Default(komorebi_client::DefaultLayout),
-    /// Monocle mode
-    Monocle,
-    /// Floating layer
-    Floating,
-    /// Paused
-    Paused,
-    /// Custom layout
-    Custom,
+/// What the layout widget does with a layout kind (the kind itself lives in the core).
+pub trait KomorebiLayoutExt {
+    fn is_default(&mut self) -> bool;
+    fn on_click(
+        &mut self,
+        show_options: &bool,
+        monitor_idx: usize,
+        workspace_idx: Option<usize>,
+    ) -> bool;
+    fn on_click_option(&mut self, monitor_idx: usize, workspace_idx: Option<usize>);
+    fn show_icon(&mut self, is_selected: bool, font_id: FontId, ctx: &Context, ui: &mut Ui);
+    fn show(
+        &mut self,
+        ctx: &Context,
+        ui: &mut Ui,
+        render_config: &mut RenderConfig,
+        layout_config: &KomorebiLayoutConfig,
+        workspace_idx: Option<usize>,
+    );
 }
 
-impl<'de> Deserialize<'de> for KomorebiLayout {
-    fn deserialize<D>(deserializer: D) -> eyre::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: String = String::deserialize(deserializer)?;
-
-        // Attempt to deserialize the string as a DefaultLayout
-        if let Ok(default_layout) = from_str::<komorebi_client::DefaultLayout>(&format!("\"{s}\""))
-        {
-            return Ok(KomorebiLayout::Default(default_layout));
-        }
-
-        // Handle other cases
-        match s.as_str() {
-            "Monocle" => Ok(KomorebiLayout::Monocle),
-            "Floating" => Ok(KomorebiLayout::Floating),
-            "Paused" => Ok(KomorebiLayout::Paused),
-            "Custom" => Ok(KomorebiLayout::Custom),
-            _ => Err(Error::custom(format!("Invalid layout: {s}"))),
-        }
-    }
-}
-
-impl Display for KomorebiLayout {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            KomorebiLayout::Default(layout) => write!(f, "{layout}"),
-            KomorebiLayout::Monocle => write!(f, "Monocle"),
-            KomorebiLayout::Floating => write!(f, "Floating"),
-            KomorebiLayout::Paused => write!(f, "Paused"),
-            KomorebiLayout::Custom => write!(f, "Custom"),
-        }
-    }
-}
-
-impl KomorebiLayout {
+impl KomorebiLayoutExt for KomorebiLayout {
     fn is_default(&mut self) -> bool {
         matches!(self, KomorebiLayout::Default(_))
     }
@@ -100,7 +61,7 @@ impl KomorebiLayout {
         match self {
             KomorebiLayout::Default(option) => {
                 if let Some(ws_idx) = workspace_idx
-                    && komorebi_client::send_message(&SocketMessage::WorkspaceLayout(
+                    && platform().send_komorebi_message(&SocketMessage::WorkspaceLayout(
                         monitor_idx,
                         ws_idx,
                         *option,
@@ -111,7 +72,7 @@ impl KomorebiLayout {
                 }
             }
             KomorebiLayout::Monocle => {
-                if komorebi_client::send_batch([
+                if platform().send_komorebi_batch(vec![
                     SocketMessage::FocusMonitorAtCursor,
                     SocketMessage::ToggleMonocle,
                 ])
@@ -121,7 +82,7 @@ impl KomorebiLayout {
                 }
             }
             KomorebiLayout::Floating => {
-                if komorebi_client::send_batch([
+                if platform().send_komorebi_batch(vec![
                     SocketMessage::FocusMonitorAtCursor,
                     SocketMessage::ToggleTiling,
                 ])
@@ -131,7 +92,7 @@ impl KomorebiLayout {
                 }
             }
             KomorebiLayout::Paused => {
-                if komorebi_client::send_message(&SocketMessage::TogglePause).is_err() {
+                if platform().send_komorebi_message(&SocketMessage::TogglePause).is_err() {
                     tracing::error!("could not send message to komorebi: TogglePause");
                 }
             }
@@ -158,44 +119,44 @@ impl KomorebiLayout {
 
         match self {
             KomorebiLayout::Default(layout) => match layout {
-                komorebi_client::DefaultLayout::BSP => {
+                komorebi_layouts::DefaultLayout::BSP => {
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c, c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c + vec2(r / 2.0, 0.0), c + vec2(r / 2.0, r)], stroke);
                 }
-                komorebi_client::DefaultLayout::Columns => {
+                komorebi_layouts::DefaultLayout::Columns => {
                     painter.line_segment([c - vec2(r / 2.0, r), c + vec2(-r / 2.0, r)], stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c - vec2(-r / 2.0, r), c + vec2(r / 2.0, r)], stroke);
                 }
-                komorebi_client::DefaultLayout::Rows => {
+                komorebi_layouts::DefaultLayout::Rows => {
                     painter.line_segment([c - vec2(r, r / 2.0), c + vec2(r, -r / 2.0)], stroke);
                     painter.line_segment([c - vec2(r, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c - vec2(r, -r / 2.0), c + vec2(r, r / 2.0)], stroke);
                 }
-                komorebi_client::DefaultLayout::VerticalStack => {
+                komorebi_layouts::DefaultLayout::VerticalStack => {
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c, c + vec2(r, 0.0)], stroke);
                 }
-                komorebi_client::DefaultLayout::RightMainVerticalStack => {
+                komorebi_layouts::DefaultLayout::RightMainVerticalStack => {
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c - vec2(r, 0.0), c], stroke);
                 }
-                komorebi_client::DefaultLayout::HorizontalStack => {
+                komorebi_layouts::DefaultLayout::HorizontalStack => {
                     painter.line_segment([c - vec2(r, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c, c + vec2(0.0, r)], stroke);
                 }
-                komorebi_client::DefaultLayout::UltrawideVerticalStack => {
+                komorebi_layouts::DefaultLayout::UltrawideVerticalStack => {
                     painter.line_segment([c - vec2(r / 2.0, r), c + vec2(-r / 2.0, r)], stroke);
                     painter.line_segment([c + vec2(r / 2.0, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c - vec2(-r / 2.0, r), c + vec2(r / 2.0, r)], stroke);
                 }
-                komorebi_client::DefaultLayout::Grid => {
+                komorebi_layouts::DefaultLayout::Grid => {
                     painter.line_segment([c - vec2(r, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                 }
                 // TODO: @CtByte can you think of a nice icon to draw here?
-                komorebi_client::DefaultLayout::Scrolling => {
+                komorebi_layouts::DefaultLayout::Scrolling => {
                     painter.line_segment([c - vec2(r / 2.0, r), c + vec2(-r / 2.0, r)], stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c - vec2(-r / 2.0, r), c + vec2(r / 2.0, r)], stroke);
@@ -242,7 +203,7 @@ impl KomorebiLayout {
         }
     }
 
-    pub fn show(
+    fn show(
         &mut self,
         ctx: &Context,
         ui: &mut Ui,
@@ -284,18 +245,18 @@ impl KomorebiLayout {
                     );
 
                     let mut layout_options = layout_config.options.clone().unwrap_or(vec![
-                        KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP),
-                        KomorebiLayout::Default(komorebi_client::DefaultLayout::Columns),
-                        KomorebiLayout::Default(komorebi_client::DefaultLayout::Rows),
-                        KomorebiLayout::Default(komorebi_client::DefaultLayout::VerticalStack),
+                        KomorebiLayout::Default(komorebi_layouts::DefaultLayout::BSP),
+                        KomorebiLayout::Default(komorebi_layouts::DefaultLayout::Columns),
+                        KomorebiLayout::Default(komorebi_layouts::DefaultLayout::Rows),
+                        KomorebiLayout::Default(komorebi_layouts::DefaultLayout::VerticalStack),
                         KomorebiLayout::Default(
-                            komorebi_client::DefaultLayout::RightMainVerticalStack,
+                            komorebi_layouts::DefaultLayout::RightMainVerticalStack,
                         ),
-                        KomorebiLayout::Default(komorebi_client::DefaultLayout::HorizontalStack),
+                        KomorebiLayout::Default(komorebi_layouts::DefaultLayout::HorizontalStack),
                         KomorebiLayout::Default(
-                            komorebi_client::DefaultLayout::UltrawideVerticalStack,
+                            komorebi_layouts::DefaultLayout::UltrawideVerticalStack,
                         ),
-                        KomorebiLayout::Default(komorebi_client::DefaultLayout::Grid),
+                        KomorebiLayout::Default(komorebi_layouts::DefaultLayout::Grid),
                         //KomorebiLayout::Custom,
                         KomorebiLayout::Monocle,
                         KomorebiLayout::Floating,

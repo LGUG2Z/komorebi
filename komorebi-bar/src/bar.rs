@@ -23,6 +23,7 @@ use crate::widgets::komorebi::Komorebi;
 use crate::widgets::komorebi::MonitorInfo;
 use crate::widgets::widget::BarWidget;
 use crate::widgets::widget::WidgetConfig;
+use crate::widgets::widget::WidgetConfigExt;
 use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::TryRecvError;

@@ -106,10 +106,12 @@ fn main() -> color_eyre::Result<()> {
 
     #[cfg(feature = "schemars")]
     if opts.schema {
-        let bar_config = schemars::schema_for!(KomobarConfig);
-        let schema = serde_json::to_string_pretty(&bar_config)?;
-
-        println!("{schema}");
+        print!(
+            "{}",
+            komorebi_bar_core::schema::generated_text::<KomobarConfig>(
+                komorebi_bar_core::schema::SchemaPlatform::Windows
+            )
+        );
         std::process::exit(0);
     }
 

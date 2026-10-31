@@ -72,6 +72,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod reaper;
 pub mod scrolling;
+pub mod settings;
 pub mod settle;
 pub mod skylight;
 pub mod splash;
@@ -159,10 +160,12 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
 }
 
-pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
-pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(5);
-pub static DEFAULT_RESIZE_DELTA: i32 = 50;
-pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = true;
+pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 =
+    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::MACOS.workspace_padding);
+pub static DEFAULT_CONTAINER_PADDING: AtomicI32 =
+    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::MACOS.container_padding);
+pub static DEFAULT_RESIZE_DELTA: i32 = komorebi_settings::shared::DEFAULT_RESIZE_DELTA;
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 
 pub const PUBLIC_KEY: [u8; 32] = [
     0x5a, 0x69, 0x4a, 0xe1, 0x3c, 0x4b, 0xc8, 0x4e, 0xc3, 0x79, 0x0f, 0xab, 0x27, 0x6b, 0x7e, 0xdd,

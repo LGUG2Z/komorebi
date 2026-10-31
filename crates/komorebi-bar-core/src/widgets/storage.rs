@@ -1,4 +1,4 @@
-use crate::bar::Alignment;
+use crate::alignment::Alignment;
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
@@ -11,7 +11,8 @@ use eframe::egui::Ui;
 use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
-use std::process::Command;
+use crate::platform::SystemTool;
+use crate::platform::platform;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Disks;
@@ -190,13 +191,8 @@ impl BarWidget for Storage {
                     if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                        && let Err(error) = Command::new("cmd.exe")
-                            .args([
-                                "/C",
-                                "explorer.exe",
-                                output.label.split(' ').collect::<Vec<&str>>()[0],
-                            ])
-                            .spawn()
+                        && let Err(error) = platform()
+                            .open_system_tool(SystemTool::StorageLocation(output.label.clone()))
                     {
                         eprintln!("{error}")
                     }
