@@ -288,6 +288,29 @@ mod tests {
     }
 
     #[test]
+    fn the_json_of_a_container_is_its_id_whether_it_is_locked_and_the_ring_of_windows() {
+        let mut container = Container {
+            id: "c1".to_string(),
+            locked: true,
+            windows: Default::default(),
+        };
+
+        assert_eq!(
+            serde_json::to_string(&container).unwrap(),
+            r#"{"id":"c1","locked":true,"windows":{"elements":[],"focused":0}}"#
+        );
+
+        container.add_window(Window::from(5));
+        container.add_window(Window::from(9));
+        container.focus_window(0);
+
+        let json = serde_json::to_string(&container).unwrap();
+        assert!(json.starts_with(r#"{"id":"c1","locked":true,"windows":{"elements":[{"id":5,"#));
+        assert!(json.contains(r#"},{"id":9,"#));
+        assert!(json.ends_with(r#"}],"focused":0}}"#));
+    }
+
+    #[test]
     fn serializes_and_deserializes() {
         let mut container = Container::default();
         container.set_locked(true);
