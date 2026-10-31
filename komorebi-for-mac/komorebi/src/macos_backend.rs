@@ -194,11 +194,11 @@ impl Backend for MacosBackend {
     }
 
     fn set_rect(&self, id: WindowId, rect: &Rect) -> Result<()> {
-        // `Window::set_position` writes directly (two Accessibility writes) or hands the move to
+        // `Window::set_rect` writes directly (two Accessibility writes) or hands the move to
         // the animator, depending on the animation settings; both are requests
         let window = self.lookup(id)?;
         window
-            .set_position(rect)
+            .set_rect(rect)
             .map_err(|e| Self::failed(id, &window, e))
     }
 

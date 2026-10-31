@@ -787,7 +787,7 @@ impl WindowManager {
                     }
                 }
 
-                window.set_position(&rect)?;
+                window.set_rect(&rect)?;
 
                 if mouse_follows_focus {
                     MacosApi::center_cursor_in_rect(&rect)?;
@@ -1750,7 +1750,7 @@ impl WindowManager {
                             }
                         }
 
-                        window.set_position(&rect)?;
+                        window.set_rect(&rect)?;
 
                         if mouse_follows_focus {
                             MacosApi::center_cursor_in_rect(&rect)?;

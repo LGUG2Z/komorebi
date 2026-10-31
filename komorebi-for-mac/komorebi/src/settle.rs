@@ -207,7 +207,7 @@ impl WindowManager {
         let _snapping = Snapping::end();
 
         for (window, layout) in &off {
-            if let Err(error) = window.set_position(layout) {
+            if let Err(error) = window.set_rect(layout) {
                 tracing::debug!(
                     "live resize: could not send window {} again: {error}",
                     window.id

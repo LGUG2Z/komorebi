@@ -1476,7 +1476,7 @@ impl Workspace {
                         adjusted_work_area.add_padding(container_padding);
                         adjusted_work_area.add_padding(border_offset);
                         adjusted_work_area.add_padding(border_width);
-                        window.set_position(&adjusted_work_area)?;
+                        window.set_rect(&adjusted_work_area)?;
                     };
                 } else if !self.containers().is_empty() {
                     if self.is_scrolling() {
@@ -1503,7 +1503,7 @@ impl Workspace {
                             layout.add_padding(border_width);
 
                             for window in container.windows_mut() {
-                                if let Err(error) = window.set_position(layout) {
+                                if let Err(error) = window.set_rect(layout) {
                                     tracing::warn!("failed to set window position: {error}")
                                 }
                             }

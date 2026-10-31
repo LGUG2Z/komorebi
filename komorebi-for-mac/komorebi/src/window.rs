@@ -917,7 +917,7 @@ impl Window {
             ))
     }
 
-    pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
+    pub fn set_rect(&self, rect: &Rect) -> Result<(), AccessibilityError> {
         match snap() {
             Snap::Step(dragged) => return self.set_position_for_step(dragged, rect),
             Snap::End => {
@@ -1204,7 +1204,7 @@ impl Window {
         let x = work_area.left + ((work_area.right - target_width) / 2);
         let y = work_area.top + ((work_area.bottom - target_height) / 2);
 
-        self.set_position(&Rect {
+        self.set_rect(&Rect {
             left: x,
             top: y,
             right: target_width,
@@ -1255,7 +1255,7 @@ impl Window {
         //         let anim_count = ANIMATION_MANAGER
         //             .lock()
         //             .count_in_progress(MovementRenderDispatcher::PREFIX);
-        //         self.set_position(&new_rect, true)?;
+        //         self.set_rect(&new_rect, true)?;
         //         let hwnd = self.hwnd;
         //         // Wait for the animation to finish before maximizing the window again, otherwise
         //         // we would be maximizing the window on the current monitor anyway
@@ -1274,11 +1274,11 @@ impl Window {
         //             windows_api::WindowsApi::maximize_window(hwnd);
         //         });
         //     } else {
-        //         self.set_position(&new_rect, true)?;
+        //         self.set_rect(&new_rect, true)?;
         //         windows_api::WindowsApi::maximize_window(self.hwnd);
         //     }
         // } else {
-        self.set_position(&new_rect)?;
+        self.set_rect(&new_rect)?;
         // }
 
         Ok(())

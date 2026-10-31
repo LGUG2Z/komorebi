@@ -303,7 +303,7 @@ impl Workspace {
             for window in container.windows_mut() {
                 let result = match placement.visibility {
                     Visibility::Visible => window
-                        .set_position(&rect)
+                        .set_rect(&rect)
                         .map(|()| window.note_arrival(&rect, resized)),
                     Visibility::Clipped => {
                         // part of it is in view and the rest is past the edge of the screen,
@@ -315,7 +315,7 @@ impl Workspace {
                         }
 
                         window
-                            .set_position(&target)
+                            .set_rect(&target)
                             .map(|()| window.note_arrival(&target, resized))
                     }
                     Visibility::OffLeft => {
