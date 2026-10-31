@@ -555,3 +555,423 @@ platform half is the constructors (the Windows `name`, `device_id` and `workspac
 `load_focused_workspace`, the two globals updates (`BORDER_ENABLED` against `BORDER_DRAWN`),
 `focus_workspace` (the names), `move_container_to_workspace` (the foreground window) and the
 Windows-only custom-layout arms of `add_container_with_direction`.
+
+## 12. Proposal: the shared `update` skeleton (not implemented)
+
+Written from the two bodies as they are in `wip-u-core` after the Workspace move (the Windows one is
+`WorkspaceExt::update` in `komorebi/src/workspace.rs`, the KDE one in
+`komorebi-for-kde/komorebi/src/workspace.rs`). The unified diff of the two, Windows against KDE, is at
+the end of this section: every hunk of it is either a line of the skeleton below that both daemons
+have (so no hunk), or the body of one of the hooks. Differences that are only the order of two `let`s
+(`window_based_work_area_offset*`, `managed_maximized_window`) have no effect and are dropped.
+
+### The skeleton (what moves into `komorebi-core`)
+
+```rust
+pub fn update(&mut self) -> eyre::Result<()> {
+    let _guard = match P::begin_update(self)? {          // Windows: Skip until INITIAL_CONFIGURATION_LOADED,
+        Flow::Skip => return Ok(()),                     //   else Run(AnimationBatch::begin());
+        Flow::Run(guard) => guard,                       // KDE: prune_duplicate_windows()?, Run(())
+    };
+
+    let focus_before = self.focused_container_idx();
+    self.containers_mut().retain(|c| c.is_preselect() || !c.windows().is_empty());
+    P::containers_pruned(self, focus_before);            // KDE: if focus_before >= len, focus len-1 (saturating);
+                                                         // Windows: nothing (it must NOT clamp)
+
+    // paddings, work area, work-area offset rules, window-based offset, layout rules,
+    // window-container-behaviour rules: identical on both daemons, move as they are
+
+    if self.tile {
+        if let Some(container) = &mut self.monocle_container {          // identical shape
+            if let Some(window) = container.focused_window_mut() {
+                /* the three add_padding calls */
+                P::place_monocle(window, &adjusted_work_area)?;          // Windows: set_position(rect, top = true)
+            }                                                            // KDE: set_position(rect)
+        } else if let Some(window) = &mut self.maximized_window {
+            P::maximize_in_layout(window)?;                              // Windows: window.maximize() (result ignored
+        } else if !self.containers().is_empty() {                        //   inside), KDE: window.maximize()?
+            let around_window = container_padding + border_offset + border_width;
+            if self.is_scrolling() && P::adopt_widths_before_layout(self) {
+                self.adopt_actual_widths(around_window, adjusted_work_area.right);
+            }                                                            // Windows: animations_enabled() && !is_stepping()
+                                                                         // KDE: scrolling_placed.has_settled() && !live_resize_in_progress()
+            let mut pass = 0;
+            loop {
+                let effective_layout_options = self.effective_layout_options();
+                let mut hidden = vec![];
+                let mut layouts = if self.is_scrolling() {
+                    let others = scrolling::other_monitors(&self.globals.work_area, &P::monitor_rects());
+                    /* layout_scrolling + scrolling::rest, as both have it */
+                } else {
+                    /* layout.as_boxed_arrangement().calculate(..), as both have it */
+                };
+
+                for (i, container) in self.containers_mut().iter_mut().enumerate() {
+                    if let Some(layout) = layouts.get_mut(i) {
+                        P::adjust_layout(container, i, layout, &Placement { adjusted_work_area, work_area,
+                            container_padding, border_offset, border_width, is_scrolling });
+                        // Windows: add_padding(border_offset), add_padding(border_width), then the stackbar height
+                        // KDE: the clamp to the work area when not scrolling, then the two add_padding calls
+                        P::place_container(container, i, layout, hidden.get(i).copied().unwrap_or_default(),
+                            &Placement { .. })?;
+                        // Windows: per window: title bar rules, unminimize after toggle-maximize, hide or
+                        //   (restore if should_restore_when_placed, backend().set_rect)
+                        // KDE: hide all if hidden, restore the front if should_restore_when_placed, then per window
+                        //   the percentage override (center) or set_position, logging a failed set_position
+                    }
+                }
+                self.latest_layout = layouts;
+
+                match P::end_update(self, pass, around_window, adjusted_work_area.right)? {
+                    Pass::Again => { pass += 1; continue }   // Windows: pass == 0 && is_scrolling &&
+                    Pass::Done => break,                      //   !animations_enabled() && adopt_actual_widths(..)
+                }                                             // KDE: records scrolling_placed, always Done
+            }
+        }
+    }
+
+    /* the resize_dimensions resize: identical */
+    Ok(())
+}
+```
+
+### The hooks, with the exact bodies the daemons keep
+
+| hook | Windows body | KDE body |
+|---|---|---|
+| `begin_update(ws) -> Result<Flow<G>>` | `if !INITIAL_CONFIGURATION_LOADED.load(SeqCst) { return Ok(Flow::Skip) }`; `Ok(Flow::Run(AnimationBatch::begin()))` | `ws.prune_duplicate_windows()?; Ok(Flow::Run(()))` |
+| `containers_pruned(ws, focus_before)` | nothing | `if focus_before >= ws.containers().len() { ws.focus_container(focus_before.saturating_sub(1)); }` |
+| `place_monocle(window, rect)` | `window.set_position(rect, true)?` | `window.set_position(rect)?` |
+| `maximize_in_layout(window)` | `window.maximize()` (it is `backend().maximize` ignoring the result today) then `Ok(())` | `window.maximize()?` |
+| `adopt_widths_before_layout(ws) -> bool` | `crate::scrolling::animations_enabled() && !crate::live_resize::is_stepping()` | `ws.state.scrolling_placed.as_ref().is_some_and(Placed::has_settled) && !crate::window::live_resize_in_progress()` |
+| `monitor_rects()` | `WindowsApi::monitor_rects()` | `backend().monitors().map(\|m\| m.iter().map(\|m\| m.size).collect()).unwrap_or_default()` |
+| `adjust_layout(container, i, layout, placement)` | the two `add_padding` calls, then `if stackbar_manager::should_have_stackbar(window_count) { layout.top += tab_height + container_padding; layout.bottom -= tab_height + container_padding }` | `if !is_scrolling { clamp left/right/top/bottom to adjusted_work_area }`, then the two `add_padding` calls |
+| `place_container(container, i, layout, hidden, placement)` | the loop over `container.windows()` in the diff below, with `managed_maximized_window` read from the workspace | the hide / restore-front / per-window loop in the diff below |
+| `end_update(ws, pass, around_window, right) -> Result<Pass>` | `if pass == 0 && ws.is_scrolling() && !animations_enabled() && ws.adopt_actual_widths(around_window, right) { Pass::Again } else { Pass::Done }` | `if ws.is_scrolling() { ws.state.scrolling_placed = Some(Placed::new(..)) } Ok(Pass::Done)` |
+
+Constraints that make this safe to implement, all checked against the diff:
+
+- The order of effects is the same on both daemons: begin, prune, work area, layout rules, then the
+  tile branch. KDE's closure wrapper (`let result = (|| { .. })(); result?;`) has nothing between the
+  closure and the `?`, so it does not need a counterpart (section 9, item 6).
+- `Windows` must not get KDE's focus clamp, and KDE must not get the `INITIAL_CONFIGURATION_LOADED`
+  check; both are hooks that the other daemon leaves empty.
+- `place_container` receives `hidden` already looked up for the container; KDE's `continue` after
+  hiding is the end of that hook.
+- The Windows `AnimationBatch` guard must live until the end of `update`, which `_guard` does.
+- Tests to run before and after: the KDE `update` tests of `workspace.rs` and `scrolling.rs`
+  (`update_puts_each_window_on_its_tile`, the scrolling tests) and, for Windows, the e2e sweeps of
+  commands, stacking, scrolling, resize, borders and animation named in the Windows revision of the
+  Workspace move; the e2e must run before the Windows revision of this step is accepted.
+
+### The bodies, as a diff (Windows `-`, KDE `+`)
+
+```diff
+@@ -1,15 +1,15 @@
+     fn update(&mut self) -> eyre::Result<()> {
+-        if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
+-            return Ok(());
+-        }
+-
+-        // every window that moves in this pass is animated together
+-        let _animations = AnimationBatch::begin();
+-
+         // make sure we are never holding on to empty containers
++        self.prune_duplicate_windows()?;
++        let focused_container_idx = self.focused_container_idx();
+         self.containers_mut()
+             .retain(|c| c.is_preselect() || !c.windows().is_empty());
+ 
++        // make sure we are never focused on a no longer existent final empty container
++        if focused_container_idx >= self.containers().len() {
++            self.focus_container(focused_container_idx.saturating_sub(1));
++        }
++
+         let container_padding = self
+             .container_padding
+             .or(self.globals.container_padding)
+@@ -21,8 +21,6 @@
+         let border_width = self.globals.border_width;
+         let border_offset = self.globals.border_offset;
+         let work_area = self.globals.work_area;
+-        let window_based_work_area_offset = self.globals.window_based_work_area_offset;
+-        let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
+         let mut rules_work_area_offset = None;
+ 
+         if !self.work_area_offset_rules.is_empty() {
+@@ -42,6 +40,8 @@
+         let work_area_offset = rules_work_area_offset
+             .or(self.work_area_offset)
+             .or(self.globals.work_area_offset);
++        let window_based_work_area_offset = self.globals.window_based_work_area_offset;
++        let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
+ 
+         let mut adjusted_work_area = work_area_offset.map_or_else(
+             || work_area,
+@@ -55,6 +55,7 @@
+                 with_offset
+             },
+         );
++
+         if (self.containers().len() <= window_based_work_area_offset_limit as usize
+             || self.monocle_container.is_some() && window_based_work_area_offset_limit > 0)
+             && self.apply_window_based_work_area_offset
+@@ -102,33 +103,37 @@
+             self.window_container_behaviour = updated_behaviour;
+         }
+ 
+-        let managed_maximized_window = self.maximized_window.is_some();
+-
+         if self.tile {
+-            if let Some(container) = &mut self.monocle_container {
+-                if let Some(window) = container.focused_window_mut() {
+-                    adjusted_work_area.add_padding(container_padding);
+-                    adjusted_work_area.add_padding(border_offset);
+-                    adjusted_work_area.add_padding(border_width);
+-                    window.set_position(&adjusted_work_area, true)?;
+-                };
+-            } else if let Some(window) = &mut self.maximized_window {
+-                window.maximize();
+-            } else if !self.containers().is_empty() {
+-                // windows that were not what they were told to be since the last layout, which
+-                // is something that animations only show once they are done
+-                let around_window = container_padding + border_offset + border_width;
+-                // neighbours of a window that is dragged are not yet the size they are being
+-                // made while it is followed: that is not what their columns are to be
+-                if self.is_scrolling()
+-                    && crate::scrolling::animations_enabled()
+-                    && !crate::live_resize::is_stepping()
+-                {
+-                    self.adopt_actual_widths(around_window, adjusted_work_area.right);
+-                }
++            // the backend batches the commands this produces and sends them together
++            let result = (|| -> eyre::Result<()> {
++                if let Some(container) = self.monocle_container.as_mut() {
++                    if let Some(window) = container.focused_window_mut() {
++                        adjusted_work_area.add_padding(container_padding);
++                        adjusted_work_area.add_padding(border_offset);
++                        adjusted_work_area.add_padding(border_width);
++                        window.set_position(&adjusted_work_area)?;
++                    };
++                } else if let Some(window) = self.maximized_window {
++                    // the compositor's own maximize, which is the work area and not the padded one
++                    window.maximize()?;
++                } else if !self.containers().is_empty() {
++                    let is_scrolling = self.is_scrolling();
++                    let around_window = container_padding + border_offset + border_width;
++
++                    // a window that would not get as narrow as its column was learned of once the
++                    // windows have had time to draw at the sizes that they were sent, and not
++                    // while one is being dragged, whose neighbours are on their way
++                    if is_scrolling
++                        && self
++                            .state
++                            .scrolling_placed
++                            .as_ref()
++                            .is_some_and(crate::scrolling::Placed::has_settled)
++                        && !crate::window::live_resize_in_progress()
++                    {
++                        self.adopt_actual_widths(around_window, adjusted_work_area.right);
++                    }
+ 
+-                let mut pass = 0;
+-                loop {
+                     let effective_layout_options = self.effective_layout_options();
+ 
+                     tracing::debug!(
+@@ -138,12 +143,15 @@
+                         self.layout_options,
+                         self.layout_options_rules.len(),
+                     );
++                    // the containers that rest where another monitor is seen from, which are hidden
+                     let mut hidden = vec![];
+-                    let mut layouts = if self.is_scrolling() {
+-                        let others = crate::scrolling::other_monitors(
+-                            &self.globals.work_area,
+-                            &WindowsApi::monitor_rects(),
+-                        );
++                    let mut layouts = if is_scrolling {
++                        let monitors: Vec<Rect> = backend()
++                            .monitors()
++                            .map(|monitors| monitors.iter().map(|monitor| monitor.size).collect())
++                            .unwrap_or_default();
++                        let others =
++                            crate::scrolling::other_monitors(&self.globals.work_area, &monitors);
+ 
+                         self.layout_scrolling(&adjusted_work_area, container_padding)
+                             .into_iter()
+@@ -173,69 +181,87 @@
+                         )
+                     };
+ 
+-                    let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
+-                    let no_titlebar = NO_TITLEBAR.lock().clone();
+-                    let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
++                    let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
+ 
+                     let containers = self.containers_mut();
+ 
+                     for (i, container) in containers.iter_mut().enumerate() {
+-                        let window_count = container.windows().len();
+-
+                         if let Some(layout) = layouts.get_mut(i) {
++                            // The scrolling layout is a strip that is meant to run past the edges of
++                            // the work area, and says itself where each window rests when it is out
++                            // of view (KWin does not constrain where a window is put). Everything
++                            // else is clamped to the work area so it cannot bleed onto an adjacent
++                            // monitor.
++                            if !is_scrolling {
++                                // horizontal
++                                if layout.left < adjusted_work_area.left {
++                                    layout.right -= adjusted_work_area.left - layout.left;
++                                    layout.left = adjusted_work_area.left;
++                                }
++                                let max_right_edge =
++                                    adjusted_work_area.left + adjusted_work_area.right;
++                                let current_right_edge = layout.left + layout.right;
++                                if current_right_edge > max_right_edge {
++                                    layout.right = max_right_edge - layout.left;
++                                }
++
++                                // vertical
++                                if layout.top < adjusted_work_area.top {
++                                    layout.bottom -= adjusted_work_area.top - layout.top;
++                                    layout.top = adjusted_work_area.top;
++                                }
++                                let max_bottom_edge =
++                                    adjusted_work_area.top + adjusted_work_area.bottom;
++                                let current_bottom_edge = layout.top + layout.bottom;
++                                if current_bottom_edge > max_bottom_edge {
++                                    layout.bottom = max_bottom_edge - layout.top;
++                                }
++                            }
++
+                             layout.add_padding(border_offset);
+                             layout.add_padding(border_width);
+ 
+-                            if stackbar_manager::should_have_stackbar(window_count) {
+-                                let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+-                                let total_height = tab_height + container_padding;
+-
+-                                layout.top += total_height;
+-                                layout.bottom -= total_height;
++                            if hidden.get(i).copied().unwrap_or_default() {
++                                // it is seen on another monitor wherever it rests here
++                                for window in container.windows() {
++                                    window.hide();
++                                }
++                                continue;
+                             }
+ 
+-                            for window in container.windows() {
+-                                if container
+-                                    .focused_window()
+-                                    .is_some_and(|w| w.hwnd == window.hwnd)
+-                                {
+-                                    let should_remove_titlebar_for_window = should_act(
+-                                        &window.title().unwrap_or_default(),
+-                                        &window.exe().unwrap_or_default(),
+-                                        &window.class().unwrap_or_default(),
+-                                        &window.path().unwrap_or_default(),
+-                                        &no_titlebar,
+-                                        &regex_identifiers,
++                            // a window that was hidden for resting past an edge with another
++                            // monitor next to it is shown before it is put where the strip says
++                            let front = container.focused_window().map(|window| window.id);
++                            let restore = is_scrolling
++                                && front.is_some_and(|front| {
++                                    crate::scrolling::should_restore_when_placed(
++                                        front,
++                                        Some(front),
++                                        &HIDDEN_WINDOWS.lock(),
+                                     )
+-                                    .is_some();
+-
+-                                    if should_remove_titlebars && should_remove_titlebar_for_window
+-                                    {
+-                                        window.remove_title_bar()?;
+-                                    } else if should_remove_titlebar_for_window {
+-                                        window.add_title_bar()?;
+-                                    }
+-
+-                                    // If a window has been unmaximized via toggle-maximize, this block
+-                                    // will make sure that it is unmaximized via restore_window
+-                                    if window.is_maximized() && !managed_maximized_window {
+-                                        let _ =
+-                                            backend().unminimize(WindowId::from_hwnd(window.hwnd));
+-                                    }
+-                                }
+-                                if hidden.get(i).copied().unwrap_or_default() {
+-                                    // it is seen on another monitor wherever it rests here
+-                                    window.hide_window();
+-                                } else {
+-                                    if crate::scrolling::should_restore_when_placed(
+-                                        window.hwnd,
+-                                        container.focused_window().map(|w| w.hwnd),
+-                                        &HIDDEN_HWNDS.lock(),
+-                                    ) {
+-                                        window.restore_window();
+-                                    }
++                                });
++                            if restore && let Some(window) = container.focused_window() {
++                                window.restore();
++                            }
+ 
+-                                    backend().set_rect(WindowId::from_hwnd(window.hwnd), layout)?;
++                            for window in container.windows_mut() {
++                                let current_rect = window.rect().unwrap_or_default();
++                                let current_percentage =
++                                    work_area.percentage_within_horizontal_bounds(&current_rect);
++                                let proposed_percentage =
++                                    work_area.percentage_within_horizontal_bounds(layout);
++
++                                // the strip puts a window where it goes, however far
++                                let percentage_override = !is_scrolling
++                                    && proposed_percentage == 0.0
++                                    && current_percentage > 0.1
++                                    && current_percentage < 100.0
++                                    && resize_dimensions_is_empty;
++
++                                if percentage_override {
++                                    window.center(&work_area, false)?;
++                                } else if let Err(error) = window.set_position(layout) {
++                                    tracing::warn!("failed to set window position: {error}")
+                                 }
+                             }
+                         }
+@@ -243,22 +269,19 @@
+ 
+                     self.latest_layout = layouts;
+ 
+-                    // with animations off every window that changed width has been asked what it
+-                    // is by now, so a window that refused is known, and everything after it is
+-                    // placed again with room for it. Once is enough: a layout is never made to
+-                    // chase the sizes that are read back this time round.
+-                    if pass == 0
+-                        && self.is_scrolling()
+-                        && !crate::scrolling::animations_enabled()
+-                        && self.adopt_actual_widths(around_window, adjusted_work_area.right)
+-                    {
+-                        pass += 1;
+-                        continue;
++                    if is_scrolling {
++                        self.state.scrolling_placed = Some(crate::scrolling::Placed::new(
++                            self.containers()
++                                .iter()
++                                .zip(self.latest_layout.iter())
++                                .map(|(container, layout)| (container.id.clone(), layout.right)),
++                        ));
+                     }
+-
+-                    break;
+                 }
+-            }
++                Ok(())
++            })();
++
++            result?;
+         }
+ 
+         // Always make sure that the length of the resize dimensions vec is the same as the
+```
