@@ -335,3 +335,87 @@ better one. What stays, and what kfw does (the list to hand over):
 10. **Monitor fields** (d): `Monitor<P>` with `#[serde(flatten)] platform: P` (decided: the schemars
     `required` order of the runtime notification and socket schemas changes, nothing checked in
     does).
+
+## 8. Design: the platform hooks of a shared `Workspace` (not implemented)
+
+Status: design from kfw (Windows side), written against `wip-u-core` plus the revisions of
+`wip-u-kfw2` (items 1 to 7 of section 7 are done on Windows: `window_id`, `hide_window`/`restore_window`,
+`Window::focus`/`maximize`/`unmaximize` over `backend()`, `Option` lookups, `WindowDetails: From`,
+`remove_floating_window`, the shared error strings). Nothing below is code; no trait exists yet.
+
+### 8.1 Shape
+
+`Workspace<P: WorkspacePlatform>` lives in `komorebi-core`, like `Container<W>`; `P::Window` is the
+`ContainerWindow` (`Copy`, with the `Id`). Windows and KDE implement `WorkspacePlatform` on a unit
+struct; the daemon uses the alias `type Workspace = komorebi_core::Workspace<WindowsPlatform>`. Every
+hook has a default that does nothing (or the generic behaviour), so a platform lists only its
+differences. The trait is a generic parameter, not `dyn`: the calls are in the layout hot path and the
+platform is fixed at compile time. All hooks take `&mut Workspace<Self>` or the relevant parts, never
+the `WindowManager`, so the layer below `window_manager` stays independent of it.
+
+The window-facing operations are NOT hooks: `focus`, `maximize`, `unmaximize`, `hide_window`,
+`restore_window`, `title`/`exe`/`class`/`path` (all `Option`) are methods the `ContainerWindow` bound
+(extended with `focus`, `maximize`, `unmaximize`, `title`, `exe`, `class`, `path`) requires, which both
+`Window` types now have under these names. Hooks are only for behaviour the shared code cannot express
+with window operations.
+
+### 8.2 The (c) hooks
+
+| Where | Hook | Windows does | KDE does | Default |
+|---|---|---|---|---|
+| `update` start | `fn begin_update(&mut self_ws) -> Flow` | returns `Skip` until `INITIAL_CONFIGURATION_LOADED`; opens the `AnimationBatch` (a guard returned in `Flow::Run(guard)`, dropped at the end of `update`, so every move of the pass animates together) | nothing | `Run(())` |
+| `update` per layout | `fn adjust_layout(&self_ws, layouts: &mut [Rect], work_area: &Rect)` | nothing (the borders/padding are already applied by `calculate`) | clamps every layout to the work area, applies the percentage override | no-op |
+| `update`, a window gets its rect | `fn place_window(&self_ws, window: &P::Window, rect: &Rect, first: bool) -> eyre::Result<()>` | title-bar removal or restore (`REMOVE_TITLEBARS` and the per-window rules), `set_position(rect, top)` with the top flag set for the maximized and monocle windows, stackbar update for stacks | `set_rect`, `scrolling_placed` bookkeeping | `backend().set_rect` |
+| `update` end | `fn end_update(&mut self_ws)` | the scrolling `adopt_actual_widths` pass when animations are on and the user is not stepping a live resize (`live_resize::is_stepping`); stackbar redraw | `has_settled` | no-op |
+| `apply_wallpaper` | `fn apply_wallpaper(&self_ws, monitor: &MonitorId, wallpaper: &Wallpaper) -> eyre::Result<()>` | `WindowsApi::set_wallpaper` plus the palette theme built inline | asks the backend and calls `theme_manager::wallpaper_palette` | `Ok(())` (wallpaper is KDE/Windows only: the trait has no wallpaper operation, D36) |
+| `remove_window` | `fn on_window_removed(&mut self_ws, id: P::Window::Id)` | `border_manager::delete_border(id)` | nothing | no-op |
+| `remove_window` result | none: the shared version returns `eyre::Result<Option<P::Window>>`; Windows callers that used `()` ignore it (KDE's callers need the window to unmaximize it) | | | |
+| `hide` | `fn after_hide(&mut self_ws)` | nothing | re-runs `update` for a scrolling workspace whose resize dimensions are set (the windows would otherwise stay where the hidden layout left them) | no-op |
+| `reintegrate_maximized_window`, `new_floating_window` | `fn unmaximize_window(w: &P::Window)` | none needed: `Window::unmaximize` is `ShowWindow(SW_NORMAL)`, and `update` re-places the window afterwards; KDE needs the compositor told. Statement for the owner: **Windows does not need to unmaximize there, and does not today** (`reintegrate_maximized_window` loads the focused window; `new_floating_window` does not unmaximize), so the hook is a no-op on Windows and the shared code calls it in both | `window.unmaximize()?` | no-op |
+
+`Flow` for `begin_update` is `Option<Guard>`-like: `enum Flow<G> { Skip, Run(G) }` with
+`type UpdateGuard` on the trait, `()` by default. `place_window` carries the whole per-window part of
+`update`; the shared `update` computes the layouts, walks containers, asks `place_window` for each
+window and nothing else. That is where most of the 161 changed lines of `update` go.
+
+Order of the calls inside `update`: `begin_update` -> (maximized/monocle/floating first: `place_window`) ->
+for each container: layouts from `adjust_layout`, `place_window` per visible window ->
+`end_update`. Both platforms already order it this way; the Windows `AnimationBatch` guard is dropped
+after `end_update` (so `end_update` still sees the batch open, as `adopt_actual_widths` does today).
+
+### 8.3 The (d) features
+
+| Feature | Where | Becomes |
+|---|---|---|
+| `border_kinds_on_show`, `windows_on_show` (Windows) | `workspace.rs`, read by the border manager and `update` | an extension trait `WorkspaceWindowsExt for Workspace<WindowsPlatform>` in the Windows crate: they only read fields (`containers`, `monocle_container`, `maximized_window`, `floating_windows`), so they need those to be `pub`, which they are |
+| `hwnd_from_exe` (Windows) | `ContainerExt` today | stays an extension trait in the Windows crate (`ContainerExt`, `WorkspaceExt::window_id_from_exe`) |
+| custom layouts in `load_static_config` and `add_container_with_direction` (Windows) | `Layout::Custom` arms | stay in shared code behind the `Layout` enum, which already has `Custom` in `komorebi-layouts`; KDE's arms for it return the default layout. Open question for the owner (section 7 item 9): whether KDE should gain custom layouts (a KDE behaviour change) |
+| `promote_container`, `effective_layout_options` (Windows, 5 and 1 lines) | | shared as they are; KDE gains them unchanged (they are generic) |
+| `adopt_maximized_window`, `prune_duplicate_windows`, `reap_invalid_windows`, `percentage_within_horizontal_bounds`, the `scrolling_placed` field (KDE) | | a KDE-only extension trait `WorkspaceKdeExt`; `scrolling_placed` moves into `P::WorkspaceState`, an associated type with `Default + Serialize`-skipping (`#[serde(skip)]`) that the platform owns |
+| `focus_floating_window`, `focus_previous_floating_window`, `remove_floating_window`'s focus step (KDE) | | the focus step of `remove_floating_window` is a hook `fn after_floating_removed(&mut self_ws)` (no-op on Windows, which does not refocus), the two helpers become shared methods (they are generic) |
+| the Windows-only `Monitor` fields (`name`, `device_id`, `workspace_names`) | `monitor.rs` | section 7 item 10: `Monitor<P>` with `#[serde(flatten)] platform: P`; `P` is a `MonitorExtra`, `()` on KDE |
+
+### 8.4 What this needs first
+
+1. `ContainerWindow` (or a `WorkspaceWindow: ContainerWindow` supertrait) grows `focus`, `maximize`,
+   `unmaximize`, `title`, `exe`, `class`, `path`. Both `Window`s have them with the same signatures
+   after the revisions above (`focus` returns `eyre::Result<()>`, the others `()`/`Option`).
+2. `WindowDetails` and `WindowKind`-keyed border data are already plain data; `Wallpaper` and
+   `WorkspaceLayer` are in `komorebi-protocol`.
+3. The statics that `update` reads (`REMOVE_TITLEBARS`, `INITIAL_CONFIGURATION_LOADED`, the padding and
+   border globals) are read inside the hooks, not in shared code. `WorkspaceGlobals` (padding, border
+   offset/width, work-area offset) is plain data and is the only global state the shared `Workspace`
+   takes, through `update_globals` as today.
+4. `border_manager` and `stackbar_manager` stay in the Windows crate and are reached only from
+   `place_window`, `on_window_removed` and `end_update`.
+
+### 8.5 Order of work and gates
+
+(1) the `ContainerWindow` extension (pure), (2) move the identical and (b) functions of `workspace.rs`
+into the crate generic over the window, keeping the hooks as direct calls under `#[cfg]` for one
+revision each (pure move), (3) introduce `WorkspacePlatform` with the defaults and implement it for
+both platforms (behaviour-preserving on both), one hook per revision in the order of the table:
+`on_window_removed`, `apply_wallpaper`, `place_window`, `begin_update`/`end_update`, `after_hide`,
+`unmaximize_window`. Gates: Windows `commands`, `workspaces`, `stacking`, `scrolling`, `resize`,
+`borders`, `animation` scenarios per hook; KDE fast tier and VM for `adjust_layout`, `after_hide`,
+`unmaximize_window`.
