@@ -522,7 +522,7 @@ fn send_or_query(messages: Messages) -> eyre::Result<()> {
     Ok(())
 }
 
-fn main() -> eyre::Result<()> {
+pub fn main() -> eyre::Result<()> {
     let opts = komorebic_core::cli::parse::<KdeCommands>(&META);
 
     match opts.cmd {

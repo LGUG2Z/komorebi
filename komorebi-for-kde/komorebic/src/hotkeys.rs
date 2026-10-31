@@ -13,7 +13,7 @@
 //! its key binding file again (`ReloadHotkeys`), and `hotkeys release` unregisters every key
 //! komorebi registered ([`komorebi::kwin::hotkeys::release`]), with or without a daemon.
 
-use crate::HOME_DIR;
+use super::HOME_DIR;
 use clap::Parser;
 use clap::Subcommand;
 use clap::ValueEnum;

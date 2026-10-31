@@ -144,7 +144,7 @@ impl pan::Link for PanLink {
     }
 }
 
-fn main() -> eyre::Result<()> {
+pub fn main() -> eyre::Result<()> {
     let opts = komorebic_core::cli::parse::<MacosCommands>(&META);
 
     match opts.cmd {
