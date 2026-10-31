@@ -27,6 +27,7 @@ use crate::core::AnimationStyle;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::Sizing;
+use crate::monitor::MonitorExt;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crate::windows_backend::backend;

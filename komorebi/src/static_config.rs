@@ -62,6 +62,7 @@ use crate::core::config_generation::MatchingStrategy;
 use crate::current_virtual_desktop;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
 use crate::monitor_reconciliator;
 use crate::ring::Ring;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
@@ -218,8 +219,8 @@ pub fn workspace_config(value: &Workspace) -> WorkspaceConfig {
     }
 }
 
-impl From<&Monitor> for MonitorConfig {
-    fn from(value: &Monitor) -> Self {
+pub fn monitor_config(value: &Monitor) -> MonitorConfig {
+    {
         let mut workspaces = vec![];
         for w in value.workspaces() {
             workspaces.push(workspace_config(w));
@@ -244,7 +245,7 @@ impl From<&Monitor> for MonitorConfig {
             }
         });
 
-        Self {
+        MonitorConfig {
             workspaces,
             work_area_offset: value.work_area_offset,
             window_based_work_area_offset: value.window_based_work_area_offset,
@@ -265,7 +266,7 @@ impl From<&WindowManager> for StaticConfig {
     fn from(value: &WindowManager) -> Self {
         let mut monitors = vec![];
         for m in value.monitors() {
-            monitors.push(MonitorConfig::from(m));
+            monitors.push(monitor_config(m));
         }
 
         let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {
@@ -858,7 +859,7 @@ impl StaticConfigExt for StaticConfig {
 
                 display_index_preferences.iter().find_map(|(c_idx, id)| {
                     (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
-                        || monitor.device_id.eq(id))
+                        || monitor.extra.device_id.eq(id))
                     .then_some(*c_idx)
                 })
             };
@@ -909,7 +910,7 @@ impl StaticConfigExt for StaticConfig {
                     let id = monitor
                         .serial_number_id
                         .as_ref()
-                        .map_or(&monitor.device_id, |sn| sn);
+                        .map_or(&monitor.extra.device_id, |sn| sn);
                     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 
@@ -1023,7 +1024,7 @@ impl StaticConfigExt for StaticConfig {
 
                 display_index_preferences.iter().find_map(|(c_idx, id)| {
                     (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
-                        || monitor.device_id.eq(id))
+                        || monitor.extra.device_id.eq(id))
                     .then_some(*c_idx)
                 })
             };
@@ -1077,7 +1078,7 @@ impl StaticConfigExt for StaticConfig {
                     let id = monitor
                         .serial_number_id
                         .as_ref()
-                        .map_or(&monitor.device_id, |sn| sn);
+                        .map_or(&monitor.extra.device_id, |sn| sn);
                     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 

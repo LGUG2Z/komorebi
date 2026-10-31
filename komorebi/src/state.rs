@@ -31,6 +31,7 @@ use crate::border_manager::STYLE;
 use crate::config_generation::MatchingRule;
 use crate::config_generation::WorkspaceMatchingRule;
 use crate::monitor::Monitor;
+use crate::monitor::WindowsMonitorExtra;
 use crate::ring::Ring;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_LABEL;
@@ -234,9 +235,7 @@ impl From<&WindowManager> for State {
             .iter()
             .map(|monitor| Monitor {
                 id: monitor.id,
-                name: monitor.name.clone(),
                 device: monitor.device.clone(),
-                device_id: monitor.device_id.clone(),
                 serial_number_id: monitor.serial_number_id.clone(),
                 size: monitor.size,
                 work_area_size: monitor.work_area_size,
@@ -294,7 +293,11 @@ impl From<&WindowManager> for State {
                     ws
                 },
                 last_focused_workspace: monitor.last_focused_workspace,
-                workspace_names: monitor.workspace_names.clone(),
+                extra: WindowsMonitorExtra {
+                    name: monitor.extra.name.clone(),
+                    device_id: monitor.extra.device_id.clone(),
+                    workspace_names: monitor.extra.workspace_names.clone(),
+                },
                 container_padding: monitor.container_padding,
                 workspace_padding: monitor.workspace_padding,
                 wallpaper: monitor.wallpaper.clone(),

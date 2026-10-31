@@ -113,7 +113,7 @@ impl Backend for WindowsBackend {
                     id: monitor.id,
                     size: monitor.size,
                     work_area: monitor.work_area_size,
-                    name: Some(monitor.name),
+                    name: Some(monitor.extra.name),
                     serial_number_id: monitor.serial_number_id,
                 })
             })

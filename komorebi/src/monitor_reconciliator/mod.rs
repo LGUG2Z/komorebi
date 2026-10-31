@@ -12,6 +12,8 @@ use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::Rect;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
+use crate::monitor::WindowsMonitorExtra;
 use crate::monitor_reconciliator::hidden::Hidden;
 use crate::notify_subscribers;
 use crate::state::State;
@@ -106,8 +108,8 @@ pub fn display_change_in_progress(grace_period: std::time::Duration) -> bool {
 pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
     let dip = DISPLAY_INDEX_PREFERENCES.read();
     let mut dip_ids = dip.values();
-    let preferred_id = if dip_ids.any(|id| id.eq(&monitor.device_id)) {
-        monitor.device_id.clone()
+    let preferred_id = if dip_ids.any(|id| id.eq(&monitor.extra.device_id)) {
+        monitor.extra.device_id.clone()
     } else if dip_ids.any(|id| Some(id) == monitor.serial_number_id.as_ref()) {
         monitor.serial_number_id.clone().unwrap_or_default()
     } else {
@@ -307,13 +309,13 @@ where
                     }
 
                     if should_update {
-                        tracing::info!("updated work area for {}", monitor.device_id);
+                        tracing::info!("updated work area for {}", monitor.extra.device_id);
                         monitor.update_focused_workspace(offset)?;
                         border_manager::send_notification(None);
                     } else {
                         tracing::debug!(
                             "work areas match, reconciliation not required for {}",
-                            monitor.device_id
+                            monitor.extra.device_id
                         );
                     }
                 }
@@ -352,7 +354,7 @@ where
                     if should_update {
                         tracing::info!(
                             "updated monitor resolution/scaling for {}",
-                            monitor.device_id
+                            monitor.extra.device_id
                         );
 
                         monitor.update_focused_workspace(offset)?;
@@ -360,7 +362,7 @@ where
                     } else {
                         tracing::debug!(
                             "resolutions match, reconciliation not required for {}",
-                            monitor.device_id
+                            monitor.extra.device_id
                         );
                     }
                 }
@@ -387,9 +389,9 @@ where
                         if same_display(attached, monitor) {
                             monitor.id = attached.id;
                             monitor.device = attached.device.clone();
-                            monitor.device_id = attached.device_id.clone();
+                            monitor.extra.device_id = attached.extra.device_id.clone();
                             monitor.serial_number_id = attached.serial_number_id.clone();
-                            monitor.name = attached.name.clone();
+                            monitor.extra.name = attached.extra.name.clone();
                             monitor.size = attached.size;
                             monitor.work_area_size = attached.work_area_size;
                         }
@@ -458,9 +460,9 @@ where
                                 if same_display(attached, monitor) {
                                     monitor.id = attached.id;
                                     monitor.device = attached.device.clone();
-                                    monitor.device_id = attached.device_id.clone();
+                                    monitor.extra.device_id = attached.extra.device_id.clone();
                                     monitor.serial_number_id = attached.serial_number_id.clone();
-                                    monitor.name = attached.name.clone();
+                                    monitor.extra.name = attached.extra.name.clone();
                                     monitor.size = attached.size;
                                     monitor.work_area_size = attached.work_area_size;
                                 }
@@ -545,9 +547,9 @@ where
                             if same_display(attached, monitor) {
                                 monitor.id = attached.id;
                                 monitor.device = attached.device.clone();
-                                monitor.device_id = attached.device_id.clone();
+                                monitor.extra.device_id = attached.extra.device_id.clone();
                                 monitor.serial_number_id = attached.serial_number_id.clone();
-                                monitor.name = attached.name.clone();
+                                monitor.extra.name = attached.extra.name.clone();
                                 monitor.size = attached.size;
                                 monitor.work_area_size = attached.work_area_size;
                             }
@@ -576,7 +578,7 @@ where
                             let id = m
                                 .serial_number_id
                                 .as_ref()
-                                .map_or(m.device_id.clone(), |sn| sn.clone());
+                                .map_or(m.extra.device_id.clone(), |sn| sn.clone());
 
                             let focused_workspace_idx = m.focused_workspace_idx();
 
@@ -653,8 +655,8 @@ where
                             // the user set as preference as the id.
                             let dip = DISPLAY_INDEX_PREFERENCES.read();
                             let mut dip_ids = dip.values();
-                            let preferred_id = if dip_ids.any(|id| id.eq(&m.device_id)) {
-                                m.device_id.clone()
+                            let preferred_id = if dip_ids.any(|id| id.eq(&m.extra.device_id)) {
+                                m.extra.device_id.clone()
                             } else if dip_ids.any(|id| Some(id) == m.serial_number_id.as_ref()) {
                                 m.serial_number_id.clone().unwrap_or_default()
                             } else {
@@ -703,7 +705,7 @@ where
                 let post_removal_device_ids = wm
                     .monitors()
                     .iter()
-                    .map(|m| &m.device_id)
+                    .map(|m| &m.extra.device_id)
                     .cloned()
                     .collect::<Vec<_>>();
 
@@ -726,7 +728,7 @@ where
 
                     // Look in the updated state for new monitors
                     for (i, m) in wm.monitors_mut().iter_mut().enumerate() {
-                        let device_id = &m.device_id;
+                        let device_id = &m.extra.device_id;
                         // We identify a new monitor when we encounter a new device id
                         if !post_removal_device_ids.contains(device_id) {
                             let mut cache_hit = false;
@@ -750,9 +752,7 @@ where
                                 *m = Monitor {
                                     // Data that should be the one just read from `win32-display-data`
                                     id: m.id,
-                                    name: m.name.clone(),
                                     device: m.device.clone(),
-                                    device_id: m.device_id.clone(),
                                     serial_number_id: m.serial_number_id.clone(),
                                     size: m.size,
                                     work_area_size: m.work_area_size,
@@ -765,7 +765,11 @@ where
                                         .window_based_work_area_offset_limit,
                                     workspaces: cached.workspaces.clone(),
                                     last_focused_workspace: cached.last_focused_workspace,
-                                    workspace_names: cached.workspace_names.clone(),
+                                    extra: WindowsMonitorExtra {
+                                        name: m.extra.name.clone(),
+                                        device_id: m.extra.device_id.clone(),
+                                        workspace_names: cached.extra.workspace_names.clone(),
+                                    },
                                     container_padding: cached.container_padding,
                                     workspace_padding: cached.workspace_padding,
                                     wallpaper: cached.wallpaper.clone(),
@@ -976,8 +980,8 @@ fn same_display(attached: &Monitor, monitor: &Monitor) -> bool {
     }
 
     same_device(
-        (&attached.device_id, &attached.name),
-        (&monitor.device_id, &monitor.name),
+        (&attached.extra.device_id, &attached.extra.name),
+        (&monitor.extra.device_id, &monitor.extra.name),
     )
 }
 
@@ -1278,14 +1282,14 @@ mod tests {
             assert_eq!(monitors[0].id.to_hmonitor(), 1);
 
             // device name
-            assert_eq!(monitors[0].name, String::from("DISPLAY1"));
+            assert_eq!(monitors[0].extra.name, String::from("DISPLAY1"));
 
             // Device
             assert_eq!(monitors[0].device, String::from("ABC123"));
 
             // Device ID
             assert_eq!(
-                monitors[0].device_id,
+                monitors[0].extra.device_id,
                 String::from("ABC123-4&123456&0&UID0")
             );
 

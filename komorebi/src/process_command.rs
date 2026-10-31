@@ -1,3 +1,4 @@
+use crate::monitor::MonitorExt;
 use crate::scrolling::WorkspaceScrolling;
 use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
@@ -978,7 +979,7 @@ impl WindowManager {
                 for monitor in self.monitors() {
                     if let Some(ws) = monitor.focused_workspace() {
                         monitor_visible_windows.insert(
-                            monitor.device_id.clone(),
+                            monitor.extra.device_id.clone(),
                             ws.visible_window_details().clone(),
                         );
                     }

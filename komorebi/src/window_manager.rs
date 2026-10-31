@@ -1,3 +1,4 @@
+use crate::monitor::MonitorExt;
 use crate::scrolling::WorkspaceScrolling;
 use crate::workspace::WorkspaceExt;
 use std::collections::HashMap;
@@ -3708,7 +3709,7 @@ impl WindowManager {
             .ok_or_eyre("there is no monitor")?;
 
         workspace.name = Option::from(name.clone());
-        monitor.workspace_names.insert(workspace_idx, name);
+        monitor.extra.workspace_names.insert(workspace_idx, name);
 
         Ok(())
     }
@@ -3777,7 +3778,7 @@ impl WindowManager {
         // info taken from win32_display_data and update our hmonitor while we're at it
         if let Ok(latest) = WindowsApi::monitor(hmonitor) {
             for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
-                if monitor.device_id == latest.device_id {
+                if monitor.extra.device_id == latest.extra.device_id {
                     monitor.id = latest.id;
                     return Option::from(i);
                 }
@@ -3800,7 +3801,7 @@ impl WindowManager {
         // info taken from win32_display_data and update our hmonitor while we're at it
         if let Ok(latest) = WindowsApi::monitor(hmonitor) {
             for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
-                if monitor.device_id == latest.device_id {
+                if monitor.extra.device_id == latest.extra.device_id {
                     monitor.id = latest.id;
                     return Option::from(i);
                 }

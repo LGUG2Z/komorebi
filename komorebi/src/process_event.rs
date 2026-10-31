@@ -1,3 +1,4 @@
+use crate::monitor::MonitorExt;
 use crate::workspace::WorkspaceExt;
 use std::process::Command;
 use std::sync::Arc;

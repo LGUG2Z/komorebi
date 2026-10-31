@@ -1,6 +1,5 @@
 use crate::workspace::WorkspaceExt;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
 use color_eyre::eyre;
@@ -19,16 +18,17 @@ use komorebi_core::ContainerWindow;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DefaultLayout;
-use crate::FloatingLayerBehaviour;
 use crate::Layout;
 use crate::OperationDirection;
-use crate::Wallpaper;
 use crate::WindowsApi;
 use crate::container::Container;
 use crate::ring::Ring;
+use crate::workspace::WindowsPlatform;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
+use serde::Deserializer;
+use serde::Serializer;
 
 /// `Monitor::id` is a `MonitorId` in Rust and the same plain JSON number as the `isize` handle it
 /// was before: `komorebic state` and the saved state files do not change.
@@ -46,33 +46,57 @@ mod hmonitor_json {
         Ok(MonitorId::from_hmonitor(isize::deserialize(deserializer)?))
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+
+/// The fields only a Windows monitor has, written flat into the monitor's JSON
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct Monitor {
-    #[serde(with = "hmonitor_json")]
-    #[cfg_attr(feature = "schemars", schemars(with = "isize"))]
-    pub id: MonitorId,
+pub struct WindowsMonitorExtra {
+    /// The name of the display (`DISPLAY1`)
     pub name: String,
-    pub device: String,
+    /// The device id of the display
     pub device_id: String,
-    pub serial_number_id: Option<String>,
-    pub size: Rect,
-    pub work_area_size: Rect,
-    pub work_area_offset: Option<Rect>,
-    pub window_based_work_area_offset: Option<Rect>,
-    pub window_based_work_area_offset_limit: isize,
-    pub workspaces: Ring<Workspace>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_focused_workspace: Option<usize>,
+    /// The latest known name of each workspace, by index. A flattened map is read through a buffer
+    /// that keeps its keys as strings, so they are parsed here.
+    #[serde(deserialize_with = "workspace_names_from_json")]
     pub workspace_names: HashMap<usize, String>,
-    pub container_padding: Option<i32>,
-    pub workspace_padding: Option<i32>,
-    pub wallpaper: Option<Wallpaper>,
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
-impl_ring_elements!(Monitor, Workspace);
+fn workspace_names_from_json<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<HashMap<usize, String>, D::Error> {
+    HashMap::<String, String>::deserialize(deserializer)?
+        .into_iter()
+        .map(|(key, name)| {
+            key.parse()
+                .map(|key| (key, name))
+                .map_err(serde::de::Error::custom)
+        })
+        .collect()
+}
 
+/// The monitor over the Windows [`Window`], which is `komorebi_core::Monitor` with this platform's
+/// methods added by [`MonitorExt`]
+pub type Monitor = komorebi_core::Monitor<WindowsPlatform>;
+
+impl komorebi_core::MonitorPlatform for WindowsPlatform {
+    type Id = MonitorId;
+    type SerialNumber = Option<String>;
+    type Extra = WindowsMonitorExtra;
+    #[cfg(feature = "schemars")]
+    type IdSchema = isize;
+
+    fn serialize_id<S: Serializer>(id: &MonitorId, serializer: S) -> Result<S::Ok, S::Error> {
+        hmonitor_json::serialize(id, serializer)
+    }
+
+    fn deserialize_id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<MonitorId, D::Error> {
+        hmonitor_json::deserialize(deserializer)
+    }
+
+    fn known_workspace_name(monitor: &Monitor, idx: usize) -> Option<String> {
+        monitor.extra.workspace_names.get(&idx).cloned()
+    }
+}
 #[derive(Serialize)]
 pub struct MonitorInformation {
     pub id: isize,
@@ -87,9 +111,9 @@ impl From<&Monitor> for MonitorInformation {
     fn from(monitor: &Monitor) -> Self {
         Self {
             id: monitor.id.to_hmonitor(),
-            name: monitor.name.clone(),
+            name: monitor.extra.name.clone(),
             device: monitor.device.clone(),
-            device_id: monitor.device_id.clone(),
+            device_id: monitor.extra.device_id.clone(),
             serial_number_id: monitor.serial_number_id.clone(),
             size: monitor.size,
         }
@@ -110,9 +134,7 @@ pub fn new(
 
     Monitor {
         id: MonitorId::from_hmonitor(id),
-        name,
         device,
-        device_id,
         serial_number_id,
         size,
         work_area_size,
@@ -121,7 +143,11 @@ pub fn new(
         window_based_work_area_offset_limit: 1,
         workspaces,
         last_focused_workspace: None,
-        workspace_names: HashMap::default(),
+        extra: WindowsMonitorExtra {
+            name,
+            device_id,
+            workspace_names: HashMap::default(),
+        },
         container_padding: None,
         workspace_padding: None,
         wallpaper: None,
@@ -129,8 +155,50 @@ pub fn new(
     }
 }
 
-impl Monitor {
-    pub fn new(
+pub trait MonitorExt {
+    fn new(
+        id: isize,
+        size: Rect,
+        work_area_size: Rect,
+        name: String,
+        device: String,
+        device_id: String,
+        serial_number_id: Option<String>,
+    ) -> Self;
+
+    fn placeholder() -> Self;
+
+    fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()>;
+
+    /// Updates the `globals` field of all workspaces
+    fn update_workspaces_globals(&mut self, offset: Option<Rect>);
+
+    /// Updates the `globals` field of workspace with index `workspace_idx`
+    fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>);
+
+    /// Adds a container to this `Monitor` using the move direction to calculate if the container
+    /// should be added in front of all containers, in the back or in place of the focused
+    /// container, moving the rest along. The move direction should be from the origin monitor
+    /// towards the target monitor or from the origin workspace towards the target workspace.
+    fn add_container_with_direction(
+        &mut self,
+        container: Container,
+        workspace_idx: Option<usize>,
+        direction: OperationDirection,
+    ) -> eyre::Result<()>;
+
+    fn move_container_to_workspace(
+        &mut self,
+        target_workspace_idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()>;
+
+    fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()>;
+}
+
+impl MonitorExt for Monitor {
+    fn new(
         id: isize,
         size: Rect,
         work_area_size: Rect,
@@ -150,12 +218,10 @@ impl Monitor {
         )
     }
 
-    pub fn placeholder() -> Self {
+    fn placeholder() -> Self {
         Self {
             id: MonitorId(0),
-            name: "PLACEHOLDER".to_string(),
             device: "".to_string(),
-            device_id: "".to_string(),
             serial_number_id: None,
             size: Default::default(),
             work_area_size: Default::default(),
@@ -164,7 +230,11 @@ impl Monitor {
             window_based_work_area_offset_limit: 0,
             workspaces: Default::default(),
             last_focused_workspace: None,
-            workspace_names: Default::default(),
+            extra: WindowsMonitorExtra {
+                name: "PLACEHOLDER".to_string(),
+                device_id: "".to_string(),
+                workspace_names: Default::default(),
+            },
             container_padding: None,
             workspace_padding: None,
             wallpaper: None,
@@ -172,23 +242,7 @@ impl Monitor {
         }
     }
 
-    pub fn focused_workspace_name(&self) -> Option<String> {
-        self.focused_workspace()
-            .map(|w| w.name.clone())
-            .unwrap_or(None)
-    }
-
-    pub fn focused_workspace_layout(&self) -> Option<Layout> {
-        self.focused_workspace().and_then(|workspace| {
-            if workspace.tile {
-                Some(workspace.layout.clone())
-            } else {
-                None
-            }
-        })
-    }
-
-    pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+    fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
         let hmonitor = self.id.to_hmonitor();
         let monitor_wp = self.wallpaper.clone();
@@ -203,8 +257,7 @@ impl Monitor {
         Ok(())
     }
 
-    /// Updates the `globals` field of all workspaces
-    pub fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
+    fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
             .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
@@ -242,8 +295,7 @@ impl Monitor {
         }
     }
 
-    /// Updates the `globals` field of workspace with index `workspace_idx`
-    pub fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
+    fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
             .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
@@ -281,30 +333,7 @@ impl Monitor {
         }
     }
 
-    pub fn add_container(
-        &mut self,
-        container: Container,
-        workspace_idx: Option<usize>,
-    ) -> eyre::Result<()> {
-        let workspace = if let Some(idx) = workspace_idx {
-            self.workspaces_mut()
-                .get_mut(idx)
-                .ok_or_eyre(format!("there is no workspace at index {idx}"))?
-        } else {
-            self.focused_workspace_mut()
-                .ok_or_eyre("there is no workspace")?
-        };
-
-        workspace.add_container_to_back(container);
-
-        Ok(())
-    }
-
-    /// Adds a container to this `Monitor` using the move direction to calculate if the container
-    /// should be added in front of all containers, in the back or in place of the focused
-    /// container, moving the rest along. The move direction should be from the origin monitor
-    /// towards the target monitor or from the origin workspace towards the target workspace.
-    pub fn add_container_with_direction(
+    fn add_container_with_direction(
         &mut self,
         container: Container,
         workspace_idx: Option<usize>,
@@ -376,33 +405,8 @@ impl Monitor {
         Ok(())
     }
 
-    pub fn remove_workspace_by_idx(&mut self, idx: usize) -> Option<Workspace> {
-        if idx < self.workspaces().len() {
-            return self.workspaces_mut().remove(idx);
-        }
-
-        if idx == 0 {
-            self.workspaces_mut().push_back(Workspace::default());
-        } else {
-            self.focus_workspace(idx.saturating_sub(1)).ok()?;
-        };
-
-        None
-    }
-
-    pub fn ensure_workspace_count(&mut self, ensure_count: usize) {
-        if self.workspaces().len() < ensure_count {
-            self.workspaces_mut()
-                .resize(ensure_count, Workspace::default());
-        }
-    }
-
-    pub fn remove_workspaces(&mut self) -> VecDeque<Workspace> {
-        std::mem::take(self.workspaces_mut())
-    }
-
     #[tracing::instrument(skip(self))]
-    pub fn move_container_to_workspace(
+    fn move_container_to_workspace(
         &mut self,
         target_workspace_idx: usize,
         follow: bool,
@@ -485,39 +489,7 @@ impl Monitor {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
-        tracing::info!("focusing workspace");
-
-        {
-            let workspaces = self.workspaces_mut();
-
-            if workspaces.get(idx).is_none() {
-                workspaces.resize(idx + 1, Workspace::default());
-            }
-            self.last_focused_workspace = Some(self.workspaces.focused_idx());
-            self.workspaces.focus(idx);
-        }
-
-        // Always set the latest known name when creating the workspace for the first time
-        {
-            let name = { self.workspace_names.get(&idx).cloned() };
-            if name.is_some() {
-                self.workspaces_mut()
-                    .get_mut(idx)
-                    .ok_or_eyre("there is no workspace")?
-                    .name = name;
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn new_workspace_idx(&self) -> usize {
-        self.workspaces().len()
-    }
-
-    pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()> {
+    fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()> {
         let offset = if self.work_area_offset.is_some() {
             self.work_area_offset
         } else {
