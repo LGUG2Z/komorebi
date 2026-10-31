@@ -20,8 +20,6 @@ use clap::ValueEnum;
 use color_eyre::eyre;
 use color_eyre::eyre::bail;
 use crossbeam_utils::Backoff;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::AnimationEngine;
 use crate::replace_env_in_path;
 use parking_lot::Mutex;
@@ -364,8 +362,7 @@ pub fn run() -> eyre::Result<()> {
     let state = State::from(&*wm.lock());
     std::fs::write(dumped_state, serde_json::to_string_pretty(&state)?)?;
 
-    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
-    ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
+    crate::settings::animation_off_for_good();
     wm.lock().restore_all_windows(false)?;
     AnimationEngine::wait_for_all_animations();
 

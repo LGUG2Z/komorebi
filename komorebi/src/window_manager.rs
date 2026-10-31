@@ -26,8 +26,6 @@ use uds_windows::UnixStream;
 
 use crate::HIDING_BEHAVIOUR;
 use crate::HidingBehaviour;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::AnimationEngine;
 use crate::animation::engine::AnimationBatch;
 use crate::animation::transition;
@@ -1452,8 +1450,7 @@ impl WindowManager {
             serde_json::to_string_pretty(&state)?,
         )?;
 
-        ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
-        ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
+        crate::settings::animation_off_for_good();
         self.restore_all_windows(ignore_restore)?;
         AnimationEngine::wait_for_all_animations();
 

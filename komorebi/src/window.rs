@@ -11,13 +11,7 @@ use crate::REGEX_IDENTIFIERS;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
 use crate::WSL2_UI_PROCESSES;
-use crate::animation::ANIMATION_DURATION_GLOBAL;
-use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_MANAGER;
-use crate::animation::ANIMATION_STYLE_GLOBAL;
-use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::animation::AnimationEngine;
 use crate::animation::RenderDispatcher;
 use crate::animation::ghost_dispatcher::GhostDispatcher;
@@ -273,13 +267,7 @@ impl Window {
         let is_maximized = &new_rect == target_area;
         if is_maximized {
             windows_api::WindowsApi::unmaximize_window(self.hwnd);
-            let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
-            let move_enabled = animation_enabled
-                .get(&GhostDispatcher::PREFIX)
-                .is_some_and(|v| *v);
-            drop(animation_enabled);
-
-            if move_enabled || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst) {
+            if crate::settings::animation_enabled_for(GhostDispatcher::PREFIX) {
                 let anim_count = ANIMATION_MANAGER
                     .lock()
                     .count_in_progress(GhostDispatcher::PREFIX);
@@ -414,22 +402,8 @@ impl Window {
             return WindowsApi::position_window(self.hwnd, layout, top, true);
         }
 
-        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
-        let move_enabled = animation_enabled.get(&GhostDispatcher::PREFIX);
-
-        if move_enabled.is_some_and(|enabled| *enabled)
-            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
-        {
-            let duration = Duration::from_millis(
-                *ANIMATION_DURATION_PER_ANIMATION
-                    .lock()
-                    .get(&GhostDispatcher::PREFIX)
-                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
-            );
-            let style = *ANIMATION_STYLE_PER_ANIMATION
-                .lock()
-                .get(&GhostDispatcher::PREFIX)
-                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
+        // enabled, duration and style from one snapshot
+        if let Some((duration, style)) = crate::settings::animation_for(GhostDispatcher::PREFIX) {
 
             let render_dispatcher =
                 GhostDispatcher::new(self.hwnd, window_rect, *layout, top, style);
@@ -610,22 +584,8 @@ impl Window {
     }
 
     pub fn transparent(self) -> eyre::Result<()> {
-        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
-        let transparent_enabled = animation_enabled.get(&TransparencyRenderDispatcher::PREFIX);
-
-        if transparent_enabled.is_some_and(|enabled| *enabled)
-            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
-        {
-            let duration = Duration::from_millis(
-                *ANIMATION_DURATION_PER_ANIMATION
-                    .lock()
-                    .get(&TransparencyRenderDispatcher::PREFIX)
-                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
-            );
-            let style = *ANIMATION_STYLE_PER_ANIMATION
-                .lock()
-                .get(&TransparencyRenderDispatcher::PREFIX)
-                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
+        // enabled, duration and style from one snapshot
+        if let Some((duration, style)) = crate::settings::animation_for(TransparencyRenderDispatcher::PREFIX) {
 
             let render_dispatcher = TransparencyRenderDispatcher::new(
                 self.hwnd,
@@ -648,22 +608,8 @@ impl Window {
     }
 
     pub fn opaque(self) -> eyre::Result<()> {
-        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
-        let transparent_enabled = animation_enabled.get(&TransparencyRenderDispatcher::PREFIX);
-
-        if transparent_enabled.is_some_and(|enabled| *enabled)
-            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
-        {
-            let duration = Duration::from_millis(
-                *ANIMATION_DURATION_PER_ANIMATION
-                    .lock()
-                    .get(&TransparencyRenderDispatcher::PREFIX)
-                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
-            );
-            let style = *ANIMATION_STYLE_PER_ANIMATION
-                .lock()
-                .get(&TransparencyRenderDispatcher::PREFIX)
-                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
+        // enabled, duration and style from one snapshot
+        if let Some((duration, style)) = crate::settings::animation_for(TransparencyRenderDispatcher::PREFIX) {
 
             let render_dispatcher = TransparencyRenderDispatcher::new(
                 self.hwnd,

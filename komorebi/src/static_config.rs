@@ -21,17 +21,8 @@ use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOW_HANDLING_BEHAVIOUR;
 use crate::WINDOWS_11;
 use crate::WORKSPACE_MATCHING_RULES;
-use crate::animation::ANIMATION_DURATION_GLOBAL;
-use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
-use crate::animation::ANIMATION_FPS;
-use crate::animation::ANIMATION_STYLE_GLOBAL;
-use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
-use crate::animation::DEFAULT_ANIMATION_FPS;
 use crate::animation::DEFAULT_GHOST_MOVEMENT;
 use crate::animation::GHOST_MOVEMENT_ENABLED;
-use crate::animation::PerAnimationPrefixConfig;
 use crate::asc::ApplicationSpecificConfiguration;
 use crate::asc::AscApplicationRulesOrSchema;
 use crate::border_manager;
@@ -78,6 +69,7 @@ use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_settings::shared::AnimationDelta;
 use komorebi_settings::shared::SharedDelta;
 use komorebi_themes::colour::Colour;
 use parking_lot::Mutex;
@@ -425,43 +417,20 @@ impl ApplyGlobals for StaticConfig {
         }
 
         if let Some(animations) = &self.animation {
-            match &animations.enabled {
-                PerAnimationPrefixConfig::Prefix(enabled) => {
-                    ANIMATION_ENABLED_PER_ANIMATION.lock().clone_from(enabled);
+            // enabled, style, duration and fps as one update: a global value clears its per-animation
+            // map, a map replaces the map, a block without `fps` has the default (`SharedDelta::apply`)
+            crate::settings::settings().update(|settings| {
+                SharedDelta {
+                    animation: Some(AnimationDelta {
+                        enabled: animations.enabled.clone(),
+                        style: animations.style.clone(),
+                        duration: animations.duration.clone(),
+                        fps: animations.fps,
+                    }),
+                    ..SharedDelta::default()
                 }
-                PerAnimationPrefixConfig::Global(enabled) => {
-                    ANIMATION_ENABLED_GLOBAL.store(*enabled, Ordering::SeqCst);
-                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
-                }
-            }
-
-            match &animations.style {
-                Some(PerAnimationPrefixConfig::Prefix(style)) => {
-                    ANIMATION_STYLE_PER_ANIMATION.lock().clone_from(style);
-                }
-                Some(PerAnimationPrefixConfig::Global(style)) => {
-                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
-                    *animation_style = *style;
-                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
-                }
-                None => {}
-            }
-
-            match &animations.duration {
-                Some(PerAnimationPrefixConfig::Prefix(duration)) => {
-                    ANIMATION_DURATION_PER_ANIMATION.lock().clone_from(duration);
-                }
-                Some(PerAnimationPrefixConfig::Global(duration)) => {
-                    ANIMATION_DURATION_GLOBAL.store(*duration, Ordering::SeqCst);
-                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
-                }
-                None => {}
-            }
-
-            ANIMATION_FPS.store(
-                animations.fps.unwrap_or(DEFAULT_ANIMATION_FPS),
-                Ordering::SeqCst,
-            );
+                .apply(&mut settings.shared);
+            });
 
             let ghost_movement_enabled =
                 animations.ghost_movement.unwrap_or(DEFAULT_GHOST_MOVEMENT);

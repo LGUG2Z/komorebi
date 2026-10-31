@@ -6,7 +6,6 @@ use prefix::AnimationPrefix;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -35,18 +34,6 @@ pub const DEFAULT_GHOST_MOVEMENT: bool = false;
 lazy_static! {
     pub static ref ANIMATION_MANAGER: Arc<Mutex<AnimationManager>> =
         Arc::new(Mutex::new(AnimationManager::new()));
-    pub static ref ANIMATION_STYLE_GLOBAL: Arc<Mutex<AnimationStyle>> =
-        Arc::new(Mutex::new(DEFAULT_ANIMATION_STYLE));
-    pub static ref ANIMATION_ENABLED_GLOBAL: Arc<AtomicBool> =
-        Arc::new(AtomicBool::new(DEFAULT_ANIMATION_ENABLED));
-    pub static ref ANIMATION_DURATION_GLOBAL: Arc<AtomicU64> =
-        Arc::new(AtomicU64::new(DEFAULT_ANIMATION_DURATION));
-    pub static ref ANIMATION_STYLE_PER_ANIMATION: Arc<Mutex<HashMap<AnimationPrefix, AnimationStyle>>> =
-        Arc::new(Mutex::new(HashMap::new()));
-    pub static ref ANIMATION_ENABLED_PER_ANIMATION: Arc<Mutex<HashMap<AnimationPrefix, bool>>> =
-        Arc::new(Mutex::new(HashMap::new()));
-    pub static ref ANIMATION_DURATION_PER_ANIMATION: Arc<Mutex<HashMap<AnimationPrefix, u64>>> =
-        Arc::new(Mutex::new(HashMap::new()));
 }
 
 /// Whether the windows of a workspace slide out of a monitor and those of the
@@ -87,32 +74,40 @@ fn style_for(
 
 /// Whether workspaces slide in and out of the monitor when they are switched
 pub fn workspace_transitions_enabled() -> bool {
+    let snapshot = crate::settings::settings().snapshot();
+    let animation = &snapshot.shared.animation;
+
     transitions_enabled_by(
         GHOST_MOVEMENT_ENABLED.load(Ordering::Relaxed),
-        ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst),
-        &ANIMATION_ENABLED_PER_ANIMATION.lock(),
+        animation.enabled,
+        &animation.enabled_per_animation,
     )
 }
 
 /// How long a workspace takes to slide in and out of a monitor
 pub fn workspace_transition_duration() -> Duration {
+    let snapshot = crate::settings::settings().snapshot();
+    let animation = &snapshot.shared.animation;
+
     duration_for(
         AnimationPrefix::Workspace,
-        &ANIMATION_DURATION_PER_ANIMATION.lock(),
-        ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst),
+        &animation.duration_per_animation,
+        animation.duration,
     )
 }
 
 /// How a workspace eases as it slides in and out of a monitor
 pub fn workspace_transition_style() -> AnimationStyle {
+    let snapshot = crate::settings::settings().snapshot();
+    let animation = &snapshot.shared.animation;
+
     style_for(
         AnimationPrefix::Workspace,
-        &ANIMATION_STYLE_PER_ANIMATION.lock(),
-        *ANIMATION_STYLE_GLOBAL.lock(),
+        &animation.style_per_animation,
+        animation.style,
     )
 }
 
-pub static ANIMATION_FPS: AtomicU64 = AtomicU64::new(DEFAULT_ANIMATION_FPS);
 pub static GHOST_MOVEMENT_ENABLED: AtomicBool = AtomicBool::new(DEFAULT_GHOST_MOVEMENT);
 
 #[cfg(test)]

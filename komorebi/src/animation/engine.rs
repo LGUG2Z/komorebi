@@ -3,12 +3,9 @@ use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
-use super::ANIMATION_DURATION_GLOBAL;
-use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
 use super::RenderDispatcher;
 
@@ -32,7 +29,7 @@ impl AnimationEngine {
             }
 
             std::thread::sleep(Duration::from_millis(
-                ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst),
+                crate::settings::animation_duration_global(),
             ));
         }
     }
@@ -135,7 +132,7 @@ impl AnimationEngine {
             }
 
             let target_frame_time =
-                Duration::from_millis(1000 / ANIMATION_FPS.load(Ordering::Relaxed));
+                Duration::from_millis(1000 / crate::settings::animation_fps());
             let animation_start = Instant::now();
 
             let mut stats = FrameStats::default();

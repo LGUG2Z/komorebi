@@ -5,8 +5,6 @@
 //! [`Workspace`]: a container is a tile in the strip, and is known to it by its id.
 
 use crate::WINDOW_HANDLING_BEHAVIOUR;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_MANAGER;
 use crate::animation::prefix::AnimationPrefix;
 use crate::container::Container;
@@ -26,7 +24,6 @@ use komorebi_scrolling::ColumnWidth;
 use komorebi_scrolling::Options;
 use komorebi_scrolling::ScrollingSpace;
 use komorebi_scrolling::Visibility;
-use std::sync::atomic::Ordering;
 
 /// What the layout options of a workspace come to for the model.
 pub(crate) fn scrolling_options(layout_options: Option<LayoutOptions>) -> Options {
@@ -159,11 +156,7 @@ pub(crate) fn should_restore_when_placed(
 
 /// Whether windows that are moved are animated to where they go.
 pub(crate) fn animations_enabled() -> bool {
-    ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
-        || ANIMATION_ENABLED_PER_ANIMATION
-            .lock()
-            .get(&AnimationPrefix::Movement)
-            .is_some_and(|enabled| *enabled)
+    crate::settings::animation_enabled_for(AnimationPrefix::Movement)
 }
 
 pub(crate) trait WorkspaceScrolling {
