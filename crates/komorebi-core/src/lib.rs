@@ -9,10 +9,13 @@
 
 mod container;
 mod globals;
+#[allow(missing_docs)]
+mod workspace;
 
 pub use container::Container;
 pub use container::ContainerWindow;
 pub use container::WorkspaceWindow;
 pub use globals::WorkspaceGlobals;
+pub use workspace::*;
 pub use komorebi_collections::Lockable;
 pub use komorebi_collections::ring;
