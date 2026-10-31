@@ -59,10 +59,11 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
         (None, None)
     }
 
-    /// Where a window of a workspace with these globals is hidden (macOS: the monitor's corner).
+    /// Where a window of this workspace is hidden (macOS: the corner of the monitor it is on, kept in
+    /// [`WorkspacePlatform::State`]).
     /// Every shared function that hides or stacks a window asks for it, so the platform needs no
     /// other way to know the monitor.
-    fn hide_spot(_globals: &WorkspaceGlobals) -> PlatformHideSpot<Self> {
+    fn hide_spot(_workspace: &Workspace<Self>) -> PlatformHideSpot<Self> {
         Default::default()
     }
 
@@ -70,8 +71,8 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
     /// when the platform knows the display of the monitor (macOS passes its bounds, so that a window
     /// that hangs over the edge of a display is parked on the display of its monitor). The floating
     /// windows of the workspace are hidden at [`WorkspacePlatform::hide_spot`].
-    fn hide_spot_on_display(globals: &WorkspaceGlobals) -> PlatformHideSpot<Self> {
-        Self::hide_spot(globals)
+    fn hide_spot_on_display(workspace: &Workspace<Self>) -> PlatformHideSpot<Self> {
+        Self::hide_spot(workspace)
     }
 
     /// The id of the window that has the focus, if any window does.
@@ -472,7 +473,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
         &mut self,
         window_id: PlatformWindowId<P>,
     ) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
+        let spot = P::hide_spot(self);
 
         let container_idx = self
             .container_idx_for_window(window_id)
@@ -509,7 +510,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// window placement rules give it ([`Workspace::initial_window_placement_rules`]), which is
     /// after the focused container unless they say otherwise (at the start of an empty workspace)
     pub fn new_container_for_window(&mut self, window: P::Window) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
+        let spot = P::hide_spot(self);
         let next_idx = if let Some(idx) = self.preselected_container_idx {
             let next = idx;
             self.preselected_container_idx = None;
@@ -798,7 +799,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// There is no focused container or window, or no container at the target's index (counted
     /// after the container the window left has been removed, if it goes).
     pub fn move_window_to_container(&mut self, target_container_idx: usize) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
+        let spot = P::hide_spot(self);
         let focused_idx = self.focused_container_idx();
 
         let container = self
@@ -847,7 +848,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     ///
     /// There is no focused container or window.
     pub fn new_container_for_focused_window(&mut self) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
+        let spot = P::hide_spot(self);
         let focused_container_idx = self.focused_container_idx();
 
         let container = self
@@ -915,7 +916,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     ///
     /// The workspace has no containers.
     pub fn new_monocle_container(&mut self) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
+        let spot = P::hide_spot(self);
         let focused_idx = self.focused_container_idx();
 
         // we shouldn't use remove_container_by_idx here because it doesn't make sense for
@@ -974,7 +975,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     ///
     /// The workspace has no monocle container.
     pub fn reintegrate_monocle_container(&mut self) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
+        let spot = P::hide_spot(self);
         let restore_idx = self
             .monocle_container_restore_idx
             .ok_or_eyre("there is no monocle restore index")?;
@@ -1013,7 +1014,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     ///
     /// The window the compositor has focused is not a floating window of the workspace.
     pub fn new_container_for_floating_window(&mut self) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
+        let spot = P::hide_spot(self);
         let focused_idx = self.focused_container_idx();
         let window = self
             .remove_focused_floating_window()
@@ -1420,7 +1421,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// Takes the focused window of the workspace (the maximized one, the monocle's or the focused
     /// container's) out of its place and makes it a floating window.
     pub fn new_floating_window(&mut self) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
+        let spot = P::hide_spot(self);
         let window = if let Some(maximized_window) = self.maximized_window.clone() {
             P::unmaximize_window(&maximized_window)?;
             self.maximized_window = None;
@@ -1471,8 +1472,8 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
     /// windows of every container, the maximized window and the monocle container.
     pub fn hide(&mut self, omit: Option<PlatformWindowId<P>>) -> eyre::Result<()> {
-        let spot = P::hide_spot(&self.globals);
-        let display_spot = P::hide_spot_on_display(&self.globals);
+        let spot = P::hide_spot(self);
+        let display_spot = P::hide_spot_on_display(self);
 
         for window in self.floating_windows_mut().iter_mut().rev() {
             let mut should_hide = omit.is_none();
@@ -1589,11 +1590,11 @@ mod tests {
         type Window = W;
         type State = ();
 
-        fn hide_spot(_globals: &WorkspaceGlobals) -> u8 {
+        fn hide_spot(_workspace: &Workspace<Self>) -> u8 {
             SPOT
         }
 
-        fn hide_spot_on_display(_globals: &WorkspaceGlobals) -> u8 {
+        fn hide_spot_on_display(_workspace: &Workspace<Self>) -> u8 {
             DISPLAY_SPOT
         }
 
