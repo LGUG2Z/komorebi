@@ -55,7 +55,7 @@ impl Capability {
 /// # Who implements it
 ///
 /// KDE (over the compositor), Windows (over `WindowsApi`), macOS (over `MacosApi` and the
-/// Accessibility API) and the in-memory fake. Each method's documentation says which of
+/// Accessibility API) and [`crate::fake::FakeBackend`]. Each method's documentation says which of
 /// the three real platforms implement it; an operation that is optional says so and is listed in
 /// [`Capability`].
 ///
@@ -92,7 +92,7 @@ impl Capability {
 /// - to learn the achieved frame, wait for the event, or call `window_rect` where the layout
 ///   needs the truth (a refused width, the end of a drag).
 ///
-/// the in-memory fake answers a read after a write at once with the request, clamped to
+/// [`crate::fake::FakeBackend`] answers a read after a write at once with the request, clamped to
 /// the window's minimum size and moved by its frame offset.
 ///
 /// # Errors
@@ -342,6 +342,23 @@ pub trait Backend: Send + Sync + 'static {
 ///
 /// A backend that cannot batch ignores it ([`Backend::begin_batch`] does nothing by default), so
 /// shared code may bracket every layout with it.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_backend::{Backend, Batch, Rect, WindowId};
+/// use komorebi_backend::fake::FakeBackend;
+///
+/// let fake = FakeBackend::with_one_monitor();
+/// fake.open_window(WindowId(1));
+/// {
+///     let _batch = Batch::begin(&fake);
+///     fake.set_rect(WindowId(1), &Rect { left: 0, top: 0, right: 100, bottom: 100 })?;
+///     assert_eq!(fake.open_batches(), 1);
+/// }
+/// assert_eq!(fake.open_batches(), 0);
+/// # Ok::<(), komorebi_backend::Error>(())
+/// ```
 #[must_use = "the batch ends when this is dropped"]
 pub struct Batch<'a, B: Backend + ?Sized>(&'a B);
 

@@ -10,7 +10,8 @@
 //! - [`Error`], which can say that "the window is gone" and that "this platform cannot do that";
 //! - the [`Backend`] trait, with only the operations that at least two platforms have
 //!   (`docs/dev/seam.md`, section 2.1), a [`Capability`] query for the ones only some platforms
-//!   have, and a [`Batch`] scope for writes that should appear together.
+//!   have, and a [`Batch`] scope for writes that should appear together;
+//! - [`fake::FakeBackend`], an in-memory desktop with failure injection and frame offsets.
 //!
 //! The evidence for each choice, and the status of every claim (confirmed, corrected or target),
 //! is in `docs/dev/seam.md`. The doc comment of each item says which platforms implement it.
@@ -25,6 +26,7 @@
 
 mod backend;
 mod error;
+pub mod fake;
 mod id;
 mod info;
 
