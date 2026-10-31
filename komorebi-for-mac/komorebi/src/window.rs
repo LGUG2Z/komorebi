@@ -465,7 +465,7 @@ impl Drop for Window {
     fn drop(&mut self) {
         // this gets called when a cloned Window is dropped, so we need to make sure it only
         // invalidates the observer if the Window is no longer open
-        if !self.is_valid() {
+        if !self.alive() {
             tracing::info!(
                 "invalidating window observer for {}",
                 self.title()
@@ -475,6 +475,9 @@ impl Drop for Window {
             // Messages wouldn't close on click which is annoying, this handles that edge case
             // for now - hopefully it doesn't break anything else
             reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
+
+            // and the id no longer names anything
+            crate::ax_registry::forget(self.id);
 
             // make sure the observer gets removed from any run loops
             AccessibilityApi::invalidate_observer(&self.observer);
@@ -520,7 +523,7 @@ impl Serialize for Window {
         state.serialize_field("id", &self.id)?;
         state.serialize_field(
             "rect",
-            &Rect::from(MacosApi::window_rect(&self.element).unwrap_or_default()),
+            &Rect::from(self.window_rect().unwrap_or_default()),
         )?;
         state.serialize_field("details", &WindowDetails::from(self))?;
         state.end()
@@ -560,16 +563,52 @@ impl Window {
             Some(window_observer_callback),
         )?;
 
-        Ok(Self {
+        let window = Self {
             id: AccessibilityApi::window_id(&element)?,
             element: AccessibilityUiElement(element),
             application,
             observer: AccessibilityObserver(Some(observer)),
             details: None,
-        })
+        };
+
+        // so that the window can be found again from its id alone
+        crate::ax_registry::register(&window);
+
+        Ok(window)
     }
 
-    pub fn is_valid(&self) -> bool {
+    /// The handles that act on this window, as the registry keeps them
+    pub(crate) fn entry(&self) -> crate::ax_registry::AxEntry {
+        crate::ax_registry::AxEntry {
+            element: self.element.clone(),
+            observer: self.observer.clone(),
+            application: self.application.clone(),
+        }
+    }
+
+    /// A window made from a registry entry
+    pub(crate) fn from_entry(id: u32, entry: crate::ax_registry::AxEntry) -> Self {
+        Self {
+            id,
+            element: entry.element,
+            application: entry.application,
+            observer: entry.observer,
+            details: None,
+        }
+    }
+
+    /// The frame query (`Backend::window_rect`): the Accessibility position and size, in points.
+    pub fn window_rect(&self) -> Result<CGRect, AccessibilityError> {
+        MacosApi::window_rect(&self.element)
+    }
+
+    /// How long an Accessibility call to this window's app may block, in seconds (0 restores the
+    /// system default). Not an operation of the shared `Backend`; it bounds the frame query.
+    pub fn set_messaging_timeout(&self, seconds: f32) -> Result<(), AccessibilityError> {
+        AccessibilityApi::set_messaging_timeout(&self.element, seconds)
+    }
+
+    pub fn alive(&self) -> bool {
         AccessibilityApi::copy_attribute_names(&self.element).is_some()
     }
 
@@ -622,7 +661,7 @@ impl Window {
         // it happened to be when it was hidden
         let rect = match animator::take_over(self.id) {
             Some(target) => CGRect::from(target),
-            None => MacosApi::window_rect(&self.element)?,
+            None => self.window_rect()?,
         };
 
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
@@ -706,7 +745,7 @@ impl Window {
 
         let rect = match animator::target(self.id) {
             Some(target) => CGRect::from(target),
-            None => MacosApi::window_rect(&self.element)?,
+            None => self.window_rect()?,
         };
 
         let Some(screen) = screen.or_else(|| CoreGraphicsApi::display_bounds_for_window_rect(rect))
@@ -791,6 +830,12 @@ impl Window {
         Ok(())
     }
 
+    /// Whether the window is minimized (the `WindowInfo::minimized` field of the shared `Backend`).
+    pub fn minimized(&self) -> bool {
+        AccessibilityApi::copy_attribute_value::<CFBoolean>(&self.element, kAXMinimizedAttribute)
+            .is_some_and(|b| b.as_bool())
+    }
+
     pub fn minimize(&mut self) -> Result<(), AccessibilityError> {
         let cf_boolean = CFBoolean::new(true);
         let value = &**cf_boolean;
@@ -801,6 +846,11 @@ impl Window {
         let cf_boolean = CFBoolean::new(false);
         let value = &**cf_boolean;
         AccessibilityApi::set_attribute_cf_value(&self.element, kAXMinimizedAttribute, value)
+    }
+
+    /// Closes the window by pressing its close button (`Backend::close`); `Ok` when it has none.
+    pub fn close(&self) -> Result<(), AccessibilityError> {
+        AdhocWindow::close(&self.element.0)
     }
 
     #[tracing::instrument(skip_all)]
@@ -912,7 +962,7 @@ impl Window {
             ))
     }
 
-    pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
+    pub fn set_rect(&self, rect: &Rect) -> Result<(), AccessibilityError> {
         match snap() {
             Snap::Step(dragged) => return self.set_position_for_step(dragged, rect),
             Snap::End => {
@@ -954,9 +1004,9 @@ impl Window {
         }
 
         // the window manager is waiting for this, and so is every window after this one
-        let _ = AccessibilityApi::set_messaging_timeout(&self.element, ARRIVAL_TIMEOUT);
+        let _ = self.set_messaging_timeout(ARRIVAL_TIMEOUT);
 
-        match MacosApi::window_rect(&self.element) {
+        match self.window_rect() {
             Ok(actual) => arrival::report(self.id, *target, Rect::from(actual)),
             Err(error) => {
                 tracing::debug!(
@@ -985,7 +1035,7 @@ impl Window {
             return;
         }
 
-        let Ok(current) = MacosApi::window_rect(&self.element) else {
+        let Ok(current) = self.window_rect() else {
             return;
         };
 
@@ -1077,7 +1127,7 @@ impl Window {
                 motion,
                 after: None,
             },
-            || MacosApi::window_rect(&self.element).map(Rect::from),
+            || self.window_rect().map(Rect::from),
         )
     }
 
@@ -1192,14 +1242,14 @@ impl Window {
             let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
             (target_width, target_height)
         } else {
-            let current_rect = Rect::from(MacosApi::window_rect(&self.element)?);
+            let current_rect = Rect::from(self.window_rect()?);
             (current_rect.right, current_rect.bottom)
         };
 
         let x = work_area.left + ((work_area.right - target_width) / 2);
         let y = work_area.top + ((work_area.bottom - target_height) / 2);
 
-        self.set_position(&Rect {
+        self.set_rect(&Rect {
             left: x,
             top: y,
             right: target_width,
@@ -1212,7 +1262,7 @@ impl Window {
         current_area: &Rect,
         target_area: &Rect,
     ) -> Result<(), AccessibilityError> {
-        let current_rect = Rect::from(MacosApi::window_rect(&self.element)?);
+        let current_rect = Rect::from(self.window_rect()?);
         let x_diff = target_area.left - current_area.left;
         let y_diff = target_area.top - current_area.top;
         let x_ratio = f32::abs((target_area.right as f32) / (current_area.right as f32));
@@ -1250,7 +1300,7 @@ impl Window {
         //         let anim_count = ANIMATION_MANAGER
         //             .lock()
         //             .count_in_progress(MovementRenderDispatcher::PREFIX);
-        //         self.set_position(&new_rect, true)?;
+        //         self.set_rect(&new_rect, true)?;
         //         let hwnd = self.hwnd;
         //         // Wait for the animation to finish before maximizing the window again, otherwise
         //         // we would be maximizing the window on the current monitor anyway
@@ -1269,11 +1319,11 @@ impl Window {
         //             windows_api::WindowsApi::maximize_window(hwnd);
         //         });
         //     } else {
-        //         self.set_position(&new_rect, true)?;
+        //         self.set_rect(&new_rect, true)?;
         //         windows_api::WindowsApi::maximize_window(self.hwnd);
         //     }
         // } else {
-        self.set_position(&new_rect)?;
+        self.set_rect(&new_rect)?;
         // }
 
         Ok(())
@@ -1285,7 +1335,7 @@ impl Window {
         event: Option<WindowManagerEvent>,
         debug: &mut RuleDebug,
     ) -> eyre::Result<bool> {
-        if !self.is_valid() {
+        if !self.alive() {
             return Ok(false);
         }
 
@@ -1641,9 +1691,14 @@ fn window_is_eligible(
         }
     }
 
+    // Every place that holds two of the rule lists takes them in this order: floating, ignore,
+    // manage, regex (see the statics in lib.rs). A thread that takes two in another order can wait
+    // for one that holds what it needs, and both wait for ever.
+    let floating_identifiers = FLOATING_APPLICATIONS.lock();
+    let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+    let manage_identifiers = MANAGE_IDENTIFIERS.lock();
     let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-    let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
     let should_ignore = if let Some(rule) = should_act(
         title,
         exe_name,
@@ -1658,7 +1713,6 @@ fn window_is_eligible(
         false
     };
 
-    let manage_identifiers = MANAGE_IDENTIFIERS.lock();
     let managed_override = if let Some(rule) = should_act(
         title,
         exe_name,
@@ -1673,7 +1727,6 @@ fn window_is_eligible(
         false
     };
 
-    let floating_identifiers = FLOATING_APPLICATIONS.lock();
     if let Some(rule) = should_act(
         title,
         exe_name,

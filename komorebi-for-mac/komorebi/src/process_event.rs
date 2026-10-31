@@ -6,7 +6,6 @@ use crate::REGEX_IDENTIFIERS;
 use crate::TABBED_APPLICATIONS;
 use crate::UNMANAGED_WINDOW_IDS;
 use crate::WORKSPACE_MATCHING_RULES;
-use crate::accessibility::AccessibilityApi;
 use crate::accessibility::enhanced_ui;
 use crate::accessibility::error::AccessibilityApiError;
 use crate::accessibility::error::AccessibilityError;
@@ -182,7 +181,7 @@ impl WindowManager {
         {
             let application = self.application(event.process_id())?;
             if let Some(element) = application.main_window()
-                && let Ok(wid) = AccessibilityApi::window_id(&element)
+                && let Ok(wid) = crate::ax_registry::identify(&element)
             {
                 window_id = Some(wid);
                 window_element = Some(AccessibilityUiElement(element.clone()));
@@ -260,7 +259,7 @@ impl WindowManager {
                                 && window.application.process_id == process_id
                             {
                                 let tab_rect = MacosApi::window_rect(&element)?;
-                                let main_rect = match MacosApi::window_rect(&window.element) {
+                                let main_rect = match window.window_rect() {
                                     Ok(rect) => rect,
                                     Err(AccessibilityError::Api(
                                         AccessibilityApiError::InvalidUIElement,
@@ -296,7 +295,7 @@ impl WindowManager {
                                     // Additional check: verify the stored element belongs to this container
                                     // This prevents treating separate windows as tabs when they have matching geometry
                                     if let Ok(stored_window_id) =
-                                        AccessibilityApi::window_id(&window.element.0)
+                                        crate::ax_registry::identify(&window.element.0)
                                         && stored_window_id == window.id
                                     {
                                         // All checks pass: stored element matches container ID = true tab change
@@ -316,8 +315,10 @@ impl WindowManager {
                                 workspace.containers_mut().get_mut(container_idx)
                             && let Some(window) = container.focused_window_mut()
                         {
+                            let old_id = window.id;
                             window.id = window_id;
                             window.element = AccessibilityUiElement(element.clone());
+                            crate::ax_registry::sync(old_id, window);
                         }
 
                         // check monocle_container for tabbed applications
@@ -328,7 +329,7 @@ impl WindowManager {
                             && window.application.process_id == process_id
                         {
                             let tab_rect = MacosApi::window_rect(&element)?;
-                            let main_rect = match MacosApi::window_rect(&window.element) {
+                            let main_rect = match window.window_rect() {
                                 Ok(rect) => rect,
                                 Err(AccessibilityError::Api(
                                     AccessibilityApiError::InvalidUIElement,
@@ -349,8 +350,10 @@ impl WindowManager {
                             && let Some(monocle) = workspace.monocle_container.as_mut()
                             && let Some(window) = monocle.focused_window_mut()
                         {
+                            let old_id = window.id;
                             window.id = window_id;
                             window.element = AccessibilityUiElement(element.clone());
+                            crate::ax_registry::sync(old_id, window);
                         }
 
                         if first_tab_destroyed {
@@ -534,7 +537,7 @@ impl WindowManager {
                 {
                     let application = self.application(process_id)?;
                     if let Some(element) = application.main_window()
-                        && let Ok(wid) = AccessibilityApi::window_id(&element)
+                        && let Ok(wid) = crate::ax_registry::identify(&element)
                     {
                         window_id = Some(wid);
                         window_element = Some(element.clone());
@@ -548,12 +551,12 @@ impl WindowManager {
                     let tabbed_applications = TABBED_APPLICATIONS.lock();
                     if tabbed_applications.contains(&application_name) {
                         // Get the window_id for the new window
-                        if let Ok(new_window_id) = AccessibilityApi::window_id(element) {
+                        if let Ok(new_window_id) = crate::ax_registry::identify(element) {
                             for window in workspace.visible_windows().iter().flatten() {
                                 if window.application.name().unwrap_or_default() == application_name
                                 {
                                     let tab_rect = MacosApi::window_rect(element)?;
-                                    let main_rect = MacosApi::window_rect(&window.element)?;
+                                    let main_rect = window.window_rect()?;
                                     // BOTH conditions must be true:
                                     // 1. Geometry matches (original check - preserves existing behavior)
                                     // 2. Window IDs match (new check - prevents false positives)
@@ -745,6 +748,7 @@ impl WindowManager {
                     )
                 ) {
                     enhanced_ui::forget(process_id);
+                    crate::ax_registry::forget_pid(process_id);
                 }
 
                 // some apps like Discord in all of their relentless Electron slop stupidity
@@ -897,7 +901,7 @@ impl WindowManager {
                     {
                         // TODO: not sure about this clone
                         let window = window.clone();
-                        let new_position = Rect::from(MacosApi::window_rect(&window.element)?);
+                        let new_position = Rect::from(window.window_rect()?);
                         let old_position = *workspace
                             .latest_layout
                             .get(focused_container_idx)
@@ -1102,7 +1106,7 @@ impl WindowManager {
                             && let Some(window) =
                                 container.windows().iter().find(|w| w.id == window_id)
                         {
-                            let started_from = Rect::from(MacosApi::window_rect(&window.element)?);
+                            let started_from = Rect::from(window.window_rect()?);
 
                             let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
                             *pending_resize_op = Option::from((window_id, Some(started_from)));
@@ -1162,7 +1166,7 @@ impl WindowManager {
                             && let Some(window) =
                                 container.windows().iter().find(|w| w.id == window_id)
                         {
-                            let ended_at = Rect::from(MacosApi::window_rect(&window.element)?);
+                            let ended_at = Rect::from(window.window_rect()?);
 
                             tracing::info!("resizing with mouse");
                             redraw |= self.resize_by_drag(window_id, started_from, ended_at)?;

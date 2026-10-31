@@ -553,7 +553,7 @@ impl Workspace {
                 && focused_window.application.process_id == process_id
             {
                 if !valid_window_ids.contains(&focused_window.id) {
-                    if let Ok(rect) = MacosApi::window_rect(&focused_window.element) {
+                    if let Ok(rect) = focused_window.window_rect() {
                         tracing::debug!(
                             "reaping window {} ({}): rect = {:?}",
                             focused_window.id,
@@ -566,7 +566,7 @@ impl Workspace {
 
                 // if accessibility API calls fail on AXError::InvalidUIElement
                 // let's try and nuke these early
-                if !focused_window.is_valid() {
+                if !focused_window.alive() {
                     invalid_window_ids.push(focused_window.id);
                 }
             }
@@ -578,7 +578,7 @@ impl Workspace {
             if focused_window.application.process_id == process_id
                 && !valid_window_ids.contains(&focused_window.id)
             {
-                if let Ok(rect) = MacosApi::window_rect(&focused_window.element) {
+                if let Ok(rect) = focused_window.window_rect() {
                     tracing::debug!(
                         "reaping monocle window {} ({}): rect = {:?}",
                         focused_window.id,
@@ -591,7 +591,7 @@ impl Workspace {
 
             // if accessibility API calls fail on AXError::InvalidUIElement
             // let's try and nuke these early
-            if !focused_window.is_valid() {
+            if !focused_window.alive() {
                 invalid_window_ids.push(focused_window.id);
             }
         }
@@ -599,7 +599,7 @@ impl Workspace {
         for window in self.floating_windows() {
             if window.application.process_id == process_id {
                 if !valid_window_ids.contains(&window.id) {
-                    if let Ok(rect) = MacosApi::window_rect(&window.element) {
+                    if let Ok(rect) = window.window_rect() {
                         tracing::debug!(
                             "reaping floating window {} ({}): rect = {:?}",
                             window.id,
@@ -612,7 +612,7 @@ impl Workspace {
 
                 // if accessibility API calls fail on AXError::InvalidUIElement
                 // let's try and nuke these early
-                if !window.is_valid() {
+                if !window.alive() {
                     invalid_floating_window_ids.push(window.id);
                 }
             }
@@ -1476,7 +1476,7 @@ impl Workspace {
                         adjusted_work_area.add_padding(container_padding);
                         adjusted_work_area.add_padding(border_offset);
                         adjusted_work_area.add_padding(border_width);
-                        window.set_position(&adjusted_work_area)?;
+                        window.set_rect(&adjusted_work_area)?;
                     };
                 } else if !self.containers().is_empty() {
                     if self.is_scrolling() {
@@ -1503,7 +1503,7 @@ impl Workspace {
                             layout.add_padding(border_width);
 
                             for window in container.windows_mut() {
-                                if let Err(error) = window.set_position(layout) {
+                                if let Err(error) = window.set_rect(layout) {
                                     tracing::warn!("failed to set window position: {error}")
                                 }
                             }

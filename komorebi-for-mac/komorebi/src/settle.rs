@@ -8,10 +8,8 @@
 //! and any that are not where they are to be are sent there again, and looked at once more after
 //! that.
 
-use crate::accessibility::AccessibilityApi;
 use crate::animation::animator;
 use crate::core::Rect;
-use crate::macos_api::MacosApi;
 use crate::window::Snapping;
 use crate::window::dragged_window;
 use crate::window::is_parked;
@@ -185,9 +183,9 @@ impl WindowManager {
                 return Ok(0);
             }
 
-            let _ = AccessibilityApi::set_messaging_timeout(&window.element, LOOK_TIMEOUT);
-            let rect = MacosApi::window_rect(&window.element).map(Rect::from);
-            let _ = AccessibilityApi::set_messaging_timeout(&window.element, 0.0);
+            let _ = window.set_messaging_timeout(LOOK_TIMEOUT);
+            let rect = window.window_rect().map(Rect::from);
+            let _ = window.set_messaging_timeout(0.0);
 
             if let Ok(rect) = rect
                 && is_off(&rect, &layout)
@@ -208,7 +206,7 @@ impl WindowManager {
         let _snapping = Snapping::end();
 
         for (window, layout) in &off {
-            if let Err(error) = window.set_position(layout) {
+            if let Err(error) = window.set_rect(layout) {
                 tracing::debug!(
                     "live resize: could not send window {} again: {error}",
                     window.id
