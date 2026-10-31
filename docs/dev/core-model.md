@@ -999,3 +999,58 @@ map reads its keys as strings, so integer-keyed extra fields need a `deserialize
 the hooks `primary_container_idx` (Windows custom layouts), `unmaximize_window` (KDE) and
 `before_hide_containers` (the KDE scrolling prelude). `effective_layout_options` needed no hook: its
 Windows `Custom` arm is the crate's fallback arm, unreachable on KDE.
+
+## 14. macOS against the shared model (classification, step 11(iii))
+
+Method as in section 7: each file is cut into functions (tests apart, comments and blank lines
+dropped) and each macOS function is compared with its namesake in `crates/komorebi-core` (or, for
+what is an extension trait, in the KDE `WorkspaceExt`/`MonitorExt`). Counts are of functions; the
+number in brackets is the changed lines (a changed line counts once on each side). Measured at
+`wip-u-integ2` (c4bb995c); the scripts are throw-away (`split.sh` in the kfm scratchpad).
+
+macOS is closer to KDE than to Windows: it has the same `Ring`/`Container` shapes, the same `u32` id
+(`CGWindowID`), no maximize and no opacity, and its `Workspace` was copied from the KDE one (the
+`scrolling` glue, `effective_layout_options`, the floating helpers). What it does not share is
+**how a window is hidden**.
+
+### `container.rs` (15 functions)
+
+| class | functions |
+|---|---|
+| identical (5) | `focus_window`, `is_preselect`, `locked`, `set_locked`, `preselect` |
+| same behaviour, different text (6; id type and `window.id` against `window.id()`) | `contains_window`, `idx_for_window`, `idx_from_exe`, `default`, `remove_focused_window`, `remove_window_by_idx` |
+| real platform difference (4) | `add_window`, `load_focused_window`, `hide`, `restore`: macOS takes a `WindowHidingPosition` (and for `hide` the display bounds), returns `Result`, calls `Window::hide/restore` that make Accessibility calls, and skips the hiding when `cfg!(test)` |
+| one-sided | none |
+
+### `workspace.rs` (65 functions, tests apart)
+
+| class | functions |
+|---|---|
+| identical (11, 0 changed lines) | `cancel_preselect`, `cycle_monocle_container`, `fmt`, `focus_container`, `focus_floating_window`, `focus_previous_container`, `focus_previous_floating_window`, `is_empty`, `new_idx_for_cycle_direction`, `preselect_container_idx`, `swap_containers` |
+| same behaviour, different text (26): only `Container` against `Container<P::Window>` and `window_id: u32` against `PlatformWindowId<P>` | `add_container_to_back/front`, `container_for_window`, `container_idx_for_window`, `contains_managed_window`, `contains_window`, the eleven `enforce_*`, `focus_first/last_container`, `insert_container_at_idx`, `location_from_exe`, `new_container_for_floating_window`, `new_idx_for_direction`, `remove_container`, `remove_focused_container`, `resolve_threshold_match`, `sorted_layout_options_rules`, `visible_windows` |
+| differs only through a hook that exists (8) | `container_idx_from_current_point` (`cursor_position`), `is_focused_window_monocle_or_maximized` and `remove_focused_floating_window` (`foreground_window_id`), `remove_floating_window` (`after_floating_removed`), `remove_container_by_idx` (`note_scrolling_departure`), `promote_container` (`primary_container_idx`), `default` (`default_padding`, `State`), `effective_layout_options` (visibility only) |
+| differs by the hiding position (8) | `hide`, `move_window_to_container`, `new_floating_window`, `new_container_for_focused_window`, `new_container_for_window`, `reintegrate_monocle_container`, `new_monocle_container`, `focus_container_by_window`: each passes `self.globals.window_hiding_position` (and the display bounds) to a container call that returns `Result`; the shared text calls the no-argument infallible forms |
+| real platform difference, in the macOS extension trait (4) | `update` (136, CoreGraphics work area clamp, `set_scrolling_columns`, animator), `apply_wallpaper` (97), `restore` (a `Result`, AX), `remove_window` (51) |
+| text only, in the extension trait (3) | `load_static_config` (9), `prune_duplicate_windows` (4), `visible_window_details` (4) |
+| one-sided macOS (5) | `calculate_layouts`, `clamp_to_work_area`, `reap_invalid_windows_for_application`, `restore_windows`, `set_scrolling_columns` |
+
+### `monitor.rs` (21 functions)
+
+| class | functions |
+|---|---|
+| identical (5) | `ensure_workspace_count`, `focused_workspace_layout`, `focused_workspace_name`, `new_workspace_idx`, `from` |
+| same behaviour, different text (4) | `add_container`, `remove_workspace_by_idx`, `remove_workspaces`, `focus_workspace` |
+| in the macOS extension trait, differs from KDE's (8) | `new`, `placeholder`, `load_focused_workspace`, `update_focused_workspace`, `update_workspace_globals`, `update_workspaces_globals`, `move_container_to_workspace`, `add_container_with_direction` (the monitor also carries `window_hiding_position`) |
+| one-sided macOS (4) | `hide_unfocused_workspaces`, `move_container_to_workspace1`, `restore_focused_workspace`, `update_all_workspace_globals` |
+
+### What decides the order
+
+One difference runs through all three files: **the hiding position and the fallible hide**. Shared
+`Container::hide/add_window/load_focused_window` and the 8 workspace functions above call
+`ContainerWindow::hide_window()` and friends with no argument and no result. macOS needs, per call,
+the monitor's corner, the display bounds of the monitor, and the error (a failed hide is logged for
+floating windows and propagated for tiles). Making the shared text carry that is a change in the
+shared crate that touches KDE and Windows (an associated `HideSpot` type, `()` for both, taken from
+the workspace globals); keeping it out of the shared text means the 8 workspace functions stay
+macOS's own. The container is the one layer that can move without deciding it, because its four
+hiding functions can stay in a macOS extension trait.
