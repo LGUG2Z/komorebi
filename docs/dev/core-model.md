@@ -1087,3 +1087,24 @@ the macOS `Window::path` is a `PathBuf`; `class` has no macOS counterpart (role 
 `should_act_window` takes a class slice in the macOS `should_act`; the scrolling glue
 (`scrolling_insertion_idx`, `scrolling_idx_for_direction`, `note_scrolling_departure`) are methods of
 the macOS `Workspace` today and become the `WorkspacePlatform` hooks as in KDE.
+
+## 15. Status after the HideSpot change (kfm)
+
+The decision of section 14 was made (D-coord-7) and the three macOS layers moved:
+
+- `ContainerWindow::HideSpot` (`()` on KDE and Windows, `MacosHideSpot {position, screen}` on
+  macOS), the four window operations and `Container::{hide, restore, load_focused_window,
+  add_window}` return `eyre::Result`, and the workspace asks `WorkspacePlatform::hide_spot` and
+  `hide_spot_on_display` (both take the workspace; macOS keeps the corner in its
+  `MacosWorkspaceState`). `Workspace::hide` and `new_container_for_window` return `Result`.
+- macOS `Container`, `Workspace` and `Monitor` are the shared types. What stays macOS's, and why, is
+  in the `ContainerExt`, `WorkspaceExt` (update, apply_wallpaper, restore, remove_window,
+  load_static_config, prune_duplicate_windows, visible_window_details,
+  reap_invalid_windows_for_application, restore_windows, calculate_layouts, set_scrolling_columns),
+  `WorkspaceScrolling` and `MonitorExt` (new, placeholder, the globals updates, load, hide and
+  restore of the focused workspace, the two moves, add_container_with_direction) traits.
+- `ContainerExt` is the old macOS container code kept for the daemon's own call sites (the corner
+  as an argument, `cfg!(test)` guards); it can go once those sites pass a `MacosHideSpot`.
+
+Nothing here has run on macOS. The Mini's `cargo test` is the oracle for the 53 workspace
+functions that were replaced by the shared text.
