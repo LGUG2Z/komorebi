@@ -64,7 +64,7 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
             continue 'notification;
         }
 
-        handle_notification(&mut wm, notification, Window::is_valid)?;
+        handle_notification(&mut wm, notification, Window::alive)?;
     }
 
     Ok(())

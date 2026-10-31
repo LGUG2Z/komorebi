@@ -465,7 +465,7 @@ impl Drop for Window {
     fn drop(&mut self) {
         // this gets called when a cloned Window is dropped, so we need to make sure it only
         // invalidates the observer if the Window is no longer open
-        if !self.is_valid() {
+        if !self.alive() {
             tracing::info!(
                 "invalidating window observer for {}",
                 self.title()
@@ -574,7 +574,7 @@ impl Window {
         MacosApi::window_rect(&self.element)
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn alive(&self) -> bool {
         AccessibilityApi::copy_attribute_names(&self.element).is_some()
     }
 
@@ -1290,7 +1290,7 @@ impl Window {
         event: Option<WindowManagerEvent>,
         debug: &mut RuleDebug,
     ) -> eyre::Result<bool> {
-        if !self.is_valid() {
+        if !self.alive() {
             return Ok(false);
         }
 

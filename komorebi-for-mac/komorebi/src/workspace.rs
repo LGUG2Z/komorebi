@@ -566,7 +566,7 @@ impl Workspace {
 
                 // if accessibility API calls fail on AXError::InvalidUIElement
                 // let's try and nuke these early
-                if !focused_window.is_valid() {
+                if !focused_window.alive() {
                     invalid_window_ids.push(focused_window.id);
                 }
             }
@@ -591,7 +591,7 @@ impl Workspace {
 
             // if accessibility API calls fail on AXError::InvalidUIElement
             // let's try and nuke these early
-            if !focused_window.is_valid() {
+            if !focused_window.alive() {
                 invalid_window_ids.push(focused_window.id);
             }
         }
@@ -612,7 +612,7 @@ impl Workspace {
 
                 // if accessibility API calls fail on AXError::InvalidUIElement
                 // let's try and nuke these early
-                if !window.is_valid() {
+                if !window.alive() {
                     invalid_floating_window_ids.push(window.id);
                 }
             }

@@ -118,7 +118,7 @@ impl MacosBackend {
         window: &Window,
         error: impl std::error::Error + Send + Sync + 'static,
     ) -> Error {
-        if window.is_valid() {
+        if window.alive() {
             platform(error)
         } else {
             Error::WindowGone(id)
@@ -126,7 +126,7 @@ impl MacosBackend {
     }
 
     fn info(window: &Window) -> Option<WindowInfo> {
-        if !window.is_valid() {
+        if !window.alive() {
             return None;
         }
 
