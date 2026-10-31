@@ -36,7 +36,7 @@ Things in the plan (`generic-percolating-matsumoto.md`, Step 7 and "Risks") or t
 
 ## 2. The operation table
 
-Conventions. "Rect" is the shared `komorebi_layouts::Rect`: `left`, `top` are the origin and **`right`, `bottom` hold the width and height**, not the far edge (`komorebi-layouts/src/rect.rs:19-28`; the conversions `From<RECT>` at `:32-41`, `From<CGRect>` at `:76-86`). "Queued" means the call returns before the platform has acted; "sync" means the calling thread waits for the platform to answer. Row numbers are for reference in later sections.
+Conventions. "Rect" is the shared `komorebi_layouts::Rect`: `left`, `top` are the origin and **`right`, `bottom` hold the width and height**, not the far edge (`komorebi-layouts/src/rect.rs:19-28`; the conversions `From<RECT>` at `:32-41`, `From<CGRect>` at `:67-76`). "Queued" means the call returns before the platform has acted; "sync" means the calling thread waits for the platform to answer. Row numbers are for reference in later sections.
 
 ### 2.1 Operations present on at least two platforms
 
@@ -235,3 +235,54 @@ Then E waits for the main queue (which is inside R's closure), the main thread w
 **AX observers and the run loop.** `Window::observe` adds an observer source to the main run loop from whichever thread calls it: the event thread (`M/process_event.rs:614`), a command thread (`M/process_command.rs:1758`) and `main` at start-up (`M/macos_api.rs:341, 349`). Border observers are the opposite: added inside an `exec_sync` on main (`M/border_manager/border.rs:153-170`). Whether adding a source to a run loop from a thread that does not own it is safe is a CoreFoundation property that I did not verify (Apple's threading guide lists `CFRunLoopRef` as thread-safe, from memory, not checked). The code asserts it for windows and avoids it for borders.
 
 **Thread-safety assertions in the code.** `AccessibilityUiElement` and `AccessibilityObserver` are `unsafe impl Send + Sync` (`M/lib.rs:282-284, 300-302`), `NsWindow` is `Send` (`M/border_manager/ns_window.rs:38`), `Still` (a `CGImage`) is `Send + Sync` (`M/animation/capture.rs:19-20`), and the animator clones `WindowHandle { element, app }` into lane threads (`M/animation/animator.rs:90-93`). So AX elements already travel between threads; that this is allowed by the AX API is not verified.
+
+## 4. Identity
+
+| | Window id | Monitor id | What the platform needs to act on a window |
+|---|---|---|---|
+| KDE | `u32`, `Copy`: `Window { id }` (`K/window.rs:78-86`) | `u32` (`K/monitor.rs:42, 64`) | the KWin UUID string, found in the backend's own table: `by_uuid` (`K/kwin/state.rs:153-154`), ids assigned by a counter (`id_for` `:603-611`), resolved for every command (`KWinBackend::command` `K/kwin/mod.rs:797-806`) |
+| Windows | `isize` HWND, `Copy`: `Window { hwnd }` (`W/window.rs:68-72`) | `isize` HMONITOR (`W/monitor.rs:33, 57`) | nothing else: the HWND is the OS handle; `HWND(as_ptr!(hwnd))` is a cast (`W/windows_api.rs:177-181`) |
+| macOS | `u32` `CGWindowID`, but **`Window` is not a handle**: it owns `element: AccessibilityUiElement`, `application: Application`, `observer: AccessibilityObserver`, `details` and is `Clone`, not `Copy` (`M/window.rs:417-427`) | `u32` `CGDirectDisplayID` (`M/monitor.rs:38, 60`) | the `AXUIElement` (every read and write), the application's `AXUIElement` and pid (focus, tabbed apps, the animator's enhanced-UI guard), the `AXObserver` (observation only) |
+
+### 4.1 Windows: does an HWND fit in 32 bits?
+
+The code never narrows an HWND: it is an `isize` end to end, cast to a pointer with `as_ptr!` (`W/windows_api.rs:177-181`); the socket type is `DebugWindow(isize)` (`W/core/mod.rs:273`), later `i64` by decision D15; `grep` finds no `hwnd as u32/i32/u64` except an animation delay jitter `start + Duration::from_millis(hwnd as u64)` (`W/animation/snapshot.rs:920`) that does not depend on the width. So the Windows code **assumes nothing** about 32-bit significance and does not need it. For a shared `WindowId(u64)`: a positive `isize` converts losslessly; a negative one (a sign-extended 32-bit value) would not map to a small `u64`.
+
+Observation, not a guarantee: the Windows guest logs and state dumps from the user's earlier e2e runs (`~/e2e-w0`, read only) contain **440 distinct HWND values from 12345 to 7,804,828; none negative, none above 2^32** (`grep -rhoaE 'hwnd[\\": =]+-?[0-9]{4,}'`; 12345 looks like a test constant). Microsoft documents that handles are 32-bit significant for interoperability between 32- and 64-bit processes; I did not check that text here, so treat "HWND < 2^32" as likely but unproven (section 8).
+
+### 4.2 macOS: acting on a window from a bare id
+
+Today nothing on macOS acts from an id: callers hold a `Window` (cloned freely) or a bare element. `AdhocWindow` acts on an `AXUIElement` with no `Window` (`M/window.rs:1436-1530`: `minimize`, `close`, `hide`, `restore`, `raise`, used from `M/process_event.rs:594` and `M/process_command.rs:327-332`), and the animator keeps `WindowHandle { element, app }` per id (`M/animation/animator.rs:90-93`). A `Backend` that takes only a `WindowId` therefore needs a registry that owns, per id:
+
+- the window `AXUIElement` (set frame, minimize, raise, close, alive check);
+- the application `AXUIElement` and pid (focus uses the pid and the id for SkyLight, `M/window.rs:1089`, and the application's name and `main_window()` for tabbed apps, `:1105-1129`; the animator uses the app element, `M/window.rs:1065-1067`);
+- the `AXObserver` (only to keep or release observation; `Window::new` creates one per window, `M/window.rs:554-570`);
+- a way to learn it is dead: an AX error on any call (`M/reaper.rs:164-173`), a destroyed notification, or `Window::is_valid` (`M/window.rs:572`).
+
+Where macOS builds the id-to-element link today: at start-up by matching the CoreGraphics list to AX windows **by title** (`M/macos_api.rs:326-349`, `M/application.rs:195-208`), and afterwards from each AX notification, where the id comes from the private `_AXUIElementGetWindow` (`M/accessibility/mod.rs:31-39`, `M/accessibility/private.rs:12-16`), which can fail (`window_id(..).ok()` at `M/window.rs:294`). The registry therefore has to be fed from both, and an id the registry has never seen is not actionable.
+
+KDE is the precedent: its `Backend` also takes only ids and keeps an id-to-UUID table (above).
+
+### 4.3 Where per-window platform data lives today
+
+- **KDE**: `kwin/state.rs` `Table` (entries, `by_uuid`, `next_id`, park desktop) for backend data; `HIDDEN_WINDOWS` (`K/window_manager.rs:52, 1401`) in the core for what komorebi has hidden.
+- **Windows**: nothing in `Window`; globals keyed by HWND: `HIDDEN_HWNDS` (`W/lib.rs:89`), `known_hwnds` (`W/window_manager.rs:103`), border state keyed by container id with `window_border(hwnd)` (`W/border_manager/mod.rs`), the cloak record (`W/cloaked.rs`), the live-resize and animation tables.
+- **macOS**: in `Window` and `Application` themselves (element, observer, details), plus globals keyed by id: `WINDOW_RESTORE_POSITIONS` (`M/lib.rs:121`), `PARKED_WINDOWS` (`M/window.rs:121`), `ARRIVALS` (`M/arrival.rs:40-41`), the animator's `Tracks` (`M/animation/animator.rs:95-98`), the border map; and `WindowManager::applications: HashMap<i32, Application>` keyed by pid (`M/window_manager.rs:122`) and `known_window_ids` (`:146`).
+
+## 5. Coordinates
+
+**The shared rectangle.** `komorebi_layouts::Rect { left, top, right, bottom }: i32` where `left`, `top` are the origin and **`right`, `bottom` are the width and height** (doc comments, `komorebi-layouts/src/rect.rs:19-28`; `add_padding` shrinks `right`/`bottom` by twice the padding, `:113-120`). All three trees re-export it (`W/core/mod.rs:43`, `K/core/mod.rs:46`, `M/core/mod.rs:33`). Consequence: the name `right` is a trap, and `From<Rect> for RECT` (`:43-51`) copies the fields unchanged, so the result is **not a valid Win32 `RECT`** (`right`/`bottom` are a width and height); it exists only to feed `SetWindowPos`.
+
+| | Origin and direction | Unit | Frame measured | Where conversions live |
+|---|---|---|---|---|
+| Windows | virtual screen, top-left origin, y down (secondary monitors may have negative coordinates: not verified) | physical pixels: the process is `PerMonitorV2` (`W/main.rs:223`, `W/windows_api.rs:1169-1172`) | `window_rect` = **visible bounds** (`DWMWA_EXTENDED_FRAME_BOUNDS`, no shadow), falling back to `GetWindowRect` (`W/windows_api.rs:789-802`); `RECT` to `Rect` subtracts (`komorebi-layouts/src/rect.rs:32-41`) | shadow compensation in `position_window` (`W/windows_api.rs:534-540`) and `move_window` (`:658-664`), offset computed per call by `shadow_rect` (two syscalls, `:808-821`); monitor rects from `win32_display_data` (`:1151-1152`); the DPI scaling that `window_rect` would need is a TODO comment (`:793-796`) |
+| KDE | KWin's global logical space, top-left, y down | logical (device-independent) pixels (`MonitorInfo` doc `K/backend/mod.rs:93`) | KWin `frameGeometry` both ways (`K/kwin/bridge.js:217, 378-381`); rounded to integers in the script (`:162-164`) | the script (`bridge.js`) and `K/kwin/state.rs`; the output's `devicePixelRatio` is sent (`bridge.js:239`) but **the daemon never reads it** (no `scale` in `K/kwin/state.rs` or `K/kwin/mod.rs`) |
+| macOS | Quartz global display space: top-left origin of the main display, y down (AX position, `CGDisplayBounds`) | **points**, never pixels (below) | the AX position and size of the window (`M/macos_api.rs:385-427`) | `CGRect` to `Rect` truncates each `f64` with `as i32` (`komorebi-layouts/src/rect.rs:67-76`), so fractional points are lost; `NSScreen.visibleFrame` (AppKit, bottom-left origin) is flipped into Quartz with the main display's height (`M/macos_api.rs:275-291`); the border and ghost `NSWindow`s flip back the same way (`M/border_manager/border.rs:42-55`, `M/animation/ghost.rs:143-150`); `WindowBounds` to `Rect` (`M/core/rect_ext.rs:20-28`) |
+
+**macOS Retina: points versus pixels (previously UNVERIFIED, now read).** There is no `backingScaleFactor`, `scale_factor`, `CGDisplayPixels*` or `contentsScale` anywhere in `komorebi-for-mac/komorebi/src` (`grep -rni`). Monitor sizes are `CGDisplayBounds` (`M/core_graphics/mod.rs:56-58`) and `NSScreen.visibleFrame` (points), windows are read and written through AX (points), and the whole layout therefore runs in points. The only place pixels appear is ghost capture: the `CGImage` width and height "in pixels, which is more than the size of the window in points on a retina display" (`M/animation/capture.rs:19-24`). Not verified: how AX reports on scaled (non-native) resolutions or on mixed-DPI arrangements, which needs a Mac.
+
+**Two small traps for a shared geometry layer.**
+1. `CoreGraphicsApi::contains_rect(smaller, bigger)` is `CGRectIntersectsRect` (`M/core_graphics/mod.rs:33-35`), so macOS `Rect::contains` (`M/core/rect_ext.rs:13-17`) means *intersects*; it is what assigns a window to a monitor at start-up (`M/macos_api.rs:331`).
+2. A window's visible frame is not the frame the OS lets you set on Windows; set and get agree only because `window_rect` returns the visible bounds and `position_window` adds the shadow offset back (`W/windows_api.rs:534-540`). The Windows `set_position` compares `window_rect` to the layout before writing (`W/window.rs:394-396`), so the two must stay consistent. KDE and macOS have no such offset in the code; whether macOS AX frames include a shadow is not verified.
+
+The shared fake would have to model a frame offset to exercise the Windows case (plan 7b, "frame offsets"); `FakeBackend` has none today (section 3.1, finding 4).
