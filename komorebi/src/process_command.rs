@@ -401,7 +401,8 @@ impl WindowManager {
             }
             SocketMessage::ForceFocus => {
                 let focused_window = self.focused_window()?;
-                let focused_window_rect = WindowsApi::window_rect(focused_window.hwnd)?;
+                let focused_window_rect =
+                    backend().frame(WindowId::from_hwnd(focused_window.hwnd))?;
                 WindowsApi::center_cursor_in_rect(&focused_window_rect)?;
                 WindowsApi::left_click();
             }
@@ -1299,7 +1300,9 @@ impl WindowManager {
 
                         // Sort by window area
                         window_idx_pairs.sort_by_key(|(_, w)| {
-                            let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                            let rect = backend()
+                                .frame(WindowId::from_hwnd(w.hwnd))
+                                .unwrap_or_default();
                             rect.right * rect.bottom
                         });
                         window_idx_pairs.reverse();
@@ -1363,7 +1366,9 @@ impl WindowManager {
 
                             // Sort by window area
                             window_idx_pairs.sort_by_key(|w| {
-                                let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                                let rect = backend()
+                                    .frame(WindowId::from_hwnd(w.hwnd))
+                                    .unwrap_or_default();
                                 rect.right * rect.bottom
                             });
 
