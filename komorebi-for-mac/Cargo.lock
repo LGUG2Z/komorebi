@@ -3344,6 +3344,7 @@ version = "0.1.42"
 dependencies = [
  "clap",
  "clap_complete",
+ "color-eyre",
  "komorebi-layouts",
  "komorebi-protocol",
 ]
