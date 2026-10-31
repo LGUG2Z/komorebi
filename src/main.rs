@@ -1,6 +1,7 @@
 use clap::Parser;
 use schemars_nixgen::GeneratorOptions;
 use schemars_nixgen::generate_from_schema;
+use schemars_nixgen::schema_hash_header;
 use std::fs;
 use std::io::Write;
 use std::io::{self};
@@ -42,8 +43,13 @@ fn main() -> color_eyre::Result<()> {
         root_description: cli.description,
     };
 
-    // Generate Nix code
-    let nix_code = generate_from_schema(&schema, &options)?;
+    // Generate Nix code, with the hash of the schema file first so a check can tell when the options
+    // are older than the schema
+    let nix_code = format!(
+        "{}{}",
+        schema_hash_header(schema_str.as_bytes()),
+        generate_from_schema(&schema, &options)?
+    );
 
     // Write output
     if let Some(output_path) = cli.output {

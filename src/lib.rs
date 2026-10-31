@@ -32,6 +32,22 @@ pub trait SchemaExt: JsonSchema {
 // Implement SchemaExt for all types that implement JsonSchema
 impl<T: JsonSchema> SchemaExt for T {}
 
+/// The first line of a generated file: the SHA-256 of the schema file's bytes, in lowercase hex
+///
+/// This is the same digest as `nix hash file --type sha256 --base16 <schema>`, so a check can compare
+/// the header of a generated file with the hash of the schema it says it was made from.
+pub fn schema_hash_header(schema_bytes: &[u8]) -> String {
+    use sha2::Digest;
+    use std::fmt::Write;
+
+    let mut header = String::from("# schema-sha256: ");
+    for byte in sha2::Sha256::digest(schema_bytes) {
+        write!(header, "{byte:02x}").expect("writing to a String cannot fail");
+    }
+    header.push('\n');
+    header
+}
+
 /// Generate Nix options from a JSON schema value
 pub fn generate_from_schema(
     schema: &Value,
@@ -55,6 +71,19 @@ pub fn generate_from_str(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn test_schema_hash_header() {
+        // the SHA-256 of the empty input and of "abc"
+        assert_eq!(
+            schema_hash_header(b""),
+            "# schema-sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n"
+        );
+        assert_eq!(
+            schema_hash_header(b"abc"),
+            "# schema-sha256: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+        );
+    }
 
     #[test]
     fn test_generate_from_schema() {
