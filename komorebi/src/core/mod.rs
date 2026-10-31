@@ -56,7 +56,7 @@ pub use pathext::resolve_option_hashmap_usize_path;
 pub mod animation;
 pub mod asc;
 pub mod config_generation;
-pub mod pathext;
+pub use komorebi_protocol::pathext;
 
 // serde_as must be before derive
 #[serde_with::serde_as]
