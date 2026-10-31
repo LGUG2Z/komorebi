@@ -262,7 +262,10 @@ class KdePlatform:
         return unquote(url.removeprefix("file://"))
 
     def set_wallpaper(self, path: str, display: int = 0) -> None:
-        self.kde.sh(f"plasma-apply-wallpaperimage {shlex.quote(path)}")
+        """The shell may still be starting, or busy: the call is made again until it takes it."""
+        command = f"plasma-apply-wallpaperimage {shlex.quote(path)}"
+        if not self.kde.wait_for(lambda: self.kde.run(command)[0] == 0, timeout=60):
+            raise AssertionError(f"the Plasma shell did not take the wallpaper {path}")
 
     def resize_grab(self, frame: Rect, grab: str) -> tuple[int, int]:
         return outside_grab(frame, grab)
