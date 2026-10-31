@@ -69,74 +69,7 @@ lazy_static! {
     static ref SESSION_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
 }
 
-// fn start_powershell() -> Result<()> {
-//     // found running session, do nothing
-//     if SESSION_STDIN.lock().as_mut().is_some() {
-//         tracing::debug!("PowerShell session already started");
-//         return Ok(());
-//     }
-//
-//     tracing::debug!("Starting PowerShell session");
-//
-//     let mut child = Command::new("powershell.exe")
-//         .args(["-NoLogo", "-NoProfile", "-Command", "-"])
-//         .stdin(Stdio::piped())
-//         .creation_flags(CREATE_NO_WINDOW)
-//         .spawn()?;
-//
-//     let stdin = child.stdin.take().expect("stdin piped");
-//
-//     // Store stdin for later commands
-//     let mut session_stdin = SESSION_STDIN.lock();
-//     *session_stdin = Option::from(stdin);
-//
-//     Ok(())
-// }
-
-// fn stop_powershell() -> Result<()> {
-//     tracing::debug!("Stopping PowerShell session");
-//
-//     if let Some(mut session_stdin) = SESSION_STDIN.lock().take() {
-//         if let Err(e) = session_stdin.write_all(b"exit\n") {
-//             tracing::error!(error = %e, "failed to write exit command to PowerShell stdin");
-//             return Err(e);
-//         }
-//         if let Err(e) = session_stdin.flush() {
-//             tracing::error!(error = %e, "failed to flush PowerShell stdin");
-//             return Err(e);
-//         }
-//
-//         tracing::debug!("PowerShell session stopped");
-//     } else {
-//         tracing::debug!("PowerShell session already stopped");
-//     }
-//
-//     Ok(())
-// }
-
-// pub fn exec_powershell(cmd: &str) -> Result<()> {
-//     if let Some(session_stdin) = SESSION_STDIN.lock().as_mut() {
-//         if let Err(e) = writeln!(session_stdin, "{cmd}") {
-//             tracing::error!(error = %e, cmd = cmd, "failed to write command to PowerShell stdin");
-//             return Err(e);
-//         }
-//
-//         if let Err(e) = session_stdin.flush() {
-//             tracing::error!(error = %e, "failed to flush PowerShell stdin");
-//             return Err(e);
-//         }
-//
-//         return Ok(());
-//     }
-//
-//     Err(Error::new(
-//         ErrorKind::NotFound,
-//         "PowerShell session not started",
-//     ))
-// }
-
 pub struct Komobar {
-    // pub hwnd: Option<isize>,
     pub monitor_index: Option<usize>,
     pub disabled: bool,
     pub config: KomobarConfig,
@@ -154,18 +87,7 @@ pub struct Komobar {
     pub work_area_offset: komorebi_client::Rect,
     applied_theme_on_first_frame: bool,
     mouse_follows_focus: bool,
-    // input_config: InputConfig,
 }
-
-// struct InputConfig {
-//     accumulated_scroll_delta: Vec2,
-//     act_on_vertical_scroll: bool,
-//     act_on_horizontal_scroll: bool,
-//     vertical_scroll_threshold: f32,
-//     horizontal_scroll_threshold: f32,
-//     vertical_scroll_max_threshold: f32,
-//     horizontal_scroll_max_threshold: f32,
-// }
 
 pub fn apply_theme(
     ctx: &Context,
@@ -536,36 +458,6 @@ impl Komobar {
             self.disabled = true;
         }
 
-        // if let Some(mouse) = &self.config.mouse {
-        //     self.input_config.act_on_vertical_scroll =
-        //         mouse.on_scroll_up.is_some() || mouse.on_scroll_down.is_some();
-        //     self.input_config.act_on_horizontal_scroll =
-        //         mouse.on_scroll_left.is_some() || mouse.on_scroll_right.is_some();
-        //     self.input_config.vertical_scroll_threshold = mouse
-        //         .vertical_scroll_threshold
-        //         .unwrap_or(30.0)
-        //         .clamp(10.0, 300.0);
-        //     self.input_config.horizontal_scroll_threshold = mouse
-        //         .horizontal_scroll_threshold
-        //         .unwrap_or(30.0)
-        //         .clamp(10.0, 300.0);
-        //     // limit how many "ticks" can be accumulated
-        //     self.input_config.vertical_scroll_max_threshold =
-        //         self.input_config.vertical_scroll_threshold * 3.0;
-        //     self.input_config.horizontal_scroll_max_threshold =
-        //         self.input_config.horizontal_scroll_threshold * 3.0;
-        //
-        //     if mouse.has_command() {
-        //         start_powershell().unwrap_or_else(|_| {
-        //             tracing::error!("failed to start powershell session");
-        //         });
-        //     } else {
-        //         stop_powershell().unwrap_or_else(|_| {
-        //             tracing::error!("failed to stop powershell session");
-        //         });
-        //     }
-        // }
-
         tracing::info!("widget configuration options applied");
 
         self.monitor_info = monitor_info;
@@ -698,7 +590,6 @@ impl Komobar {
         config: KomobarConfig,
     ) -> Self {
         let mut komobar = Self {
-            // hwnd: process_hwnd(),
             monitor_index: None,
             disabled: false,
             config,
@@ -716,15 +607,6 @@ impl Komobar {
             work_area_offset: komorebi_client::Rect::default(),
             applied_theme_on_first_frame: false,
             mouse_follows_focus: false,
-            // input_config: InputConfig {
-            //     accumulated_scroll_delta: Vec2::new(0.0, 0.0),
-            //     act_on_vertical_scroll: false,
-            //     act_on_horizontal_scroll: false,
-            //     vertical_scroll_threshold: 0.0,
-            //     horizontal_scroll_threshold: 0.0,
-            //     vertical_scroll_max_threshold: 0.0,
-            //     horizontal_scroll_max_threshold: 0.0,
-            // },
         };
 
         komobar.apply_config(&cc.egui_ctx, None);
@@ -762,28 +644,6 @@ impl Komobar {
     fn add_custom_font(ctx: &Context, name: &str) {
         let mut fonts = FontDefinitions::default();
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-
-        // let mut fallbacks = HashMap::new();
-
-        // fallbacks.insert("Microsoft YaHei", "C:\\Windows\\Fonts\\msyh.ttc"); // chinese
-        // fallbacks.insert("Malgun Gothic", "C:\\Windows\\Fonts\\malgun.ttf"); // korean
-        // fallbacks.insert("Leelawadee UI", "C:\\Windows\\Fonts\\LeelawUI.ttf"); // thai
-
-        // for (name, path) in fallbacks {
-        //     if let Ok(bytes) = std::fs::read(path) {
-        //         fonts
-        //             .font_data
-        //             .insert(name.to_owned(), Arc::from(FontData::from_owned(bytes)));
-        //
-        //         for family in [FontFamily::Proportional, FontFamily::Monospace] {
-        //             fonts
-        //                 .families
-        //                 .entry(family)
-        //                 .or_default()
-        //                 .insert(0, name.to_owned());
-        //         }
-        //     }
-        // }
 
         let property = FontPropertyBuilder::new().family(name).build();
 
@@ -841,10 +701,6 @@ impl eframe::App for Komobar {
     }
 
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        // if self.hwnd.is_none() {
-        //     self.hwnd = process_hwnd();
-        // }
-
         if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
             self.scale_factor = ctx.native_pixels_per_point().unwrap_or(1.0);
             self.apply_config(ctx, self.monitor_info.clone());
@@ -897,15 +753,6 @@ impl eframe::App for Komobar {
                 } else {
                     if self.disabled {
                         tracing::info!("Found this bar's monitor. The bar will be enabled!");
-
-                        // Restore the bar in case it has been minimized when the monitor
-                        // disconnected
-                        // if let Some(hwnd) = self.hwnd {
-                        //     let window = komorebi_client::Window::from(hwnd);
-                        //     if window.is_miminized() {
-                        //         komorebi_client::WindowsApi::restore_window(hwnd);
-                        //     }
-                        // }
 
                         // Reset the current `work_area_offset` so that it gets recalculated and
                         // properly applied again, since if the monitor has connected for the first
@@ -1058,111 +905,6 @@ impl eframe::App for Komobar {
         let frame = render_config.change_frame_on_bar(frame, &ctx.style());
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
-            // if let Some(mouse_config) = &self.config.mouse {
-            //     let command = if ui
-            //         .input(|i| i.pointer.button_double_clicked(PointerButton::Primary))
-            //     {
-            //         tracing::debug!("Input: primary button double clicked");
-            //         &mouse_config.on_primary_double_click
-            //     } else if ui.input(|i| i.pointer.button_clicked(PointerButton::Secondary)) {
-            //         tracing::debug!("Input: secondary button clicked");
-            //         &mouse_config.on_secondary_click
-            //     } else if ui.input(|i| i.pointer.button_clicked(PointerButton::Middle)) {
-            //         tracing::debug!("Input: middle button clicked");
-            //         &mouse_config.on_middle_click
-            //     } else if ui.input(|i| i.pointer.button_clicked(PointerButton::Extra1)) {
-            //         tracing::debug!("Input: extra1 button clicked");
-            //         &mouse_config.on_extra1_click
-            //     } else if ui.input(|i| i.pointer.button_clicked(PointerButton::Extra2)) {
-            //         tracing::debug!("Input: extra2 button clicked");
-            //         &mouse_config.on_extra2_click
-            //     } else if self.input_config.act_on_vertical_scroll
-            //         || self.input_config.act_on_horizontal_scroll
-            //     {
-            //         let scroll_delta = ui.input(|input| input.smooth_scroll_delta);
-            //
-            //         self.input_config.accumulated_scroll_delta += scroll_delta;
-            //
-            //         if scroll_delta.y != 0.0 && self.input_config.act_on_vertical_scroll {
-            //             // Do not store more than the max threshold
-            //             self.input_config.accumulated_scroll_delta.y =
-            //                 self.input_config.accumulated_scroll_delta.y.clamp(
-            //                     -self.input_config.vertical_scroll_max_threshold,
-            //                     self.input_config.vertical_scroll_max_threshold,
-            //                 );
-            //
-            //             // When the accumulated scroll passes the threshold, trigger a tick.
-            //             if self.input_config.accumulated_scroll_delta.y.abs()
-            //                 >= self.input_config.vertical_scroll_threshold
-            //             {
-            //                 let direction_command =
-            //                     if self.input_config.accumulated_scroll_delta.y > 0.0 {
-            //                         &mouse_config.on_scroll_up
-            //                     } else {
-            //                         &mouse_config.on_scroll_down
-            //                     };
-            //
-            //                 // Remove one tick's worth of scroll from the accumulator, preserving any excess.
-            //                 self.input_config.accumulated_scroll_delta.y -=
-            //                     self.input_config.vertical_scroll_threshold
-            //                         * self.input_config.accumulated_scroll_delta.y.signum();
-            //
-            //                 tracing::debug!(
-            //                     "Input: vertical scroll ticked. excess: {} | threshold: {}",
-            //                     self.input_config.accumulated_scroll_delta.y,
-            //                     self.input_config.vertical_scroll_threshold
-            //                 );
-            //
-            //                 direction_command
-            //             } else {
-            //                 &None
-            //             }
-            //         } else if scroll_delta.x != 0.0 && self.input_config.act_on_horizontal_scroll {
-            //             // Do not store more than the max threshold
-            //             self.input_config.accumulated_scroll_delta.x =
-            //                 self.input_config.accumulated_scroll_delta.x.clamp(
-            //                     -self.input_config.horizontal_scroll_max_threshold,
-            //                     self.input_config.horizontal_scroll_max_threshold,
-            //                 );
-            //
-            //             // When the accumulated scroll passes the threshold, trigger a tick.
-            //             if self.input_config.accumulated_scroll_delta.x.abs()
-            //                 >= self.input_config.horizontal_scroll_threshold
-            //             {
-            //                 let direction_command =
-            //                     if self.input_config.accumulated_scroll_delta.x > 0.0 {
-            //                         &mouse_config.on_scroll_left
-            //                     } else {
-            //                         &mouse_config.on_scroll_right
-            //                     };
-            //
-            //                 // Remove one tick's worth of scroll from the accumulator, preserving any excess.
-            //                 self.input_config.accumulated_scroll_delta.x -=
-            //                     self.input_config.horizontal_scroll_threshold
-            //                         * self.input_config.accumulated_scroll_delta.x.signum();
-            //
-            //                 tracing::debug!(
-            //                     "Input: horizontal scroll ticked. excess: {} | threshold: {}",
-            //                     self.input_config.accumulated_scroll_delta.x,
-            //                     self.input_config.horizontal_scroll_threshold
-            //                 );
-            //
-            //                 direction_command
-            //             } else {
-            //                 &None
-            //             }
-            //         } else {
-            //             &None
-            //         }
-            //     } else {
-            //         &None
-            //     };
-            //
-            //     if let Some(command) = command {
-            //         command.execute(self.mouse_follows_focus);
-            //     }
-            // }
-
             // Apply grouping logic for the bar as a whole
             let area_frame = if let Some(frame) = &self.config.frame {
                 Frame::NONE
