@@ -3496,9 +3496,10 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         SubCommand::StaticConfigSchema => {
             #[cfg(feature = "schemars")]
             {
-                let static_config = schemars::schema_for!(StaticConfig);
-                let schema = serde_json::to_string_pretty(&static_config)?;
-                println!("{schema}");
+                let schema = komorebi_config::schema::view::<
+                    komorebi_config::static_config::StaticConfig,
+                >(komorebi_config::schema::Platform::CURRENT);
+                print!("{schema}");
             }
         }
         SubCommand::GenerateStaticConfig => {
