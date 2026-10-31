@@ -11,7 +11,8 @@
 //! - the [`Backend`] trait, with only the operations that at least two platforms have
 //!   (`docs/dev/seam.md`, section 2.1), a [`Capability`] query for the ones only some platforms
 //!   have, and a [`Batch`] scope for writes that should appear together;
-//! - [`fake::FakeBackend`], an in-memory desktop with failure injection and frame offsets.
+//! - [`fake::FakeBackend`], an in-memory desktop with failure injection and frame offsets,
+//!   and [`contract`], the checks that every backend has to pass.
 //!
 //! The evidence for each choice, and the status of every claim (confirmed, corrected or target),
 //! is in `docs/dev/seam.md`. The doc comment of each item says which platforms implement it.
@@ -25,6 +26,7 @@
 #![deny(missing_docs)]
 
 mod backend;
+pub mod contract;
 mod error;
 pub mod fake;
 mod id;
