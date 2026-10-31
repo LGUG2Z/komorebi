@@ -2606,7 +2606,10 @@ dependencies = [
 name = "komorebi-transport"
 version = "0.1.42"
 dependencies = [
+ "color-eyre",
  "komorebi-protocol",
+ "tracing",
+ "uds_windows",
 ]
 
 [[package]]

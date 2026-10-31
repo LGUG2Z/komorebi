@@ -272,16 +272,15 @@ use color_eyre::eyre;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
 use komorebi_themes::colour::Rgb;
-use komorebi_transport::allowed_while_paused;
+use komorebi_transport::CommandTarget;
+use komorebi_transport::NoPolicy;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::BufRead;
-use std::io::BufReader;
 use std::num::NonZeroUsize;
+use std::os::unix::net::UnixListener;
 use std::os::unix::net::UnixStream;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -294,43 +293,37 @@ use version::build;
 /// When accepting fails, the error is logged and the listening thread is started again.
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
-    std::thread::spawn(move || {
-        loop {
-            let wm = wm.clone();
+    komorebi_transport::listen_for_commands::<WindowManager, _>(wm, NoPolicy);
+}
 
-            let _ = std::thread::spawn(move || {
-                let listener = wm
-                    .lock()
-                    .command_listener
-                    .try_clone()
-                    .expect("could not clone unix listener");
+/// What the generic command listener needs of the window manager
+impl CommandTarget for WindowManager {
+    type Listener = UnixListener;
+    type Shared = Arc<Mutex<WindowManager>>;
 
-                tracing::info!("listening on komorebi.sock");
-                for client in listener.incoming() {
-                    match client {
-                        Ok(stream) => {
-                            let wm_clone = wm.clone();
-                            std::thread::spawn(move || {
-                                match read_commands_uds(&wm_clone, stream) {
-                                    Ok(()) => {}
-                                    Err(error) => {
-                                        tracing::error!("{error}")
-                                    }
-                                }
-                            });
-                        }
-                        Err(error) => {
-                            tracing::error!("failed to get unix stream {}", error);
-                            break;
-                        }
-                    }
-                }
-            })
-            .join();
+    fn command_listener(shared: &Self::Shared) -> std::io::Result<UnixListener> {
+        shared.lock().command_listener.try_clone()
+    }
 
-            tracing::error!("restarting failed thread");
-        }
-    });
+    fn try_lock_for<R>(
+        shared: &Self::Shared,
+        timeout: Duration,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> Option<R> {
+        shared.try_lock_for(timeout).map(|mut wm| f(&mut wm))
+    }
+
+    fn is_paused(&self) -> bool {
+        self.is_paused
+    }
+
+    fn process_command(
+        &mut self,
+        message: SocketMessage,
+        reply: &mut UnixStream,
+    ) -> eyre::Result<()> {
+        WindowManager::process_command(self, message, reply)
+    }
 }
 
 /// Commands that are about the tiles of the layout (moving, stacking, resizing, promoting,
@@ -2155,38 +2148,9 @@ impl WindowManager {
 /// - [`WindowManager::process_command`] fails: the lines after it are not read.
 pub fn read_commands_uds(
     wm: &Arc<Mutex<WindowManager>>,
-    mut stream: UnixStream,
+    stream: UnixStream,
 ) -> eyre::Result<()> {
-    let reader = BufReader::new(stream.try_clone()?);
-    // TODO(raggi): while this processes more than one command, if there are
-    // replies there is no clearly defined protocol for framing yet - it's
-    // perhaps whole-json objects for now, but termination is signalled by
-    // socket shutdown.
-    for line in reader.lines() {
-        let message = SocketMessage::from_str(&line?)?;
-
-        match wm.try_lock_for(Duration::from_secs(1)) {
-            None => {
-                tracing::warn!(
-                    "could not acquire window manager lock, not processing message: {message}"
-                );
-            }
-            Some(mut wm) => {
-                if wm.is_paused {
-                    return if allowed_while_paused(&message) {
-                        Ok(wm.process_command(message, &mut stream)?)
-                    } else {
-                        tracing::trace!("ignoring while paused");
-                        Ok(())
-                    };
-                }
-
-                wm.process_command(message.clone(), &mut stream)?;
-            }
-        }
-    }
-
-    Ok(())
+    komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &NoPolicy)
 }
 
 /// Add a simple socket-created rule unless one with the same kind and id is already present;
@@ -2216,10 +2180,13 @@ mod tests {
     use crossbeam_channel::Receiver;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
+    use std::io::BufRead;
+    use std::io::BufReader;
     use std::io::Read;
     use std::io::Write;
     use std::net::Shutdown;
     use std::path::PathBuf;
+    use std::str::FromStr;
     use uuid::Uuid;
 
     /// A window manager over `fake`, listening on a socket for this test alone in /tmp, which is
