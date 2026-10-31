@@ -40,7 +40,7 @@ pub use komorebi_layouts::validate_ratios;
 pub mod animation;
 pub mod asc;
 pub mod config_generation;
-pub mod pathext;
+pub use komorebi_protocol::pathext;
 pub mod rect_ext;
 
 #[derive(
