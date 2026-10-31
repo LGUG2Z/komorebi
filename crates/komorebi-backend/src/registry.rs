@@ -78,7 +78,9 @@ impl<H> Registry<H> {
     /// if the id was registered: the caller drops it, with no lock held.
     #[must_use = "drop the replaced handle yourself: it is not dropped under the lock"]
     pub fn insert(&self, id: WindowId, pid: i32, handle: H) -> Option<H> {
-        self.lock().insert(id, Entry { pid, handle }).map(|e| e.handle)
+        self.lock()
+            .insert(id, Entry { pid, handle })
+            .map(|e| e.handle)
     }
 
     /// Replaces the handle of a window that is registered, keeping its pid. Returns the old
@@ -283,6 +285,42 @@ mod tests {
 
         assert_eq!(drops.load(Ordering::SeqCst), 3);
         assert!(registry.is_empty());
+    }
+
+    /// Registering must not run the drop of any handle: macOS handles do Accessibility calls when
+    /// they are dropped, and registration happens on the event thread under the window manager lock.
+    #[test]
+    fn registering_a_new_id_drops_nothing_and_a_replaced_handle_only_when_the_caller_drops_it() {
+        let registry = Arc::new(Registry::new());
+        let drops = Arc::new(AtomicUsize::new(0));
+        let probe = || {
+            Arc::new(Probe {
+                registry: registry.clone(),
+                drops: drops.clone(),
+            })
+        };
+
+        let replaced = registry.insert(id(1), 10, probe());
+        assert!(replaced.is_none());
+        assert_eq!(drops.load(Ordering::SeqCst), 0);
+
+        let replaced = registry.insert(id(1), 10, probe());
+        assert_eq!(
+            drops.load(Ordering::SeqCst),
+            0,
+            "the old handle is handed back, not dropped"
+        );
+
+        drop(replaced);
+        assert_eq!(drops.load(Ordering::SeqCst), 1);
+
+        // a lookup clones the Arc and drops nothing
+        let found = registry.get(id(1)).unwrap();
+        drop(found);
+        assert_eq!(drops.load(Ordering::SeqCst), 1);
+
+        drop(registry.remove(id(1)));
+        assert_eq!(drops.load(Ordering::SeqCst), 2);
     }
 
     #[test]
