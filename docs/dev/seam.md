@@ -1,5 +1,7 @@
 # The platform seam: evidence
 
+> **Status (wip-cand4):** the evidence for `crates/komorebi-backend`, which has landed (trait, `FakeBackend`, contract tests); the Windows daemon goes through it for the clusters in [backend-switch.md](backend-switch.md); read section 8 as the list of what was never verified.
+
 Status: evidence document (step 7a of the consolidation). No `Backend` trait is proposed here as code, and none may be written before this document has been reviewed. Every statement about the code carries a citation; where I could not confirm something it says "not verified" and the item is collected in section 8.
 
 ## 1. Purpose and how to read it

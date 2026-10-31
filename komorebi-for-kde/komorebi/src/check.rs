@@ -63,12 +63,12 @@
 //! | The keys are the ones komorebi reads, at every level | [`known_keys`] reads them from the JSON schema of [`StaticConfig`] | `check::tests::the_keys_come_from_the_schema_at_every_level`, `check::tests::a_whole_example_configuration_has_nothing_the_check_does_not_know` |
 //! | Placement rules that no window can use are a note | [`check_configuration`] compares the `initial_window_placement_rules` of a workspace with its `window_container_behaviour`, or the file's when it has none: windows that are appended to a container have no place of their own | `check::tests::placement_rules_that_are_not_used_while_windows_are_appended_are_noted` |
 //! | A wallpaper that is not a file is an error, and a picture no theme can be made from is a warning | [`check_configuration`] looks at the wallpaper of each monitor and workspace once, and asks the theme generator for a palette when the wallpaper does not turn it off | `check::tests::a_wallpaper_that_is_not_there_and_a_rules_file_that_is_not_there_are_found` for the error, the `vm-check` VM suite for the warning |
-//! | No session bus, or no KWin on it, is an error, and the desktop is looked at no further | [`check_environment`] stops at the first finding the rest depends on | `komorebic/tests/check.rs::without_a_session_bus_the_desktop_is_an_error`, the `vm-check` VM suite |
+//! | No session bus, or no KWin on it, is an error, and the desktop is looked at no further | [`check_environment`] stops at the first finding the rest depends on | `komorebic/tests/linux_check.rs::without_a_session_bus_the_desktop_is_an_error`, the `vm-check` VM suite |
 //! | komorebi running without its script in KWin is an error | [`check_environment`] compares the daemon's socket with KWin's answer to `isScriptLoaded` | the `vm-check` VM suite |
 //! | An effect is komorebi's build because of what it contains, not because of its name | [`check_environment`] looks for the colors interface in the border effect, and for a `Curve` setting in the animation effect's script | `check::tests::the_border_effect_is_komorebis_when_it_has_the_colours_interface`, `check::tests::the_effects_are_told_apart_by_what_they_contain` |
 //! | Effects are looked for where KWin looks, not where the shell that runs the command would | [`check_environment`] reads KWin's environment from `/proc` | the `vm-check` VM suite |
-//! | No D-Bus call delays the check by more than two seconds | convention: every call [`check_environment`] makes goes through a timeout | `komorebic/tests/check.rs::a_session_bus_that_never_answers_is_given_up_on` |
-//! | `komorebic check` exits with status 1 if and only if a finding is an error | `komorebic`, through [`Report::has_errors`] | `komorebic/tests/check.rs` |
+//! | No D-Bus call delays the check by more than two seconds | convention: every call [`check_environment`] makes goes through a timeout | `komorebic/tests/linux_check.rs::a_session_bus_that_never_answers_is_given_up_on` |
+//! | `komorebic check` exits with status 1 if and only if a finding is an error | `komorebic`, through [`Report::has_errors`] | `komorebic/tests/linux_check.rs` |
 
 #![deny(missing_docs)]
 
@@ -681,7 +681,7 @@ pub fn check_keys(value: &serde_json::Value, known: &KnownKeys) -> Vec<Finding> 
 /// ```
 ///
 /// The files that are read are covered by the tests in `komorebi/src/check.rs` and
-/// `komorebic/tests/check.rs`.
+/// `komorebic/tests/linux_check.rs`.
 pub fn check_configuration(path: &Path) -> (Vec<Finding>, Wants) {
     let mut findings = vec![];
     let mut wants = Wants::default();
@@ -1441,7 +1441,7 @@ fn autostart_findings() -> Vec<Finding> {
 ///
 /// # Example
 ///
-/// Covered by `komorebic/tests/check.rs::without_a_session_bus_the_desktop_is_an_error` and the
+/// Covered by `komorebic/tests/linux_check.rs::without_a_session_bus_the_desktop_is_an_error` and the
 /// `vm-check` VM suite. The example needs a desktop session, so it is compiled and not run here:
 ///
 /// ```rust,no_run

@@ -1,5 +1,7 @@
 # macOS hand-check list
 
+> **Status (wip-cand4):** OPEN, for the user on a real Mac; only compile and unit tests have run on a Mac Mini, no macOS daemon behaviour has been observed; commands for the Mac are in [build-and-test.md](build-and-test.md).
+
 Status: written by the `kfm` agent for the user, 2026-10-31. Nothing here has been run: macOS cannot be built, linked or tested on the Linux host, only type-checked through a fake C compiler (`tools/fast-check`). Every revision below is `type-checks, not run`. Revision ids are jj change ids (stable) with the commit id they had when this was written (commit ids change when a revision is rewritten; use `jj log -r <change id>`).
 
 How to use it: build the unified (or, until they exist, the per-tree) macOS `komorebi`, `komorebic` and `komorebi-bar`, run `cargo test --workspace` on the Mac first (the 399+ unit tests have never run against these changes), then walk the sections in order. For before/after capture use `komorebi-recorder` against a build of the baseline `wip-main` ancestor `ff3711dc` and the tip. A section is done when the "look for" column is true.
@@ -7,6 +9,73 @@ How to use it: build the unified (or, until they exist, the per-tree) macOS `kom
 ## Status of the Mini runs (2026-10-31)
 
 The real-Mac runs so far (Mac Mini, rustc and clippy 1.93, tip a35573d8) are **compile and unit tests only**: `cargo test --workspace` in komorebi-for-mac passed (daemon 366 passed, 1 ignored; 368 total, 0 failed) and clippy `-D warnings` was clean apart from the two items fixed afterwards. Nothing was run as a daemon: no focus, tiling, borders, animations or bar rendering has been observed on the Mini. Every walk-through item below is still open.
+
+## Prioritised checks from the independent review (H1-H12)
+
+Source: the macOS review of the candidate (S/review/mac.md). It found no must-fix; the fixes it asked for
+are the `wip-u-kfm3` revisions (inert application in the registry, register on observe, no forget in
+`Window::drop`, `forget_pid` first, forget on reap). Prerequisites: build `komorebi-macos` from the
+candidate, grant Accessibility and Screen Recording, run `komorebi` with `RUST_LOG=komorebi=debug`;
+use `komorebic state` for state. Order is by risk to a user's day.
+
+1. **H1 hide spot on the right display (HideSpot).** Two displays; one workspace with a window
+   straddling the left edge of display 2 (drag it half off). Switch workspace on display 2 and back.
+   Expect: the window is hidden in the `BottomLeft` corner of display 2 (not display 1, not left in
+   view) and restored to the same frame. Repeat with `window_hiding_position: BottomRight` in the
+   monitor config. Stacks: a 3-window stack (`komorebic stack`), `cycle-stack`: only the front window is
+   visible, the others sit in the monitor corner.
+2. **H3 event latency and stall.** A many-window app (Chrome, about 20 windows): restart komorebi and
+   note the time to ready in the log against the original build (registering is now once per observed
+   window, which removes the n x n cost of the first revision). Then `kill -STOP <pid>` an app with a managed
+   window and press `komorebic focus right` 5 times: commands are handled again within the AX timeout
+   after `kill -CONT`; a log line `invalidating application observer for process id` for a live app
+   after the CONT is the bug.
+3. **H7 native tabs.** Finder or Terminal with two native tabs: switch tab, close the first tab; the
+   window stays managed, focus works, and `komorebic state` shows one window id per container with
+   no duplicates.
+4. **H2 floating and monocle on workspace switch.** `toggle-float` a window, switch workspaces twice:
+   it hides and comes back at its old frame. `toggle-monocle`, switch workspace and back.
+5. **H8 scrolling workspace.** `komorebic change-layout scrolling`, open 5 windows, pan with the
+   gesture and with `focus left/right`; windows scrolled out of view are parked at the screen edge (not in
+   the corner) and return on focus; switch workspace and back.
+6. **H9 config reload visibility.** Set `default_container_padding`, `default_workspace_padding`,
+   `floating_window_aspect_ratio`, `layout_defaults` and `display_index_preferences` in komorebi.json and
+   apply with `komorebic replace-configuration` (or restart): padding on every workspace (not only the
+   focused one), `toggle-float` aspect ratio; removing `layout_defaults` or `floating_window_aspect_ratio`
+   and reapplying resets them (none, and Standard 4:3), while removing a padding key keeps the previous
+   value.
+7. **H10 old state and the bar.** `komorebic state > old.json` on the ORIGINAL build; start the new
+   `komorebi-bar` against the new daemon and confirm it renders; the new daemon's `komorebic state` must
+   parse in the bar (workspaces, monitors with `window_hiding_position`).
+8. **H6 pause and quit.** `komorebic toggle-pause`, quit an app with managed windows, `komorebic
+   toggle-pause`: its windows are gone from `komorebic state`. (That its registry entries are gone
+   is covered by the unit test of `forget_pid` and visible only in a debug log.)
+9. **H11 bar config.** Put a Keyboard, Media and Systray widget and a `mouse` block in
+   komorebi.bar.json: the bar starts, logs "the Keyboard widget is not supported on this platform and is
+   skipped" (three times) and the `mouse` warning, and renders the other widgets. Then break the file
+   (`"mouse": {"on_scroll_up": 5}`, or an unknown widget name): the bar must refuse to load it with an error.
+10. **H12 unsupported commands.** `echo '"ToggleMaximize"' | nc -U $DATA_DIR/komorebi.sock`: a
+    not-supported reply, no state change, the daemon keeps running.
+11. **H4 registry growth.** Note `lsof -p $(pgrep -x komorebi) | wc -l` and `lsmp -p $(pgrep -x
+    komorebi) | tail -1` (Mach ports). In TextEdit open and close the Open and Save panels 200 times.
+    Compare the counts: steady growth means entries (and observers) are retained; it would also answer
+    whether an `AXObserver` holds a port (not verified).
+12. **H5 hung subscriber (known, pre-existing).** `kill -STOP $(pgrep komorebi-bar)`; run `komorebic
+    focus left` 10 times and watch the log for "could not acquire window manager lock". Expect the
+    daemon to stop reacting once the socket buffer fills; `kill -CONT` recovers it. See the known issue
+    below: this is how the original behaves and it is deliberately not changed.
+
+### Known issue, not fixed: a subscriber that stops reading can stall the daemon
+
+`notify_subscribers` writes to each subscriber socket under the window manager lock, and the macOS
+connect closure sets no write timeout, so a subscriber that accepted the connection and does not read
+(a stopped bar, a debugger) makes `write_all` block once the notification outgrows the socket buffer;
+the event thread then holds the lock and every command logs "could not acquire window manager lock".
+The original daemon behaves the same. A write timeout was considered and **not added**: the
+Windows review found that a write timeout can truncate the JSON notification in the middle (the
+subscriber then reads half a message) and does not bound the stall in the way the timeout suggests, so
+the fix needs a design (a bounded queue per subscriber written off the lock) and not a one-line
+timeout. Until then H5 documents the hang.
 
 ## A. Revisions that change what the daemon does (BEHAVIOUR)
 
@@ -27,6 +96,7 @@ The real-Mac runs so far (Mac Mini, rustc and clippy 1.93, tip a35573d8) are **c
 | 11(iii) Container: `refactor(mac): the daemon's Container is komorebi_core::Container<Window>` (see `jj log -r wip-u-kfm2`) | `Container` is the shared generic type over the macOS `Window` (its id, windows, focus, `remove_*`, `idx_*` functions are the shared ones). The four functions that need the monitor's hiding corner and can fail (`add_window`, `load_focused_window`, `hide`, `restore`) stay macOS's, renamed `add_window_at`, `load_focused_window_at`, `hide_on`, `restore_focused_window` (`ContainerExt`); `Window::hide/restore/minimize/unminimize` take `&self`. State JSON must not change (pinned by two tests in container.rs). | Run `cargo test` (the container, workspace and scrolling tests use these). Then by hand: stack windows (`komorebic stack`), unstack, cycle the stack (hidden members go to the monitor's corner, the front one is restored); switch workspaces and come back (restore of the front window of each stack); `komorebic state | jq '.monitors.elements[0].workspaces.elements[0].containers.elements[0]'` still has `id`, `locked`, `windows.{elements,focused}` and nothing else. Set `window_hiding_position` per monitor in the config and check each monitor hides into its own corner. |
 | 11(iii) Workspace: `refactor(mac): the daemon's Workspace is komorebi_core::Workspace<MacosPlatform>` (see `jj log -r wip-u-kfm2`) | About 50 workspace functions (container and focus operations, placement, resize constraints, window lookups, floating helpers, the stack and monocle operations that hide windows) are now the shared ones; `hide`, `new_container_for_window` and the stack functions pass the monitor's corner through `MacosPlatform::hide_spot` (kept in `MacosWorkspaceState`, set by the monitor with the globals), and `hide` passes the display bounds for the containers through `hide_spot_on_display`. macOS's own `update`, `apply_wallpaper`, `restore`, `remove_window`, `load_static_config`, `prune_duplicate_windows`, `visible_window_details`, `reap_invalid_windows_for_application`, `restore_windows`, `calculate_layouts` and `set_scrolling_columns` are `WorkspaceExt`; the scrolling methods are `WorkspaceScrolling`. | `cargo test` first (the workspace, scrolling and window_manager tests). Then: stack and unstack, switch workspaces both ways (each stack shows its front window, the hidden ones are in their monitor's corner), toggle monocle and back, float and unfloat a window, cycle the monocle container, move a window to another workspace, move a container across monitors; with a different `window_hiding_position` on each monitor check each monitor's windows park in their own corner and that a floating window that overhangs the edge of a display is still parked on its own display. `komorebic state` keys of a workspace are unchanged (pinned by `state_pin`). Scrolling layout: focus, move, consume and expel, pan, resize a column. |
 | 11(iii) Monitor: `refactor(mac): the daemon's Monitor is komorebi_core::Monitor<MacosPlatform>` (see `jj log -r wip-u-kfm2`) | The monitor is the shared generic type; the corner (`window_hiding_position`) is the platform's flattened `extra` (written last, as before), the constructors, `update_*_globals`, `load_focused_workspace`, `move_container_to_workspace(1)`, `add_container_with_direction`, `hide_unfocused_workspaces` and `restore_focused_workspace` are `MonitorExt`; `focus_workspace`, `add_container`, `remove_workspace*`, `ensure_workspace_count` and the name and layout lookups are the shared ones. The monitor gives its workspaces the corner through `workspace.state` when it updates their globals. | `cargo test` (monitor tests, `state_pin`). By hand: `komorebic state | jq '.monitors.elements[0] | keys_unsorted'` is the same list as before with `window_hiding_position` last; switch workspaces on each monitor (hide and restore of the whole workspace), focus-workspace by index and by name, move a container to another workspace and to another monitor, unplug and replug a display (the monitor and its workspaces are rebuilt through `Monitor::new` and `update_all_workspace_globals`), a config with `window_hiding_position` per monitor. |
+| `wip-u-kfm3` registry fixes (see `jj log -r wip-u-kfm3`) | The registry keeps inert application copies (no blocking Accessibility call when an entry is dropped), a window is registered when its observer is attached, a clone being dropped no longer deregisters its window, `forget_pid` runs ahead of the pause and other-space returns, and the application reaper forgets what it reaps. Nothing reads the registry except the unused `MacosBackend`. | H3, H4, H6, H7 above, and the usual walk-through: no change in what the daemon does is expected. |
 
 Revisions in section B change no behaviour on purpose (rename, move, route); they still need the sections C walk-through, because a mechanical mistake would show there.
 

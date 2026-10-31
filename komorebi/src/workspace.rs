@@ -11,6 +11,13 @@ pub(crate) use komorebi_core::sorted_layout_options_rules;
 /// platform's methods added by [`WorkspaceExt`] and the scrolling ones of [`WorkspaceScrolling`]
 pub type Workspace = komorebi_core::Workspace<WindowsPlatform>;
 
+/// The title-bar rules of one placement pass, taken once by `begin_pass`
+struct TitleBarRules {
+    should_remove_titlebars: bool,
+    no_titlebar: Vec<crate::core::config_generation::MatchingRule>,
+    regex_identifiers: HashMap<String, regex::Regex>,
+}
+
 /// The Windows daemon as the platform of the shared workspace
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowsPlatform;
@@ -159,15 +166,29 @@ impl komorebi_core::WorkspacePlatform for WindowsPlatform {
         }
     }
 
+    fn begin_pass(_workspace: &Workspace) -> Option<Box<dyn std::any::Any>> {
+        // read once for the whole pass: a configuration reload in the middle of it must not give
+        // two containers two different tables
+        Some(Box::new(TitleBarRules {
+            should_remove_titlebars: REMOVE_TITLEBARS.load(Ordering::SeqCst),
+            no_titlebar: NO_TITLEBAR.lock().clone(),
+            regex_identifiers: REGEX_IDENTIFIERS.lock().clone(),
+        }))
+    }
+
     fn place_container(
         container: &mut Container,
         layout: &Rect,
         hidden: bool,
         placement: &komorebi_core::Placement,
     ) -> eyre::Result<()> {
-        let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
-        let no_titlebar = NO_TITLEBAR.lock().clone();
-        let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
+        let rules = placement
+            .pass
+            .and_then(|pass| pass.downcast_ref::<TitleBarRules>())
+            .ok_or_eyre("the title-bar rules of this pass were not taken")?;
+        let should_remove_titlebars = rules.should_remove_titlebars;
+        let no_titlebar = &rules.no_titlebar;
+        let regex_identifiers = &rules.regex_identifiers;
 
         for window in container.windows() {
             if container
@@ -179,8 +200,8 @@ impl komorebi_core::WorkspacePlatform for WindowsPlatform {
                     &window.exe().unwrap_or_default(),
                     &window.class().unwrap_or_default(),
                     &window.path().unwrap_or_default(),
-                    &no_titlebar,
-                    &regex_identifiers,
+                    no_titlebar,
+                    regex_identifiers,
                 )
                 .is_some();
 

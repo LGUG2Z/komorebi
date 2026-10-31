@@ -1,5 +1,7 @@
 # Windows e2e for komorebi-bar
 
+> **Status (wip-cand4):** current; the `bar` scenario exists and is the runtime gate for `komorebi-bar` and `komorebi-bar-core` on Windows.
+
 The `bar` scenario (`e2e/platforms/qemu_windows/extras/bar.py`, registered as `EXTRAS["bar"]` in
 `run.py`) is the runtime gate for changes to `komorebi-bar` and `komorebi-bar-core`: the unit tests
 and the schema oracle cannot run the bar. Run it on the golden Windows guest:

@@ -1,5 +1,7 @@
 # The core model: KDE and Windows compared, and the split into `komorebi-core`
 
+> **Status (wip-cand4):** measurement plus a running log. `komorebi-core` has `Container`, `Monitor`, `Workspace` (incl. `update_shared`) over KDE, Windows and macOS; `WindowManager<P>`, the router and `process_event` are NOT shared yet (sections 17 and 18 give the blockers); sections 8 and 12 are the designs that were then implemented.
+
 Status: measurement and proposal (plan step 9 preparation, KDE side). Measured at the tip of
 `wip-u-kfde` (based on `wip-main` 633e7453); the Windows tree is `komorebi/src`, KDE is
 `komorebi-for-kde/komorebi/src`, macOS (`komorebi-for-mac/komorebi/src`) is listed only where it
@@ -1122,7 +1124,7 @@ compiles unchanged; the defaults of the ones a daemon must provide return an err
 implementation departs from section 12: `adjust_layout` and `place_container` take the container
 and the tile, not its index; the guard of `begin_update` is a boxed `dyn Any` (no associated type, so
 macOS needs nothing); the KDE closure around the placement is gone (it had nothing between it and
-its `?`); the Windows title-bar tables are read once per container instead of once per pass.
+its `?`); the Windows title-bar tables were first read once per container instead of once per pass, which was a regression, not an improvement: section 19 (the `begin_pass` hook) takes them once per pass again.
 
 **What macOS keeps (kfm's `update`, not touched):** its `update` is another shape, not the same text
 with other hooks. It wraps the placement in SkyLight's `SLSDisableUpdate`/`SLSReenableUpdate` (a
@@ -1302,3 +1304,16 @@ Recommended next step: shared text first between KDE and macOS (kfm and kfde), w
 functions and most router arms are already identical, then Windows converges onto it function by
 function against the blocker list above; creating `WindowManager<P>` before blockers 1 to 3 are decided
 would move less than half of the file.
+
+## 19. Corrections after the review of `komorebi-core` (findings F2 and F3)
+
+- **F2, the floating-window hook.** `Workspace::remove_floating_window` calls the hook before it takes the
+  window out of the ring (the KDE and macOS originals move the focus first, and the focus index moves
+  back by one whatever the length), so the hook is `before_floating_removed`, not `after_floating_removed`
+  as sections 8 to 11 call it. Behaviour is unchanged; a test pins the order.
+- **F3, the title-bar snapshot.** The original Windows `update` read `REMOVE_TITLEBARS`, `NO_TITLEBAR` and
+  `REGEX_IDENTIFIERS` once per placement pass; the first Windows `place_container` read them per container,
+  so a configuration reload in the middle of a pass could give two containers two tables (section 16
+  wrongly called this an improvement). `WorkspacePlatform::begin_pass` is called once per pass after the
+  layout is computed and its answer reaches the hooks as `Placement::pass`; Windows takes the snapshot
+  there and `place_container` reads it, as the original did.

@@ -54,7 +54,7 @@ is, whether it is hidden, how wide it really is) is a call to the backend in kfd
 - `komorebi/tests/scrolling.rs` and `layout_options.rs`: the commands through
   `WindowManager::process_command` against the fake desktop, a strip next to another monitor, and a
   drag of the left edge of a column.
-- `komorebic/tests/cli.rs`: each new subcommand sends its message.
+- `komorebic/tests/linux_cli.rs`: each new subcommand sends its message.
 - `nix/tests/vm/lib/komorebi_vm/core/scenarios/scrolling.py` (`columns`, shared with komorebi for
   Windows), run by `vm-scrolling` and `core-e2e`: where the daemon keeps a window at the edge and the
   commands of the columns, in a real session. Run on KDE: the `scrolling` suite passes

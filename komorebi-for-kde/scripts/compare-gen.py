@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Generate the tables of docs/dev/COMPARE.md from the source trees.
 
+NOTE (wip-cand4): STALE. The command definitions moved to crates/komorebic-core, the daemons' message
+types to crates/komorebi-protocol and the configuration types to crates/komorebi-config, so the
+readers below (`Tree.commands`, `socket_messages`, `struct_keys`, ...) find nothing and the script
+exits with "cannot find ^enum SubCommand". It runs only against the pre-consolidation checkouts
+named in COMPARE.md. Port it to the crates before using it again, or retire it with COMPARE.md.
+
 komorebi for Windows (kfw), komorebi for macOS (kfm) and komorebi for KDE Plasma (kfde, this
 repository) are read as they are on disk. Nothing in the tables is typed from memory, except the
 small hand-written tables in the NOTES section of this file, which hold what a source file cannot

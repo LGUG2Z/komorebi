@@ -1267,12 +1267,12 @@ too.
 - [`backend`](../../komorebi/src/backend/mod.rs): the trait, the two data types, and the
   process-wide handle ([`set_backend`], [`backend`], [`with_backend`]).
 - [`backend::fake`](../../komorebi/src/backend/fake.rs): the fake.
-- [`ring`](../../komorebi/src/ring.rs): the [`Ring`], and the macro that gives every type
+- [`ring`](../../../crates/komorebi-collections/src/ring.rs): the [`Ring`], and the macro that gives every type
   holding one the same accessors (`containers()`, `focused_container_mut()`, ...).
 - [`monitor`](../../komorebi/src/monitor.rs), [`workspace`](../../komorebi/src/workspace.rs),
   [`container`](../../komorebi/src/container.rs), [`window`](../../komorebi/src/window.rs):
   the four levels of the tree; `window` also has the rule engine ([`should_act`]).
-- [`lockable_sequence`](../../komorebi/src/lockable_sequence.rs): inserting, removing and
+- [`lockable_sequence`](../../../crates/komorebi-collections/src/lockable_sequence.rs): inserting, removing and
   swapping in a list where some elements are locked in place, which is how a workspace
   changes its containers.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
@@ -1333,11 +1333,11 @@ too.
 - [`komorebi-client`](../../komorebi-client/src/lib.rs): a library that writes messages on
   the socket and reads the answers, and subscribes to notifications, for programs that talk
   to the daemon.
-- [`komorebic`](../../komorebic/src/main.rs): the command line. A subcommand that asks
+- [`komorebic`](../../../komorebic/src/linux/mod.rs): the command line. A subcommand that asks
   something of the daemon is one message, sent with `komorebi-client`; `start` runs the
   daemon, `log` follows its log file in [`LOG_DIR`], and the hidden `docgen` writes
   `docs/cli`.
-- [`main.rs`](../../komorebi/src/main.rs): the daemon. It connects to KWin, or installs the
+- [`daemon.rs`](../../komorebi/src/daemon.rs): the daemon. It connects to KWin, or installs the
   fake with `--fake-backend`, makes the window manager from `komorebi.json` when there is one,
   which binds the socket, loads the desktop, gives the monitors their configuration, asks for the
   borders and tiles, starts the threads that listen on the socket, handle events and take the
@@ -1677,7 +1677,7 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 
 ### The front end
 
-[`komorebic/src/hotkeys.rs`](../../komorebic/src/hotkeys.rs) is the command line over the
+[`komorebic/src/linux/hotkeys.rs`](../../../komorebic/src/linux/hotkeys.rs) is the command line over the
 crate, and decides nothing about what a file means. `komorebic hotkeys compile` reads a file (by default the
 first of `skhdrc`, `whkdrc` and `sxhkdrc` in the komorebi config directory, its format from
 the end of its name), plans it in the mode it is given (by default `PlanMode::default()`),
@@ -1797,7 +1797,7 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 - [`komorebi/src/static_config.rs`](../../komorebi/src/static_config.rs): `komorebi.json`.
   [`komorebi/tests/config.rs`](../../komorebi/tests/config.rs) loads files over the fake
   desktop, [`komorebi/tests/config_displays.rs`](../../komorebi/tests/config_displays.rs) one
-  with several monitors, [`komorebi/tests/hot_reload.rs`](../../komorebi/tests/hot_reload.rs) the
+  with several monitors, [`komorebi-daemon/tests/linux_hot_reload.rs`](../../../komorebi-daemon/tests/linux_hot_reload.rs) the
   daemon following a file, and
   [`komorebi/tests/config_parity.rs`](../../komorebi/tests/config_parity.rs) the files of other
   platforms and the example, which load;
@@ -1813,7 +1813,7 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   the applications files; [`komorebi/src/core/asc.rs`](../../komorebi/src/core/asc.rs) their
   format.
 - [`komorebi/src/check.rs`](../../komorebi/src/check.rs): the checks of `komorebic check`, with
-  their tests; [`komorebic/tests/check.rs`](../../komorebic/tests/check.rs) runs the command on
+  their tests; [`komorebic/tests/linux_check.rs`](../../../komorebic/tests/linux_check.rs) runs the command on
   configurations, on key binding files and on buses that are not there, and reads what it prints
   and its exit status;
   [`nix/tests/vm/suites/check`](../../nix/tests/vm/suites/check/test.py), the desktop check against
@@ -1824,10 +1824,10 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   each message does, and the tests that send messages through a real socket.
 - [`komorebi-client/src/lib.rs`](../../komorebi-client/src/lib.rs): the client side of the
   socket.
-- [`komorebi-client/tests/subscribe.rs`](../../komorebi-client/tests/subscribe.rs):
+- [`komorebi-client/tests/linux_subscribe.rs`](../../../komorebi-client/tests/linux_subscribe.rs):
   subscribers and the notifications they are sent, through real sockets.
-- [`komorebic/src/main.rs`](../../komorebic/src/main.rs): the subcommands, and
-  [`komorebic/tests/cli.rs`](../../komorebic/tests/cli.rs), what each writes on the socket.
+- [`komorebic/src/linux/mod.rs`](../../../komorebic/src/linux/mod.rs): the subcommands, and
+  [`komorebic/tests/linux_cli.rs`](../../../komorebic/tests/linux_cli.rs), what each writes on the socket.
 - [`komorebi/src/kwin/mod.rs`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus
   service and the held call.
 - [`komorebi/src/kwin/state.rs`](../../komorebi/src/kwin/state.rs): the table, with the
@@ -1878,7 +1878,7 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   real Plasma shell.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
   driven end to end against the fake.
-- [`komorebi/tests/socket.rs`](../../komorebi/tests/socket.rs): the daemon over its socket,
+- [`komorebi-daemon/tests/linux_socket.rs`](../../../komorebi-daemon/tests/linux_socket.rs): the daemon over its socket,
   from its start to a `Stop`.
 - [`komorebi/tests/focus.rs`](../../komorebi/tests/focus.rs),
   [`komorebi/tests/moving.rs`](../../komorebi/tests/moving.rs) and
@@ -1965,9 +1965,9 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   [`sxhkd.rs`](../../komorebi-hotkeys/src/sxhkd.rs);
   [`plan.rs`](../../komorebi-hotkeys/src/plan.rs) and [`kde.rs`](../../komorebi-hotkeys/src/kde.rs)
   for the shortcuts, [`engine.rs`](../../komorebi-hotkeys/src/engine.rs) for the engine.
-- [`komorebic/src/hotkeys.rs`](../../komorebic/src/hotkeys.rs): `export-kde-shortcuts` and
+- [`komorebic/src/linux/hotkeys.rs`](../../../komorebic/src/linux/hotkeys.rs): `export-kde-shortcuts` and
   `hotkeys compile`, and the key bindings section of `komorebic check`;
-  [`komorebic/tests/hotkeys.rs`](../../komorebic/tests/hotkeys.rs), what they write.
+  [`komorebic/tests/linux_hotkeys.rs`](../../../komorebic/tests/linux_hotkeys.rs), what they write.
 - [`nix/tests/vm/suites/keys-static`](../../nix/tests/vm/suites/keys-static/test.py): static
   shortcuts run by a real KWin.
 - [`komorebi/src/kwin/hotkeys.rs`](../../komorebi/src/kwin/hotkeys.rs): the engine against

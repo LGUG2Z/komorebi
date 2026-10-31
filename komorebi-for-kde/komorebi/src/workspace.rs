@@ -119,7 +119,7 @@ impl komorebi_core::WorkspacePlatform for KdePlatform {
         workspace.note_scrolling_departure(idx);
     }
 
-    fn after_floating_removed(workspace: &mut Workspace) {
+    fn before_floating_removed(workspace: &mut Workspace) {
         workspace.focus_previous_floating_window();
     }
 

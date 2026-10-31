@@ -7,15 +7,29 @@
 //!
 //! # Lifetime
 //!
-//! An entry is created by `Window::new` and by [`sync`] when a window's element or id changes
-//! (a native tab). It ends at every place the daemon learns of a death:
+//! An entry is created by `Window::observe`, when the window's observer has been attached to the run
+//! loop (a `Window` made only to ask an application about a window is never observed, so never
+//! registered, and the observer in the table is the attached one), and by [`sync`] when a window's
+//! element or id changes (a native tab). The entry holds an *inert* copy of the application
+//! ([`crate::application::Application::inert`]): dropping a normal copy asks the application
+//! something over Accessibility and may invalidate the shared observer, which must never happen
+//! inside a table operation.
 //!
-//! - `Window::drop`, when the window is no longer alive ([`forget`]);
-//! - the reaper, when it reaps a window ([`forget`]);
-//! - an application terminating ([`forget_pid`], from `WindowManagerEvent::Destroy`).
+//! It ends where the daemon knows a window is gone:
 //!
-//! A window that is alive and never managed stays registered until it dies or its application
-//! quits: the entry only holds retained references that the `Window` clones held anyway.
+//! - the reaper, when it reaps a window ([`forget`]), and the application reaper
+//!   (`reap_invalid_windows_for_application`, [`forget`]);
+//! - an application terminating ([`forget_pid`], the first thing `process_event` does for
+//!   `NSWorkspaceDidTerminateApplication`, ahead of the pause and other-space returns).
+//!
+//! It does not end in `Window::drop`: that runs for every clone, `alive()` is false for any failed
+//! Accessibility call, and a transient failure must not deregister a live window.
+//!
+//! Not enforced: an observed window that closes without passing through the reapers keeps its entry
+//! until its application quits (`WindowManagerEvent::Destroy` carries no window id). The table is
+//! bounded by the windows observed per running application; a sweep would cost one Accessibility call
+//! per entry under the window manager lock. What an unattached observer costs (a Mach port?) is not
+//! verified (hand check H4).
 //!
 //! # Threads
 //!
@@ -111,4 +125,88 @@ pub fn identify(
     element: &objc2_application_services::AXUIElement,
 ) -> std::result::Result<u32, crate::accessibility::error::AccessibilityError> {
     crate::accessibility::AccessibilityApi::window_id(element)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn window_of(id: u32, pid: i32) -> Window {
+        let mut window = Window::from(id);
+        window.application.process_id = pid;
+        window
+    }
+
+    fn id(raw: u32) -> WindowId {
+        WindowId::from_u32(raw)
+    }
+
+    /// `Application::drop` asks the application whether it is still there (a blocking
+    /// Accessibility round trip) when `is_observable`; the table must hold copies that skip it.
+    #[test]
+    fn a_registered_entry_does_not_ask_the_app_when_it_is_dropped() {
+        let mut window = window_of(0x5101, 6_100_001);
+        window.application.is_observable = true;
+
+        assert!(!window.entry().application.is_observable);
+
+        register(&window);
+        assert!(!get(id(0x5101)).unwrap().application.is_observable);
+
+        forget(0x5101);
+    }
+
+    #[test]
+    fn a_window_made_from_an_entry_is_inert_too() {
+        let mut window = window_of(0x5102, 6_100_002);
+        window.application.is_observable = true;
+        register(&window);
+
+        assert!(!super::window(id(0x5102)).unwrap().application.is_observable);
+
+        forget(0x5102);
+    }
+}
+
+#[cfg(test)]
+mod drop_tests {
+    use super::*;
+
+    /// `State::from` clones every window on every command and event notification; whatever a
+    /// clone's drop finds out about the window (the stand-in element answers differently with and
+    /// without Accessibility permission), the entry of a window that was not reaped stays.
+    #[test]
+    fn dropping_a_clone_does_not_deregister_a_window() {
+        let mut window = Window::from(0x5201);
+        window.application.process_id = 6_200_001;
+        register(&window);
+
+        drop(window.clone());
+
+        assert!(get(WindowId::from_u32(0x5201)).is_ok());
+
+        forget(0x5201);
+    }
+}
+
+#[cfg(test)]
+mod pid_tests {
+    use super::*;
+
+    #[test]
+    fn an_application_quitting_takes_its_windows_and_no_other() {
+        let mut quitter = Window::from(0x5301);
+        quitter.application.process_id = 6_300_001;
+        let mut stayer = Window::from(0x5302);
+        stayer.application.process_id = 6_300_002;
+        register(&quitter);
+        register(&stayer);
+
+        forget_pid(6_300_001);
+
+        assert!(get(WindowId::from_u32(0x5301)).is_err());
+        assert!(get(WindowId::from_u32(0x5302)).is_ok());
+
+        forget(0x5302);
+    }
 }

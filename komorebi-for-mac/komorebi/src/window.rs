@@ -475,8 +475,10 @@ impl Drop for Window {
             // for now - hopefully it doesn't break anything else
             reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
 
-            // and the id no longer names anything
-            crate::ax_registry::forget(self.id);
+            // the registry is not told here: `alive()` is false for any failed Accessibility call, and
+            // this runs for every clone (State::from makes one of each window on every command), so a
+            // window that answered badly once would lose its entry; the places that know a window
+            // is gone (the reaper, an application quitting) forget it
 
             // make sure the observer gets removed from any run loops
             AccessibilityApi::invalidate_observer(&self.observer);
@@ -559,18 +561,13 @@ impl Window {
             Some(window_observer_callback),
         )?;
 
-        let window = Self {
+        Ok(Self {
             id: AccessibilityApi::window_id(&element)?,
             element: AccessibilityUiElement(element),
             application,
             observer: AccessibilityObserver(Some(observer)),
             details: None,
-        };
-
-        // so that the window can be found again from its id alone
-        crate::ax_registry::register(&window);
-
-        Ok(window)
+        })
     }
 
     /// The handles that act on this window, as the registry keeps them
@@ -578,7 +575,8 @@ impl Window {
         crate::ax_registry::AxEntry {
             element: self.element.clone(),
             observer: self.observer.clone(),
-            application: self.application.clone(),
+            // inert: dropping an entry must not ask the application anything (see `Application::inert`)
+            application: self.application.inert(),
         }
     }
 
@@ -626,7 +624,13 @@ impl Window {
             NOTIFICATIONS,
             run_loop,
             refcon,
-        )
+        )?;
+
+        // the registry holds the window whose observer is attached: a Window that was only made to
+        // ask an app about a window is never observed, so it is never registered
+        crate::ax_registry::register(self);
+
+        Ok(())
     }
 
     /// Hide the window in the corner of the display that it is on
@@ -634,10 +638,7 @@ impl Window {
     /// Prefer [`Window::hide_on`] when the display is known, since a window that hangs over the
     /// edge of a display is not always on the display that the lookup by position finds.
     #[tracing::instrument(skip_all)]
-    pub fn hide(
-        &self,
-        hiding_position: WindowHidingPosition,
-    ) -> Result<(), AccessibilityError> {
+    pub fn hide(&self, hiding_position: WindowHidingPosition) -> Result<(), AccessibilityError> {
         self.hide_on(hiding_position, None)
     }
 
