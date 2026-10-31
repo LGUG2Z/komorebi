@@ -177,3 +177,61 @@ Thread-affinity findings (Windows).
 2. **No `WindowsApi` function that acts on a managed window is documented thread-affine, and none is called from a single thread.** `position_window` alone is called from the event thread, command threads, animation threads and live-resize threads (see the list above). The code comments explain the one cross-thread cost: `SetWindowPos` waits for the target window's own thread unless `ASYNC_WINDOW_POS` is used (`W/windows_api.rs:518-520`), which is a property of the target app, not of komorebi's threads. `SetCloak` initialises COM per thread through a thread-local (`W/com/mod.rs:40-45, 68-72`), so it is callable from any thread too.
 3. **Consequence for a Windows `Backend` adapter**: it can be a stateless wrapper over `WindowsApi`, callable from any thread, **except for the pieces that create windows** (borders, stackbars, ghosts, the hidden window and the WinEvent hook), which stay with their own message-loop threads and are exactly the "platform subsystems" of section 2.2.
 4. **Hazard that exists today**: the hook callback blocks in `send` when the 20-slot channel is full (`W/winevent_listener.rs:59`, `W/windows_callbacks.rs:212, 233`), while the consumer needs the WM lock that a command thread may hold while itself sending into the same channel (`W/window_manager.rs:802, 809, 865`). Reading only; not reproduced (this is the plan's step 5 latent bug 2).
+
+### 3.3 macOS: the main thread, the dispatches and the possible deadlock
+
+**The main thread** (`M/main.rs:202-367`) is the only thread that may touch AppKit. `main` creates `NSApplication`, calls `finishLaunching` rather than `run` (`:226-230`), registers the `NSWorkspace` observer and the CoreGraphics display callback (`:232-233`), takes `CFRunLoop::current()` and installs the event tap on it (`:235-236, 322-330`), builds the window manager, starts all other threads (`:282-290`), and then **spins** in a loop: `nextEventMatchingMask(.., 0.1 s)` plus `CFRunLoop::run_in_mode(default, 0.1 s)` (`:314-349`; the comment at `:333-334` says the explicit NSApp pumping is what makes display callbacks fire on macOS Tahoe). Because of the 0.1 s bound, anything added to that run loop from another thread is noticed within 0.1 s even without a wake-up call. The main thread takes the WM lock only before the loop (`:274-280`) and after it (`:354`).
+
+What runs on main, from callbacks: AX observer callbacks for windows (`M/window.rs:288-350`) and applications (`M/application.rs:54`), the `NSWorkspace` handler (`M/notification_center_listener.rs:183-229`, selector based, no queue argument), the CG display reconfiguration callback (`M/display_reconfiguration_listener.rs:12-30`, registered `:76`), the event tap callback (`M/input_event_listener.rs:63-100`). **None of them takes the WM lock** (no `lock()` call on `wm` in those files). They do synchronous AX IPC to other applications: the window observer reads the window id, title and, for moves, the frame (`M/window.rs:294, 330`), the tap reads the foreground window (`M/input_event_listener.rs:88-100`). The handlers hand off by `try_send` only (`M/window_manager_event_listener.rs:54`, `M/monitor_reconciliator.rs:63-67`, `M/reaper.rs`, `M/border_manager/mod.rs:168-178`). That `NSWorkspace` posts on main, and where exactly the CG callback is delivered, is Apple behaviour and not verified.
+
+AppKit objects are created or touched on main only: `NSScreen::screens(MainThreadMarker::new().unwrap())` panics off main (`M/macos_api.rs:213`; the same in `M/splash.rs:166`); closures dispatched to main use `MainThreadMarker::new_unchecked()` (`M/border_manager/ns_window.rs:55`, `M/animation/ghost.rs:142`, `M/macos_api.rs:66`).
+
+**Other threads and their locks**
+
+| Thread | Started at | WM lock | Platform calls |
+|---|---|---|---|
+| event consumer | `M/process_event.rs:70-86` | held for the whole event (`:74`) | every `Window` method (AX), `CoreGraphicsApi`, `activate_finder` (`:791`), `border_manager::destroy_all_borders` (`:128, 139`) |
+| "mdm" poller | `M/process_event.rs:52-67` | none | spawns `komorebic splash` |
+| command accept + per-client threads | `M/process_command.rs:79-110` | `try_lock_for(1 s)` (`:1882`) | everything, incl. `destroy_all_borders` (`:294, 303, 1776, 1802, 1806`), `window.observe(&run_loop)` (`:1758`) |
+| monitor reconciliator | `M/monitor_reconciliator.rs:71-90` | per notification: a short lock for a state snapshot (`:96-99`, released), then see the dispatch table | `exec_sync` to main (below) |
+| reaper | `M/reaper.rs:41-70` | held per notification (`:61`) | `Window::is_valid` (AX round trip per window) |
+| settle | `M/settle.rs:78-88` | `wm.lock()` (`:88`) | AX reads with a 0.25 s timeout (`LOOK_TIMEOUT` `:39`) |
+| workspace reconciliator | `M/workspace_reconciliator.rs:72-98` | held per notification (`:98`) | focus and workspace switches |
+| border thread | `M/border_manager/mod.rs:323-338, 353` | WM lock for a snapshot, **released** at `:381` (`drop(state)`), then `BORDER_STATE` and `WINDOWS_BORDERS` locked (`:462-463`) | creates borders: `exec_sync` (`M/border_manager/border.rs:153`) and a **blocking `rx.recv()`** waiting for the main queue to build the `NSWindow` (`M/border_manager/ns_window.rs:52-135`, no timeout) |
+| theme manager | `M/theme_manager.rs:53` | not taken | `destroy_all_borders` (`:227`) |
+| animator frame thread | `M/animation/animator.rs:122-126` | **never**: "Nothing in here holds the window manager's lock" (`:15-16`) | none itself; it commits to lanes |
+| one lane thread per pid | `M/animation/animator.rs:597-600` | never | AX writes and verifies (`:819-850, 902, 925`), and `border_manager::follow` (an `exec_async`, below) |
+| ctrl-c waiter | `M/main.rs:295-310` | none | sets a flag the main loop reads |
+| deadlock detector (feature) | `M/main.rs:151-174` | none | |
+
+**Every dispatch to the main queue**
+
+| Site | Kind | Closure | Takes WM lock on main? | Calling threads, and are they holding the WM lock? |
+|---|---|---|---|---|
+| `M/monitor_reconciliator.rs:106` | `exec_sync` | `wm.lock()` then `update_monitor_work_areas` (NSScreen) (`:107-110`) | **Yes** | reconciliator thread, not holding it (the snapshot lock is released) |
+| `M/monitor_reconciliator.rs:117` | `exec_sync` | `latest_monitor_information` (`:118`) | No | reconciliator thread |
+| `M/monitor_reconciliator.rs:383` | `exec_sync` | `arc.lock()` then `load_monitor_information` (`:384-386`) | **Yes** | reconciliator thread, which first `drop(wm)` "because the main thread needs the lock" (`:379-381`) |
+| `M/border_manager/mod.rs:157` (`hide_borders_on`) | `exec_sync` | hide `NSWindow`s | No | `M/window_manager.rs:1385`: **under the WM lock** |
+| `M/border_manager/mod.rs:307` (`destroy_border`) | `exec_sync` | invalidate the border's AX observer | No | `destroy_all_borders` (while holding `BORDER_STATE`, `:240`) from the event thread (`M/process_event.rs:128, 139`), command threads (`M/process_command.rs:294, 303, 1776, 1802, 1806`), `retile_all` (`M/window_manager.rs:2286`): **all under the WM lock**; and `theme_manager.rs:227` (lock state not examined) |
+| `M/border_manager/border.rs:153` | `exec_sync` | add AX observer sources to the run loop | No | border thread, holding `BORDER_STATE`/`WINDOWS_BORDERS`, not the WM lock |
+| `M/border_manager/border.rs:244` (`Border::destroy`) | `exec_sync` | `NSWindow::close` | No | via `destroy_border` (`:313`), same callers as above |
+| `M/macos_api.rs:492` (`activate_finder`) | `exec_sync` | activate Finder | No | event thread (`M/process_event.rs:791`): **under the WM lock** |
+| `M/border_manager/ns_window.rs:53` | `exec_async` + blocking `rx.recv()` (`:135`) | build the border `NSWindow` | No | border thread; blocks without timeout |
+| `M/animation/ghost.rs:125` (`on_main`) | `exec_async` + `recv_timeout(750 ms)` (`:49, 129`) | build ghosts | No | the animating thread; bounded wait |
+| `M/animation/ghost.rs:322, 365` | `exec_async` | animate and close ghosts | No | animator |
+| `M/border_manager/mod.rs:191, 217` | `exec_async` | `apply_follows` (borders follow the animator) | No (it uses `try_lock` on `BORDER_STATE` and `WINDOWS_BORDERS`, `:200-205`, so it never waits for the border thread) | animator lanes (`follow`, `:185-193`) |
+| `M/macos_api.rs:62` (`set_wallpaper`) | `exec_async` | `setDesktopImageURL` | No | command thread |
+
+`exec_sync` is `dispatch_sync_f` (`dispatch2-0.3.1/src/queue.rs:118-130`): the caller blocks until the main queue has run the closure. Calling it from the main thread itself deadlocks in libdispatch (Apple documents this; not verified here). `main` reaches `destroy_all_borders` once, through `retile_all` at `M/main.rs:280`, and that is safe only because the border thread, the sole creator of borders, is started afterwards (`:282`), so `BORDER_STATE` is empty and `destroy_border` is never called. This is true by reading only.
+
+**The possible deadlock, stated precisely (by reading, not reproduced).** Three things must coincide:
+
+1. A thread E (the event consumer, or a command thread) holds the WM lock for the whole of a message (`M/process_event.rs:74`; `M/process_command.rs:1882`).
+2. While holding it, E calls a blocking main-queue dispatch from the table above: `destroy_all_borders` (space change, `M/process_event.rs:128, 139`; `retile_all`; several commands), `hide_borders_on` (workspace switch with ghosts, `M/window_manager.rs:1385`) or `activate_finder` (`M/process_event.rs:791`).
+3. The monitor reconciliator thread R has dispatched `exec_sync(closure)` for a `Resize` or `DisplayConnectionChange` (`M/monitor_reconciliator.rs:106, 383`) and the main thread has started that closure, which calls `wm.lock()` and therefore waits for E.
+
+Then E waits for the main queue (which is inside R's closure), the main thread waits for E's lock, and neither can proceed. The existing mitigations protect only their own pair of threads: R drops the lock before its second dispatch (`:379-381`), and `apply_follows` uses `try_lock` (`M/border_manager/mod.rs:196-205`). `deadlock_detection` (`parking_lot::deadlock::check_deadlock`, `M/main.rs:151-174`) would show main blocked on a `parking_lot` mutex but cannot see that E is waiting on a dispatch semaphore, so no cycle appears in its lock graph. The exposure window is small (a display change at the instant of one of those events). The structural fix, outside this work, is that no closure run on the main thread takes the WM lock. **Relevance for the seam**: this is why consequence 4 (no `Backend` method blocks on main while the WM lock is held) is a rule the extraction must not violate; today the rule is already violated at the sites above.
+
+**AX observers and the run loop.** `Window::observe` adds an observer source to the main run loop from whichever thread calls it: the event thread (`M/process_event.rs:614`), a command thread (`M/process_command.rs:1758`) and `main` at start-up (`M/macos_api.rs:341, 349`). Border observers are the opposite: added inside an `exec_sync` on main (`M/border_manager/border.rs:153-170`). Whether adding a source to a run loop from a thread that does not own it is safe is a CoreFoundation property that I did not verify (Apple's threading guide lists `CFRunLoopRef` as thread-safe, from memory, not checked). The code asserts it for windows and avoids it for borders.
+
+**Thread-safety assertions in the code.** `AccessibilityUiElement` and `AccessibilityObserver` are `unsafe impl Send + Sync` (`M/lib.rs:282-284, 300-302`), `NsWindow` is `Send` (`M/border_manager/ns_window.rs:38`), `Still` (a `CGImage`) is `Send + Sync` (`M/animation/capture.rs:19-20`), and the animator clones `WindowHandle { element, app }` into lane threads (`M/animation/animator.rs:90-93`). So AX elements already travel between threads; that this is allowed by the AX API is not verified.
