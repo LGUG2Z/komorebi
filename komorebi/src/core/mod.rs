@@ -41,6 +41,11 @@ pub use komorebi_layouts::validate_ratios;
 
 // Local modules and exports
 pub use animation::AnimationStyle;
+pub use komorebi_config::behaviour::CrossBoundaryBehaviour;
+pub use komorebi_config::behaviour::FloatingLayerBehaviour;
+pub use komorebi_config::behaviour::Placement;
+pub use komorebi_config::behaviour::WindowContainerBehaviour;
+pub use komorebi_config::behaviour::WindowHandlingBehaviour;
 pub use komorebi_protocol::types::ApplicationIdentifier;
 pub use komorebi_protocol::types::BorderImplementation;
 pub use komorebi_protocol::types::BorderStyle;
@@ -91,72 +96,6 @@ pub struct WindowManagementBehaviour {
     pub float_override_placement: Placement,
     /// The `Placement` to be used when spawning a window that matches a `floating_applications` rule
     pub float_rule_placement: Placement,
-}
-
-#[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Window container behaviour when a new window is opened
-pub enum WindowContainerBehaviour {
-    /// Create a new container for each new window
-    #[default]
-    Create,
-    /// Append new windows to the focused window container
-    Append,
-}
-
-#[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Floating layer behaviour when a new window is opened
-pub enum FloatingLayerBehaviour {
-    /// Tile new windows (unless they match a float rule or float override is active)
-    #[default]
-    Tile,
-    /// Float new windows
-    Float,
-}
-
-#[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Placement behaviour for floating windows
-pub enum Placement {
-    /// Does not change the size or position of the window
-    #[default]
-    None,
-    /// Center the window without changing the size
-    Center,
-    /// Center the window and resize it according to the `AspectRatio`
-    CenterAndResize,
-}
-
-impl FloatingLayerBehaviour {
-    pub fn should_float(&self) -> bool {
-        match self {
-            FloatingLayerBehaviour::Tile => false,
-            FloatingLayerBehaviour::Float => true,
-        }
-    }
-}
-
-impl Placement {
-    pub fn should_center(&self) -> bool {
-        match self {
-            Placement::None => false,
-            Placement::Center | Placement::CenterAndResize => true,
-        }
-    }
-
-    pub fn should_resize(&self) -> bool {
-        match self {
-            Placement::None | Placement::Center => false,
-            Placement::CenterAndResize => true,
-        }
-    }
 }
 
 #[derive(
@@ -383,32 +322,6 @@ pub enum PlacementMatchingRules {
     /// Multiple matching rules evaluated with OR logic.
     /// Each entry is a `MatchingRule`: either a simple rule (object) or composite rule (array, AND logic).
     Many(Vec<config_generation::MatchingRule>),
-}
-
-#[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Behaviour when an action would cross a monitor boundary
-pub enum CrossBoundaryBehaviour {
-    /// Attempt to perform actions across a workspace boundary
-    Workspace,
-    /// Attempt to perform actions across a monitor boundary
-    #[default]
-    Monitor,
-}
-
-#[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Window handling behaviour
-pub enum WindowHandlingBehaviour {
-    #[default]
-    /// Synchronous
-    Sync,
-    /// Asynchronous
-    Async,
 }
 
 #[cfg(test)]
