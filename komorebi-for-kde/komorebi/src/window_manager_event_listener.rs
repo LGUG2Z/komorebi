@@ -10,52 +10,36 @@
 
 use crate::window_manager_event::WindowManagerEvent;
 use crossbeam_channel::Receiver;
-use crossbeam_channel::Sender;
+use komorebi_transport::EventChannel;
 use std::sync::OnceLock;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 
-static CHANNEL: OnceLock<(Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>)> =
-    OnceLock::new();
+static CHANNEL: OnceLock<EventChannel<WindowManagerEvent>> = OnceLock::new();
 
-fn channel() -> &'static (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) {
-    CHANNEL.get_or_init(|| crossbeam_channel::bounded(20))
-}
-
-fn event_tx() -> Sender<WindowManagerEvent> {
-    channel().0.clone()
+fn channel() -> &'static EventChannel<WindowManagerEvent> {
+    // a drag makes `ResizeStep`s as fast as the pointer moves, and each says where the pointer is
+    // now, so one waiting is enough: the window manager asks the window where its edges are when
+    // it gets to it, and that is the newest
+    CHANNEL.get_or_init(|| {
+        EventChannel::coalescing(20, |event| {
+            matches!(event, WindowManagerEvent::ResizeStep(..))
+        })
+    })
 }
 
 /// Returns the receiving end of the channel, for the window manager.
 pub fn event_rx() -> Receiver<WindowManagerEvent> {
-    channel().1.clone()
+    channel().receiver()
 }
-
-/// Whether a `ResizeStep` is already waiting in the channel. A drag makes them as fast as the pointer
-/// moves, and each says where the pointer is now, so one waiting is enough: the window manager asks
-/// the window where its edges are when it gets to it, and that is the newest.
-static RESIZE_STEP_WAITING: AtomicBool = AtomicBool::new(false);
 
 /// Says that the window manager has taken the `ResizeStep` that was waiting, so that the next one
 /// may be queued.
 pub fn resize_step_taken() {
-    RESIZE_STEP_WAITING.store(false, Ordering::SeqCst);
+    channel().coalesced_taken();
 }
 
 /// Queues an event for the window manager, or drops it with a warning if 20 are already waiting.
 ///
 /// A [`WindowManagerEvent::ResizeStep`] is dropped without a word while another one is waiting.
 pub fn send_notification(notification: WindowManagerEvent) {
-    let is_step = matches!(notification, WindowManagerEvent::ResizeStep(..));
-
-    if is_step && RESIZE_STEP_WAITING.swap(true, Ordering::SeqCst) {
-        return;
-    }
-
-    if event_tx().try_send(notification).is_err() {
-        if is_step {
-            RESIZE_STEP_WAITING.store(false, Ordering::SeqCst);
-        }
-        tracing::warn!("channel is full; dropping notification")
-    }
+    channel().send(notification);
 }
