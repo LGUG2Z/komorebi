@@ -9,10 +9,17 @@ komorebi-themes = { path = "../../komorebi-themes" }
 komorebi-backend = { path = "../../crates/komorebi-backend" }
 komorebi-collections = { path = "../../crates/komorebi-collections" }
 komorebi-core = { path = "../../crates/komorebi-core" }
-komorebi-layouts = { path = "../../komorebi-layouts", features = ["darwin", "schemars"] }
-komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = ["schemars"] }
+komorebi-layouts = { path = "../../komorebi-layouts", features = [
+  "darwin",
+  "schemars",
+] }
+komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = [
+  "schemars",
+] }
 komorebi-settings = { path = "../../crates/komorebi-settings" }
-komorebi-protocol = { path = "../../crates/komorebi-protocol", default-features = false, features = ["schemars"] }
+komorebi-protocol = { path = "../../crates/komorebi-protocol", default-features = false, features = [
+  "schemars",
+] }
 komorebi-transport = { path = "../../crates/komorebi-transport" }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 version = { package = "version-macos", path = "../version" }
@@ -118,7 +125,9 @@ regex = "1"
 reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { version = "1.1", optional = true }
 serde = { version = "1", features = ["derive"] }
-serde_json = { package = "serde_json_lenient", version = "0.2", features = ["preserve_order"] }
+serde_json = { package = "serde_json_lenient", version = "0.2", features = [
+  "preserve_order",
+] }
 serde_with = { version = "3", features = ["schemars_1"] }
 shadow-rs = { version = "1" }
 strum = { version = "0.28", features = ["derive"] }
@@ -134,7 +143,11 @@ uuid = { version = "1", features = ["v4"] }
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-schemars = ["dep:schemars", "komorebi-collections/schemars", "komorebi-core/schemars"]
+schemars = [
+  "dep:schemars",
+  "komorebi-collections/schemars",
+  "komorebi-core/schemars",
+]
 
 [lib]
 name = "komorebi"

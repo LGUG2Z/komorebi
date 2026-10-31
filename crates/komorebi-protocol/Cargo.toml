@@ -23,4 +23,8 @@ schemars = { workspace = true }
 
 [features]
 default = ["schemars"]
-schemars = ["dep:schemars", "komorebi-layouts/schemars", "komorebi-themes/schemars"]
+schemars = [
+  "dep:schemars",
+  "komorebi-layouts/schemars",
+  "komorebi-themes/schemars",
+]

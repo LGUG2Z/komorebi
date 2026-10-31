@@ -25,8 +25,16 @@ komorebi-macos = { package = "komorebi-macos", path = "../komorebi-for-mac/komor
 
 [features]
 default = ["schemars"]
-deadlock_detection = ["komorebi-windows/deadlock_detection", "komorebi-linux/deadlock_detection", "komorebi-macos/deadlock_detection"]
-schemars = ["komorebi-windows/schemars", "komorebi-linux/schemars", "komorebi-macos/schemars"]
+deadlock_detection = [
+  "komorebi-windows/deadlock_detection",
+  "komorebi-linux/deadlock_detection",
+  "komorebi-macos/deadlock_detection",
+]
+schemars = [
+  "komorebi-windows/schemars",
+  "komorebi-linux/schemars",
+  "komorebi-macos/schemars",
+]
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 serde_json = { workspace = true }
