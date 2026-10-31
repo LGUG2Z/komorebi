@@ -169,9 +169,13 @@ impl Placement {
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Focus follows mouse implementation
-///
-/// The two exist on Windows. On KDE the compositor does it, so both ask KWin for its
-/// "focus follows mouse" focus policy.
+// KDE's compositor does the focusing: its description says so (it is part of the checked-in schema)
+#[cfg_attr(target_os = "linux", doc = "")]
+#[cfg_attr(
+    target_os = "linux",
+    doc = " The two exist on Windows. On KDE the compositor does it, so both ask KWin for its"
+)]
+#[cfg_attr(target_os = "linux", doc = " \"focus follows mouse\" focus policy.")]
 pub enum FocusFollowsMouseImplementation {
     /// Custom FFM implementation (slightly more CPU-intensive)
     Komorebi,
