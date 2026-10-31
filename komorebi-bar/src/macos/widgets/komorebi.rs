@@ -390,7 +390,7 @@ impl WorkspacesBar {
             .show(ui, |ui| {
                 let (response, painter) = ui.allocate_painter(self.icon_size, Sense::hover());
                 let stroke: Stroke = Stroke::new(
-                    1.0,
+                    1.0_f32,
                     if ws.is_selected {
                         ctx.style().visuals.selection.stroke.color
                     } else {
