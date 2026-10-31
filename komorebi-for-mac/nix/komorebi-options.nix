@@ -1,3 +1,4 @@
+# schema-sha256: 3bb1c9b8bc046eda845db5bd00ea9925b8cbfe965b97612dc50657e7e8ba06bf
 { lib, ... }:
 let
   animationStyle = (
@@ -359,16 +360,7 @@ in
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
-                          (lib.types.submodule {
-                            options = {
-                              movement = lib.mkOption {
-                                type = lib.types.int;
-                              };
-                              workspace = lib.mkOption {
-                                type = lib.types.int;
-                              };
-                            };
-                          })
+                          (lib.types.attrsOf lib.types.int)
                           lib.types.int
                         ]
                       )
@@ -379,16 +371,7 @@ in
                   enabled = lib.mkOption {
                     type = (
                       lib.types.oneOf [
-                        (lib.types.submodule {
-                          options = {
-                            movement = lib.mkOption {
-                              type = lib.types.bool;
-                            };
-                            workspace = lib.mkOption {
-                              type = lib.types.bool;
-                            };
-                          };
-                        })
+                        (lib.types.attrsOf lib.types.bool)
                         lib.types.bool
                       ]
                     );
@@ -404,16 +387,7 @@ in
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
-                          (lib.types.submodule {
-                            options = {
-                              movement = lib.mkOption {
-                                type = animationStyle;
-                              };
-                              workspace = lib.mkOption {
-                                type = animationStyle;
-                              };
-                            };
-                          })
+                          (lib.types.attrsOf animationStyle)
                           animationStyle
                         ]
                       )
@@ -853,35 +827,77 @@ in
                     );
                     default = null;
                   };
-                  unfocused_border = lib.mkOption {
+                  colours = lib.mkOption {
                     type = (
                       lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  monocle_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  stack_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
+                        lib.types.submodule {
+                          options = {
+                            base_00 = lib.mkOption {
+                              type = colour;
+                              description = "Base00";
+                            };
+                            base_01 = lib.mkOption {
+                              type = colour;
+                              description = "Base01";
+                            };
+                            base_02 = lib.mkOption {
+                              type = colour;
+                              description = "Base02";
+                            };
+                            base_03 = lib.mkOption {
+                              type = colour;
+                              description = "Base03";
+                            };
+                            base_04 = lib.mkOption {
+                              type = colour;
+                              description = "Base04";
+                            };
+                            base_05 = lib.mkOption {
+                              type = colour;
+                              description = "Base05";
+                            };
+                            base_06 = lib.mkOption {
+                              type = colour;
+                              description = "Base06";
+                            };
+                            base_07 = lib.mkOption {
+                              type = colour;
+                              description = "Base07";
+                            };
+                            base_08 = lib.mkOption {
+                              type = colour;
+                              description = "Base08";
+                            };
+                            base_09 = lib.mkOption {
+                              type = colour;
+                              description = "Base09";
+                            };
+                            base_0a = lib.mkOption {
+                              type = colour;
+                              description = "Base0A";
+                            };
+                            base_0b = lib.mkOption {
+                              type = colour;
+                              description = "Base0B";
+                            };
+                            base_0c = lib.mkOption {
+                              type = colour;
+                              description = "Base0C";
+                            };
+                            base_0d = lib.mkOption {
+                              type = colour;
+                              description = "Base0D";
+                            };
+                            base_0e = lib.mkOption {
+                              type = colour;
+                              description = "Base0E";
+                            };
+                            base_0f = lib.mkOption {
+                              type = colour;
+                              description = "Base0F";
+                            };
+                          };
+                        }
                       )
                     );
                     default = null;
@@ -897,7 +913,7 @@ in
                     );
                     default = null;
                   };
-                  unfocused_locked_border = lib.mkOption {
+                  monocle_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1205,77 +1221,35 @@ in
                     );
                     default = null;
                   };
-                  colours = lib.mkOption {
+                  stack_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
-                        lib.types.submodule {
-                          options = {
-                            base_00 = lib.mkOption {
-                              type = colour;
-                              description = "Base00";
-                            };
-                            base_01 = lib.mkOption {
-                              type = colour;
-                              description = "Base01";
-                            };
-                            base_02 = lib.mkOption {
-                              type = colour;
-                              description = "Base02";
-                            };
-                            base_03 = lib.mkOption {
-                              type = colour;
-                              description = "Base03";
-                            };
-                            base_04 = lib.mkOption {
-                              type = colour;
-                              description = "Base04";
-                            };
-                            base_05 = lib.mkOption {
-                              type = colour;
-                              description = "Base05";
-                            };
-                            base_06 = lib.mkOption {
-                              type = colour;
-                              description = "Base06";
-                            };
-                            base_07 = lib.mkOption {
-                              type = colour;
-                              description = "Base07";
-                            };
-                            base_08 = lib.mkOption {
-                              type = colour;
-                              description = "Base08";
-                            };
-                            base_09 = lib.mkOption {
-                              type = colour;
-                              description = "Base09";
-                            };
-                            base_0a = lib.mkOption {
-                              type = colour;
-                              description = "Base0A";
-                            };
-                            base_0b = lib.mkOption {
-                              type = colour;
-                              description = "Base0B";
-                            };
-                            base_0c = lib.mkOption {
-                              type = colour;
-                              description = "Base0C";
-                            };
-                            base_0d = lib.mkOption {
-                              type = colour;
-                              description = "Base0D";
-                            };
-                            base_0e = lib.mkOption {
-                              type = colour;
-                              description = "Base0E";
-                            };
-                            base_0f = lib.mkOption {
-                              type = colour;
-                              description = "Base0F";
-                            };
-                          };
-                        }
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_locked_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
                       )
                     );
                     default = null;
