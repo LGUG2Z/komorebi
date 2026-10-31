@@ -3501,7 +3501,11 @@ dependencies = [
 name = "komorebi-client"
 version = "0.1.42"
 dependencies = [
+ "komorebi-linux",
+ "komorebi-macos",
+ "komorebi-themes",
  "komorebi-windows",
+ "parking_lot 0.13.0",
  "serde_json_lenient",
  "uds_windows",
 ]
@@ -3835,8 +3839,6 @@ dependencies = [
  "dunce",
  "fs-tail",
  "komorebi-client",
- "komorebi-client-linux",
- "komorebi-client-macos",
  "komorebi-config",
  "komorebi-hotkeys",
  "komorebi-linux",

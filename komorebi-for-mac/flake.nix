@@ -72,8 +72,19 @@
                         "komorebic/src/main.rs"
                       ]
                       || pkgs.lib.hasPrefix "komorebic/src/macos" relative;
+
+                    # the unified komorebi-client package: its manifest, lib.rs and the module of this platform
+                    komorebiClient =
+                      builtins.elem relative [
+                        "komorebi-client"
+                        "komorebi-client/Cargo.toml"
+                        "komorebi-client/src"
+                        "komorebi-client/src/lib.rs"
+                        "komorebi-client/src/macos.rs"
+                        "komorebi-client/tests"
+                      ];
                   in
-                  ((rootCrate || komorebic) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
+                  ((rootCrate || komorebic || komorebiClient) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
                   && (
                     (craneLib.filterCargoSources path type)
                     || (pkgs.lib.hasInfix "/docs/" path)
@@ -91,9 +102,10 @@
                   member:
                   pkgs.lib.hasPrefix "${platformDir}/" member
                   || member == "komorebic"
+                  || member == "komorebi-client"
                   || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
               };
-              packages = "-p komorebi-macos -p komorebic -p komorebi-client-macos -p komorebi-bar-macos";
+              packages = "-p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar-macos";
               workspaceArgs = {
                 pname = "komorebi-workspace";
                 inherit version;
@@ -239,7 +251,6 @@
                       "--workspace "
                       + pkgs.lib.concatMapStringsSep " " (p: "--exclude ${p}") [
                         "komorebi-windows"
-                        "komorebi-client"
                         "komorebi-gui"
                         "komorebic-no-console"
                         "komorebi-bar"

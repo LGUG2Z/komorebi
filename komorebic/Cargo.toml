@@ -12,6 +12,7 @@ edition = "2024"
 # are renamed (`komorebi-client-linux`, ...) and main.rs gives them the names the modules use.
 
 [dependencies]
+komorebi-client = { path = "../komorebi-client", default-features = false }
 komorebi-config = { path = "../crates/komorebi-config", default-features = false }
 komorebic-core = { path = "../crates/komorebic-core" }
 
@@ -25,7 +26,6 @@ schemars = { workspace = true, optional = true }
 serde_json = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-komorebi-client = { path = "../komorebi-client", default-features = false }
 dunce = { workspace = true }
 miette = { version = "7", features = ["fancy"] }
 open = "5"
@@ -40,7 +40,6 @@ win-msgbox = "0.2"
 windows = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-komorebi-client-linux = { package = "komorebi-client-linux", path = "../komorebi-for-kde/komorebi-client", default-features = false }
 komorebi-linux = { package = "komorebi-linux", path = "../komorebi-for-kde/komorebi", default-features = false }
 komorebi-hotkeys = { path = "../komorebi-for-kde/komorebi-hotkeys" }
 version-linux = { package = "version-linux", path = "../komorebi-for-kde/version" }
@@ -48,7 +47,6 @@ clap_complete = "4"
 sysinfo = "0.40"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-komorebi-client-macos = { package = "komorebi-client-macos", path = "../komorebi-for-mac/komorebi-client", default-features = false }
 version-macos = { package = "version-macos", path = "../komorebi-for-mac/version" }
 clap_complete = "4"
 reqwest = { version = "0.12", features = ["blocking"] }
@@ -62,8 +60,6 @@ default = ["schemars"]
 schemars = [
   "dep:schemars",
   "komorebi-client/default",
-  "komorebi-client-linux/default",
-  "komorebi-client-macos/default",
   "komorebi-config/schemars",
 ]
 

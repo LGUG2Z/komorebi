@@ -86,8 +86,19 @@
                       ]
                       || pkgs.lib.hasPrefix "komorebic/src/linux" relative
                       || pkgs.lib.hasPrefix "komorebic/tests/linux_" relative;
+                    # the unified komorebi-client package: its manifest, lib.rs, the Linux module and tests
+                    komorebiClient =
+                      builtins.elem relative [
+                        "komorebi-client"
+                        "komorebi-client/Cargo.toml"
+                        "komorebi-client/src"
+                        "komorebi-client/src/lib.rs"
+                        "komorebi-client/src/linux.rs"
+                        "komorebi-client/tests"
+                      ]
+                      || pkgs.lib.hasPrefix "komorebi-client/tests/linux_" relative;
                   in
-                  ((rootCrate || rootCrateParent || komorebic) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
+                  ((rootCrate || rootCrateParent || komorebic || komorebiClient) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
                   &&
                     # the VM tests (their library, scripts and the states they keep) are not built, so
                     # editing one does not change the source the daemon is built from
@@ -119,9 +130,10 @@
                   member:
                   pkgs.lib.hasPrefix "${platformDir}/" member
                   || member == "komorebic"
+                  || member == "komorebi-client"
                   || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
               };
-              packages = "-p komorebi-linux -p komorebic -p komorebi-client-linux -p komorebi-hotkeys";
+              packages = "-p komorebi-linux -p komorebic -p komorebi-client -p komorebi-hotkeys";
               workspaceArgs = {
                 pname = "komorebi-workspace";
                 version = (builtins.fromTOML (builtins.readFile ./komorebi/Cargo.toml)).package.version;
@@ -341,7 +353,6 @@
                       "--workspace "
                       + lib.concatMapStringsSep " " (p: "--exclude ${p}") [
                         "komorebi-windows"
-                        "komorebi-client"
                         "komorebi-gui"
                         "komorebic-no-console"
                         "komorebi-bar"

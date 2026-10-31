@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 //! Subscribers against a window manager that listens the way the daemon does, with
 //! [`listen_for_commands`], over an in-memory desktop with one monitor: each subscriber listens on a
 //! socket of its own in a runtime directory of this process, subscribes with `komorebi-client`, and
@@ -6,6 +7,7 @@
 //! The tests share the window manager, and take turns: every subscriber is sent every
 //! notification, so a test that ran at the same time as another would read the other's
 //! notifications too. Window ids are 901 and up.
+extern crate komorebi_linux as komorebi;
 
 use komorebi::SUBSCRIPTION_SOCKETS;
 use komorebi::backend::fake::FakeBackend;

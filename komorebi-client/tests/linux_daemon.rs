@@ -1,7 +1,9 @@
+#![cfg(target_os = "linux")]
 //! The client against a window manager that listens the way the daemon does, with
 //! [`listen_for_commands`], over an in-memory desktop with one monitor and two windows.
 //!
 //! The tests share the window manager, and its socket in a runtime directory of this process.
+extern crate komorebi_linux as komorebi;
 
 use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::set_backend;

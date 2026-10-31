@@ -11,14 +11,12 @@ cfg_select! {
         use windows as platform;
     }
     target_os = "linux" => {
-        extern crate komorebi_client_linux as komorebi_client;
         extern crate komorebi_linux as komorebi;
         extern crate version_linux as version;
         mod linux;
         use linux as platform;
     }
     target_os = "macos" => {
-        extern crate komorebi_client_macos as komorebi_client;
         extern crate version_macos as version;
         mod macos;
         use macos as platform;

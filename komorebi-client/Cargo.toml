@@ -5,12 +5,27 @@ edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-komorebi = { package = "komorebi-windows", path = "../komorebi", default-features = false }
+# One dependency key has one path, so the daemon of each platform has a key of its own, and the module of
+# the platform names it (`use crate::komorebi_linux as komorebi`).
 
-uds_windows = { workspace = true }
+[dependencies]
 serde_json = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+komorebi = { package = "komorebi-windows", path = "../komorebi", default-features = false }
+uds_windows = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+komorebi-linux = { package = "komorebi-linux", path = "../komorebi-for-kde/komorebi", default-features = false }
+komorebi-themes = { path = "../komorebi-themes" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+komorebi-macos = { package = "komorebi-macos", path = "../komorebi-for-mac/komorebi", default-features = false }
+komorebi-themes = { path = "../komorebi-themes" }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+parking_lot = "0.13"
 
 [features]
 default = ["schemars"]
-schemars = ["komorebi/default"]
+schemars = ["komorebi/default", "komorebi-linux/default", "komorebi-macos/default"]
