@@ -7,6 +7,7 @@ use crate::window::Window;
 use crate::windows_backend::backend;
 use komorebi_backend::WindowId;
 use komorebi_core::ContainerWindow;
+use komorebi_core::WorkspaceWindow;
 
 /// The windows that share one tile of a workspace's layout
 pub type Container = komorebi_core::Container<Window>;
@@ -36,6 +37,24 @@ impl ContainerWindow for Window {
 
     fn restore_stacked(&self) {
         self.restore_with_border(false);
+    }
+}
+
+impl WorkspaceWindow for Window {
+    fn title(&self) -> Option<String> {
+        Window::title(*self)
+    }
+
+    fn exe(&self) -> Option<String> {
+        Window::exe(*self)
+    }
+
+    fn class(&self) -> Option<String> {
+        Window::class(*self)
+    }
+
+    fn path(&self) -> Option<String> {
+        Window::path(*self)
     }
 }
 
