@@ -2,7 +2,7 @@ use crate::config::DisplayFormat;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::komorebi::KomorebiLayoutConfig;
-use color_eyre::eyre;
+pub use komorebi_bar_core::widgets::komorebi_config::KomorebiLayout;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
 use eframe::egui::FontId;
@@ -15,69 +15,29 @@ use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use eframe::egui::vec2;
 use komorebi_client::SocketMessage;
-use serde::Deserialize;
-use serde::Deserializer;
-use serde::Serialize;
-use serde::de::Error;
-use serde_json::from_str;
-use std::fmt::Display;
-use std::fmt::Formatter;
 
-#[derive(Copy, Clone, Debug, Serialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-/// Komorebi layout kind
-pub enum KomorebiLayout {
-    /// Predefined layout
-    #[cfg_attr(feature = "schemars", schemars(title = "Default"))]
-    Default(komorebi_client::DefaultLayout),
-    /// Monocle mode
-    Monocle,
-    /// Floating layer
-    Floating,
-    /// Paused
-    Paused,
-    /// Custom layout
-    Custom,
+/// What the layout widget does with a layout kind (the kind itself lives in the core).
+pub trait KomorebiLayoutExt {
+    fn is_default(&mut self) -> bool;
+    fn on_click(
+        &mut self,
+        show_options: &bool,
+        monitor_idx: usize,
+        workspace_idx: Option<usize>,
+    ) -> bool;
+    fn on_click_option(&mut self, monitor_idx: usize, workspace_idx: Option<usize>);
+    fn show_icon(&mut self, is_selected: bool, font_id: FontId, ctx: &Context, ui: &mut Ui);
+    fn show(
+        &mut self,
+        ctx: &Context,
+        ui: &mut Ui,
+        render_config: &mut RenderConfig,
+        layout_config: &KomorebiLayoutConfig,
+        workspace_idx: Option<usize>,
+    );
 }
 
-impl<'de> Deserialize<'de> for KomorebiLayout {
-    fn deserialize<D>(deserializer: D) -> eyre::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: String = String::deserialize(deserializer)?;
-
-        // Attempt to deserialize the string as a DefaultLayout
-        if let Ok(default_layout) = from_str::<komorebi_client::DefaultLayout>(&format!("\"{s}\""))
-        {
-            return Ok(KomorebiLayout::Default(default_layout));
-        }
-
-        // Handle other cases
-        match s.as_str() {
-            "Monocle" => Ok(KomorebiLayout::Monocle),
-            "Floating" => Ok(KomorebiLayout::Floating),
-            "Paused" => Ok(KomorebiLayout::Paused),
-            "Custom" => Ok(KomorebiLayout::Custom),
-            _ => Err(Error::custom(format!("Invalid layout: {s}"))),
-        }
-    }
-}
-
-impl Display for KomorebiLayout {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            KomorebiLayout::Default(layout) => write!(f, "{layout}"),
-            KomorebiLayout::Monocle => write!(f, "Monocle"),
-            KomorebiLayout::Floating => write!(f, "Floating"),
-            KomorebiLayout::Paused => write!(f, "Paused"),
-            KomorebiLayout::Custom => write!(f, "Custom"),
-        }
-    }
-}
-
-impl KomorebiLayout {
+impl KomorebiLayoutExt for KomorebiLayout {
     fn is_default(&mut self) -> bool {
         matches!(self, KomorebiLayout::Default(_))
     }
@@ -242,7 +202,7 @@ impl KomorebiLayout {
         }
     }
 
-    pub fn show(
+    fn show(
         &mut self,
         ctx: &Context,
         ui: &mut Ui,

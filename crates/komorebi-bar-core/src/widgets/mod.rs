@@ -3,6 +3,7 @@ pub mod battery;
 pub mod cpu;
 pub mod date;
 pub mod icons;
+pub mod komorebi_config;
 pub mod memory;
 pub mod platform_config;
 pub mod storage;

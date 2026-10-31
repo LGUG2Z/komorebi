@@ -3253,10 +3253,12 @@ version = "0.1.42"
 dependencies = [
  "chrono",
  "chrono-tz",
+ "color-eyre",
  "eframe",
  "egui-phosphor",
  "image 0.25.10",
  "komorebi-config",
+ "komorebi-layouts",
  "komorebi-protocol",
  "lazy_static",
  "reqwest",
