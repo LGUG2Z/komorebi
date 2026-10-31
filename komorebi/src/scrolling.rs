@@ -10,8 +10,6 @@ use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_MANAGER;
 use crate::animation::prefix::AnimationPrefix;
 use crate::container::Container;
-use crate::core::DefaultLayout;
-use crate::core::Layout;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::Rect;
@@ -20,6 +18,7 @@ use crate::core::Sizing;
 use crate::core::WindowHandlingBehaviour;
 use crate::windows_backend::backend;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use komorebi_backend::WindowId;
 use komorebi_layouts::scrolling;
@@ -168,7 +167,7 @@ pub(crate) fn animations_enabled() -> bool {
             .is_some_and(|enabled| *enabled)
 }
 
-impl Workspace {
+pub(crate) trait WorkspaceScrolling {
     /// Learn from what windows turned out to be when they were sent to where the layout put them,
     /// which is that some of them are wider than the layout said and will not be any narrower.
     ///
@@ -178,7 +177,171 @@ impl Workspace {
     ///
     /// `around_window` is what a column takes up around its window on either side, and the strip
     /// is `viewport_width` wide. Returns whether any column changed.
-    pub(crate) fn adopt_actual_widths(&mut self, around_window: i32, viewport_width: i32) -> bool {
+    fn adopt_actual_widths(&mut self, around_window: i32, viewport_width: i32) -> bool;
+
+    fn scrolling_ids(&self) -> Vec<String>;
+
+    /// Set how many columns the Scrolling layout shows at once, keeping every other layout option.
+    fn set_scrolling_columns(&mut self, columns: usize);
+
+    /// Make the space match the containers, and the focus, as they are now.
+    fn sync_scrolling(&mut self, viewport: komorebi_scrolling::Viewport);
+
+    /// Say what the column of the container at this index was given, as it is about to be taken
+    /// out of the workspace, for the workspace that it is put in to find.
+    fn note_scrolling_departure(&self, idx: usize);
+
+    /// Make the space match the containers and the focus as they are now, for a space that is
+    /// there to be made to match.
+    ///
+    /// This is for a change that is about to be made to the containers, and that the space is
+    /// going to be told about directly. The space has to know what there is before it is told
+    /// what goes.
+    fn sync_scrolling_containers(&mut self);
+
+    /// Give focus to what the strip says should have it after the container `removed` has gone,
+    /// and tell whether the strip had anything to say.
+    ///
+    /// Focus goes back to the column that the closed one was opened next to, if nothing has
+    /// moved focus since, and otherwise to the column that takes its place on the right. Focus that
+    /// is not on the closed column stays where it is. This is not what the other layouts do, which
+    /// always move focus to the left.
+    fn focus_after_scrolling_removal(&mut self, removed: &str) -> bool;
+
+    /// Where every container goes in `work_area`, from left to right, with `container_padding`
+    /// taken off every side of each.
+    fn layout_scrolling(
+        &mut self,
+        work_area: &Rect,
+        container_padding: i32,
+    ) -> Vec<ScrollingPlacement>;
+
+    /// Where the container that a new window gets goes, if the strip has a say: after the last
+    /// tile of the column that has focus.
+    ///
+    /// A new window is a column of its own beside the focused one, and not a tile in the middle of
+    /// it, which is what the container after the focused one would be if the column has other
+    /// tiles below.
+    fn scrolling_insertion_idx(&self) -> Option<usize>;
+
+    /// Where focus would go from the focused container in this direction, in the strip as it is
+    /// now, or `None` if it would not go anywhere.
+    ///
+    /// Left and right are the neighbouring columns, and focus goes to the tile that had it last
+    /// in the one it arrives at. Up and down are the tiles of the focused column, and stop at
+    /// the ends.
+    fn scrolling_idx_for_direction(&self, direction: OperationDirection) -> Option<usize>;
+
+    /// Make the order of the containers the order of the tiles of the strip, and focus the tile
+    /// that the strip says has it.
+    ///
+    /// Most of what the strip does leaves the order alone. What moves a tile past another does
+    /// not, and the list of containers is what is true, so it is made to match.
+    fn apply_scrolling_order(&mut self);
+
+    /// Make the space agree with which container has focus, and give back the id of that
+    /// container, for a command that is about the focused column.
+    ///
+    /// There is nothing to do until a layout has made the space, and in a layout that is not
+    /// Scrolling.
+    fn focused_scrolling_column(&mut self) -> Option<String>;
+
+    /// Move the focused column one place to the left or right, or the focused tile one place up
+    /// or down in its column, and tell whether anything moved.
+    ///
+    /// A column moves with all of its tiles.
+    fn move_scrolling(&mut self, direction: OperationDirection) -> bool;
+
+    /// Take the neighbouring tile on one side into the focused column: the first tile of the
+    /// column on the right to the bottom of it, or the last tile of the column on the left to the
+    /// top of it. Up and down mean nothing here.
+    fn consume_scrolling(&mut self, direction: OperationDirection);
+
+    /// Take the focused tile out of its column and put it in a column of its own on the right.
+    fn expel_scrolling(&mut self);
+
+    /// Stack the windows of the focused column in one tile, or spread the stack in the focused tile
+    /// out into the tiles of a column, whichever it is, and tell whether there was anything to do.
+    ///
+    /// A column of several tiles becomes one tile that is a stack of all of their windows, in the
+    /// order that they were in, with the window that had focus still showing. A tile that is a stack
+    /// becomes a column of a tile for each of its windows, in the order of its tabs, with focus on
+    /// the window that had it. Either way the column keeps its width, but the heights that its tiles
+    /// were given are not remembered for when it is toggled back.
+    fn toggle_scrolling_column_stack(&mut self) -> eyre::Result<bool>;
+
+    /// Put the windows of all of the containers with these ids in the first of them, in order.
+    fn stack_scrolling_column(&mut self, column: &[String]);
+
+    /// Put each of the windows of the focused container in a container of its own, in the same
+    /// column, and tell whether it had more than one.
+    fn unstack_scrolling_column(&mut self) -> bool;
+
+    /// Put every column back to the width that the `columns` option gives, which forgets every
+    /// width that was set by resizing, by a preset, or by taking the full width, and every window
+    /// back to an equal share of the height of its column. The narrowest that windows were found
+    /// to accept is forgotten as well.
+    ///
+    /// The focused column stays where it is on screen unless it has to scroll to stay in view.
+    fn reset_scrolling_sizes(&mut self);
+
+    /// Make the focused column as wide as the screen, or give it back the width that it had.
+    fn toggle_scrolling_full_width(&mut self);
+
+    /// Make the focused column as wide as it can be without scrolling anything else out of view,
+    /// which is to fill the room that the columns in view leave. Only the Scrolling layout has
+    /// columns to expand.
+    fn expand_scrolling_column(&mut self);
+
+    /// Start moving the strip across the screen by hand, and give back the strip as it is, for
+    /// putting it back if the pan is given up. Only the Scrolling layout has a strip to move, and
+    /// not before a layout has made it.
+    fn begin_scrolling_pan(&mut self) -> Option<ScrollingSpace<String>>;
+
+    /// Move the strip by `dx` pixels on the screen, to the right if it is positive. Nothing else
+    /// changes: not which container has focus, nor the width of any.
+    fn pan_scrolling(&mut self, dx: f64);
+
+    /// Let go of the strip, going at `velocity` pixels a second on the screen, to the right if it
+    /// is positive, and let it come to rest, which is with a column against an edge of the screen.
+    /// Focus goes to the nearest column that is fully in view if the focused one is not, and
+    /// this tells whether it moved.
+    fn end_scrolling_pan(&mut self, velocity: f64) -> bool;
+
+    /// Give up a pan: the strip is put back to what it was when it began.
+    fn cancel_scrolling_pan(&mut self, saved: ScrollingSpace<String>);
+
+    /// How far into the strip the left edge of the screen is, in pixels. A strip that is moved
+    /// by `dx` has this smaller by `dx`.
+    fn scrolling_view_offset(&self) -> Option<f64>;
+
+    /// Where the strip puts the window that shows in each container, as how far its left edge
+    /// is from the left edge of the screen, and whether it is on the screen there and so
+    /// where it really is: windows that are not are parked at an edge.
+    fn scrolling_lefts(&self) -> Vec<(isize, i32, bool)>;
+
+    /// How wide the screen is that the strip is moved across, in pixels.
+    fn scrolling_view_width(&self) -> Option<i32>;
+
+    /// How far one step of a pan goes, if nothing says: a column of the width that a new one
+    /// is given.
+    fn scrolling_pan_step(&self) -> Option<i32>;
+
+    /// Centre the focused column on the screen, this once.
+    fn center_scrolling_column(&mut self);
+
+    /// Make the focused column wider or narrower with the horizontal edges, and the focused window
+    /// taller or shorter in its column with the vertical ones.
+    fn resize_scrolling_column(
+        &mut self,
+        direction: OperationDirection,
+        sizing: Sizing,
+        delta: i32,
+    );
+}
+
+impl WorkspaceScrolling for Workspace {
+    fn adopt_actual_widths(&mut self, around_window: i32, viewport_width: i32) -> bool {
         // a window that is still on its way, or whose move was only asked for, is not what it
         // is going to be, and taking its size for a minimum would make the column too wide for good
         if !window_sizes_are_settled() {
@@ -241,11 +404,6 @@ impl Workspace {
         adopted
     }
 
-    /// Whether the workspace is laid out as a strip of columns.
-    pub(crate) fn is_scrolling(&self) -> bool {
-        matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
-    }
-
     fn scrolling_ids(&self) -> Vec<String> {
         self.containers()
             .iter()
@@ -253,8 +411,7 @@ impl Workspace {
             .collect()
     }
 
-    /// Set how many columns the Scrolling layout shows at once, keeping every other layout option.
-    pub fn set_scrolling_columns(&mut self, columns: usize) {
+    fn set_scrolling_columns(&mut self, columns: usize) {
         let mut options = self.layout_options.unwrap_or(LayoutOptions {
             scrolling: None,
             grid: None,
@@ -275,7 +432,6 @@ impl Workspace {
         self.layout_options = Some(options);
     }
 
-    /// Make the space match the containers, and the focus, as they are now.
     fn sync_scrolling(&mut self, viewport: komorebi_scrolling::Viewport) {
         let options = scrolling_options(self.effective_layout_options());
         let ids = self.scrolling_ids();
@@ -292,9 +448,7 @@ impl Workspace {
         );
     }
 
-    /// Say what the column of the container at this index was given, as it is about to be taken
-    /// out of the workspace, for the workspace that it is put in to find.
-    pub(crate) fn note_scrolling_departure(&self, idx: usize) {
+    fn note_scrolling_departure(&self, idx: usize) {
         if let Some(space) = &self.scrolling
             && let Some(container) = self.containers().get(idx)
             && let Some(record) = space.column_record(&container.id)
@@ -303,13 +457,7 @@ impl Workspace {
         }
     }
 
-    /// Make the space match the containers and the focus as they are now, for a space that is
-    /// there to be made to match.
-    ///
-    /// This is for a change that is about to be made to the containers, and that the space is
-    /// going to be told about directly. The space has to know what there is before it is told
-    /// what goes.
-    pub(crate) fn sync_scrolling_containers(&mut self) {
+    fn sync_scrolling_containers(&mut self) {
         let ids = self.scrolling_ids();
         let focused = self
             .focused_container()
@@ -321,14 +469,7 @@ impl Workspace {
         }
     }
 
-    /// Give focus to what the strip says should have it after the container `removed` has gone,
-    /// and tell whether the strip had anything to say.
-    ///
-    /// Focus goes back to the column that the closed one was opened next to, if nothing has
-    /// moved focus since, and otherwise to the column that takes its place on the right. Focus that
-    /// is not on the closed column stays where it is. This is not what the other layouts do, which
-    /// always move focus to the left.
-    pub(crate) fn focus_after_scrolling_removal(&mut self, removed: &str) -> bool {
+    fn focus_after_scrolling_removal(&mut self, removed: &str) -> bool {
         let Some(space) = self.scrolling.as_mut() else {
             return false;
         };
@@ -346,9 +487,7 @@ impl Workspace {
         true
     }
 
-    /// Where every container goes in `work_area`, from left to right, with `container_padding`
-    /// taken off every side of each.
-    pub(crate) fn layout_scrolling(
+    fn layout_scrolling(
         &mut self,
         work_area: &Rect,
         container_padding: i32,
@@ -361,13 +500,7 @@ impl Workspace {
             .unwrap_or_default()
     }
 
-    /// Where the container that a new window gets goes, if the strip has a say: after the last
-    /// tile of the column that has focus.
-    ///
-    /// A new window is a column of its own beside the focused one, and not a tile in the middle of
-    /// it, which is what the container after the focused one would be if the column has other
-    /// tiles below.
-    pub(crate) fn scrolling_insertion_idx(&self) -> Option<usize> {
+    fn scrolling_insertion_idx(&self) -> Option<usize> {
         if !self.is_scrolling() {
             return None;
         }
@@ -382,16 +515,7 @@ impl Workspace {
             .map(|idx| idx + 1)
     }
 
-    /// Where focus would go from the focused container in this direction, in the strip as it is
-    /// now, or `None` if it would not go anywhere.
-    ///
-    /// Left and right are the neighbouring columns, and focus goes to the tile that had it last
-    /// in the one it arrives at. Up and down are the tiles of the focused column, and stop at
-    /// the ends.
-    pub(crate) fn scrolling_idx_for_direction(
-        &self,
-        direction: OperationDirection,
-    ) -> Option<usize> {
+    fn scrolling_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
         // the strip may not have heard about everything that happened since the last layout, so
         // this goes by a copy of it that has
         let mut probe = self.scrolling.clone()?;
@@ -415,11 +539,6 @@ impl Workspace {
         }
     }
 
-    /// Make the order of the containers the order of the tiles of the strip, and focus the tile
-    /// that the strip says has it.
-    ///
-    /// Most of what the strip does leaves the order alone. What moves a tile past another does
-    /// not, and the list of containers is what is true, so it is made to match.
     fn apply_scrolling_order(&mut self) {
         let Some(space) = self.scrolling.as_ref() else {
             return;
@@ -447,11 +566,6 @@ impl Workspace {
         self.resize_dimensions = vec![None; self.containers().len()];
     }
 
-    /// Make the space agree with which container has focus, and give back the id of that
-    /// container, for a command that is about the focused column.
-    ///
-    /// There is nothing to do until a layout has made the space, and in a layout that is not
-    /// Scrolling.
     fn focused_scrolling_column(&mut self) -> Option<String> {
         if !self.is_scrolling() || self.scrolling.is_none() {
             return None;
@@ -463,11 +577,7 @@ impl Workspace {
             .map(|container| container.id.clone())
     }
 
-    /// Move the focused column one place to the left or right, or the focused tile one place up
-    /// or down in its column, and tell whether anything moved.
-    ///
-    /// A column moves with all of its tiles.
-    pub(crate) fn move_scrolling(&mut self, direction: OperationDirection) -> bool {
+    fn move_scrolling(&mut self, direction: OperationDirection) -> bool {
         let Some(id) = self.focused_scrolling_column() else {
             return false;
         };
@@ -505,10 +615,7 @@ impl Workspace {
         moved
     }
 
-    /// Take the neighbouring tile on one side into the focused column: the first tile of the
-    /// column on the right to the bottom of it, or the last tile of the column on the left to the
-    /// top of it. Up and down mean nothing here.
-    pub(crate) fn consume_scrolling(&mut self, direction: OperationDirection) {
+    fn consume_scrolling(&mut self, direction: OperationDirection) {
         if self.focused_scrolling_column().is_none() {
             return;
         }
@@ -528,8 +635,7 @@ impl Workspace {
         }
     }
 
-    /// Take the focused tile out of its column and put it in a column of its own on the right.
-    pub(crate) fn expel_scrolling(&mut self) {
+    fn expel_scrolling(&mut self) {
         if self.focused_scrolling_column().is_none() {
             return;
         }
@@ -543,15 +649,7 @@ impl Workspace {
         }
     }
 
-    /// Stack the windows of the focused column in one tile, or spread the stack in the focused tile
-    /// out into the tiles of a column, whichever it is, and tell whether there was anything to do.
-    ///
-    /// A column of several tiles becomes one tile that is a stack of all of their windows, in the
-    /// order that they were in, with the window that had focus still showing. A tile that is a stack
-    /// becomes a column of a tile for each of its windows, in the order of its tabs, with focus on
-    /// the window that had it. Either way the column keeps its width, but the heights that its tiles
-    /// were given are not remembered for when it is toggled back.
-    pub(crate) fn toggle_scrolling_column_stack(&mut self) -> eyre::Result<bool> {
+    fn toggle_scrolling_column_stack(&mut self) -> eyre::Result<bool> {
         let Some(id) = self.focused_scrolling_column() else {
             return Ok(false);
         };
@@ -573,7 +671,6 @@ impl Workspace {
         Ok(self.unstack_scrolling_column())
     }
 
-    /// Put the windows of all of the containers with these ids in the first of them, in order.
     fn stack_scrolling_column(&mut self, column: &[String]) {
         let focused_window = self
             .focused_container()
@@ -613,8 +710,6 @@ impl Workspace {
         self.focus_container(idx);
     }
 
-    /// Put each of the windows of the focused container in a container of its own, in the same
-    /// column, and tell whether it had more than one.
     fn unstack_scrolling_column(&mut self) -> bool {
         let idx = self.focused_container_idx();
 
@@ -674,13 +769,7 @@ impl Workspace {
         true
     }
 
-    /// Put every column back to the width that the `columns` option gives, which forgets every
-    /// width that was set by resizing, by a preset, or by taking the full width, and every window
-    /// back to an equal share of the height of its column. The narrowest that windows were found
-    /// to accept is forgotten as well.
-    ///
-    /// The focused column stays where it is on screen unless it has to scroll to stay in view.
-    pub(crate) fn reset_scrolling_sizes(&mut self) {
+    fn reset_scrolling_sizes(&mut self) {
         if let Some(space) = self.scrolling.as_mut() {
             space.reset_widths();
             space.reset_heights();
@@ -694,8 +783,7 @@ impl Workspace {
         }
     }
 
-    /// Make the focused column as wide as the screen, or give it back the width that it had.
-    pub(crate) fn toggle_scrolling_full_width(&mut self) {
+    fn toggle_scrolling_full_width(&mut self) {
         if let Some(id) = self.focused_scrolling_column()
             && let Some(space) = self.scrolling.as_mut()
         {
@@ -703,10 +791,7 @@ impl Workspace {
         }
     }
 
-    /// Make the focused column as wide as it can be without scrolling anything else out of view,
-    /// which is to fill the room that the columns in view leave. Only the Scrolling layout has
-    /// columns to expand.
-    pub(crate) fn expand_scrolling_column(&mut self) {
+    fn expand_scrolling_column(&mut self) {
         if self.is_scrolling()
             && self.focused_scrolling_column().is_some()
             && let Some(space) = self.scrolling.as_mut()
@@ -715,10 +800,7 @@ impl Workspace {
         }
     }
 
-    /// Start moving the strip across the screen by hand, and give back the strip as it is, for
-    /// putting it back if the pan is given up. Only the Scrolling layout has a strip to move, and
-    /// not before a layout has made it.
-    pub(crate) fn begin_scrolling_pan(&mut self) -> Option<ScrollingSpace<String>> {
+    fn begin_scrolling_pan(&mut self) -> Option<ScrollingSpace<String>> {
         if !self.is_scrolling() || self.scrolling.is_none() {
             return None;
         }
@@ -732,19 +814,13 @@ impl Workspace {
         Some(saved)
     }
 
-    /// Move the strip by `dx` pixels on the screen, to the right if it is positive. Nothing else
-    /// changes: not which container has focus, nor the width of any.
-    pub(crate) fn pan_scrolling(&mut self, dx: f64) {
+    fn pan_scrolling(&mut self, dx: f64) {
         if let Some(space) = self.scrolling.as_mut() {
             space.pan_by(dx);
         }
     }
 
-    /// Let go of the strip, going at `velocity` pixels a second on the screen, to the right if it
-    /// is positive, and let it come to rest, which is with a column against an edge of the screen.
-    /// Focus goes to the nearest column that is fully in view if the focused one is not, and
-    /// this tells whether it moved.
-    pub(crate) fn end_scrolling_pan(&mut self, velocity: f64) -> bool {
+    fn end_scrolling_pan(&mut self, velocity: f64) -> bool {
         let Some(space) = self.scrolling.as_mut() else {
             return false;
         };
@@ -765,23 +841,17 @@ impl Workspace {
         }
     }
 
-    /// Give up a pan: the strip is put back to what it was when it began.
-    pub(crate) fn cancel_scrolling_pan(&mut self, saved: ScrollingSpace<String>) {
+    fn cancel_scrolling_pan(&mut self, saved: ScrollingSpace<String>) {
         if self.scrolling.is_some() {
             self.scrolling = Some(saved);
         }
     }
 
-    /// How far into the strip the left edge of the screen is, in pixels. A strip that is moved
-    /// by `dx` has this smaller by `dx`.
-    pub(crate) fn scrolling_view_offset(&self) -> Option<f64> {
+    fn scrolling_view_offset(&self) -> Option<f64> {
         self.scrolling.as_ref().map(ScrollingSpace::view_offset)
     }
 
-    /// Where the strip puts the window that shows in each container, as how far its left edge
-    /// is from the left edge of the screen, and whether it is on the screen there and so
-    /// where it really is: windows that are not are parked at an edge.
-    pub(crate) fn scrolling_lefts(&self) -> Vec<(isize, i32, bool)> {
+    fn scrolling_lefts(&self) -> Vec<(isize, i32, bool)> {
         let Some(space) = self.scrolling.as_ref() else {
             return vec![];
         };
@@ -801,14 +871,11 @@ impl Workspace {
             .collect()
     }
 
-    /// How wide the screen is that the strip is moved across, in pixels.
-    pub(crate) fn scrolling_view_width(&self) -> Option<i32> {
+    fn scrolling_view_width(&self) -> Option<i32> {
         self.scrolling.as_ref().map(|space| space.viewport().width)
     }
 
-    /// How far one step of a pan goes, if nothing says: a column of the width that a new one
-    /// is given.
-    pub(crate) fn scrolling_pan_step(&self) -> Option<i32> {
+    fn scrolling_pan_step(&self) -> Option<i32> {
         let space = self.scrolling.as_ref()?;
         let viewport = f64::from(space.viewport().width);
 
@@ -820,8 +887,7 @@ impl Workspace {
         Some(step.round() as i32)
     }
 
-    /// Centre the focused column on the screen, this once.
-    pub(crate) fn center_scrolling_column(&mut self) {
+    fn center_scrolling_column(&mut self) {
         if self.focused_scrolling_column().is_some()
             && let Some(space) = self.scrolling.as_mut()
         {
@@ -829,9 +895,7 @@ impl Workspace {
         }
     }
 
-    /// Make the focused column wider or narrower with the horizontal edges, and the focused window
-    /// taller or shorter in its column with the vertical ones.
-    pub(crate) fn resize_scrolling_column(
+    fn resize_scrolling_column(
         &mut self,
         direction: OperationDirection,
         sizing: Sizing,
@@ -853,7 +917,9 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DefaultLayout;
     use crate::HIDDEN_HWNDS;
+    use crate::Layout;
     use crate::window::Window;
 
     const AREA: Rect = Rect {

@@ -11,6 +11,7 @@ use crate::core::PanGesture;
 use crate::core::Rect;
 use crate::live_resize;
 use crate::live_resize::Snapping;
+use crate::scrolling::WorkspaceScrolling;
 use crate::window_manager::WindowManager;
 use crate::windows_backend::backend;
 use color_eyre::eyre;

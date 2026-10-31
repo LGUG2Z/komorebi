@@ -10,6 +10,7 @@ use crate::WindowManagerEvent;
 use crate::border_manager;
 use crate::notify_subscribers;
 use crate::winevent::WinEvent;
+use crate::workspace::WorkspaceExt;
 
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;

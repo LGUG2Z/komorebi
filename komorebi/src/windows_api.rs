@@ -1,3 +1,4 @@
+use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use color_eyre::eyre::Error;
 use color_eyre::eyre::OptionExt;

@@ -1,3 +1,5 @@
+use crate::scrolling::WorkspaceScrolling;
+use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::WrapErr;
@@ -2002,7 +2004,9 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
     pub fn add_session_float_rule(&mut self) -> eyre::Result<()> {
         let foreground_window = WindowsApi::foreground_window()?;
         let window = Window::from(foreground_window);
-        if let (Some(exe), Some(title), Some(class)) = (window.exe(), window.title(), window.class()) {
+        if let (Some(exe), Some(title), Some(class)) =
+            (window.exe(), window.title(), window.class())
+        {
             let rule = MatchingRule::Composite(vec![
                 IdWithIdentifier {
                     kind: ApplicationIdentifier::Exe,

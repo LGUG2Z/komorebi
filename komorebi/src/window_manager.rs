@@ -1,3 +1,5 @@
+use crate::scrolling::WorkspaceScrolling;
+use crate::workspace::WorkspaceExt;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -637,7 +639,9 @@ impl WindowManager {
                                             already_moved_window_handles.insert(window.hwnd);
 
                                             self.add_window_handle_to_move_based_on_workspace_rule(
-                                                &window.title().ok_or_eyre("the window has no title")?,
+                                                &window
+                                                    .title()
+                                                    .ok_or_eyre("the window has no title")?,
                                                 window.hwnd,
                                                 i,
                                                 j,
@@ -649,7 +653,9 @@ impl WindowManager {
                                         }
                                     } else {
                                         self.add_window_handle_to_move_based_on_workspace_rule(
-                                            &window.title().ok_or_eyre("the window has no title")?,
+                                            &window
+                                                .title()
+                                                .ok_or_eyre("the window has no title")?,
                                             window.hwnd,
                                             i,
                                             j,

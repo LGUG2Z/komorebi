@@ -80,6 +80,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
@@ -109,8 +110,10 @@ pub use komorebi_config::static_config::ThemeOptions;
 pub use komorebi_config::static_config::Wallpaper;
 pub use komorebi_config::static_config::WorkspaceConfig;
 
-impl From<&Workspace> for WorkspaceConfig {
-    fn from(value: &Workspace) -> Self {
+/// The `komorebi.json` entry that describes a workspace (the shared `Workspace` is not local, so this is
+/// a function and not a `From` impl)
+pub fn workspace_config(value: &Workspace) -> WorkspaceConfig {
+    {
         let mut layout_rules = HashMap::new();
         for (threshold, layout) in &value.layout_rules {
             match layout {
@@ -155,7 +158,7 @@ impl From<&Workspace> for WorkspaceConfig {
 
         let tile = if value.tile { None } else { Some(false) };
 
-        Self {
+        WorkspaceConfig {
             name: value
                 .name
                 .clone()
@@ -219,7 +222,7 @@ impl From<&Monitor> for MonitorConfig {
     fn from(value: &Monitor) -> Self {
         let mut workspaces = vec![];
         for w in value.workspaces() {
-            workspaces.push(WorkspaceConfig::from(w));
+            workspaces.push(workspace_config(w));
         }
 
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
