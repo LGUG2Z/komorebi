@@ -62,14 +62,24 @@
                     rootCrate = builtins.any (
                       crate: relative == crate || pkgs.lib.hasPrefix "${crate}/" relative
                     ) rootCrates;
+                    # the unified komorebic package: its manifest, build script, main and the macOS module
+                    komorebic =
+                      builtins.elem relative [
+                        "komorebic"
+                        "komorebic/Cargo.toml"
+                        "komorebic/build.rs"
+                        "komorebic/src"
+                        "komorebic/src/main.rs"
+                      ]
+                      || pkgs.lib.hasPrefix "komorebic/src/macos" relative;
                   in
-                  (rootCrate && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
+                  ((rootCrate || komorebic) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
                   && (
                     (craneLib.filterCargoSources path type)
                     || (pkgs.lib.hasInfix "/docs/" path)
                     || (builtins.match ".*/docs/.*" path != null)
                     # embedded by include_str! in komorebic
-                    || (pkgs.lib.hasSuffix "/komorebic/applications.json" path)
+                    || (pkgs.lib.hasSuffix "/komorebic/src/macos/applications.json" path)
                   );
               };
 
@@ -80,9 +90,10 @@
                 isReal =
                   member:
                   pkgs.lib.hasPrefix "${platformDir}/" member
+                  || member == "komorebic"
                   || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
               };
-              packages = "-p komorebi-macos -p komorebic-macos -p komorebi-client-macos -p komorebi-bar-macos";
+              packages = "-p komorebi-macos -p komorebic -p komorebi-client-macos -p komorebi-bar-macos";
               workspaceArgs = {
                 pname = "komorebi-workspace";
                 inherit version;

@@ -20,7 +20,6 @@ cfg_select! {
     target_os = "macos" => {
         extern crate komorebi_client_macos as komorebi_client;
         extern crate version_macos as version;
-        #[path = "../../komorebi-for-mac/komorebic/src/main.rs"]
         mod macos;
         use macos as platform;
     }
