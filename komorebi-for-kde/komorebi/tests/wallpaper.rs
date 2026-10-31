@@ -355,6 +355,9 @@ fn theme_options_choose_the_variant_and_the_colour_each_border_takes() {
         unfocused_border: None,
         unfocused_locked_border: None,
         bar_accent: None,
+        stackbar_focused_text: None,
+        stackbar_unfocused_text: None,
+        stackbar_background: None,
     };
 
     let by_default = focused_with(None);

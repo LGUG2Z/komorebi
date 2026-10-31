@@ -460,17 +460,14 @@ pub struct KomorebiThemeCatppuccin {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Red)))]
     pub unfocused_locked_border: Option<CatppuccinValue>,
-    #[cfg(target_os = "windows")]
     /// Stackbar focused text colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Green)))]
     pub stackbar_focused_text: Option<CatppuccinValue>,
-    #[cfg(target_os = "windows")]
     /// Stackbar unfocused text colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Text)))]
     pub stackbar_unfocused_text: Option<CatppuccinValue>,
-    #[cfg(target_os = "windows")]
     /// Stackbar background colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Base)))]
@@ -511,17 +508,14 @@ pub struct KomorebiThemeBase16 {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base08)))]
     pub unfocused_locked_border: Option<Base16Value>,
-    #[cfg(target_os = "windows")]
     /// Stackbar focused text colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0B)))]
     pub stackbar_focused_text: Option<Base16Value>,
-    #[cfg(target_os = "windows")]
     /// Stackbar unfocused text colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base05)))]
     pub stackbar_unfocused_text: Option<Base16Value>,
-    #[cfg(target_os = "windows")]
     /// Stackbar background colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base01)))]
@@ -562,17 +556,14 @@ pub struct KomorebiThemeCustom {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base08)))]
     pub unfocused_locked_border: Option<Base16Value>,
-    #[cfg(target_os = "windows")]
     /// Stackbar focused text colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0B)))]
     pub stackbar_focused_text: Option<Base16Value>,
-    #[cfg(target_os = "windows")]
     /// Stackbar unfocused text colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base05)))]
     pub stackbar_unfocused_text: Option<Base16Value>,
-    #[cfg(target_os = "windows")]
     /// Stackbar background colour
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base01)))]

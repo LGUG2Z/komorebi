@@ -2155,6 +2155,9 @@ impl Workspace {
                         unfocused_border: options.and_then(|o| o.unfocused_border),
                         unfocused_locked_border: options.and_then(|o| o.unfocused_locked_border),
                         bar_accent: options.and_then(|o| o.bar_accent),
+                        stackbar_focused_text: None,
+                        stackbar_unfocused_text: None,
+                        stackbar_background: None,
                     }));
                 }
             }

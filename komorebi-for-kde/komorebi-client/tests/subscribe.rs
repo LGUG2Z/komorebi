@@ -277,6 +277,9 @@ fn a_subscriber_that_filters_state_changes_is_sent_a_theme()
         floating_border: None,
         unfocused_border: None,
         unfocused_locked_border: None,
+        stackbar_focused_text: None,
+        stackbar_unfocused_text: None,
+        stackbar_background: None,
     });
     send_query(&SocketMessage::Theme(Box::new(theme)))?;
 

@@ -71,6 +71,9 @@ fn a_named_theme_colours_every_kind_of_border() {
                 floating_border: None,
                 unfocused_border: None,
                 unfocused_locked_border: None,
+                stackbar_focused_text: None,
+                stackbar_unfocused_text: None,
+                stackbar_background: None,
             },
         ))),
     );
