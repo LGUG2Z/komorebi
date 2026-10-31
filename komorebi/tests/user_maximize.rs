@@ -114,11 +114,9 @@ fn nothing_that_is_about_the_layout_happens_while_a_window_is_maximized() {
     for message in [
         SocketMessage::MoveWindow(OperationDirection::Left),
         SocketMessage::MoveWindow(OperationDirection::Right),
-        SocketMessage::StackWindow(OperationDirection::Left),
         SocketMessage::UnstackWindow,
         SocketMessage::StackAll,
         SocketMessage::Promote,
-        SocketMessage::ToggleFloat,
         SocketMessage::ToggleMonocle,
         SocketMessage::ToggleLock,
         SocketMessage::SendContainerToWorkspaceNumber(1),
@@ -234,4 +232,40 @@ fn a_window_that_opens_maximized_is_the_maximized_one() {
     assert_eq!(workspace.maximized_window.map(|w| w.id), Some(30_113));
     assert_eq!(workspace.containers().len(), 2, "the two tiles that were");
     assert!(fake.is_maximized(30_113));
+}
+
+#[test]
+fn toggle_float_floats_the_window_the_user_maximized_and_ends_the_maximize() {
+    let (fake, mut wm) = tiled(30_081, 3);
+    user_maximizes(&fake, &mut wm, 30_082, true);
+
+    command(&fake, &mut wm, SocketMessage::ToggleFloat);
+
+    let workspace = wm.focused_workspace().unwrap();
+    assert!(workspace.maximized_window.is_none(), "still maximized");
+    assert_eq!(
+        workspace
+            .floating_windows()
+            .iter()
+            .map(|w| w.id)
+            .collect::<Vec<_>>(),
+        [30_082]
+    );
+    assert_eq!(workspace.containers().len(), 2);
+}
+
+#[test]
+fn stack_left_stacks_the_tiles_that_are_left_while_a_window_is_maximized() {
+    let (fake, mut wm) = tiled(30_091, 3);
+    user_maximizes(&fake, &mut wm, 30_092, true);
+
+    command(
+        &fake,
+        &mut wm,
+        SocketMessage::StackWindow(OperationDirection::Left),
+    );
+
+    let workspace = wm.focused_workspace().unwrap();
+    assert_eq!(workspace.maximized_window.map(|w| w.id), Some(30_092));
+    assert_eq!(workspace.containers().len(), 1, "the two tiles are stacked");
 }

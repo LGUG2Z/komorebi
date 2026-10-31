@@ -332,14 +332,19 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 }
 
 /// Commands that are about the tiles of the layout (moving, stacking, resizing, promoting,
-/// locking, floating, the monocle, and sending containers to other monitors and workspaces), which
-/// a maximized window has left
+/// locking, the monocle, and sending containers to other monitors and workspaces), which a
+/// maximized window has left
+///
+/// Two commands that look like them are not here, because komorebi for Windows does not ignore
+/// them either (`maximizing.user` in the end-to-end suite has them as what both ports do):
+/// `toggle-float` floats the maximized window, which ends the maximize
+/// ([`Workspace::new_floating_window`](crate::workspace::Workspace::new_floating_window)), and
+/// `stack left` and `stack right` stack the tiles that are left.
 fn is_layout_command(message: &SocketMessage) -> bool {
     matches!(
         message,
         SocketMessage::MoveWindow(_)
             | SocketMessage::CycleMoveWindow(_)
-            | SocketMessage::StackWindow(_)
             | SocketMessage::UnstackWindow
             | SocketMessage::CycleStack(_)
             | SocketMessage::CycleStackIndex(_)
@@ -354,7 +359,6 @@ fn is_layout_command(message: &SocketMessage) -> bool {
             | SocketMessage::PromoteFocus
             | SocketMessage::PromoteWindow(_)
             | SocketMessage::ToggleLock
-            | SocketMessage::ToggleFloat
             | SocketMessage::ToggleMonocle
             | SocketMessage::MoveContainerToLastWorkspace
             | SocketMessage::SendContainerToLastWorkspace

@@ -174,7 +174,6 @@ fn while_a_window_is_maximized_what_is_about_the_tiles_does_nothing() {
     for message in [
         SocketMessage::MoveWindow(OperationDirection::Left),
         SocketMessage::CycleMoveWindow(CycleDirection::Next),
-        SocketMessage::StackWindow(OperationDirection::Left),
         SocketMessage::UnstackWindow,
         SocketMessage::StackAll,
         SocketMessage::UnstackAll,
@@ -187,7 +186,6 @@ fn while_a_window_is_maximized_what_is_about_the_tiles_does_nothing() {
         SocketMessage::SendContainerToMonitorNumber(1),
         SocketMessage::Promote,
         SocketMessage::ToggleLock,
-        SocketMessage::ToggleFloat,
         SocketMessage::ToggleMonocle,
         SocketMessage::PreselectDirection(OperationDirection::Left),
     ] {
