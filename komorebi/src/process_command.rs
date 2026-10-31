@@ -243,84 +243,7 @@ impl WindowManager {
                 self.promote_container_to_front()?
             }
             SocketMessage::EagerFocus(ref exe) => {
-                let focused_monitor_idx = self.focused_monitor_idx();
-
-                let mut window_location = None;
-                let mut monitor_to_focus = None;
-                let mut needs_workspace_loading = false;
-
-                'search: for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
-                    for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
-                        if let Some(location) = workspace.location_from_exe(exe) {
-                            window_location = Some(location);
-
-                            if monitor_idx != focused_monitor_idx {
-                                monitor_to_focus = Some(monitor_idx);
-                            }
-
-                            // Focus workspace if it is not already the focused one, without
-                            // loading it so that we don't give focus to the wrong window, we will
-                            // load it later after focusing the wanted window
-                            let focused_ws_idx = monitor.focused_workspace_idx();
-                            if focused_ws_idx != workspace_idx {
-                                monitor.last_focused_workspace = Option::from(focused_ws_idx);
-                                monitor.focus_workspace(workspace_idx)?;
-                                needs_workspace_loading = true;
-                            }
-
-                            break 'search;
-                        }
-                    }
-                }
-
-                if let Some(monitor_idx) = monitor_to_focus {
-                    self.focus_monitor(monitor_idx)?;
-                }
-
-                if let Some(location) = window_location {
-                    match location {
-                        WorkspaceWindowLocation::Monocle(window_idx) => {
-                            self.focus_container_window(window_idx)?;
-                        }
-                        WorkspaceWindowLocation::Maximized => {
-                            if let Some(window) =
-                                &mut self.focused_workspace_mut()?.maximized_window
-                            {
-                                backend().focus(
-                                    WindowId::from_hwnd(window.hwnd),
-                                    self.mouse_follows_focus,
-                                )?;
-                            }
-                        }
-                        WorkspaceWindowLocation::Container(container_idx, window_idx) => {
-                            let focused_container_idx = self.focused_container_idx()?;
-                            if container_idx != focused_container_idx {
-                                self.focused_workspace_mut()?.focus_container(container_idx);
-                            }
-
-                            self.focus_container_window(window_idx)?;
-                        }
-                        WorkspaceWindowLocation::Floating(window_idx) => {
-                            if let Some(window) = self
-                                .focused_workspace_mut()?
-                                .floating_windows_mut()
-                                .get_mut(window_idx)
-                            {
-                                backend().focus(
-                                    WindowId::from_hwnd(window.hwnd),
-                                    self.mouse_follows_focus,
-                                )?;
-                            }
-                        }
-                    }
-
-                    if needs_workspace_loading {
-                        let mouse_follows_focus = self.mouse_follows_focus;
-                        if let Some(monitor) = self.focused_monitor_mut() {
-                            monitor.load_focused_workspace(mouse_follows_focus)?;
-                        }
-                    }
-                }
+                self.eager_focus(exe)?;
             }
             SocketMessage::FocusWindow(direction) => {
                 let focused_workspace = self.focused_workspace()?;
@@ -1131,208 +1054,13 @@ impl WindowManager {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
-                let _in_place = live_resize::InPlace::new();
-
-                // If the user has a custom layout, allow for the resizing of the primary column
-                // with this signal
-                let workspace = self.focused_workspace_mut()?;
-                let container_len = workspace.containers().len();
-                let no_layout_rules = workspace.layout_rules.is_empty();
-
-                if let Layout::Custom(custom) = &mut workspace.layout {
-                    if matches!(axis, Axis::Horizontal) {
-                        #[allow(clippy::cast_precision_loss)]
-                        let percentage = custom
-                            .primary_width_percentage()
-                            .unwrap_or(100.0 / (custom.len() as f32));
-
-                        if no_layout_rules {
-                            match sizing {
-                                Sizing::Increase => {
-                                    custom.set_primary_width_percentage(percentage + 5.0);
-                                }
-                                Sizing::Decrease => {
-                                    custom.set_primary_width_percentage(percentage - 5.0);
-                                }
-                            }
-                        } else {
-                            for rule in &mut workspace.layout_rules {
-                                if container_len >= rule.0
-                                    && let Layout::Custom(ref mut custom) = rule.1
-                                {
-                                    match sizing {
-                                        Sizing::Increase => {
-                                            custom.set_primary_width_percentage(percentage + 5.0);
-                                        }
-                                        Sizing::Decrease => {
-                                            custom.set_primary_width_percentage(percentage - 5.0);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Otherwise proceed with the resizing logic for individual window containers in the
-                    // assumed BSP layout
-                } else {
-                    match axis {
-                        Axis::Horizontal => {
-                            self.resize_window(
-                                OperationDirection::Left,
-                                sizing,
-                                self.resize_delta,
-                                false,
-                            )?;
-                            self.resize_window(
-                                OperationDirection::Right,
-                                sizing,
-                                self.resize_delta,
-                                false,
-                            )?;
-                        }
-                        Axis::Vertical => {
-                            self.resize_window(
-                                OperationDirection::Up,
-                                sizing,
-                                self.resize_delta,
-                                false,
-                            )?;
-                            self.resize_window(
-                                OperationDirection::Down,
-                                sizing,
-                                self.resize_delta,
-                                false,
-                            )?;
-                        }
-                        Axis::HorizontalAndVertical => {
-                            self.resize_window(
-                                OperationDirection::Left,
-                                sizing,
-                                self.resize_delta,
-                                false,
-                            )?;
-                            self.resize_window(
-                                OperationDirection::Right,
-                                sizing,
-                                self.resize_delta,
-                                false,
-                            )?;
-                            self.resize_window(
-                                OperationDirection::Up,
-                                sizing,
-                                self.resize_delta,
-                                false,
-                            )?;
-                            self.resize_window(
-                                OperationDirection::Down,
-                                sizing,
-                                self.resize_delta,
-                                false,
-                            )?;
-                        }
-                    }
-                }
-
-                self.update_focused_workspace(false, false)?;
+                self.resize_window_axis(axis, sizing)?;
             }
-            SocketMessage::FocusFollowsMouse(mut implementation, enable) => {
-                if !CUSTOM_FFM.load(Ordering::SeqCst) {
-                    tracing::warn!(
-                        "komorebi was not started with the --ffm flag, so the komorebi implementation of focus follows mouse cannot be enabled; defaulting to windows implementation"
-                    );
-                    implementation = FocusFollowsMouseImplementation::Windows;
-                }
-
-                match implementation {
-                    FocusFollowsMouseImplementation::Komorebi => {
-                        if WindowsApi::focus_follows_mouse()? {
-                            tracing::warn!(
-                                "the komorebi implementation of focus follows mouse cannot be enabled while the windows implementation is enabled"
-                            );
-                        } else if enable {
-                            self.focus_follows_mouse = Option::from(implementation);
-                        } else {
-                            self.focus_follows_mouse = None;
-                            self.has_pending_raise_op = false;
-                        }
-                    }
-                    FocusFollowsMouseImplementation::Windows => {
-                        if matches!(
-                            self.focus_follows_mouse,
-                            Some(FocusFollowsMouseImplementation::Komorebi)
-                        ) {
-                            tracing::warn!(
-                                "the windows implementation of focus follows mouse cannot be enabled while the komorebi implementation is enabled"
-                            );
-                        } else if enable {
-                            WindowsApi::enable_focus_follows_mouse()?;
-                            self.focus_follows_mouse =
-                                Option::from(FocusFollowsMouseImplementation::Windows);
-                        } else {
-                            WindowsApi::disable_focus_follows_mouse()?;
-                            self.focus_follows_mouse = None;
-                        }
-                    }
-                }
+            SocketMessage::FocusFollowsMouse(implementation, enable) => {
+                self.focus_follows_mouse(implementation, enable)?;
             }
-            SocketMessage::ToggleFocusFollowsMouse(mut implementation) => {
-                if !CUSTOM_FFM.load(Ordering::SeqCst) {
-                    tracing::warn!(
-                        "komorebi was not started with the --ffm flag, so the komorebi implementation of focus follows mouse cannot be toggled; defaulting to windows implementation"
-                    );
-                    implementation = FocusFollowsMouseImplementation::Windows;
-                }
-
-                match implementation {
-                    FocusFollowsMouseImplementation::Komorebi => {
-                        if WindowsApi::focus_follows_mouse()? {
-                            tracing::warn!(
-                                "the komorebi implementation of focus follows mouse cannot be toggled while the windows implementation is enabled"
-                            );
-                        } else {
-                            match self.focus_follows_mouse {
-                                None => {
-                                    self.focus_follows_mouse = Option::from(implementation);
-                                    self.has_pending_raise_op = false;
-                                }
-                                Some(FocusFollowsMouseImplementation::Komorebi) => {
-                                    self.focus_follows_mouse = None;
-                                }
-                                Some(FocusFollowsMouseImplementation::Windows) => {
-                                    tracing::warn!(
-                                        "ignoring command that could mix different focus follows mouse implementations"
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    FocusFollowsMouseImplementation::Windows => {
-                        if matches!(
-                            self.focus_follows_mouse,
-                            Some(FocusFollowsMouseImplementation::Komorebi)
-                        ) {
-                            tracing::warn!(
-                                "the windows implementation of focus follows mouse cannot be toggled while the komorebi implementation is enabled"
-                            );
-                        } else {
-                            match self.focus_follows_mouse {
-                                None => {
-                                    WindowsApi::enable_focus_follows_mouse()?;
-                                    self.focus_follows_mouse = Option::from(implementation);
-                                }
-                                Some(FocusFollowsMouseImplementation::Windows) => {
-                                    WindowsApi::disable_focus_follows_mouse()?;
-                                    self.focus_follows_mouse = None;
-                                }
-                                Some(FocusFollowsMouseImplementation::Komorebi) => {
-                                    tracing::warn!(
-                                        "ignoring command that could mix different focus follows mouse implementations"
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
+            SocketMessage::ToggleFocusFollowsMouse(implementation) => {
+                self.toggle_focus_follows_mouse(implementation)?;
             }
             SocketMessage::ReloadConfiguration => {
                 Self::reload_configuration();
@@ -1968,6 +1696,268 @@ fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, 
 
 // extracted-arms-impl
 impl WindowManager {
+    pub fn focus_follows_mouse(
+        &mut self,
+        mut implementation: FocusFollowsMouseImplementation,
+        enable: bool,
+    ) -> eyre::Result<()> {
+        if !CUSTOM_FFM.load(Ordering::SeqCst) {
+            tracing::warn!(
+                "komorebi was not started with the --ffm flag, so the komorebi implementation of focus follows mouse cannot be enabled; defaulting to windows implementation"
+            );
+            implementation = FocusFollowsMouseImplementation::Windows;
+        }
+
+        match implementation {
+            FocusFollowsMouseImplementation::Komorebi => {
+                if WindowsApi::focus_follows_mouse()? {
+                    tracing::warn!(
+                        "the komorebi implementation of focus follows mouse cannot be enabled while the windows implementation is enabled"
+                    );
+                } else if enable {
+                    self.focus_follows_mouse = Option::from(implementation);
+                } else {
+                    self.focus_follows_mouse = None;
+                    self.has_pending_raise_op = false;
+                }
+            }
+            FocusFollowsMouseImplementation::Windows => {
+                if matches!(
+                    self.focus_follows_mouse,
+                    Some(FocusFollowsMouseImplementation::Komorebi)
+                ) {
+                    tracing::warn!(
+                        "the windows implementation of focus follows mouse cannot be enabled while the komorebi implementation is enabled"
+                    );
+                } else if enable {
+                    WindowsApi::enable_focus_follows_mouse()?;
+                    self.focus_follows_mouse =
+                        Option::from(FocusFollowsMouseImplementation::Windows);
+                } else {
+                    WindowsApi::disable_focus_follows_mouse()?;
+                    self.focus_follows_mouse = None;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn toggle_focus_follows_mouse(
+        &mut self,
+        mut implementation: FocusFollowsMouseImplementation,
+    ) -> eyre::Result<()> {
+        if !CUSTOM_FFM.load(Ordering::SeqCst) {
+            tracing::warn!(
+                "komorebi was not started with the --ffm flag, so the komorebi implementation of focus follows mouse cannot be toggled; defaulting to windows implementation"
+            );
+            implementation = FocusFollowsMouseImplementation::Windows;
+        }
+
+        match implementation {
+            FocusFollowsMouseImplementation::Komorebi => {
+                if WindowsApi::focus_follows_mouse()? {
+                    tracing::warn!(
+                        "the komorebi implementation of focus follows mouse cannot be toggled while the windows implementation is enabled"
+                    );
+                } else {
+                    match self.focus_follows_mouse {
+                        None => {
+                            self.focus_follows_mouse = Option::from(implementation);
+                            self.has_pending_raise_op = false;
+                        }
+                        Some(FocusFollowsMouseImplementation::Komorebi) => {
+                            self.focus_follows_mouse = None;
+                        }
+                        Some(FocusFollowsMouseImplementation::Windows) => {
+                            tracing::warn!(
+                                "ignoring command that could mix different focus follows mouse implementations"
+                            );
+                        }
+                    }
+                }
+            }
+            FocusFollowsMouseImplementation::Windows => {
+                if matches!(
+                    self.focus_follows_mouse,
+                    Some(FocusFollowsMouseImplementation::Komorebi)
+                ) {
+                    tracing::warn!(
+                        "the windows implementation of focus follows mouse cannot be toggled while the komorebi implementation is enabled"
+                    );
+                } else {
+                    match self.focus_follows_mouse {
+                        None => {
+                            WindowsApi::enable_focus_follows_mouse()?;
+                            self.focus_follows_mouse = Option::from(implementation);
+                        }
+                        Some(FocusFollowsMouseImplementation::Windows) => {
+                            WindowsApi::disable_focus_follows_mouse()?;
+                            self.focus_follows_mouse = None;
+                        }
+                        Some(FocusFollowsMouseImplementation::Komorebi) => {
+                            tracing::warn!(
+                                "ignoring command that could mix different focus follows mouse implementations"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn resize_window_axis(&mut self, axis: Axis, sizing: Sizing) -> eyre::Result<()> {
+        let _in_place = live_resize::InPlace::new();
+
+        // If the user has a custom layout, allow for the resizing of the primary column
+        // with this signal
+        let workspace = self.focused_workspace_mut()?;
+        let container_len = workspace.containers().len();
+        let no_layout_rules = workspace.layout_rules.is_empty();
+
+        if let Layout::Custom(custom) = &mut workspace.layout {
+            if matches!(axis, Axis::Horizontal) {
+                #[allow(clippy::cast_precision_loss)]
+                let percentage = custom
+                    .primary_width_percentage()
+                    .unwrap_or(100.0 / (custom.len() as f32));
+
+                if no_layout_rules {
+                    match sizing {
+                        Sizing::Increase => {
+                            custom.set_primary_width_percentage(percentage + 5.0);
+                        }
+                        Sizing::Decrease => {
+                            custom.set_primary_width_percentage(percentage - 5.0);
+                        }
+                    }
+                } else {
+                    for rule in &mut workspace.layout_rules {
+                        if container_len >= rule.0
+                            && let Layout::Custom(ref mut custom) = rule.1
+                        {
+                            match sizing {
+                                Sizing::Increase => {
+                                    custom.set_primary_width_percentage(percentage + 5.0);
+                                }
+                                Sizing::Decrease => {
+                                    custom.set_primary_width_percentage(percentage - 5.0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Otherwise proceed with the resizing logic for individual window containers in the
+            // assumed BSP layout
+        } else {
+            match axis {
+                Axis::Horizontal => {
+                    self.resize_window(OperationDirection::Left, sizing, self.resize_delta, false)?;
+                    self.resize_window(
+                        OperationDirection::Right,
+                        sizing,
+                        self.resize_delta,
+                        false,
+                    )?;
+                }
+                Axis::Vertical => {
+                    self.resize_window(OperationDirection::Up, sizing, self.resize_delta, false)?;
+                    self.resize_window(OperationDirection::Down, sizing, self.resize_delta, false)?;
+                }
+                Axis::HorizontalAndVertical => {
+                    self.resize_window(OperationDirection::Left, sizing, self.resize_delta, false)?;
+                    self.resize_window(
+                        OperationDirection::Right,
+                        sizing,
+                        self.resize_delta,
+                        false,
+                    )?;
+                    self.resize_window(OperationDirection::Up, sizing, self.resize_delta, false)?;
+                    self.resize_window(OperationDirection::Down, sizing, self.resize_delta, false)?;
+                }
+            }
+        }
+
+        self.update_focused_workspace(false, false)?;
+        Ok(())
+    }
+
+    pub fn eager_focus(&mut self, exe: &str) -> eyre::Result<()> {
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let mut window_location = None;
+        let mut monitor_to_focus = None;
+        let mut needs_workspace_loading = false;
+
+        'search: for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
+            for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
+                if let Some(location) = workspace.location_from_exe(exe) {
+                    window_location = Some(location);
+
+                    if monitor_idx != focused_monitor_idx {
+                        monitor_to_focus = Some(monitor_idx);
+                    }
+
+                    // Focus workspace if it is not already the focused one, without
+                    // loading it so that we don't give focus to the wrong window, we will
+                    // load it later after focusing the wanted window
+                    let focused_ws_idx = monitor.focused_workspace_idx();
+                    if focused_ws_idx != workspace_idx {
+                        monitor.last_focused_workspace = Option::from(focused_ws_idx);
+                        monitor.focus_workspace(workspace_idx)?;
+                        needs_workspace_loading = true;
+                    }
+
+                    break 'search;
+                }
+            }
+        }
+
+        if let Some(monitor_idx) = monitor_to_focus {
+            self.focus_monitor(monitor_idx)?;
+        }
+
+        if let Some(location) = window_location {
+            match location {
+                WorkspaceWindowLocation::Monocle(window_idx) => {
+                    self.focus_container_window(window_idx)?;
+                }
+                WorkspaceWindowLocation::Maximized => {
+                    if let Some(window) = &mut self.focused_workspace_mut()?.maximized_window {
+                        backend()
+                            .focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
+                    }
+                }
+                WorkspaceWindowLocation::Container(container_idx, window_idx) => {
+                    let focused_container_idx = self.focused_container_idx()?;
+                    if container_idx != focused_container_idx {
+                        self.focused_workspace_mut()?.focus_container(container_idx);
+                    }
+
+                    self.focus_container_window(window_idx)?;
+                }
+                WorkspaceWindowLocation::Floating(window_idx) => {
+                    if let Some(window) = self
+                        .focused_workspace_mut()?
+                        .floating_windows_mut()
+                        .get_mut(window_idx)
+                    {
+                        backend()
+                            .focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
+                    }
+                }
+            }
+
+            if needs_workspace_loading {
+                let mouse_follows_focus = self.mouse_follows_focus;
+                if let Some(monitor) = self.focused_monitor_mut() {
+                    monitor.load_focused_workspace(mouse_follows_focus)?;
+                }
+            }
+        }
+        Ok(())
+    }
     pub fn set_layout_ratios(
         &mut self,
         columns: &Option<Vec<f32>>,
