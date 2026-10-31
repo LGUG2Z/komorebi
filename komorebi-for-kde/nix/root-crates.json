@@ -3,6 +3,7 @@
   "crates/komorebi-collections",
   "crates/komorebi-config",
   "crates/komorebi-protocol",
+  "crates/komorebi-settings",
   "crates/komorebi-transport",
   "crates/komorebic-core",
   "komorebi-layouts",
