@@ -432,10 +432,12 @@ impl WorkspaceExt for Workspace {
         for window_id in &invalid_window_ids {
             // Ignore errors - window may have already been removed by the reaper thread
             let _ = self.remove_window(*window_id);
+            crate::ax_registry::forget(*window_id);
         }
 
         for window_id in &invalid_floating_window_ids {
             self.remove_floating_window(*window_id);
+            crate::ax_registry::forget(*window_id);
         }
 
         tracing::debug!(
