@@ -234,3 +234,20 @@ fn the_placement_types_are_the_definitions_of_windows_and_kde() {
     );
     assert_same_definitions::<InitialWindowPlacementRules>(&[kde], &["PlacementTarget"]);
 }
+
+/// The platform views of the one `StaticConfig` are byte-identical to the checked-in
+/// `schema.json` of each tree.
+#[test]
+fn the_schema_of_each_platform_is_a_view_of_the_one_static_config() {
+    use komorebi_config::static_config::StaticConfig;
+    use komorebi_protocol::platforms::Platform;
+
+    for (tree, platform) in [(&TREES[1], Platform::Kde), (&TREES[2], Platform::MacOs)] {
+        let view = komorebi_config::schema::view::<StaticConfig>(platform);
+        assert!(
+            view == checked_in(tree, "schema.json"),
+            "{}: the view of the schema of StaticConfig differs from schema.json",
+            tree.name
+        );
+    }
+}

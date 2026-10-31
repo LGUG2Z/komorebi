@@ -15,5 +15,8 @@ pub mod application_configuration;
 pub mod asc;
 pub mod aspect_ratio;
 pub mod behaviour;
+pub mod changes;
+pub mod defaults;
 pub mod matching;
 pub mod placement;
+pub mod static_config;

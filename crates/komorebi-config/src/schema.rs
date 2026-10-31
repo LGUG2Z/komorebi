@@ -6,6 +6,8 @@
 //! [`view`] drops what the platform does not read, strips the `x-komorebi-` markers and
 //! removes the definitions nothing refers to any more.
 
+use crate::changes;
+use crate::changes::Change;
 pub use komorebi_protocol::platforms::Platform;
 use schemars::JsonSchema;
 use serde_json::Map;
@@ -59,6 +61,9 @@ pub fn view_of(mut schema: Value, platform: Platform) -> Value {
         if let Some(target) = schema.pointer_mut(&format!("/$defs/{def}{pointer}")) {
             *target = Value::String((*text).to_string());
         }
+    }
+    for (pointer, change) in changes::for_platform(platform) {
+        apply(&mut schema, pointer, *change);
     }
     let mut reachable = Vec::new();
     collect_refs(&schema, &mut reachable);
@@ -175,5 +180,22 @@ fn platform_text(platform: Platform) -> &'static [(&'static str, &'static str, &
                 "Role or subrole",
             ),
         ],
+    }
+}
+
+fn apply(schema: &mut Value, pointer: &str, change: Change) {
+    match change {
+        Change::Set(json) => {
+            if let Some(target) = schema.pointer_mut(pointer) {
+                *target = serde_json::from_str(json).expect("a change is JSON");
+            }
+        }
+        Change::Remove => {
+            if let Some((parent, key)) = pointer.rsplit_once('/')
+                && let Some(Value::Object(map)) = schema.pointer_mut(parent)
+            {
+                map.retain(|k, _| k != key);
+            }
+        }
     }
 }
