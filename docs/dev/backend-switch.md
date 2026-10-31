@@ -41,3 +41,20 @@ use `?` or ignore the result; none inspects the error. `frame` is the exception:
 | `cursor_pos` | `Result<POINT>` vs `Option<(i32, i32)>`; callers `?` it | same: a `Result` return |
 | `monitors` / `window` | `monitors()` rebuilds `MonitorInfo` and drops the `Monitor` fields the daemon needs (device id, serial, device, work-area offsets); `window()` asks title, class, exe, path | the daemon-side `Monitor` fields in `MonitorInfo` (or a platform extension), and for step 9 the monitor model moving to the core |
 | `monitor_from_point` | never `None` on Windows (`MONITOR_DEFAULTTONEAREST`), `None` outside every monitor on KDE and macOS | an explicit "nearest" flag or two methods |
+
+## What is left in `window_manager.rs`, `workspace.rs`, `monitor.rs` (checked call by call)
+
+Switched in the last batch: `center_cursor_in_rect` (3, window_manager), `disable_focus_follows_mouse` (1),
+`restore_window` as `unminimize` (1, workspace). The rest names `WindowsApi` for a reason the trait does not
+cover yet:
+
+| Call (sites) | Why it stays |
+|---|---|
+| `foreground_window` (10 in window_manager, 3 workspace, 1 monitor) | `Result<isize>`, a null handle is an `Err` the callers `?` on; trait has `Option<WindowId>` |
+| `cursor_pos`, `window_at_cursor_pos`, `monitor_from_window`, `monitor_from_point` | `Result`/never-`None` semantics, see the table above; `window_at_cursor_pos` and `monitor_from_window` have no trait equivalent |
+| `raise_and_focus_window(desktop_window)` (4) | `Backend::focus` is `Window::focus`, which skips when the window is already foreground and defers while it slides in; the direct call always raises and focuses |
+| `position_window(hwnd, rect, false, true)` (2) | a different flag combination than `set_rect` (`top = false`, the second flag is the layered/shadow handling), not expressible |
+| `load_monitor_information`, `load_workspace_information` | start-up enumeration into a `WindowManager`; seam.md 9: `windows()` cannot match the core's filter |
+| `monitor(hmonitor)`, `monitor_rects`, `monitors_have_same_dpi` | the `Monitor` fields (device id, DPI) the trait's `MonitorInfo` drops |
+| `set_wallpaper` | wallpaper stays KDE-only in the trait (D36) |
+| `focus_follows_mouse` (query) | the trait has the setter only |

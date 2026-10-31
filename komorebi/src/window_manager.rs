@@ -1147,7 +1147,7 @@ impl WindowManager {
                 let desktop_window = Window::from(WindowsApi::desktop_window()?);
 
                 let rect = self.focused_monitor_size()?;
-                WindowsApi::center_cursor_in_rect(&rect)?;
+                backend().center_cursor_in(&rect)?;
 
                 match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
                     Ok(()) => {}
@@ -1275,7 +1275,7 @@ impl WindowManager {
 
                         WindowsApi::position_window(window.hwnd, &rect, false, true)?;
                         if mouse_follows_focus {
-                            WindowsApi::center_cursor_in_rect(&rect)?;
+                            backend().center_cursor_in(&rect)?;
                         }
 
                         break;
@@ -1450,7 +1450,7 @@ impl WindowManager {
         AnimationEngine::wait_for_all_animations();
 
         if WindowsApi::focus_follows_mouse()? {
-            WindowsApi::disable_focus_follows_mouse()?;
+            backend().set_focus_follows_mouse(false)?;
         }
 
         let sockets = SUBSCRIPTION_SOCKETS.lock();
@@ -2425,7 +2425,7 @@ impl WindowManager {
 
                 WindowsApi::position_window(window.hwnd, &rect, false, true)?;
                 if mouse_follows_focus {
-                    WindowsApi::center_cursor_in_rect(&rect)?;
+                    backend().center_cursor_in(&rect)?;
                 }
 
                 break;

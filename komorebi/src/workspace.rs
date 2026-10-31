@@ -835,7 +835,7 @@ impl Workspace {
                                     // If a window has been unmaximized via toggle-maximize, this block
                                     // will make sure that it is unmaximized via restore_window
                                     if window.is_maximized() && !managed_maximized_window {
-                                        WindowsApi::restore_window(window.hwnd);
+                                        let _ = backend().unminimize(WindowId::from_hwnd(window.hwnd));
                                     }
                                 }
                                 if hidden.get(i).copied().unwrap_or_default() {
