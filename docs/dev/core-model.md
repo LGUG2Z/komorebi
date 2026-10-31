@@ -1108,3 +1108,128 @@ The decision of section 14 was made (D-coord-7) and the three macOS layers moved
 
 Nothing here has run on macOS. The Mini's `cargo test` is the oracle for the 53 workspace
 functions that were replaced by the shared text.
+
+## 16. `update_shared` landed (wip-u-core2), and what macOS keeps
+
+`Workspace::update_shared` is in `komorebi-core` with the hooks of section 12 (`begin_update` returning
+`Flow`, `containers_pruned`, `place_monocle`, `maximize_in_layout`, `adopt_widths_before_layout`,
+`adopt_actual_widths`, `scrolling_layouts` (which folds the `monitor_rects` and `other_monitors` of the
+proposal into one hook, so each daemon keeps its own scrolling glue), `adjust_layout`,
+`place_container`, `end_update` returning `Pass`). It is named `update_shared` and not `update` so
+that a daemon's own `update` keeps working: the KDE and Windows `WorkspaceExt::update` are now
+`self.update_shared()`, and macOS's is untouched. Every hook has a default so that `MacosPlatform`
+compiles unchanged; the defaults of the ones a daemon must provide return an error. Where the
+implementation departs from section 12: `adjust_layout` and `place_container` take the container
+and the tile, not its index; the guard of `begin_update` is a boxed `dyn Any` (no associated type, so
+macOS needs nothing); the KDE closure around the placement is gone (it had nothing between it and
+its `?`); the Windows title-bar tables are read once per container instead of once per pass.
+
+**What macOS keeps (kfm's `update`, not touched):** its `update` is another shape, not the same text
+with other hooks. It wraps the placement in SkyLight's `SLSDisableUpdate`/`SLSReenableUpdate` (a
+`begin_update` guard could carry that); it has no maximized-window branch (the shared skeleton would
+call `maximize_in_layout` for a workspace whose `maximized_window` is set, which on macOS would
+change which branch runs); a scrolling workspace is placed by a separate `arrange_scrolling` that
+sets the rectangles itself and returns, not by the shared per-container loop; it computes the layouts
+with its own `calculate_layouts` and clamps with a free `clamp_to_work_area` in every case; it has no
+stackbar and no second pass. Adopting `update_shared` on macOS means three decisions for its owner
+(the maximized branch, folding `arrange_scrolling` into `scrolling_layouts` plus `place_container`,
+and whether the clamp stays unconditional); none is needed to finish the Windows and KDE steps.
+
+## 17. Classification of `window_manager.rs`, `process_command.rs` and `process_event.rs`
+
+Method as in sections 7 and 14: `window_manager.rs` is cut into functions and compared function by
+function across the three daemons (comments and blank lines dropped, indentation stripped; "changed"
+counts the `<`/`>` lines of `diff`); `process_command.rs` and `process_event.rs` are one big `match`
+each, so they are compared arm by arm (the arm of `SocketMessage::X` or `WindowManagerEvent::Y`).
+Measured at the tip of `wip-u-core2` (KDE = `komorebi-linux`, Windows = `komorebi-windows`, macOS =
+`komorebi-macos`). Classes: **identical**, **drift** (a few changed lines: an id type, a name, an
+ordering), **same behaviour** (different text that does the same, found by reading the diff),
+**real** (a platform difference, a hook is needed), **one-sided** (one daemon only).
+
+### `process_command.rs` (the router): 198 / 163 / 156 arms (Windows / KDE / macOS)
+
+| | arms |
+|---|---|
+| in all three, identical text | 110 |
+| in all three, text differs | 45 |
+| only in Windows (not-supported replies for macOS/KDE-only messages, `Notification`, `initial_state`) | 35 |
+| in Windows and KDE only (`FocusFollowsMouse`, transparency, `ReloadHotkeys`, `ToggleMaximize`) | 7 |
+| macOS and Windows only (`PanGesture`) | 1 |
+| KDE only (`HotkeysState`) | 1 |
+
+Of the 45 that differ: 20 are macOS still carrying the body inline where Windows and KDE call the named
+method of section 5 (`CloseWorkspace`, `CycleFocusWorkspace`, `EagerFocus`, `IgnoreRule`,
+`LayoutRatios`, `Query`, `ReplaceConfiguration`, `ResizeWindowAxis`, `SessionFloatRule`,
+`ToggleWorkspaceLayer`, the two named-workspace rules, `ToggleWorkspaceWindowContainerBehaviour`,
+`BorderColour`, `MoveContainerToLastWorkspace`, `CycleFocusEmptyWorkspace`, `DebugWindow`,
+`ManageRule`, `AddSubscriberPipe`): drift of shape, same behaviour once macOS calls the methods (kfm's
+conversion, step 9's precondition). The other 25 are KDE against Windows, in these clusters:
+
+- **same behaviour, written differently** (a method on one side, inline on the other, or `unwrap_or_else`
+  against `match`): `FocusLastWorkspace` (Windows `focus_last_workspace()`, KDE inline), `FocusWorkspaceNumbers`,
+  `Close`, `Minimize`, `State`, `SessionFloatRules`, `StaticConfigSchema`,
+  `ApplicationSpecificConfigurationSchema`, `VisibleWindows` (the key of the map: Windows' device id,
+  KDE's monitor id), `TogglePause` and `Retile` (modulo the border lines below).
+- **real**: `Border`, `BorderOffset`, `BorderWidth`, `ReloadStaticConfiguration`, `Retile`,
+  `RetileWithResizeDimensions` (Windows' border implementations and `force_update_borders`);
+  `StackAll`, `UnstackAll`, `StackWindow`, `UnstackWindow`, `CycleStack`, `CycleStackIndex`,
+  `FocusStackWindow` (KDE switches animations off around them, Windows does not);
+  `ResizeWindowEdge` (the Windows `live_resize::InPlace` guard); `FocusWorkspaceNumber` (Windows first
+  focuses the monitor under the pointer when its workspace is empty).
+
+Order for the router: (1) macOS converges its arms onto the named methods (nothing shared is needed);
+(2) the 110 identical arms plus the 20 that become identical are one exhaustive `match` in the crate
+with each arm one call into `WindowManager`; (3) the remaining arms become `RouterPlatform` hooks
+with a default of "not supported" (`before_command`, `after_command`, the border arms, the animation
+guard around stacking, the live-resize guard, the pointer-monitor preamble). The 36 Windows-only and
+KDE-only arms are the "not supported" list of section 5 and need no hook.
+
+### `process_event.rs`: 11 / 15 / 10 arms
+
+The event vocabularies are platform's own: only `Destroy`, `Show` and `Minimize` exist on all three,
+and their bodies differ (Windows 10/145/22 lines, KDE 44/112/8, macOS 44/168/4 for
+`Destroy`/`Show`/`Minimize`; changed lines against each other 48-153). KDE and macOS share six more
+(`MoveStart`, `MoveEnd`, `ResizeStart`, `ResizeEnd`, `ResizeStep`, `Restore`) with drift of 4-58 lines;
+Windows has eight of its own (`FocusChange`, `Hide`, `Maximize`, `Unmaximize`, `MouseCapture`,
+`MoveResizeStart`, `MoveResizeEnd`, `window`), KDE five (`FullscreenChange`, `MaximizeChange`,
+`OutputChange`, `TitleUpdate`, `WorkspaceChange`, `WorkspaceMove`), macOS one (`Unmanage`). So
+`process_event` is not shareable by converge: it is the "thin events" step of the plan (each platform
+translates its events into a small shared vocabulary, `Added`, `Removed`, `Focused`, `Moved`,
+`Resized`, `Minimized`, `Restored`, `Unmanaged`, and the shared handler runs the arms that are the
+same). It comes last, after `WindowManager`.
+
+### `window_manager.rs`: 134 non-test functions in the union
+
+| | functions |
+|---|---|
+| in all three, identical | 39 |
+| in all three, differ | 48 (19 drift of 1-4 lines; 20 of 5-20; 10 of more than 20 against the Windows one) |
+| Windows only | 13: `apply_state` (131), `update_known_hwnds`, `raise_window_at_cursor_pos`, `workspace_transition_plan`, the custom-layout setters, `configure_watcher`/`watch_configuration`/`reload_configuration`, `focus_container_at_edge`, `focus_workspace_towards`, `remove_all_accents` |
+| KDE only | 4: `adopt_maximize_change`, `adopt_workspace_change`, `sync_workspace_desktops`, `reap_invalid_windows` |
+| macOS only | 16: the live resize family (`live_resize_*`, `apply_mouse_resize`, `resize_by_drag`, `edges_moved`), `entering_borders`, `workspace_transition`, `drag_origin`, `set_messaging_timeouts` |
+| Windows and KDE only | 4: `maximize_window`, `unmaximize_window`, `toggle_maximize`, `monitor_idx_from_window` |
+| KDE and macOS only | 2: `extract_minimized_window`, `update_known_window_ids` |
+
+The big differences (more than 20 changed lines Windows against KDE) are `focus_floating_window_in_direction`
+(105), `focus_container_in_direction` (69), `resize_window` (58, macOS 52), `update_focused_workspace` (57;
+KDE and macOS are identical), `enforce_workspace_rules` (43), `restore_all_windows` (40),
+`transfer_window` (36), `move_container_to_monitor` (30), `new` (25) and `monitor_idx_from_window` (23).
+Twenty functions are identical in KDE and macOS and differ only in Windows (`retile_all`,
+`change_workspace_layout_default`, `move_container_in_direction`, `promote_container_swap`,
+`toggle_monocle`, `float_window`, `focus_monitor`, `unstack_all`, ...): the Windows copy still has its
+older form, the KDE and macOS one is the one to share. 61 of the 91 functions that exist in Windows and
+KDE differ by at most 4 lines (42 not at all), so most of the layer is convergence of Windows onto the
+KDE/macOS text, which kfw can do function by function the way it did the container and workspace.
+
+Order for `WindowManager` (the next layers of step 9): (1) Windows converges the 20 KDE=macOS-identical
+functions and the 19 drift functions (mechanical, tests/e2e per cluster); (2) the struct moves as
+`WindowManager<P>` with `P::State` for the platform fields of section 2 (Windows: `known_hwnds`,
+`virtual_desktop_id`, `has_pending_raise_op`; KDE: `opacity_applied`, `minimized_windows`,
+`live_resize`; macOS: the live resize and drag state) and the 39 + converged identical functions;
+(3) the real differences become hooks, in this order: `monitor_idx_from_window`,
+`transfer_window`/`move_container_to_monitor` (the move across a monitor boundary),
+`restore_all_windows`, `enforce_workspace_rules`, `focus_*_in_direction` (floating windows),
+`resize_window` (live resize, shared by KDE-macOS first), `update_focused_workspace`; (4) the
+platform-only functions stay in each daemon's `WindowManagerExt` (the Windows custom layouts and
+watcher, the KDE desktop sync, the macOS live resize); (5) the router; (6) `process_event` with the
+thin events.
