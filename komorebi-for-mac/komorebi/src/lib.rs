@@ -46,7 +46,9 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicI32;
 
 #[macro_use]
-pub mod ring;
+extern crate komorebi_collections;
+
+pub use komorebi_collections::ring;
 
 pub mod accessibility;
 pub mod animation;
@@ -60,7 +62,7 @@ pub mod core_graphics;
 pub mod display_reconfiguration_listener;
 pub mod input_event_listener;
 pub mod ioreg;
-pub mod lockable_sequence;
+pub use komorebi_collections::lockable_sequence;
 pub mod macos_api;
 pub mod monitor;
 pub mod monitor_reconciliator;

@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 komorebi-themes = { workspace = true }
+komorebi-collections = { workspace = true }
 komorebi-layouts = { workspace = true }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 version = { path = "../version" }
@@ -127,4 +128,4 @@ uuid = { version = "1", features = ["v4"] }
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-schemars = ["dep:schemars"]
+schemars = ["dep:schemars", "komorebi-collections/schemars"]

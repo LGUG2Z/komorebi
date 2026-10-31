@@ -3165,6 +3165,7 @@ dependencies = [
  "dispatch2",
  "ed25519-dalek",
  "hotwatch",
+ "komorebi-collections",
  "komorebi-layouts",
  "komorebi-themes",
  "lazy_static",
@@ -3242,6 +3243,15 @@ dependencies = [
  "komorebi",
  "komorebi-themes",
  "serde_json_lenient",
+]
+
+[[package]]
+name = "komorebi-collections"
+version = "0.1.42"
+dependencies = [
+ "pastey 0.2.3",
+ "schemars 1.2.3",
+ "serde",
 ]
 
 [[package]]
