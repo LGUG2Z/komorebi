@@ -814,6 +814,11 @@ impl Window {
         AccessibilityApi::set_attribute_cf_value(&self.element, kAXMinimizedAttribute, value)
     }
 
+    /// Closes the window by pressing its close button (`Backend::close`); `Ok` when it has none.
+    pub fn close(&self) -> Result<(), AccessibilityError> {
+        AdhocWindow::close(&self.element.0)
+    }
+
     #[tracing::instrument(skip_all)]
     pub fn restore(&mut self) -> Result<(), AccessibilityError> {
         // waiting for what is on its way to the window is not something to do with a lock held
