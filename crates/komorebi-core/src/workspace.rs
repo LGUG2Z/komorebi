@@ -44,7 +44,7 @@ use std::num::NonZeroUsize;
 pub type PlatformWindowId<P> = <<P as WorkspacePlatform>::Window as ContainerWindow>::Id;
 
 /// What the shared [`Workspace`] needs of a platform.
-pub trait WorkspacePlatform: Sized + 'static {
+pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'static {
     /// The platform's window handle.
     type Window: WorkspaceWindow;
 
@@ -1532,6 +1532,7 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Clone, PartialEq)]
     struct Plat;
 
     impl WorkspacePlatform for Plat {
