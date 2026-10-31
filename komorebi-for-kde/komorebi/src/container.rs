@@ -19,9 +19,7 @@ use nanoid::nanoid;
 use serde::Deserialize;
 use serde::Serialize;
 
-impl_ring_elements!(Container, Window);
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     pub id: String,
@@ -29,12 +27,14 @@ pub struct Container {
     pub windows: Ring<Window>,
 }
 
+impl_ring_elements!(Container, Window);
+
 impl Default for Container {
     fn default() -> Self {
         Self {
             id: nanoid!(),
             locked: false,
-            windows: Default::default(),
+            windows: Ring::default(),
         }
     }
 }
@@ -64,6 +64,59 @@ impl Container {
     /// Returns true if and only if this is the container of a preselection
     pub fn is_preselect(&self) -> bool {
         self.id == "PRESELECT"
+    }
+
+    /// Hides every window of the container but `omit`, or every window when it is `None`
+    ///
+    /// It never fails; the result is there so that callers can use `?`.
+    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
+        for window in self.windows_mut().iter_mut().rev() {
+            let mut should_hide = omit.is_none();
+
+            if !should_hide
+                && let Some(omit) = omit
+                && omit != window.id
+            {
+                should_hide = true
+            }
+
+            if should_hide {
+                window.hide();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Restores the focused window of the container, which is the one that is in front when the
+    /// container is a stack
+    ///
+    /// It never fails; the result is there so that callers can use `?`.
+    pub fn restore(&mut self) -> eyre::Result<()> {
+        if let Some(window) = self.focused_window_mut() {
+            window.restore();
+        }
+
+        Ok(())
+    }
+
+    /// Hides the unfocused windows of the container and restores the focused one. This function
+    /// is used to make sure we update the window that should be shown on a stack. If the container
+    /// isn't a stack this function won't change anything.
+    ///
+    /// It never fails; the result is there so that callers can use `?`.
+    pub fn load_focused_window(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_window_idx();
+
+        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+            if i == focused_idx {
+                window.restore();
+            } else {
+                window.hide();
+            }
+        }
+
+        Ok(())
     }
 
     /// The index of the first window of the executable `exe` in this container
@@ -99,6 +152,12 @@ impl Container {
         None
     }
 
+    pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
+        let window = self.windows_mut().remove(idx);
+        self.focus_window(idx.saturating_sub(1));
+        window
+    }
+
     pub fn remove_focused_window(&mut self) -> Option<Window> {
         let focused_idx = self.focused_window_idx();
         self.remove_window_by_idx(focused_idx)
@@ -127,65 +186,6 @@ impl Container {
     pub fn focus_window(&mut self, idx: usize) {
         tracing::info!("focusing window");
         self.windows.focus(idx);
-    }
-
-    /// Hides the unfocused windows of the container and restores the focused one. This function
-    /// is used to make sure we update the window that should be shown on a stack. If the container
-    /// isn't a stack this function won't change anything.
-    ///
-    /// It never fails; the result is there so that callers can use `?`.
-    pub fn load_focused_window(&mut self) -> eyre::Result<()> {
-        let focused_idx = self.focused_window_idx();
-
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
-            if i == focused_idx {
-                window.restore();
-            } else {
-                window.hide();
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
-        let window = self.windows_mut().remove(idx);
-        self.focus_window(idx.saturating_sub(1));
-        window
-    }
-
-    /// Hides every window of the container but `omit`, or every window when it is `None`
-    ///
-    /// It never fails; the result is there so that callers can use `?`.
-    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
-        for window in self.windows_mut().iter_mut().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide
-                && let Some(omit) = omit
-                && omit != window.id
-            {
-                should_hide = true
-            }
-
-            if should_hide {
-                window.hide();
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Restores the focused window of the container, which is the one that is in front when the
-    /// container is a stack
-    ///
-    /// It never fails; the result is there so that callers can use `?`.
-    pub fn restore(&mut self) -> eyre::Result<()> {
-        if let Some(window) = self.focused_window_mut() {
-            window.restore();
-        }
-
-        Ok(())
     }
 }
 
