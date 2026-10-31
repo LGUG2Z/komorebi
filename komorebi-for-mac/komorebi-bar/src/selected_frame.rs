@@ -50,7 +50,7 @@ impl SelectableFrame {
                         let visuals = ui.style().interact_selectable(&response, selected);
 
                         Frame::NONE
-                            .stroke(Stroke::new(1.0, visuals.bg_stroke.color))
+                            .stroke(Stroke::new(1.0_f32, visuals.bg_stroke.color))
                             .corner_radius(visuals.corner_radius)
                             .fill(selected_fill.unwrap_or(visuals.bg_fill))
                             .inner_margin(inner_margin)
@@ -59,7 +59,7 @@ impl SelectableFrame {
                         let visuals = ui.style().interact_selectable(&response, selected);
 
                         Frame::NONE
-                            .stroke(Stroke::new(1.0, visuals.bg_stroke.color))
+                            .stroke(Stroke::new(1.0_f32, visuals.bg_stroke.color))
                             .corner_radius(visuals.corner_radius)
                             .fill(visuals.bg_fill)
                             .inner_margin(inner_margin)
@@ -68,14 +68,14 @@ impl SelectableFrame {
                         let visuals = ui.style().interact_selectable(&response, selected);
 
                         Frame::NONE
-                            .stroke(Stroke::new(1.0, visuals.bg_fill))
+                            .stroke(Stroke::new(1.0_f32, visuals.bg_fill))
                             .corner_radius(visuals.corner_radius)
                             .fill(selected_fill.unwrap_or(visuals.bg_fill))
                             .inner_margin(inner_margin)
                             .show(ui, add_contents);
                     } else {
                         Frame::NONE
-                            .stroke(Stroke::new(1.0, Color32::TRANSPARENT))
+                            .stroke(Stroke::new(1.0_f32, Color32::TRANSPARENT))
                             .inner_margin(inner_margin)
                             .show(ui, add_contents);
                     }
