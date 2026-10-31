@@ -86,6 +86,7 @@ pub fn latest_monitor_information() -> eyre::Result<Vec<Monitor>> {
     Ok(backend()
         .monitors()?
         .into_iter()
+        .map(crate::backend::MonitorInfo::from)
         .map(|m| Monitor::new(m.id, m.size, m.work_area, &m.name, &m.serial_number_id))
         .collect())
 }
@@ -351,7 +352,11 @@ pub fn load_workspace_information(wm: &mut WindowManager) -> eyre::Result<()> {
         }
     }
 
-    for info in backend().windows() {
+    for info in backend()
+        .windows()
+        .into_iter()
+        .map(crate::backend::WindowInfo::from)
+    {
         if info.minimized {
             continue;
         }

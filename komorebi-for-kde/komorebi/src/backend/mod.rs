@@ -93,6 +93,46 @@ pub struct WindowInfo {
     pub alive: bool,
 }
 
+impl From<komorebi_backend::WindowInfo> for WindowInfo {
+    /// KDE fills every field of a window, so the optional ones are always there; a backend that has
+    /// not got one gets the empty string or false, and a window is normal unless it says it is not.
+    fn from(info: komorebi_backend::WindowInfo) -> Self {
+        Self {
+            id: info.id.to_u32().unwrap_or(u32::MAX),
+            pid: info.pid,
+            title: info.title.unwrap_or_default(),
+            class: info.class.unwrap_or_default(),
+            exe: info.exe.unwrap_or_default(),
+            path: info.path.unwrap_or_default(),
+            rect: info.rect,
+            minimized: info.minimized,
+            fullscreen: info.fullscreen.unwrap_or_default(),
+            maximized: info.maximized.unwrap_or_default(),
+            normal: info.normal.unwrap_or(true),
+            alive: info.alive,
+        }
+    }
+}
+
+impl From<WindowInfo> for komorebi_backend::WindowInfo {
+    fn from(info: WindowInfo) -> Self {
+        Self {
+            id: WindowId::from_u32(info.id),
+            pid: info.pid,
+            rect: info.rect,
+            minimized: info.minimized,
+            alive: info.alive,
+            title: Some(info.title),
+            class: Some(info.class),
+            exe: Some(info.exe),
+            path: Some(info.path),
+            fullscreen: Some(info.fullscreen),
+            maximized: Some(info.maximized),
+            normal: Some(info.normal),
+        }
+    }
+}
+
 /// A connected monitor, in logical pixels.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MonitorInfo {
@@ -106,6 +146,30 @@ pub struct MonitorInfo {
     pub size: Rect,
     /// `size` minus the panels and other areas the compositor reserves.
     pub work_area: Rect,
+}
+
+impl From<komorebi_backend::MonitorInfo> for MonitorInfo {
+    fn from(info: komorebi_backend::MonitorInfo) -> Self {
+        Self {
+            id: info.id.to_u32().unwrap_or(u32::MAX),
+            name: info.name.unwrap_or_default(),
+            serial_number_id: info.serial_number_id.unwrap_or_default(),
+            size: info.size,
+            work_area: info.work_area,
+        }
+    }
+}
+
+impl From<MonitorInfo> for komorebi_backend::MonitorInfo {
+    fn from(info: MonitorInfo) -> Self {
+        Self {
+            id: MonitorId::from_u32(info.id),
+            size: info.size,
+            work_area: info.work_area,
+            name: Some(info.name),
+            serial_number_id: Some(info.serial_number_id),
+        }
+    }
 }
 
 /// How the compositor is asked to dress the windows komorebi arranges.
@@ -212,16 +276,16 @@ pub struct BorderLook {
 /// ```rust,compile_fail,E0277
 /// # use std::rc::Rc;
 /// # use color_eyre::eyre;
-/// # use komorebi::backend::{Backend, MonitorInfo, WindowInfo};
+/// # use komorebi::backend::Backend;
 /// # use komorebi::core::Rect;
 /// # use komorebi_backend::{MonitorId, WindowId};
 /// struct NotShareable(Rc<u8>);
 ///
 /// # impl Backend for NotShareable {
-/// #     fn windows(&self) -> Vec<WindowInfo> { vec![] }
-/// #     fn window(&self, _: WindowId) -> Option<WindowInfo> { None }
+/// #     fn windows(&self) -> Vec<komorebi_backend::WindowInfo> { vec![] }
+/// #     fn window(&self, _: WindowId) -> Option<komorebi_backend::WindowInfo> { None }
 /// #     fn foreground_window(&self) -> Option<WindowId> { None }
-/// #     fn monitors(&self) -> komorebi_backend::Result<Vec<MonitorInfo>> { Ok(vec![]) }
+/// #     fn monitors(&self) -> komorebi_backend::Result<Vec<komorebi_backend::MonitorInfo>> { Ok(vec![]) }
 /// #     fn cursor_pos(&self) -> Option<(i32, i32)> { None }
 /// #     fn set_rect(&self, _: WindowId, _: &Rect) -> komorebi_backend::Result<()> { Ok(()) }
 /// #     fn focus(&self, _: WindowId, _: bool) -> komorebi_backend::Result<()> { Ok(()) }
@@ -243,10 +307,10 @@ pub trait Backend: Send + Sync + 'static {
     // ---- queries -------------------------------------------------------------------------------
 
     /// Returns every window on the desktop that is a candidate for management, ordered by id.
-    fn windows(&self) -> Vec<WindowInfo>;
+    fn windows(&self) -> Vec<komorebi_backend::WindowInfo>;
 
     /// Returns what is known about the window, or `None` if the compositor has never heard of it.
-    fn window(&self, id: WindowId) -> Option<WindowInfo>;
+    fn window(&self, id: WindowId) -> Option<komorebi_backend::WindowInfo>;
 
     /// Returns the id of the window that has the focus, if any window does.
     fn foreground_window(&self) -> Option<WindowId>;
@@ -256,7 +320,7 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the compositor cannot report its outputs.
-    fn monitors(&self) -> komorebi_backend::Result<Vec<MonitorInfo>>;
+    fn monitors(&self) -> komorebi_backend::Result<Vec<komorebi_backend::MonitorInfo>>;
 
     /// Returns where the pointer is, if the compositor says.
     fn cursor_pos(&self) -> Option<(i32, i32)>;
@@ -627,7 +691,7 @@ pub trait Backend: Send + Sync + 'static {
         self.monitors().ok()?.into_iter().find_map(|m| {
             let (l, t) = (m.size.left, m.size.top);
             let (r, b) = (l + m.size.right, t + m.size.bottom);
-            (x >= l && x < r && y >= t && y < b).then_some(MonitorId::from_u32(m.id))
+            (x >= l && x < r && y >= t && y < b).then_some(m.id)
         })
     }
 }
@@ -693,7 +757,7 @@ fn test_default() -> Option<Arc<dyn Backend>> {
 /// fake.open_window(7, "foot", "foot", "a terminal");
 ///
 /// let titles = with_backend(fake.clone(), || {
-///     backend().windows().into_iter().map(|w| w.title).collect::<Vec<_>>()
+///     backend().windows().into_iter().filter_map(|w| w.title).collect::<Vec<_>>()
 /// });
 ///
 /// assert_eq!(titles, ["a terminal"]);

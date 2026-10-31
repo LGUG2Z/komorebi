@@ -38,8 +38,6 @@
 
 use super::Backend;
 use super::Look;
-use super::MonitorInfo;
-use super::WindowInfo;
 use crate::core::Rect;
 use color_eyre::eyre;
 use komorebi_backend as shared;
@@ -128,23 +126,6 @@ fn raw_monitor(id: MonitorId) -> u32 {
 
 fn wid(id: u32) -> WindowId {
     WindowId::from_u32(id)
-}
-
-fn window_info(info: shared::WindowInfo) -> WindowInfo {
-    WindowInfo {
-        id: raw(info.id),
-        pid: info.pid,
-        title: info.title.unwrap_or_default(),
-        class: info.class.unwrap_or_default(),
-        exe: info.exe.unwrap_or_default(),
-        path: info.path.unwrap_or_default(),
-        rect: info.rect,
-        minimized: info.minimized,
-        fullscreen: info.fullscreen.unwrap_or_default(),
-        maximized: info.maximized.unwrap_or_default(),
-        normal: info.normal.unwrap_or(true),
-        alive: info.alive,
-    }
 }
 
 fn command(command: SharedCommand<KdeCommand>) -> Option<Command> {
@@ -402,31 +383,20 @@ impl FakeBackend {
 }
 
 impl Backend for FakeBackend {
-    fn windows(&self) -> Vec<WindowInfo> {
-        self.inner.windows().into_iter().map(window_info).collect()
+    fn windows(&self) -> Vec<komorebi_backend::WindowInfo> {
+        self.inner.windows()
     }
 
-    fn window(&self, id: WindowId) -> Option<WindowInfo> {
-        self.inner.window(id).map(window_info)
+    fn window(&self, id: WindowId) -> Option<komorebi_backend::WindowInfo> {
+        self.inner.window(id)
     }
 
     fn foreground_window(&self) -> Option<WindowId> {
         self.inner.foreground_window()
     }
 
-    fn monitors(&self) -> shared::Result<Vec<MonitorInfo>> {
-        Ok(self
-            .inner
-            .monitors()?
-            .into_iter()
-            .map(|m| MonitorInfo {
-                id: raw_monitor(m.id),
-                name: m.name.unwrap_or_default(),
-                serial_number_id: m.serial_number_id.unwrap_or_default(),
-                size: m.size,
-                work_area: m.work_area,
-            })
-            .collect())
+    fn monitors(&self) -> shared::Result<Vec<shared::MonitorInfo>> {
+        self.inner.monitors()
     }
 
     fn cursor_pos(&self) -> Option<(i32, i32)> {
@@ -649,8 +619,9 @@ mod tests {
             fake.window(1.into())
                 .expect("window 1 was opened")
                 .maximized
+                .unwrap_or_default()
         );
-        assert!(fake.windows()[0].maximized);
+        assert!(fake.windows()[0].maximized.unwrap_or_default());
         assert_eq!(fake.rect_of(1), Some(tile(0, 1920)));
         assert!(fake.commands().is_empty());
 
@@ -661,6 +632,7 @@ mod tests {
                 .window(1.into())
                 .expect("window 1 was opened")
                 .maximized
+                .unwrap_or_default()
         );
         assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
     }
@@ -677,8 +649,9 @@ mod tests {
             fake.window(1.into())
                 .expect("window 1 was opened")
                 .fullscreen
+                .unwrap_or_default()
         );
-        assert!(fake.windows()[0].fullscreen);
+        assert!(fake.windows()[0].fullscreen.unwrap_or_default());
         assert_eq!(
             fake.rect_of(1),
             Some(Rect {
@@ -698,6 +671,7 @@ mod tests {
                 .window(1.into())
                 .expect("window 1 was opened")
                 .fullscreen
+                .unwrap_or_default()
         );
         assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
     }
@@ -779,8 +753,8 @@ mod tests {
         assert!(fake.commands().is_empty());
         assert_eq!(fake.rect_of(1), Some(tile(300, 300)));
         let window = fake.window(1.into()).expect("window 1 was opened");
-        assert_eq!(window.title, "renamed");
-        assert!(!window.normal);
+        assert_eq!(window.title, Some("renamed".to_string()));
+        assert!(window.normal == Some(false));
     }
 
     #[test]
@@ -788,7 +762,11 @@ mod tests {
         let fake = fake_with(&[3, 1, 2]);
         fake.close_window_now(2);
 
-        let ids: Vec<_> = fake.windows().iter().map(|w| w.id).collect();
+        let ids: Vec<_> = fake
+            .windows()
+            .iter()
+            .map(|w| w.id.to_u32().unwrap())
+            .collect();
 
         assert_eq!(ids, [1, 3]);
     }

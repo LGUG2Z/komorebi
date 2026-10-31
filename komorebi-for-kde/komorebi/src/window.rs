@@ -192,7 +192,7 @@ impl Window {
 
     /// What the compositor knows about this window, including for a few moments after it closed
     pub fn info(self) -> Option<crate::backend::WindowInfo> {
-        backend().window(self.window_id())
+        backend().window(self.window_id()).map(Into::into)
     }
 
     /// Whether the window still exists
@@ -263,7 +263,7 @@ impl Window {
     pub fn is_fullscreen(self) -> bool {
         backend()
             .window(self.window_id())
-            .is_some_and(|w| w.fullscreen)
+            .is_some_and(|w| w.fullscreen == Some(true))
     }
 
     /// Asks the compositor to draw the window with this opacity, 255 being not see-through at all

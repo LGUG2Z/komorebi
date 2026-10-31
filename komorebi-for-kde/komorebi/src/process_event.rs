@@ -460,7 +460,7 @@ impl WindowManager {
                     // an app that remembers it was maximized opens that way
                     if backend()
                         .window(WindowId::from_u32(window_id))
-                        .is_some_and(|w| w.maximized)
+                        .is_some_and(|w| w.maximized == Some(true))
                     {
                         self.update_known_window_ids();
                         self.adopt_maximize_change(window_id, true)?;

@@ -35,30 +35,13 @@ impl<B: Backend + ?Sized> Shared<B> {
     }
 }
 
-fn window_info(info: super::WindowInfo) -> shared::WindowInfo {
-    shared::WindowInfo {
-        id: WindowId::from_u32(info.id),
-        pid: info.pid,
-        rect: info.rect,
-        minimized: info.minimized,
-        alive: info.alive,
-        title: Some(info.title),
-        class: Some(info.class),
-        exe: Some(info.exe),
-        path: Some(info.path),
-        fullscreen: Some(info.fullscreen),
-        maximized: Some(info.maximized),
-        normal: Some(info.normal),
-    }
-}
-
 impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     fn windows(&self) -> Vec<shared::WindowInfo> {
-        self.0.windows().into_iter().map(window_info).collect()
+        self.0.windows()
     }
 
     fn window(&self, id: WindowId) -> Option<shared::WindowInfo> {
-        self.0.window(id).map(window_info)
+        self.0.window(id)
     }
 
     fn foreground_window(&self) -> Option<WindowId> {
@@ -66,18 +49,7 @@ impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     }
 
     fn monitors(&self) -> shared::Result<Vec<shared::MonitorInfo>> {
-        Ok(self
-            .0
-            .monitors()?
-            .into_iter()
-            .map(|m| shared::MonitorInfo {
-                id: MonitorId::from_u32(m.id),
-                size: m.size,
-                work_area: m.work_area,
-                name: Some(m.name),
-                serial_number_id: Some(m.serial_number_id),
-            })
-            .collect())
+        self.0.monitors()
     }
 
     fn cursor_pos(&self) -> Option<(i32, i32)> {

@@ -93,8 +93,6 @@ mod wallpaper;
 use crate::DATA_DIR;
 use crate::backend::Backend;
 use crate::backend::Look;
-use crate::backend::MonitorInfo;
-use crate::backend::WindowInfo;
 use crate::core::Rect;
 use crate::monitor_reconciliator;
 use crate::window_manager_event_listener;
@@ -825,13 +823,19 @@ impl KWinBackend {
 }
 
 impl Backend for KWinBackend {
-    fn windows(&self) -> Vec<WindowInfo> {
-        self.shared.table.lock().windows()
+    fn windows(&self) -> Vec<komorebi_backend::WindowInfo> {
+        self.shared
+            .table
+            .lock()
+            .windows()
+            .into_iter()
+            .map(Into::into)
+            .collect()
     }
 
-    fn window(&self, id: WindowId) -> Option<WindowInfo> {
+    fn window(&self, id: WindowId) -> Option<komorebi_backend::WindowInfo> {
         let id = id.to_u32()?;
-        self.shared.table.lock().window(id)
+        self.shared.table.lock().window(id).map(Into::into)
     }
 
     fn foreground_window(&self) -> Option<WindowId> {
@@ -852,12 +856,12 @@ impl Backend for KWinBackend {
         self.shared.table.lock().drag_end(id)
     }
 
-    fn monitors(&self) -> komorebi_backend::Result<Vec<MonitorInfo>> {
+    fn monitors(&self) -> komorebi_backend::Result<Vec<komorebi_backend::MonitorInfo>> {
         let monitors = self.shared.table.lock().monitors();
         if monitors.is_empty() {
             return Err(platform(eyre::eyre!("KWin reported no outputs")));
         }
-        Ok(monitors)
+        Ok(monitors.into_iter().map(Into::into).collect())
     }
 
     fn cursor_pos(&self) -> Option<(i32, i32)> {
