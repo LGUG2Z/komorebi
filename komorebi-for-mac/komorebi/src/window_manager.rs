@@ -1,4 +1,3 @@
-use crate::monitor::MonitorExt;
 use crate::AccessibilityUiElement;
 use crate::CoreFoundationRunLoop;
 use crate::DATA_DIR;
@@ -41,6 +40,7 @@ use crate::current_space_id;
 use crate::lockable_sequence::Lockable;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
 use crate::pan::Pan;
 use crate::ring::Ring;
 use crate::scrolling::WorkspaceScrolling;
@@ -52,6 +52,7 @@ use crate::window::AdhocWindow;
 use crate::window::Snapping;
 use crate::window::Window;
 use crate::window::dragged_window;
+use crate::window::foreground_window_id;
 use crate::window::live_resize_begins;
 use crate::window::live_resize_ends;
 use crate::window::should_act_individual;
@@ -267,8 +268,7 @@ impl WindowManager {
         let len = focused_workspace.floating_windows().len();
 
         if len > 1 {
-            let focused_window_id =
-                MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
+            let focused_window_id = foreground_window_id().ok_or_eyre("no foreground window")?;
             let focused_rect = Rect::from(MacosApi::window_rect(
                 MacosApi::foreground_window()
                     .ok_or_eyre("no foreground window")?
@@ -735,8 +735,7 @@ impl WindowManager {
         let focused_workspace = self.focused_workspace()?;
         let delta = self.resize_delta;
 
-        let focused_window_id =
-            MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
+        let focused_window_id = foreground_window_id().ok_or_eyre("no foreground window")?;
         for window in focused_workspace.floating_windows().iter() {
             if window.id == focused_window_id {
                 let mut rect = Rect::from(window.window_rect()?);
@@ -1548,7 +1547,8 @@ impl WindowManager {
         let hiding_position = self
             .focused_monitor()
             .ok_or_eyre("there is no monitor")?
-            .extra.window_hiding_position;
+            .extra
+            .window_hiding_position;
 
         let workspace = self.focused_workspace_mut()?;
         workspace.new_monocle_container()?;
@@ -1584,7 +1584,8 @@ impl WindowManager {
         let hiding_position = self
             .focused_monitor()
             .ok_or_eyre("there is no monitor")?
-            .extra.window_hiding_position;
+            .extra
+            .window_hiding_position;
 
         self.focused_workspace_mut()?
             .cycle_monocle_container(direction)?;
@@ -1598,7 +1599,7 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn toggle_float(&mut self, force_float: bool) -> eyre::Result<()> {
-        let window_id = MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
+        let window_id = foreground_window_id().ok_or_eyre("no foreground window")?;
 
         let workspace = self.focused_workspace_mut()?;
         if workspace.monocle_container.is_some() {
@@ -1674,7 +1675,7 @@ impl WindowManager {
             WorkspaceLayer::Floating => {
                 let workspace = self.focused_workspace()?;
                 let focused_window_id =
-                    MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
+                    foreground_window_id().ok_or_eyre("no foreground window")?;
 
                 let border_offset = 0;
                 let border_width = 0;
@@ -2570,8 +2571,7 @@ impl WindowManager {
             eyre::bail!("cannot move native maximized window to another monitor or workspace");
         }
 
-        let foreground_window_id =
-            MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
+        let foreground_window_id = foreground_window_id().ok_or_eyre("no foreground window")?;
         let floating_window_index = workspace
             .floating_windows()
             .iter()
@@ -2836,8 +2836,7 @@ impl WindowManager {
         let len = focused_workspace.floating_windows().len();
 
         if len > 1 {
-            let focused_window_id =
-                MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
+            let focused_window_id = foreground_window_id().ok_or_eyre("no foreground window")?;
             for (idx, window) in focused_workspace.floating_windows().iter().enumerate() {
                 if window.id == focused_window_id {
                     match direction {
@@ -3270,7 +3269,7 @@ impl WindowManager {
         ) {
             let workspace = self.focused_workspace()?;
             let focused_hwnd =
-                MacosApi::foreground_window_id().ok_or_eyre("there is no foreground window")?;
+                foreground_window_id().ok_or_eyre("there is no foreground window")?;
             if !workspace.contains_managed_window(focused_hwnd) {
                 bail!("ignoring commands while active window is not managed by komorebi");
             }
@@ -3675,7 +3674,7 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn manage_focused_window(&mut self) -> eyre::Result<()> {
         let element = MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
-        let window_id = MacosApi::foreground_window_id();
+        let window_id = foreground_window_id();
         if let Some(process_id) = AdhocWindow::process_id(&element)
             && let Some(event) = WindowManagerEvent::from_system_notification(
                 SystemNotification::Manual(ManualNotification::Manage),
@@ -3696,7 +3695,7 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn unmanage_focused_window(&mut self) -> eyre::Result<()> {
         let element = MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
-        let window_id = MacosApi::foreground_window_id();
+        let window_id = foreground_window_id();
         if let Some(process_id) = AdhocWindow::process_id(&element)
             && let Some(event) = WindowManagerEvent::from_system_notification(
                 SystemNotification::Manual(ManualNotification::Unmanage),

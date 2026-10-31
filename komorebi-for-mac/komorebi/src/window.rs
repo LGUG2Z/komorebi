@@ -551,6 +551,11 @@ impl schemars::JsonSchema for Window {
     }
 }
 
+/// The id of the window that has the focus, if any window does
+pub fn foreground_window_id() -> Option<u32> {
+    MacosApi::foreground_window_id()
+}
+
 impl Window {
     pub fn new(
         element: CFRetained<AXUIElement>,
