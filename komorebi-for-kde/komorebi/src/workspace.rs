@@ -11,7 +11,6 @@
 //! [`Workspace::work_area_offset_rules`]), and its layout options come from the workspace or from
 //! the defaults of its layout.
 
-use crate::scrolling::WorkspaceScrolling;
 use crate::HIDDEN_WINDOWS;
 use crate::REGEX_IDENTIFIERS;
 use crate::backend::backend;
@@ -19,10 +18,9 @@ use crate::container::Container;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::LayoutDefaultEntry;
-use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::Rect;
-use crate::lockable_sequence::LockableSequence;
+use crate::scrolling::WorkspaceScrolling;
 use crate::static_config::Wallpaper;
 use crate::static_config::WorkspaceConfig;
 use crate::theme_manager;
@@ -40,10 +38,9 @@ use komorebi_themes::KomorebiThemeCustom;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
 
-pub use komorebi_core::WorkspaceLayer;
 use komorebi_core::CachedLayoutDefault;
+pub use komorebi_core::WorkspaceLayer;
 pub use komorebi_core::WorkspaceWindowLocation;
-pub(crate) use komorebi_core::resolve_threshold_match;
 pub(crate) use komorebi_core::sorted_layout_options_rules;
 
 /// The workspace over KDE's [`Window`], which is `komorebi_core::Workspace` with this platform's
@@ -126,6 +123,28 @@ impl komorebi_core::WorkspacePlatform for KdePlatform {
     fn after_floating_removed(workspace: &mut Workspace) {
         workspace.focus_previous_floating_window();
     }
+
+    fn unmaximize_window(window: &Window) -> eyre::Result<()> {
+        Ok(window.unmaximize()?)
+    }
+
+    fn before_hide_containers(workspace: &mut Workspace) -> Option<Vec<Option<Rect>>> {
+        // a scrolling workspace is tiled again without its resize adjustments first, so that the
+        // windows are hidden where the layout has them and not where they were dragged; the
+        // adjustments are put back after
+        let mut resize_dimensions = None;
+        if matches!(workspace.layout, Layout::Default(DefaultLayout::Scrolling))
+            && workspace.resize_dimensions.iter().any(|r| r.is_some())
+        {
+            resize_dimensions = Some(workspace.resize_dimensions.clone());
+            workspace.resize_dimensions = Vec::new();
+            if let Err(error) = workspace.update() {
+                tracing::error!("{error}");
+            }
+        }
+
+        resize_dimensions
+    }
 }
 
 /// `komorebi_layouts::Rect::percentage_within_horizontal_bounds`, which that crate compiles only
@@ -151,9 +170,6 @@ impl HorizontalBounds for Rect {
     }
 }
 
-
-
-
 pub trait WorkspaceExt {
     /// Takes the settings of `config`, which `komorebi.json` has for this workspace: its name, its
     /// layout and the rules that change it with the number of containers, its padding and offsets,
@@ -174,18 +190,6 @@ pub trait WorkspaceExt {
         layout_defaults: Option<&HashMap<DefaultLayout, LayoutDefaultEntry>>,
     ) -> eyre::Result<()>;
 
-    /// Compute effective layout options using the complete-replacement cascade:
-    ///
-    /// If the workspace defines EITHER `layout_options` OR `layout_options_rules`,
-    /// it completely replaces the global `layout_defaults` for this layout.
-    /// Global defaults are only used when the workspace has NEITHER setting.
-    ///
-    /// Within the effective source (workspace or global):
-    ///   1. Try threshold match from rules (highest matching threshold wins)
-    ///   2. If a rule matches -> use it (full replacement of base)
-    ///   3. Else -> use the base `layout_options`
-    fn effective_layout_options(&self) -> Option<LayoutOptions>;
-
     fn prune_duplicate_windows(&mut self) -> eyre::Result<()>;
 
     /// Remove every window that no longer exists
@@ -200,12 +204,6 @@ pub trait WorkspaceExt {
     ///
     /// No container of the workspace has the window.
     fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window>;
-
-    /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
-    /// windows of every container, the maximized window and the monocle container. A scrolling
-    /// workspace is tiled again first without its resize adjustments, which are put back after,
-    /// so that the windows are hidden where the layout has them and not where they were dragged.
-    fn hide(&mut self, omit: Option<u32>);
 
     /// Restores the window of every container that is in front, and the floating windows, and
     /// gives the focus to the window of this workspace that had it: the focused window of the
@@ -223,14 +221,6 @@ pub trait WorkspaceExt {
         monitor_id: u32,
         monitor_wp: &Option<Wallpaper>,
     ) -> eyre::Result<()>;
-
-    /// Moves the focused container to the first index, the largest tile in every layout but the
-    /// grid, and keeps the focus on it
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no containers.
-    fn promote_container(&mut self) -> eyre::Result<()>;
 
     /// Takes the focused window out of its container, and so out of the layout, and has the
     /// compositor maximize it: the work area, panels respected, and a restore that goes back to
@@ -272,15 +262,6 @@ pub trait WorkspaceExt {
     ///
     /// The workspace has no maximized window, or the compositor refuses to restore it.
     fn reintegrate_maximized_window(&mut self) -> eyre::Result<()>;
-
-    /// Takes the focused window out of its container, and out of the layout, into the floating
-    /// windows of the workspace; a container that is left with no window is removed, and one that
-    /// is left with windows shows the one in front now
-    ///
-    /// # Errors
-    ///
-    /// The workspace has no containers, or the focused one has no window.
-    fn new_floating_window(&mut self) -> eyre::Result<()>;
 
     /// Tiles the workspace: asks the layout for a tile per container in the work area, less the
     /// offset (the workspace's own, or else the one its monitor gives it), the monitor's
@@ -334,12 +315,7 @@ pub trait WorkspaceExt {
     /// still changed: the picture may be shown a moment later, when the Plasma shell is up. The
     /// colors are changed before this returns, so the borders drawn for the workspace that comes
     /// into view are right at once.
-    fn apply_wallpaper(
-        &self,
-        monitor_id: u32,
-        monitor_wp: &Option<Wallpaper>,
-    ) -> eyre::Result<()>;
-
+    fn apply_wallpaper(&self, monitor_id: u32, monitor_wp: &Option<Wallpaper>) -> eyre::Result<()>;
 }
 
 impl WorkspaceExt for Workspace {
@@ -449,27 +425,6 @@ impl WorkspaceExt for Workspace {
         self.workspace_config = Some(config.clone());
 
         Ok(())
-    }
-
-    fn effective_layout_options(&self) -> Option<LayoutOptions> {
-        let container_count = self.containers().len();
-
-        let has_workspace_overrides =
-            self.layout_options.is_some() || !self.layout_options_rules.is_empty();
-
-        let (effective_base, effective_rules): (Option<LayoutOptions>, &[(usize, LayoutOptions)]) =
-            if has_workspace_overrides {
-                (self.layout_options, &self.layout_options_rules)
-            } else {
-                match &self.layout {
-                    Layout::Default(dl) => match self.layout_defaults_cache.get(dl) {
-                        Some(entry) => (entry.layout_options, &entry.layout_options_rules),
-                        None => (None, &[]),
-                    },
-                }
-            };
-
-        resolve_threshold_match(effective_rules, container_count).or(effective_base)
     }
 
     fn prune_duplicate_windows(&mut self) -> eyre::Result<()> {
@@ -631,50 +586,6 @@ impl WorkspaceExt for Workspace {
         Ok(window)
     }
 
-    fn hide(&mut self, omit: Option<u32>) {
-        for window in self.floating_windows_mut().iter_mut().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide
-                && let Some(omit) = omit
-                && omit != window.id
-            {
-                should_hide = true
-            }
-
-            if should_hide {
-                window.hide();
-            }
-        }
-
-        let mut resize_dimensions = None;
-        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
-            && self.resize_dimensions.iter().any(|r| r.is_some())
-        {
-            resize_dimensions = Some(self.resize_dimensions.clone());
-            self.resize_dimensions = Vec::new();
-            if let Err(error) = self.update() {
-                tracing::error!("{error}");
-            }
-        }
-
-        for container in self.containers_mut() {
-            container.hide(omit);
-        }
-
-        if let Some(resize_dimensions) = resize_dimensions {
-            self.resize_dimensions = resize_dimensions;
-        }
-
-        if let Some(window) = self.maximized_window {
-            window.hide();
-        }
-
-        if let Some(container) = &mut self.monocle_container {
-            container.hide(omit);
-        }
-    }
-
     fn restore(
         &mut self,
         mouse_follows_focus: bool,
@@ -734,25 +645,6 @@ impl WorkspaceExt for Workspace {
         }
 
         self.apply_wallpaper(monitor_id, monitor_wp)
-    }
-
-    fn promote_container(&mut self) -> eyre::Result<()> {
-        let focused_idx = self.focused_container_idx();
-        let container = self
-            .containers_mut()
-            .remove_respecting_locks(focused_idx)
-            .ok_or_eyre("there is no container")?;
-
-        let primary_idx = match &self.layout {
-            Layout::Default(_) => 0,
-        };
-
-        let insertion_idx = self
-            .containers_mut()
-            .insert_respecting_locks(primary_idx, container);
-        self.focus_container(insertion_idx);
-
-        Ok(())
     }
 
     fn new_maximized_window(&mut self) -> eyre::Result<()> {
@@ -922,54 +814,6 @@ impl WorkspaceExt for Workspace {
 
         self.maximized_window = None;
         self.maximized_window_restore_idx = None;
-
-        Ok(())
-    }
-
-    fn new_floating_window(&mut self) -> eyre::Result<()> {
-        let window = if let Some(maximized_window) = self.maximized_window {
-            maximized_window.unmaximize()?;
-            self.maximized_window = None;
-            self.maximized_window_restore_idx = None;
-            maximized_window
-        } else if let Some(monocle_container) = &mut self.monocle_container {
-            let window = monocle_container
-                .remove_focused_window()
-                .ok_or_eyre("there is no window")?;
-
-            if monocle_container.windows().is_empty() {
-                self.monocle_container = None;
-                self.monocle_container_restore_idx = None;
-            } else {
-                monocle_container.load_focused_window();
-            }
-
-            window
-        } else {
-            let focused_idx = self.focused_container_idx();
-
-            let container = self
-                .focused_container_mut()
-                .ok_or_eyre("there is no container")?;
-
-            let window = container
-                .remove_focused_window()
-                .ok_or_eyre("there is no window")?;
-
-            if container.windows().is_empty() {
-                self.remove_container_by_idx(focused_idx);
-
-                if focused_idx == self.containers().len() {
-                    self.focus_container(focused_idx.saturating_sub(1));
-                }
-            } else {
-                container.load_focused_window();
-            }
-
-            window
-        };
-
-        self.floating_windows_mut().push_back(window);
 
         Ok(())
     }
@@ -1308,11 +1152,7 @@ impl WorkspaceExt for Workspace {
         vec
     }
 
-    fn apply_wallpaper(
-        &self,
-        monitor_id: u32,
-        monitor_wp: &Option<Wallpaper>,
-    ) -> eyre::Result<()> {
+    fn apply_wallpaper(&self, monitor_id: u32, monitor_wp: &Option<Wallpaper>) -> eyre::Result<()> {
         if let Some(wallpaper) = self.wallpaper.as_ref().or(monitor_wp.as_ref()) {
             if let Err(error) =
                 backend().set_wallpaper(MonitorId::from_u32(monitor_id), &wallpaper.path)
@@ -1344,7 +1184,6 @@ impl WorkspaceExt for Workspace {
 
         Ok(())
     }
-
 }
 
 #[cfg(test)]

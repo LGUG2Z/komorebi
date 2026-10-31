@@ -13,7 +13,6 @@
 //!
 //! [`WindowManager::pan`] moves the view along the strip without moving the focus.
 
-use crate::workspace::WorkspaceExt;
 use crate::container::Container;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
@@ -184,7 +183,6 @@ pub(crate) fn should_restore_when_placed(
     focused_in_container == Some(window) && hidden.contains(&window)
 }
 
-
 impl WindowManager {
     /// Move the view of the focused workspace one step, a column, to the left or the right, and
     /// let it come to rest with a column against an edge of the screen. Focus goes to the nearest
@@ -281,10 +279,7 @@ pub(crate) trait WorkspaceScrolling {
     /// Left and right are the neighbouring columns, and focus goes to the tile that had it last
     /// in the one it arrives at. Up and down are the tiles of the focused column, and stop at
     /// the ends.
-    fn scrolling_idx_for_direction(
-        &self,
-        direction: OperationDirection,
-    ) -> Option<usize>;
+    fn scrolling_idx_for_direction(&self, direction: OperationDirection) -> Option<usize>;
 
     /// Make the order of the containers the order of the tiles of the strip, and focus the tile
     /// that the strip says has it.
@@ -376,13 +371,14 @@ pub(crate) trait WorkspaceScrolling {
         sizing: Sizing,
         delta: i32,
     );
-
 }
 
 impl WorkspaceScrolling for Workspace {
     fn adopt_actual_widths(&mut self, around_window: i32, viewport_width: i32) -> bool {
-        let (Some(space), Some(placed)) = (self.scrolling.as_mut(), self.state.scrolling_placed.as_ref())
-        else {
+        let (Some(space), Some(placed)) = (
+            self.scrolling.as_mut(),
+            self.state.scrolling_placed.as_ref(),
+        ) else {
             return false;
         };
 
@@ -551,10 +547,7 @@ impl WorkspaceScrolling for Workspace {
             .map(|idx| idx + 1)
     }
 
-    fn scrolling_idx_for_direction(
-        &self,
-        direction: OperationDirection,
-    ) -> Option<usize> {
+    fn scrolling_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
         // the strip may not have heard about everything that happened since the last layout, so
         // this goes by a copy of it that has
         let mut probe = self.scrolling.clone()?;
@@ -919,17 +912,16 @@ impl WorkspaceScrolling for Workspace {
             scrolling::resize(space, &id, direction, sizing, delta);
         }
     }
-
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::core::DefaultLayout;
-    use crate::core::Layout;
     use super::*;
     use crate::HIDDEN_WINDOWS;
     use crate::backend::fake::FakeBackend;
     use crate::backend::with_backend;
+    use crate::core::DefaultLayout;
+    use crate::core::Layout;
     use crate::window::Window;
     use std::sync::Arc;
 
