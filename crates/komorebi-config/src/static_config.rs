@@ -617,7 +617,7 @@ impl StaticConfig {
     /// # Errors
     ///
     /// The file cannot be read, or it is not a configuration.
-    pub fn read(path: &PathBuf) -> color_eyre::Result<Self> {
+    pub fn read(path: &std::path::Path) -> color_eyre::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         serde_json::from_str(&content).map_err(Into::into)
     }
