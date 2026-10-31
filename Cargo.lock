@@ -3557,6 +3557,7 @@ dependencies = [
  "dunce",
  "fs-tail",
  "komorebi-client",
+ "komorebi-config",
  "lazy_static",
  "miette",
  "open",
