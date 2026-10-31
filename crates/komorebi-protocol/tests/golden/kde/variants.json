@@ -1,0 +1,4314 @@
+{
+  "ActiveWindowBorder": {
+    "instance": {
+      "type": "ActiveWindowBorder",
+      "content": false
+    },
+    "wire": "{\"type\":\"Border\",\"content\":false}",
+    "golden": {
+      "type": "Border",
+      "content": false
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "ActiveWindowBorderColour": {
+    "instance": {
+      "type": "ActiveWindowBorderColour",
+      "content": [
+        "Single",
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"BorderColour\",\"content\":[\"Single\",0,0,0]}",
+    "golden": {
+      "type": "BorderColour",
+      "content": [
+        "Single",
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "AddSubscriberSocket": {
+    "instance": {
+      "type": "AddSubscriberSocket",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"AddSubscriberSocket\",\"content\":\"x\"}",
+    "golden": {
+      "type": "AddSubscriberSocket",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AddSubscriberSocketWithOptions": {
+    "instance": {
+      "type": "AddSubscriberSocketWithOptions",
+      "content": [
+        "x",
+        {
+          "filter_state_changes": false
+        }
+      ]
+    },
+    "wire": "{\"type\":\"AddSubscriberSocketWithOptions\",\"content\":[\"x\",{\"filter_state_changes\":false}]}",
+    "golden": {
+      "type": "AddSubscriberSocketWithOptions",
+      "content": [
+        "x",
+        {
+          "filter_state_changes": false
+        }
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AdjustContainerPadding": {
+    "instance": {
+      "type": "AdjustContainerPadding",
+      "content": [
+        "Increase",
+        0
+      ]
+    },
+    "wire": "{\"type\":\"AdjustContainerPadding\",\"content\":[\"Increase\",0]}",
+    "golden": {
+      "type": "AdjustContainerPadding",
+      "content": [
+        "Increase",
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AdjustContainerPadding@1": {
+    "instance": {
+      "type": "AdjustContainerPadding",
+      "content": [
+        "Decrease",
+        0
+      ]
+    },
+    "wire": "{\"type\":\"AdjustContainerPadding\",\"content\":[\"Decrease\",0]}",
+    "golden": {
+      "type": "AdjustContainerPadding",
+      "content": [
+        "Decrease",
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AdjustWorkspacePadding": {
+    "instance": {
+      "type": "AdjustWorkspacePadding",
+      "content": [
+        "Increase",
+        0
+      ]
+    },
+    "wire": "{\"type\":\"AdjustWorkspacePadding\",\"content\":[\"Increase\",0]}",
+    "golden": {
+      "type": "AdjustWorkspacePadding",
+      "content": [
+        "Increase",
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AdjustWorkspacePadding@1": {
+    "instance": {
+      "type": "AdjustWorkspacePadding",
+      "content": [
+        "Decrease",
+        0
+      ]
+    },
+    "wire": "{\"type\":\"AdjustWorkspacePadding\",\"content\":[\"Decrease\",0]}",
+    "golden": {
+      "type": "AdjustWorkspacePadding",
+      "content": [
+        "Decrease",
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Animation": {
+    "instance": {
+      "type": "Animation",
+      "content": [
+        false,
+        "movement"
+      ]
+    },
+    "wire": "{\"type\":\"Animation\",\"content\":[false,\"movement\"]}",
+    "golden": {
+      "type": "Animation",
+      "content": [
+        false,
+        "movement"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Animation@nulls": {
+    "instance": {
+      "type": "Animation",
+      "content": [
+        false,
+        null
+      ]
+    },
+    "wire": "{\"type\":\"Animation\",\"content\":[false,null]}",
+    "golden": {
+      "type": "Animation",
+      "content": [
+        false,
+        null
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AnimationDuration": {
+    "instance": {
+      "type": "AnimationDuration",
+      "content": [
+        0,
+        "movement"
+      ]
+    },
+    "wire": "{\"type\":\"AnimationDuration\",\"content\":[0,\"movement\"]}",
+    "golden": {
+      "type": "AnimationDuration",
+      "content": [
+        0,
+        "movement"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AnimationDuration@nulls": {
+    "instance": {
+      "type": "AnimationDuration",
+      "content": [
+        0,
+        null
+      ]
+    },
+    "wire": "{\"type\":\"AnimationDuration\",\"content\":[0,null]}",
+    "golden": {
+      "type": "AnimationDuration",
+      "content": [
+        0,
+        null
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AnimationFps": {
+    "instance": {
+      "type": "AnimationFps",
+      "content": 0
+    },
+    "wire": "{\"type\":\"AnimationFps\",\"content\":0}",
+    "golden": {
+      "type": "AnimationFps",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AnimationStyle": {
+    "instance": {
+      "type": "AnimationStyle",
+      "content": [
+        "Linear",
+        "movement"
+      ]
+    },
+    "wire": "{\"type\":\"AnimationStyle\",\"content\":[\"Linear\",\"movement\"]}",
+    "golden": {
+      "type": "AnimationStyle",
+      "content": [
+        "Linear",
+        "movement"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AnimationStyle@1": {
+    "instance": {
+      "type": "AnimationStyle",
+      "content": [
+        "EaseInSine",
+        "movement"
+      ]
+    },
+    "wire": "{\"type\":\"AnimationStyle\",\"content\":[\"EaseInSine\",\"movement\"]}",
+    "golden": {
+      "type": "AnimationStyle",
+      "content": [
+        "EaseInSine",
+        "movement"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AnimationStyle@2": {
+    "instance": {
+      "type": "AnimationStyle",
+      "content": [
+        "EaseOutSine",
+        "movement"
+      ]
+    },
+    "wire": "{\"type\":\"AnimationStyle\",\"content\":[\"EaseOutSine\",\"movement\"]}",
+    "golden": {
+      "type": "AnimationStyle",
+      "content": [
+        "EaseOutSine",
+        "movement"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AnimationStyle@3": {
+    "instance": {
+      "type": "AnimationStyle",
+      "content": [
+        "EaseInOutSine",
+        "movement"
+      ]
+    },
+    "wire": "{\"type\":\"AnimationStyle\",\"content\":[\"EaseInOutSine\",\"movement\"]}",
+    "golden": {
+      "type": "AnimationStyle",
+      "content": [
+        "EaseInOutSine",
+        "movement"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "AnimationStyle@nulls": {
+    "instance": {
+      "type": "AnimationStyle",
+      "content": [
+        "Linear",
+        null
+      ]
+    },
+    "wire": "{\"type\":\"AnimationStyle\",\"content\":[\"Linear\",null]}",
+    "golden": {
+      "type": "AnimationStyle",
+      "content": [
+        "Linear",
+        null
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ApplicationSpecificConfigurationSchema": {
+    "instance": {
+      "type": "ApplicationSpecificConfigurationSchema"
+    },
+    "wire": "{\"type\":\"ApplicationSpecificConfigurationSchema\"}",
+    "golden": {
+      "type": "ApplicationSpecificConfigurationSchema"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Border": {
+    "instance": {
+      "type": "Border",
+      "content": false
+    },
+    "wire": "{\"type\":\"Border\",\"content\":false}",
+    "golden": {
+      "type": "Border",
+      "content": false
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "BorderColour": {
+    "instance": {
+      "type": "BorderColour",
+      "content": [
+        "Single",
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"BorderColour\",\"content\":[\"Single\",0,0,0]}",
+    "golden": {
+      "type": "BorderColour",
+      "content": [
+        "Single",
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "BorderColour@1": {
+    "instance": {
+      "type": "BorderColour",
+      "content": [
+        "Stack",
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"BorderColour\",\"content\":[\"Stack\",0,0,0]}",
+    "golden": {
+      "type": "BorderColour",
+      "content": [
+        "Stack",
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "BorderColour@2": {
+    "instance": {
+      "type": "BorderColour",
+      "content": [
+        "Monocle",
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"BorderColour\",\"content\":[\"Monocle\",0,0,0]}",
+    "golden": {
+      "type": "BorderColour",
+      "content": [
+        "Monocle",
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "BorderColour@3": {
+    "instance": {
+      "type": "BorderColour",
+      "content": [
+        "Unfocused",
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"BorderColour\",\"content\":[\"Unfocused\",0,0,0]}",
+    "golden": {
+      "type": "BorderColour",
+      "content": [
+        "Unfocused",
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "BorderOffset": {
+    "instance": {
+      "type": "BorderOffset",
+      "content": 0
+    },
+    "wire": "{\"type\":\"BorderOffset\",\"content\":0}",
+    "golden": {
+      "type": "BorderOffset",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "BorderWidth": {
+    "instance": {
+      "type": "BorderWidth",
+      "content": 0
+    },
+    "wire": "{\"type\":\"BorderWidth\",\"content\":0}",
+    "golden": {
+      "type": "BorderWidth",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CancelPreselect": {
+    "instance": {
+      "type": "CancelPreselect"
+    },
+    "wire": "{\"type\":\"CancelPreselect\"}",
+    "golden": {
+      "type": "CancelPreselect"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CenterFocus": {
+    "instance": {
+      "type": "CenterFocus"
+    },
+    "wire": "{\"type\":\"CenterFocus\"}",
+    "golden": {
+      "type": "CenterFocus"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ChangeLayout": {
+    "instance": {
+      "type": "ChangeLayout",
+      "content": "BSP"
+    },
+    "wire": "{\"type\":\"ChangeLayout\",\"content\":\"BSP\"}",
+    "golden": {
+      "type": "ChangeLayout",
+      "content": "BSP"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ChangeLayout@1": {
+    "instance": {
+      "type": "ChangeLayout",
+      "content": "Columns"
+    },
+    "wire": "{\"type\":\"ChangeLayout\",\"content\":\"Columns\"}",
+    "golden": {
+      "type": "ChangeLayout",
+      "content": "Columns"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ChangeLayout@2": {
+    "instance": {
+      "type": "ChangeLayout",
+      "content": "Rows"
+    },
+    "wire": "{\"type\":\"ChangeLayout\",\"content\":\"Rows\"}",
+    "golden": {
+      "type": "ChangeLayout",
+      "content": "Rows"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ChangeLayout@3": {
+    "instance": {
+      "type": "ChangeLayout",
+      "content": "VerticalStack"
+    },
+    "wire": "{\"type\":\"ChangeLayout\",\"content\":\"VerticalStack\"}",
+    "golden": {
+      "type": "ChangeLayout",
+      "content": "VerticalStack"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ClearAllWorkspaceRules": {
+    "instance": {
+      "type": "ClearAllWorkspaceRules"
+    },
+    "wire": "{\"type\":\"ClearAllWorkspaceRules\"}",
+    "golden": {
+      "type": "ClearAllWorkspaceRules"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ClearNamedWorkspaceLayoutRules": {
+    "instance": {
+      "type": "ClearNamedWorkspaceLayoutRules",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"ClearNamedWorkspaceLayoutRules\",\"content\":\"x\"}",
+    "golden": {
+      "type": "ClearNamedWorkspaceLayoutRules",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ClearNamedWorkspaceRules": {
+    "instance": {
+      "type": "ClearNamedWorkspaceRules",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"ClearNamedWorkspaceRules\",\"content\":\"x\"}",
+    "golden": {
+      "type": "ClearNamedWorkspaceRules",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ClearSessionFloatRules": {
+    "instance": {
+      "type": "ClearSessionFloatRules"
+    },
+    "wire": "{\"type\":\"ClearSessionFloatRules\"}",
+    "golden": {
+      "type": "ClearSessionFloatRules"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ClearWorkspaceLayoutRules": {
+    "instance": {
+      "type": "ClearWorkspaceLayoutRules",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"ClearWorkspaceLayoutRules\",\"content\":[0,0]}",
+    "golden": {
+      "type": "ClearWorkspaceLayoutRules",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ClearWorkspaceRules": {
+    "instance": {
+      "type": "ClearWorkspaceRules",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"ClearWorkspaceRules\",\"content\":[0,0]}",
+    "golden": {
+      "type": "ClearWorkspaceRules",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Close": {
+    "instance": {
+      "type": "Close"
+    },
+    "wire": "{\"type\":\"Close\"}",
+    "golden": {
+      "type": "Close"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CloseWorkspace": {
+    "instance": {
+      "type": "CloseWorkspace"
+    },
+    "wire": "{\"type\":\"CloseWorkspace\"}",
+    "golden": {
+      "type": "CloseWorkspace"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Consume": {
+    "instance": {
+      "type": "Consume",
+      "content": "Left"
+    },
+    "wire": "{\"type\":\"Consume\",\"content\":\"Left\"}",
+    "golden": {
+      "type": "Consume",
+      "content": "Left"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Consume@1": {
+    "instance": {
+      "type": "Consume",
+      "content": "Right"
+    },
+    "wire": "{\"type\":\"Consume\",\"content\":\"Right\"}",
+    "golden": {
+      "type": "Consume",
+      "content": "Right"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Consume@2": {
+    "instance": {
+      "type": "Consume",
+      "content": "Up"
+    },
+    "wire": "{\"type\":\"Consume\",\"content\":\"Up\"}",
+    "golden": {
+      "type": "Consume",
+      "content": "Up"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Consume@3": {
+    "instance": {
+      "type": "Consume",
+      "content": "Down"
+    },
+    "wire": "{\"type\":\"Consume\",\"content\":\"Down\"}",
+    "golden": {
+      "type": "Consume",
+      "content": "Down"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ContainerPadding": {
+    "instance": {
+      "type": "ContainerPadding",
+      "content": [
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"ContainerPadding\",\"content\":[0,0,0]}",
+    "golden": {
+      "type": "ContainerPadding",
+      "content": [
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CrossMonitorMoveBehaviour": {
+    "instance": {
+      "type": "CrossMonitorMoveBehaviour",
+      "content": "Swap"
+    },
+    "wire": "{\"type\":\"CrossMonitorMoveBehaviour\",\"content\":\"Swap\"}",
+    "golden": {
+      "type": "CrossMonitorMoveBehaviour",
+      "content": "Swap"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CrossMonitorMoveBehaviour@1": {
+    "instance": {
+      "type": "CrossMonitorMoveBehaviour",
+      "content": "Insert"
+    },
+    "wire": "{\"type\":\"CrossMonitorMoveBehaviour\",\"content\":\"Insert\"}",
+    "golden": {
+      "type": "CrossMonitorMoveBehaviour",
+      "content": "Insert"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CrossMonitorMoveBehaviour@2": {
+    "instance": {
+      "type": "CrossMonitorMoveBehaviour",
+      "content": "NoOp"
+    },
+    "wire": "{\"type\":\"CrossMonitorMoveBehaviour\",\"content\":\"NoOp\"}",
+    "golden": {
+      "type": "CrossMonitorMoveBehaviour",
+      "content": "NoOp"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleFocusEmptyWorkspace": {
+    "instance": {
+      "type": "CycleFocusEmptyWorkspace",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleFocusEmptyWorkspace\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleFocusEmptyWorkspace",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleFocusEmptyWorkspace@1": {
+    "instance": {
+      "type": "CycleFocusEmptyWorkspace",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleFocusEmptyWorkspace\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleFocusEmptyWorkspace",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleFocusMonitor": {
+    "instance": {
+      "type": "CycleFocusMonitor",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleFocusMonitor\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleFocusMonitor",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleFocusMonitor@1": {
+    "instance": {
+      "type": "CycleFocusMonitor",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleFocusMonitor\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleFocusMonitor",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleFocusWindow": {
+    "instance": {
+      "type": "CycleFocusWindow",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleFocusWindow\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleFocusWindow",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleFocusWindow@1": {
+    "instance": {
+      "type": "CycleFocusWindow",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleFocusWindow\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleFocusWindow",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleFocusWorkspace": {
+    "instance": {
+      "type": "CycleFocusWorkspace",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleFocusWorkspace\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleFocusWorkspace",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleFocusWorkspace@1": {
+    "instance": {
+      "type": "CycleFocusWorkspace",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleFocusWorkspace\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleFocusWorkspace",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleLayout": {
+    "instance": {
+      "type": "CycleLayout",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleLayout\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleLayout",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleLayout@1": {
+    "instance": {
+      "type": "CycleLayout",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleLayout\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleLayout",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleMoveContainerToMonitor": {
+    "instance": {
+      "type": "CycleMoveContainerToMonitor",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleMoveContainerToMonitor\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleMoveContainerToMonitor",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleMoveContainerToMonitor@1": {
+    "instance": {
+      "type": "CycleMoveContainerToMonitor",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleMoveContainerToMonitor\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleMoveContainerToMonitor",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleMoveContainerToWorkspace": {
+    "instance": {
+      "type": "CycleMoveContainerToWorkspace",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleMoveContainerToWorkspace\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleMoveContainerToWorkspace",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleMoveContainerToWorkspace@1": {
+    "instance": {
+      "type": "CycleMoveContainerToWorkspace",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleMoveContainerToWorkspace\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleMoveContainerToWorkspace",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleMoveWindow": {
+    "instance": {
+      "type": "CycleMoveWindow",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleMoveWindow\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleMoveWindow",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleMoveWindow@1": {
+    "instance": {
+      "type": "CycleMoveWindow",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleMoveWindow\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleMoveWindow",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleMoveWorkspaceToMonitor": {
+    "instance": {
+      "type": "CycleMoveWorkspaceToMonitor",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleMoveWorkspaceToMonitor\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleMoveWorkspaceToMonitor",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleMoveWorkspaceToMonitor@1": {
+    "instance": {
+      "type": "CycleMoveWorkspaceToMonitor",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleMoveWorkspaceToMonitor\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleMoveWorkspaceToMonitor",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleSendContainerToMonitor": {
+    "instance": {
+      "type": "CycleSendContainerToMonitor",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleSendContainerToMonitor\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleSendContainerToMonitor",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleSendContainerToMonitor@1": {
+    "instance": {
+      "type": "CycleSendContainerToMonitor",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleSendContainerToMonitor\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleSendContainerToMonitor",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleSendContainerToWorkspace": {
+    "instance": {
+      "type": "CycleSendContainerToWorkspace",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleSendContainerToWorkspace\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleSendContainerToWorkspace",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleSendContainerToWorkspace@1": {
+    "instance": {
+      "type": "CycleSendContainerToWorkspace",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleSendContainerToWorkspace\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleSendContainerToWorkspace",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleStack": {
+    "instance": {
+      "type": "CycleStack",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleStack\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleStack",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleStack@1": {
+    "instance": {
+      "type": "CycleStack",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleStack\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleStack",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleStackIndex": {
+    "instance": {
+      "type": "CycleStackIndex",
+      "content": "Previous"
+    },
+    "wire": "{\"type\":\"CycleStackIndex\",\"content\":\"Previous\"}",
+    "golden": {
+      "type": "CycleStackIndex",
+      "content": "Previous"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "CycleStackIndex@1": {
+    "instance": {
+      "type": "CycleStackIndex",
+      "content": "Next"
+    },
+    "wire": "{\"type\":\"CycleStackIndex\",\"content\":\"Next\"}",
+    "golden": {
+      "type": "CycleStackIndex",
+      "content": "Next"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "DebugWindow": {
+    "instance": {
+      "type": "DebugWindow",
+      "content": 0
+    },
+    "wire": "{\"type\":\"DebugWindow\",\"content\":0}",
+    "golden": {
+      "type": "DebugWindow",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "DisplayIndexPreference": {
+    "instance": {
+      "type": "DisplayIndexPreference",
+      "content": [
+        0,
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"DisplayIndexPreference\",\"content\":[0,\"x\"]}",
+    "golden": {
+      "type": "DisplayIndexPreference",
+      "content": [
+        0,
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "EagerFocus": {
+    "instance": {
+      "type": "EagerFocus",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"EagerFocus\",\"content\":\"x\"}",
+    "golden": {
+      "type": "EagerFocus",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "EnforceWorkspaceRules": {
+    "instance": {
+      "type": "EnforceWorkspaceRules"
+    },
+    "wire": "{\"type\":\"EnforceWorkspaceRules\"}",
+    "golden": {
+      "type": "EnforceWorkspaceRules"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "EnsureNamedWorkspaces": {
+    "instance": {
+      "type": "EnsureNamedWorkspaces",
+      "content": [
+        0,
+        []
+      ]
+    },
+    "wire": "{\"type\":\"EnsureNamedWorkspaces\",\"content\":[0,[]]}",
+    "golden": {
+      "type": "EnsureNamedWorkspaces",
+      "content": [
+        0,
+        []
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "EnsureWorkspaces": {
+    "instance": {
+      "type": "EnsureWorkspaces",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"EnsureWorkspaces\",\"content\":[0,0]}",
+    "golden": {
+      "type": "EnsureWorkspaces",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Expand": {
+    "instance": {
+      "type": "Expand"
+    },
+    "wire": "{\"type\":\"Expand\"}",
+    "golden": {
+      "type": "Expand"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Expel": {
+    "instance": {
+      "type": "Expel"
+    },
+    "wire": "{\"type\":\"Expel\"}",
+    "golden": {
+      "type": "Expel"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FlipLayout": {
+    "instance": {
+      "type": "FlipLayout",
+      "content": "Horizontal"
+    },
+    "wire": "{\"type\":\"FlipLayout\",\"content\":\"Horizontal\"}",
+    "golden": {
+      "type": "FlipLayout",
+      "content": "Horizontal"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FlipLayout@1": {
+    "instance": {
+      "type": "FlipLayout",
+      "content": "Vertical"
+    },
+    "wire": "{\"type\":\"FlipLayout\",\"content\":\"Vertical\"}",
+    "golden": {
+      "type": "FlipLayout",
+      "content": "Vertical"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FlipLayout@2": {
+    "instance": {
+      "type": "FlipLayout",
+      "content": "HorizontalAndVertical"
+    },
+    "wire": "{\"type\":\"FlipLayout\",\"content\":\"HorizontalAndVertical\"}",
+    "golden": {
+      "type": "FlipLayout",
+      "content": "HorizontalAndVertical"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FloatRule": {
+    "instance": {
+      "type": "FloatRule",
+      "content": [
+        "Exe",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"IgnoreRule\",\"content\":[\"Exe\",\"x\"]}",
+    "golden": {
+      "type": "IgnoreRule",
+      "content": [
+        "Exe",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "FocusFollowsMouse": {
+    "instance": {
+      "type": "FocusFollowsMouse",
+      "content": [
+        "Komorebi",
+        false
+      ]
+    },
+    "wire": "{\"type\":\"FocusFollowsMouse\",\"content\":[\"Komorebi\",false]}",
+    "golden": {
+      "type": "FocusFollowsMouse",
+      "content": [
+        "Komorebi",
+        false
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusFollowsMouse@1": {
+    "instance": {
+      "type": "FocusFollowsMouse",
+      "content": [
+        "Windows",
+        false
+      ]
+    },
+    "wire": "{\"type\":\"FocusFollowsMouse\",\"content\":[\"Windows\",false]}",
+    "golden": {
+      "type": "FocusFollowsMouse",
+      "content": [
+        "Windows",
+        false
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusLastWorkspace": {
+    "instance": {
+      "type": "FocusLastWorkspace"
+    },
+    "wire": "{\"type\":\"FocusLastWorkspace\"}",
+    "golden": {
+      "type": "FocusLastWorkspace"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusMonitorAtCursor": {
+    "instance": {
+      "type": "FocusMonitorAtCursor"
+    },
+    "wire": "{\"type\":\"FocusMonitorAtCursor\"}",
+    "golden": {
+      "type": "FocusMonitorAtCursor"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusMonitorNumber": {
+    "instance": {
+      "type": "FocusMonitorNumber",
+      "content": 0
+    },
+    "wire": "{\"type\":\"FocusMonitorNumber\",\"content\":0}",
+    "golden": {
+      "type": "FocusMonitorNumber",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusMonitorWorkspaceNumber": {
+    "instance": {
+      "type": "FocusMonitorWorkspaceNumber",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"FocusMonitorWorkspaceNumber\",\"content\":[0,0]}",
+    "golden": {
+      "type": "FocusMonitorWorkspaceNumber",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusNamedWorkspace": {
+    "instance": {
+      "type": "FocusNamedWorkspace",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"FocusNamedWorkspace\",\"content\":\"x\"}",
+    "golden": {
+      "type": "FocusNamedWorkspace",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusStackWindow": {
+    "instance": {
+      "type": "FocusStackWindow",
+      "content": 0
+    },
+    "wire": "{\"type\":\"FocusStackWindow\",\"content\":0}",
+    "golden": {
+      "type": "FocusStackWindow",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusWindow": {
+    "instance": {
+      "type": "FocusWindow",
+      "content": "Left"
+    },
+    "wire": "{\"type\":\"FocusWindow\",\"content\":\"Left\"}",
+    "golden": {
+      "type": "FocusWindow",
+      "content": "Left"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusWindow@1": {
+    "instance": {
+      "type": "FocusWindow",
+      "content": "Right"
+    },
+    "wire": "{\"type\":\"FocusWindow\",\"content\":\"Right\"}",
+    "golden": {
+      "type": "FocusWindow",
+      "content": "Right"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusWindow@2": {
+    "instance": {
+      "type": "FocusWindow",
+      "content": "Up"
+    },
+    "wire": "{\"type\":\"FocusWindow\",\"content\":\"Up\"}",
+    "golden": {
+      "type": "FocusWindow",
+      "content": "Up"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusWindow@3": {
+    "instance": {
+      "type": "FocusWindow",
+      "content": "Down"
+    },
+    "wire": "{\"type\":\"FocusWindow\",\"content\":\"Down\"}",
+    "golden": {
+      "type": "FocusWindow",
+      "content": "Down"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusWorkspaceNumber": {
+    "instance": {
+      "type": "FocusWorkspaceNumber",
+      "content": 0
+    },
+    "wire": "{\"type\":\"FocusWorkspaceNumber\",\"content\":0}",
+    "golden": {
+      "type": "FocusWorkspaceNumber",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusWorkspaceNumbers": {
+    "instance": {
+      "type": "FocusWorkspaceNumbers",
+      "content": 0
+    },
+    "wire": "{\"type\":\"FocusWorkspaceNumbers\",\"content\":0}",
+    "golden": {
+      "type": "FocusWorkspaceNumbers",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusedWorkspaceContainerPadding": {
+    "instance": {
+      "type": "FocusedWorkspaceContainerPadding",
+      "content": 0
+    },
+    "wire": "{\"type\":\"FocusedWorkspaceContainerPadding\",\"content\":0}",
+    "golden": {
+      "type": "FocusedWorkspaceContainerPadding",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "FocusedWorkspacePadding": {
+    "instance": {
+      "type": "FocusedWorkspacePadding",
+      "content": 0
+    },
+    "wire": "{\"type\":\"FocusedWorkspacePadding\",\"content\":0}",
+    "golden": {
+      "type": "FocusedWorkspacePadding",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "GenerateStaticConfig": {
+    "instance": {
+      "type": "GenerateStaticConfig"
+    },
+    "wire": "{\"type\":\"GenerateStaticConfig\"}",
+    "golden": {
+      "type": "GenerateStaticConfig"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "GlobalState": {
+    "instance": {
+      "type": "GlobalState"
+    },
+    "wire": "{\"type\":\"GlobalState\"}",
+    "golden": {
+      "type": "GlobalState"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "HotkeysState": {
+    "instance": {
+      "type": "HotkeysState"
+    },
+    "wire": "{\"type\":\"HotkeysState\"}",
+    "golden": {
+      "type": "HotkeysState"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "IgnoreRule": {
+    "instance": {
+      "type": "IgnoreRule",
+      "content": [
+        "Exe",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"IgnoreRule\",\"content\":[\"Exe\",\"x\"]}",
+    "golden": {
+      "type": "IgnoreRule",
+      "content": [
+        "Exe",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "IgnoreRule@1": {
+    "instance": {
+      "type": "IgnoreRule",
+      "content": [
+        "Class",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"IgnoreRule\",\"content\":[\"Class\",\"x\"]}",
+    "golden": {
+      "type": "IgnoreRule",
+      "content": [
+        "Class",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "IgnoreRule@2": {
+    "instance": {
+      "type": "IgnoreRule",
+      "content": [
+        "Title",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"IgnoreRule\",\"content\":[\"Title\",\"x\"]}",
+    "golden": {
+      "type": "IgnoreRule",
+      "content": [
+        "Title",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "IgnoreRule@3": {
+    "instance": {
+      "type": "IgnoreRule",
+      "content": [
+        "Path",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"IgnoreRule\",\"content\":[\"Path\",\"x\"]}",
+    "golden": {
+      "type": "IgnoreRule",
+      "content": [
+        "Path",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "InitialNamedWorkspaceRule": {
+    "instance": {
+      "type": "InitialNamedWorkspaceRule",
+      "content": [
+        "Exe",
+        "x",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"InitialNamedWorkspaceRule\",\"content\":[\"Exe\",\"x\",\"x\"]}",
+    "golden": {
+      "type": "InitialNamedWorkspaceRule",
+      "content": [
+        "Exe",
+        "x",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "InitialNamedWorkspaceRule@1": {
+    "instance": {
+      "type": "InitialNamedWorkspaceRule",
+      "content": [
+        "Class",
+        "x",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"InitialNamedWorkspaceRule\",\"content\":[\"Class\",\"x\",\"x\"]}",
+    "golden": {
+      "type": "InitialNamedWorkspaceRule",
+      "content": [
+        "Class",
+        "x",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "InitialNamedWorkspaceRule@2": {
+    "instance": {
+      "type": "InitialNamedWorkspaceRule",
+      "content": [
+        "Title",
+        "x",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"InitialNamedWorkspaceRule\",\"content\":[\"Title\",\"x\",\"x\"]}",
+    "golden": {
+      "type": "InitialNamedWorkspaceRule",
+      "content": [
+        "Title",
+        "x",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "InitialNamedWorkspaceRule@3": {
+    "instance": {
+      "type": "InitialNamedWorkspaceRule",
+      "content": [
+        "Path",
+        "x",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"InitialNamedWorkspaceRule\",\"content\":[\"Path\",\"x\",\"x\"]}",
+    "golden": {
+      "type": "InitialNamedWorkspaceRule",
+      "content": [
+        "Path",
+        "x",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "InitialWorkspaceRule": {
+    "instance": {
+      "type": "InitialWorkspaceRule",
+      "content": [
+        "Exe",
+        "x",
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"InitialWorkspaceRule\",\"content\":[\"Exe\",\"x\",0,0]}",
+    "golden": {
+      "type": "InitialWorkspaceRule",
+      "content": [
+        "Exe",
+        "x",
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "InitialWorkspaceRule@1": {
+    "instance": {
+      "type": "InitialWorkspaceRule",
+      "content": [
+        "Class",
+        "x",
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"InitialWorkspaceRule\",\"content\":[\"Class\",\"x\",0,0]}",
+    "golden": {
+      "type": "InitialWorkspaceRule",
+      "content": [
+        "Class",
+        "x",
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "InitialWorkspaceRule@2": {
+    "instance": {
+      "type": "InitialWorkspaceRule",
+      "content": [
+        "Title",
+        "x",
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"InitialWorkspaceRule\",\"content\":[\"Title\",\"x\",0,0]}",
+    "golden": {
+      "type": "InitialWorkspaceRule",
+      "content": [
+        "Title",
+        "x",
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "InitialWorkspaceRule@3": {
+    "instance": {
+      "type": "InitialWorkspaceRule",
+      "content": [
+        "Path",
+        "x",
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"InitialWorkspaceRule\",\"content\":[\"Path\",\"x\",0,0]}",
+    "golden": {
+      "type": "InitialWorkspaceRule",
+      "content": [
+        "Path",
+        "x",
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "LayoutRatios": {
+    "instance": {
+      "type": "LayoutRatios",
+      "content": [
+        [],
+        []
+      ]
+    },
+    "wire": "{\"type\":\"LayoutRatios\",\"content\":[[],[]]}",
+    "golden": {
+      "type": "LayoutRatios",
+      "content": [
+        [],
+        []
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Load": {
+    "instance": {
+      "type": "Load",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"Load\",\"content\":\"x\"}",
+    "golden": {
+      "type": "Load",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Load@braces": {
+    "instance": {
+      "type": "Load",
+      "content": "${GOLDEN_VAR}/k.json"
+    },
+    "wire": "{\"type\":\"Load\",\"content\":\"${GOLDEN_VAR}/k.json\"}",
+    "golden": {
+      "type": "Load",
+      "content": "${GOLDEN_VAR}/k.json"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Load@dollar": {
+    "instance": {
+      "type": "Load",
+      "content": "$HOME/k.json"
+    },
+    "wire": "{\"type\":\"Load\",\"content\":\"/golden-home/k.json\"}",
+    "golden": {
+      "type": "Load",
+      "content": "/golden-home/k.json"
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "Load@percent": {
+    "instance": {
+      "type": "Load",
+      "content": "%USERPROFILE%/k.json"
+    },
+    "wire": "{\"type\":\"Load\",\"content\":\"C:\\\\golden-profile/k.json\"}",
+    "golden": {
+      "type": "Load",
+      "content": "C:\\golden-profile/k.json"
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "Load@psenv": {
+    "instance": {
+      "type": "Load",
+      "content": "$Env:USERPROFILE/k.json"
+    },
+    "wire": "{\"type\":\"Load\",\"content\":\"C:\\\\golden-profile/k.json\"}",
+    "golden": {
+      "type": "Load",
+      "content": "C:\\golden-profile/k.json"
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "Load@~": {
+    "instance": {
+      "type": "Load",
+      "content": "~/k.json"
+    },
+    "wire": "{\"type\":\"Load\",\"content\":\"/golden-home/k.json\"}",
+    "golden": {
+      "type": "Load",
+      "content": "/golden-home/k.json"
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "LockMonitorWorkspaceContainer": {
+    "instance": {
+      "type": "LockMonitorWorkspaceContainer",
+      "content": [
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"LockMonitorWorkspaceContainer\",\"content\":[0,0,0]}",
+    "golden": {
+      "type": "LockMonitorWorkspaceContainer",
+      "content": [
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ManageFocusedWindow": {
+    "instance": {
+      "type": "ManageFocusedWindow"
+    },
+    "wire": "{\"type\":\"ManageFocusedWindow\"}",
+    "golden": {
+      "type": "ManageFocusedWindow"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ManageRule": {
+    "instance": {
+      "type": "ManageRule",
+      "content": [
+        "Exe",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"ManageRule\",\"content\":[\"Exe\",\"x\"]}",
+    "golden": {
+      "type": "ManageRule",
+      "content": [
+        "Exe",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ManageRule@1": {
+    "instance": {
+      "type": "ManageRule",
+      "content": [
+        "Class",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"ManageRule\",\"content\":[\"Class\",\"x\"]}",
+    "golden": {
+      "type": "ManageRule",
+      "content": [
+        "Class",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ManageRule@2": {
+    "instance": {
+      "type": "ManageRule",
+      "content": [
+        "Title",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"ManageRule\",\"content\":[\"Title\",\"x\"]}",
+    "golden": {
+      "type": "ManageRule",
+      "content": [
+        "Title",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ManageRule@3": {
+    "instance": {
+      "type": "ManageRule",
+      "content": [
+        "Path",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"ManageRule\",\"content\":[\"Path\",\"x\"]}",
+    "golden": {
+      "type": "ManageRule",
+      "content": [
+        "Path",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Minimize": {
+    "instance": {
+      "type": "Minimize"
+    },
+    "wire": "{\"type\":\"Minimize\"}",
+    "golden": {
+      "type": "Minimize"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MonitorInformation": {
+    "instance": {
+      "type": "MonitorInformation"
+    },
+    "wire": "{\"type\":\"MonitorInformation\"}",
+    "golden": {
+      "type": "MonitorInformation"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MonitorWorkAreaOffset": {
+    "instance": {
+      "type": "MonitorWorkAreaOffset",
+      "content": [
+        0,
+        {
+          "bottom": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0
+        }
+      ]
+    },
+    "wire": "{\"type\":\"MonitorWorkAreaOffset\",\"content\":[0,{\"left\":0,\"top\":0,\"right\":0,\"bottom\":0}]}",
+    "golden": {
+      "type": "MonitorWorkAreaOffset",
+      "content": [
+        0,
+        {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MonocleFocusBehaviour": {
+    "instance": {
+      "type": "MonocleFocusBehaviour",
+      "content": "Cycle"
+    },
+    "wire": "{\"type\":\"MonocleFocusBehaviour\",\"content\":\"Cycle\"}",
+    "golden": {
+      "type": "MonocleFocusBehaviour",
+      "content": "Cycle"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MonocleFocusBehaviour@1": {
+    "instance": {
+      "type": "MonocleFocusBehaviour",
+      "content": "NoOp"
+    },
+    "wire": "{\"type\":\"MonocleFocusBehaviour\",\"content\":\"NoOp\"}",
+    "golden": {
+      "type": "MonocleFocusBehaviour",
+      "content": "NoOp"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MouseFollowsFocus": {
+    "instance": {
+      "type": "MouseFollowsFocus",
+      "content": false
+    },
+    "wire": "{\"type\":\"MouseFollowsFocus\",\"content\":false}",
+    "golden": {
+      "type": "MouseFollowsFocus",
+      "content": false
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveContainerToLastWorkspace": {
+    "instance": {
+      "type": "MoveContainerToLastWorkspace"
+    },
+    "wire": "{\"type\":\"MoveContainerToLastWorkspace\"}",
+    "golden": {
+      "type": "MoveContainerToLastWorkspace"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveContainerToMonitorNumber": {
+    "instance": {
+      "type": "MoveContainerToMonitorNumber",
+      "content": 0
+    },
+    "wire": "{\"type\":\"MoveContainerToMonitorNumber\",\"content\":0}",
+    "golden": {
+      "type": "MoveContainerToMonitorNumber",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveContainerToMonitorWorkspaceNumber": {
+    "instance": {
+      "type": "MoveContainerToMonitorWorkspaceNumber",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"MoveContainerToMonitorWorkspaceNumber\",\"content\":[0,0]}",
+    "golden": {
+      "type": "MoveContainerToMonitorWorkspaceNumber",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveContainerToNamedWorkspace": {
+    "instance": {
+      "type": "MoveContainerToNamedWorkspace",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"MoveContainerToNamedWorkspace\",\"content\":\"x\"}",
+    "golden": {
+      "type": "MoveContainerToNamedWorkspace",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveContainerToWorkspaceNumber": {
+    "instance": {
+      "type": "MoveContainerToWorkspaceNumber",
+      "content": 0
+    },
+    "wire": "{\"type\":\"MoveContainerToWorkspaceNumber\",\"content\":0}",
+    "golden": {
+      "type": "MoveContainerToWorkspaceNumber",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveWindow": {
+    "instance": {
+      "type": "MoveWindow",
+      "content": "Left"
+    },
+    "wire": "{\"type\":\"MoveWindow\",\"content\":\"Left\"}",
+    "golden": {
+      "type": "MoveWindow",
+      "content": "Left"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveWindow@1": {
+    "instance": {
+      "type": "MoveWindow",
+      "content": "Right"
+    },
+    "wire": "{\"type\":\"MoveWindow\",\"content\":\"Right\"}",
+    "golden": {
+      "type": "MoveWindow",
+      "content": "Right"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveWindow@2": {
+    "instance": {
+      "type": "MoveWindow",
+      "content": "Up"
+    },
+    "wire": "{\"type\":\"MoveWindow\",\"content\":\"Up\"}",
+    "golden": {
+      "type": "MoveWindow",
+      "content": "Up"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveWindow@3": {
+    "instance": {
+      "type": "MoveWindow",
+      "content": "Down"
+    },
+    "wire": "{\"type\":\"MoveWindow\",\"content\":\"Down\"}",
+    "golden": {
+      "type": "MoveWindow",
+      "content": "Down"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "MoveWorkspaceToMonitorNumber": {
+    "instance": {
+      "type": "MoveWorkspaceToMonitorNumber",
+      "content": 0
+    },
+    "wire": "{\"type\":\"MoveWorkspaceToMonitorNumber\",\"content\":0}",
+    "golden": {
+      "type": "MoveWorkspaceToMonitorNumber",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceContainerPadding": {
+    "instance": {
+      "type": "NamedWorkspaceContainerPadding",
+      "content": [
+        "x",
+        0
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceContainerPadding\",\"content\":[\"x\",0]}",
+    "golden": {
+      "type": "NamedWorkspaceContainerPadding",
+      "content": [
+        "x",
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceLayout": {
+    "instance": {
+      "type": "NamedWorkspaceLayout",
+      "content": [
+        "x",
+        "BSP"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceLayout\",\"content\":[\"x\",\"BSP\"]}",
+    "golden": {
+      "type": "NamedWorkspaceLayout",
+      "content": [
+        "x",
+        "BSP"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceLayout@1": {
+    "instance": {
+      "type": "NamedWorkspaceLayout",
+      "content": [
+        "x",
+        "Columns"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceLayout\",\"content\":[\"x\",\"Columns\"]}",
+    "golden": {
+      "type": "NamedWorkspaceLayout",
+      "content": [
+        "x",
+        "Columns"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceLayout@2": {
+    "instance": {
+      "type": "NamedWorkspaceLayout",
+      "content": [
+        "x",
+        "Rows"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceLayout\",\"content\":[\"x\",\"Rows\"]}",
+    "golden": {
+      "type": "NamedWorkspaceLayout",
+      "content": [
+        "x",
+        "Rows"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceLayout@3": {
+    "instance": {
+      "type": "NamedWorkspaceLayout",
+      "content": [
+        "x",
+        "VerticalStack"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceLayout\",\"content\":[\"x\",\"VerticalStack\"]}",
+    "golden": {
+      "type": "NamedWorkspaceLayout",
+      "content": [
+        "x",
+        "VerticalStack"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceLayoutRule": {
+    "instance": {
+      "type": "NamedWorkspaceLayoutRule",
+      "content": [
+        "x",
+        0,
+        "BSP"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceLayoutRule\",\"content\":[\"x\",0,\"BSP\"]}",
+    "golden": {
+      "type": "NamedWorkspaceLayoutRule",
+      "content": [
+        "x",
+        0,
+        "BSP"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceLayoutRule@1": {
+    "instance": {
+      "type": "NamedWorkspaceLayoutRule",
+      "content": [
+        "x",
+        0,
+        "Columns"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceLayoutRule\",\"content\":[\"x\",0,\"Columns\"]}",
+    "golden": {
+      "type": "NamedWorkspaceLayoutRule",
+      "content": [
+        "x",
+        0,
+        "Columns"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceLayoutRule@2": {
+    "instance": {
+      "type": "NamedWorkspaceLayoutRule",
+      "content": [
+        "x",
+        0,
+        "Rows"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceLayoutRule\",\"content\":[\"x\",0,\"Rows\"]}",
+    "golden": {
+      "type": "NamedWorkspaceLayoutRule",
+      "content": [
+        "x",
+        0,
+        "Rows"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceLayoutRule@3": {
+    "instance": {
+      "type": "NamedWorkspaceLayoutRule",
+      "content": [
+        "x",
+        0,
+        "VerticalStack"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceLayoutRule\",\"content\":[\"x\",0,\"VerticalStack\"]}",
+    "golden": {
+      "type": "NamedWorkspaceLayoutRule",
+      "content": [
+        "x",
+        0,
+        "VerticalStack"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspacePadding": {
+    "instance": {
+      "type": "NamedWorkspacePadding",
+      "content": [
+        "x",
+        0
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspacePadding\",\"content\":[\"x\",0]}",
+    "golden": {
+      "type": "NamedWorkspacePadding",
+      "content": [
+        "x",
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceRule": {
+    "instance": {
+      "type": "NamedWorkspaceRule",
+      "content": [
+        "Exe",
+        "x",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceRule\",\"content\":[\"Exe\",\"x\",\"x\"]}",
+    "golden": {
+      "type": "NamedWorkspaceRule",
+      "content": [
+        "Exe",
+        "x",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceRule@1": {
+    "instance": {
+      "type": "NamedWorkspaceRule",
+      "content": [
+        "Class",
+        "x",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceRule\",\"content\":[\"Class\",\"x\",\"x\"]}",
+    "golden": {
+      "type": "NamedWorkspaceRule",
+      "content": [
+        "Class",
+        "x",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceRule@2": {
+    "instance": {
+      "type": "NamedWorkspaceRule",
+      "content": [
+        "Title",
+        "x",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceRule\",\"content\":[\"Title\",\"x\",\"x\"]}",
+    "golden": {
+      "type": "NamedWorkspaceRule",
+      "content": [
+        "Title",
+        "x",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceRule@3": {
+    "instance": {
+      "type": "NamedWorkspaceRule",
+      "content": [
+        "Path",
+        "x",
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceRule\",\"content\":[\"Path\",\"x\",\"x\"]}",
+    "golden": {
+      "type": "NamedWorkspaceRule",
+      "content": [
+        "Path",
+        "x",
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NamedWorkspaceTiling": {
+    "instance": {
+      "type": "NamedWorkspaceTiling",
+      "content": [
+        "x",
+        false
+      ]
+    },
+    "wire": "{\"type\":\"NamedWorkspaceTiling\",\"content\":[\"x\",false]}",
+    "golden": {
+      "type": "NamedWorkspaceTiling",
+      "content": [
+        "x",
+        false
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NewWorkspace": {
+    "instance": {
+      "type": "NewWorkspace"
+    },
+    "wire": "{\"type\":\"NewWorkspace\"}",
+    "golden": {
+      "type": "NewWorkspace"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "NotificationSchema": {
+    "instance": {
+      "type": "NotificationSchema"
+    },
+    "wire": "{\"type\":\"NotificationSchema\"}",
+    "golden": {
+      "type": "NotificationSchema"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Pan": {
+    "instance": {
+      "type": "Pan",
+      "content": "Left"
+    },
+    "wire": "{\"type\":\"Pan\",\"content\":\"Left\"}",
+    "golden": {
+      "type": "Pan",
+      "content": "Left"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Pan@1": {
+    "instance": {
+      "type": "Pan",
+      "content": "Right"
+    },
+    "wire": "{\"type\":\"Pan\",\"content\":\"Right\"}",
+    "golden": {
+      "type": "Pan",
+      "content": "Right"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PreselectDirection": {
+    "instance": {
+      "type": "PreselectDirection",
+      "content": "Left"
+    },
+    "wire": "{\"type\":\"PreselectDirection\",\"content\":\"Left\"}",
+    "golden": {
+      "type": "PreselectDirection",
+      "content": "Left"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PreselectDirection@1": {
+    "instance": {
+      "type": "PreselectDirection",
+      "content": "Right"
+    },
+    "wire": "{\"type\":\"PreselectDirection\",\"content\":\"Right\"}",
+    "golden": {
+      "type": "PreselectDirection",
+      "content": "Right"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PreselectDirection@2": {
+    "instance": {
+      "type": "PreselectDirection",
+      "content": "Up"
+    },
+    "wire": "{\"type\":\"PreselectDirection\",\"content\":\"Up\"}",
+    "golden": {
+      "type": "PreselectDirection",
+      "content": "Up"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PreselectDirection@3": {
+    "instance": {
+      "type": "PreselectDirection",
+      "content": "Down"
+    },
+    "wire": "{\"type\":\"PreselectDirection\",\"content\":\"Down\"}",
+    "golden": {
+      "type": "PreselectDirection",
+      "content": "Down"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Promote": {
+    "instance": {
+      "type": "Promote"
+    },
+    "wire": "{\"type\":\"Promote\"}",
+    "golden": {
+      "type": "Promote"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PromoteFocus": {
+    "instance": {
+      "type": "PromoteFocus"
+    },
+    "wire": "{\"type\":\"PromoteFocus\"}",
+    "golden": {
+      "type": "PromoteFocus"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PromoteSwap": {
+    "instance": {
+      "type": "PromoteSwap"
+    },
+    "wire": "{\"type\":\"PromoteSwap\"}",
+    "golden": {
+      "type": "PromoteSwap"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PromoteWindow": {
+    "instance": {
+      "type": "PromoteWindow",
+      "content": "Left"
+    },
+    "wire": "{\"type\":\"PromoteWindow\",\"content\":\"Left\"}",
+    "golden": {
+      "type": "PromoteWindow",
+      "content": "Left"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PromoteWindow@1": {
+    "instance": {
+      "type": "PromoteWindow",
+      "content": "Right"
+    },
+    "wire": "{\"type\":\"PromoteWindow\",\"content\":\"Right\"}",
+    "golden": {
+      "type": "PromoteWindow",
+      "content": "Right"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PromoteWindow@2": {
+    "instance": {
+      "type": "PromoteWindow",
+      "content": "Up"
+    },
+    "wire": "{\"type\":\"PromoteWindow\",\"content\":\"Up\"}",
+    "golden": {
+      "type": "PromoteWindow",
+      "content": "Up"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "PromoteWindow@3": {
+    "instance": {
+      "type": "PromoteWindow",
+      "content": "Down"
+    },
+    "wire": "{\"type\":\"PromoteWindow\",\"content\":\"Down\"}",
+    "golden": {
+      "type": "PromoteWindow",
+      "content": "Down"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Query": {
+    "instance": {
+      "type": "Query",
+      "content": "FocusedMonitorIndex"
+    },
+    "wire": "{\"type\":\"Query\",\"content\":\"FocusedMonitorIndex\"}",
+    "golden": {
+      "type": "Query",
+      "content": "FocusedMonitorIndex"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Query@1": {
+    "instance": {
+      "type": "Query",
+      "content": "FocusedWorkspaceIndex"
+    },
+    "wire": "{\"type\":\"Query\",\"content\":\"FocusedWorkspaceIndex\"}",
+    "golden": {
+      "type": "Query",
+      "content": "FocusedWorkspaceIndex"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Query@2": {
+    "instance": {
+      "type": "Query",
+      "content": "FocusedContainerIndex"
+    },
+    "wire": "{\"type\":\"Query\",\"content\":\"FocusedContainerIndex\"}",
+    "golden": {
+      "type": "Query",
+      "content": "FocusedContainerIndex"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Query@3": {
+    "instance": {
+      "type": "Query",
+      "content": "FocusedWindowIndex"
+    },
+    "wire": "{\"type\":\"Query\",\"content\":\"FocusedWindowIndex\"}",
+    "golden": {
+      "type": "Query",
+      "content": "FocusedWindowIndex"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "QuickLoad": {
+    "instance": {
+      "type": "QuickLoad"
+    },
+    "wire": "{\"type\":\"QuickLoad\"}",
+    "golden": {
+      "type": "QuickLoad"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "QuickSave": {
+    "instance": {
+      "type": "QuickSave"
+    },
+    "wire": "{\"type\":\"QuickSave\"}",
+    "golden": {
+      "type": "QuickSave"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ReloadHotkeys": {
+    "instance": {
+      "type": "ReloadHotkeys"
+    },
+    "wire": "{\"type\":\"ReloadHotkeys\"}",
+    "golden": {
+      "type": "ReloadHotkeys"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ReloadStaticConfiguration": {
+    "instance": {
+      "type": "ReloadStaticConfiguration",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"ReloadStaticConfiguration\",\"content\":\"x\"}",
+    "golden": {
+      "type": "ReloadStaticConfiguration",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ReloadStaticConfiguration@percent": {
+    "instance": {
+      "type": "ReloadStaticConfiguration",
+      "content": "%USERPROFILE%/k.json"
+    },
+    "wire": "{\"type\":\"ReloadStaticConfiguration\",\"content\":\"C:\\\\golden-profile/k.json\"}",
+    "golden": {
+      "type": "ReloadStaticConfiguration",
+      "content": "C:\\golden-profile/k.json"
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "RemoveSubscriberSocket": {
+    "instance": {
+      "type": "RemoveSubscriberSocket",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"RemoveSubscriberSocket\",\"content\":\"x\"}",
+    "golden": {
+      "type": "RemoveSubscriberSocket",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ReplaceConfiguration": {
+    "instance": {
+      "type": "ReplaceConfiguration",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"ReplaceConfiguration\",\"content\":\"x\"}",
+    "golden": {
+      "type": "ReplaceConfiguration",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ReplaceConfiguration@dollar": {
+    "instance": {
+      "type": "ReplaceConfiguration",
+      "content": "$HOME/k.json"
+    },
+    "wire": "{\"type\":\"ReplaceConfiguration\",\"content\":\"/golden-home/k.json\"}",
+    "golden": {
+      "type": "ReplaceConfiguration",
+      "content": "/golden-home/k.json"
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "ResizeDelta": {
+    "instance": {
+      "type": "ResizeDelta",
+      "content": 0
+    },
+    "wire": "{\"type\":\"ResizeDelta\",\"content\":0}",
+    "golden": {
+      "type": "ResizeDelta",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ResizeWindowAxis": {
+    "instance": {
+      "type": "ResizeWindowAxis",
+      "content": [
+        "Horizontal",
+        "Increase"
+      ]
+    },
+    "wire": "{\"type\":\"ResizeWindowAxis\",\"content\":[\"Horizontal\",\"Increase\"]}",
+    "golden": {
+      "type": "ResizeWindowAxis",
+      "content": [
+        "Horizontal",
+        "Increase"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ResizeWindowAxis@1": {
+    "instance": {
+      "type": "ResizeWindowAxis",
+      "content": [
+        "Vertical",
+        "Decrease"
+      ]
+    },
+    "wire": "{\"type\":\"ResizeWindowAxis\",\"content\":[\"Vertical\",\"Decrease\"]}",
+    "golden": {
+      "type": "ResizeWindowAxis",
+      "content": [
+        "Vertical",
+        "Decrease"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ResizeWindowAxis@2": {
+    "instance": {
+      "type": "ResizeWindowAxis",
+      "content": [
+        "HorizontalAndVertical",
+        "Decrease"
+      ]
+    },
+    "wire": "{\"type\":\"ResizeWindowAxis\",\"content\":[\"HorizontalAndVertical\",\"Decrease\"]}",
+    "golden": {
+      "type": "ResizeWindowAxis",
+      "content": [
+        "HorizontalAndVertical",
+        "Decrease"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ResizeWindowEdge": {
+    "instance": {
+      "type": "ResizeWindowEdge",
+      "content": [
+        "Left",
+        "Increase"
+      ]
+    },
+    "wire": "{\"type\":\"ResizeWindowEdge\",\"content\":[\"Left\",\"Increase\"]}",
+    "golden": {
+      "type": "ResizeWindowEdge",
+      "content": [
+        "Left",
+        "Increase"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ResizeWindowEdge@1": {
+    "instance": {
+      "type": "ResizeWindowEdge",
+      "content": [
+        "Right",
+        "Decrease"
+      ]
+    },
+    "wire": "{\"type\":\"ResizeWindowEdge\",\"content\":[\"Right\",\"Decrease\"]}",
+    "golden": {
+      "type": "ResizeWindowEdge",
+      "content": [
+        "Right",
+        "Decrease"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ResizeWindowEdge@2": {
+    "instance": {
+      "type": "ResizeWindowEdge",
+      "content": [
+        "Up",
+        "Decrease"
+      ]
+    },
+    "wire": "{\"type\":\"ResizeWindowEdge\",\"content\":[\"Up\",\"Decrease\"]}",
+    "golden": {
+      "type": "ResizeWindowEdge",
+      "content": [
+        "Up",
+        "Decrease"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ResizeWindowEdge@3": {
+    "instance": {
+      "type": "ResizeWindowEdge",
+      "content": [
+        "Down",
+        "Decrease"
+      ]
+    },
+    "wire": "{\"type\":\"ResizeWindowEdge\",\"content\":[\"Down\",\"Decrease\"]}",
+    "golden": {
+      "type": "ResizeWindowEdge",
+      "content": [
+        "Down",
+        "Decrease"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Retile": {
+    "instance": {
+      "type": "Retile"
+    },
+    "wire": "{\"type\":\"Retile\"}",
+    "golden": {
+      "type": "Retile"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "RetileWithResizeDimensions": {
+    "instance": {
+      "type": "RetileWithResizeDimensions"
+    },
+    "wire": "{\"type\":\"RetileWithResizeDimensions\"}",
+    "golden": {
+      "type": "RetileWithResizeDimensions"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Save": {
+    "instance": {
+      "type": "Save",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"Save\",\"content\":\"x\"}",
+    "golden": {
+      "type": "Save",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Save@~": {
+    "instance": {
+      "type": "Save",
+      "content": "~/k.json"
+    },
+    "wire": "{\"type\":\"Save\",\"content\":\"/golden-home/k.json\"}",
+    "golden": {
+      "type": "Save",
+      "content": "/golden-home/k.json"
+    },
+    "deserialised": true,
+    "roundtrip_equal": false,
+    "payload_stubbed": false
+  },
+  "ScrollingLayoutColumns": {
+    "instance": {
+      "type": "ScrollingLayoutColumns",
+      "content": 1
+    },
+    "wire": "{\"type\":\"ScrollingLayoutColumns\",\"content\":1}",
+    "golden": {
+      "type": "ScrollingLayoutColumns",
+      "content": 1
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ScrollingLayoutFullWidth": {
+    "instance": {
+      "type": "ScrollingLayoutFullWidth"
+    },
+    "wire": "{\"type\":\"ScrollingLayoutFullWidth\"}",
+    "golden": {
+      "type": "ScrollingLayoutFullWidth"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SendContainerToLastWorkspace": {
+    "instance": {
+      "type": "SendContainerToLastWorkspace"
+    },
+    "wire": "{\"type\":\"SendContainerToLastWorkspace\"}",
+    "golden": {
+      "type": "SendContainerToLastWorkspace"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SendContainerToMonitorNumber": {
+    "instance": {
+      "type": "SendContainerToMonitorNumber",
+      "content": 0
+    },
+    "wire": "{\"type\":\"SendContainerToMonitorNumber\",\"content\":0}",
+    "golden": {
+      "type": "SendContainerToMonitorNumber",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SendContainerToMonitorWorkspaceNumber": {
+    "instance": {
+      "type": "SendContainerToMonitorWorkspaceNumber",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"SendContainerToMonitorWorkspaceNumber\",\"content\":[0,0]}",
+    "golden": {
+      "type": "SendContainerToMonitorWorkspaceNumber",
+      "content": [
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SendContainerToNamedWorkspace": {
+    "instance": {
+      "type": "SendContainerToNamedWorkspace",
+      "content": "x"
+    },
+    "wire": "{\"type\":\"SendContainerToNamedWorkspace\",\"content\":\"x\"}",
+    "golden": {
+      "type": "SendContainerToNamedWorkspace",
+      "content": "x"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SendContainerToWorkspaceNumber": {
+    "instance": {
+      "type": "SendContainerToWorkspaceNumber",
+      "content": 0
+    },
+    "wire": "{\"type\":\"SendContainerToWorkspaceNumber\",\"content\":0}",
+    "golden": {
+      "type": "SendContainerToWorkspaceNumber",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SessionFloatRule": {
+    "instance": {
+      "type": "SessionFloatRule"
+    },
+    "wire": "{\"type\":\"SessionFloatRule\"}",
+    "golden": {
+      "type": "SessionFloatRule"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SessionFloatRules": {
+    "instance": {
+      "type": "SessionFloatRules"
+    },
+    "wire": "{\"type\":\"SessionFloatRules\"}",
+    "golden": {
+      "type": "SessionFloatRules"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SocketSchema": {
+    "instance": {
+      "type": "SocketSchema"
+    },
+    "wire": "{\"type\":\"SocketSchema\"}",
+    "golden": {
+      "type": "SocketSchema"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "StackAll": {
+    "instance": {
+      "type": "StackAll"
+    },
+    "wire": "{\"type\":\"StackAll\"}",
+    "golden": {
+      "type": "StackAll"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "StackWindow": {
+    "instance": {
+      "type": "StackWindow",
+      "content": "Left"
+    },
+    "wire": "{\"type\":\"StackWindow\",\"content\":\"Left\"}",
+    "golden": {
+      "type": "StackWindow",
+      "content": "Left"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "StackWindow@1": {
+    "instance": {
+      "type": "StackWindow",
+      "content": "Right"
+    },
+    "wire": "{\"type\":\"StackWindow\",\"content\":\"Right\"}",
+    "golden": {
+      "type": "StackWindow",
+      "content": "Right"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "StackWindow@2": {
+    "instance": {
+      "type": "StackWindow",
+      "content": "Up"
+    },
+    "wire": "{\"type\":\"StackWindow\",\"content\":\"Up\"}",
+    "golden": {
+      "type": "StackWindow",
+      "content": "Up"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "StackWindow@3": {
+    "instance": {
+      "type": "StackWindow",
+      "content": "Down"
+    },
+    "wire": "{\"type\":\"StackWindow\",\"content\":\"Down\"}",
+    "golden": {
+      "type": "StackWindow",
+      "content": "Down"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "State": {
+    "instance": {
+      "type": "State"
+    },
+    "wire": "{\"type\":\"State\"}",
+    "golden": {
+      "type": "State"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "StaticConfigSchema": {
+    "instance": {
+      "type": "StaticConfigSchema"
+    },
+    "wire": "{\"type\":\"StaticConfigSchema\"}",
+    "golden": {
+      "type": "StaticConfigSchema"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Stop": {
+    "instance": {
+      "type": "Stop"
+    },
+    "wire": "{\"type\":\"Stop\"}",
+    "golden": {
+      "type": "Stop"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "StopIgnoreRestore": {
+    "instance": {
+      "type": "StopIgnoreRestore"
+    },
+    "wire": "{\"type\":\"StopIgnoreRestore\"}",
+    "golden": {
+      "type": "StopIgnoreRestore"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "SwapWorkspacesToMonitorNumber": {
+    "instance": {
+      "type": "SwapWorkspacesToMonitorNumber",
+      "content": 0
+    },
+    "wire": "{\"type\":\"SwapWorkspacesToMonitorNumber\",\"content\":0}",
+    "golden": {
+      "type": "SwapWorkspacesToMonitorNumber",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Theme": {
+    "instance": {
+      "type": "Theme",
+      "content": {
+        "name": "Frappe",
+        "palette": "Catppuccin"
+      }
+    },
+    "wire": "{\"type\":\"Theme\",\"content\":{\"palette\":\"Catppuccin\",\"name\":\"Frappe\"}}",
+    "golden": {
+      "type": "Theme",
+      "content": {
+        "palette": "Catppuccin",
+        "name": "Frappe"
+      }
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Theme@1": {
+    "instance": {
+      "type": "Theme",
+      "content": {
+        "name": "Apathy",
+        "palette": "Base16"
+      }
+    },
+    "wire": "{\"type\":\"Theme\",\"content\":{\"palette\":\"Base16\",\"name\":\"Apathy\"}}",
+    "golden": {
+      "type": "Theme",
+      "content": {
+        "palette": "Base16",
+        "name": "Apathy"
+      }
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleColumnStack": {
+    "instance": {
+      "type": "ToggleColumnStack"
+    },
+    "wire": "{\"type\":\"ToggleColumnStack\"}",
+    "golden": {
+      "type": "ToggleColumnStack"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleCrossMonitorMoveBehaviour": {
+    "instance": {
+      "type": "ToggleCrossMonitorMoveBehaviour"
+    },
+    "wire": "{\"type\":\"ToggleCrossMonitorMoveBehaviour\"}",
+    "golden": {
+      "type": "ToggleCrossMonitorMoveBehaviour"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleFloat": {
+    "instance": {
+      "type": "ToggleFloat"
+    },
+    "wire": "{\"type\":\"ToggleFloat\"}",
+    "golden": {
+      "type": "ToggleFloat"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleFloatOverride": {
+    "instance": {
+      "type": "ToggleFloatOverride"
+    },
+    "wire": "{\"type\":\"ToggleFloatOverride\"}",
+    "golden": {
+      "type": "ToggleFloatOverride"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleFocusFollowsMouse": {
+    "instance": {
+      "type": "ToggleFocusFollowsMouse",
+      "content": "Komorebi"
+    },
+    "wire": "{\"type\":\"ToggleFocusFollowsMouse\",\"content\":\"Komorebi\"}",
+    "golden": {
+      "type": "ToggleFocusFollowsMouse",
+      "content": "Komorebi"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleFocusFollowsMouse@1": {
+    "instance": {
+      "type": "ToggleFocusFollowsMouse",
+      "content": "Windows"
+    },
+    "wire": "{\"type\":\"ToggleFocusFollowsMouse\",\"content\":\"Windows\"}",
+    "golden": {
+      "type": "ToggleFocusFollowsMouse",
+      "content": "Windows"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleLock": {
+    "instance": {
+      "type": "ToggleLock"
+    },
+    "wire": "{\"type\":\"ToggleLock\"}",
+    "golden": {
+      "type": "ToggleLock"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleMaximize": {
+    "instance": {
+      "type": "ToggleMaximize"
+    },
+    "wire": "{\"type\":\"ToggleMaximize\"}",
+    "golden": {
+      "type": "ToggleMaximize"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleMonocle": {
+    "instance": {
+      "type": "ToggleMonocle"
+    },
+    "wire": "{\"type\":\"ToggleMonocle\"}",
+    "golden": {
+      "type": "ToggleMonocle"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleMonocleFocusBehaviour": {
+    "instance": {
+      "type": "ToggleMonocleFocusBehaviour"
+    },
+    "wire": "{\"type\":\"ToggleMonocleFocusBehaviour\"}",
+    "golden": {
+      "type": "ToggleMonocleFocusBehaviour"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleMouseFollowsFocus": {
+    "instance": {
+      "type": "ToggleMouseFollowsFocus"
+    },
+    "wire": "{\"type\":\"ToggleMouseFollowsFocus\"}",
+    "golden": {
+      "type": "ToggleMouseFollowsFocus"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "TogglePause": {
+    "instance": {
+      "type": "TogglePause"
+    },
+    "wire": "{\"type\":\"TogglePause\"}",
+    "golden": {
+      "type": "TogglePause"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleTiling": {
+    "instance": {
+      "type": "ToggleTiling"
+    },
+    "wire": "{\"type\":\"ToggleTiling\"}",
+    "golden": {
+      "type": "ToggleTiling"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleTransparency": {
+    "instance": {
+      "type": "ToggleTransparency"
+    },
+    "wire": "{\"type\":\"ToggleTransparency\"}",
+    "golden": {
+      "type": "ToggleTransparency"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleWindowBasedWorkAreaOffset": {
+    "instance": {
+      "type": "ToggleWindowBasedWorkAreaOffset"
+    },
+    "wire": "{\"type\":\"ToggleWindowBasedWorkAreaOffset\"}",
+    "golden": {
+      "type": "ToggleWindowBasedWorkAreaOffset"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleWindowContainerBehaviour": {
+    "instance": {
+      "type": "ToggleWindowContainerBehaviour"
+    },
+    "wire": "{\"type\":\"ToggleWindowContainerBehaviour\"}",
+    "golden": {
+      "type": "ToggleWindowContainerBehaviour"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleWorkspaceFloatOverride": {
+    "instance": {
+      "type": "ToggleWorkspaceFloatOverride"
+    },
+    "wire": "{\"type\":\"ToggleWorkspaceFloatOverride\"}",
+    "golden": {
+      "type": "ToggleWorkspaceFloatOverride"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleWorkspaceLayer": {
+    "instance": {
+      "type": "ToggleWorkspaceLayer"
+    },
+    "wire": "{\"type\":\"ToggleWorkspaceLayer\"}",
+    "golden": {
+      "type": "ToggleWorkspaceLayer"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "ToggleWorkspaceWindowContainerBehaviour": {
+    "instance": {
+      "type": "ToggleWorkspaceWindowContainerBehaviour"
+    },
+    "wire": "{\"type\":\"ToggleWorkspaceWindowContainerBehaviour\"}",
+    "golden": {
+      "type": "ToggleWorkspaceWindowContainerBehaviour"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "Transparency": {
+    "instance": {
+      "type": "Transparency",
+      "content": false
+    },
+    "wire": "{\"type\":\"Transparency\",\"content\":false}",
+    "golden": {
+      "type": "Transparency",
+      "content": false
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "TransparencyAlpha": {
+    "instance": {
+      "type": "TransparencyAlpha",
+      "content": 0
+    },
+    "wire": "{\"type\":\"TransparencyAlpha\",\"content\":0}",
+    "golden": {
+      "type": "TransparencyAlpha",
+      "content": 0
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "UnlockMonitorWorkspaceContainer": {
+    "instance": {
+      "type": "UnlockMonitorWorkspaceContainer",
+      "content": [
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"UnlockMonitorWorkspaceContainer\",\"content\":[0,0,0]}",
+    "golden": {
+      "type": "UnlockMonitorWorkspaceContainer",
+      "content": [
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "UnmanageFocusedWindow": {
+    "instance": {
+      "type": "UnmanageFocusedWindow"
+    },
+    "wire": "{\"type\":\"UnmanageFocusedWindow\"}",
+    "golden": {
+      "type": "UnmanageFocusedWindow"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "UnmanagedWindowOperationBehaviour": {
+    "instance": {
+      "type": "UnmanagedWindowOperationBehaviour",
+      "content": "Op"
+    },
+    "wire": "{\"type\":\"UnmanagedWindowOperationBehaviour\",\"content\":\"Op\"}",
+    "golden": {
+      "type": "UnmanagedWindowOperationBehaviour",
+      "content": "Op"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "UnmanagedWindowOperationBehaviour@1": {
+    "instance": {
+      "type": "UnmanagedWindowOperationBehaviour",
+      "content": "NoOp"
+    },
+    "wire": "{\"type\":\"UnmanagedWindowOperationBehaviour\",\"content\":\"NoOp\"}",
+    "golden": {
+      "type": "UnmanagedWindowOperationBehaviour",
+      "content": "NoOp"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "UnstackAll": {
+    "instance": {
+      "type": "UnstackAll"
+    },
+    "wire": "{\"type\":\"UnstackAll\"}",
+    "golden": {
+      "type": "UnstackAll"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "UnstackWindow": {
+    "instance": {
+      "type": "UnstackWindow"
+    },
+    "wire": "{\"type\":\"UnstackWindow\"}",
+    "golden": {
+      "type": "UnstackWindow"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "VisibleWindows": {
+    "instance": {
+      "type": "VisibleWindows"
+    },
+    "wire": "{\"type\":\"VisibleWindows\"}",
+    "golden": {
+      "type": "VisibleWindows"
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkAreaOffset": {
+    "instance": {
+      "type": "WorkAreaOffset",
+      "content": {
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "top": 0
+      }
+    },
+    "wire": "{\"type\":\"WorkAreaOffset\",\"content\":{\"left\":0,\"top\":0,\"right\":0,\"bottom\":0}}",
+    "golden": {
+      "type": "WorkAreaOffset",
+      "content": {
+        "left": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0
+      }
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceLayout": {
+    "instance": {
+      "type": "WorkspaceLayout",
+      "content": [
+        0,
+        0,
+        "BSP"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceLayout\",\"content\":[0,0,\"BSP\"]}",
+    "golden": {
+      "type": "WorkspaceLayout",
+      "content": [
+        0,
+        0,
+        "BSP"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceLayout@1": {
+    "instance": {
+      "type": "WorkspaceLayout",
+      "content": [
+        0,
+        0,
+        "Columns"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceLayout\",\"content\":[0,0,\"Columns\"]}",
+    "golden": {
+      "type": "WorkspaceLayout",
+      "content": [
+        0,
+        0,
+        "Columns"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceLayout@2": {
+    "instance": {
+      "type": "WorkspaceLayout",
+      "content": [
+        0,
+        0,
+        "Rows"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceLayout\",\"content\":[0,0,\"Rows\"]}",
+    "golden": {
+      "type": "WorkspaceLayout",
+      "content": [
+        0,
+        0,
+        "Rows"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceLayout@3": {
+    "instance": {
+      "type": "WorkspaceLayout",
+      "content": [
+        0,
+        0,
+        "VerticalStack"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceLayout\",\"content\":[0,0,\"VerticalStack\"]}",
+    "golden": {
+      "type": "WorkspaceLayout",
+      "content": [
+        0,
+        0,
+        "VerticalStack"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceLayoutRule": {
+    "instance": {
+      "type": "WorkspaceLayoutRule",
+      "content": [
+        0,
+        0,
+        0,
+        "BSP"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceLayoutRule\",\"content\":[0,0,0,\"BSP\"]}",
+    "golden": {
+      "type": "WorkspaceLayoutRule",
+      "content": [
+        0,
+        0,
+        0,
+        "BSP"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceLayoutRule@1": {
+    "instance": {
+      "type": "WorkspaceLayoutRule",
+      "content": [
+        0,
+        0,
+        0,
+        "Columns"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceLayoutRule\",\"content\":[0,0,0,\"Columns\"]}",
+    "golden": {
+      "type": "WorkspaceLayoutRule",
+      "content": [
+        0,
+        0,
+        0,
+        "Columns"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceLayoutRule@2": {
+    "instance": {
+      "type": "WorkspaceLayoutRule",
+      "content": [
+        0,
+        0,
+        0,
+        "Rows"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceLayoutRule\",\"content\":[0,0,0,\"Rows\"]}",
+    "golden": {
+      "type": "WorkspaceLayoutRule",
+      "content": [
+        0,
+        0,
+        0,
+        "Rows"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceLayoutRule@3": {
+    "instance": {
+      "type": "WorkspaceLayoutRule",
+      "content": [
+        0,
+        0,
+        0,
+        "VerticalStack"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceLayoutRule\",\"content\":[0,0,0,\"VerticalStack\"]}",
+    "golden": {
+      "type": "WorkspaceLayoutRule",
+      "content": [
+        0,
+        0,
+        0,
+        "VerticalStack"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceName": {
+    "instance": {
+      "type": "WorkspaceName",
+      "content": [
+        0,
+        0,
+        "x"
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceName\",\"content\":[0,0,\"x\"]}",
+    "golden": {
+      "type": "WorkspaceName",
+      "content": [
+        0,
+        0,
+        "x"
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspacePadding": {
+    "instance": {
+      "type": "WorkspacePadding",
+      "content": [
+        0,
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"WorkspacePadding\",\"content\":[0,0,0]}",
+    "golden": {
+      "type": "WorkspacePadding",
+      "content": [
+        0,
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceRule": {
+    "instance": {
+      "type": "WorkspaceRule",
+      "content": [
+        "Exe",
+        "x",
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceRule\",\"content\":[\"Exe\",\"x\",0,0]}",
+    "golden": {
+      "type": "WorkspaceRule",
+      "content": [
+        "Exe",
+        "x",
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceRule@1": {
+    "instance": {
+      "type": "WorkspaceRule",
+      "content": [
+        "Class",
+        "x",
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceRule\",\"content\":[\"Class\",\"x\",0,0]}",
+    "golden": {
+      "type": "WorkspaceRule",
+      "content": [
+        "Class",
+        "x",
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceRule@2": {
+    "instance": {
+      "type": "WorkspaceRule",
+      "content": [
+        "Title",
+        "x",
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceRule\",\"content\":[\"Title\",\"x\",0,0]}",
+    "golden": {
+      "type": "WorkspaceRule",
+      "content": [
+        "Title",
+        "x",
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceRule@3": {
+    "instance": {
+      "type": "WorkspaceRule",
+      "content": [
+        "Path",
+        "x",
+        0,
+        0
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceRule\",\"content\":[\"Path\",\"x\",0,0]}",
+    "golden": {
+      "type": "WorkspaceRule",
+      "content": [
+        "Path",
+        "x",
+        0,
+        0
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceTiling": {
+    "instance": {
+      "type": "WorkspaceTiling",
+      "content": [
+        0,
+        0,
+        false
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceTiling\",\"content\":[0,0,false]}",
+    "golden": {
+      "type": "WorkspaceTiling",
+      "content": [
+        0,
+        0,
+        false
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  },
+  "WorkspaceWorkAreaOffset": {
+    "instance": {
+      "type": "WorkspaceWorkAreaOffset",
+      "content": [
+        0,
+        0,
+        {
+          "bottom": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0
+        }
+      ]
+    },
+    "wire": "{\"type\":\"WorkspaceWorkAreaOffset\",\"content\":[0,0,{\"left\":0,\"top\":0,\"right\":0,\"bottom\":0}]}",
+    "golden": {
+      "type": "WorkspaceWorkAreaOffset",
+      "content": [
+        0,
+        0,
+        {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      ]
+    },
+    "deserialised": true,
+    "roundtrip_equal": true,
+    "payload_stubbed": false
+  }
+}
