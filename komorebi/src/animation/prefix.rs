@@ -1,3 +1,5 @@
+//! The kinds of animation that settings can be given for, by prefix (`movement`).
+
 use clap::ValueEnum;
 
 use serde::Deserialize;
