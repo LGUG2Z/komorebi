@@ -273,7 +273,7 @@ mod tests {
         // ids that nothing else in the tests uses
         for id in 3_900_000_001..3_900_000_003 {
             workspace
-                .new_container_for_window(&Window::from(id))
+                .new_container_for_window(Window::from(id))
                 .unwrap();
         }
         workspace.latest_layout = vec![

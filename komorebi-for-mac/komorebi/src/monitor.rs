@@ -13,6 +13,7 @@ use crate::ring::Ring;
 use crate::skylight::BatchedUpdates;
 use crate::static_config::Wallpaper;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceExt;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
@@ -212,8 +213,8 @@ impl Monitor {
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
                 floating_layer_behaviour,
-                window_hiding_position,
-            }
+            };
+            workspace.state.window_hiding_position = window_hiding_position;
         }
     }
 
@@ -468,7 +469,8 @@ impl Monitor {
                             workspace.add_container_to_front(container);
                         }
                         DefaultLayout::UltrawideVerticalStack => {
-                            #[allow(clippy::collapsible_match)] // the outer match has one arm per layout; collapsing would restructure it
+                            #[allow(clippy::collapsible_match)]
+                            // the outer match has one arm per layout; collapsing would restructure it
                             if workspace.containers().len() == 1 {
                                 workspace.insert_container_at_idx(0, container);
                             } else {
@@ -491,7 +493,8 @@ impl Monitor {
                         match layout {
                             DefaultLayout::RightMainVerticalStack
                             | DefaultLayout::UltrawideVerticalStack => {
-                                #[allow(clippy::collapsible_match)] // the outer match has one arm per layout; collapsing would restructure it
+                                #[allow(clippy::collapsible_match)]
+                                // the outer match has one arm per layout; collapsing would restructure it
                                 if workspace.containers().len() == 1 {
                                     workspace.add_container_to_back(container);
                                 } else {
@@ -541,8 +544,8 @@ impl Monitor {
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
                 floating_layer_behaviour,
-                window_hiding_position,
-            }
+            };
+            workspace.state.window_hiding_position = window_hiding_position;
         }
     }
 

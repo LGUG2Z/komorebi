@@ -9,6 +9,7 @@
 
 use crate::core::PanDirection;
 use crate::core::PanGesture;
+use crate::scrolling::WorkspaceScrolling;
 use crate::window::Snapping;
 use crate::window::steps_begin;
 use crate::window::steps_end;

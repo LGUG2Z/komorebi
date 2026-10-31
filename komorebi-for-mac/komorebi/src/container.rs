@@ -75,6 +75,25 @@ impl ContainerWindow for Window {
     }
 }
 
+impl komorebi_core::WorkspaceWindow for Window {
+    fn title(&self) -> Option<String> {
+        Window::title(self)
+    }
+
+    fn exe(&self) -> Option<String> {
+        Window::exe(self)
+    }
+
+    /// macOS has no window class: the role, which is what `komorebi.json` matches as a class
+    fn class(&self) -> Option<String> {
+        self.role()
+    }
+
+    fn path(&self) -> Option<String> {
+        Window::path(self).map(|path| path.to_string_lossy().into_owned())
+    }
+}
+
 /// What a macOS container does that the shared one cannot: hide and restore its windows with the
 /// monitor's hiding position, and say when that failed.
 pub trait ContainerExt {

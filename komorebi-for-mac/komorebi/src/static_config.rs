@@ -50,6 +50,7 @@ use crate::window::PredefinedAspectRatio;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
@@ -79,107 +80,106 @@ pub use komorebi_config::static_config::ThemeOptions;
 pub use komorebi_config::static_config::Wallpaper;
 pub use komorebi_config::static_config::WorkspaceConfig;
 
-impl From<&Workspace> for WorkspaceConfig {
-    fn from(value: &Workspace) -> Self {
-        let mut layout_rules = HashMap::new();
-        for (threshold, layout) in &value.layout_rules {
-            match layout {
-                Layout::Default(value) => {
-                    layout_rules.insert(*threshold, *value);
-                }
+/// The configuration entry that a workspace would be loaded from (what `komorebic` writes out)
+fn workspace_config(value: &Workspace) -> WorkspaceConfig {
+    let mut layout_rules = HashMap::new();
+    for (threshold, layout) in &value.layout_rules {
+        match layout {
+            Layout::Default(value) => {
+                layout_rules.insert(*threshold, *value);
             }
         }
-        let layout_rules = (!layout_rules.is_empty()).then_some(layout_rules);
+    }
+    let layout_rules = (!layout_rules.is_empty()).then_some(layout_rules);
 
-        let mut work_area_offset_rules = HashMap::new();
-        for (threshold, rect) in &value.work_area_offset_rules {
-            work_area_offset_rules.insert(*threshold, *rect);
+    let mut work_area_offset_rules = HashMap::new();
+    for (threshold, rect) in &value.work_area_offset_rules {
+        work_area_offset_rules.insert(*threshold, *rect);
+    }
+    let work_area_offset_rules =
+        (!work_area_offset_rules.is_empty()).then_some(work_area_offset_rules);
+
+    let mut window_container_behaviour_rules = HashMap::new();
+    for (threshold, behaviour) in value.window_container_behaviour_rules.iter().flatten() {
+        window_container_behaviour_rules.insert(*threshold, *behaviour);
+    }
+
+    let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
+    let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
+
+    let container_padding = value.container_padding.and_then(|container_padding| {
+        if container_padding == default_container_padding {
+            None
+        } else {
+            Option::from(container_padding)
         }
-        let work_area_offset_rules =
-            (!work_area_offset_rules.is_empty()).then_some(work_area_offset_rules);
+    });
 
-        let mut window_container_behaviour_rules = HashMap::new();
-        for (threshold, behaviour) in value.window_container_behaviour_rules.iter().flatten() {
-            window_container_behaviour_rules.insert(*threshold, *behaviour);
+    let workspace_padding = value.workspace_padding.and_then(|workspace_padding| {
+        if workspace_padding == default_workspace_padding {
+            None
+        } else {
+            Option::from(workspace_padding)
         }
+    });
 
-        let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
-        let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
+    let tile = if value.tile { None } else { Some(false) };
 
-        let container_padding = value.container_padding.and_then(|container_padding| {
-            if container_padding == default_container_padding {
-                None
-            } else {
-                Option::from(container_padding)
-            }
-        });
-
-        let workspace_padding = value.workspace_padding.and_then(|workspace_padding| {
-            if workspace_padding == default_workspace_padding {
-                None
-            } else {
-                Option::from(workspace_padding)
-            }
-        });
-
-        let tile = if value.tile { None } else { Some(false) };
-
-        Self {
-            name: value
-                .name
-                .clone()
-                .unwrap_or_else(|| String::from("unnamed")),
-            layout: value
-                .tile
-                .then_some(match value.layout {
-                    Layout::Default(layout) => Option::from(layout),
-                })
-                .flatten(),
-            layout_options: {
-                tracing::debug!(
-                    "Parsing workspace config - layout_options: {:?}",
-                    value.layout_options
-                );
+    WorkspaceConfig {
+        name: value
+            .name
+            .clone()
+            .unwrap_or_else(|| String::from("unnamed")),
+        layout: value
+            .tile
+            .then_some(match value.layout {
+                Layout::Default(layout) => Option::from(layout),
+            })
+            .flatten(),
+        layout_options: {
+            tracing::debug!(
+                "Parsing workspace config - layout_options: {:?}",
                 value.layout_options
-            },
-            layout_options_rules: if value.layout_options_rules.is_empty() {
-                None
-            } else {
-                Some(value.layout_options_rules.iter().copied().collect())
-            },
-            // custom_layout: value
-            //     .workspace_config
-            //     .as_ref()
-            //     .and_then(|c| c.custom_layout.clone()),
-            layout_rules,
-            container_padding,
-            workspace_padding,
-            initial_workspace_rules: value
-                .workspace_config
-                .as_ref()
-                .and_then(|c| c.initial_workspace_rules.clone()),
-            workspace_rules: value
-                .workspace_config
-                .as_ref()
-                .and_then(|c| c.workspace_rules.clone()),
-            work_area_offset_rules,
-            work_area_offset: value.work_area_offset,
-            apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset),
-            window_container_behaviour: value.window_container_behaviour,
-            window_container_behaviour_rules: if window_container_behaviour_rules.is_empty() {
-                None
-            } else {
-                Some(window_container_behaviour_rules)
-            },
-            float_override: value.float_override,
-            tile,
-            layout_flip: value.layout_flip,
-            floating_layer_behaviour: value.floating_layer_behaviour,
-            wallpaper: None,
-            custom_layout: None,
-            custom_layout_rules: None,
-            initial_window_placement_rules: None,
-        }
+            );
+            value.layout_options
+        },
+        layout_options_rules: if value.layout_options_rules.is_empty() {
+            None
+        } else {
+            Some(value.layout_options_rules.iter().copied().collect())
+        },
+        // custom_layout: value
+        //     .workspace_config
+        //     .as_ref()
+        //     .and_then(|c| c.custom_layout.clone()),
+        layout_rules,
+        container_padding,
+        workspace_padding,
+        initial_workspace_rules: value
+            .workspace_config
+            .as_ref()
+            .and_then(|c| c.initial_workspace_rules.clone()),
+        workspace_rules: value
+            .workspace_config
+            .as_ref()
+            .and_then(|c| c.workspace_rules.clone()),
+        work_area_offset_rules,
+        work_area_offset: value.work_area_offset,
+        apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset),
+        window_container_behaviour: value.window_container_behaviour,
+        window_container_behaviour_rules: if window_container_behaviour_rules.is_empty() {
+            None
+        } else {
+            Some(window_container_behaviour_rules)
+        },
+        float_override: value.float_override,
+        tile,
+        layout_flip: value.layout_flip,
+        floating_layer_behaviour: value.floating_layer_behaviour,
+        wallpaper: None,
+        custom_layout: None,
+        custom_layout_rules: None,
+        initial_window_placement_rules: None,
     }
 }
 
@@ -187,7 +187,7 @@ impl From<&Monitor> for MonitorConfig {
     fn from(value: &Monitor) -> Self {
         let mut workspaces = vec![];
         for w in value.workspaces() {
-            workspaces.push(WorkspaceConfig::from(w));
+            workspaces.push(workspace_config(w));
         }
 
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
@@ -1256,7 +1256,8 @@ fn handle_asc_file(
     match path.extension() {
         None => {}
         Some(ext) => {
-            #[allow(clippy::collapsible_match)] // collapsing the nested if into a guard would restructure a 40-line block
+            #[allow(clippy::collapsible_match)]
+            // collapsing the nested if into a guard would restructure a 40-line block
             if ext.to_string_lossy().to_string().as_str() == "json" {
                 tracing::info!("loading applications.json from: {}", path.display());
                 let mut asc = ApplicationSpecificConfiguration::load(path)?;

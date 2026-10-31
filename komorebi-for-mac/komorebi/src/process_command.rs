@@ -1,3 +1,5 @@
+use crate::workspace::WorkspaceExt;
+use crate::scrolling::WorkspaceScrolling;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;

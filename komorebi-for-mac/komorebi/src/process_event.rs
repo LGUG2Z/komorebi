@@ -1,5 +1,4 @@
 use crate::AccessibilityUiElement;
-use crate::container::ContainerExt;
 use crate::FLOATING_APPLICATIONS;
 use crate::Notification;
 use crate::NotificationEvent;
@@ -14,6 +13,7 @@ use crate::accessibility::notification_constants::AccessibilityNotification;
 use crate::animation::animator;
 use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
 use crate::border_manager;
+use crate::container::ContainerExt;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::Rect;
@@ -36,6 +36,7 @@ use crate::window_manager_event::ManualNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
+use crate::workspace::WorkspaceExt;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace_reconciliator;
 use color_eyre::eyre;
@@ -682,13 +683,12 @@ impl WindowManager {
                     } else {
                         match behaviour.current_behaviour {
                             WindowContainerBehaviour::Create => {
-                                workspace.new_container_for_window(&window)?;
+                                workspace.new_container_for_window(window.clone())?;
                                 workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(false, false)?;
                             }
                             WindowContainerBehaviour::Append => {
-                                let window_hiding_position =
-                                    workspace.globals.window_hiding_position;
+                                let window_hiding_position = workspace.state.window_hiding_position;
                                 workspace
                                     .focused_container_mut()
                                     .ok_or_eyre("there is no focused container")?
@@ -730,12 +730,12 @@ impl WindowManager {
                         if !(monocle_window_event || workspace.layer != WorkspaceLayer::Tiling)
                             && monocle_container.is_some()
                         {
-                            window.hide(workspace.globals.window_hiding_position)?;
+                            window.hide(workspace.state.window_hiding_position)?;
                         }
                     }
 
                     // let workspace = self.focused_workspace_mut()?;
-                    // workspace.new_container_for_window(&window)?;
+                    // workspace.new_container_for_window(window.clone())?;
                     //
                     // self.update_focused_workspace(false, false)?;
                 }
@@ -835,7 +835,7 @@ impl WindowManager {
                     None => {}
                     Some(window) => {
                         let workspace = self.focused_workspace_mut()?;
-                        workspace.new_container_for_window(&window)?;
+                        workspace.new_container_for_window(window.clone())?;
                         self.update_focused_workspace(false, false)?;
                     }
                 }

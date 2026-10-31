@@ -42,6 +42,7 @@ use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
 use crate::pan::Pan;
 use crate::ring::Ring;
+use crate::scrolling::WorkspaceScrolling;
 use crate::settle;
 use crate::skylight::BatchedUpdates;
 use crate::static_config::StaticConfig;
@@ -58,6 +59,7 @@ use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceExt;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -279,11 +281,8 @@ impl WindowManager {
                         .iter()
                         .enumerate()
                         .flat_map(|(idx, w)| {
-                            (w.id != focused_window_id).then_some(
-                                w.window_rect()
-                                    .ok()
-                                    .map(|r| (idx, Rect::from(r))),
-                            )
+                            (w.id != focused_window_id)
+                                .then_some(w.window_rect().ok().map(|r| (idx, Rect::from(r))))
                         })
                         .flatten()
                         .flat_map(|(idx, r)| {
@@ -305,11 +304,8 @@ impl WindowManager {
                         .iter()
                         .enumerate()
                         .flat_map(|(idx, w)| {
-                            (w.id != focused_window_id).then_some(
-                                w.window_rect()
-                                    .ok()
-                                    .map(|r| (idx, Rect::from(r))),
-                            )
+                            (w.id != focused_window_id)
+                                .then_some(w.window_rect().ok().map(|r| (idx, Rect::from(r))))
                         })
                         .flatten()
                         .flat_map(|(idx, r)| {
@@ -331,11 +327,8 @@ impl WindowManager {
                         .iter()
                         .enumerate()
                         .flat_map(|(idx, w)| {
-                            (w.id != focused_window_id).then_some(
-                                w.window_rect()
-                                    .ok()
-                                    .map(|r| (idx, Rect::from(r))),
-                            )
+                            (w.id != focused_window_id)
+                                .then_some(w.window_rect().ok().map(|r| (idx, Rect::from(r))))
                         })
                         .flatten()
                         .flat_map(|(idx, r)| {
@@ -357,11 +350,8 @@ impl WindowManager {
                         .iter()
                         .enumerate()
                         .flat_map(|(idx, w)| {
-                            (w.id != focused_window_id).then_some(
-                                w.window_rect()
-                                    .ok()
-                                    .map(|r| (idx, Rect::from(r))),
-                            )
+                            (w.id != focused_window_id)
+                                .then_some(w.window_rect().ok().map(|r| (idx, Rect::from(r))))
                         })
                         .flatten()
                         .flat_map(|(idx, r)| {
@@ -1258,7 +1248,7 @@ impl WindowManager {
                 }
             }
 
-            let window_hiding_position = workspace.globals.window_hiding_position;
+            let window_hiding_position = workspace.state.window_hiding_position;
             if changed_focus && let Some(container) = workspace.focused_container_mut() {
                 container.load_focused_window_at(window_hiding_position)?;
                 if let Some(window) = container.focused_window() {
@@ -1341,7 +1331,7 @@ impl WindowManager {
         tracing::info!("cycling container windows");
 
         let mouse_follows_focus = self.mouse_follows_focus;
-        let window_hiding_position = self.focused_workspace()?.globals.window_hiding_position;
+        let window_hiding_position = self.focused_workspace()?.state.window_hiding_position;
 
         let container = self.focused_container_mut()?;
 
@@ -1476,7 +1466,8 @@ impl WindowManager {
             .into_iter()
             .flatten()
             .filter_map(|window| {
-                window.window_rect()
+                window
+                    .window_rect()
                     .ok()
                     .map(|rect| (window.id, Rect::from(rect)))
             })
@@ -2889,7 +2880,7 @@ impl WindowManager {
         tracing::info!("cycling container window index");
 
         let mouse_follows_focus = self.mouse_follows_focus;
-        let window_hiding_position = self.focused_workspace()?.globals.window_hiding_position;
+        let window_hiding_position = self.focused_workspace()?.state.window_hiding_position;
 
         let container =
             if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
@@ -2924,7 +2915,7 @@ impl WindowManager {
         tracing::info!("focusing container window at index {idx}");
 
         let mouse_follows_focus = self.mouse_follows_focus;
-        let window_hiding_position = self.focused_workspace()?.globals.window_hiding_position;
+        let window_hiding_position = self.focused_workspace()?.state.window_hiding_position;
 
         let container =
             if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
@@ -2959,7 +2950,7 @@ impl WindowManager {
         tracing::info!("stacking all windows on workspace");
 
         let workspace = self.focused_workspace_mut()?;
-        let window_hiding_position = workspace.globals.window_hiding_position;
+        let window_hiding_position = workspace.state.window_hiding_position;
 
         let mut focused_hwnd = None;
         if let Some(container) = workspace.focused_container()
@@ -3221,7 +3212,7 @@ impl WindowManager {
                 //workspace `window_container_behaviour` in my opinion! Maybe this should be done
                 //on the `new_container_for_window` function instead.
                 // TODO: not sure about this clone
-                target_workspace.new_container_for_window(window)?;
+                target_workspace.new_container_for_window(window.clone())?;
             }
         }
 
@@ -4109,7 +4100,7 @@ mod tests {
             workspace.layout = Layout::Default(DefaultLayout::Scrolling);
             for id in FIRST..FIRST + 3 {
                 workspace
-                    .new_container_for_window(&Window::from(id))
+                    .new_container_for_window(Window::from(id))
                     .unwrap();
             }
             workspace.focus_container(0);
@@ -6065,7 +6056,7 @@ mod tests {
         workspace.layout = Layout::Default(layout);
         for id in ids {
             workspace
-                .new_container_for_window(&Window::from(*id))
+                .new_container_for_window(Window::from(*id))
                 .unwrap();
         }
 
@@ -6611,7 +6602,7 @@ mod tests {
 
         wm.focused_workspace_mut()
             .unwrap()
-            .new_container_for_window(&Window::from(4))
+            .new_container_for_window(Window::from(4))
             .unwrap();
         let resizes = wm.focused_workspace().unwrap().resize_dimensions.clone();
 
@@ -6802,7 +6793,7 @@ mod tests {
         workspace.layout = Layout::Default(DefaultLayout::Scrolling);
         for id in ids {
             workspace
-                .new_container_for_window(&Window::from(*id))
+                .new_container_for_window(Window::from(*id))
                 .unwrap();
         }
 

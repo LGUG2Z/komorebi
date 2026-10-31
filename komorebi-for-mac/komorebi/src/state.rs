@@ -144,6 +144,10 @@ impl From<&WindowManager> for State {
                             layer: workspace.layer,
                             floating_layer_behaviour: workspace.floating_layer_behaviour,
                             globals: workspace.globals,
+                            initial_window_placement_rules: workspace
+                                .initial_window_placement_rules
+                                .clone(),
+                            state: workspace.state.clone(),
                             wallpaper: workspace.wallpaper.clone(),
                             workspace_config: None,
                             preselected_container_idx: None,
