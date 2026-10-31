@@ -11,6 +11,7 @@ pub mod core;
 pub mod focus_manager;
 pub mod live_resize;
 pub mod lockable_sequence;
+pub use lockable_sequence::Lockable;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod pan;
@@ -278,14 +279,6 @@ pub struct License {
     #[serde(rename = "currentEndPeriod")]
     pub current_end_period: Option<i64>,
     pub signature: String,
-}
-
-/// A trait for types that can be marked as locked or unlocked.
-pub trait Lockable {
-    /// Returns `true` if the item is locked.
-    fn locked(&self) -> bool;
-    /// Sets the locked state of the item.
-    fn set_locked(&mut self, locked: bool) -> &mut Self;
 }
 
 #[must_use]

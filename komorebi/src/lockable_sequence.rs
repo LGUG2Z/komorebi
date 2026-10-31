@@ -1,6 +1,17 @@
+//! Lists in which some elements are locked in place.
+//!
+//! A locked container keeps its position in the layout when others are inserted, removed or
+//! swapped around it. [`LockableSequence`] does that bookkeeping for a [`VecDeque`].
+
 use std::collections::VecDeque;
 
-use crate::Lockable;
+/// A trait for types that can be marked as locked or unlocked.
+pub trait Lockable {
+    /// Returns `true` if the item is locked.
+    fn locked(&self) -> bool;
+    /// Sets the locked state of the item.
+    fn set_locked(&mut self, locked: bool) -> &mut Self;
+}
 
 /// A sequence supporting insertion, removal, and swapping of elements while preserving the absolute
 /// positions of locked items.
