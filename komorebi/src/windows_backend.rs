@@ -126,6 +126,15 @@ impl Backend for WindowsBackend {
         Ok(monitors)
     }
 
+    fn frame(&self, id: WindowId) -> Result<Rect> {
+        // one `DwmGetWindowAttribute` (fallback `GetWindowRect`), no title, class or exe lookups,
+        // and no `IsWindow` first: the Win32 error is the answer, as for every `window_rect`
+        // caller; `failed` says whether the window died
+        Window::from(id.to_hwnd())
+            .window_rect()
+            .map_err(|e| failed(id, e))
+    }
+
     fn cursor_pos(&self) -> Option<(i32, i32)> {
         WindowsApi::cursor_pos().ok().map(|p| (p.x, p.y))
     }
