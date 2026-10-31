@@ -11,6 +11,8 @@
 pub mod schema;
 
 pub mod animation;
+pub mod application_configuration;
+pub mod asc;
 pub mod aspect_ratio;
 pub mod behaviour;
 pub mod matching;

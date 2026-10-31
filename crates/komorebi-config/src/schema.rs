@@ -6,7 +6,7 @@
 //! [`view`] drops what the platform does not read, strips the `x-komorebi-` markers and
 //! removes the definitions nothing refers to any more.
 
-use komorebi_protocol::platforms::Platform;
+pub use komorebi_protocol::platforms::Platform;
 use schemars::JsonSchema;
 use serde_json::Map;
 use serde_json::Value;

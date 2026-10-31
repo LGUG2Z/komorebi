@@ -195,3 +195,24 @@ fn the_aspect_ratio_is_the_definition_of_every_tree() {
 
     assert_same_definitions::<AspectRatio>(&all(), &["AspectRatio", "PredefinedAspectRatio"]);
 }
+
+/// The platform views of the union schema of the applications file are byte-identical to the
+/// three checked-in `schema.asc.json`.
+#[test]
+fn the_applications_schema_is_a_view_of_one_union() {
+    use komorebi_config::asc::ApplicationSpecificConfiguration;
+    use komorebi_protocol::platforms::Platform;
+
+    for (tree, platform) in [
+        (&TREES[0], Platform::Windows),
+        (&TREES[1], Platform::Kde),
+        (&TREES[2], Platform::MacOs),
+    ] {
+        let view = komorebi_config::schema::view::<ApplicationSpecificConfiguration>(platform);
+        assert!(
+            view == checked_in(tree, "schema.asc.json"),
+            "{}: the view of the applications schema differs from schema.asc.json",
+            tree.name
+        );
+    }
+}

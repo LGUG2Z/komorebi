@@ -3261,6 +3261,7 @@ name = "komorebi-config"
 version = "0.1.42"
 dependencies = [
  "clap",
+ "color-eyre",
  "komorebi-layouts",
  "komorebi-protocol",
  "komorebi-themes",
