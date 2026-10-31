@@ -19,6 +19,7 @@ use komorebi::process_event::listen_for_events;
 use komorebi::reaper;
 use komorebi::settle;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::theme_manager;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
