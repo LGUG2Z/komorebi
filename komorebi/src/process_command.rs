@@ -155,6 +155,58 @@ impl ConnectionPolicy<UnixStream> for WindowsConnectionPolicy {
 /// of that message to take: -1 when it was not looked for
 static BAR_RUNNING: AtomicI8 = AtomicI8::new(-1);
 
+/// Stops the running komorebi-bar processes and starts them again from the configuration. Runs on
+/// a thread of its own: PowerShell takes seconds, which must not be spent with the window manager
+/// locked.
+#[allow(clippy::ptr_arg)] // StaticConfig::read takes a &PathBuf
+fn restart_bars(config: &std::path::PathBuf) -> eyre::Result<()> {
+    let script = r"
+Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
+    ";
+    match powershell_script::run(script) {
+        Ok(_) => {
+            println!("{script}");
+
+            // start new bar(s)
+            let mut config = StaticConfig::read(config)?;
+            if let Some(display_bar_configurations) = &mut config.bar_configurations {
+                for config_file_path in &mut *display_bar_configurations {
+                    let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
+                                .replace("CONFIGFILE", &config_file_path.to_string_lossy());
+
+                    match powershell_script::run(&script) {
+                        Ok(_) => {
+                            println!("{script}");
+                        }
+                        Err(error) => {
+                            println!("Error: {error}");
+                        }
+                    }
+                }
+            } else {
+                let script = r"
+if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebi-bar -WindowStyle hidden
+}
+    ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+        }
+        Err(error) => {
+            println!("Error: {error}");
+        }
+    }
+    Ok(())
+}
+
 /// Whether a komorebi-bar.exe process is running. Only the names of the processes are read:
 /// `System::new_all` also opens the performance counters and reads the command line, the
 /// environment and the owner of every process, which is the slow part.
@@ -1665,50 +1717,13 @@ impl WindowManager {
 
             // stop bar(s)
             if has_bar {
-                let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-            ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-
-                        // start new bar(s)
-                        let mut config = StaticConfig::read(config)?;
-                        if let Some(display_bar_configurations) = &mut config.bar_configurations {
-                            for config_file_path in &mut *display_bar_configurations {
-                                let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                                        .replace("CONFIGFILE", &config_file_path.to_string_lossy());
-
-                                match powershell_script::run(&script) {
-                                    Ok(_) => {
-                                        println!("{script}");
-                                    }
-                                    Err(error) => {
-                                        println!("Error: {error}");
-                                    }
-                                }
-                            }
-                        } else {
-                            let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
-{
-  Start-Process komorebi-bar -WindowStyle hidden
-}
-            ";
-                            match powershell_script::run(script) {
-                                Ok(_) => {
-                                    println!("{script}");
-                                }
-                                Err(error) => {
-                                    println!("Error: {error}");
-                                }
-                            }
-                        }
-                    }
-                    Err(error) => {
+                // PowerShell takes seconds: not with the window manager locked
+                let config = config.clone();
+                std::thread::spawn(move || {
+                    if let Err(error) = restart_bars(&config) {
                         println!("Error: {error}");
                     }
-                }
+                });
             }
 
             lap("bar restart");
