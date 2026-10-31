@@ -5,6 +5,7 @@ pub mod date;
 pub mod icons;
 pub mod komorebi_config;
 pub mod memory;
+pub mod network_config;
 pub mod platform_config;
 pub mod storage;
 pub mod time;
