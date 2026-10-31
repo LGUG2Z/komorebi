@@ -60,7 +60,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::io::Write;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -361,41 +360,17 @@ pub fn notify_subscribers(
     );
 
     let notification = &serde_json::to_string(&notification)?;
-    let mut stale_sockets = vec![];
     let mut sockets = SUBSCRIPTION_SOCKETS.lock();
     let options = SUBSCRIPTION_SOCKET_OPTIONS.lock();
 
-    for (socket, path) in &mut *sockets {
-        let apply_state_filter = (*options)
-            .get(socket)
-            .copied()
-            .unwrap_or_default()
-            .filter_state_changes;
-
-        if !apply_state_filter || state_has_been_modified || is_override_event {
-            match UnixStream::connect(path) {
-                Ok(mut stream) => {
-                    tracing::debug!("pushed notification to subscriber: {socket}");
-                    stream.write_all(notification.as_bytes())?;
-                }
-                Err(_) => {
-                    stale_sockets.push(socket.clone());
-                }
-            }
-        }
-    }
-
-    for socket in stale_sockets {
-        tracing::warn!("removing stale subscription: {socket}");
-        sockets.remove(&socket);
-        let socket_path = DATA_DIR.join(socket);
-        if let Err(error) = std::fs::remove_file(&socket_path) {
-            tracing::error!(
-                "could not remove stale subscriber socket file at {}: {error}",
-                socket_path.display()
-            )
-        }
-    }
+    komorebi_transport::notify_sockets(
+        notification,
+        &mut sockets,
+        &options,
+        state_has_been_modified || is_override_event,
+        &DATA_DIR,
+        |path| UnixStream::connect(path),
+    )?;
 
     Ok(())
 }
