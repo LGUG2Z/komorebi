@@ -15,6 +15,11 @@ use strum::EnumString;
 #[serde(rename_all = "snake_case")]
 pub enum AnimationPrefix {
     Movement,
+    Transparency,
+    /// A workspace sliding in and out of a monitor when it is switched to
     Workspace,
-    // Note: Transparency is not supported on macOS as there's no equivalent to Win32 layered windows
+}
+
+pub fn new_animation_key(prefix: AnimationPrefix, key: String) -> String {
+    format!("{prefix}:{key}")
 }
