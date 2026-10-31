@@ -256,7 +256,24 @@
               checks = {
                 komorebi-workspace-clippy = build.craneLib.cargoClippy build.individualCrateArgs;
 
-                komorebi-workspace-fmt = build.craneLib.cargoFmt (build.workspaceArgs // { inherit (build) src; cargoExtraArgs = build.packages; });
+                # rustfmt over the macOS files only, with the nightly rustfmt this tree's rustfmt.toml
+                # needs and the 2024 edition of the manifests. `cargo fmt` would follow the `mod windows;`
+                # of the shared entry files (komorebi-bar, komorebi-client), which the macOS source does
+                # not have. The entry files of the shared crates are not checked; their macos modules are.
+                komorebi-workspace-fmt =
+                  pkgs.runCommand "komorebi-workspace-fmt"
+                    {
+                      nativeBuildInputs = [ nightlyRustfmt ];
+                      src = build.real;
+                    }
+                    ''
+                      cd $src
+                      files=$( { find komorebi-for-mac -name '*.rs'; \
+                                 find komorebic/src/macos komorebi-bar/src/macos -name '*.rs'; \
+                                 echo komorebi-client/src/macos.rs; } )
+                      rustfmt --edition 2024 --config-path komorebi-for-mac/rustfmt.toml --check $files
+                      touch $out
+                    '';
 
                 komorebi-workspace-toml-fmt = build.craneLib.taploFmt (
                   build.workspaceArgs
