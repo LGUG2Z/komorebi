@@ -188,3 +188,10 @@ fn the_behaviour_enums_are_the_definitions_of_the_trees_that_have_them() {
     assert_same_definitions::<WindowHandlingBehaviour>(&[windows], &["WindowHandlingBehaviour"]);
     assert_same_definitions::<ZOrder>(&[windows], &["ZOrder"]);
 }
+
+#[test]
+fn the_aspect_ratio_is_the_definition_of_every_tree() {
+    use komorebi_config::aspect_ratio::AspectRatio;
+
+    assert_same_definitions::<AspectRatio>(&all(), &["AspectRatio", "PredefinedAspectRatio"]);
+}

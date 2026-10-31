@@ -10,5 +10,7 @@
 #[cfg(feature = "schemars")]
 pub mod schema;
 
+pub mod animation;
+pub mod aspect_ratio;
 pub mod behaviour;
 pub mod matching;
