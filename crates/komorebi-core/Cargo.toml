@@ -1,0 +1,19 @@
+[package]
+name = "komorebi-core"
+version = "0.1.42"
+description = "The model every komorebi daemon shares, generic over the platform's window: containers first, then monitors, workspaces and the window manager"
+edition = "2024"
+
+[dependencies]
+komorebi-collections = { path = "../komorebi-collections" }
+nanoid = "0.5"
+schemars = { workspace = true, optional = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["preserve_order"] }
+
+[features]
+# derives `schemars::JsonSchema` for the model types
+schemars = ["dep:schemars", "komorebi-collections/schemars"]

@@ -3491,6 +3491,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-core"
+version = "0.1.42"
+dependencies = [
+ "komorebi-collections",
+ "nanoid",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "tracing",
+]
+
+[[package]]
 name = "komorebi-e2e-agent"
 version = "0.1.0"
 dependencies = [
