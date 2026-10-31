@@ -6,8 +6,8 @@ windows and that every command is understood and leaves the daemon healthy, as t
 sees it; what is here reads KWin (`kdotool`) and the daemon's log.
 
 The suite runs `setup`, `layouts_by_count`, the shared `layouts` and `sweep`,
-`replace_configuration`, the shared `handover`, `title_rule`, `prints` and `queries`, and
-`at_the_end`.
+`replace_configuration`, `bring_back`, the shared `handover`, `title_rule`, `prints` and
+`queries`, and `at_the_end`.
 The daemon runs on a session with two outputs, and `clients` are five windows on the first.
 """
 
@@ -140,6 +140,42 @@ def replace_configuration(platform: KdePlatform, checks: Checks, clients: list[C
     checks.check(
         "replace-configuration made the window manager again from the file",
         first["name"] == "again",
+    )
+
+
+def bring_back(platform: KdePlatform, checks: Checks, clients: list[Client]) -> None:
+    """Puts the windows the sweep sent to other workspaces back on the first, a container each, and
+    focuses it, so that the scenarios after it start from the windows the sweep left, on one
+    workspace, as the shared `handover` needs (a window alone on its workspace has no layout to be
+    left out of).
+    """
+
+    def count() -> int:
+        return len(platform.state().workspace(0).windows())
+
+    for _ in clients:
+        elsewhere = [
+            i
+            for i, ws in enumerate(platform.state().monitors[0].workspaces)
+            if i != 0 and ws.windows()
+        ]
+        if not elsewhere:
+            break
+        here = count()
+        platform.komorebic("focus-workspace", str(elsewhere[0]))
+        platform.komorebic("send-to-workspace", "0")
+        platform.wait_for(lambda h=here: count() > h, timeout=10)
+    platform.komorebic("focus-workspace", "0")
+    state = platform.state
+    checks.check(
+        "the windows are back on the first workspace, in view, in a container each",
+        platform.wait_for(
+            lambda: (
+                len(state().workspace(0).containers) >= 2
+                and state().monitors[0].focused_workspace == 0
+            ),
+            timeout=10,
+        ),
     )
 
 

@@ -45,6 +45,7 @@ run_suite(
     platform_only("kde", kde.komorebic, "change-layout", "bsp"),
     shared(commands.sweep, *args, CONFIG),
     platform_only("kde", kde_commands.replace_configuration, *args),
+    platform_only("kde", kde_commands.bring_back, *args),
     shared(handover.run, *args),
     shared(title_rule.run, platform, checks),
     shared(commands.prints, platform, checks),
