@@ -1470,6 +1470,7 @@ impl WindowManager {
         let socket = DATA_DIR.join("komorebi.sock");
         let _ = std::fs::remove_file(socket);
 
+        crate::process_command::finish_bar_restart();
         std::process::exit(0)
     }
 

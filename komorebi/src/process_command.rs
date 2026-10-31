@@ -20,7 +20,6 @@ use std::net::TcpStream;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::sync::atomic::AtomicI8;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use uds_windows::UnixListener;
@@ -144,21 +143,38 @@ impl ConnectionPolicy<UnixStream> for WindowsConnectionPolicy {
 
         // looked for here, before the window manager is locked for the message: a process scan
         // under the lock held every other thread for seconds (see `replace_configuration`)
-        if matches!(message, SocketMessage::ReplaceConfiguration(_)) {
-            BAR_RUNNING.store(i8::from(komorebi_bar_is_running()), Ordering::SeqCst);
-        }
+        // and kept for this connection thread only, which handles the message next: every message
+        // read replaces it, so a message that was dropped (paused, lock not acquired) leaves
+        // nothing for a later one, and other connections have their own
+        BAR_RUNNING.set(
+            matches!(message, SocketMessage::ReplaceConfiguration(_)).then(komorebi_bar_is_running),
+        );
     }
 }
 
-/// Whether komorebi-bar.exe was running when a `ReplaceConfiguration` was read, for the handler
-/// of that message to take: -1 when it was not looked for
-static BAR_RUNNING: AtomicI8 = AtomicI8::new(-1);
+thread_local! {
+    /// Whether komorebi-bar.exe was running when this thread read a `ReplaceConfiguration`, for the
+    /// handler of that message to take: `None` when the last message read was another one
+    static BAR_RUNNING: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// The thread that restarts the komorebi-bar processes after a `ReplaceConfiguration`
+static BAR_RESTART: Mutex<Option<std::thread::JoinHandle<()>>> = Mutex::new(None);
+
+/// Waits for the restart of the bars that a `ReplaceConfiguration` started, if one is running:
+/// the daemon calls it before it exits, so that a bar is not started after `komorebic stop` has
+/// stopped the bars
+pub fn finish_bar_restart() {
+    let handle = BAR_RESTART.lock().take();
+    if let Some(handle) = handle {
+        let _ = handle.join();
+    }
+}
 
 /// Stops the running komorebi-bar processes and starts them again from the configuration. Runs on
 /// a thread of its own: PowerShell takes seconds, which must not be spent with the window manager
 /// locked.
-#[allow(clippy::ptr_arg)] // StaticConfig::read takes a &PathBuf
-fn restart_bars(config: &std::path::PathBuf) -> eyre::Result<()> {
+fn restart_bars(bar_configurations: Option<Vec<std::path::PathBuf>>) {
     let script = r"
 Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
     ";
@@ -167,11 +183,10 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
             println!("{script}");
 
             // start new bar(s)
-            let mut config = StaticConfig::read(config)?;
-            if let Some(display_bar_configurations) = &mut config.bar_configurations {
-                for config_file_path in &mut *display_bar_configurations {
+            if let Some(display_bar_configurations) = bar_configurations {
+                for config_file_path in &display_bar_configurations {
                     let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                                .replace("CONFIGFILE", &config_file_path.to_string_lossy());
+                        .replace("CONFIGFILE", &config_file_path.to_string_lossy());
 
                     match powershell_script::run(&script) {
                         Ok(_) => {
@@ -203,7 +218,6 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             println!("Error: {error}");
         }
     }
-    Ok(())
 }
 
 /// Whether a komorebi-bar.exe process is running. Only the names of the processes are read:
@@ -1706,21 +1720,18 @@ impl WindowManager {
             lap("swap");
 
             // check if there are any bars
-            let has_bar = match BAR_RUNNING.swap(-1, Ordering::SeqCst) {
-                -1 => komorebi_bar_is_running(),
-                running => running == 1,
-            };
+            let has_bar = BAR_RUNNING.take().unwrap_or_else(komorebi_bar_is_running);
             lap("process scan for komorebi-bar");
 
             // stop bar(s)
             if has_bar {
-                // PowerShell takes seconds: not with the window manager locked
-                let config = config.clone();
-                std::thread::spawn(move || {
-                    if let Err(error) = restart_bars(&config) {
-                        println!("Error: {error}");
-                    }
-                });
+                // an error reading the bar section is returned, as it was; only the PowerShell
+                // process work (seconds) is not done with the window manager locked
+                let bar_configurations = StaticConfig::read(config)?.bar_configurations;
+                finish_bar_restart();
+                *BAR_RESTART.lock() = Some(std::thread::spawn(move || {
+                    restart_bars(bar_configurations);
+                }));
             }
 
             lap("bar restart");
