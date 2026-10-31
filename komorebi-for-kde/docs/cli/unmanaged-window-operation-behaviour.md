@@ -1,5 +1,5 @@
 ```text
-Set the operation behavior when the focused window is not managed
+Set the operation behaviour when the focused window is not managed
 
 Usage: unmanaged-window-operation-behaviour <OPERATION_BEHAVIOUR>
 

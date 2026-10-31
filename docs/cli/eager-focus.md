@@ -1,7 +1,7 @@
 # eager-focus
 
 ```
-Focus the first managed window matching the given exe
+Focus the first managed window matching the given executable
 
 Usage: komorebic.exe eager-focus <EXE>
 

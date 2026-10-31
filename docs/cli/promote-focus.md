@@ -1,7 +1,7 @@
 # promote-focus
 
 ```
-Promote the user focus to the top of the tree
+Promote the user focus to the largest window container
 
 Usage: komorebic.exe promote-focus
 

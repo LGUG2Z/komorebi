@@ -1,5 +1,5 @@
 ```text
-Set the color for a window border kind
+Set the colour for a window border kind
 
 Usage: border-colour [OPTIONS] <R> <G> <B>
 

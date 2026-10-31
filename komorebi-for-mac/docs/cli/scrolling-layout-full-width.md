@@ -1,7 +1,8 @@
 # scrolling-layout-full-width
 
 ```
-Make the focused column of the Scrolling layout as wide as the screen, or put it back
+Make the focused column of the Scrolling layout as wide as the screen, or put it back to the width
+that it had
 
 Usage: komorebic scrolling-layout-full-width
 

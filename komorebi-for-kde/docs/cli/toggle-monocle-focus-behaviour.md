@@ -1,5 +1,5 @@
 ```text
-Toggle the behavior when focusing in a direction while a monocle container is active
+Toggle the behaviour when focusing in a direction while a monocle container is active
 
 Usage: toggle-monocle-focus-behaviour
 

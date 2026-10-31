@@ -1,5 +1,5 @@
 ```text
-Toggle the behavior for new windows (stacking or dynamic tiling)
+Toggle the behaviour for new windows (stacking or dynamic tiling)
 
 Usage: toggle-window-container-behaviour
 
