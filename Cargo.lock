@@ -3536,6 +3536,7 @@ name = "komorebi-transport"
 version = "0.1.42"
 dependencies = [
  "color-eyre",
+ "crossbeam-channel",
  "komorebi-protocol",
  "parking_lot",
  "tracing",

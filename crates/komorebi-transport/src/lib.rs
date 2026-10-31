@@ -5,10 +5,12 @@
 //! daemon) with [`ConnectionPolicy`].
 #![warn(clippy::all)]
 
+mod event_channel;
 mod listener;
 mod pause;
 mod subscribers;
 
+pub use event_channel::EventChannel;
 pub use listener::CommandListener;
 pub use listener::CommandStream;
 pub use listener::CommandTarget;
