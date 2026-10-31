@@ -2807,12 +2807,13 @@
           ]
         },
         "transparency_alpha": {
-          "description": "Alpha value for the color transparency [[0-255]] (default: 200)",
+          "description": "Alpha value for the color transparency [[0-255]]",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint8",
+          "default": 200,
           "maximum": 255,
           "minimum": 0
         }

@@ -44,6 +44,7 @@ pub enum Grouping {
 }
 
 #[derive(Clone)]
+/// Render configuration
 pub struct RenderConfig {
     /// Komorebi monitor index of the monitor on which to render the bar
     pub monitor_idx: usize,

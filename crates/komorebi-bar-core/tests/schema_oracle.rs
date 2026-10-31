@@ -21,9 +21,9 @@ struct Pin {
 const PINS: [Pin; 2] = [
     Pin {
         file: "schema.bar.json",
-        lines: 9_090,
-        bytes: 248_529,
-        fnv1a: 0x5573_0134_1968_bff9,
+        lines: 9_091,
+        bytes: 248_540,
+        fnv1a: 0x83d6_6fd4_9ae8_3766,
     },
     Pin {
         file: "komorebi-for-mac/schema.bar.json",
