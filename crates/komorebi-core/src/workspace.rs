@@ -150,9 +150,11 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
     /// Tells the scrolling layout that the container at `idx` is about to leave the workspace.
     fn note_scrolling_departure(workspace: &Workspace<Self>, idx: usize);
 
-    /// Called after a floating window was taken out of the workspace; KDE refocuses a floating
-    /// window, Windows does nothing.
-    fn after_floating_removed(_workspace: &mut Workspace<Self>) {}
+    /// Called by [`Workspace::remove_floating_window`] before the floating window is taken out of the
+    /// workspace, while it is still in the ring: KDE and macOS move the focus to the previous
+    /// floating window first (the focus index moves back by one whatever the length), Windows does
+    /// nothing.
+    fn before_floating_removed(_workspace: &mut Workspace<Self>) {}
 
     /// The index at which [`Workspace::promote_container`] inserts the container: the primary
     /// position of the layout. The default layouts have it first.
@@ -1161,7 +1163,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
             None => None,
             Some(idx) => {
                 if self.floating_windows().get(idx).is_some() {
-                    P::after_floating_removed(self);
+                    P::before_floating_removed(self);
                     self.floating_windows_mut().remove(idx)
                 } else {
                     None
@@ -1985,6 +1987,13 @@ mod tests {
 
         fn note_scrolling_departure(_: &Workspace<Self>, _: usize) {}
 
+        fn before_floating_removed(workspace: &mut Workspace<Self>) {
+            LOG.with(|log| {
+                log.borrow_mut()
+                    .push(format!("floating {}", workspace.floating_windows().len()))
+            });
+        }
+
         fn begin_update(_: &mut Workspace<Self>) -> eyre::Result<Flow> {
             LOG.with(|log| log.borrow_mut().push("begin".to_string()));
             Ok(Flow::Run(None))
@@ -2087,6 +2096,20 @@ mod tests {
         assert_eq!(log[7], "end 1");
         assert_eq!(workspace.latest_layout.len(), 2);
         assert_eq!(workspace.resize_dimensions.len(), 2);
+    }
+
+    #[test]
+    fn the_hook_for_a_removed_floating_window_runs_before_the_removal() {
+        let mut workspace = Workspace::<Plat>::default();
+        workspace.floating_windows_mut().push_back(W(1));
+        workspace.floating_windows_mut().push_back(W(2));
+        log();
+
+        assert_eq!(workspace.remove_floating_window(2), Some(W(2)));
+
+        // the ring still had both windows when the hook ran: the focus moves first
+        assert_eq!(log(), ["floating 2"]);
+        assert_eq!(workspace.floating_windows().len(), 1);
     }
 
     #[test]
