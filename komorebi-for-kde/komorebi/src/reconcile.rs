@@ -337,7 +337,7 @@ impl WindowManager {
             }
 
             // a monocle, which shows one window of its container, comes as an ordinary container
-            if let Some(mut container) = monocle {
+            if let Some(container) = monocle {
                 let window = container.focused_window().copied();
                 let _ = container.restore();
                 place(
@@ -351,7 +351,7 @@ impl WindowManager {
             if let Some(window) = maximized {
                 let id = window.id;
                 let mut container = crate::container::Container::default();
-                container.add_window(&window)?;
+                container.add_window(window);
                 place(
                     self,
                     Some(window),

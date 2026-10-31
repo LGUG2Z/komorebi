@@ -1323,7 +1323,7 @@ impl WindowManager {
                 }
             }
             if changed_focus && let Some(container) = workspace.focused_container_mut() {
-                container.load_focused_window()?;
+                container.load_focused_window();
                 if let Some(window) = container.focused_window() {
                     window.focus(mouse_follows_focus)?;
                 }
@@ -1441,7 +1441,7 @@ impl WindowManager {
         let next_idx = direction.next_idx(current_idx, len);
 
         container.focus_window(next_idx);
-        container.load_focused_window()?;
+        container.load_focused_window();
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -1634,7 +1634,7 @@ impl WindowManager {
         workspace.new_monocle_container()?;
 
         for container in workspace.containers_mut() {
-            container.hide(None)?;
+            container.hide(None);
         }
 
         Ok(())
@@ -1653,7 +1653,7 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
 
         for container in workspace.containers_mut() {
-            container.restore()?;
+            container.restore();
         }
 
         workspace.reintegrate_monocle_container()
@@ -1681,7 +1681,7 @@ impl WindowManager {
             .cycle_monocle_container(direction)?;
 
         for container in self.focused_workspace_mut()?.containers_mut() {
-            container.hide(None)?;
+            container.hide(None);
         }
 
         self.update_focused_workspace(true, true)
@@ -2515,7 +2515,7 @@ impl WindowManager {
 
         if target_workspace.monocle_container.is_some() {
             for container in target_workspace.containers_mut() {
-                container.restore()?;
+                container.restore();
             }
 
             for window in target_workspace.floating_windows_mut() {
@@ -2845,7 +2845,7 @@ impl WindowManager {
         container.windows_mut().swap(current_idx, next_idx);
 
         container.focus_window(next_idx);
-        container.load_focused_window()?;
+        container.load_focused_window();
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -2887,7 +2887,7 @@ impl WindowManager {
         }
 
         container.focus_window(idx);
-        container.load_focused_window()?;
+        container.load_focused_window();
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -2934,7 +2934,7 @@ impl WindowManager {
             && let Some(w_idx_to_focus) = c.idx_for_window(hwnd)
         {
             c.focus_window(w_idx_to_focus);
-            c.load_focused_window()?;
+            c.load_focused_window();
         }
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
@@ -3915,7 +3915,7 @@ impl WindowManager {
                     .ok_or_eyre("there is no workspace for this monitor")?;
 
                 for container in origin_workspace.containers_mut() {
-                    container.restore()?;
+                    container.restore();
                 }
 
                 origin_workspace.reintegrate_monocle_container()?;

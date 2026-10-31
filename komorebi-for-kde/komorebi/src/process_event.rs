@@ -440,7 +440,7 @@ impl WindowManager {
                                 workspace
                                     .focused_container_mut()
                                     .ok_or_eyre("there is no focused container")?
-                                    .add_window(&window)?;
+                                    .add_window(window);
                                 workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(true, false)?;
                             }

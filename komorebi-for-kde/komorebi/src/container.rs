@@ -14,7 +14,6 @@
 use crate::lockable_sequence::Lockable;
 use crate::ring::Ring;
 use crate::window::Window;
-use color_eyre::eyre;
 use nanoid::nanoid;
 use serde::Deserialize;
 use serde::Serialize;
@@ -68,9 +67,8 @@ impl Container {
 
     /// Hides every window of the container but `omit`, or every window when it is `None`
     ///
-    /// It never fails; the result is there so that callers can use `?`.
-    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
-        for window in self.windows_mut().iter_mut().rev() {
+    pub fn hide(&self, omit: Option<u32>) {
+        for window in self.windows().iter().rev() {
             let mut should_hide = omit.is_none();
 
             if !should_hide
@@ -84,28 +82,20 @@ impl Container {
                 window.hide();
             }
         }
-
-        Ok(())
     }
 
     /// Restores the focused window of the container, which is the one that is in front when the
     /// container is a stack
-    ///
-    /// It never fails; the result is there so that callers can use `?`.
-    pub fn restore(&mut self) -> eyre::Result<()> {
-        if let Some(window) = self.focused_window_mut() {
+    pub fn restore(&self) {
+        if let Some(window) = self.focused_window() {
             window.restore();
         }
-
-        Ok(())
     }
 
     /// Hides the unfocused windows of the container and restores the focused one. This function
     /// is used to make sure we update the window that should be shown on a stack. If the container
     /// isn't a stack this function won't change anything.
-    ///
-    /// It never fails; the result is there so that callers can use `?`.
-    pub fn load_focused_window(&mut self) -> eyre::Result<()> {
+    pub fn load_focused_window(&mut self) {
         let focused_idx = self.focused_window_idx();
 
         for (i, window) in self.windows_mut().iter_mut().enumerate() {
@@ -115,8 +105,6 @@ impl Container {
                 window.hide();
             }
         }
-
-        Ok(())
     }
 
     /// The index of the first window of the executable `exe` in this container
@@ -165,21 +153,17 @@ impl Container {
 
     /// Puts a window at the back of the container and gives it the front, hiding every other
     /// window of the container ([`Window::hide`])
-    ///
-    /// It never fails; the result is there so that callers can use `?`.
-    pub fn add_window(&mut self, window: &Window) -> eyre::Result<()> {
-        self.windows_mut().push_back(*window);
+    pub fn add_window(&mut self, window: Window) {
+        self.windows_mut().push_back(window);
         self.focus_window(self.windows().len().saturating_sub(1));
 
         let focused_window_idx = self.focused_window_idx();
 
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+        for (i, window) in self.windows().iter().enumerate() {
             if i != focused_window_idx {
                 window.hide();
             }
         }
-
-        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -202,7 +186,7 @@ mod tests {
         let mut container = Container::default();
 
         for i in 0..3 {
-            container.add_window(&Window::from(i)).unwrap();
+            container.add_window(Window::from(i));
         }
 
         // Should return true for existing windows
@@ -219,7 +203,7 @@ mod tests {
         let mut container = Container::default();
 
         for i in 0..3 {
-            container.add_window(&Window::from(i)).unwrap();
+            container.add_window(Window::from(i));
         }
 
         // Remove window 1
@@ -237,7 +221,7 @@ mod tests {
         let mut container = Container::default();
 
         for i in 0..3 {
-            container.add_window(&Window::from(i)).unwrap();
+            container.add_window(Window::from(i));
         }
 
         // Should be focused on the last created window
@@ -257,7 +241,7 @@ mod tests {
     fn test_add_window() {
         let mut container = Container::default();
 
-        container.add_window(&Window::from(1)).unwrap();
+        container.add_window(Window::from(1));
 
         assert_eq!(container.windows().len(), 1);
         assert_eq!(container.focused_window_idx(), 0);
@@ -269,7 +253,7 @@ mod tests {
         let mut container = Container::default();
 
         for i in 0..3 {
-            container.add_window(&Window::from(i)).unwrap();
+            container.add_window(Window::from(i));
         }
 
         // Should focus on the last created window
@@ -293,7 +277,7 @@ mod tests {
         let mut container = Container::default();
 
         for i in 0..3 {
-            container.add_window(&Window::from(i)).unwrap();
+            container.add_window(Window::from(i));
         }
 
         // Should return the index of the window
@@ -325,7 +309,7 @@ mod tests {
         let mut container = Container::default();
         for id in ids {
             fake.open_window(id, "foot", "foot", &format!("window {id}"));
-            container.add_window(&Window::from(id)).unwrap();
+            container.add_window(Window::from(id));
         }
         container.focus_window(focus);
         container
@@ -351,7 +335,7 @@ mod tests {
         with_backend(fake.clone(), || {
             let mut container = stack_of(&fake, 704..=706, 0);
 
-            container.load_focused_window().unwrap();
+            container.load_focused_window();
 
             assert!(!fake.is_hidden(704));
             assert!(fake.is_hidden(705) && fake.is_hidden(706));
@@ -364,15 +348,15 @@ mod tests {
         let fake = Arc::new(FakeBackend::with_one_monitor());
 
         with_backend(fake.clone(), || {
-            let mut container = stack_of(&fake, 707..=709, 1);
+            let container = stack_of(&fake, 707..=709, 1);
 
-            container.hide(Some(709)).unwrap();
+            container.hide(Some(709));
             assert!(fake.is_hidden(707) && fake.is_hidden(708) && !fake.is_hidden(709));
 
-            container.hide(None).unwrap();
+            container.hide(None);
             assert!(fake.is_hidden(709));
 
-            container.restore().unwrap();
+            container.restore();
             assert!(fake.is_hidden(707) && !fake.is_hidden(708) && fake.is_hidden(709));
         });
     }

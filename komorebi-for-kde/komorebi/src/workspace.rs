@@ -545,7 +545,7 @@ impl Workspace {
         container.focus_window(window_idx);
 
         if should_load {
-            container.load_focused_window()?;
+            container.load_focused_window();
         }
 
         self.focus_container(container_idx);
@@ -572,7 +572,7 @@ impl Workspace {
         };
 
         let mut container = Container::default();
-        container.add_window(window)?;
+        container.add_window(*window);
 
         self.insert_container_at_idx(next_idx, container);
 
@@ -836,7 +836,7 @@ impl Workspace {
             }
 
             for c in self.containers_mut() {
-                c.restore()?;
+                c.restore();
             }
 
             return Ok(window);
@@ -869,7 +869,7 @@ impl Workspace {
                 self.focus_previous_container();
             }
         } else {
-            container.load_focused_window()?;
+            container.load_focused_window();
             if let Some(window) = container.focused_window() {
                 window.focus(false)?;
             }
@@ -1050,7 +1050,7 @@ impl Workspace {
                 target_container_idx
             }
         } else {
-            container.load_focused_window()?;
+            container.load_focused_window();
             target_container_idx
         };
 
@@ -1059,12 +1059,12 @@ impl Workspace {
             .get_mut(adjusted_target_container_index)
             .ok_or_eyre("there is no container")?;
 
-        target_container.add_window(&window)?;
+        target_container.add_window(window);
 
         self.focus_container(adjusted_target_container_index);
         self.focused_container_mut()
             .ok_or_eyre("there is no container")?
-            .load_focused_window()?;
+            .load_focused_window();
 
         Ok(())
     }
@@ -1091,13 +1091,13 @@ impl Workspace {
         if container.windows().is_empty() {
             self.remove_container_by_idx(focused_container_idx);
         } else {
-            container.load_focused_window()?;
+            container.load_focused_window();
         }
 
         self.new_container_for_window(&window)?;
 
         let mut container = Container::default();
-        container.add_window(&window)?;
+        container.add_window(window);
         Ok(())
     }
 
@@ -1137,7 +1137,7 @@ impl Workspace {
         }
 
         for container in self.containers_mut() {
-            container.hide(omit)?;
+            container.hide(omit);
         }
 
         if let Some(resize_dimensions) = resize_dimensions {
@@ -1149,7 +1149,7 @@ impl Workspace {
         }
 
         if let Some(container) = &mut self.monocle_container {
-            container.hide(omit)?;
+            container.hide(omit);
         }
 
         Ok(())
@@ -1172,7 +1172,7 @@ impl Workspace {
         monitor_wp: &Option<Wallpaper>,
     ) -> eyre::Result<()> {
         if let Some(container) = &mut self.monocle_container {
-            container.restore()?;
+            container.restore();
 
             if let Some(window) = container.focused_window() {
                 window.focus(mouse_follows_focus)?;
@@ -1193,7 +1193,7 @@ impl Workspace {
         }
 
         for container in self.containers_mut() {
-            container.restore()?;
+            container.restore();
         }
 
         if let Some(container) = self.focused_container_mut() {
@@ -1316,7 +1316,7 @@ impl Workspace {
         self.monocle_container
             .as_mut()
             .ok_or_eyre("there is no monocle container")?
-            .load_focused_window()?;
+            .load_focused_window();
 
         Ok(())
     }
@@ -1376,7 +1376,7 @@ impl Workspace {
 
         self.focused_container_mut()
             .ok_or_eyre("there is no container")?
-            .load_focused_window()?;
+            .load_focused_window();
 
         self.monocle_container = None;
         self.monocle_container_restore_idx = None;
@@ -1419,7 +1419,7 @@ impl Workspace {
                 self.monocle_container = None;
                 self.monocle_container_restore_idx = None;
             } else {
-                monocle_container.load_focused_window()?;
+                monocle_container.load_focused_window();
             }
 
             self.maximized_window = Option::from(window);
@@ -1446,7 +1446,7 @@ impl Workspace {
                 self.resize_dimensions.remove(focused_idx);
             }
         } else {
-            container.load_focused_window()?;
+            container.load_focused_window();
         }
 
         self.maximized_window = Option::from(window);
@@ -1508,7 +1508,7 @@ impl Workspace {
                 self.monocle_container = None;
                 self.monocle_container_restore_idx = None;
             } else {
-                monocle_container.load_focused_window()?;
+                monocle_container.load_focused_window();
             }
 
             self.maximized_window = Option::from(window);
@@ -1542,7 +1542,7 @@ impl Workspace {
                 self.resize_dimensions.remove(container_idx);
             }
         } else {
-            container.load_focused_window()?;
+            container.load_focused_window();
         }
 
         self.maximized_window = Option::from(window);
@@ -1576,7 +1576,7 @@ impl Workspace {
         }
 
         let mut container = Container::default();
-        container.add_window(&window)?;
+        container.add_window(window);
 
         // we shouldn't use insert_container_at_index here because it doesn't make sense for
         // monocle and maximized toggles which take over the whole screen before being reinserted
@@ -1612,7 +1612,7 @@ impl Workspace {
                 self.monocle_container = None;
                 self.monocle_container_restore_idx = None;
             } else {
-                monocle_container.load_focused_window()?;
+                monocle_container.load_focused_window();
             }
 
             window
@@ -1634,7 +1634,7 @@ impl Workspace {
                     self.focus_container(focused_idx.saturating_sub(1));
                 }
             } else {
-                container.load_focused_window()?;
+                container.load_focused_window();
             }
 
             window
@@ -1658,7 +1658,7 @@ impl Workspace {
             .ok_or_eyre("there is no floating window")?;
 
         let mut container = Container::default();
-        container.add_window(&window)?;
+        container.add_window(window);
 
         self.insert_container_at_idx(focused_idx, container);
 
@@ -2529,7 +2529,7 @@ mod tests {
         // new_container_for_floating_window which usually handles unfloating
         let window = ws.floating_windows_mut().pop_back().unwrap();
         let mut container = Container::default();
-        container.add_window(&window).unwrap();
+        container.add_window(window);
         ws.insert_container_at_idx(ws.focused_container_idx(), container);
 
         // all indexes should be at their original position
@@ -3470,7 +3470,7 @@ mod tests {
         with_backend(fake.clone(), || {
             workspace.new_monocle_container().unwrap();
             for container in workspace.containers_mut() {
-                container.hide(None).unwrap();
+                container.hide(None);
             }
         });
         (fake, workspace)
