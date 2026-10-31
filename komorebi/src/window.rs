@@ -1107,6 +1107,30 @@ fn window_is_eligible(
 }
 
 #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
+/// [`should_act`] for a window, which has one class here
+pub fn should_act_window(
+    title: &str,
+    exe_name: &str,
+    class: &str,
+    path: &str,
+    identifiers: &[MatchingRule],
+    regex_identifiers: &HashMap<String, Regex>,
+) -> Option<MatchingRule> {
+    should_act(title, exe_name, class, path, identifiers, regex_identifiers)
+}
+
+/// [`should_act_individual`] for a window, which has one class here
+pub fn should_act_window_individual(
+    title: &str,
+    exe_name: &str,
+    class: &str,
+    path: &str,
+    identifier: &IdWithIdentifier,
+    regex_identifiers: &HashMap<String, Regex>,
+) -> bool {
+    should_act_individual(title, exe_name, class, path, identifier, regex_identifiers)
+}
+
 pub fn should_act(
     title: &str,
     exe_name: &str,

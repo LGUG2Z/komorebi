@@ -40,7 +40,8 @@ use crate::core::WindowPlacement;
 use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
 use crate::should_act;
-use crate::should_act_individual;
+use crate::should_act_window;
+use crate::should_act_window_individual;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::static_config::WorkspaceConfig;
@@ -1392,16 +1393,9 @@ impl Workspace {
                 self.resolve_placement_target(target, fallback_idx)
             }
             InitialWindowPlacementRules::Rules(rules_map) => {
-                let Some(title) = window.title() else {
-                    return fallback_idx;
-                };
-                let Some(exe_name) = window.exe() else {
-                    return fallback_idx;
-                };
-                let Some(class) = window.class() else {
-                    return fallback_idx;
-                };
-                let Some(path) = window.path() else {
+                let (Some(title), Some(exe_name), Some(class), Some(path)) =
+                    (window.title(), window.exe(), window.class(), window.path())
+                else {
                     return fallback_idx;
                 };
 
@@ -1410,7 +1404,7 @@ impl Workspace {
                 // BTreeMap iterates in key order
                 for (target, placement_rules) in rules_map {
                     let matched = match placement_rules {
-                        PlacementMatchingRules::Single(id) => should_act_individual(
+                        PlacementMatchingRules::Single(id) => should_act_window_individual(
                             &title,
                             &exe_name,
                             &class,
@@ -1422,8 +1416,15 @@ impl Workspace {
                             // OR logic: any matching rule triggers placement at this target.
                             // Each MatchingRule handles its own Simple/Composite (AND) logic
                             // internally via should_act.
-                            should_act(&title, &exe_name, &class, &path, rules, &regex_identifiers)
-                                .is_some()
+                            should_act_window(
+                                &title,
+                                &exe_name,
+                                &class,
+                                &path,
+                                rules,
+                                &regex_identifiers,
+                            )
+                            .is_some()
                         }
                     };
 
