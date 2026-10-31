@@ -6,3 +6,11 @@ edition = "2024"
 
 [dependencies]
 komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
+color-eyre = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+uds_windows = { workspace = true }
+
+[dev-dependencies]
+parking_lot = { workspace = true }
