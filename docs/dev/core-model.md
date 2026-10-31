@@ -419,3 +419,66 @@ both platforms (behaviour-preserving on both), one hook per revision in the orde
 `unmaximize_window`. Gates: Windows `commands`, `workspaces`, `stacking`, `scrolling`, `resize`,
 `borders`, `animation` scenarios per hook; KDE fast tier and VM for `adjust_layout`, `after_hide`,
 `unmaximize_window`.
+
+## 9. Review of section 8 against KDE's code, and the order that follows from it
+
+Read against `komorebi-for-kde/komorebi/src/workspace.rs` (`update`, `hide`, `remove_window`) and the
+Windows `update`. Section 8 holds, with these corrections and additions; none changes the idea, but
+three change a signature.
+
+1. **`begin_update` must be fallible and may change the workspace.** KDE's `update` starts with
+   `self.prune_duplicate_windows()?` and then clamps `focused_container_idx` to the container count.
+   Both are before anything is laid out, so they belong in `begin_update(&mut ws) ->
+   eyre::Result<Flow<G>>`, not in the shared `update`. (Windows has no such step.)
+2. **`end_update` must say whether to run the pass again.** The Windows `update` is a loop: after the
+   placement pass, `if pass == 0 && is_scrolling && !animations_enabled() && adopt_actual_widths(..)
+   { pass += 1; continue; }`. A hook that returns nothing cannot express that; it must be
+   `end_update(&mut ws) -> eyre::Result<Pass>` with `enum Pass { Done, Again }`, and the shared `update`
+   loops while it answers `Again` (at most one repeat, as Windows does; KDE always says `Done`).
+3. **There is one more condition read in the middle of `update`, a hook of its own.** Where the scrolling
+   layout decides whether the pass is animated, Windows reads `crate::scrolling::animations_enabled() &&
+   !live_resize::is_stepping()` and KDE reads `scrolling_placed.is_some_and(Placed::has_settled) &&
+   !live_resize_in_progress()`. Section 8 files `has_settled` under `end_update`, but KDE reads it before
+   the layouts are computed. Add `fn scrolling_in_motion(&ws) -> bool` (default `false`); `scrolling_placed`
+   is set at the end of KDE's pass, in `end_update`.
+4. **Error policy of `place_window` differs** and the hook returns `Result` to carry both: Windows
+   propagates a failed `set_rect` with `?`, KDE logs it (`tracing::warn!("failed to set window
+   position")`) and goes on, while `center(..)?` in the percentage override does propagate. The KDE
+   `place_window` swallows exactly the `set_position` error; the shared caller always uses `?`.
+5. **`adjust_layout` is not enough for Windows' stackbar**: it subtracts the stackbar height from the
+   layout of a container with more than one window (`should_have_stackbar(window_count)`). That is a
+   per-container adjustment, so `adjust_layout` is called per container with its index,
+   `adjust_layout(&ws, idx: usize, layout: &mut Rect, work_area: &Rect)`, not once with the slice; KDE's
+   clamp is per layout as well and only when the workspace is not scrolling.
+6. **KDE wraps the placement in a closure** (`let result = (|| { .. })(); result?;`) with nothing between the closure and the `?`, so it is equivalent to no closure (class (a) drift: the closure only keeps the `?`s of the placement local). The shared `update` needs no such shape; a Windows `AnimationBatch` guard drops on any exit and is compatible with either.
+7. **Orphan rule:** a method only one platform has cannot be an inherent method of the generic
+   `Workspace<P>` in the crate. `adopt_maximized_window`, `prune_duplicate_windows` and
+   `reap_invalid_windows` (KDE), `border_kinds_on_show`, `windows_on_show` (Windows) become extension
+   traits, and each file that calls them imports the trait (6 call sites of the KDE three outside
+   `workspace.rs` today). The extension traits are the price of keeping the `Workspace` fields `pub`.
+8. **`WorkspaceConfig` and `Wallpaper` are already shared** (`komorebi-config`, `komorebi-protocol`), so
+   `load_static_config` is not blocked by the daemon's `static_config.rs`; it can move into the crate
+   (the Windows custom-layout arms stay in it).
+9. **`Monitor` cannot move before `Workspace`.** The shared Monitor code uses about 25 members of its
+   workspace (`layout`, `globals`, `tile`, `layer`, `containers_mut`, `add_container_to_back`,
+   `insert_container_at_idx`, `floating_windows_mut`, `reintegrate_monocle_container`, ...). Once
+   `Workspace<P>` exists those are inherent members and `Monitor<P>` takes `Ring<Workspace<P>>`
+   directly; before that, `Monitor` would need the 25-member trait that was ruled out. The order is
+   therefore: `WorkspaceGlobals` (plain data), `Workspace<P>`, `Monitor<P>`; the request to do `Monitor`
+   first is only possible after the first.
+10. **Decision for the owner, `visible-windows`.** Windows' `visible_window_details` used `try_into` and
+    skipped a window whose fields could not be read; the shared `visible_window_details` uses `into`, so
+    after kfw's revision 4 Windows lists such a window with empty strings in `komorebic visible-windows`.
+    The shared code depends on the infallible form; the alternative is a `WindowDetails: TryFrom`
+    shared with a skip for `Err`, which KDE (always `Ok`) would not notice. Recommended: keep `into`.
+
+### Order of the code that remains (all gated like section 8.5)
+
+1. `WorkspaceGlobals` into `komorebi-core` (identical plain data; this stack does it).
+2. `Workspace<P>` struct and the 50 identical functions, `P::Window: WorkspaceWindow`
+   (`ContainerWindow` plus `focus`, `maximize`, `unmaximize`, `title`, `exe`, `class`, `path`, `rect`,
+   `center`, `set_position`), the differing functions as hooks or extension traits as in sections 8
+   and 9. About 2000 lines move; every call site that used an inherent method of a one-platform
+   function imports the extension trait. This is one revision per cluster of functions, and it is
+   the first step that cannot be verified on Windows without the e2e scenarios.
+3. `Monitor<P>` with `#[serde(flatten)] platform: P`.
