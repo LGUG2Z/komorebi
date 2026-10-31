@@ -213,6 +213,8 @@ def _commit() -> str:
 
 
 BINARIES = ["komorebi.exe", "komorebic.exe", "komorebi-testwin.exe"]
+# uploaded when the binaries have them: only the `bar` scenario needs the bar
+OPTIONAL_BINARIES = ["komorebi-bar.exe"]
 WITH_CLIENTS = {
     "focus", "moving", "stacks", "workspaces", "resize", "monocle", "closing",
     "commands", "hotplug", "unknown_monitor", "lifecycle",
@@ -239,6 +241,7 @@ EXTRAS = {
     "windows_config_file": "config_file", "windows_tracking": "tracking",
     "windows_second_display": "second_display",
     "windows_display_change": "display_change",
+    "bar": "bar",
 }
 
 # a small configuration for the sweep's `replace-configuration`
@@ -366,6 +369,7 @@ def run_one(
     with Guest(golden, out / "guest", state=state) as guest:
         lap("guest")
         guest.upload(bin_dir, BINARIES)
+        guest.upload(bin_dir, [b for b in OPTIONAL_BINARIES if (bin_dir / b).exists()])
         lap("upload")
         platform = WindowsPlatform(
             guest.qmp, guest.agent, out,

@@ -70,7 +70,25 @@ What only Windows checks, run after the tiling windows with `[windows]`
 labels, from `extras/`: `windows_padding` (the border's 7 px),
 `windows_cloaking`, `windows_config_file`, `windows_tracking`,
 `windows_second_display` and `windows_display_change` (the mode of the QXL
-display changes while windows are on it).
+display changes while windows are on it). `bar` starts `komorebi-bar` next to the
+daemon (see below).
+
+### The `bar` scenario
+
+`E2E_GOLDEN=golden nix run .#e2e-windows -- OUT bar` (the nix app copies `komorebi-bar.exe`
+next to the other binaries and points `KOMOREBI_E2E_BAR_SCHEMA` at the checked-in
+`schema.bar.json`; `build-ref.sh` builds the bar too, and an older `KOMOREBI_E2E_BINS` directory
+without it makes the scenario fail with that message while the others still run). After the
+tiling windows it checks: `komorebi-bar --schema` is `schema.bar.json` byte for byte (the output
+is kept as `bar-schema.json`); a bar with a configuration that has storage, time, applications,
+komorebi workspaces and layout, Keyboard and Systray widgets and a `mouse` block starts, its
+window `komorebi-bar` appears, visible and with a size; it runs for 15 s (scaled); `komorebic
+state` answers and komorebi does not tile it; `toggle-pause` twice (events to the bar); the bar
+survives `komorebic stop` (it reconnects, it does not exit) and the daemon's restart, as the same
+process; `komorebic stop --bar` ends the daemon and the bar. Artefacts: `bar.png`,
+`bar-after-restart.png`, `bar.out` (what the bar printed), `bar.json`. No pixel assertions. No
+known failures.
+
 
 Every scenario gets its own guest on a fresh overlay of the golden
 image; each needs about 4 vCPU and 6 GB. `OUT/<scenario>/result.json` names the
