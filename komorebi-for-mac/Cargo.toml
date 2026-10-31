@@ -16,6 +16,7 @@ version = "0.1.0"
 komorebi-themes = { path = "../komorebi-themes" }
 komorebi-collections = { path = "../crates/komorebi-collections" }
 komorebi-protocol = { path = "../crates/komorebi-protocol", default-features = false, features = ["schemars"] }
+komorebi-transport = { path = "../crates/komorebi-transport" }
 komorebi-layouts = { path = "../komorebi-layouts", features = [
   "darwin",
   "schemars",

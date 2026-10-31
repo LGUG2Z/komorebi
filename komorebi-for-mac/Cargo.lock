@@ -3169,6 +3169,7 @@ dependencies = [
  "komorebi-layouts",
  "komorebi-protocol",
  "komorebi-themes",
+ "komorebi-transport",
  "lazy_static",
  "nanoid",
  "objc2 0.6.5",
@@ -3303,6 +3304,13 @@ dependencies = [
  "serde",
  "serde_variant",
  "strum",
+]
+
+[[package]]
+name = "komorebi-transport"
+version = "0.1.42"
+dependencies = [
+ "komorebi-protocol",
 ]
 
 [[package]]
