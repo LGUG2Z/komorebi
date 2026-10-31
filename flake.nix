@@ -15,6 +15,11 @@
       url = "github:LGUG2Z/komorebi-application-specific-configuration";
       flake = false;
     };
+
+    # the other platforms' flakes, built from their own directories with their own locks until
+    # their crates depend on the ones in this tree (see the build(nix) revisions that follow)
+    kfde.url = "path:./komorebi-for-kde";
+    kfm.url = "path:./komorebi-for-mac";
   };
 
   outputs =
@@ -292,6 +297,35 @@
       imports = [
         inputs.treefmt-nix.flakeModule
         inputs.git-hooks-nix.flakeModule
+        # komorebi for KDE Plasma (kfde) and komorebi for macOS (kfm), re-exported with a prefix.
+        # The VM tests of kfde are not re-exported as checks, so that `nix flake check` of this
+        # flake does not boot them; they are reachable as legacyPackages.<system>.kfde-vm.
+        (
+          { lib, ... }:
+          {
+            flake = {
+              nixosModules.komorebi-for-kde = inputs.kfde.nixosModules.default;
+              overlays.komorebi-for-kde = inputs.kfde.overlays.default;
+              darwinModules.komorebi-for-mac = inputs.kfm.darwinModules.default;
+            };
+
+            perSystem =
+              { system, ... }:
+              let
+                prefixed = prefix: lib.mapAttrs' (name: lib.nameValuePair "${prefix}-${name}");
+                withoutVmTests = lib.filterAttrs (name: _: !(lib.hasPrefix "vm-" name));
+              in
+              {
+                packages =
+                  prefixed "kfde" (inputs.kfde.packages.${system} or { })
+                  // prefixed "kfm" (inputs.kfm.packages.${system} or { });
+                checks =
+                  prefixed "kfde" (withoutVmTests (inputs.kfde.checks.${system} or { }))
+                  // prefixed "kfm" (inputs.kfm.checks.${system} or { });
+                legacyPackages.kfde-vm = (inputs.kfde.legacyPackages.${system} or { }).vm or { };
+              };
+          }
+        )
       ];
 
       perSystem =
