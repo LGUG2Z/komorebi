@@ -121,40 +121,27 @@
 //! [`hotkeys`] module has the details.
 
 use chrono::Utc;
-use clap::CommandFactory;
 use clap::Parser;
+use clap::Subcommand;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
-use komorebi_client::ApplicationIdentifier;
-use komorebi_client::Axis;
-use komorebi_client::CycleDirection;
-use komorebi_client::DefaultLayout;
 use komorebi_client::FocusFollowsMouseImplementation;
-use komorebi_client::MoveBehaviour;
 use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
 use komorebi_client::PanDirection;
 use komorebi_client::PathExt;
-use komorebi_client::Rect;
-use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
-use komorebi_client::StateQuery;
 use komorebi_client::WindowKind;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
-use komorebic_core::args::ApplicationTarget;
 use komorebic_core::args::BooleanState;
-use komorebic_core::args::NamedPadding;
-use komorebic_core::args::NamedTarget;
-use komorebic_core::args::NamedWorkspaceEnum;
 use komorebic_core::args::OneEnum;
-use komorebic_core::args::PaddingAdjustment;
-use komorebic_core::args::Size;
-use komorebic_core::args::Target;
-use komorebic_core::args::WorkspaceEnum;
-use komorebic_core::args::WorkspacePadding;
-use komorebic_core::args::WorkspaceString;
+use komorebic_core::cli::Cmd;
+use komorebic_core::cli::Meta;
+use komorebic_core::cli::command;
+use komorebic_core::docgen::DocFormat;
+use komorebic_core::messages::Messages;
 use lazy_static::lazy_static;
 use std::fs::File;
 use std::io::BufRead;
@@ -198,224 +185,6 @@ struct MonocleFocusBehaviour {
 }
 
 #[derive(Parser)]
-pub struct ClearWorkspaceLayoutRules {
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-
-    /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
-}
-
-#[derive(Parser)]
-struct InitialWorkspaceRule {
-    #[clap(value_enum)]
-    identifier: ApplicationIdentifier,
-    /// Identifier as a string
-    id: String,
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-    /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
-}
-
-#[derive(Parser)]
-struct InitialNamedWorkspaceRule {
-    #[clap(value_enum)]
-    identifier: ApplicationIdentifier,
-    /// Identifier as a string
-    id: String,
-    /// Name of a workspace
-    workspace: String,
-}
-
-#[derive(Parser)]
-struct WorkspaceRule {
-    #[clap(value_enum)]
-    identifier: ApplicationIdentifier,
-    /// Identifier as a string
-    id: String,
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-    /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
-}
-
-#[derive(Parser)]
-struct NamedWorkspaceRule {
-    #[clap(value_enum)]
-    identifier: ApplicationIdentifier,
-    /// Identifier as a string
-    id: String,
-    /// Name of a workspace
-    workspace: String,
-}
-
-#[derive(Parser)]
-struct ClearWorkspaceRules {
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-    /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
-}
-
-#[derive(Parser)]
-struct ClearNamedWorkspaceRules {
-    /// Name of a workspace
-    workspace: String,
-}
-
-#[derive(Parser)]
-struct Resize {
-    #[clap(value_enum)]
-    edge: OperationDirection,
-    #[clap(value_enum)]
-    sizing: Sizing,
-}
-
-#[derive(Parser)]
-struct ResizeAxis {
-    #[clap(value_enum)]
-    axis: Axis,
-    #[clap(value_enum)]
-    sizing: Sizing,
-}
-
-#[derive(Parser)]
-struct ResizeDelta {
-    /// The delta of pixels by which to increase or decrease window dimensions when resizing
-    pixels: i32,
-}
-
-#[derive(Parser)]
-struct SubscribeSocket {
-    /// Name of the socket to send event notifications to
-    socket: String,
-}
-
-#[derive(Parser)]
-struct UnsubscribeSocket {
-    /// Name of the socket to stop sending event notifications to
-    socket: String,
-}
-
-#[derive(Parser)]
-struct GlobalWorkAreaOffset {
-    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
-    left: i32,
-    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
-    top: i32,
-    /// Size of the right work area offset
-    right: i32,
-    /// Size of the bottom work area offset
-    bottom: i32,
-}
-
-#[derive(Parser)]
-struct MonitorWorkAreaOffset {
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
-    left: i32,
-    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
-    top: i32,
-    /// Size of the right work area offset
-    right: i32,
-    /// Size of the bottom work area offset
-    bottom: i32,
-}
-
-#[derive(Parser)]
-struct WorkspaceWorkAreaOffset {
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-    /// Workspace index (zero-indexed)
-    workspace: usize,
-    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
-    left: i32,
-    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
-    top: i32,
-    /// Size of the right work area offset
-    right: i32,
-    /// Size of the bottom work area offset
-    bottom: i32,
-}
-
-#[derive(Parser)]
-struct FocusMonitorWorkspace {
-    /// Target monitor index (zero-indexed)
-    target_monitor: usize,
-    /// Workspace index on the target monitor (zero-indexed)
-    target_workspace: usize,
-}
-
-#[derive(Parser)]
-pub struct SendToMonitorWorkspace {
-    /// Target monitor index (zero-indexed)
-    target_monitor: usize,
-    /// Workspace index on the target monitor (zero-indexed)
-    target_workspace: usize,
-}
-
-#[derive(Parser)]
-pub struct MoveToMonitorWorkspace {
-    /// Target monitor index (zero-indexed)
-    target_monitor: usize,
-    /// Workspace index on the target monitor (zero-indexed)
-    target_workspace: usize,
-}
-
-#[derive(Parser)]
-pub struct WorkspaceLayoutRule {
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-
-    /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
-
-    /// The number of window containers on-screen required to trigger this layout rule
-    at_container_count: usize,
-
-    #[clap(value_enum)]
-    layout: DefaultLayout,
-}
-
-#[derive(Parser)]
-pub struct NamedWorkspaceLayoutRule {
-    /// Target workspace name
-    workspace: String,
-
-    /// The number of window containers on-screen required to trigger this layout rule
-    at_container_count: usize,
-
-    #[clap(value_enum)]
-    layout: DefaultLayout,
-}
-
-#[derive(Parser)]
-struct DisplayIndexPreference {
-    /// Preferred monitor index (zero-indexed)
-    index_preference: usize,
-    /// Display name as identified in komorebic state
-    display: String,
-}
-
-#[derive(Parser)]
-struct EnsureWorkspaces {
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-    /// Number of desired workspaces
-    workspace_count: usize,
-}
-
-#[derive(Parser)]
-struct EnsureNamedWorkspaces {
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-    /// Names of desired workspaces
-    names: Vec<String>,
-}
-
-#[derive(Parser)]
 #[allow(clippy::struct_excessive_bools)]
 struct Start {
     /// Path to a static configuration JSON file
@@ -432,27 +201,6 @@ struct Stop {
     /// Do not restore windows after stopping komorebi
     #[clap(long, hide = true)]
     ignore_restore: bool,
-}
-
-#[derive(Parser)]
-struct SaveResize {
-    /// File to which the resize layout dimensions should be saved
-    #[clap(value_parser = replace_env_in_path)]
-    path: PathBuf,
-}
-
-#[derive(Parser)]
-struct LoadResize {
-    /// File from which the resize layout dimensions should be loaded
-    #[clap(value_parser = replace_env_in_path)]
-    path: PathBuf,
-}
-
-#[derive(Parser)]
-struct ReplaceConfiguration {
-    /// Static configuration JSON file from which the configuration should be loaded
-    #[clap(value_parser = replace_env_in_path)]
-    path: PathBuf,
 }
 
 #[derive(Parser)]
@@ -493,12 +241,6 @@ struct LayoutRatios {
 }
 
 #[derive(Parser)]
-struct Border {
-    #[clap(value_enum)]
-    boolean_state: BooleanState,
-}
-
-#[derive(Parser)]
 struct BorderColour {
     #[clap(value_enum, short, long, default_value = "single")]
     window_kind: WindowKind,
@@ -508,18 +250,6 @@ struct BorderColour {
     g: u32,
     /// Blue
     b: u32,
-}
-
-#[derive(Parser)]
-struct BorderWidth {
-    /// Desired width of the window border
-    width: i32,
-}
-
-#[derive(Parser)]
-struct BorderOffset {
-    /// Desired offset of the window border
-    offset: i32,
 }
 
 #[derive(Parser)]
@@ -563,12 +293,6 @@ struct AnimationDuration {
 }
 
 #[derive(Parser)]
-struct AnimationFps {
-    /// Desired animation frames per second
-    fps: u64,
-}
-
-#[derive(Parser)]
 struct AnimationStyle {
     /// Desired ease function for animation
     #[clap(value_enum, short, long, default_value = "linear")]
@@ -602,15 +326,8 @@ struct Completions {
     shell: clap_complete::Shell,
 }
 
-#[derive(Parser)]
-#[clap(author, about, version = version::LONG_VERSION)]
-struct Opts {
-    #[clap(subcommand)]
-    subcmd: SubCommand,
-}
-
-#[derive(Parser)]
-enum SubCommand {
+#[derive(Subcommand)]
+enum KdeCommands {
     #[clap(hide = true)]
     Docgen(Docgen),
     /// Generate komorebic CLI completions for the target shell
@@ -635,24 +352,6 @@ enum SubCommand {
     /// Show the path to komorebi's data directory, which has its socket
     #[clap(alias = "datadir")]
     DataDirectory,
-    /// Show a JSON representation of the current window manager state
-    State,
-    /// Show a JSON representation of the current global state
-    GlobalState,
-    /// Show a JSON representation of visible windows
-    VisibleWindows,
-    /// Show information about connected monitors
-    #[clap(alias = "monitor-info")]
-    MonitorInformation,
-    /// Query the current window manager state
-    #[clap(arg_required_else_help = true)]
-    Query(OneEnum<StateQuery>),
-    /// Subscribe to komorebi events using a Unix Domain Socket
-    #[clap(arg_required_else_help = true)]
-    SubscribeSocket(SubscribeSocket),
-    /// Unsubscribe from komorebi events
-    #[clap(arg_required_else_help = true)]
-    UnsubscribeSocket(UnsubscribeSocket),
     // /// Subscribe to komorebi events using a Named Pipe
     // #[clap(arg_required_else_help = true)]
     // #[clap(alias = "subscribe")]
@@ -663,187 +362,14 @@ enum SubCommand {
     // UnsubscribePipe(UnsubscribePipe),
     /// Tail komorebi's process logs (cancel with Ctrl-C)
     Log,
-    /// Quicksave the current resize layout dimensions
-    #[clap(alias = "quick-save")]
-    QuickSaveResize,
-    /// Load the last quicksaved resize layout dimensions
-    #[clap(alias = "quick-load")]
-    QuickLoadResize,
-    /// Save the current resize layout dimensions to a file
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "save")]
-    SaveResize(SaveResize),
-    /// Load the resize layout dimensions from a file
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "load")]
-    LoadResize(LoadResize),
-    /// Change focus to the window in the specified direction
-    #[clap(arg_required_else_help = true)]
-    Focus(OneEnum<OperationDirection>),
-    /// Move the focused window in the specified direction
-    #[clap(arg_required_else_help = true)]
-    Move(OneEnum<OperationDirection>),
-    /// Preselect the specified direction for the next window to be spawned on supported layouts
-    #[clap(arg_required_else_help = true)]
-    PreselectDirection(OneEnum<OperationDirection>),
-    /// Cancel a workspace preselect set by the preselect-direction command, if one exists
-    CancelPreselect,
-    /// Minimize the focused window
-    Minimize,
-    /// Close the focused window
-    Close,
     // /// Forcibly focus the window at the cursor with a left mouse click
     // ForceFocus,
-    /// Change focus to the window in the specified cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleFocus(OneEnum<CycleDirection>),
-    /// Move the focused window in the specified cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleMove(OneEnum<CycleDirection>),
     /// Focus the first managed window matching the given executable
     #[clap(arg_required_else_help = true)]
     EagerFocus(EagerFocus),
-    /// Stack the focused window in the specified direction
-    #[clap(arg_required_else_help = true)]
-    Stack(OneEnum<OperationDirection>),
-    /// Unstack the focused window
-    Unstack,
-    /// Cycle the focused stack in the specified cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleStack(OneEnum<CycleDirection>),
-    /// Cycle the index of the focused window in the focused stack in the specified cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleStackIndex(OneEnum<CycleDirection>),
-    /// Focus the specified window index in the focused stack
-    #[clap(arg_required_else_help = true)]
-    FocusStackWindow(Target),
-    /// Stack all windows on the focused workspace
-    StackAll,
-    /// Unstack all windows in the focused container
-    UnstackAll,
-    /// Resize the focused window in the specified direction
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "resize")]
-    ResizeEdge(Resize),
-    /// Resize the focused window or primary column along the specified axis
-    #[clap(arg_required_else_help = true)]
-    ResizeAxis(ResizeAxis),
-    /// Move the focused window to the specified monitor
-    #[clap(arg_required_else_help = true)]
-    MoveToMonitor(Target),
-    /// Move the focused window to the monitor in the given cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleMoveToMonitor(OneEnum<CycleDirection>),
-    /// Move the focused window to the specified workspace
-    #[clap(arg_required_else_help = true)]
-    MoveToWorkspace(Target),
-    /// Move the focused window to the specified workspace
-    #[clap(arg_required_else_help = true)]
-    MoveToNamedWorkspace(NamedTarget),
-    /// Move the focused window to the workspace in the given cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleMoveToWorkspace(OneEnum<CycleDirection>),
-    /// Send the focused window to the specified monitor
-    #[clap(arg_required_else_help = true)]
-    SendToMonitor(Target),
-    /// Send the focused window to the monitor in the given cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleSendToMonitor(OneEnum<CycleDirection>),
-    /// Send the focused window to the specified workspace
-    #[clap(arg_required_else_help = true)]
-    SendToWorkspace(Target),
-    /// Send the focused window to the specified workspace
-    #[clap(arg_required_else_help = true)]
-    SendToNamedWorkspace(NamedTarget),
-    /// Send the focused window to the workspace in the given cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleSendToWorkspace(OneEnum<CycleDirection>),
-    /// Send the focused window to the specified monitor workspace
-    #[clap(arg_required_else_help = true)]
-    SendToMonitorWorkspace(SendToMonitorWorkspace),
-    /// Move the focused window to the specified monitor workspace
-    #[clap(arg_required_else_help = true)]
-    MoveToMonitorWorkspace(MoveToMonitorWorkspace),
-    /// Send the focused window to the last focused monitor workspace
-    SendToLastWorkspace,
-    /// Move the focused window to the last focused monitor workspace
-    MoveToLastWorkspace,
-    /// Focus the specified monitor
-    #[clap(arg_required_else_help = true)]
-    FocusMonitor(Target),
-    /// Focus the monitor at the current cursor location
-    FocusMonitorAtCursor,
-    /// Focus the last focused workspace on the focused monitor
-    FocusLastWorkspace,
-    /// Focus the specified workspace on the focused monitor
-    #[clap(arg_required_else_help = true)]
-    FocusWorkspace(Target),
-    /// Focus the specified workspace on all monitors
-    #[clap(arg_required_else_help = true)]
-    FocusWorkspaces(Target),
-    /// Focus the specified workspace on the target monitor
-    #[clap(arg_required_else_help = true)]
-    FocusMonitorWorkspace(FocusMonitorWorkspace),
-    /// Focus the specified workspace
-    #[clap(arg_required_else_help = true)]
-    FocusNamedWorkspace(NamedTarget),
-    /// Close the focused workspace (must be empty and unnamed)
-    CloseWorkspace,
-    /// Focus the monitor in the given cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleMonitor(OneEnum<CycleDirection>),
-    /// Focus the workspace in the given cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleWorkspace(OneEnum<CycleDirection>),
-    /// Focus the next empty workspace in the given cycle direction (if one exists)
-    #[clap(arg_required_else_help = true)]
-    CycleEmptyWorkspace(OneEnum<CycleDirection>),
-    /// Move the focused workspace to the specified monitor
-    #[clap(arg_required_else_help = true)]
-    MoveWorkspaceToMonitor(Target),
-    /// Move the focused workspace monitor in the given cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleMoveWorkspaceToMonitor(OneEnum<CycleDirection>),
-    /// Swap focused monitor workspaces with specified monitor
-    #[clap(arg_required_else_help = true)]
-    SwapWorkspacesWithMonitor(Target),
-    /// Create and append a new workspace on the focused monitor
-    NewWorkspace,
-    /// Set the resize delta (used by resize-edge and resize-axis)
-    #[clap(arg_required_else_help = true)]
-    ResizeDelta(ResizeDelta),
     // /// Set the invisible border dimensions around each window
     // #[clap(arg_required_else_help = true)]
     // InvisibleBorders(InvisibleBorders),
-    /// Set offsets to exclude parts of the work area from tiling
-    #[clap(arg_required_else_help = true)]
-    GlobalWorkAreaOffset(GlobalWorkAreaOffset),
-    /// Set offsets for a monitor to exclude parts of the work area from tiling
-    #[clap(arg_required_else_help = true)]
-    MonitorWorkAreaOffset(MonitorWorkAreaOffset),
-    /// Set offsets for a workspace to exclude parts of the work area from tiling
-    #[clap(arg_required_else_help = true)]
-    WorkspaceWorkAreaOffset(WorkspaceWorkAreaOffset),
-    /// Toggle application of the window-based work area offset for the focused workspace
-    ToggleWindowBasedWorkAreaOffset,
-    /// Set container padding on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    FocusedWorkspaceContainerPadding(Size),
-    /// Set workspace padding on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    FocusedWorkspacePadding(Size),
-    /// Adjust container padding on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    AdjustContainerPadding(PaddingAdjustment),
-    /// Adjust workspace padding on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    AdjustWorkspacePadding(PaddingAdjustment),
-    /// Set the layout on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    ChangeLayout(OneEnum<DefaultLayout>),
-    /// Cycle between available layouts
-    #[clap(arg_required_else_help = true)]
-    CycleLayout(OneEnum<CycleDirection>),
     /// Set the number of visible columns for the Scrolling layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ScrollingLayoutColumns(ScrollingLayoutColumns),
@@ -852,9 +378,6 @@ enum SubCommand {
     ScrollingLayoutFullWidth,
     /// Scroll the Scrolling layout so that the focused column is in the middle of the screen, once
     CenterFocus,
-    /// Make the focused column of the Scrolling layout fill the room that the columns in view leave
-    /// on the screen, which does nothing in any other layout
-    Expand,
     /// Take the neighbouring window on one side into the focused column of the Scrolling layout
     #[clap(arg_required_else_help = true)]
     Consume(OneEnum<OperationDirection>),
@@ -874,49 +397,13 @@ enum SubCommand {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // LoadCustomLayout(LoadCustomLayout),
-    /// Flip the layout on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    FlipLayout(OneEnum<Axis>),
-    /// Promote the focused window to the largest tile via container removal and re-insertion
-    Promote,
-    /// Promote the focused window to the largest tile by swapping container indices with the largest tile
-    PromoteSwap,
     /// Promote the user focus to the largest window container
     PromoteFocus,
-    /// Promote the window in the specified direction
-    PromoteWindow(OneEnum<OperationDirection>),
     /// Force the retiling of all managed windows
     Retile,
     // /// Set the monitor index preference for a monitor identified using its size
     // #[clap(arg_required_else_help = true)]
     // MonitorIndexPreference(MonitorIndexPreference),
-    /// Set the display index preference for a monitor identified using its display name
-    #[clap(arg_required_else_help = true)]
-    DisplayIndexPreference(DisplayIndexPreference),
-    /// Create at least this many workspaces for the specified monitor
-    #[clap(arg_required_else_help = true)]
-    EnsureWorkspaces(EnsureWorkspaces),
-    /// Create these many named workspaces for the specified monitor
-    #[clap(arg_required_else_help = true)]
-    EnsureNamedWorkspaces(EnsureNamedWorkspaces),
-    /// Set the container padding for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    ContainerPadding(WorkspacePadding),
-    /// Set the container padding for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    NamedWorkspaceContainerPadding(NamedPadding),
-    /// Set the workspace padding for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    WorkspacePadding(WorkspacePadding),
-    /// Set the workspace padding for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    NamedWorkspacePadding(NamedPadding),
-    /// Set the layout for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    WorkspaceLayout(WorkspaceEnum<DefaultLayout>),
-    /// Set the layout for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    NamedWorkspaceLayout(NamedWorkspaceEnum<DefaultLayout>),
     // /// Set a custom layout for the specified workspace
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
@@ -925,12 +412,6 @@ enum SubCommand {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // NamedWorkspaceCustomLayout(NamedWorkspaceCustomLayout),
-    /// Add a dynamic layout rule for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    WorkspaceLayoutRule(WorkspaceLayoutRule),
-    /// Add a dynamic layout rule for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    NamedWorkspaceLayoutRule(NamedWorkspaceLayoutRule),
     // /// Add a dynamic custom layout for the specified workspace
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
@@ -939,56 +420,14 @@ enum SubCommand {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // NamedWorkspaceCustomLayoutRule(NamedWorkspaceCustomLayoutRule),
-    /// Clear all dynamic layout rules for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    ClearWorkspaceLayoutRules(ClearWorkspaceLayoutRules),
-    /// Clear all dynamic layout rules for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    ClearNamedWorkspaceLayoutRules(NamedTarget),
-    /// Enable or disable window tiling for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    WorkspaceTiling(WorkspaceEnum<BooleanState>),
-    /// Enable or disable window tiling for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    NamedWorkspaceTiling(NamedWorkspaceEnum<BooleanState>),
-    /// Set the workspace name for the specified workspace
-    #[clap(arg_required_else_help = true)]
-    WorkspaceName(WorkspaceString),
     /// Toggle the behavior for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
-    /// Enable or disable float override, which makes it so every new window opens in floating mode
-    ToggleFloatOverride,
     /// Toggle the behavior for new windows (stacking or dynamic tiling) for currently focused
     /// workspace. If there was no behavior set for the workspace previously it takes the opposite
     /// of the global value.
     ToggleWorkspaceWindowContainerBehaviour,
-    /// Enable or disable float override, which makes it so every new window opens in floating
-    /// mode, for the currently focused workspace. If there was no override value set for the
-    /// workspace previously it takes the opposite of the global value.
-    ToggleWorkspaceFloatOverride,
-    /// Toggle between the Tiling and Floating layers on the focused workspace
-    ToggleWorkspaceLayer,
-    /// Toggle the paused state for all window tiling
-    TogglePause,
-    /// Toggle window tiling on the focused workspace
-    ToggleTiling,
-    /// Toggle floating mode for the focused window
-    ToggleFloat,
-    /// Toggle monocle mode for the focused container
-    ToggleMonocle,
     /// Toggle the compositor's maximization for the focused window
     ToggleMaximize,
-    /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
-    ToggleLock,
-    /// Force komorebi to manage the focused window
-    Manage,
-    /// Unmanage a window that was forcibly managed
-    Unmanage,
-    /// Set the behaviour when moving windows across monitor boundaries
-    #[clap(arg_required_else_help = true)]
-    CrossMonitorMoveBehaviour(OneEnum<MoveBehaviour>),
-    /// Toggle the behaviour when moving windows across monitor boundaries
-    ToggleCrossMonitorMoveBehaviour,
     /// Set the behavior when focusing in a direction while a monocle container is active
     #[clap(arg_required_else_help = true)]
     MonocleFocusBehaviour(MonocleFocusBehaviour),
@@ -997,57 +436,10 @@ enum SubCommand {
     /// Set the operation behavior when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(OneEnum<OperationBehaviour>),
-    /// Add a rule to float the foreground window for the rest of this session
-    SessionFloatRule,
-    /// Show all session float rules
-    SessionFloatRules,
-    /// Clear all session float rules
-    ClearSessionFloatRules,
-    /// Add a rule to ignore the specified application
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "float-rule")]
-    IgnoreRule(ApplicationTarget),
-    /// Add a rule to always manage the specified application
-    #[clap(arg_required_else_help = true)]
-    ManageRule(ApplicationTarget),
-    /// Add a rule to associate an application with a workspace on first show
-    #[clap(arg_required_else_help = true)]
-    InitialWorkspaceRule(InitialWorkspaceRule),
-    /// Add a rule to associate an application with a named workspace on first show
-    #[clap(arg_required_else_help = true)]
-    InitialNamedWorkspaceRule(InitialNamedWorkspaceRule),
-    /// Add a rule to associate an application with a workspace
-    #[clap(arg_required_else_help = true)]
-    WorkspaceRule(WorkspaceRule),
-    /// Add a rule to associate an application with a named workspace
-    #[clap(arg_required_else_help = true)]
-    NamedWorkspaceRule(NamedWorkspaceRule),
-    /// Remove all application association rules for a workspace by monitor and workspace index
-    #[clap(arg_required_else_help = true)]
-    ClearWorkspaceRules(ClearWorkspaceRules),
-    /// Remove all application association rules for a named workspace
-    #[clap(arg_required_else_help = true)]
-    ClearNamedWorkspaceRules(ClearNamedWorkspaceRules),
-    /// Remove all application association rules for all workspaces
-    ClearAllWorkspaceRules,
-    /// Enforce all workspace rules, including initial workspace rules that have already been applied
-    EnforceWorkspaceRules,
-    /// Enable or disable borders
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "active-window-border")]
-    Border(Border),
     /// Set the color for a window border kind
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "active-window-border-colour")]
     BorderColour(BorderColour),
-    /// Set the border width
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "active-window-border-width")]
-    BorderWidth(BorderWidth),
-    /// Set the border offset
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "active-window-border-offset")]
-    BorderOffset(BorderOffset),
     // /// Set the border style
     // #[clap(arg_required_else_help = true)]
     // BorderStyle(BorderStyle),
@@ -1068,9 +460,6 @@ enum SubCommand {
     /// Set the duration for movement animations in ms
     #[clap(arg_required_else_help = true)]
     AnimationDuration(AnimationDuration),
-    /// Set the frames per second for movement animations
-    #[clap(arg_required_else_help = true)]
-    AnimationFps(AnimationFps),
     /// Set the ease function for movement animations
     #[clap(arg_required_else_help = true)]
     AnimationStyle(AnimationStyle),
@@ -1079,14 +468,6 @@ enum SubCommand {
     FocusFollowsMouse(FocusFollowsMouse),
     /// Toggle focus follows mouse (KWin's own focus policy)
     ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
-    /// Enable or disable mouse follows focus on all workspaces
-    #[clap(arg_required_else_help = true)]
-    MouseFollowsFocus(OneEnum<BooleanState>),
-    /// Toggle mouse follows focus on all workspaces
-    ToggleMouseFollowsFocus,
-    /// Replace the configuration of a running instance of komorebi from a static configuration file
-    #[clap(arg_required_else_help = true)]
-    ReplaceConfiguration(ReplaceConfiguration),
     /// Generate a JSON Schema for applications.json
     #[clap(alias = "asc-schema")]
     ApplicationSpecificConfigurationSchema,
@@ -1119,898 +500,411 @@ fn print_query(message: &SocketMessage) {
     }
 }
 
+/// What the top of the help and `--version` say.
+const META: Meta = Meta {
+    name: "komorebic",
+    about: env!("CARGO_PKG_DESCRIPTION"),
+    author: env!("CARGO_PKG_AUTHORS"),
+    version: version::LONG_VERSION,
+};
+
+/// Write a message to the daemon's socket, or, if the daemon answers it, print the answer.
+fn send_or_query(messages: Messages) -> eyre::Result<()> {
+    let query = messages.is_query();
+    let message = SocketMessage::from(messages);
+    if query {
+        print_query(&message);
+    } else {
+        send_message(&message)?;
+    }
+    Ok(())
+}
+
 fn main() -> eyre::Result<()> {
-    let opts: Opts = Opts::parse();
+    let opts = komorebic_core::cli::parse::<KdeCommands>(&META);
 
-    match opts.subcmd {
-        SubCommand::Docgen(args) => {
-            let mut cli = Opts::command();
-            let subcommands = cli.get_subcommands_mut();
-
-            let output_dir = args.output.unwrap_or_else(|| PathBuf::from("docs/cli"));
-            std::fs::create_dir_all(&output_dir)?;
-
-            let ignore = [
-                "docgen",
-                "splash",
-                "alt-focus-hack",
-                "identify-border-overflow-application",
-                "load-custom-layout",
-                "workspace-custom-layout",
-                "named-workspace-custom-layout",
-                "workspace-custom-layout-rule",
-                "named-workspace-custom-layout-rule",
-                "focus-follows-mouse",
-                "toggle-focus-follows-mouse",
-                "format-app-specific-configuration",
-            ];
-
-            for cmd in subcommands {
-                let name = cmd.get_name().to_string();
-                if !ignore.contains(&name.as_str()) {
-                    // a subcommand of a subcommand (`hotkeys compile`) gets a page of its own
-                    let nested = cmd
-                        .get_subcommands()
-                        .map(|sub| (format!("{name}-{}", sub.get_name()), sub.clone()));
-                    for (name, cmd) in std::iter::once((name.clone(), cmd.clone())).chain(nested) {
-                        // the same pages whatever the width of the terminal docgen runs in
-                        let help_text = cmd.term_width(100).render_long_help().to_string();
-                        let outpath = output_dir.join(format!("{name}.md"));
-                        let markdown = format!("```text\n{help_text}\n```\n");
-                        std::fs::write(&outpath, markdown)?;
-                        println!("{}", outpath.display());
-                    }
+    match opts.cmd {
+        Cmd::Messages(messages) => send_or_query(messages)?,
+        Cmd::Platform(platform) => match platform {
+            KdeCommands::Docgen(args) => {
+                let output_dir = args.output.unwrap_or_else(|| PathBuf::from("docs/cli"));
+                let pages = komorebic_core::docgen::write(
+                    command::<KdeCommands>(&META),
+                    &DocFormat::KDE,
+                    &output_dir,
+                )?;
+                for page in pages {
+                    println!("{}", page.display());
                 }
             }
-        }
-        SubCommand::Completions(args) => {
-            let mut cli = Opts::command();
-            clap_complete::generate(args.shell, &mut cli, "komorebic", &mut std::io::stdout());
-        }
-        SubCommand::ExportKdeShortcuts(args) => hotkeys::export_kde_shortcuts(args)?,
-        SubCommand::Hotkeys(args) => hotkeys::hotkeys(args)?,
-        SubCommand::Quickstart => {
-            fn write_file_with_prompt(
-                path: &PathBuf,
-                content: &str,
-                created_files: &mut Vec<String>,
-            ) -> eyre::Result<()> {
-                if path.exists() {
-                    print!(
-                        "{} will be overwritten, do you want to continue? (y/N): ",
-                        path.display()
-                    );
-                    std::io::stdout().flush()?;
-                    let mut input = String::new();
-                    std::io::stdin().read_line(&mut input)?;
-                    let trimmed = input.trim().to_lowercase();
-                    if trimmed == "y" || trimmed == "yes" {
+            KdeCommands::Completions(args) => {
+                let mut cli = command::<KdeCommands>(&META);
+                clap_complete::generate(args.shell, &mut cli, "komorebic", &mut std::io::stdout());
+            }
+            KdeCommands::ExportKdeShortcuts(args) => hotkeys::export_kde_shortcuts(args)?,
+            KdeCommands::Hotkeys(args) => hotkeys::hotkeys(args)?,
+            KdeCommands::Quickstart => {
+                fn write_file_with_prompt(
+                    path: &PathBuf,
+                    content: &str,
+                    created_files: &mut Vec<String>,
+                ) -> eyre::Result<()> {
+                    if path.exists() {
+                        print!(
+                            "{} will be overwritten, do you want to continue? (y/N): ",
+                            path.display()
+                        );
+                        std::io::stdout().flush()?;
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input)?;
+                        let trimmed = input.trim().to_lowercase();
+                        if trimmed == "y" || trimmed == "yes" {
+                            std::fs::write(path, content)?;
+                            created_files.push(path.display().to_string());
+                        } else {
+                            println!("Skipping {}", path.display());
+                        }
+                    } else {
                         std::fs::write(path, content)?;
                         created_files.push(path.display().to_string());
-                    } else {
-                        println!("Skipping {}", path.display());
                     }
-                } else {
-                    std::fs::write(path, content)?;
-                    created_files.push(path.display().to_string());
+                    Ok(())
                 }
-                Ok(())
+
+                std::fs::create_dir_all(&*HOME_DIR)?;
+                std::fs::create_dir_all(&*komorebi_client::DATA_DIR)?;
+
+                let komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
+                let komorebi_path = HOME_DIR.join("komorebi.json");
+                let applications_path = HOME_DIR.join("applications.json");
+                let skhdrc_path = HOME_DIR.join("skhdrc");
+
+                let mut written_files = Vec::new();
+
+                write_file_with_prompt(&komorebi_path, &komorebi_json, &mut written_files)?;
+
+                let applications_json = include_str!("../applications.json");
+                write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
+
+                let skhdrc = include_str!("../../docs/skhdrc.sample");
+                write_file_with_prompt(&skhdrc_path, skhdrc, &mut written_files)?;
+                if written_files.is_empty() {
+                    println!("\nNo files were written.")
+                } else {
+                    println!(
+                        "\nThe following example files were written:\n{}",
+                        written_files.join("\n")
+                    );
+                }
+
+                println!("\nYou can now run: komorebic start");
             }
+            KdeCommands::EnableAutostart(args) => {
+                let exec = match args.config {
+                    None => String::from("komorebi"),
+                    Some(config) => format!("komorebi --config \"{}\"", config.display()),
+                };
 
-            std::fs::create_dir_all(&*HOME_DIR)?;
-            std::fs::create_dir_all(&*komorebi_client::DATA_DIR)?;
+                let target = autostart_entry();
+                if let Some(dir) = target.parent() {
+                    std::fs::create_dir_all(dir)?;
+                }
 
-            let komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
-            let komorebi_path = HOME_DIR.join("komorebi.json");
-            let applications_path = HOME_DIR.join("applications.json");
-            let skhdrc_path = HOME_DIR.join("skhdrc");
+                std::fs::write(
+                    &target,
+                    format!(
+                        "[Desktop Entry]\nType=Application\nName=komorebi\nComment=A tiling window manager for KDE Plasma\nExec={exec}\nX-KDE-autostart-after=plasma-workspace\nTerminal=false\n"
+                    ),
+                )?;
 
-            let mut written_files = Vec::new();
-
-            write_file_with_prompt(&komorebi_path, &komorebi_json, &mut written_files)?;
-
-            let applications_json = include_str!("../applications.json");
-            write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
-
-            let skhdrc = include_str!("../../docs/skhdrc.sample");
-            write_file_with_prompt(&skhdrc_path, skhdrc, &mut written_files)?;
-            if written_files.is_empty() {
-                println!("\nNo files were written.")
-            } else {
-                println!(
-                    "\nThe following example files were written:\n{}",
-                    written_files.join("\n")
-                );
+                println!("Wrote {}", target.display());
             }
-
-            println!("\nYou can now run: komorebic start");
-        }
-        SubCommand::EnableAutostart(args) => {
-            let exec = match args.config {
-                None => String::from("komorebi"),
-                Some(config) => format!("komorebi --config \"{}\"", config.display()),
-            };
-
-            let target = autostart_entry();
-            if let Some(dir) = target.parent() {
-                std::fs::create_dir_all(dir)?;
+            KdeCommands::DisableAutostart => {
+                let target = autostart_entry();
+                if target.exists() {
+                    std::fs::remove_file(&target)?;
+                    println!("Deleted {}", target.display());
+                } else {
+                    println!("There is no autostart entry at {}", target.display());
+                }
             }
+            KdeCommands::Check(args) => {
+                use komorebi_client::check::Finding;
+                use komorebi_client::check::Report;
 
-            std::fs::write(
-                &target,
-                format!(
-                    "[Desktop Entry]\nType=Application\nName=komorebi\nComment=A tiling window manager for KDE Plasma\nExec={exec}\nX-KDE-autostart-after=plasma-workspace\nTerminal=false\n"
-                ),
-            )?;
+                let mut report = Report::default();
 
-            println!("Wrote {}", target.display());
-        }
-        SubCommand::DisableAutostart => {
-            let target = autostart_entry();
-            if target.exists() {
-                std::fs::remove_file(&target)?;
-                println!("Deleted {}", target.display());
-            } else {
-                println!("There is no autostart entry at {}", target.display());
-            }
-        }
-        SubCommand::Check(args) => {
-            use komorebi_client::check::Finding;
-            use komorebi_client::check::Report;
-
-            let mut report = Report::default();
-
-            // where komorebi looks
-            let mut place = vec![];
-            if std::env::var_os("KOMOREBI_CONFIG_HOME").is_some() {
-                place.push(Finding::note(format!(
-                    "KOMOREBI_CONFIG_HOME is set: looking in {}",
-                    HOME_DIR.display()
-                )));
-            } else {
-                place.push(Finding::note(format!(
-                    "KOMOREBI_CONFIG_HOME is not set: looking in {}",
-                    HOME_DIR.display()
-                )));
-            }
-
-            let static_config = match args.komorebi_config {
-                Some(path) => {
+                // where komorebi looks
+                let mut place = vec![];
+                if std::env::var_os("KOMOREBI_CONFIG_HOME").is_some() {
                     place.push(Finding::note(format!(
-                        "using the configuration file given with --komorebi-config: {}",
-                        path.display()
+                        "KOMOREBI_CONFIG_HOME is set: looking in {}",
+                        HOME_DIR.display()
                     )));
-                    path
-                }
-                None => HOME_DIR.join("komorebi.json"),
-            };
-
-            let (findings, wants) = komorebi_client::check::check_configuration(&static_config);
-            place.extend(findings);
-            report.push("Configuration", place);
-
-            report.push("Key bindings", hotkeys::check(&HOME_DIR));
-
-            if !args.configuration_only {
-                report.push(
-                    "The desktop",
-                    komorebi_client::check::check_environment(&wants),
-                );
-            }
-
-            print!("{}", report.render());
-
-            if report.has_errors() {
-                std::process::exit(1);
-            }
-        }
-        SubCommand::Start(args) => {
-            let mut command = &mut Command::new("komorebi");
-
-            if let Some(config) = &args.config {
-                command = command.args(["--config", &config.display().to_string()])
-            };
-
-            command = command
-                .args(&args.komorebi_args)
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .stdin(Stdio::null());
-
-            let mut system = sysinfo::System::new_all()?;
-            system.refresh_processes(ProcessesToUpdate::All, true);
-
-            let mut attempts = 0;
-            let mut running = system
-                .processes_by_exact_name("komorebi".as_ref())
-                .next()
-                .is_some();
-
-            while !running && attempts <= 2 {
-                command.spawn()?;
-
-                print!("Waiting for komorebi to start... ");
-                std::io::stdout().flush()?;
-                std::thread::sleep(Duration::from_secs(3));
-
-                system.refresh_processes(ProcessesToUpdate::All, true);
-
-                if system
-                    .processes_by_exact_name("komorebi".as_ref())
-                    .next()
-                    .is_some()
-                {
-                    println!("Started!");
-                    running = true;
                 } else {
-                    println!("komorebi did not start... Trying again");
-                    attempts += 1;
+                    place.push(Finding::note(format!(
+                        "KOMOREBI_CONFIG_HOME is not set: looking in {}",
+                        HOME_DIR.display()
+                    )));
+                }
+
+                let static_config = match args.komorebi_config {
+                    Some(path) => {
+                        place.push(Finding::note(format!(
+                            "using the configuration file given with --komorebi-config: {}",
+                            path.display()
+                        )));
+                        path
+                    }
+                    None => HOME_DIR.join("komorebi.json"),
+                };
+
+                let (findings, wants) = komorebi_client::check::check_configuration(&static_config);
+                place.extend(findings);
+                report.push("Configuration", place);
+
+                report.push("Key bindings", hotkeys::check(&HOME_DIR));
+
+                if !args.configuration_only {
+                    report.push(
+                        "The desktop",
+                        komorebi_client::check::check_environment(&wants),
+                    );
+                }
+
+                print!("{}", report.render());
+
+                if report.has_errors() {
+                    std::process::exit(1);
                 }
             }
-
-            if !running {
-                println!("\nRunning komorebi directly for detailed error output\n");
-                let mut command = Command::new("komorebi");
+            KdeCommands::Start(args) => {
+                let mut command = &mut Command::new("komorebi");
 
                 if let Some(config) = &args.config {
-                    command.args(["--config", &config.display().to_string()]);
+                    command = command.args(["--config", &config.display().to_string()])
+                };
+
+                command = command
+                    .args(&args.komorebi_args)
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .stdin(Stdio::null());
+
+                let mut system = sysinfo::System::new_all()?;
+                system.refresh_processes(ProcessesToUpdate::All, true);
+
+                let mut attempts = 0;
+                let mut running = system
+                    .processes_by_exact_name("komorebi".as_ref())
+                    .next()
+                    .is_some();
+
+                while !running && attempts <= 2 {
+                    command.spawn()?;
+
+                    print!("Waiting for komorebi to start... ");
+                    std::io::stdout().flush()?;
+                    std::thread::sleep(Duration::from_secs(3));
+
+                    system.refresh_processes(ProcessesToUpdate::All, true);
+
+                    if system
+                        .processes_by_exact_name("komorebi".as_ref())
+                        .next()
+                        .is_some()
+                    {
+                        println!("Started!");
+                        running = true;
+                    } else {
+                        println!("komorebi did not start... Trying again");
+                        attempts += 1;
+                    }
                 }
 
-                if let Ok(output) = command.args(&args.komorebi_args).output() {
-                    println!("{}", String::from_utf8(output.stderr)?);
+                if !running {
+                    println!("\nRunning komorebi directly for detailed error output\n");
+                    let mut command = Command::new("komorebi");
+
+                    if let Some(config) = &args.config {
+                        command.args(["--config", &config.display().to_string()]);
+                    }
+
+                    if let Ok(output) = command.args(&args.komorebi_args).output() {
+                        println!("{}", String::from_utf8(output.stderr)?);
+                    }
                 }
             }
-        }
-        SubCommand::Stop(args) => {
-            if args.ignore_restore {
-                send_message(&SocketMessage::StopIgnoreRestore)?;
-            } else {
-                send_message(&SocketMessage::Stop)?;
+            KdeCommands::Stop(args) => {
+                if args.ignore_restore {
+                    send_message(&SocketMessage::StopIgnoreRestore)?;
+                } else {
+                    send_message(&SocketMessage::Stop)?;
+                }
             }
-        }
-        SubCommand::Configuration => {
-            let static_config = HOME_DIR.join("komorebi.json");
+            KdeCommands::Configuration => {
+                let static_config = HOME_DIR.join("komorebi.json");
 
-            if static_config.exists() {
-                println!("{}", static_config.display());
+                if static_config.exists() {
+                    println!("{}", static_config.display());
+                }
             }
-        }
-        SubCommand::DataDirectory => {
-            let dir = &*komorebi_client::DATA_DIR;
-            if dir.exists() {
-                println!("{}", dir.display());
+            KdeCommands::DataDirectory => {
+                let dir = &*komorebi_client::DATA_DIR;
+                if dir.exists() {
+                    println!("{}", dir.display());
+                }
             }
-        }
-        SubCommand::Log => {
-            let timestamp = Utc::now().format("%Y-%m-%d").to_string();
-            let color_log = komorebi_client::LOG_DIR.join(format!("komorebi.log.{timestamp}"));
-            let file = TailedFile::new(File::open(color_log)?);
-            let locked = file.lock();
-            #[allow(clippy::significant_drop_in_scrutinee, clippy::lines_filter_map_ok)]
-            for line in locked.lines().flatten() {
-                println!("{line}");
+            KdeCommands::Log => {
+                let timestamp = Utc::now().format("%Y-%m-%d").to_string();
+                let color_log = komorebi_client::LOG_DIR.join(format!("komorebi.log.{timestamp}"));
+                let file = TailedFile::new(File::open(color_log)?);
+                let locked = file.lock();
+                #[allow(clippy::significant_drop_in_scrutinee, clippy::lines_filter_map_ok)]
+                for line in locked.lines().flatten() {
+                    println!("{line}");
+                }
             }
-        }
-        SubCommand::Focus(args) => {
-            send_message(&SocketMessage::FocusWindow(args.value))?;
-        }
-        SubCommand::Move(args) => {
-            send_message(&SocketMessage::MoveWindow(args.value))?;
-        }
-        SubCommand::PreselectDirection(args) => {
-            send_message(&SocketMessage::PreselectDirection(args.value))?;
-        }
-        SubCommand::CancelPreselect => {
-            send_message(&SocketMessage::CancelPreselect)?;
-        }
-        SubCommand::CycleFocus(args) => {
-            send_message(&SocketMessage::CycleFocusWindow(args.value))?;
-        }
-        SubCommand::CycleMove(args) => {
-            send_message(&SocketMessage::CycleMoveWindow(args.value))?;
-        }
-        SubCommand::TogglePause => {
-            send_message(&SocketMessage::TogglePause)?;
-        }
-        SubCommand::ChangeLayout(args) => {
-            send_message(&SocketMessage::ChangeLayout(args.value))?;
-        }
-        SubCommand::CycleLayout(args) => {
-            send_message(&SocketMessage::CycleLayout(args.value))?;
-        }
-        SubCommand::FlipLayout(args) => {
-            send_message(&SocketMessage::FlipLayout(args.value))?;
-        }
-        SubCommand::Stack(args) => {
-            send_message(&SocketMessage::StackWindow(args.value))?;
-        }
-        SubCommand::StackAll => {
-            send_message(&SocketMessage::StackAll)?;
-        }
-        SubCommand::Unstack => {
-            send_message(&SocketMessage::UnstackWindow)?;
-        }
-        SubCommand::UnstackAll => {
-            send_message(&SocketMessage::UnstackAll)?;
-        }
-        SubCommand::FocusStackWindow(args) => {
-            send_message(&SocketMessage::FocusStackWindow(args.target))?;
-        }
-        SubCommand::CycleStack(args) => {
-            send_message(&SocketMessage::CycleStack(args.value))?;
-        }
-        SubCommand::CycleStackIndex(args) => {
-            send_message(&SocketMessage::CycleStackIndex(args.value))?;
-        }
-        SubCommand::FocusWorkspace(args) => {
-            send_message(&SocketMessage::FocusWorkspaceNumber(args.target))?;
-        }
-        SubCommand::ToggleCrossMonitorMoveBehaviour => {
-            send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour)?;
-        }
-        SubCommand::ToggleMonocleFocusBehaviour => {
-            send_message(&SocketMessage::ToggleMonocleFocusBehaviour)?;
-        }
-        SubCommand::FocusMonitor(args) => {
-            send_message(&SocketMessage::FocusMonitorNumber(args.target))?;
-        }
-        SubCommand::FocusMonitorAtCursor => {
-            send_message(&SocketMessage::FocusMonitorAtCursor)?;
-        }
-        SubCommand::FocusLastWorkspace => {
-            send_message(&SocketMessage::FocusLastWorkspace)?;
-        }
-        SubCommand::FocusWorkspaces(args) => {
-            send_message(&SocketMessage::FocusWorkspaceNumbers(args.target))?;
-        }
-        SubCommand::FocusMonitorWorkspace(args) => {
-            send_message(&SocketMessage::FocusMonitorWorkspaceNumber(
-                args.target_monitor,
-                args.target_workspace,
-            ))?;
-        }
-        SubCommand::FocusNamedWorkspace(args) => {
-            send_message(&SocketMessage::FocusNamedWorkspace(args.workspace))?;
-        }
-        SubCommand::CloseWorkspace => {
-            send_message(&SocketMessage::CloseWorkspace)?;
-        }
-        SubCommand::CycleMonitor(args) => {
-            send_message(&SocketMessage::CycleFocusMonitor(args.value))?;
-        }
-        SubCommand::CycleWorkspace(args) => {
-            send_message(&SocketMessage::CycleFocusWorkspace(args.value))?;
-        }
-        SubCommand::CycleEmptyWorkspace(args) => {
-            send_message(&SocketMessage::CycleFocusEmptyWorkspace(args.value))?;
-        }
-        SubCommand::ToggleMonocle => {
-            send_message(&SocketMessage::ToggleMonocle)?;
-        }
-        SubCommand::ToggleMaximize => {
-            send_message(&SocketMessage::ToggleMaximize)?;
-        }
-        SubCommand::ToggleFloat => {
-            send_message(&SocketMessage::ToggleFloat)?;
-        }
-        SubCommand::ToggleWorkspaceLayer => {
-            send_message(&SocketMessage::ToggleWorkspaceLayer)?;
-        }
-        SubCommand::ResizeEdge(args) => {
-            send_message(&SocketMessage::ResizeWindowEdge(args.edge, args.sizing))?;
-        }
-        SubCommand::ResizeAxis(args) => {
-            send_message(&SocketMessage::ResizeWindowAxis(args.axis, args.sizing))?;
-        }
-        SubCommand::MoveToMonitor(args) => {
-            send_message(&SocketMessage::MoveContainerToMonitorNumber(args.target))?;
-        }
-        SubCommand::CycleMoveToMonitor(args) => {
-            send_message(&SocketMessage::CycleMoveContainerToMonitor(args.value))?;
-        }
-        SubCommand::MoveToWorkspace(args) => {
-            send_message(&SocketMessage::MoveContainerToWorkspaceNumber(args.target))?;
-        }
-        SubCommand::MoveToNamedWorkspace(args) => {
-            send_message(&SocketMessage::MoveContainerToNamedWorkspace(
-                args.workspace,
-            ))?;
-        }
-        SubCommand::CycleMoveToWorkspace(args) => {
-            send_message(&SocketMessage::CycleMoveContainerToWorkspace(args.value))?;
-        }
-        SubCommand::SendToMonitor(args) => {
-            send_message(&SocketMessage::SendContainerToMonitorNumber(args.target))?;
-        }
-        SubCommand::CycleSendToMonitor(args) => {
-            send_message(&SocketMessage::CycleSendContainerToMonitor(args.value))?;
-        }
-        SubCommand::SendToWorkspace(args) => {
-            send_message(&SocketMessage::SendContainerToWorkspaceNumber(args.target))?;
-        }
-        SubCommand::SendToNamedWorkspace(args) => {
-            send_message(&SocketMessage::SendContainerToNamedWorkspace(
-                args.workspace,
-            ))?;
-        }
-        SubCommand::CycleSendToWorkspace(args) => {
-            send_message(&SocketMessage::CycleSendContainerToWorkspace(args.value))?;
-        }
-        SubCommand::SendToMonitorWorkspace(args) => {
-            send_message(&SocketMessage::SendContainerToMonitorWorkspaceNumber(
-                args.target_monitor,
-                args.target_workspace,
-            ))?;
-        }
-        SubCommand::MoveToMonitorWorkspace(args) => {
-            send_message(&SocketMessage::MoveContainerToMonitorWorkspaceNumber(
-                args.target_monitor,
-                args.target_workspace,
-            ))?;
-        }
-        SubCommand::MoveWorkspaceToMonitor(args) => {
-            send_message(&SocketMessage::MoveWorkspaceToMonitorNumber(args.target))?;
-        }
-        SubCommand::CycleMoveWorkspaceToMonitor(args) => {
-            send_message(&SocketMessage::CycleMoveWorkspaceToMonitor(args.value))?;
-        }
-        SubCommand::MoveToLastWorkspace => {
-            send_message(&SocketMessage::MoveContainerToLastWorkspace)?;
-        }
-        SubCommand::SendToLastWorkspace => {
-            send_message(&SocketMessage::SendContainerToLastWorkspace)?;
-        }
-        SubCommand::SwapWorkspacesWithMonitor(args) => {
-            send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(args.target))?;
-        }
-        SubCommand::Retile => {
-            send_message(&SocketMessage::Retile)?;
-        }
-        SubCommand::Close => {
-            send_message(&SocketMessage::Close)?;
-        }
-        SubCommand::Minimize => {
-            send_message(&SocketMessage::Minimize)?;
-        }
-        SubCommand::Manage => {
-            send_message(&SocketMessage::ManageFocusedWindow)?;
-        }
-        SubCommand::Unmanage => {
-            send_message(&SocketMessage::UnmanageFocusedWindow)?;
-        }
-        SubCommand::Promote => {
-            send_message(&SocketMessage::Promote)?;
-        }
-        SubCommand::PromoteSwap => {
-            send_message(&SocketMessage::PromoteSwap)?;
-        }
-        SubCommand::PromoteFocus => {
-            send_message(&SocketMessage::PromoteFocus)?;
-        }
-        SubCommand::PromoteWindow(args) => {
-            send_message(&SocketMessage::PromoteWindow(args.value))?;
-        }
-        SubCommand::ToggleWindowBasedWorkAreaOffset => {
-            send_message(&SocketMessage::ToggleWindowBasedWorkAreaOffset)?;
-        }
-        SubCommand::ToggleWindowContainerBehaviour => {
-            send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
-        }
-        SubCommand::ToggleFloatOverride => {
-            send_message(&SocketMessage::ToggleFloatOverride)?;
-        }
-        SubCommand::ToggleWorkspaceWindowContainerBehaviour => {
-            send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
-        }
-        SubCommand::ToggleWorkspaceFloatOverride => {
-            send_message(&SocketMessage::ToggleWorkspaceFloatOverride)?;
-        }
-        SubCommand::ToggleTiling => {
-            send_message(&SocketMessage::ToggleTiling)?;
-        }
-        SubCommand::ToggleLock => {
-            send_message(&SocketMessage::ToggleLock)?;
-        }
-        SubCommand::State => {
-            print_query(&SocketMessage::State);
-        }
-        SubCommand::GlobalState => {
-            print_query(&SocketMessage::GlobalState);
-        }
-        SubCommand::Query(args) => {
-            print_query(&SocketMessage::Query(args.value));
-        }
-        SubCommand::VisibleWindows => {
-            print_query(&SocketMessage::VisibleWindows);
-        }
-        SubCommand::MonitorInformation => {
-            print_query(&SocketMessage::MonitorInformation);
-        }
-        SubCommand::SessionFloatRule => {
-            send_message(&SocketMessage::SessionFloatRule)?;
-        }
-        SubCommand::SessionFloatRules => {
-            print_query(&SocketMessage::SessionFloatRules);
-        }
-        SubCommand::ClearSessionFloatRules => {
-            send_message(&SocketMessage::ClearSessionFloatRules)?;
-        }
-        SubCommand::IgnoreRule(args) => {
-            send_message(&SocketMessage::IgnoreRule(args.identifier, args.id))?;
-        }
-        SubCommand::ManageRule(args) => {
-            send_message(&SocketMessage::ManageRule(args.identifier, args.id))?;
-        }
-        SubCommand::InitialWorkspaceRule(args) => {
-            send_message(&SocketMessage::InitialWorkspaceRule(
-                args.identifier,
-                args.id,
-                args.monitor,
-                args.workspace,
-            ))?;
-        }
-        SubCommand::InitialNamedWorkspaceRule(args) => {
-            send_message(&SocketMessage::InitialNamedWorkspaceRule(
-                args.identifier,
-                args.id,
-                args.workspace,
-            ))?;
-        }
-        SubCommand::WorkspaceRule(args) => {
-            send_message(&SocketMessage::WorkspaceRule(
-                args.identifier,
-                args.id,
-                args.monitor,
-                args.workspace,
-            ))?;
-        }
-        SubCommand::NamedWorkspaceRule(args) => {
-            send_message(&SocketMessage::NamedWorkspaceRule(
-                args.identifier,
-                args.id,
-                args.workspace,
-            ))?;
-        }
-        SubCommand::ClearWorkspaceRules(args) => {
-            send_message(&SocketMessage::ClearWorkspaceRules(
-                args.monitor,
-                args.workspace,
-            ))?;
-        }
-        SubCommand::ClearNamedWorkspaceRules(args) => {
-            send_message(&SocketMessage::ClearNamedWorkspaceRules(args.workspace))?;
-        }
-        SubCommand::ClearAllWorkspaceRules => {
-            send_message(&SocketMessage::ClearAllWorkspaceRules)?;
-        }
-        SubCommand::EnforceWorkspaceRules => {
-            send_message(&SocketMessage::EnforceWorkspaceRules)?;
-        }
-        SubCommand::EagerFocus(args) => {
-            send_message(&SocketMessage::EagerFocus(args.exe))?;
-        }
-        SubCommand::NewWorkspace => {
-            send_message(&SocketMessage::NewWorkspace)?;
-        }
-        SubCommand::WorkspaceName(name) => {
-            send_message(&SocketMessage::WorkspaceName(
-                name.target.monitor,
-                name.target.workspace,
-                name.value,
-            ))?;
-        }
-        SubCommand::ResizeDelta(args) => {
-            send_message(&SocketMessage::ResizeDelta(args.pixels))?;
-        }
-        SubCommand::MonitorWorkAreaOffset(args) => {
-            send_message(&SocketMessage::MonitorWorkAreaOffset(
-                args.monitor,
-                Rect {
-                    left: args.left,
-                    top: args.top,
-                    right: args.right,
-                    bottom: args.bottom,
-                },
-            ))?;
-        }
-        SubCommand::GlobalWorkAreaOffset(args) => {
-            send_message(&SocketMessage::WorkAreaOffset(Rect {
-                left: args.left,
-                top: args.top,
-                right: args.right,
-                bottom: args.bottom,
-            }))?;
-        }
-
-        SubCommand::WorkspaceWorkAreaOffset(args) => {
-            send_message(&SocketMessage::WorkspaceWorkAreaOffset(
-                args.monitor,
-                args.workspace,
-                Rect {
-                    left: args.left,
-                    top: args.top,
-                    right: args.right,
-                    bottom: args.bottom,
-                },
-            ))?;
-        }
-        SubCommand::ContainerPadding(args) => {
-            send_message(&SocketMessage::ContainerPadding(
-                args.target.monitor,
-                args.target.workspace,
-                args.size,
-            ))?;
-        }
-        SubCommand::NamedWorkspaceContainerPadding(args) => {
-            send_message(&SocketMessage::NamedWorkspaceContainerPadding(
-                args.target.workspace,
-                args.size,
-            ))?;
-        }
-        SubCommand::WorkspacePadding(args) => {
-            send_message(&SocketMessage::WorkspacePadding(
-                args.target.monitor,
-                args.target.workspace,
-                args.size,
-            ))?;
-        }
-        SubCommand::NamedWorkspacePadding(args) => {
-            send_message(&SocketMessage::NamedWorkspacePadding(
-                args.target.workspace,
-                args.size,
-            ))?;
-        }
-        SubCommand::FocusedWorkspacePadding(args) => {
-            send_message(&SocketMessage::FocusedWorkspacePadding(args.size))?;
-        }
-        SubCommand::FocusedWorkspaceContainerPadding(args) => {
-            send_message(&SocketMessage::FocusedWorkspaceContainerPadding(args.size))?;
-        }
-        SubCommand::AdjustWorkspacePadding(args) => {
-            send_message(&SocketMessage::AdjustWorkspacePadding(
-                args.sizing,
-                args.adjustment,
-            ))?;
-        }
-        SubCommand::AdjustContainerPadding(args) => {
-            send_message(&SocketMessage::AdjustContainerPadding(
-                args.sizing,
-                args.adjustment,
-            ))?;
-        }
-        SubCommand::WorkspaceLayout(args) => {
-            send_message(&SocketMessage::WorkspaceLayout(
-                args.target.monitor,
-                args.target.workspace,
-                args.value,
-            ))?;
-        }
-        SubCommand::NamedWorkspaceLayout(args) => {
-            send_message(&SocketMessage::NamedWorkspaceLayout(
-                args.target.workspace,
-                args.value,
-            ))?;
-        }
-
-        SubCommand::WorkspaceTiling(args) => {
-            send_message(&SocketMessage::WorkspaceTiling(
-                args.target.monitor,
-                args.target.workspace,
-                args.value.into(),
-            ))?;
-        }
-        SubCommand::NamedWorkspaceTiling(args) => {
-            send_message(&SocketMessage::NamedWorkspaceTiling(
-                args.target.workspace,
-                args.value.into(),
-            ))?;
-        }
-        SubCommand::ScrollingLayoutColumns(args) => {
-            send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
-        }
-        SubCommand::ScrollingLayoutFullWidth => {
-            send_message(&SocketMessage::ScrollingLayoutFullWidth)?;
-        }
-        SubCommand::CenterFocus => {
-            send_message(&SocketMessage::CenterFocus)?;
-        }
-        SubCommand::Expand => {
-            send_message(&SocketMessage::Expand)?;
-        }
-        SubCommand::Consume(args) => {
-            send_message(&SocketMessage::Consume(args.value))?;
-        }
-        SubCommand::Expel => {
-            send_message(&SocketMessage::Expel)?;
-        }
-        SubCommand::ToggleColumnStack => {
-            send_message(&SocketMessage::ToggleColumnStack)?;
-        }
-        SubCommand::Pan(args) => {
-            send_message(&SocketMessage::Pan(args.direction))?;
-        }
-        SubCommand::LayoutRatios(args) => {
-            if args.columns.is_none() && args.rows.is_none() {
-                println!(
-                    "No ratios provided, nothing to change. Use --columns or --rows to specify ratios."
-                );
-            } else {
-                send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
+            KdeCommands::ToggleMonocleFocusBehaviour => {
+                send_message(&SocketMessage::ToggleMonocleFocusBehaviour)?;
             }
-        }
-        SubCommand::ClearWorkspaceLayoutRules(args) => {
-            send_message(&SocketMessage::ClearWorkspaceLayoutRules(
-                args.monitor,
-                args.workspace,
-            ))?;
-        }
-        SubCommand::ClearNamedWorkspaceLayoutRules(args) => {
-            send_message(&SocketMessage::ClearNamedWorkspaceLayoutRules(
-                args.workspace,
-            ))?;
-        }
-        SubCommand::CrossMonitorMoveBehaviour(args) => {
-            send_message(&SocketMessage::CrossMonitorMoveBehaviour(args.value))?;
-        }
-        SubCommand::DisplayIndexPreference(args) => {
-            send_message(&SocketMessage::DisplayIndexPreference(
-                args.index_preference,
-                args.display,
-            ))?;
-        }
-        SubCommand::EnsureWorkspaces(workspaces) => {
-            send_message(&SocketMessage::EnsureWorkspaces(
-                workspaces.monitor,
-                workspaces.workspace_count,
-            ))?;
-        }
-        SubCommand::EnsureNamedWorkspaces(args) => {
-            send_message(&SocketMessage::EnsureNamedWorkspaces(
-                args.monitor,
-                args.names,
-            ))?;
-        }
-        SubCommand::WorkspaceLayoutRule(args) => {
-            send_message(&SocketMessage::WorkspaceLayoutRule(
-                args.monitor,
-                args.workspace,
-                args.at_container_count,
-                args.layout,
-            ))?;
-        }
-        SubCommand::NamedWorkspaceLayoutRule(args) => {
-            send_message(&SocketMessage::NamedWorkspaceLayoutRule(
-                args.workspace,
-                args.at_container_count,
-                args.layout,
-            ))?;
-        }
-        SubCommand::MonocleFocusBehaviour(args) => {
-            send_message(&SocketMessage::MonocleFocusBehaviour(args.behaviour))?;
-        }
-        SubCommand::UnmanagedWindowOperationBehaviour(args) => {
-            send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
-                args.value,
-            ))?;
-        }
-        SubCommand::ToggleMouseFollowsFocus => {
-            send_message(&SocketMessage::ToggleMouseFollowsFocus)?;
-        }
-        SubCommand::MouseFollowsFocus(args) => {
-            send_message(&SocketMessage::MouseFollowsFocus(args.value.into()))?;
-        }
-        SubCommand::ApplicationSpecificConfigurationSchema => {
-            #[cfg(feature = "schemars")]
-            {
-                let asc = schemars::schema_for!(komorebi_client::ApplicationSpecificConfiguration);
-                let schema = serde_json::to_string_pretty(&asc)?;
-                println!("{schema}");
+            KdeCommands::ToggleMaximize => {
+                send_message(&SocketMessage::ToggleMaximize)?;
             }
-        }
-        SubCommand::NotificationSchema => {
-            #[cfg(feature = "schemars")]
-            {
-                let notification = schemars::schema_for!(komorebi_client::Notification);
-                let schema = serde_json::to_string_pretty(&notification)?;
-                println!("{schema}");
+            KdeCommands::Retile => {
+                send_message(&SocketMessage::Retile)?;
             }
-        }
-        SubCommand::SocketSchema => {
-            #[cfg(feature = "schemars")]
-            {
-                let socket_message = schemars::schema_for!(SocketMessage);
-                let schema = serde_json::to_string_pretty(&socket_message)?;
-                println!("{schema}");
+            KdeCommands::PromoteFocus => {
+                send_message(&SocketMessage::PromoteFocus)?;
             }
-        }
-        SubCommand::StaticConfigSchema => {
-            #[cfg(feature = "schemars")]
-            {
-                let socket_message = schemars::schema_for!(komorebi_client::StaticConfig);
-                let schema = serde_json::to_string_pretty(&socket_message)?;
-                println!("{schema}");
+            KdeCommands::ToggleWindowContainerBehaviour => {
+                send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
             }
-        }
-        SubCommand::SubscribeSocket(args) => {
-            send_message(&SocketMessage::AddSubscriberSocket(args.socket))?;
-        }
-        SubCommand::UnsubscribeSocket(args) => {
-            send_message(&SocketMessage::RemoveSubscriberSocket(args.socket))?;
-        }
-        SubCommand::GenerateStaticConfig => {
-            print_query(&SocketMessage::GenerateStaticConfig);
-        }
-        SubCommand::ReplaceConfiguration(args) => {
-            send_message(&SocketMessage::ReplaceConfiguration(args.path))?;
-        }
-        SubCommand::QuickSaveResize => {
-            send_message(&SocketMessage::QuickSave)?;
-        }
-        SubCommand::QuickLoadResize => {
-            send_message(&SocketMessage::QuickLoad)?;
-        }
-        SubCommand::SaveResize(args) => {
-            send_message(&SocketMessage::Save(args.path))?;
-        }
-        SubCommand::LoadResize(args) => {
-            send_message(&SocketMessage::Load(args.path))?;
-        }
-        SubCommand::Border(args) => {
-            send_message(&SocketMessage::Border(args.boolean_state.into()))?;
-        }
-        SubCommand::BorderColour(args) => {
-            send_message(&SocketMessage::BorderColour(
-                args.window_kind,
-                args.r,
-                args.g,
-                args.b,
-            ))?;
-        }
-        SubCommand::BorderWidth(args) => {
-            send_message(&SocketMessage::BorderWidth(args.width))?;
-        }
-        SubCommand::BorderOffset(args) => {
-            send_message(&SocketMessage::BorderOffset(args.offset))?;
-        }
-        SubCommand::Transparency(args) => {
-            send_message(&SocketMessage::Transparency(args.value.into()))?;
-        }
-        SubCommand::TransparencyAlpha(args) => {
-            send_message(&SocketMessage::TransparencyAlpha(args.alpha))?;
-        }
-        SubCommand::ToggleTransparency => {
-            send_message(&SocketMessage::ToggleTransparency)?;
-        }
-        SubCommand::FocusFollowsMouse(args) => {
-            send_message(&SocketMessage::FocusFollowsMouse(
-                args.implementation,
-                args.boolean_state.into(),
-            ))?;
-        }
-        SubCommand::ToggleFocusFollowsMouse(args) => {
-            send_message(&SocketMessage::ToggleFocusFollowsMouse(args.implementation))?;
-        }
-        SubCommand::Animation(args) => {
-            send_message(&SocketMessage::Animation(
-                args.boolean_state.into(),
-                args.animation_type,
-            ))?;
-        }
-        SubCommand::AnimationDuration(args) => {
-            send_message(&SocketMessage::AnimationDuration(
-                args.duration,
-                args.animation_type,
-            ))?;
-        }
-        SubCommand::AnimationFps(args) => {
-            send_message(&SocketMessage::AnimationFps(args.fps))?;
-        }
-        SubCommand::AnimationStyle(args) => {
-            send_message(&SocketMessage::AnimationStyle(
-                args.style,
-                args.animation_type,
-            ))?;
-        }
+            KdeCommands::ToggleWorkspaceWindowContainerBehaviour => {
+                send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
+            }
+            KdeCommands::EagerFocus(args) => {
+                send_message(&SocketMessage::EagerFocus(args.exe))?;
+            }
+            KdeCommands::ScrollingLayoutColumns(args) => {
+                send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
+            }
+            KdeCommands::ScrollingLayoutFullWidth => {
+                send_message(&SocketMessage::ScrollingLayoutFullWidth)?;
+            }
+            KdeCommands::CenterFocus => {
+                send_message(&SocketMessage::CenterFocus)?;
+            }
+            KdeCommands::Consume(args) => {
+                send_message(&SocketMessage::Consume(args.value))?;
+            }
+            KdeCommands::Expel => {
+                send_message(&SocketMessage::Expel)?;
+            }
+            KdeCommands::ToggleColumnStack => {
+                send_message(&SocketMessage::ToggleColumnStack)?;
+            }
+            KdeCommands::Pan(args) => {
+                send_message(&SocketMessage::Pan(args.direction))?;
+            }
+            KdeCommands::LayoutRatios(args) => {
+                if args.columns.is_none() && args.rows.is_none() {
+                    println!(
+                        "No ratios provided, nothing to change. Use --columns or --rows to specify ratios."
+                    );
+                } else {
+                    send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
+                }
+            }
+            KdeCommands::MonocleFocusBehaviour(args) => {
+                send_message(&SocketMessage::MonocleFocusBehaviour(args.behaviour))?;
+            }
+            KdeCommands::UnmanagedWindowOperationBehaviour(args) => {
+                send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
+                    args.value,
+                ))?;
+            }
+            KdeCommands::ApplicationSpecificConfigurationSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let asc =
+                        schemars::schema_for!(komorebi_client::ApplicationSpecificConfiguration);
+                    let schema = serde_json::to_string_pretty(&asc)?;
+                    println!("{schema}");
+                }
+            }
+            KdeCommands::NotificationSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let notification = schemars::schema_for!(komorebi_client::Notification);
+                    let schema = serde_json::to_string_pretty(&notification)?;
+                    println!("{schema}");
+                }
+            }
+            KdeCommands::SocketSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let socket_message = schemars::schema_for!(SocketMessage);
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
+                    println!("{schema}");
+                }
+            }
+            KdeCommands::StaticConfigSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let socket_message = schemars::schema_for!(komorebi_client::StaticConfig);
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
+                    println!("{schema}");
+                }
+            }
+            KdeCommands::GenerateStaticConfig => {
+                print_query(&SocketMessage::GenerateStaticConfig);
+            }
+            KdeCommands::BorderColour(args) => {
+                send_message(&SocketMessage::BorderColour(
+                    args.window_kind,
+                    args.r,
+                    args.g,
+                    args.b,
+                ))?;
+            }
+            KdeCommands::Transparency(args) => {
+                send_message(&SocketMessage::Transparency(args.value.into()))?;
+            }
+            KdeCommands::TransparencyAlpha(args) => {
+                send_message(&SocketMessage::TransparencyAlpha(args.alpha))?;
+            }
+            KdeCommands::ToggleTransparency => {
+                send_message(&SocketMessage::ToggleTransparency)?;
+            }
+            KdeCommands::FocusFollowsMouse(args) => {
+                send_message(&SocketMessage::FocusFollowsMouse(
+                    args.implementation,
+                    args.boolean_state.into(),
+                ))?;
+            }
+            KdeCommands::ToggleFocusFollowsMouse(args) => {
+                send_message(&SocketMessage::ToggleFocusFollowsMouse(args.implementation))?;
+            }
+            KdeCommands::Animation(args) => {
+                send_message(&SocketMessage::Animation(
+                    args.boolean_state.into(),
+                    args.animation_type,
+                ))?;
+            }
+            KdeCommands::AnimationDuration(args) => {
+                send_message(&SocketMessage::AnimationDuration(
+                    args.duration,
+                    args.animation_type,
+                ))?;
+            }
+            KdeCommands::AnimationStyle(args) => {
+                send_message(&SocketMessage::AnimationStyle(
+                    args.style,
+                    args.animation_type,
+                ))?;
+            }
+        },
     }
 
     Ok(())
