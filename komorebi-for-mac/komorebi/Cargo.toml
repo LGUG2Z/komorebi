@@ -138,7 +138,3 @@ schemars = ["dep:schemars", "komorebi-collections/schemars", "komorebi-core/sche
 
 [lib]
 name = "komorebi"
-
-[[bin]]
-name = "komorebi"
-path = "src/main.rs"

@@ -86,7 +86,7 @@ jsonschema:
     cargo run --package komorebic -- application-specific-configuration-schema > schema.asc.json
     cargo run --package komorebi-bar -- --schema > schema.bar.json
 
-version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "komorebi-windows") | .version'`
+version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "komorebi") | .version'`
 
 schemapub:
     rm -Force komorebi-schema

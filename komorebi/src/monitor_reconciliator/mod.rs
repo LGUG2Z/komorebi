@@ -277,6 +277,7 @@ where
         // Keep reference to Arc for potential re-locking
         let wm_arc = Arc::clone(&wm);
         let mut wm = wm.lock();
+        let _held = crate::lock_holder::held("monitor reconciliator");
 
         let initial_state = State::from(wm.as_ref());
 

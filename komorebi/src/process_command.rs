@@ -20,6 +20,7 @@ use std::net::TcpStream;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::sync::atomic::AtomicI8;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use uds_windows::UnixListener;
@@ -85,7 +86,6 @@ use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
 use crate::stackbar_manager::STACKBAR_FONT_SIZE;
-use crate::state;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
@@ -128,6 +128,10 @@ impl ConnectionPolicy<UnixStream> for WindowsConnectionPolicy {
         }
     }
 
+    fn lock_holder(&self) -> Option<String> {
+        crate::lock_holder::describe()
+    }
+
     fn on_message(&self, message: &SocketMessage, stream: &UnixStream) {
         // the fingers of a gesture can be still for longer than a command is waited for, and
         // what they do next is told on this connection: it is closed when they have lifted
@@ -137,7 +141,86 @@ impl ConnectionPolicy<UnixStream> for WindowsConnectionPolicy {
         ) {
             let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
         }
+
+        // looked for here, before the window manager is locked for the message: a process scan
+        // under the lock held every other thread for seconds (see `replace_configuration`)
+        if matches!(message, SocketMessage::ReplaceConfiguration(_)) {
+            BAR_RUNNING.store(i8::from(komorebi_bar_is_running()), Ordering::SeqCst);
+        }
     }
+}
+
+/// Whether komorebi-bar.exe was running when a `ReplaceConfiguration` was read, for the handler
+/// of that message to take: -1 when it was not looked for
+static BAR_RUNNING: AtomicI8 = AtomicI8::new(-1);
+
+/// Stops the running komorebi-bar processes and starts them again from the configuration. Runs on
+/// a thread of its own: PowerShell takes seconds, which must not be spent with the window manager
+/// locked.
+#[allow(clippy::ptr_arg)] // StaticConfig::read takes a &PathBuf
+fn restart_bars(config: &std::path::PathBuf) -> eyre::Result<()> {
+    let script = r"
+Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
+    ";
+    match powershell_script::run(script) {
+        Ok(_) => {
+            println!("{script}");
+
+            // start new bar(s)
+            let mut config = StaticConfig::read(config)?;
+            if let Some(display_bar_configurations) = &mut config.bar_configurations {
+                for config_file_path in &mut *display_bar_configurations {
+                    let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
+                                .replace("CONFIGFILE", &config_file_path.to_string_lossy());
+
+                    match powershell_script::run(&script) {
+                        Ok(_) => {
+                            println!("{script}");
+                        }
+                        Err(error) => {
+                            println!("Error: {error}");
+                        }
+                    }
+                }
+            } else {
+                let script = r"
+if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebi-bar -WindowStyle hidden
+}
+    ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+        }
+        Err(error) => {
+            println!("Error: {error}");
+        }
+    }
+    Ok(())
+}
+
+/// Whether a komorebi-bar.exe process is running. Only the names of the processes are read:
+/// `System::new_all` also opens the performance counters and reads the command line, the
+/// environment and the owner of every process, which is the slow part.
+fn komorebi_bar_is_running() -> bool {
+    let mut system = sysinfo::System::new();
+    system.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::All,
+        true,
+        sysinfo::ProcessRefreshKind::nothing(),
+    );
+
+    system
+        .processes_by_name("komorebi-bar.exe".as_ref())
+        .next()
+        .is_some()
 }
 
 /// What the generic command listener needs of the window manager
@@ -221,6 +304,8 @@ impl WindowManager {
         message: SocketMessage,
         mut reply: impl std::io::Write,
     ) -> eyre::Result<()> {
+        let _held = crate::lock_holder::held(format!("command {message}"));
+        let command_started = std::time::Instant::now();
         if let Some(virtual_desktop_id) = &self.virtual_desktop_id
             && let Some(id) = current_virtual_desktop()
             && id != *virtual_desktop_id
@@ -515,10 +600,8 @@ impl WindowManager {
             }
             SocketMessage::SessionFloatRules => {
                 let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
-                let rules = match serde_json::to_string_pretty(&*session_floating_applications) {
-                    Ok(rules) => rules,
-                    Err(error) => error.to_string(),
-                };
+                let rules = serde_json::to_string_pretty(&*session_floating_applications)
+                    .unwrap_or_else(|error| error.to_string());
 
                 reply.write_all(rules.as_bytes())?;
             }
@@ -953,7 +1036,7 @@ impl WindowManager {
                 self.set_workspace_name(monitor_idx, workspace_idx, name.to_string())?;
             }
             SocketMessage::State => {
-                let state = match serde_json::to_string_pretty(&state::State::from(&*self)) {
+                let state = match serde_json::to_string_pretty(&State::from(&*self)) {
                     Ok(state) => state,
                     Err(error) => error.to_string(),
                 };
@@ -1458,7 +1541,9 @@ impl WindowManager {
         };
 
         // Update list of known_hwnds and their monitor/workspace index pair
+        let after_command = std::time::Instant::now();
         self.update_known_hwnds();
+        let after_hwnds = std::time::Instant::now();
 
         notify_subscribers(
             Notification {
@@ -1467,6 +1552,12 @@ impl WindowManager {
             },
             initial_state.has_been_modified(self.as_ref()),
         )?;
+        tracing::debug!(
+            "processed `{message}`: command {} ms, known hwnds {} ms, notify subscribers {} ms",
+            after_command.duration_since(command_started).as_millis(),
+            after_hwnds.duration_since(after_command).as_millis(),
+            after_hwnds.elapsed().as_millis()
+        );
 
         if force_update_borders {
             border_manager::send_force_update();
@@ -1572,6 +1663,15 @@ impl WindowManager {
 
     pub fn replace_configuration(&mut self, config: &std::path::PathBuf) -> eyre::Result<bool> {
         let mut force_update_borders = false;
+        let mut last = std::time::Instant::now();
+        let mut lap = |step: &str| {
+            let now = std::time::Instant::now();
+            tracing::info!(
+                "replace-configuration: {step} took {} ms",
+                now.duration_since(last).as_millis()
+            );
+            last = now;
+        };
         // Check that this is a valid static config file first
         if StaticConfig::read(config).is_ok() {
             // Clear workspace rules; these will need to be replaced
@@ -1580,6 +1680,7 @@ impl WindowManager {
             self.is_paused = true;
             // Bring all windows to the foreground
             self.restore_all_windows(false)?;
+            lap("restore all windows");
 
             // Create a new wm from the config path
             let mut wm = StaticConfig::preload(
@@ -1587,75 +1688,42 @@ impl WindowManager {
                 winevent_listener::event_rx(),
                 self.command_listener.try_clone().ok(),
             )?;
+            lap("preload");
 
             // Initialize the new wm
             wm.init()?;
+            lap("init");
 
             wm.restore_all_windows(true)?;
+            lap("restore all windows of the new wm");
 
             // This is equivalent to StaticConfig::postload for this use case
             StaticConfig::reload(config, &mut wm)?;
+            lap("reload");
 
             // Set self to the new wm instance
             *self = wm;
+            lap("swap");
 
             // check if there are any bars
-            let mut system = sysinfo::System::new_all();
-            system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-
-            let has_bar = system
-                .processes_by_name("komorebi-bar.exe".as_ref())
-                .next()
-                .is_some();
+            let has_bar = match BAR_RUNNING.swap(-1, Ordering::SeqCst) {
+                -1 => komorebi_bar_is_running(),
+                running => running == 1,
+            };
+            lap("process scan for komorebi-bar");
 
             // stop bar(s)
             if has_bar {
-                let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-            ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-
-                        // start new bar(s)
-                        let mut config = StaticConfig::read(config)?;
-                        if let Some(display_bar_configurations) = &mut config.bar_configurations {
-                            for config_file_path in &mut *display_bar_configurations {
-                                let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                                        .replace("CONFIGFILE", &config_file_path.to_string_lossy());
-
-                                match powershell_script::run(&script) {
-                                    Ok(_) => {
-                                        println!("{script}");
-                                    }
-                                    Err(error) => {
-                                        println!("Error: {error}");
-                                    }
-                                }
-                            }
-                        } else {
-                            let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
-{
-  Start-Process komorebi-bar -WindowStyle hidden
-}
-            ";
-                            match powershell_script::run(script) {
-                                Ok(_) => {
-                                    println!("{script}");
-                                }
-                                Err(error) => {
-                                    println!("Error: {error}");
-                                }
-                            }
-                        }
-                    }
-                    Err(error) => {
+                // PowerShell takes seconds: not with the window manager locked
+                let config = config.clone();
+                std::thread::spawn(move || {
+                    if let Err(error) = restart_bars(&config) {
                         println!("Error: {error}");
                     }
-                }
+                });
             }
 
+            lap("bar restart");
             force_update_borders = true;
         }
         Ok(force_update_borders)

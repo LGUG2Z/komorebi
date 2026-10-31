@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate komorebi_collections;
 
+pub mod daemon;
 pub mod animation;
 pub mod border_manager;
 pub mod cloaked;
@@ -14,6 +15,7 @@ pub mod focus_manager;
 pub mod live_resize;
 pub use komorebi_collections::Lockable;
 pub use komorebi_collections::lockable_sequence;
+pub mod lock_holder;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod pan;
@@ -388,7 +390,13 @@ pub fn notify_subscribers(
         &options,
         state_has_been_modified || is_override_event,
         &DATA_DIR,
-        |path| UnixStream::connect(path),
+        |path| {
+            let stream = UnixStream::connect(path)?;
+            // a subscriber that does not read must not hold up the writer, which has the
+            // window manager locked
+            stream.set_write_timeout(Some(std::time::Duration::from_secs(1)))?;
+            Ok(stream)
+        },
     )?;
 
     let mut stale_pipes = vec![];

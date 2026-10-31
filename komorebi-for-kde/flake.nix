@@ -97,8 +97,19 @@
                         "komorebi-client/tests"
                       ]
                       || pkgs.lib.hasPrefix "komorebi-client/tests/linux_" relative;
+
+                    # the one komorebi binary package: its manifest, main.rs and tests
+                    komorebiDaemon =
+                      builtins.elem relative [
+                        "komorebi-daemon"
+                        "komorebi-daemon/Cargo.toml"
+                        "komorebi-daemon/src"
+                        "komorebi-daemon/src/main.rs"
+                        "komorebi-daemon/tests"
+                      ]
+                      || pkgs.lib.hasPrefix "komorebi-daemon/tests/linux_" relative;
                   in
-                  ((rootCrate || rootCrateParent || komorebic || komorebiClient) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
+                  ((rootCrate || rootCrateParent || komorebic || komorebiClient || komorebiDaemon) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
                   &&
                     # the VM tests (their library, scripts and the states they keep) are not built, so
                     # editing one does not change the source the daemon is built from
@@ -131,9 +142,10 @@
                   pkgs.lib.hasPrefix "${platformDir}/" member
                   || member == "komorebic"
                   || member == "komorebi-client"
+                  || member == "komorebi-daemon"
                   || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
               };
-              packages = "-p komorebi-linux -p komorebic -p komorebi-client -p komorebi-hotkeys";
+              packages = "-p komorebi -p komorebi-linux -p komorebic -p komorebi-client -p komorebi-hotkeys";
               workspaceArgs = {
                 pname = "komorebi-workspace";
                 version = (builtins.fromTOML (builtins.readFile ./komorebi/Cargo.toml)).package.version;

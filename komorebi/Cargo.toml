@@ -83,7 +83,3 @@ schemars = [
 
 [lib]
 name = "komorebi"
-
-[[bin]]
-name = "komorebi"
-path = "src/main.rs"

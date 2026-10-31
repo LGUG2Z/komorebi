@@ -375,8 +375,11 @@ fn watch_steps() {
                 && warned != Some(since)
             {
                 tracing::warn!(
-                    "border manager: stuck for {} ms in `{name}`",
-                    since.elapsed().as_millis()
+                    "border manager: stuck for {} ms in `{name}`{}",
+                    since.elapsed().as_millis(),
+                    crate::lock_holder::describe()
+                        .map(|holder| format!(" (window manager lock held by {holder})"))
+                        .unwrap_or_default()
                 );
                 warned = Some(since);
             }
@@ -419,6 +422,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let _waiting = Waiting;
         // Check the wm state every time we receive a notification
         let state = wm.lock();
+        let _held = crate::lock_holder::held("border manager");
         let is_paused = state.is_paused;
         let focused_monitor_idx = state.focused_monitor_idx();
         let focused_workspace_idx =

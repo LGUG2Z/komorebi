@@ -36,7 +36,6 @@ pub use komorebi_core::WorkspaceGlobals;
 use komorebi_themes::KomorebiTheme;
 use komorebi_themes::KomorebiThemeCustom;
 use std::collections::HashMap;
-use std::num::NonZeroUsize;
 
 use komorebi_core::CachedLayoutDefault;
 pub use komorebi_core::WorkspaceLayer;
@@ -144,6 +143,191 @@ impl komorebi_core::WorkspacePlatform for KdePlatform {
         }
 
         resize_dimensions
+    }
+
+    fn begin_update(workspace: &mut Workspace) -> eyre::Result<komorebi_core::Flow> {
+        workspace.prune_duplicate_windows()?;
+        Ok(komorebi_core::Flow::Run(None))
+    }
+
+    fn containers_pruned(workspace: &mut Workspace, focused_before: usize) {
+        // make sure we are never focused on a no longer existent final empty container
+        if focused_before >= workspace.containers().len() {
+            workspace.focus_container(focused_before.saturating_sub(1));
+        }
+    }
+
+    fn place_monocle(window: &mut Window, rect: &Rect) -> eyre::Result<()> {
+        Ok(window.set_position(rect)?)
+    }
+
+    fn maximize_in_layout(window: &mut Window) -> eyre::Result<()> {
+        // the compositor's own maximize, which is the work area and not the padded one
+        Ok(window.maximize()?)
+    }
+
+    fn adopt_widths_before_layout(workspace: &Workspace) -> bool {
+        // a window that would not get as narrow as its column was learned of once the windows have
+        // had time to draw at the sizes that they were sent, and not while one is being dragged,
+        // whose neighbours are on their way
+        workspace
+            .state
+            .scrolling_placed
+            .as_ref()
+            .is_some_and(crate::scrolling::Placed::has_settled)
+            && !crate::window::live_resize_in_progress()
+    }
+
+    fn adopt_actual_widths(
+        workspace: &mut Workspace,
+        around_window: i32,
+        viewport_width: i32,
+    ) -> bool {
+        workspace.adopt_actual_widths(around_window, viewport_width)
+    }
+
+    fn scrolling_layouts(
+        workspace: &mut Workspace,
+        adjusted_work_area: &Rect,
+        container_padding: i32,
+    ) -> (Vec<Rect>, Vec<bool>) {
+        let mut hidden = vec![];
+        let monitors: Vec<Rect> = backend()
+            .monitors()
+            .map(|monitors| monitors.iter().map(|monitor| monitor.size).collect())
+            .unwrap_or_default();
+        let others = crate::scrolling::other_monitors(&workspace.globals.work_area, &monitors);
+
+        let layouts = workspace
+            .layout_scrolling(adjusted_work_area, container_padding)
+            .into_iter()
+            .map(|placement| {
+                let (rect, hide) = crate::scrolling::rest(
+                    placement.rect,
+                    placement.visibility,
+                    adjusted_work_area,
+                    &others,
+                );
+                hidden.push(hide);
+                rect
+            })
+            .collect();
+
+        (layouts, hidden)
+    }
+
+    fn adjust_layout(
+        _container: &mut Container,
+        layout: &mut Rect,
+        placement: &komorebi_core::Placement,
+    ) {
+        let adjusted_work_area = placement.adjusted_work_area;
+
+        // The scrolling layout is a strip that is meant to run past the edges of
+        // the work area, and says itself where each window rests when it is out
+        // of view (KWin does not constrain where a window is put). Everything
+        // else is clamped to the work area so it cannot bleed onto an adjacent
+        // monitor.
+        if !placement.is_scrolling {
+            // horizontal
+            if layout.left < adjusted_work_area.left {
+                layout.right -= adjusted_work_area.left - layout.left;
+                layout.left = adjusted_work_area.left;
+            }
+            let max_right_edge = adjusted_work_area.left + adjusted_work_area.right;
+            let current_right_edge = layout.left + layout.right;
+            if current_right_edge > max_right_edge {
+                layout.right = max_right_edge - layout.left;
+            }
+
+            // vertical
+            if layout.top < adjusted_work_area.top {
+                layout.bottom -= adjusted_work_area.top - layout.top;
+                layout.top = adjusted_work_area.top;
+            }
+            let max_bottom_edge = adjusted_work_area.top + adjusted_work_area.bottom;
+            let current_bottom_edge = layout.top + layout.bottom;
+            if current_bottom_edge > max_bottom_edge {
+                layout.bottom = max_bottom_edge - layout.top;
+            }
+        }
+
+        layout.add_padding(placement.border_offset);
+        layout.add_padding(placement.border_width);
+    }
+
+    fn place_container(
+        container: &mut Container,
+        layout: &Rect,
+        hidden: bool,
+        placement: &komorebi_core::Placement,
+    ) -> eyre::Result<()> {
+        if hidden {
+            // it is seen on another monitor wherever it rests here
+            for window in container.windows() {
+                window.hide();
+            }
+            return Ok(());
+        }
+
+        // a window that was hidden for resting past an edge with another
+        // monitor next to it is shown before it is put where the strip says
+        let front = container.focused_window().map(|window| window.id);
+        let restore = placement.is_scrolling
+            && front.is_some_and(|front| {
+                crate::scrolling::should_restore_when_placed(
+                    front,
+                    Some(front),
+                    &HIDDEN_WINDOWS.lock(),
+                )
+            });
+        if restore && let Some(window) = container.focused_window() {
+            window.restore();
+        }
+
+        for window in container.windows_mut() {
+            let current_rect = window.rect().unwrap_or_default();
+            let current_percentage = placement
+                .work_area
+                .percentage_within_horizontal_bounds(&current_rect);
+            let proposed_percentage = placement
+                .work_area
+                .percentage_within_horizontal_bounds(layout);
+
+            // the strip puts a window where it goes, however far
+            let percentage_override = !placement.is_scrolling
+                && proposed_percentage == 0.0
+                && current_percentage > 0.1
+                && current_percentage < 100.0
+                && placement.resize_dimensions_is_empty;
+
+            if percentage_override {
+                window.center(&placement.work_area, false)?;
+            } else if let Err(error) = window.set_position(layout) {
+                tracing::warn!("failed to set window position: {error}")
+            }
+        }
+
+        Ok(())
+    }
+
+    fn end_update(
+        workspace: &mut Workspace,
+        _pass: usize,
+        _around_window: i32,
+        _viewport_width: i32,
+    ) -> eyre::Result<komorebi_core::Pass> {
+        if workspace.is_scrolling() {
+            workspace.state.scrolling_placed = Some(crate::scrolling::Placed::new(
+                workspace
+                    .containers()
+                    .iter()
+                    .zip(workspace.latest_layout.iter())
+                    .map(|(container, layout)| (container.id.clone(), layout.right)),
+            ));
+        }
+
+        Ok(komorebi_core::Pass::Done)
     }
 }
 
@@ -819,307 +1003,7 @@ impl WorkspaceExt for Workspace {
     }
 
     fn update(&mut self) -> eyre::Result<()> {
-        // make sure we are never holding on to empty containers
-        self.prune_duplicate_windows()?;
-        let focused_container_idx = self.focused_container_idx();
-        self.containers_mut()
-            .retain(|c| c.is_preselect() || !c.windows().is_empty());
-
-        // make sure we are never focused on a no longer existent final empty container
-        if focused_container_idx >= self.containers().len() {
-            self.focus_container(focused_container_idx.saturating_sub(1));
-        }
-
-        let container_padding = self
-            .container_padding
-            .or(self.globals.container_padding)
-            .unwrap_or_default();
-        let workspace_padding = self
-            .workspace_padding
-            .or(self.globals.workspace_padding)
-            .unwrap_or_default();
-        let border_width = self.globals.border_width;
-        let border_offset = self.globals.border_offset;
-        let work_area = self.globals.work_area;
-        let mut rules_work_area_offset = None;
-
-        if !self.work_area_offset_rules.is_empty() {
-            let count = if self.monocle_container.is_some() {
-                1
-            } else {
-                self.containers().len()
-            };
-
-            for (threshold, work_area_offset_rule) in &self.work_area_offset_rules {
-                if count >= *threshold {
-                    rules_work_area_offset = Some(*work_area_offset_rule);
-                }
-            }
-        };
-
-        let work_area_offset = rules_work_area_offset
-            .or(self.work_area_offset)
-            .or(self.globals.work_area_offset);
-        let window_based_work_area_offset = self.globals.window_based_work_area_offset;
-        let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
-
-        let mut adjusted_work_area = work_area_offset.map_or_else(
-            || work_area,
-            |offset| {
-                let mut with_offset = work_area;
-                with_offset.left += offset.left;
-                with_offset.top += offset.top;
-                with_offset.right -= offset.right;
-                with_offset.bottom -= offset.bottom;
-
-                with_offset
-            },
-        );
-
-        if (self.containers().len() <= window_based_work_area_offset_limit as usize
-            || self.monocle_container.is_some() && window_based_work_area_offset_limit > 0)
-            && self.apply_window_based_work_area_offset
-        {
-            adjusted_work_area = window_based_work_area_offset.map_or_else(
-                || adjusted_work_area,
-                |offset| {
-                    let mut with_offset = adjusted_work_area;
-                    with_offset.left += offset.left;
-                    with_offset.top += offset.top;
-                    with_offset.right -= offset.right;
-                    with_offset.bottom -= offset.bottom;
-
-                    with_offset
-                },
-            );
-        }
-
-        adjusted_work_area.add_padding(workspace_padding);
-
-        self.enforce_resize_constraints();
-
-        if !self.layout_rules.is_empty() {
-            let mut updated_layout = None;
-
-            for (threshold, layout) in &self.layout_rules {
-                if self.containers().len() >= *threshold {
-                    updated_layout = Option::from(layout.clone());
-                }
-            }
-
-            if let Some(updated_layout) = updated_layout {
-                self.layout = updated_layout;
-            }
-        }
-
-        if let Some(window_container_behaviour_rules) = &self.window_container_behaviour_rules {
-            let mut updated_behaviour = None;
-            for (threshold, behaviour) in window_container_behaviour_rules {
-                if self.containers().len() >= *threshold {
-                    updated_behaviour = Option::from(*behaviour);
-                }
-            }
-
-            self.window_container_behaviour = updated_behaviour;
-        }
-
-        if self.tile {
-            // the backend batches the commands this produces and sends them together
-            let result = (|| -> eyre::Result<()> {
-                if let Some(container) = self.monocle_container.as_mut() {
-                    if let Some(window) = container.focused_window_mut() {
-                        adjusted_work_area.add_padding(container_padding);
-                        adjusted_work_area.add_padding(border_offset);
-                        adjusted_work_area.add_padding(border_width);
-                        window.set_position(&adjusted_work_area)?;
-                    };
-                } else if let Some(window) = self.maximized_window {
-                    // the compositor's own maximize, which is the work area and not the padded one
-                    window.maximize()?;
-                } else if !self.containers().is_empty() {
-                    let is_scrolling = self.is_scrolling();
-                    let around_window = container_padding + border_offset + border_width;
-
-                    // a window that would not get as narrow as its column was learned of once the
-                    // windows have had time to draw at the sizes that they were sent, and not
-                    // while one is being dragged, whose neighbours are on their way
-                    if is_scrolling
-                        && self
-                            .state
-                            .scrolling_placed
-                            .as_ref()
-                            .is_some_and(crate::scrolling::Placed::has_settled)
-                        && !crate::window::live_resize_in_progress()
-                    {
-                        self.adopt_actual_widths(around_window, adjusted_work_area.right);
-                    }
-
-                    let effective_layout_options = self.effective_layout_options();
-
-                    tracing::debug!(
-                        "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",
-                        self.name.as_deref().unwrap_or("unnamed"),
-                        effective_layout_options,
-                        self.layout_options,
-                        self.layout_options_rules.len(),
-                    );
-                    // the containers that rest where another monitor is seen from, which are hidden
-                    let mut hidden = vec![];
-                    let mut layouts = if is_scrolling {
-                        let monitors: Vec<Rect> = backend()
-                            .monitors()
-                            .map(|monitors| monitors.iter().map(|monitor| monitor.size).collect())
-                            .unwrap_or_default();
-                        let others =
-                            crate::scrolling::other_monitors(&self.globals.work_area, &monitors);
-
-                        self.layout_scrolling(&adjusted_work_area, container_padding)
-                            .into_iter()
-                            .map(|placement| {
-                                let (rect, hide) = crate::scrolling::rest(
-                                    placement.rect,
-                                    placement.visibility,
-                                    &adjusted_work_area,
-                                    &others,
-                                );
-                                hidden.push(hide);
-                                rect
-                            })
-                            .collect()
-                    } else {
-                        self.layout.as_boxed_arrangement().calculate(
-                            &adjusted_work_area,
-                            NonZeroUsize::new(self.containers().len()).ok_or_eyre(
-                                "there must be at least one container to calculate a workspace layout",
-                            )?,
-                            Some(container_padding),
-                            self.layout_flip,
-                            &self.resize_dimensions,
-                            self.focused_container_idx(),
-                            effective_layout_options,
-                            &self.latest_layout,
-                        )
-                    };
-
-                    let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
-
-                    let containers = self.containers_mut();
-
-                    for (i, container) in containers.iter_mut().enumerate() {
-                        if let Some(layout) = layouts.get_mut(i) {
-                            // The scrolling layout is a strip that is meant to run past the edges of
-                            // the work area, and says itself where each window rests when it is out
-                            // of view (KWin does not constrain where a window is put). Everything
-                            // else is clamped to the work area so it cannot bleed onto an adjacent
-                            // monitor.
-                            if !is_scrolling {
-                                // horizontal
-                                if layout.left < adjusted_work_area.left {
-                                    layout.right -= adjusted_work_area.left - layout.left;
-                                    layout.left = adjusted_work_area.left;
-                                }
-                                let max_right_edge =
-                                    adjusted_work_area.left + adjusted_work_area.right;
-                                let current_right_edge = layout.left + layout.right;
-                                if current_right_edge > max_right_edge {
-                                    layout.right = max_right_edge - layout.left;
-                                }
-
-                                // vertical
-                                if layout.top < adjusted_work_area.top {
-                                    layout.bottom -= adjusted_work_area.top - layout.top;
-                                    layout.top = adjusted_work_area.top;
-                                }
-                                let max_bottom_edge =
-                                    adjusted_work_area.top + adjusted_work_area.bottom;
-                                let current_bottom_edge = layout.top + layout.bottom;
-                                if current_bottom_edge > max_bottom_edge {
-                                    layout.bottom = max_bottom_edge - layout.top;
-                                }
-                            }
-
-                            layout.add_padding(border_offset);
-                            layout.add_padding(border_width);
-
-                            if hidden.get(i).copied().unwrap_or_default() {
-                                // it is seen on another monitor wherever it rests here
-                                for window in container.windows() {
-                                    window.hide();
-                                }
-                                continue;
-                            }
-
-                            // a window that was hidden for resting past an edge with another
-                            // monitor next to it is shown before it is put where the strip says
-                            let front = container.focused_window().map(|window| window.id);
-                            let restore = is_scrolling
-                                && front.is_some_and(|front| {
-                                    crate::scrolling::should_restore_when_placed(
-                                        front,
-                                        Some(front),
-                                        &HIDDEN_WINDOWS.lock(),
-                                    )
-                                });
-                            if restore && let Some(window) = container.focused_window() {
-                                window.restore();
-                            }
-
-                            for window in container.windows_mut() {
-                                let current_rect = window.rect().unwrap_or_default();
-                                let current_percentage =
-                                    work_area.percentage_within_horizontal_bounds(&current_rect);
-                                let proposed_percentage =
-                                    work_area.percentage_within_horizontal_bounds(layout);
-
-                                // the strip puts a window where it goes, however far
-                                let percentage_override = !is_scrolling
-                                    && proposed_percentage == 0.0
-                                    && current_percentage > 0.1
-                                    && current_percentage < 100.0
-                                    && resize_dimensions_is_empty;
-
-                                if percentage_override {
-                                    window.center(&work_area, false)?;
-                                } else if let Err(error) = window.set_position(layout) {
-                                    tracing::warn!("failed to set window position: {error}")
-                                }
-                            }
-                        }
-                    }
-
-                    self.latest_layout = layouts;
-
-                    if is_scrolling {
-                        self.state.scrolling_placed = Some(crate::scrolling::Placed::new(
-                            self.containers()
-                                .iter()
-                                .zip(self.latest_layout.iter())
-                                .map(|(container, layout)| (container.id.clone(), layout.right)),
-                        ));
-                    }
-                }
-                Ok(())
-            })();
-
-            result?;
-        }
-
-        // Always make sure that the length of the resize dimensions vec is the same as the
-        // number of layouts / containers. This should never actually truncate as the remove_window
-        // function takes care of cleaning up resize dimensions when destroying empty containers
-        let container_count = self.containers().len();
-
-        // since monocle is a toggle, we never want to truncate the resize dimensions since it will
-        // almost always be toggled off and the container will be reintegrated into layout
-        //
-        // without this check, if there are exactly two containers, when one is toggled to monocle
-        // the resize dimensions will be truncated to len == 1, and when it is reintegrated, if it
-        // had a resize adjustment before, that will have been lost
-        if self.monocle_container.is_none() {
-            self.resize_dimensions.resize(container_count, None);
-        }
-
-        Ok(())
+        self.update_shared()
     }
 
     fn visible_window_details(&self) -> Vec<WindowDetails> {

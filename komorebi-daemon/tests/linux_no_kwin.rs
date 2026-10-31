@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 //! `komorebi` connects to KWin unless it is told to run against the in-memory desktop, says
 //! what went wrong when it cannot, and then leaves the socket of a komorebi that is running
 //! alone.

@@ -323,3 +323,45 @@ The macOS checks that matter by revision:
 `refactor(komorebic): move the macOS CLI ...` (komorebic, quickstart, start, stop), `refactor(client): one
 komorebi-client ...` (the client tests in `komorebi-client/src/macos.rs`), and `refactor(bar): one
 komorebi-bar package ...` (the bar opens, `--schema`). Everything in `docs/dev/macos-handcheck.md` still applies.
+
+## Step 8 done: one `komorebi`
+
+`komorebi-daemon/` is the package `komorebi` (binary `komorebi`): a `main` that calls
+`komorebi_windows::daemon::run()`, `komorebi_linux::daemon::run()` or `komorebi_macos::daemon::run()` by
+`cfg_select!` on the target OS, through target-gated dependencies on the three libraries. The old `main.rs`
+files are `daemon.rs` of those libraries (`komorebi::` became `crate::`), and the libraries have no binary:
+`-p komorebi-windows`, `-p komorebi-linux` and `-p komorebi-macos` still build, as libraries; the binary is
+`-p komorebi` on every platform. The features `deadlock_detection` and `schemars` are forwarded.
+The KDE tests that run the binary moved to `komorebi-daemon/tests/linux_*.rs`.
+
+So `cargo build -p komorebi`, `-p komorebic`, `-p komorebi-bar` and `cargo run -p komorebi-bar -- --schema` build and
+run the right program on Windows, KDE Plasma and macOS. What is left for the cutover (nothing here deletes it yet):
+
+- the shim packages `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-client-macos`,
+  `komorebi-bar-macos` (each a `#[path]` include of the unified module) and their directories under
+  `komorebi-for-kde/` and `komorebi-for-mac/`;
+- the per-platform `version` packages (`version-linux`, `version-macos`) once one `version` crate serves
+  all three;
+- the three flakes becoming one, the repository layout (`komorebi-for-kde/`, `komorebi-for-mac/` trees move
+  under the platform crates' final directories), one `deny.toml`, the workspace-wide version number
+  (0.1.42 / 0.1.0 / 0.1.1), and the comments and docs that name the old paths;
+- the libraries `komorebi-windows`, `komorebi-linux`, `komorebi-macos` stay: they are the daemons.
+
+Owed by the coordinator for this step (none was built): the heavy builds listed above, now also
+`nix build -L .#packages.x86_64-linux.komorebi .#packages.x86_64-linux.kfde-komorebi`; the Windows e2e
+(BEHAVIOUR: the Windows executable is linked from the library's `daemon::run`); the KDE VM `fast` suites.
+
+### Mac Mini commands for the new package
+
+```
+cargo build --locked -p komorebi -p komorebic -p komorebi-bar
+target/debug/komorebi --version            # prints komorebi 0.1.0 (the macOS version crate)
+target/debug/komorebi --help | head -3
+cargo clippy --locked -p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar -p komorebi-bar-core --all-targets -- -D warnings
+cargo test --locked -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar-core -p komorebi-bar
+cargo build --locked --features deadlock_detection -p komorebi      # the feature is forwarded
+```
+
+`komorebi` is now a package name on every platform: `-p komorebi` builds the macOS daemon on a Mac. The libraries
+build with `cargo build -p komorebi-macos` but have no binary. The daemon itself (start, tile, `komorebic state`) is
+the hand check in `docs/dev/macos-handcheck.md`.

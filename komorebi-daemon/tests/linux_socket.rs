@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 //! The daemon over its socket: `komorebi --fake-backend` answers on `komorebi.sock` in its
 //! runtime directory, and stops when it is sent `Stop`.
 

@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::env::temp_dir;
-use std::fs::OpenOptions;
 use std::io::ErrorKind;
 use std::net::Shutdown;
 use std::num::NonZeroUsize;
@@ -16,7 +15,6 @@ use std::sync::atomic::Ordering;
 
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
-use color_eyre::eyre::bail;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
@@ -58,6 +56,7 @@ use komorebi_core::ContainerWindow;
 use crate::CrossBoundaryBehaviour;
 use crate::DATA_DIR;
 use crate::HOME_DIR;
+use crate::Lockable;
 use crate::NO_TITLEBAR;
 use crate::REGEX_IDENTIFIERS;
 use crate::SUBSCRIPTION_SOCKETS;
@@ -1560,7 +1559,7 @@ impl WindowManager {
             let workspace = self.focused_workspace()?;
             let focused_hwnd = WindowsApi::foreground_window()?;
             if !workspace.contains_managed_window(focused_hwnd) {
-                bail!("ignoring commands while active window is not managed by komorebi");
+                eyre::bail!("ignoring commands while active window is not managed by komorebi");
             }
         }
 
@@ -1693,7 +1692,7 @@ impl WindowManager {
     ) -> eyre::Result<()> {
         // check the target before anything is taken out of the workspace it is in
         if monitor_idx >= self.monitors().len() {
-            bail!("there is no monitor at index {monitor_idx}");
+            eyre::bail!("there is no monitor at index {monitor_idx}");
         }
 
         self.handle_unmanaged_window_behaviour()?;
@@ -1722,7 +1721,7 @@ impl WindowManager {
             .ok_or_eyre("there is no workspace")?;
 
         if workspace.maximized_window.is_some() {
-            bail!("cannot move native maximized window to another monitor or workspace");
+            eyre::bail!("cannot move native maximized window to another monitor or workspace");
         }
 
         let foreground_hwnd = WindowsApi::foreground_window()?;
@@ -1801,7 +1800,7 @@ impl WindowManager {
                 }
             }
         } else {
-            bail!("failed to find a window to move");
+            eyre::bail!("failed to find a window to move");
         }
 
         if should_load_workspace {
@@ -1867,7 +1866,7 @@ impl WindowManager {
 
         // check the target before the workspace is taken out of its monitor
         if idx >= self.monitors().len() {
-            bail!("there is no monitor at index {idx}");
+            eyre::bail!("there is no monitor at index {idx}");
         }
 
         let mouse_follows_focus = self.mouse_follows_focus;
@@ -2449,7 +2448,7 @@ impl WindowManager {
         // removing this messes up the monitor / container / window index somewhere
         // and results in the wrong window getting moved across the monitor boundary
         if workspace.is_focused_window_monocle_or_maximized()? {
-            bail!("ignoring command while active window is in monocle mode or maximized");
+            eyre::bail!("ignoring command while active window is in monocle mode or maximized");
         }
 
         tracing::info!("moving container");
@@ -2718,7 +2717,7 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
         if workspace.is_focused_window_monocle_or_maximized()? {
-            bail!("ignoring command while active window is in monocle mode or maximized");
+            eyre::bail!("ignoring command while active window is in monocle mode or maximized");
         }
 
         tracing::info!("moving container");
@@ -2753,7 +2752,7 @@ impl WindowManager {
             .ok_or_eyre("there must be at least one window in a container")?;
 
         if len.get() == 1 {
-            bail!("there is only one window in this container");
+            eyre::bail!("there is only one window in this container");
         }
 
         let current_idx = container.focused_window_idx();
@@ -2789,7 +2788,7 @@ impl WindowManager {
             .ok_or_eyre("there must be at least one window in a container")?;
 
         if len.get() == 1 {
-            bail!("there is only one window in this container");
+            eyre::bail!("there is only one window in this container");
         }
 
         let current_idx = container.focused_window_idx();
@@ -2822,11 +2821,11 @@ impl WindowManager {
             .ok_or_eyre("there must be at least one window in a container")?;
 
         if len.get() == 1 && idx != 0 {
-            bail!("there is only one window in this container");
+            eyre::bail!("there is only one window in this container");
         }
 
         if container.windows().get(idx).is_none() {
-            bail!("there is no window in this container at index {idx}");
+            eyre::bail!("there is no window in this container at index {idx}");
         }
 
         container.focus_window(idx);
@@ -3066,7 +3065,7 @@ impl WindowManager {
         tracing::info!("removing window");
 
         if self.focused_container()?.windows().len() == 1 {
-            bail!("a container must have at least one window");
+            eyre::bail!("a container must have at least one window");
         }
 
         let workspace = self.focused_workspace_mut()?;
@@ -3115,7 +3114,7 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
         if let Some(container) = workspace.focused_container_mut() {
             // Toggle the locked flag
-            container.locked = !container.locked;
+            container.set_locked(!container.locked());
         }
         Ok(())
     }
@@ -3239,7 +3238,7 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn maximize_window(&mut self) -> eyre::Result<()> {
-        tracing::info!("maximizing windowj");
+        tracing::info!("maximizing window");
 
         let workspace = self.focused_workspace_mut()?;
         workspace.new_maximized_window()
@@ -3523,7 +3522,7 @@ impl WindowManager {
         monitor_idx: usize,
         workspace_idx: usize,
     ) -> eyre::Result<()> {
-        tracing::info!("setting workspace layout");
+        tracing::info!("clearing workspace layout rules");
 
         let focused_monitor_idx = self.focused_monitor_idx();
 
@@ -3759,7 +3758,7 @@ impl WindowManager {
         if self.monitors().get(idx).is_some() {
             self.monitors.focus(idx);
         } else {
-            bail!("this is not a valid monitor index");
+            eyre::bail!("this is not a valid monitor index");
         }
 
         Ok(())
@@ -4008,25 +4007,8 @@ impl WindowManager {
                 *reaper_cache = known_hwnds.clone();
             }
 
-            // Save to file
-            let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
-            match OpenOptions::new()
-                .write(true)
-                .truncate(true)
-                .create(true)
-                .open(hwnd_json)
-            {
-                Ok(file) => {
-                    if let Err(error) =
-                        serde_json::to_writer_pretty(&file, &known_hwnds.keys().collect::<Vec<_>>())
-                    {
-                        tracing::error!("Failed to save list of known_hwnds on file: {}", error);
-                    }
-                }
-                Err(error) => {
-                    tracing::error!("Failed to save list of known_hwnds on file: {}", error);
-                }
-            }
+            // Save to file, from the writer thread of the reaper
+            crate::reaper::save_known_hwnds(known_hwnds.keys().copied().collect());
 
             // Store new hwnds
             self.known_hwnds = known_hwnds;
