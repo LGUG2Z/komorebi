@@ -10,4 +10,5 @@
 #[cfg(feature = "schemars")]
 pub mod schema;
 
+pub mod behaviour;
 pub mod matching;

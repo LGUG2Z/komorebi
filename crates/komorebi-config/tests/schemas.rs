@@ -168,3 +168,23 @@ fn the_matching_types_are_the_definitions_of_every_tree() {
     // The workspace rules are an input of the daemons only: no schema carries them.
     let _ = generated::<WorkspaceMatchingRule>();
 }
+
+#[test]
+fn the_behaviour_enums_are_the_definitions_of_the_trees_that_have_them() {
+    use komorebi_config::behaviour::CrossBoundaryBehaviour;
+    use komorebi_config::behaviour::FloatingLayerBehaviour;
+    use komorebi_config::behaviour::Placement;
+    use komorebi_config::behaviour::WindowContainerBehaviour;
+    use komorebi_config::behaviour::WindowHandlingBehaviour;
+    use komorebi_config::behaviour::WindowHidingPosition;
+    use komorebi_config::behaviour::ZOrder;
+
+    let [windows, kde, macos] = &TREES;
+    assert_same_definitions::<WindowContainerBehaviour>(&all(), &["WindowContainerBehaviour"]);
+    assert_same_definitions::<FloatingLayerBehaviour>(&all(), &["FloatingLayerBehaviour"]);
+    assert_same_definitions::<Placement>(&all(), &["Placement"]);
+    assert_same_definitions::<CrossBoundaryBehaviour>(&all(), &["CrossBoundaryBehaviour"]);
+    assert_same_definitions::<WindowHidingPosition>(&[kde, macos], &["WindowHidingPosition"]);
+    assert_same_definitions::<WindowHandlingBehaviour>(&[windows], &["WindowHandlingBehaviour"]);
+    assert_same_definitions::<ZOrder>(&[windows], &["ZOrder"]);
+}
