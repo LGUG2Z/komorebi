@@ -284,7 +284,7 @@ fn a_floating_window_is_removed_by_id_and_the_hook_runs_before_it_goes() {
     let removed = workspace.remove_floating_window(8).unwrap();
 
     assert_eq!(removed.id, 8);
-    assert_eq!(log(), ["after_floating_removed len=2 focus=0"]);
+    assert_eq!(log(), ["before_floating_removed len=2 focus=0"]);
     assert!(workspace.remove_floating_window(8).is_none());
     // nothing is logged for a window that is not there
     assert!(log().is_empty());
@@ -530,5 +530,5 @@ fn the_floating_removal_hook_runs_before_the_window_is_taken_out() {
 
     // pins today's order (the KDE and macOS order): the hook sees both windows and the old
     // focus, although the trait doc says "after a floating window was taken out"
-    assert_eq!(log(), ["after_floating_removed len=2 focus=1"]);
+    assert_eq!(log(), ["before_floating_removed len=2 focus=1"]);
 }

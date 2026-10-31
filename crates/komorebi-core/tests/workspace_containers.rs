@@ -701,7 +701,7 @@ fn the_hooks_a_platform_does_not_override_do_nothing_to_the_workspace() {
     workspace.floating_windows_mut().push_back(w(6));
     workspace.focus_floating_window(1);
 
-    // the stub overrides after_floating_removed only to log: the focus index is the workspace's
+    // the stub overrides before_floating_removed only to log: the focus index is the workspace's
     // own business, and the default platform of the other tests keeps it
     workspace.remove_floating_window(6);
     assert_eq!(workspace.focused_floating_window_idx(), 1);

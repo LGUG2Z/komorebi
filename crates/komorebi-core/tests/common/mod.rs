@@ -281,9 +281,9 @@ impl WorkspacePlatform for StubPlatform {
         push(format!("note_scrolling_departure {idx}"));
     }
 
-    fn after_floating_removed(workspace: &mut Workspace<Self>) {
+    fn before_floating_removed(workspace: &mut Workspace<Self>) {
         push(format!(
-            "after_floating_removed len={} focus={}",
+            "before_floating_removed len={} focus={}",
             workspace.floating_windows().len(),
             workspace.focused_floating_window_idx()
         ));
