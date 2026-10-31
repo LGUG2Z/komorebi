@@ -122,9 +122,10 @@
 //!   or restores it and puts it back in its tile ([`WindowManager::toggle_maximize`]). A window
 //!   the user maximizes leaves the layout the same way
 //!   ([`WindowManager::adopt_maximize_change`]). While a window is maximized, by either, the
-//!   messages about the tiles (**MoveWindow**, **CycleMoveWindow**, the stack messages, the
-//!   resize, promote and preselect messages, **ToggleLock**, **ToggleFloat**, **ToggleMonocle**
-//!   and the ones that send a container to another monitor or workspace) are ignored.
+//!   messages about the tiles (**MoveWindow**, **CycleMoveWindow**, the unstack and cycle messages,
+//!   the resize, promote and preselect messages, **ToggleLock** and the ones that send a container
+//!   to another monitor or workspace) are ignored. **ToggleFloat**, **StackWindow** and
+//!   **ToggleMonocle** are not: see `is_layout_command`.
 //! - **WorkspacePadding** and **ContainerPadding** set the paddings of a workspace given by the
 //!   index of its monitor and its own, **NamedWorkspacePadding** and
 //!   **NamedWorkspaceContainerPadding** those of the workspace with a name
@@ -335,11 +336,12 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 /// locking, the monocle, and sending containers to other monitors and workspaces), which a
 /// maximized window has left
 ///
-/// Two commands that look like them are not here, because komorebi for Windows does not ignore
+/// Three commands that look like them are not here, because komorebi for Windows does not ignore
 /// them either (`maximizing.user` in the end-to-end suite has them as what both ports do):
 /// `toggle-float` floats the maximized window, which ends the maximize
-/// ([`Workspace::new_floating_window`](crate::workspace::Workspace::new_floating_window)), and
-/// `stack left` and `stack right` stack the tiles that are left.
+/// ([`Workspace::new_floating_window`](crate::workspace::Workspace::new_floating_window)),
+/// `stack left` and `stack right` stack the tiles that are left, and `toggle-monocle` turns the
+/// monocle of the tiles that are left on, with the window staying maximized.
 fn is_layout_command(message: &SocketMessage) -> bool {
     matches!(
         message,
@@ -359,7 +361,6 @@ fn is_layout_command(message: &SocketMessage) -> bool {
             | SocketMessage::PromoteFocus
             | SocketMessage::PromoteWindow(_)
             | SocketMessage::ToggleLock
-            | SocketMessage::ToggleMonocle
             | SocketMessage::MoveContainerToLastWorkspace
             | SocketMessage::SendContainerToLastWorkspace
             | SocketMessage::MoveContainerToMonitorNumber(_)

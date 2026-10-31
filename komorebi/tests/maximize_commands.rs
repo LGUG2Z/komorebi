@@ -186,7 +186,6 @@ fn while_a_window_is_maximized_what_is_about_the_tiles_does_nothing() {
         SocketMessage::SendContainerToMonitorNumber(1),
         SocketMessage::Promote,
         SocketMessage::ToggleLock,
-        SocketMessage::ToggleMonocle,
         SocketMessage::PreselectDirection(OperationDirection::Left),
     ] {
         send(&fake, &mut wm, message);

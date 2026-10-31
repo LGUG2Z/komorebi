@@ -117,7 +117,6 @@ fn nothing_that_is_about_the_layout_happens_while_a_window_is_maximized() {
         SocketMessage::UnstackWindow,
         SocketMessage::StackAll,
         SocketMessage::Promote,
-        SocketMessage::ToggleMonocle,
         SocketMessage::ToggleLock,
         SocketMessage::SendContainerToWorkspaceNumber(1),
         SocketMessage::MoveContainerToWorkspaceNumber(1),
@@ -268,4 +267,24 @@ fn stack_left_stacks_the_tiles_that_are_left_while_a_window_is_maximized() {
     let workspace = wm.focused_workspace().unwrap();
     assert_eq!(workspace.maximized_window.map(|w| w.id), Some(30_092));
     assert_eq!(workspace.containers().len(), 1, "the two tiles are stacked");
+}
+
+#[test]
+fn toggle_monocle_turns_the_monocle_of_the_tiles_that_are_left_on_while_a_window_is_maximized() {
+    let (fake, mut wm) = tiled(30_111, 3);
+    user_maximizes(&fake, &mut wm, 30_112, true);
+
+    command(&fake, &mut wm, SocketMessage::ToggleMonocle);
+
+    let workspace = wm.focused_workspace().unwrap();
+    assert!(workspace.monocle_container.is_some());
+    assert_eq!(workspace.maximized_window.map(|w| w.id), Some(30_112));
+    assert!(fake.is_maximized(30_112));
+
+    command(&fake, &mut wm, SocketMessage::ToggleMonocle);
+
+    let workspace = wm.focused_workspace().unwrap();
+    assert!(workspace.monocle_container.is_none());
+    assert_eq!(workspace.containers().len(), 2);
+    assert_eq!(workspace.maximized_window.map(|w| w.id), Some(30_112));
 }
