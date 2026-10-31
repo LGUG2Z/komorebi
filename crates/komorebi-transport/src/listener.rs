@@ -86,6 +86,12 @@ pub trait ConnectionPolicy<S>: Clone + Send + Sync + 'static {
     fn on_accept(&self, _stream: &S) {}
 
     fn on_message(&self, _message: &SocketMessage, _stream: &S) {}
+
+    /// Who holds the window manager lock now, for the warning when it could not be acquired.
+    /// Defaults to nothing: only a daemon that records its holders can say.
+    fn lock_holder(&self) -> Option<String> {
+        None
+    }
 }
 
 /// The policy that does nothing at either point
@@ -190,7 +196,11 @@ where
             None => {
                 tracing::warn!(
                     target: LOG_TARGET,
-                    "could not acquire window manager lock, not processing message: {message}"
+                    "could not acquire window manager lock, not processing message: {message}{}",
+                    policy
+                        .lock_holder()
+                        .map(|holder| format!(" (held by {holder})"))
+                        .unwrap_or_default()
                 );
             }
             Some(ended) => {

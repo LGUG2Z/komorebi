@@ -85,6 +85,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
         // Check the wm state every time we receive a notification
         let state = wm.lock();
+        let _held = crate::lock_holder::held("transparency manager");
 
         let focused_monitor_idx = state.focused_monitor_idx();
 

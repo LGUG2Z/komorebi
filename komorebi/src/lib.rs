@@ -20,6 +20,7 @@ pub mod pan;
 pub mod process_command;
 pub mod process_event;
 pub mod process_movement;
+pub mod lock_holder;
 pub mod reaper;
 pub mod scrolling;
 pub mod set_window_position;

@@ -128,6 +128,10 @@ impl ConnectionPolicy<UnixStream> for WindowsConnectionPolicy {
         }
     }
 
+    fn lock_holder(&self) -> Option<String> {
+        crate::lock_holder::describe()
+    }
+
     fn on_message(&self, message: &SocketMessage, stream: &UnixStream) {
         // the fingers of a gesture can be still for longer than a command is waited for, and
         // what they do next is told on this connection: it is closed when they have lifted
@@ -221,6 +225,8 @@ impl WindowManager {
         message: SocketMessage,
         mut reply: impl std::io::Write,
     ) -> eyre::Result<()> {
+        let _held = crate::lock_holder::held(format!("command {message}"));
+        let command_started = std::time::Instant::now();
         if let Some(virtual_desktop_id) = &self.virtual_desktop_id
             && let Some(id) = current_virtual_desktop()
             && id != *virtual_desktop_id
@@ -1458,7 +1464,9 @@ impl WindowManager {
         };
 
         // Update list of known_hwnds and their monitor/workspace index pair
+        let after_command = std::time::Instant::now();
         self.update_known_hwnds();
+        let after_hwnds = std::time::Instant::now();
 
         notify_subscribers(
             Notification {
@@ -1467,6 +1475,12 @@ impl WindowManager {
             },
             initial_state.has_been_modified(self.as_ref()),
         )?;
+        tracing::debug!(
+            "processed `{message}`: command {} ms, known hwnds {} ms, notify subscribers {} ms",
+            after_command.duration_since(command_started).as_millis(),
+            after_hwnds.duration_since(after_command).as_millis(),
+            after_hwnds.elapsed().as_millis()
+        );
 
         if force_update_borders {
             border_manager::send_force_update();
@@ -1572,6 +1586,15 @@ impl WindowManager {
 
     pub fn replace_configuration(&mut self, config: &std::path::PathBuf) -> eyre::Result<bool> {
         let mut force_update_borders = false;
+        let mut last = std::time::Instant::now();
+        let mut lap = |step: &str| {
+            let now = std::time::Instant::now();
+            tracing::info!(
+                "replace-configuration: {step} took {} ms",
+                now.duration_since(last).as_millis()
+            );
+            last = now;
+        };
         // Check that this is a valid static config file first
         if StaticConfig::read(config).is_ok() {
             // Clear workspace rules; these will need to be replaced
@@ -1580,6 +1603,7 @@ impl WindowManager {
             self.is_paused = true;
             // Bring all windows to the foreground
             self.restore_all_windows(false)?;
+            lap("restore all windows");
 
             // Create a new wm from the config path
             let mut wm = StaticConfig::preload(
@@ -1587,17 +1611,22 @@ impl WindowManager {
                 winevent_listener::event_rx(),
                 self.command_listener.try_clone().ok(),
             )?;
+            lap("preload");
 
             // Initialize the new wm
             wm.init()?;
+            lap("init");
 
             wm.restore_all_windows(true)?;
+            lap("restore all windows of the new wm");
 
             // This is equivalent to StaticConfig::postload for this use case
             StaticConfig::reload(config, &mut wm)?;
+            lap("reload");
 
             // Set self to the new wm instance
             *self = wm;
+            lap("swap");
 
             // check if there are any bars
             let mut system = sysinfo::System::new_all();
@@ -1607,6 +1636,7 @@ impl WindowManager {
                 .processes_by_name("komorebi-bar.exe".as_ref())
                 .next()
                 .is_some();
+            lap("process scan for komorebi-bar");
 
             // stop bar(s)
             if has_bar {
@@ -1656,6 +1686,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 }
             }
 
+            lap("bar restart");
             force_update_borders = true;
         }
         Ok(force_update_borders)

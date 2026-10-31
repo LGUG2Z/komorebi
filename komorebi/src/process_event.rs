@@ -124,6 +124,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
         loop {
             if let Ok(event) = receiver.recv() {
                 let mut guard = wm.lock();
+                let _held = crate::lock_holder::held("process_event");
                 match guard.process_event(event) {
                     Ok(()) => {}
                     Err(error) => {
