@@ -1219,7 +1219,7 @@ impl WindowManager {
 
                 for window in workspace.floating_windows().iter() {
                     if window.hwnd == focused_hwnd {
-                        let mut rect = WindowsApi::window_rect(window.hwnd)?;
+                        let mut rect = backend().frame(WindowId::from_hwnd(window.hwnd))?;
                         match (direction, sizing) {
                             (OperationDirection::Left, Sizing::Increase) => {
                                 if rect.left - delta < focused_monitor_work_area.left {
@@ -1897,7 +1897,7 @@ impl WindowManager {
 
         if len > 1 {
             let focused_hwnd = WindowsApi::foreground_window()?;
-            let focused_rect = WindowsApi::window_rect(focused_hwnd)?;
+            let focused_rect = backend().frame(WindowId::from_hwnd(focused_hwnd))?;
             match direction {
                 OperationDirection::Left => {
                     let mut windows_in_direction = focused_workspace
@@ -1905,8 +1905,12 @@ impl WindowManager {
                         .iter()
                         .enumerate()
                         .flat_map(|(idx, w)| {
-                            (w.hwnd != focused_hwnd)
-                                .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                            (w.hwnd != focused_hwnd).then_some(
+                                backend()
+                                    .frame(WindowId::from_hwnd(w.hwnd))
+                                    .ok()
+                                    .map(|r| (idx, r)),
+                            )
                         })
                         .flatten()
                         .flat_map(|(idx, r)| {
@@ -1928,8 +1932,12 @@ impl WindowManager {
                         .iter()
                         .enumerate()
                         .flat_map(|(idx, w)| {
-                            (w.hwnd != focused_hwnd)
-                                .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                            (w.hwnd != focused_hwnd).then_some(
+                                backend()
+                                    .frame(WindowId::from_hwnd(w.hwnd))
+                                    .ok()
+                                    .map(|r| (idx, r)),
+                            )
                         })
                         .flatten()
                         .flat_map(|(idx, r)| {
@@ -1951,8 +1959,12 @@ impl WindowManager {
                         .iter()
                         .enumerate()
                         .flat_map(|(idx, w)| {
-                            (w.hwnd != focused_hwnd)
-                                .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                            (w.hwnd != focused_hwnd).then_some(
+                                backend()
+                                    .frame(WindowId::from_hwnd(w.hwnd))
+                                    .ok()
+                                    .map(|r| (idx, r)),
+                            )
                         })
                         .flatten()
                         .flat_map(|(idx, r)| {
@@ -1974,8 +1986,12 @@ impl WindowManager {
                         .iter()
                         .enumerate()
                         .flat_map(|(idx, w)| {
-                            (w.hwnd != focused_hwnd)
-                                .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                            (w.hwnd != focused_hwnd).then_some(
+                                backend()
+                                    .frame(WindowId::from_hwnd(w.hwnd))
+                                    .ok()
+                                    .map(|r| (idx, r)),
+                            )
                         })
                         .flatten()
                         .flat_map(|(idx, r)| {
@@ -2367,7 +2383,7 @@ impl WindowManager {
         let focused_hwnd = WindowsApi::foreground_window()?;
         for window in focused_workspace.floating_windows().iter() {
             if window.hwnd == focused_hwnd {
-                let mut rect = WindowsApi::window_rect(window.hwnd)?;
+                let mut rect = backend().frame(WindowId::from_hwnd(window.hwnd))?;
                 match direction {
                     OperationDirection::Left => {
                         if rect.left - delta < focused_monitor_work_area.left {
@@ -4066,7 +4082,8 @@ fn workspace_transition_plan(
         .into_iter()
         .filter(|window| !window.is_miminized())
         .filter_map(|window| {
-            WindowsApi::window_rect(window.hwnd)
+            backend()
+                .frame(WindowId::from_hwnd(window.hwnd))
                 .ok()
                 .map(|rect| (window.hwnd, rect))
         })
