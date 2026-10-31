@@ -1,6 +1,6 @@
 //! `MacosBackend`: the shared [`komorebi_backend::Backend`] over the existing [`MacosApi`] and
 //! [`Window`] methods (set_rect, focus, raise, hide, restore, minimize, unminimize, close, alive,
-//! frame and minimized): it holds no Accessibility call of its own.
+//! window_rect and minimized): it holds no Accessibility call of its own.
 //!
 //! **Nothing uses it yet.** The daemon still holds `Window` values (element, application and
 //! observer) and calls them directly; this adapter exists so that the trait is known to be
@@ -131,7 +131,7 @@ impl MacosBackend {
             id: WindowId::from_u32(window.id),
             pid: window.application.process_id,
             // the Accessibility position and size, in points; a failure leaves the default
-            rect: window.frame()
+            rect: window.window_rect()
                 .map(Rect::from)
                 .unwrap_or_default(),
             minimized: window.minimized(),

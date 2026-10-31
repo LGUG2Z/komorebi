@@ -520,7 +520,7 @@ impl Serialize for Window {
         state.serialize_field("id", &self.id)?;
         state.serialize_field(
             "rect",
-            &Rect::from(self.frame().unwrap_or_default()),
+            &Rect::from(self.window_rect().unwrap_or_default()),
         )?;
         state.serialize_field("details", &WindowDetails::from(self))?;
         state.end()
@@ -570,7 +570,7 @@ impl Window {
     }
 
     /// The frame query (`Backend::window_rect`): the Accessibility position and size, in points.
-    pub fn frame(&self) -> Result<CGRect, AccessibilityError> {
+    pub fn window_rect(&self) -> Result<CGRect, AccessibilityError> {
         MacosApi::window_rect(&self.element)
     }
 
@@ -633,7 +633,7 @@ impl Window {
         // it happened to be when it was hidden
         let rect = match animator::take_over(self.id) {
             Some(target) => CGRect::from(target),
-            None => self.frame()?,
+            None => self.window_rect()?,
         };
 
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
@@ -717,7 +717,7 @@ impl Window {
 
         let rect = match animator::target(self.id) {
             Some(target) => CGRect::from(target),
-            None => self.frame()?,
+            None => self.window_rect()?,
         };
 
         let Some(screen) = screen.or_else(|| CoreGraphicsApi::display_bounds_for_window_rect(rect))
@@ -978,7 +978,7 @@ impl Window {
         // the window manager is waiting for this, and so is every window after this one
         let _ = self.set_messaging_timeout(ARRIVAL_TIMEOUT);
 
-        match self.frame() {
+        match self.window_rect() {
             Ok(actual) => arrival::report(self.id, *target, Rect::from(actual)),
             Err(error) => {
                 tracing::debug!(
@@ -1007,7 +1007,7 @@ impl Window {
             return;
         }
 
-        let Ok(current) = self.frame() else {
+        let Ok(current) = self.window_rect() else {
             return;
         };
 
@@ -1099,7 +1099,7 @@ impl Window {
                 motion,
                 after: None,
             },
-            || self.frame().map(Rect::from),
+            || self.window_rect().map(Rect::from),
         )
     }
 
@@ -1214,7 +1214,7 @@ impl Window {
             let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
             (target_width, target_height)
         } else {
-            let current_rect = Rect::from(self.frame()?);
+            let current_rect = Rect::from(self.window_rect()?);
             (current_rect.right, current_rect.bottom)
         };
 
@@ -1234,7 +1234,7 @@ impl Window {
         current_area: &Rect,
         target_area: &Rect,
     ) -> Result<(), AccessibilityError> {
-        let current_rect = Rect::from(self.frame()?);
+        let current_rect = Rect::from(self.window_rect()?);
         let x_diff = target_area.left - current_area.left;
         let y_diff = target_area.top - current_area.top;
         let x_ratio = f32::abs((target_area.right as f32) / (current_area.right as f32));

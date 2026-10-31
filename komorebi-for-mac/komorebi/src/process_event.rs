@@ -260,7 +260,7 @@ impl WindowManager {
                                 && window.application.process_id == process_id
                             {
                                 let tab_rect = MacosApi::window_rect(&element)?;
-                                let main_rect = match window.frame() {
+                                let main_rect = match window.window_rect() {
                                     Ok(rect) => rect,
                                     Err(AccessibilityError::Api(
                                         AccessibilityApiError::InvalidUIElement,
@@ -328,7 +328,7 @@ impl WindowManager {
                             && window.application.process_id == process_id
                         {
                             let tab_rect = MacosApi::window_rect(&element)?;
-                            let main_rect = match window.frame() {
+                            let main_rect = match window.window_rect() {
                                 Ok(rect) => rect,
                                 Err(AccessibilityError::Api(
                                     AccessibilityApiError::InvalidUIElement,
@@ -553,7 +553,7 @@ impl WindowManager {
                                 if window.application.name().unwrap_or_default() == application_name
                                 {
                                     let tab_rect = MacosApi::window_rect(element)?;
-                                    let main_rect = window.frame()?;
+                                    let main_rect = window.window_rect()?;
                                     // BOTH conditions must be true:
                                     // 1. Geometry matches (original check - preserves existing behavior)
                                     // 2. Window IDs match (new check - prevents false positives)
@@ -897,7 +897,7 @@ impl WindowManager {
                     {
                         // TODO: not sure about this clone
                         let window = window.clone();
-                        let new_position = Rect::from(window.frame()?);
+                        let new_position = Rect::from(window.window_rect()?);
                         let old_position = *workspace
                             .latest_layout
                             .get(focused_container_idx)
@@ -1102,7 +1102,7 @@ impl WindowManager {
                             && let Some(window) =
                                 container.windows().iter().find(|w| w.id == window_id)
                         {
-                            let started_from = Rect::from(window.frame()?);
+                            let started_from = Rect::from(window.window_rect()?);
 
                             let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
                             *pending_resize_op = Option::from((window_id, Some(started_from)));
@@ -1162,7 +1162,7 @@ impl WindowManager {
                             && let Some(window) =
                                 container.windows().iter().find(|w| w.id == window_id)
                         {
-                            let ended_at = Rect::from(window.frame()?);
+                            let ended_at = Rect::from(window.window_rect()?);
 
                             tracing::info!("resizing with mouse");
                             redraw |= self.resize_by_drag(window_id, started_from, ended_at)?;

@@ -279,7 +279,7 @@ impl WindowManager {
                         .enumerate()
                         .flat_map(|(idx, w)| {
                             (w.id != focused_window_id).then_some(
-                                w.frame()
+                                w.window_rect()
                                     .ok()
                                     .map(|r| (idx, Rect::from(r))),
                             )
@@ -305,7 +305,7 @@ impl WindowManager {
                         .enumerate()
                         .flat_map(|(idx, w)| {
                             (w.id != focused_window_id).then_some(
-                                w.frame()
+                                w.window_rect()
                                     .ok()
                                     .map(|r| (idx, Rect::from(r))),
                             )
@@ -331,7 +331,7 @@ impl WindowManager {
                         .enumerate()
                         .flat_map(|(idx, w)| {
                             (w.id != focused_window_id).then_some(
-                                w.frame()
+                                w.window_rect()
                                     .ok()
                                     .map(|r| (idx, Rect::from(r))),
                             )
@@ -357,7 +357,7 @@ impl WindowManager {
                         .enumerate()
                         .flat_map(|(idx, w)| {
                             (w.id != focused_window_id).then_some(
-                                w.frame()
+                                w.window_rect()
                                     .ok()
                                     .map(|r| (idx, Rect::from(r))),
                             )
@@ -747,7 +747,7 @@ impl WindowManager {
             MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
         for window in focused_workspace.floating_windows().iter() {
             if window.id == focused_window_id {
-                let mut rect = Rect::from(window.frame()?);
+                let mut rect = Rect::from(window.window_rect()?);
                 match direction {
                     OperationDirection::Left => {
                         if rect.left - delta < focused_monitor_work_area.left {
@@ -1475,7 +1475,7 @@ impl WindowManager {
             .into_iter()
             .flatten()
             .filter_map(|window| {
-                window.frame()
+                window.window_rect()
                     .ok()
                     .map(|rect| (window.id, Rect::from(rect)))
             })
@@ -1696,7 +1696,7 @@ impl WindowManager {
 
                 for window in workspace.floating_windows().iter() {
                     if window.id == focused_window_id {
-                        let mut rect = Rect::from(window.frame()?);
+                        let mut rect = Rect::from(window.window_rect()?);
                         match (direction, sizing) {
                             (OperationDirection::Left, Sizing::Increase) => {
                                 if rect.left - delta < focused_monitor_work_area.left {

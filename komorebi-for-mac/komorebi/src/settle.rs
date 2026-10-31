@@ -184,7 +184,7 @@ impl WindowManager {
             }
 
             let _ = window.set_messaging_timeout(LOOK_TIMEOUT);
-            let rect = window.frame().map(Rect::from);
+            let rect = window.window_rect().map(Rect::from);
             let _ = window.set_messaging_timeout(0.0);
 
             if let Ok(rect) = rect
