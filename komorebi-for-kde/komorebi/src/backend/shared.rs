@@ -10,9 +10,7 @@
 //!
 //! - an id is a [`WindowId`] made from the `u32` ([`WindowId::from_u32`]); an id too wide for a
 //!   `u32` is a window KDE never had;
-//! - an `eyre` error of a window command becomes [`Error::WindowGone`] if the window is not alive
-//!   any more by the time the command is answered (KDE fails only for an unknown or dead
-//!   window), and [`Error::Platform`] otherwise;
+//! - errors need no translation: KDE's trait already fails with the shared [`Error`];
 //! - KDE fills every field of a window, so the optional fields are all `Some`;
 //! - every [`Capability`] is supported: KDE has workspaces, maximize, opacity and focus follows
 //!   mouse;
@@ -37,26 +35,16 @@ impl<B: Backend + ?Sized> Shared<B> {
         &self.0
     }
 
-    /// Runs a window command through KDE's trait and says why it failed in the shared terms.
+    /// Runs a window command through KDE's trait; an id too wide for KDE is a window it never had.
     fn window_command(
         &self,
         id: WindowId,
-        command: impl FnOnce(&B, u32) -> color_eyre::eyre::Result<()>,
+        command: impl FnOnce(&B, u32) -> shared::Result<()>,
     ) -> shared::Result<()> {
         let Some(raw) = id.to_u32() else {
             return Err(Error::WindowGone(id));
         };
-        command(&self.0, raw).map_err(|report| {
-            if self.0.is_window(raw) {
-                Error::Platform(report.into())
-            } else {
-                Error::WindowGone(id)
-            }
-        })
-    }
-
-    fn platform(report: color_eyre::eyre::Report) -> Error {
-        Error::Platform(report.into())
+        command(&self.0, raw)
     }
 }
 
@@ -93,8 +81,7 @@ impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     fn monitors(&self) -> shared::Result<Vec<shared::MonitorInfo>> {
         Ok(self
             .0
-            .monitors()
-            .map_err(Self::platform)?
+            .monitors()?
             .into_iter()
             .map(|m| shared::MonitorInfo {
                 id: MonitorId::from_u32(m.id),
@@ -143,7 +130,7 @@ impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     }
 
     fn center_cursor_in(&self, rect: &Rect) -> shared::Result<()> {
-        self.0.center_cursor_in(rect).map_err(Self::platform)
+        self.0.center_cursor_in(rect)
     }
 
     fn supports(&self, _capability: Capability) -> bool {
@@ -159,18 +146,16 @@ impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     }
 
     fn set_focus_follows_mouse(&self, enable: bool) -> shared::Result<()> {
-        self.0
-            .set_focus_follows_mouse(enable)
-            .map_err(Self::platform)
+        self.0.set_focus_follows_mouse(enable)
     }
 
     fn ensure_workspaces(&self, names: &[String]) -> shared::Result<()> {
-        self.0.ensure_workspaces(names).map_err(Self::platform)
+        self.0.ensure_workspaces(names)
     }
 
     fn switch_workspace(&self, monitor: MonitorId, idx: usize) -> shared::Result<()> {
         let id = monitor.to_u32().unwrap_or(u32::MAX);
-        self.0.switch_workspace(id, idx).map_err(Self::platform)
+        self.0.switch_workspace(id, idx)
     }
 
     fn set_window_workspace(&self, id: WindowId, idx: usize) -> shared::Result<()> {

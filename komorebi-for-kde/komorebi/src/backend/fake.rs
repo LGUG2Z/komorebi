@@ -130,10 +130,6 @@ fn wid(id: u32) -> WindowId {
     WindowId::from_u32(id)
 }
 
-fn eyre_of(error: shared::Error) -> eyre::Report {
-    eyre::Report::new(error)
-}
-
 fn window_info(info: shared::WindowInfo) -> WindowInfo {
     WindowInfo {
         id: raw(info.id),
@@ -418,11 +414,10 @@ impl Backend for FakeBackend {
         self.inner.foreground_window().map(raw)
     }
 
-    fn monitors(&self) -> eyre::Result<Vec<MonitorInfo>> {
+    fn monitors(&self) -> shared::Result<Vec<MonitorInfo>> {
         Ok(self
             .inner
-            .monitors()
-            .map_err(eyre_of)?
+            .monitors()?
             .into_iter()
             .map(|m| MonitorInfo {
                 id: raw_monitor(m.id),
@@ -442,58 +437,55 @@ impl Backend for FakeBackend {
         self.kde.lock().drag_ends.get(&id).copied()
     }
 
-    fn set_rect(&self, id: u32, rect: &Rect) -> eyre::Result<()> {
-        self.inner.set_rect(wid(id), rect).map_err(eyre_of)
+    fn set_rect(&self, id: u32, rect: &Rect) -> shared::Result<()> {
+        self.inner.set_rect(wid(id), rect)
     }
 
-    fn focus(&self, id: u32, mouse_follows_focus: bool) -> eyre::Result<()> {
+    fn focus(&self, id: u32, mouse_follows_focus: bool) -> shared::Result<()> {
         self.inner
             .focus(wid(id), mouse_follows_focus)
-            .map_err(eyre_of)
     }
 
-    fn raise(&self, id: u32) -> eyre::Result<()> {
-        self.inner.raise(wid(id)).map_err(eyre_of)
+    fn raise(&self, id: u32) -> shared::Result<()> {
+        self.inner.raise(wid(id))
     }
 
-    fn hide(&self, id: u32) -> eyre::Result<()> {
-        self.inner.hide(wid(id)).map_err(eyre_of)
+    fn hide(&self, id: u32) -> shared::Result<()> {
+        self.inner.hide(wid(id))
     }
 
-    fn restore(&self, id: u32) -> eyre::Result<()> {
-        self.inner.restore(wid(id)).map_err(eyre_of)
+    fn restore(&self, id: u32) -> shared::Result<()> {
+        self.inner.restore(wid(id))
     }
 
-    fn minimize(&self, id: u32) -> eyre::Result<()> {
-        self.inner.minimize(wid(id)).map_err(eyre_of)
+    fn minimize(&self, id: u32) -> shared::Result<()> {
+        self.inner.minimize(wid(id))
     }
 
-    fn unminimize(&self, id: u32) -> eyre::Result<()> {
-        self.inner.unminimize(wid(id)).map_err(eyre_of)
+    fn unminimize(&self, id: u32) -> shared::Result<()> {
+        self.inner.unminimize(wid(id))
     }
 
-    fn close(&self, id: u32) -> eyre::Result<()> {
-        self.inner.close(wid(id)).map_err(eyre_of)
+    fn close(&self, id: u32) -> shared::Result<()> {
+        self.inner.close(wid(id))
     }
 
-    fn center_cursor_in(&self, rect: &Rect) -> eyre::Result<()> {
-        self.inner.center_cursor_in(rect).map_err(eyre_of)
+    fn center_cursor_in(&self, rect: &Rect) -> shared::Result<()> {
+        self.inner.center_cursor_in(rect)
     }
 
-    fn ensure_workspaces(&self, names: &[String]) -> eyre::Result<()> {
-        self.inner.ensure_workspaces(names).map_err(eyre_of)
+    fn ensure_workspaces(&self, names: &[String]) -> shared::Result<()> {
+        self.inner.ensure_workspaces(names)
     }
 
-    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> eyre::Result<()> {
+    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> shared::Result<()> {
         self.inner
             .switch_workspace(MonitorId::from_u32(monitor_id), idx)
-            .map_err(eyre_of)
     }
 
-    fn set_window_workspace(&self, id: u32, idx: usize) -> eyre::Result<()> {
+    fn set_window_workspace(&self, id: u32, idx: usize) -> shared::Result<()> {
         self.inner
             .set_window_workspace(wid(id), idx)
-            .map_err(eyre_of)
     }
 
     fn window_workspace(&self, id: u32) -> Option<usize> {
@@ -509,8 +501,8 @@ impl Backend for FakeBackend {
             .collect()
     }
 
-    fn maximize(&self, id: u32, maximize: bool) -> eyre::Result<()> {
-        self.inner.maximize(wid(id), maximize).map_err(eyre_of)
+    fn maximize(&self, id: u32, maximize: bool) -> shared::Result<()> {
+        self.inner.maximize(wid(id), maximize)
     }
 
     fn apply_look(&self, look: &Look) -> eyre::Result<bool> {
@@ -523,8 +515,8 @@ impl Backend for FakeBackend {
         Ok(kde.borders_drawn && look.border.is_some())
     }
 
-    fn set_focus_follows_mouse(&self, enable: bool) -> eyre::Result<()> {
-        self.inner.set_focus_follows_mouse(enable).map_err(eyre_of)
+    fn set_focus_follows_mouse(&self, enable: bool) -> shared::Result<()> {
+        self.inner.set_focus_follows_mouse(enable)
     }
 
     fn set_wallpaper(&self, monitor_id: u32, path: &Path) -> eyre::Result<()> {
@@ -537,8 +529,8 @@ impl Backend for FakeBackend {
         Ok(())
     }
 
-    fn set_opacity(&self, id: u32, alpha: u8) -> eyre::Result<()> {
-        self.inner.set_opacity(wid(id), alpha).map_err(eyre_of)
+    fn set_opacity(&self, id: u32, alpha: u8) -> shared::Result<()> {
+        self.inner.set_opacity(wid(id), alpha)
     }
 
     fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {

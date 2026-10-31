@@ -227,7 +227,7 @@ impl Window {
     /// user's until they let go.
     ///
     /// A fullscreen window is left where it is, and the call succeeds.
-    pub fn set_position(self, rect: &Rect) -> eyre::Result<()> {
+    pub fn set_position(self, rect: &Rect) -> komorebi_backend::Result<()> {
         // the window the user is dragging an edge of is theirs until they let go
         if is_live_resized(self.id) {
             return Ok(());
@@ -249,11 +249,11 @@ impl Window {
     }
 
     /// Asks the compositor to draw the window with this opacity, 255 being not see-through at all
-    pub fn set_opacity(self, alpha: u8) -> eyre::Result<()> {
+    pub fn set_opacity(self, alpha: u8) -> komorebi_backend::Result<()> {
         backend().set_opacity(self.id, alpha)
     }
 
-    pub fn focus(self, mouse_follows_focus: bool) -> eyre::Result<()> {
+    pub fn focus(self, mouse_follows_focus: bool) -> komorebi_backend::Result<()> {
         backend().focus(self.id, mouse_follows_focus)
     }
 
@@ -262,7 +262,7 @@ impl Window {
     /// # Errors
     ///
     /// The backend does not know the window, or refuses to maximize it.
-    pub fn maximize(self) -> eyre::Result<()> {
+    pub fn maximize(self) -> komorebi_backend::Result<()> {
         backend().maximize(self.id, true)
     }
 
@@ -271,25 +271,25 @@ impl Window {
     /// # Errors
     ///
     /// The backend does not know the window, or refuses to restore it.
-    pub fn unmaximize(self) -> eyre::Result<()> {
+    pub fn unmaximize(self) -> komorebi_backend::Result<()> {
         backend().maximize(self.id, false)
     }
 
-    pub fn raise(self) -> eyre::Result<()> {
+    pub fn raise(self) -> komorebi_backend::Result<()> {
         backend().raise(self.id)
     }
 
-    pub fn close(self) -> eyre::Result<()> {
+    pub fn close(self) -> komorebi_backend::Result<()> {
         backend().close(self.id)
     }
 
     /// Minimizes the window, as the user asking for it would. [`Window::hide`] is what komorebi
     /// does to keep the back of a stack out of the way.
-    pub fn minimize(self) -> eyre::Result<()> {
+    pub fn minimize(self) -> komorebi_backend::Result<()> {
         backend().minimize(self.id)
     }
 
-    pub fn unminimize(self) -> eyre::Result<()> {
+    pub fn unminimize(self) -> komorebi_backend::Result<()> {
         backend().unminimize(self.id)
     }
 
@@ -338,12 +338,12 @@ impl Window {
         let x = work_area.left + ((work_area.right - target_width) / 2);
         let y = work_area.top + ((work_area.bottom - target_height) / 2);
 
-        self.set_position(&Rect {
+        Ok(self.set_position(&Rect {
             left: x,
             top: y,
             right: target_width,
             bottom: target_height,
-        })
+        })?)
     }
 
     /// Moves the window from one work area to another, keeping where it is in the area and how
@@ -366,12 +366,12 @@ impl Window {
         let corrected_width = (current_rect.right as f32 * x_ratio) as i32;
         let corrected_height = (current_rect.bottom as f32 * y_ratio) as i32;
 
-        self.set_position(&Rect {
+        Ok(self.set_position(&Rect {
             left,
             top,
             right: corrected_width,
             bottom: corrected_height,
-        })
+        })?)
     }
 
     /// Whether the window is one komorebi should tile: a window that is still alive, that the

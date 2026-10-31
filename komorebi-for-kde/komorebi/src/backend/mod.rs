@@ -218,20 +218,20 @@ pub struct BorderLook {
 /// #     fn windows(&self) -> Vec<WindowInfo> { vec![] }
 /// #     fn window(&self, _: u32) -> Option<WindowInfo> { None }
 /// #     fn foreground_window(&self) -> Option<u32> { None }
-/// #     fn monitors(&self) -> eyre::Result<Vec<MonitorInfo>> { Ok(vec![]) }
+/// #     fn monitors(&self) -> komorebi_backend::Result<Vec<MonitorInfo>> { Ok(vec![]) }
 /// #     fn cursor_pos(&self) -> Option<(i32, i32)> { None }
-/// #     fn set_rect(&self, _: u32, _: &Rect) -> eyre::Result<()> { Ok(()) }
-/// #     fn focus(&self, _: u32, _: bool) -> eyre::Result<()> { Ok(()) }
-/// #     fn raise(&self, _: u32) -> eyre::Result<()> { Ok(()) }
-/// #     fn hide(&self, _: u32) -> eyre::Result<()> { Ok(()) }
-/// #     fn restore(&self, _: u32) -> eyre::Result<()> { Ok(()) }
-/// #     fn minimize(&self, _: u32) -> eyre::Result<()> { Ok(()) }
-/// #     fn unminimize(&self, _: u32) -> eyre::Result<()> { Ok(()) }
-/// #     fn close(&self, _: u32) -> eyre::Result<()> { Ok(()) }
-/// #     fn center_cursor_in(&self, _: &Rect) -> eyre::Result<()> { Ok(()) }
-/// #     fn ensure_workspaces(&self, _: &[String]) -> eyre::Result<()> { Ok(()) }
-/// #     fn switch_workspace(&self, _: u32, _: usize) -> eyre::Result<()> { Ok(()) }
-/// #     fn set_window_workspace(&self, _: u32, _: usize) -> eyre::Result<()> { Ok(()) }
+/// #     fn set_rect(&self, _: u32, _: &Rect) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn focus(&self, _: u32, _: bool) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn raise(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn hide(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn restore(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn minimize(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn unminimize(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn close(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn center_cursor_in(&self, _: &Rect) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn ensure_workspaces(&self, _: &[String]) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn switch_workspace(&self, _: u32, _: usize) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn set_window_workspace(&self, _: u32, _: usize) -> komorebi_backend::Result<()> { Ok(()) }
 /// #     fn window_workspace(&self, _: u32) -> Option<usize> { None }
 /// #     fn current_workspaces(&self) -> Vec<(u32, usize)> { vec![] }
 /// # }
@@ -253,7 +253,7 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the compositor cannot report its outputs.
-    fn monitors(&self) -> eyre::Result<Vec<MonitorInfo>>;
+    fn monitors(&self) -> komorebi_backend::Result<Vec<MonitorInfo>>;
 
     /// Returns where the pointer is, if the compositor says.
     fn cursor_pos(&self) -> Option<(i32, i32)>;
@@ -323,21 +323,21 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn set_rect(&self, id: u32, rect: &Rect) -> eyre::Result<()>;
+    fn set_rect(&self, id: u32, rect: &Rect) -> komorebi_backend::Result<()>;
 
     /// Gives the window the focus, and, if `mouse_follows_focus`, puts the pointer in its middle.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn focus(&self, id: u32, mouse_follows_focus: bool) -> eyre::Result<()>;
+    fn focus(&self, id: u32, mouse_follows_focus: bool) -> komorebi_backend::Result<()>;
 
     /// Raises the window above the others.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn raise(&self, id: u32) -> eyre::Result<()>;
+    fn raise(&self, id: u32) -> komorebi_backend::Result<()>;
 
     /// Takes the window out of sight without closing or minimizing it, which is how the window
     /// manager keeps the back of a stack out of the way. On KWin it goes to a virtual desktop that
@@ -351,7 +351,7 @@ pub trait Backend: Send + Sync + 'static {
     ///
     /// When the window does not exist or is no longer alive, or the compositor cannot make the
     /// place the window is hidden in.
-    fn hide(&self, id: u32) -> eyre::Result<()>;
+    fn hide(&self, id: u32) -> komorebi_backend::Result<()>;
 
     /// Brings a hidden window back, to the workspace it is on. A window that is not hidden is left
     /// as it is.
@@ -359,35 +359,35 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn restore(&self, id: u32) -> eyre::Result<()>;
+    fn restore(&self, id: u32) -> komorebi_backend::Result<()>;
 
     /// Minimizes the window.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn minimize(&self, id: u32) -> eyre::Result<()>;
+    fn minimize(&self, id: u32) -> komorebi_backend::Result<()>;
 
     /// Brings a minimized window back.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn unminimize(&self, id: u32) -> eyre::Result<()>;
+    fn unminimize(&self, id: u32) -> komorebi_backend::Result<()>;
 
     /// Asks the window to close.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn close(&self, id: u32) -> eyre::Result<()>;
+    fn close(&self, id: u32) -> komorebi_backend::Result<()>;
 
     /// Puts the pointer in the middle of `rect`.
     ///
     /// # Errors
     ///
     /// When the compositor refuses to move the pointer.
-    fn center_cursor_in(&self, rect: &Rect) -> eyre::Result<()>;
+    fn center_cursor_in(&self, rect: &Rect) -> komorebi_backend::Result<()>;
 
     // ---- workspaces ----------------------------------------------------------------------------
     //
@@ -406,7 +406,7 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the compositor refuses to create or rename a desktop.
-    fn ensure_workspaces(&self, names: &[String]) -> eyre::Result<()>;
+    fn ensure_workspaces(&self, names: &[String]) -> komorebi_backend::Result<()>;
 
     /// Shows workspace `idx` on the monitor `monitor_id`, leaving the other monitors as they are.
     ///
@@ -416,14 +416,14 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When there is no desktop for `idx` and one cannot be made.
-    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> eyre::Result<()>;
+    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> komorebi_backend::Result<()>;
 
     /// Puts a window on workspace `idx`. It is visible at once to [`Backend::window_workspace`].
     ///
     /// # Errors
     ///
     /// When the window does not exist, or there is no desktop for `idx` and one cannot be made.
-    fn set_window_workspace(&self, id: u32, idx: usize) -> eyre::Result<()>;
+    fn set_window_workspace(&self, id: u32, idx: usize) -> komorebi_backend::Result<()>;
 
     /// Returns the workspace a window is on, or `None` for a window the compositor does not know or
     /// that is on every workspace.
@@ -527,7 +527,7 @@ pub trait Backend: Send + Sync + 'static {
     /// assert_eq!(fake.opacity_of(7), 150);
     /// # Ok::<(), color_eyre::eyre::Report>(())
     /// ```
-    fn set_opacity(&self, _id: u32, _alpha: u8) -> eyre::Result<()> {
+    fn set_opacity(&self, _id: u32, _alpha: u8) -> komorebi_backend::Result<()> {
         Ok(())
     }
 
@@ -551,7 +551,7 @@ pub trait Backend: Send + Sync + 'static {
     /// assert_eq!(fake.commands(), [Command::FocusFollowsMouse(true)]);
     /// # Ok::<(), color_eyre::eyre::Report>(())
     /// ```
-    fn set_focus_follows_mouse(&self, _enable: bool) -> eyre::Result<()> {
+    fn set_focus_follows_mouse(&self, _enable: bool) -> komorebi_backend::Result<()> {
         Ok(())
     }
 
@@ -605,7 +605,7 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn maximize(&self, _id: u32, _maximize: bool) -> eyre::Result<()> {
+    fn maximize(&self, _id: u32, _maximize: bool) -> komorebi_backend::Result<()> {
         Ok(())
     }
 

@@ -783,24 +783,39 @@ async fn move_mouse_to_focus(shared: &Shared) -> eyre::Result<()> {
     Ok(())
 }
 
+/// A failure of the compositor, in the shared terms.
+fn platform(report: eyre::Report) -> komorebi_backend::Error {
+    komorebi_backend::Error::Platform(report.into())
+}
+
 fn command_rect(uuid: &str, rect: &Rect) -> Value {
     json!({ "op": "geo", "id": uuid, "x": rect.left, "y": rect.top, "w": rect.right, "h": rect.bottom })
 }
 
 impl KWinBackend {
     /// A workspace was asked for that has no desktop: make desktops up to it
-    fn make_desktops(&self, count: usize) -> eyre::Result<()> {
+    fn make_desktops(&self, count: usize) -> komorebi_backend::Result<()> {
         let names: Vec<String> = (1..=count).map(|n| format!("Workspace {n}")).collect();
         self.ensure_workspaces(&names)
     }
 
-    fn command(&self, id: u32, build: impl FnOnce(&str) -> Value) -> eyre::Result<()> {
-        let uuid = self
-            .shared
+    /// The compositor's name for a window, or "that window is gone" for an id it does not know
+    fn uuid_of(&self, id: u32) -> komorebi_backend::Result<String> {
+        self.shared
             .table
             .lock()
             .uuid(id)
-            .ok_or_eyre("there is no such window")?;
+            .ok_or(komorebi_backend::Error::WindowGone(
+                komorebi_backend::WindowId::from_u32(id),
+            ))
+    }
+
+    fn command(
+        &self,
+        id: u32,
+        build: impl FnOnce(&str) -> Value,
+    ) -> komorebi_backend::Result<()> {
+        let uuid = self.uuid_of(id)?;
         self.shared.push(build(&uuid));
         Ok(())
     }
@@ -827,10 +842,10 @@ impl Backend for KWinBackend {
         self.shared.table.lock().drag_end(id)
     }
 
-    fn monitors(&self) -> eyre::Result<Vec<MonitorInfo>> {
+    fn monitors(&self) -> komorebi_backend::Result<Vec<MonitorInfo>> {
         let monitors = self.shared.table.lock().monitors();
         if monitors.is_empty() {
-            eyre::bail!("KWin reported no outputs");
+            return Err(platform(eyre::eyre!("KWin reported no outputs")));
         }
         Ok(monitors)
     }
@@ -849,14 +864,14 @@ impl Backend for KWinBackend {
         answer.or_else(|| self.shared.table.lock().cursor())
     }
 
-    fn set_rect(&self, id: u32, rect: &Rect) -> eyre::Result<()> {
+    fn set_rect(&self, id: u32, rect: &Rect) -> komorebi_backend::Result<()> {
         tracing::debug!("asking for window {id} to be at {rect:?}");
         self.command(id, |uuid| command_rect(uuid, rect))?;
         self.shared.table.lock().note_requested_rect(id, *rect);
         Ok(())
     }
 
-    fn focus(&self, id: u32, mouse_follows_focus: bool) -> eyre::Result<()> {
+    fn focus(&self, id: u32, mouse_follows_focus: bool) -> komorebi_backend::Result<()> {
         self.command(id, |uuid| json!({ "op": "activate", "id": uuid }))?;
 
         if mouse_follows_focus {
@@ -879,16 +894,12 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn raise(&self, id: u32) -> eyre::Result<()> {
+    fn raise(&self, id: u32) -> komorebi_backend::Result<()> {
         self.command(id, |uuid| json!({ "op": "raise", "id": uuid }))
     }
 
-    fn hide(&self, id: u32) -> eyre::Result<()> {
-        self.shared
-            .table
-            .lock()
-            .uuid(id)
-            .ok_or_eyre("there is no such window")?;
+    fn hide(&self, id: u32) -> komorebi_backend::Result<()> {
+        self.uuid_of(id)?;
 
         let commands = loop {
             let attempt = self.shared.table.lock().hide_commands(id);
@@ -898,7 +909,9 @@ impl Backend for KWinBackend {
                     let shared = self.shared.clone();
                     let park = self
                         .shared
-                        .block_on(async move { create_park_desktop(&shared).await })??;
+                        .block_on(async move { create_park_desktop(&shared).await })
+                        .map_err(platform)?
+                        .map_err(platform)?;
                     self.shared.table.lock().set_park(park);
                 }
             }
@@ -910,12 +923,8 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn restore(&self, id: u32) -> eyre::Result<()> {
-        self.shared
-            .table
-            .lock()
-            .uuid(id)
-            .ok_or_eyre("there is no such window")?;
+    fn restore(&self, id: u32) -> komorebi_backend::Result<()> {
+        self.uuid_of(id)?;
 
         let commands = self.shared.table.lock().restore_commands(id);
         for command in commands {
@@ -924,14 +933,16 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn ensure_workspaces(&self, names: &[String]) -> eyre::Result<()> {
+    fn ensure_workspaces(&self, names: &[String]) -> komorebi_backend::Result<()> {
         let shared = self.shared.clone();
         let names = names.to_vec();
         self.shared
-            .block_on(async move { create_workspace_desktops(&shared, &names).await })?
+            .block_on(async move { create_workspace_desktops(&shared, &names).await })
+            .map_err(platform)?
+            .map_err(platform)
     }
 
-    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> eyre::Result<()> {
+    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> komorebi_backend::Result<()> {
         let commands = loop {
             let attempt = self.shared.table.lock().switch_commands(monitor_id, idx);
             match attempt {
@@ -946,7 +957,7 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn set_window_workspace(&self, id: u32, idx: usize) -> eyre::Result<()> {
+    fn set_window_workspace(&self, id: u32, idx: usize) -> komorebi_backend::Result<()> {
         let commands = loop {
             let attempt = self.shared.table.lock().window_workspace_commands(id, idx);
             match attempt {
@@ -969,26 +980,26 @@ impl Backend for KWinBackend {
         self.shared.table.lock().current_workspaces()
     }
 
-    fn minimize(&self, id: u32) -> eyre::Result<()> {
+    fn minimize(&self, id: u32) -> komorebi_backend::Result<()> {
         self.command(id, |uuid| json!({ "op": "min", "id": uuid, "v": true }))
     }
 
-    fn unminimize(&self, id: u32) -> eyre::Result<()> {
+    fn unminimize(&self, id: u32) -> komorebi_backend::Result<()> {
         self.command(id, |uuid| json!({ "op": "min", "id": uuid, "v": false }))
     }
 
-    fn close(&self, id: u32) -> eyre::Result<()> {
+    fn close(&self, id: u32) -> komorebi_backend::Result<()> {
         self.command(id, |uuid| json!({ "op": "close", "id": uuid }))
     }
 
-    fn maximize(&self, id: u32, maximize: bool) -> eyre::Result<()> {
+    fn maximize(&self, id: u32, maximize: bool) -> komorebi_backend::Result<()> {
         self.command(
             id,
             |uuid| json!({ "op": "maximize", "id": uuid, "v": maximize }),
         )
     }
 
-    fn center_cursor_in(&self, _rect: &Rect) -> eyre::Result<()> {
+    fn center_cursor_in(&self, _rect: &Rect) -> komorebi_backend::Result<()> {
         // KWin can center the pointer on the active window and nothing else; the WM calls this
         // right after focusing the window in question
         let shared = self.shared.clone();
@@ -1014,17 +1025,18 @@ impl Backend for KWinBackend {
         })?
     }
 
-    fn set_opacity(&self, id: u32, alpha: u8) -> eyre::Result<()> {
+    fn set_opacity(&self, id: u32, alpha: u8) -> komorebi_backend::Result<()> {
         self.command(
             id,
             |uuid| json!({ "op": "opacity", "id": uuid, "v": f64::from(alpha) / 255.0 }),
         )
     }
 
-    fn set_focus_follows_mouse(&self, enable: bool) -> eyre::Result<()> {
+    fn set_focus_follows_mouse(&self, enable: bool) -> komorebi_backend::Result<()> {
         let shared = self.shared.clone();
 
-        self.shared.block_on(async move {
+        self.shared
+            .block_on(async move {
             let Some(kwinrc) = &shared.kwinrc else {
                 eyre::bail!("there is no configuration directory to find kwinrc in");
             };
@@ -1044,7 +1056,9 @@ impl Backend for KWinBackend {
             let connection = shared.connection().await?;
             kwin_reconfigure(&connection).await;
             Ok(())
-        })?
+        })
+            .map_err(platform)?
+            .map_err(platform)
     }
 
     fn set_wallpaper(&self, monitor_id: u32, path: &std::path::Path) -> eyre::Result<()> {
