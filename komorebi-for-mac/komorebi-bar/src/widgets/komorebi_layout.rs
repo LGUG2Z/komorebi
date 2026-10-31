@@ -2,6 +2,7 @@ use crate::config::DisplayFormat;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::komorebi::KomorebiLayoutConfig;
+use color_eyre::eyre;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
 use eframe::egui::FontId;
@@ -24,6 +25,7 @@ use std::fmt::Formatter;
 
 #[derive(Copy, Clone, Debug, Serialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
 /// Komorebi layout kind
 pub enum KomorebiLayout {
     /// Predefined layout
@@ -40,7 +42,7 @@ pub enum KomorebiLayout {
 }
 
 impl<'de> Deserialize<'de> for KomorebiLayout {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> eyre::Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -146,7 +148,7 @@ impl KomorebiLayout {
         } else {
             ui.style().visuals.text_color()
         };
-        let stroke = Stroke::new(1.0, color);
+        let stroke = Stroke::new(1.0_f32, color);
         let mut rect = response.rect;
         let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
         rect = rect.shrink(stroke.width);
