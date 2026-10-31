@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::env::temp_dir;
+use std::fs::OpenOptions;
 use std::io::ErrorKind;
 use std::net::Shutdown;
 use std::num::NonZeroUsize;
@@ -4008,8 +4009,25 @@ impl WindowManager {
                 *reaper_cache = known_hwnds.clone();
             }
 
-            // Save to file, from the writer thread of the reaper
-            crate::reaper::save_known_hwnds(known_hwnds.keys().copied().collect());
+            // Save to file
+            let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
+            match OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(hwnd_json)
+            {
+                Ok(file) => {
+                    if let Err(error) =
+                        serde_json::to_writer_pretty(&file, &known_hwnds.keys().collect::<Vec<_>>())
+                    {
+                        tracing::error!("Failed to save list of known_hwnds on file: {}", error);
+                    }
+                }
+                Err(error) => {
+                    tracing::error!("Failed to save list of known_hwnds on file: {}", error);
+                }
+            }
 
             // Store new hwnds
             self.known_hwnds = known_hwnds;
