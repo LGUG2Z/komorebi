@@ -3165,6 +3165,7 @@ dependencies = [
  "dispatch2",
  "ed25519-dalek",
  "hotwatch",
+ "komorebi-backend",
  "komorebi-collections",
  "komorebi-config",
  "komorebi-layouts",
@@ -3198,6 +3199,13 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "version",
+]
+
+[[package]]
+name = "komorebi-backend"
+version = "0.1.42"
+dependencies = [
+ "komorebi-layouts",
 ]
 
 [[package]]

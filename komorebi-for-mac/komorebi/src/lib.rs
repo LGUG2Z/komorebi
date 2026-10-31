@@ -63,6 +63,7 @@ pub mod input_event_listener;
 pub mod ioreg;
 pub use komorebi_collections::lockable_sequence;
 pub mod macos_api;
+pub mod macos_backend;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod notification_center_listener;
