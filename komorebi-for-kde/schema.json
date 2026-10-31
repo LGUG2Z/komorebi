@@ -677,12 +677,12 @@
       "anyOf": [
         {
           "title": "Predefined",
-          "description": "A predefined aspect ratio",
+          "description": "Predefined aspect ratio",
           "$ref": "#/$defs/PredefinedAspectRatio"
         },
         {
           "title": "Custom",
-          "description": "A custom W:H aspect ratio",
+          "description": "Custom W:H aspect ratio",
           "type": "array",
           "maxItems": 2,
           "minItems": 2,
