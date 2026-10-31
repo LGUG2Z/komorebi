@@ -1647,6 +1647,9 @@ impl Workspace {
                             .as_ref()
                             .and_then(|o| o.unfocused_locked_border),
                         bar_accent: wallpaper.theme_options.as_ref().and_then(|o| o.bar_accent),
+                        stackbar_focused_text: None,
+                        stackbar_unfocused_text: None,
+                        stackbar_background: None,
                     });
 
                     let bytes = SocketMessage::Theme(Box::new(komorebi_theme)).as_bytes()?;

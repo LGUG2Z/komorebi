@@ -52,6 +52,7 @@ use komorebi::reaper;
 use komorebi::stackbar_manager;
 use komorebi::state::State;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::theme_manager;
 use komorebi::transparency_manager;
 use komorebi::window_manager::WindowManager;

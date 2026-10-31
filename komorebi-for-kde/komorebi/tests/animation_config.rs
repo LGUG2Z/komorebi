@@ -13,6 +13,7 @@ use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::with_backend;
 use komorebi::core::animation::AnimationStyle;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::window_manager::WindowManager;
 use parking_lot::Mutex;
 use std::os::unix::net::UnixListener;

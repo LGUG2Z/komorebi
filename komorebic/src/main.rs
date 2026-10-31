@@ -1402,9 +1402,10 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             WindowsCommands::ApplicationSpecificConfigurationSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let asc = schemars::schema_for!(ApplicationSpecificConfiguration);
-                    let schema = serde_json::to_string_pretty(&asc)?;
-                    println!("{schema}");
+                    let schema = komorebi_config::schema::view::<ApplicationSpecificConfiguration>(
+                        komorebi_config::schema::Platform::CURRENT,
+                    );
+                    print!("{schema}");
                 }
             }
             WindowsCommands::NotificationSchema => {
@@ -1426,9 +1427,10 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             WindowsCommands::StaticConfigSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let static_config = schemars::schema_for!(StaticConfig);
-                    let schema = serde_json::to_string_pretty(&static_config)?;
-                    println!("{schema}");
+                    let schema = komorebi_config::schema::view::<
+                        komorebi_config::static_config::StaticConfig,
+                    >(komorebi_config::schema::Platform::CURRENT);
+                    print!("{schema}");
                 }
             }
             WindowsCommands::GenerateStaticConfig => {

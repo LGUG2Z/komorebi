@@ -2502,6 +2502,7 @@ dependencies = [
  "futures-util",
  "hotwatch",
  "komorebi-collections",
+ "komorebi-config",
  "komorebi-hotkeys",
  "komorebi-layouts",
  "komorebi-protocol",
@@ -2544,6 +2545,22 @@ dependencies = [
  "pastey",
  "schemars 1.2.3",
  "serde",
+]
+
+[[package]]
+name = "komorebi-config"
+version = "0.1.42"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "serde_with",
+ "strum",
 ]
 
 [[package]]
@@ -2625,6 +2642,7 @@ dependencies = [
  "fs-tail",
  "komorebi",
  "komorebi-client",
+ "komorebi-config",
  "komorebi-hotkeys",
  "komorebic-core",
  "lazy_static",

@@ -766,10 +766,10 @@ exit 1
             MacosCommands::ApplicationSpecificConfigurationSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let asc =
-                        schemars::schema_for!(komorebi_client::ApplicationSpecificConfiguration);
-                    let schema = serde_json::to_string_pretty(&asc)?;
-                    println!("{schema}");
+                    let schema = komorebi_config::schema::view::<
+                        komorebi_client::ApplicationSpecificConfiguration,
+                    >(komorebi_config::schema::Platform::CURRENT);
+                    print!("{schema}");
                 }
             }
             MacosCommands::NotificationSchema => {
@@ -791,9 +791,10 @@ exit 1
             MacosCommands::StaticConfigSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let socket_message = schemars::schema_for!(komorebi_client::StaticConfig);
-                    let schema = serde_json::to_string_pretty(&socket_message)?;
-                    println!("{schema}");
+                    let schema = komorebi_config::schema::view::<
+                        komorebi_config::static_config::StaticConfig,
+                    >(komorebi_config::schema::Platform::CURRENT);
+                    print!("{schema}");
                 }
             }
             MacosCommands::GenerateStaticConfig => {

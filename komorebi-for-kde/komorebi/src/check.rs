@@ -477,7 +477,11 @@ mod schema {
     /// Returns the keys of each level, or `None` when the schema has no `monitors` or no
     /// `workspaces` to find them in.
     pub fn known_keys() -> Option<KnownKeys> {
-        let root = serde_json::to_value(schemars::schema_for!(StaticConfig)).ok()?;
+        let root: serde_json::Value =
+            serde_json::from_str(&komorebi_config::schema::view::<StaticConfig>(
+                komorebi_config::schema::Platform::CURRENT,
+            ))
+            .ok()?;
         let monitors = child(&root, &root, "monitors")?;
         let workspaces = child(&root, monitors, "workspaces");
 

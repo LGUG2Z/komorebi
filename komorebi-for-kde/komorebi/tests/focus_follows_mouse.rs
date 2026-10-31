@@ -13,6 +13,7 @@ use komorebi::core::FocusFollowsMouseImplementation;
 use komorebi::core::SocketMessage;
 use komorebi::state::State;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::window_manager::WindowManager;
 use parking_lot::Mutex;
 use std::os::unix::net::UnixListener;

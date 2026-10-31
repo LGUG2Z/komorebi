@@ -79,6 +79,7 @@ use crate::lockable_sequence::Lockable;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::static_config::StaticConfig;
+use crate::static_config::StaticConfigExt;
 use crate::window::Window;
 use crate::window::should_act_individual;
 use crate::window_manager_event::WindowManagerEvent;

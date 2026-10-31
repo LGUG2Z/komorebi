@@ -8,6 +8,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+komorebi-config = { path = "../crates/komorebi-config", default-features = false }
 komorebi-client = { path = "../komorebi-client", default-features = false }
 komorebic-core = { path = "../crates/komorebic-core" }
 
@@ -38,7 +39,7 @@ shadow-rs = { workspace = true }
 
 [features]
 default = ["schemars"]
-schemars = ["dep:schemars", "komorebi-client/default"]
+schemars = ["dep:schemars", "komorebi-client/default", "komorebi-config/schemars"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(FALSE)'] }

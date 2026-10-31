@@ -16,12 +16,11 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::atomic::AtomicConsume;
+pub use komorebi_config::behaviour::ZOrder;
 use komorebi_themes::colour::Colour;
 use komorebi_themes::colour::Rgb;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use serde::Deserialize;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map::Entry;
@@ -32,7 +31,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
-use strum::Display;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
 
@@ -1100,42 +1098,6 @@ pub fn hide_border(tracking_hwnd: isize) {
             WindowsApi::hide_window(border_info.border_hwnd);
         }
     });
-}
-
-#[derive(Debug, Copy, Clone, Display, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Z Order (https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)
-pub enum ZOrder {
-    /// HWND_TOP
-    ///
-    /// Places the window at the top of the Z order.
-    Top,
-    /// HWND_NOTOPMOST
-    ///
-    /// Places the window above all non-topmost windows (that is, behind all topmost windows).
-    /// This flag has no effect if the window is already a non-topmost window.
-    NoTopMost,
-    /// HWND_BOTTOM
-    ///
-    /// Places the window at the bottom of the Z order. If the hWnd parameter identifies a topmost window,
-    /// the window loses its topmost status and is placed at the bottom of all other windows.
-    Bottom,
-    /// HWND_TOPMOST
-    ///
-    /// Places the window above all non-topmost windows.
-    /// The window maintains its topmost position even when it is deactivated.
-    TopMost,
-}
-
-impl From<ZOrder> for isize {
-    fn from(val: ZOrder) -> Self {
-        match val {
-            ZOrder::Top => 0,
-            ZOrder::NoTopMost => -2,
-            ZOrder::Bottom => 1,
-            ZOrder::TopMost => -1,
-        }
-    }
 }
 
 #[cfg(test)]

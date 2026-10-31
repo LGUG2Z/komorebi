@@ -44,6 +44,7 @@ use crate::ring::Ring;
 use crate::settle;
 use crate::skylight::BatchedUpdates;
 use crate::static_config::StaticConfig;
+use crate::static_config::StaticConfigExt;
 use crate::window::AdhocWindow;
 use crate::window::Snapping;
 use crate::window::Window;

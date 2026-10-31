@@ -11,6 +11,7 @@ use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::with_backend;
 use komorebi::border_manager;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::window_manager::WindowManager;
 use komorebi_themes::colour::Colour;
 use komorebi_themes::colour::Rgb;

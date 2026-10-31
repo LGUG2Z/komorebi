@@ -155,7 +155,11 @@ fn fixtures_load_round_trip_and_only_lose_windows_only_keys() {
 
 /// The top-level keys `StaticConfig` reads, from its schema
 fn keys_that_are_read() -> BTreeSet<String> {
-    let schema = serde_json::to_value(schemars::schema_for!(StaticConfig)).unwrap();
+    // the keys of the schema of this platform: the one `StaticConfig` carries every platform's
+    let schema: Value = serde_json::from_str(&komorebi_config::schema::view::<StaticConfig>(
+        komorebi_config::schema::Platform::CURRENT,
+    ))
+    .unwrap();
     schema["properties"]
         .as_object()
         .unwrap()

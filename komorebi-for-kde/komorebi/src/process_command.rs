@@ -260,6 +260,7 @@ use crate::notify_subscribers;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
+use crate::static_config::StaticConfigExt;
 use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
@@ -1852,10 +1853,10 @@ impl WindowManager {
             SocketMessage::ApplicationSpecificConfigurationSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let asc = schemars::schema_for!(
-                        Vec<crate::core::asc::ApplicationSpecificConfiguration>
-                    );
-                    let schema = serde_json::to_string_pretty(&asc)?;
+                    let schema = komorebi_config::schema::view::<
+                        Vec<crate::core::asc::ApplicationSpecificConfiguration>,
+                    >(komorebi_config::schema::Platform::CURRENT);
+                    let schema = schema.trim_end();
 
                     reply.write_all(schema.as_bytes())?;
                 }
@@ -1881,8 +1882,10 @@ impl WindowManager {
             SocketMessage::StaticConfigSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let static_config = schemars::schema_for!(StaticConfig);
-                    let schema = serde_json::to_string_pretty(&static_config)?;
+                    let schema = komorebi_config::schema::view::<
+                        komorebi_config::static_config::StaticConfig,
+                    >(komorebi_config::schema::Platform::CURRENT);
+                    let schema = schema.trim_end();
 
                     reply.write_all(schema.as_bytes())?;
                 }

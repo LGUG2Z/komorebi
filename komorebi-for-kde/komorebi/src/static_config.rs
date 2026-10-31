@@ -49,31 +49,20 @@ use crate::animation::DEFAULT_ANIMATION_FPS;
 use crate::animation::PerAnimationPrefixConfig;
 use crate::backend::backend;
 use crate::border_manager;
-use crate::core::Axis;
 use crate::core::CrossBoundaryBehaviour;
-use crate::core::DefaultLayout;
-use crate::core::FloatingLayerBehaviour;
-use crate::core::FocusFollowsMouseImplementation;
-use crate::core::InitialWindowPlacementRules;
 use crate::core::Layout;
-use crate::core::LayoutDefaultEntry;
-use crate::core::LayoutOptions;
-use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::Placement;
 use crate::core::Rect;
 use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
-use crate::core::WindowHidingPosition;
 use crate::core::WindowManagementBehaviour;
-use crate::core::animation::AnimationStyle;
 use crate::core::asc::ApplicationSpecificConfiguration;
 use crate::core::asc::AscApplicationRulesOrSchema;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
-use crate::core::pathext::ResolvedPathBuf;
 use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator;
@@ -89,12 +78,9 @@ use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
-use komorebi_themes::KomorebiTheme;
 use komorebi_themes::colour::Colour;
 use parking_lot::Mutex;
 use regex::Regex;
-use serde::Deserialize;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::io::Write;
@@ -104,177 +90,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Border colours for different container states
-///
-/// These options will have no effect if a `theme` is set
-pub struct BorderColours {
-    /// Border colour when the container contains a single window
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub single: Option<Colour>,
-    /// Border colour when the container contains multiple windows
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stack: Option<Colour>,
-    /// Border colour when the container is in monocle mode
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub monocle: Option<Colour>,
-    /// Border colour when the container is in floating mode
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub floating: Option<Colour>,
-    /// Border colour when the container is unfocused
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub unfocused: Option<Colour>,
-    /// Border colour when the container is unfocused and locked
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub unfocused_locked: Option<Colour>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Theme options
-pub struct ThemeOptions {
-    /// Specify Light or Dark variant for theme generation
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = komorebi_themes::ThemeVariant::Dark)))]
-    pub theme_variant: Option<komorebi_themes::ThemeVariant>,
-    /// Border color when the container contains a single window
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = komorebi_themes::Base16Value::Base0D)))]
-    pub single_border: Option<komorebi_themes::Base16Value>,
-    /// Border color when the container contains multiple windows
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = komorebi_themes::Base16Value::Base0B)))]
-    pub stack_border: Option<komorebi_themes::Base16Value>,
-    /// Border color when the container is in monocle mode
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = komorebi_themes::Base16Value::Base0F)))]
-    pub monocle_border: Option<komorebi_themes::Base16Value>,
-    /// Border color when the window is floating
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = komorebi_themes::Base16Value::Base09)))]
-    pub floating_border: Option<komorebi_themes::Base16Value>,
-    /// Border color when the container is unfocused
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = komorebi_themes::Base16Value::Base01)))]
-    pub unfocused_border: Option<komorebi_themes::Base16Value>,
-    /// Border color when the container is unfocused and locked
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = komorebi_themes::Base16Value::Base08)))]
-    pub unfocused_locked_border: Option<komorebi_themes::Base16Value>,
-    // /// Stackbar focused tab text colour (default: Base0B)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub stackbar_focused_text: Option<komorebi_themes::Base16Value>,
-    // /// Stackbar unfocused tab text colour (default: Base05)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
-    // /// Stackbar tab background colour (default: Base01)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub stackbar_background: Option<komorebi_themes::Base16Value>,
-    /// Komorebi status bar accent
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = komorebi_themes::Base16Value::Base0D)))]
-    pub bar_accent: Option<komorebi_themes::Base16Value>,
-}
-
-#[serde_with::serde_as]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Wallpaper configuration
-pub struct Wallpaper {
-    /// Path to the wallpaper image file
-    #[serde_as(as = "ResolvedPathBuf")]
-    pub path: PathBuf,
-    /// Generate and apply Base16 theme for this wallpaper
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
-    pub generate_theme: Option<bool>,
-    /// Specify theme options
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub theme_options: Option<ThemeOptions>,
-}
-
 // serde_as must be before derive
-#[serde_with::serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Workspace configuration
-pub struct WorkspaceConfig {
-    /// Name
-    pub name: String,
-    /// Layout
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = DefaultLayout::BSP)))]
-    pub layout: Option<DefaultLayout>,
-    /// Layout-specific options
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub layout_options: Option<LayoutOptions>,
-    /// Threshold-based layout options rules in the format of threshold => options.
-    /// When container count >= threshold, the highest matching threshold's options
-    /// fully replace the base `layout_options`.
-    /// This follows the same threshold logic as `layout_rules`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub layout_options_rules: Option<HashMap<usize, LayoutOptions>>,
-    // /// END OF LIFE FEATURE: Custom Layout (default: None)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // #[serde_as(as = "Option<ResolvedPathBuf>")]
-    // pub custom_layout: Option<PathBuf>,
-    /// Layout rules in the format of threshold => layout
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
-    /// Container padding (default: global)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub container_padding: Option<i32>,
-    /// Workspace padding (default: global)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub workspace_padding: Option<i32>,
-    /// Initial workspace application rules
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub initial_workspace_rules: Option<Vec<MatchingRule>>,
-    /// Permanent workspace application rules
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub workspace_rules: Option<Vec<MatchingRule>>,
-    /// Work area offset rules in the format of threshold => Rect (default: None)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub work_area_offset_rules: Option<HashMap<usize, Rect>>,
-    /// Workspace specific work area offset
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub work_area_offset: Option<Rect>,
-    /// Apply this monitor's window-based work area offset
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
-    pub apply_window_based_work_area_offset: Option<bool>,
-    /// Determine what happens when a new window is opened
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = WindowContainerBehaviour::Create)))]
-    pub window_container_behaviour: Option<WindowContainerBehaviour>,
-    /// Window container behavior rules in the format of threshold => behavior
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub window_container_behaviour_rules: Option<HashMap<usize, WindowContainerBehaviour>>,
-    /// Enable or disable float override, which makes it so every new window opens in floating mode
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
-    pub float_override: Option<bool>,
-    /// Enable or disable tiling for the workspace
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
-    pub tile: Option<bool>,
-    /// Specify an axis on which to flip the selected layout
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub layout_flip: Option<Axis>,
-    /// Determine what happens to a new window when the Floating workspace layer is active
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = FloatingLayerBehaviour::Tile)))]
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
-    /// Specify a wallpaper for this workspace
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallpaper: Option<Wallpaper>,
-    /// Initial window placement rules that determine where new tiled windows are placed
-    /// in the container list. Can be a placement target (a `WindowPlacement` string like
-    /// `"Primary"` or a 1-based container index), or a map of placement targets to matching rules.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub initial_window_placement_rules: Option<InitialWindowPlacementRules>,
-}
+pub use komorebi_config::static_config::AnimationsConfig;
+pub use komorebi_config::static_config::AppSpecificConfigurationPath;
+pub use komorebi_config::static_config::BorderColours;
+pub use komorebi_config::static_config::MonitorConfig;
+pub use komorebi_config::static_config::StaticConfig;
+pub use komorebi_config::static_config::ThemeOptions;
+pub use komorebi_config::static_config::Wallpaper;
+pub use komorebi_config::static_config::WorkspaceConfig;
 
 impl From<&Workspace> for WorkspaceConfig {
     fn from(value: &Workspace) -> Self {
@@ -374,43 +198,10 @@ impl From<&Workspace> for WorkspaceConfig {
             floating_layer_behaviour: value.floating_layer_behaviour,
             wallpaper: None,
             initial_window_placement_rules: value.initial_window_placement_rules.clone(),
+            custom_layout: None,
+            custom_layout_rules: None,
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Monitor configuration
-pub struct MonitorConfig {
-    /// Workspace configurations
-    pub workspaces: Vec<WorkspaceConfig>,
-    /// Monitor-specific work area offset
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub work_area_offset: Option<Rect>,
-    /// Window based work area offset
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub window_based_work_area_offset: Option<Rect>,
-    /// Open window limit after which the window based work area offset will no longer be applied
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = 1)))]
-    pub window_based_work_area_offset_limit: Option<isize>,
-    /// Container padding
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub container_padding: Option<i32>,
-    /// Workspace padding (default: global)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub workspace_padding: Option<i32>,
-    /// Specify a wallpaper for this monitor
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallpaper: Option<Wallpaper>,
-    /// Determine what happens to a new window when the Floating workspace layer is active
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = FloatingLayerBehaviour::Tile)))]
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
-    /// Accepted so that a configuration written for another platform loads, and ignored: there is
-    /// no hiding position on KDE Plasma
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub window_hiding_position: Option<WindowHidingPosition>,
 }
 
 impl From<&Monitor> for MonitorConfig {
@@ -451,229 +242,6 @@ impl From<&Monitor> for MonitorConfig {
             window_hiding_position: None,
         }
     }
-}
-
-#[serde_with::serde_as]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-/// Path(s) to application-specific configuration file(s)
-pub enum AppSpecificConfigurationPath {
-    /// A single applications.json file
-    Single(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    /// Multiple applications.json files
-    Multiple(#[serde_as(as = "Vec<ResolvedPathBuf>")] Vec<PathBuf>),
-}
-
-#[serde_with::serde_as]
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.json` static configuration file reference for komorebi for KDE Plasma
-pub struct StaticConfig {
-    // /// DISCOURAGED: Minimum width for a window to be eligible for tiling
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub minimum_window_width: Option<i32>,
-    // /// DISCOURAGED: Minimum height for a window to be eligible for tiling
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub minimum_window_height: Option<i32>,
-    /// Delta to resize windows by
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_RESIZE_DELTA)))]
-    pub resize_delta: Option<i32>,
-    /// Determine what happens when a new window is opened
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = WindowContainerBehaviour::Create)))]
-    pub window_container_behaviour: Option<WindowContainerBehaviour>,
-    /// Enable or disable float override, which makes it so every new window opens in floating mode
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
-    pub float_override: Option<bool>,
-    /// Determines what happens on a new window when on the `FloatingLayer`
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = FloatingLayerBehaviour::Tile)))]
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
-    /// Determines the placement of a new window when toggling to float
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = Placement::CenterAndResize)))]
-    pub toggle_float_placement: Option<Placement>,
-    /// Determines the `Placement` to be used when spawning a window on the floating layer with the
-    /// `FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float`
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = Placement::Center)))]
-    pub floating_layer_placement: Option<Placement>,
-    /// Determines the `Placement` to be used when spawning a window with float override active
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub float_override_placement: Option<Placement>,
-    /// Determines the `Placement` to be used when spawning a window that matches a
-    /// 'floating_applications' rule
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub float_rule_placement: Option<Placement>,
-    /// Determine what happens when a window is moved across a monitor boundary
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = MoveBehaviour::Swap)))]
-    pub cross_monitor_move_behaviour: Option<MoveBehaviour>,
-    /// Determine what happens when an action is called on a window at a monitor boundary
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = CrossBoundaryBehaviour::Monitor)))]
-    pub cross_boundary_behaviour: Option<CrossBoundaryBehaviour>,
-    /// Determine what happens when focusing in a direction while a monocle container is active
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = MonocleFocusBehaviour::NoOp)))]
-    pub monocle_focus_behaviour: Option<MonocleFocusBehaviour>,
-    /// Determine what happens when commands are sent while an unmanaged window is in the foreground
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = OperationBehaviour::Op)))]
-    pub unmanaged_window_operation_behaviour: Option<OperationBehaviour>,
-    /// Focus the window under the pointer. On KDE this is KWin's own focus policy, whichever
-    /// implementation is named
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
-    /// Enable or disable mouse follows focus
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_MOUSE_FOLLOWS_FOCUS)))]
-    pub mouse_follows_focus: Option<bool>,
-    /// Path to an applications.json, or a list of them, with rules for the applications that
-    /// need them: which windows to ignore, to manage and to float
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub app_specific_configuration_path: Option<AppSpecificConfigurationPath>,
-    /// Width of window borders
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(alias = "active_window_border_width")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_WIDTH)))]
-    pub border_width: Option<i32>,
-    /// Offset of window borders
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(alias = "active_window_border_offset")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_OFFSET)))]
-    pub border_offset: Option<i32>,
-    /// Radius of window borders
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_RADIUS)))]
-    pub border_radius: Option<i32>,
-    /// Display window borders
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(alias = "active_window_border")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_ENABLED)))]
-    pub border: Option<bool>,
-    /// Window border colours for different container types (has no effect if a theme is defined)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(alias = "active_window_border_colours")]
-    pub border_colours: Option<BorderColours>,
-    // /// Active window border style (default: System)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // #[serde(alias = "active_window_border_style")]
-    // pub border_style: Option<BorderStyle>,
-    // /// Active window border implementation (default: Komorebi)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub border_implementation: Option<BorderImplementation>,
-    /// Add transparency to unfocused windows (default: false)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transparency: Option<bool>,
-    /// Alpha value for unfocused window transparency [[0-255]] (default: 200)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transparency_alpha: Option<u8>,
-    /// Individual window transparency ignore rules
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transparency_ignore_rules: Option<Vec<MatchingRule>>,
-    /// Global default workspace padding
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_WORKSPACE_PADDING)))]
-    pub default_workspace_padding: Option<i32>,
-    /// Global default container padding
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_CONTAINER_PADDING)))]
-    pub default_container_padding: Option<i32>,
-    /// Per-layout default options and rules, keyed by layout name.
-    /// Applied as fallback when a workspace does not define its own layout_options or layout_options_rules.
-    /// If a workspace defines either setting, all global defaults for that layout are completely replaced.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub layout_defaults: Option<HashMap<DefaultLayout, LayoutDefaultEntry>>,
-    /// Monitor and workspace configurations
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub monitors: Option<Vec<MonitorConfig>>,
-    // /// Which Windows signal to use when hiding windows (default: Cloak)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub window_hiding_behaviour: Option<HidingBehaviour>,
-    /// Global work area (space used for tiling) offset
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub global_work_area_offset: Option<Rect>,
-    /// Individual window floating rules
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(alias = "float_rules")]
-    pub ignore_rules: Option<Vec<MatchingRule>>,
-    /// Individual window force-manage rules
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub manage_rules: Option<Vec<MatchingRule>>,
-    /// Identify applications which should be managed as floating windows
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub floating_applications: Option<Vec<MatchingRule>>,
-    /// Accepted so that a configuration written for another platform loads, and ignored: a KWin
-    /// window is always a window
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub titleless_applications: Option<Vec<String>>,
-    /// Accepted so that a configuration written for another platform loads, and ignored: a KWin
-    /// window has no native tabs
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tabbed_applications: Option<Vec<String>>,
-    // /// Identify border overflow applications
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub border_overflow_applications: Option<Vec<MatchingRule>>,
-    // /// Identify tray and multi-window applications
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub tray_and_multi_window_applications: Option<Vec<MatchingRule>>,
-    // /// Identify applications that have the WS_EX_LAYERED extended window style
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub layered_applications: Option<Vec<MatchingRule>>,
-    // /// Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub object_name_change_applications: Option<Vec<MatchingRule>>,
-    // /// Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub object_name_change_title_ignore_list: Option<Vec<String>>,
-    // /// Set monitor index preferences
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub monitor_index_preferences: Option<HashMap<usize, Rect>>,
-    /// Set display index preferences
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_index_preferences: Option<HashMap<usize, String>>,
-    // /// Stackbar configuration options
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub stackbar: Option<StackbarConfig>,
-    /// Animations configuration options
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub animation: Option<AnimationsConfig>,
-    /// Theme configuration options
-    ///
-    /// If a theme is specified, `border_colours` will have no effect
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub theme: Option<KomorebiTheme>,
-    /// Aspect ratio to resize with when toggling floating mode for a window
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub floating_window_aspect_ratio: Option<AspectRatio>,
-    // /// Which Windows API behaviour to use when manipulating windows (default: Sync)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub window_handling_behaviour: Option<WindowHandlingBehaviour>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Animation configuration
-pub struct AnimationsConfig {
-    /// Enable or disable animations
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = PerAnimationPrefixConfig::Global(false))))]
-    pub enabled: PerAnimationPrefixConfig<bool>,
-    /// Set the animation duration in ms
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = PerAnimationPrefixConfig::Global(250))))]
-    pub duration: Option<PerAnimationPrefixConfig<u64>>,
-    /// Set the animation style
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = PerAnimationPrefixConfig::Global(AnimationStyle::Linear))))]
-    pub style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
-    /// Set the animation FPS
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_ANIMATION_FPS)))]
-    pub fps: Option<u64>,
 }
 
 // #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -831,11 +399,17 @@ impl From<&WindowManager> for StaticConfig {
             floating_window_aspect_ratio: Option::from(*FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock()),
             // window_handling_behaviour: Option::from(WINDOW_HANDLING_BEHAVIOUR.load()),
             tabbed_applications: None,
+            ..Default::default()
         }
     }
 }
 
-impl StaticConfig {
+/// Applies the settings of a configuration that are not the window manager's own
+trait ApplyGlobals {
+    fn apply_globals(&mut self) -> eyre::Result<()>;
+}
+
+impl ApplyGlobals for StaticConfig {
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     fn apply_globals(&mut self) -> eyre::Result<()> {
         *FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock() = self
@@ -1142,47 +716,26 @@ impl StaticConfig {
 
         Ok(())
     }
+}
 
-    /// Parses the text of a `komorebi.json`
-    ///
-    /// Comments and trailing commas are allowed, and keys that are not known are ignored.
-    ///
-    /// # Errors
-    ///
-    /// The text is not JSON, or a value is not what its key takes.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use komorebi::static_config::StaticConfig;
-    ///
-    /// let config = StaticConfig::read_raw(
-    ///     r#"{
-    ///         // a comment, and a trailing comma
-    ///         "resize_delta": 100,
-    ///         "a_key_that_is_not_known": true,
-    ///     }"#,
-    /// )?;
-    /// assert_eq!(config.resize_delta, Some(100));
-    ///
-    /// assert!(StaticConfig::read_raw(r#"{ "resize_delta": "wide" }"#).is_err());
-    ///
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    pub fn read_raw(raw: &str) -> eyre::Result<Self> {
-        Ok(serde_json::from_str(raw)?)
-    }
+/// What loading a configuration needs from the window manager: the part of `StaticConfig`
+/// that cannot be an inherent impl now that the type lives in `komorebi-config`.
+pub trait StaticConfigExt: Sized {
+    /// Makes the window manager from the file at `path`, and starts watching the file
+    fn preload(
+        path: &PathBuf,
+        incoming: Receiver<WindowManagerEvent>,
+        unix_listener: Option<UnixListener>,
+    ) -> eyre::Result<WindowManager>;
 
-    /// Reads the file at `path`, as [`StaticConfig::read_raw`] reads text
-    ///
-    /// # Errors
-    ///
-    /// The file cannot be read, or it is not a configuration.
-    pub fn read(path: &PathBuf) -> eyre::Result<Self> {
-        let content = std::fs::read_to_string(path)?;
-        serde_json::from_str(&content).map_err(Into::into)
-    }
+    /// Gives the monitors of the window manager what the file says about them
+    fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()>;
 
+    /// Replaces the configuration of the window manager with the file at `path`
+    fn reload(path: &PathBuf, wm: &mut WindowManager) -> eyre::Result<()>;
+}
+
+impl StaticConfigExt for StaticConfig {
     /// Makes the window manager from the file at `path`, and starts watching the file
     ///
     /// The settings that are not the window manager's own (the default padding, the rules and the
@@ -1201,7 +754,7 @@ impl StaticConfig {
     /// - The socket file that is left over cannot be removed, or the socket cannot be bound.
     /// - The file cannot be watched.
     #[allow(clippy::too_many_lines)]
-    pub fn preload(
+    fn preload(
         path: &PathBuf,
         incoming: Receiver<WindowManagerEvent>,
         unix_listener: Option<UnixListener>,
@@ -1307,7 +860,7 @@ impl StaticConfig {
     /// # Errors
     ///
     /// The file cannot be read or is not a configuration ([`StaticConfig::read`]).
-    pub fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
+    fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
         let mut value = Self::read(path)?;
         let mut wm = wm.lock();
 
@@ -1483,7 +1036,7 @@ impl StaticConfig {
     /// - The file cannot be read or is not a configuration ([`StaticConfig::read`]); nothing has
     ///   changed then.
     /// - A rule has a regular expression that is not valid; the settings before it have changed.
-    pub fn reload(path: &PathBuf, wm: &mut WindowManager) -> eyre::Result<()> {
+    fn reload(path: &PathBuf, wm: &mut WindowManager) -> eyre::Result<()> {
         let mut value = Self::read(path)?;
 
         value.apply_globals()?;
@@ -1784,6 +1337,7 @@ fn handle_asc_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::WindowHidingPosition;
 
     #[test]
     fn the_keys_that_do_nothing_on_kde_are_accepted_and_ignored() {

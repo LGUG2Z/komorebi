@@ -3166,6 +3166,7 @@ dependencies = [
  "ed25519-dalek",
  "hotwatch",
  "komorebi-collections",
+ "komorebi-config",
  "komorebi-layouts",
  "komorebi-protocol",
  "komorebi-themes",
@@ -3257,6 +3258,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-config"
+version = "0.1.42"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "serde_with",
+ "strum",
+]
+
+[[package]]
 name = "komorebi-layouts"
 version = "0.1.42"
 dependencies = [
@@ -3328,6 +3345,7 @@ dependencies = [
  "dirs 6.0.0",
  "fs-tail",
  "komorebi-client",
+ "komorebi-config",
  "komorebic-core",
  "lazy_static",
  "reqwest",

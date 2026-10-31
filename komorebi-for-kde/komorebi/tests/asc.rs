@@ -11,6 +11,7 @@ use komorebi::backend::with_backend;
 use komorebi::core::asc::ApplicationSpecificConfiguration;
 use komorebi::core::asc::AscApplicationRulesOrSchema;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::window::Window;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event::KWinNotification;
