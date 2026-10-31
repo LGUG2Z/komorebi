@@ -23,7 +23,6 @@ use std::time::Duration;
 
 use clap::CommandFactory;
 use clap::Parser;
-use clap::ValueEnum;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
@@ -32,12 +31,23 @@ use komorebi_client::AppSpecificConfigurationPath;
 use komorebi_client::ApplicationSpecificConfiguration;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
+use komorebic_core::args::ApplicationTarget;
+use komorebic_core::args::BooleanState;
+use komorebic_core::args::NamedPadding;
+use komorebic_core::args::NamedTarget;
+use komorebic_core::args::NamedWorkspaceEnum;
+use komorebic_core::args::OneEnum;
+use komorebic_core::args::PaddingAdjustment;
+use komorebic_core::args::Size;
+use komorebic_core::args::Target;
+use komorebic_core::args::WorkspaceEnum;
+use komorebic_core::args::WorkspacePadding;
+use komorebic_core::args::WorkspaceString;
 use lazy_static::lazy_static;
 use miette::NamedSource;
 use miette::Report;
 use miette::SourceOffset;
 use miette::SourceSpan;
-use paste::paste;
 use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
 use which::which;
@@ -119,174 +129,6 @@ struct ConfigurationError {
     src: NamedSource<String>,
     #[label("This bit here")]
     bad_bit: SourceSpan,
-}
-
-#[derive(Copy, Clone, ValueEnum)]
-enum BooleanState {
-    Enable,
-    Disable,
-}
-
-impl From<BooleanState> for bool {
-    fn from(b: BooleanState) -> Self {
-        match b {
-            BooleanState::Enable => true,
-            BooleanState::Disable => false,
-        }
-    }
-}
-
-macro_rules! gen_enum_subcommand_args {
-    // SubCommand Pattern: Enum Type
-    ( $( $name:ident: $element:ty ),+ $(,)? ) => {
-        $(
-            paste! {
-                #[derive(clap::Parser)]
-                pub struct $name {
-                    #[clap(value_enum)]
-                    [<$element:snake>]: $element
-                }
-            }
-        )+
-    };
-}
-
-gen_enum_subcommand_args! {
-    Focus: OperationDirection,
-    Move: OperationDirection,
-    Consume: OperationDirection,
-    PreselectDirection: OperationDirection,
-    CycleFocus: CycleDirection,
-    CycleMove: CycleDirection,
-    CycleMoveToWorkspace: CycleDirection,
-    CycleSendToWorkspace: CycleDirection,
-    CycleSendToMonitor: CycleDirection,
-    CycleMoveToMonitor: CycleDirection,
-    CycleMonitor: CycleDirection,
-    CycleWorkspace: CycleDirection,
-    CycleEmptyWorkspace: CycleDirection,
-    CycleMoveWorkspaceToMonitor: CycleDirection,
-    Stack: OperationDirection,
-    CycleStack: CycleDirection,
-    CycleStackIndex: CycleDirection,
-    FlipLayout: Axis,
-    ChangeLayout: DefaultLayout,
-    CycleLayout: CycleDirection,
-    WatchConfiguration: BooleanState,
-    MouseFollowsFocus: BooleanState,
-    Query: StateQuery,
-    WindowHidingBehaviour: HidingBehaviour,
-    CrossMonitorMoveBehaviour: MoveBehaviour,
-    UnmanagedWindowOperationBehaviour: OperationBehaviour,
-    PromoteWindow: OperationDirection,
-}
-
-macro_rules! gen_target_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
-        $(
-            #[derive(clap::Parser)]
-            pub struct $name {
-                /// Target index (zero-indexed)
-                target: usize,
-            }
-        )+
-    };
-}
-
-gen_target_subcommand_args! {
-    MoveToMonitor,
-    MoveToWorkspace,
-    SendToMonitor,
-    SendToWorkspace,
-    FocusMonitor,
-    FocusWorkspace,
-    FocusWorkspaces,
-    MoveWorkspaceToMonitor,
-    SwapWorkspacesWithMonitor,
-    FocusStackWindow,
-}
-
-macro_rules! gen_named_target_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
-        $(
-            #[derive(clap::Parser)]
-            pub struct $name {
-                /// Target workspace name
-                workspace: String,
-            }
-        )+
-    };
-}
-
-gen_named_target_subcommand_args! {
-    MoveToNamedWorkspace,
-    SendToNamedWorkspace,
-    FocusNamedWorkspace,
-    ClearNamedWorkspaceLayoutRules
-}
-
-// Thanks to @danielhenrymantilla for showing me how to use cfg_attr with an optional argument like
-// this on the Rust Programming Language Community Discord Server
-macro_rules! gen_workspace_subcommand_args {
-    // Workspace Property: #[enum] Value Enum (if the value is an Enum)
-    // Workspace Property: Value Type (if the value is anything else)
-    ( $( $name:ident: $(#[enum] $(@$value_enum:tt)?)? $value:ty ),+ $(,)? ) => (
-        paste! {
-            $(
-                #[derive(clap::Parser)]
-                pub struct [<Workspace $name>] {
-                    /// Monitor index (zero-indexed)
-                    monitor: usize,
-
-                    /// Workspace index on the specified monitor (zero-indexed)
-                    workspace: usize,
-
-                    $(#[clap(value_enum)] $($value_enum)?)?
-                    #[cfg_attr(
-                        all($(FALSE $($value_enum)?)?),
-                        doc = ""$name " of the workspace as a "$value ""
-                    )]
-                    value: $value,
-                }
-            )+
-        }
-    )
-}
-
-gen_workspace_subcommand_args! {
-    Name: String,
-    Layout: #[enum] DefaultLayout,
-    Tiling: #[enum] BooleanState,
-}
-
-macro_rules! gen_named_workspace_subcommand_args {
-    // Workspace Property: #[enum] Value Enum (if the value is an Enum)
-    // Workspace Property: Value Type (if the value is anything else)
-    ( $( $name:ident: $(#[enum] $(@$value_enum:tt)?)? $value:ty ),+ $(,)? ) => (
-        paste! {
-            $(
-                #[derive(clap::Parser)]
-                pub struct [<NamedWorkspace $name>] {
-                    /// Target workspace name
-                    workspace: String,
-
-                    $(#[clap(value_enum)] $($value_enum)?)?
-                    #[cfg_attr(
-                        all($(FALSE $($value_enum)?)?),
-                        doc = ""$name " of the workspace as a "$value ""
-                    )]
-                    value: $value,
-                }
-            )+
-        }
-    )
-}
-
-gen_named_workspace_subcommand_args! {
-    Layout: #[enum] DefaultLayout,
-    Tiling: #[enum] BooleanState,
 }
 
 #[derive(Parser)]
@@ -513,112 +355,6 @@ pub struct MoveToMonitorWorkspace {
     target_monitor: usize,
     /// Workspace index on the target monitor (zero-indexed)
     target_workspace: usize,
-}
-
-macro_rules! gen_focused_workspace_padding_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
-        $(
-            #[derive(clap::Parser)]
-            pub struct $name {
-                /// Pixels size to set as an integer
-                size: i32,
-            }
-        )+
-    };
-}
-
-gen_focused_workspace_padding_subcommand_args! {
-    FocusedWorkspaceContainerPadding,
-    FocusedWorkspacePadding,
-}
-
-macro_rules! gen_padding_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
-        $(
-            #[derive(clap::Parser)]
-            pub struct $name {
-                /// Monitor index (zero-indexed)
-                monitor: usize,
-                /// Workspace index on the specified monitor (zero-indexed)
-                workspace: usize,
-                /// Pixels to pad with as an integer
-                size: i32,
-            }
-        )+
-    };
-}
-
-gen_padding_subcommand_args! {
-    ContainerPadding,
-    WorkspacePadding,
-}
-
-macro_rules! gen_named_padding_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
-        $(
-            #[derive(clap::Parser)]
-            pub struct $name {
-                /// Target workspace name
-                workspace: String,
-
-                /// Pixels to pad with as an integer
-                size: i32,
-            }
-        )+
-    };
-}
-
-gen_named_padding_subcommand_args! {
-    NamedWorkspaceContainerPadding,
-    NamedWorkspacePadding,
-}
-
-macro_rules! gen_padding_adjustment_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
-        $(
-            #[derive(clap::Parser)]
-            pub struct $name {
-                #[clap(value_enum)]
-                sizing: Sizing,
-                /// Pixels to adjust by as an integer
-                adjustment: i32,
-            }
-        )+
-    };
-}
-
-gen_padding_adjustment_subcommand_args! {
-    AdjustContainerPadding,
-    AdjustWorkspacePadding,
-}
-
-macro_rules! gen_application_target_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
-        $(
-            #[derive(clap::Parser)]
-            pub struct $name {
-                #[clap(value_enum)]
-                identifier: ApplicationIdentifier,
-                /// Identifier as a string
-                id: String,
-            }
-        )+
-    };
-}
-
-gen_application_target_subcommand_args! {
-    IgnoreRule,
-    ManageRule,
-    IdentifyTrayApplication,
-    IdentifyLayeredApplication,
-    IdentifyObjectNameChangeApplication,
-    IdentifyBorderOverflowApplication,
-    RemoveTitleBar,
 }
 
 #[derive(Parser)]
@@ -1113,7 +849,7 @@ enum SubCommand {
     MonitorInformation,
     /// Query the current window manager state
     #[clap(arg_required_else_help = true)]
-    Query(Query),
+    Query(OneEnum<StateQuery>),
     /// Subscribe to komorebi events using a Unix Domain Socket
     #[clap(arg_required_else_help = true)]
     SubscribeSocket(SubscribeSocket),
@@ -1146,13 +882,13 @@ enum SubCommand {
     LoadResize(LoadResize),
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
-    Focus(Focus),
+    Focus(OneEnum<OperationDirection>),
     /// Move the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
-    Move(Move),
+    Move(OneEnum<OperationDirection>),
     /// Preselect the specified direction for the next window to be spawned on supported layouts
     #[clap(arg_required_else_help = true)]
-    PreselectDirection(PreselectDirection),
+    PreselectDirection(OneEnum<OperationDirection>),
     /// Cancel a workspace preselect set by the preselect-direction command, if one exists
     CancelPreselect,
     /// Minimize the focused window
@@ -1163,27 +899,27 @@ enum SubCommand {
     ForceFocus,
     /// Change focus to the window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleFocus(CycleFocus),
+    CycleFocus(OneEnum<CycleDirection>),
     /// Move the focused window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleMove(CycleMove),
+    CycleMove(OneEnum<CycleDirection>),
     /// Focus the first managed window matching the given exe
     #[clap(arg_required_else_help = true)]
     EagerFocus(EagerFocus),
     /// Stack the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
-    Stack(Stack),
+    Stack(OneEnum<OperationDirection>),
     /// Unstack the focused window
     Unstack,
     /// Cycle the focused stack in the specified cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleStack(CycleStack),
+    CycleStack(OneEnum<CycleDirection>),
     /// Cycle the index of the focused window in the focused stack in the specified cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleStackIndex(CycleStackIndex),
+    CycleStackIndex(OneEnum<CycleDirection>),
     /// Focus the specified window index in the focused stack
     #[clap(arg_required_else_help = true)]
-    FocusStackWindow(FocusStackWindow),
+    FocusStackWindow(Target),
     /// Stack all windows on the focused workspace
     StackAll,
     /// Unstack all windows in the focused container
@@ -1197,34 +933,34 @@ enum SubCommand {
     ResizeAxis(ResizeAxis),
     /// Move the focused window to the specified monitor
     #[clap(arg_required_else_help = true)]
-    MoveToMonitor(MoveToMonitor),
+    MoveToMonitor(Target),
     /// Move the focused window to the monitor in the given cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleMoveToMonitor(CycleMoveToMonitor),
+    CycleMoveToMonitor(OneEnum<CycleDirection>),
     /// Move the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
-    MoveToWorkspace(MoveToWorkspace),
+    MoveToWorkspace(Target),
     /// Move the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
-    MoveToNamedWorkspace(MoveToNamedWorkspace),
+    MoveToNamedWorkspace(NamedTarget),
     /// Move the focused window to the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleMoveToWorkspace(CycleMoveToWorkspace),
+    CycleMoveToWorkspace(OneEnum<CycleDirection>),
     /// Send the focused window to the specified monitor
     #[clap(arg_required_else_help = true)]
-    SendToMonitor(SendToMonitor),
+    SendToMonitor(Target),
     /// Send the focused window to the monitor in the given cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleSendToMonitor(CycleSendToMonitor),
+    CycleSendToMonitor(OneEnum<CycleDirection>),
     /// Send the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
-    SendToWorkspace(SendToWorkspace),
+    SendToWorkspace(Target),
     /// Send the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
-    SendToNamedWorkspace(SendToNamedWorkspace),
+    SendToNamedWorkspace(NamedTarget),
     /// Send the focused window to the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleSendToWorkspace(CycleSendToWorkspace),
+    CycleSendToWorkspace(OneEnum<CycleDirection>),
     /// Send the focused window to the specified monitor workspace
     #[clap(arg_required_else_help = true)]
     SendToMonitorWorkspace(SendToMonitorWorkspace),
@@ -1237,43 +973,43 @@ enum SubCommand {
     MoveToLastWorkspace,
     /// Focus the specified monitor
     #[clap(arg_required_else_help = true)]
-    FocusMonitor(FocusMonitor),
+    FocusMonitor(Target),
     /// Focus the monitor at the current cursor location
     FocusMonitorAtCursor,
     /// Focus the last focused workspace on the focused monitor
     FocusLastWorkspace,
     /// Focus the specified workspace on the focused monitor
     #[clap(arg_required_else_help = true)]
-    FocusWorkspace(FocusWorkspace),
+    FocusWorkspace(Target),
     /// Focus the specified workspace on all monitors
     #[clap(arg_required_else_help = true)]
-    FocusWorkspaces(FocusWorkspaces),
+    FocusWorkspaces(Target),
     /// Focus the specified workspace on the target monitor
     #[clap(arg_required_else_help = true)]
     FocusMonitorWorkspace(FocusMonitorWorkspace),
     /// Focus the specified workspace
     #[clap(arg_required_else_help = true)]
-    FocusNamedWorkspace(FocusNamedWorkspace),
+    FocusNamedWorkspace(NamedTarget),
     /// Close the focused workspace (must be empty and unnamed)
     CloseWorkspace,
     /// Focus the monitor in the given cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleMonitor(CycleMonitor),
+    CycleMonitor(OneEnum<CycleDirection>),
     /// Focus the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleWorkspace(CycleWorkspace),
+    CycleWorkspace(OneEnum<CycleDirection>),
     /// Focus the next empty workspace in the given cycle direction (if one exists)
     #[clap(arg_required_else_help = true)]
-    CycleEmptyWorkspace(CycleWorkspace),
+    CycleEmptyWorkspace(OneEnum<CycleDirection>),
     /// Move the focused workspace to the specified monitor
     #[clap(arg_required_else_help = true)]
-    MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
+    MoveWorkspaceToMonitor(Target),
     /// Move the focused workspace monitor in the given cycle direction
     #[clap(arg_required_else_help = true)]
-    CycleMoveWorkspaceToMonitor(CycleMoveWorkspaceToMonitor),
+    CycleMoveWorkspaceToMonitor(OneEnum<CycleDirection>),
     /// Swap focused monitor workspaces with specified monitor
     #[clap(arg_required_else_help = true)]
-    SwapWorkspacesWithMonitor(SwapWorkspacesWithMonitor),
+    SwapWorkspacesWithMonitor(Target),
     /// Create and append a new workspace on the focused monitor
     NewWorkspace,
     /// Set the resize delta (used by resize-edge and resize-axis)
@@ -1295,22 +1031,22 @@ enum SubCommand {
     ToggleWindowBasedWorkAreaOffset,
     /// Set container padding on the focused workspace
     #[clap(arg_required_else_help = true)]
-    FocusedWorkspaceContainerPadding(FocusedWorkspaceContainerPadding),
+    FocusedWorkspaceContainerPadding(Size),
     /// Set workspace padding on the focused workspace
     #[clap(arg_required_else_help = true)]
-    FocusedWorkspacePadding(FocusedWorkspacePadding),
+    FocusedWorkspacePadding(Size),
     /// Adjust container padding on the focused workspace
     #[clap(arg_required_else_help = true)]
-    AdjustContainerPadding(AdjustContainerPadding),
+    AdjustContainerPadding(PaddingAdjustment),
     /// Adjust workspace padding on the focused workspace
     #[clap(arg_required_else_help = true)]
-    AdjustWorkspacePadding(AdjustWorkspacePadding),
+    AdjustWorkspacePadding(PaddingAdjustment),
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
-    ChangeLayout(ChangeLayout),
+    ChangeLayout(OneEnum<DefaultLayout>),
     /// Cycle between available layouts
     #[clap(arg_required_else_help = true)]
-    CycleLayout(CycleLayout),
+    CycleLayout(OneEnum<CycleDirection>),
     /// Set the number of visible columns for the Scrolling layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ScrollingLayoutColumns(ScrollingLayoutColumns),
@@ -1324,7 +1060,7 @@ enum SubCommand {
     Expand,
     /// Take the neighbouring window on one side into the focused column of the Scrolling layout
     #[clap(arg_required_else_help = true)]
-    Consume(Consume),
+    Consume(OneEnum<OperationDirection>),
     /// Take the focused window out of its column in the Scrolling layout and put it in a column
     /// of its own on the right
     Expel,
@@ -1343,7 +1079,7 @@ enum SubCommand {
     LoadCustomLayout(LoadCustomLayout),
     /// Flip the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
-    FlipLayout(FlipLayout),
+    FlipLayout(OneEnum<Axis>),
     /// Promote the focused window to the largest tile via container removal and re-insertion
     Promote,
     /// Promote the focused window to the largest tile by swapping container indices with the largest tile
@@ -1351,7 +1087,7 @@ enum SubCommand {
     /// Promote the user focus to the top of the tree
     PromoteFocus,
     /// Promote the window in the specified direction
-    PromoteWindow(PromoteWindow),
+    PromoteWindow(OneEnum<OperationDirection>),
     /// Force the retiling of all managed windows
     Retile,
     /// Set the monitor index preference for a monitor identified using its size
@@ -1368,22 +1104,22 @@ enum SubCommand {
     EnsureNamedWorkspaces(EnsureNamedWorkspaces),
     /// Set the container padding for the specified workspace
     #[clap(arg_required_else_help = true)]
-    ContainerPadding(ContainerPadding),
+    ContainerPadding(WorkspacePadding),
     /// Set the container padding for the specified workspace
     #[clap(arg_required_else_help = true)]
-    NamedWorkspaceContainerPadding(NamedWorkspaceContainerPadding),
+    NamedWorkspaceContainerPadding(NamedPadding),
     /// Set the workspace padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspacePadding(WorkspacePadding),
     /// Set the workspace padding for the specified workspace
     #[clap(arg_required_else_help = true)]
-    NamedWorkspacePadding(NamedWorkspacePadding),
+    NamedWorkspacePadding(NamedPadding),
     /// Set the layout for the specified workspace
     #[clap(arg_required_else_help = true)]
-    WorkspaceLayout(WorkspaceLayout),
+    WorkspaceLayout(WorkspaceEnum<DefaultLayout>),
     /// Set the layout for the specified workspace
     #[clap(arg_required_else_help = true)]
-    NamedWorkspaceLayout(NamedWorkspaceLayout),
+    NamedWorkspaceLayout(NamedWorkspaceEnum<DefaultLayout>),
     /// Set a custom layout for the specified workspace
     #[clap(hide = true)]
     #[clap(arg_required_else_help = true)]
@@ -1411,16 +1147,16 @@ enum SubCommand {
     ClearWorkspaceLayoutRules(ClearWorkspaceLayoutRules),
     /// Clear all dynamic layout rules for the specified workspace
     #[clap(arg_required_else_help = true)]
-    ClearNamedWorkspaceLayoutRules(ClearNamedWorkspaceLayoutRules),
+    ClearNamedWorkspaceLayoutRules(NamedTarget),
     /// Enable or disable window tiling for the specified workspace
     #[clap(arg_required_else_help = true)]
-    WorkspaceTiling(WorkspaceTiling),
+    WorkspaceTiling(WorkspaceEnum<BooleanState>),
     /// Enable or disable window tiling for the specified workspace
     #[clap(arg_required_else_help = true)]
-    NamedWorkspaceTiling(NamedWorkspaceTiling),
+    NamedWorkspaceTiling(NamedWorkspaceEnum<BooleanState>),
     /// Set the workspace name for the specified workspace
     #[clap(arg_required_else_help = true)]
-    WorkspaceName(WorkspaceName),
+    WorkspaceName(WorkspaceString),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
     /// Enable or disable float override, which makes it so every new window opens in floating mode
@@ -1460,7 +1196,7 @@ enum SubCommand {
     ReloadConfiguration,
     /// Enable or disable watching of legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
     #[clap(arg_required_else_help = true)]
-    WatchConfiguration(WatchConfiguration),
+    WatchConfiguration(OneEnum<BooleanState>),
     /// For legacy komorebi.ahk or komorebi.ps1 configurations, signal that the final configuration option has been sent
     CompleteConfiguration,
     /// DEPRECATED since v0.1.22
@@ -1470,10 +1206,10 @@ enum SubCommand {
     AltFocusHack(AltFocusHack),
     /// Set the window behaviour when switching workspaces / cycling stacks
     #[clap(arg_required_else_help = true)]
-    WindowHidingBehaviour(WindowHidingBehaviour),
+    WindowHidingBehaviour(OneEnum<HidingBehaviour>),
     /// Set the behaviour when moving windows across monitor boundaries
     #[clap(arg_required_else_help = true)]
-    CrossMonitorMoveBehaviour(CrossMonitorMoveBehaviour),
+    CrossMonitorMoveBehaviour(OneEnum<MoveBehaviour>),
     /// Toggle the behaviour when moving windows across monitor boundaries
     ToggleCrossMonitorMoveBehaviour,
     /// Set the behaviour when focusing in a direction while a monocle container is active
@@ -1483,7 +1219,7 @@ enum SubCommand {
     ToggleMonocleFocusBehaviour,
     /// Set the operation behaviour when the focused window is not managed
     #[clap(arg_required_else_help = true)]
-    UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
+    UnmanagedWindowOperationBehaviour(OneEnum<OperationBehaviour>),
     /// Add a rule to float the foreground window for the rest of this session
     SessionFloatRule,
     /// Show all session float rules
@@ -1493,10 +1229,10 @@ enum SubCommand {
     /// Add a rule to ignore the specified application
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "float-rule")]
-    IgnoreRule(IgnoreRule),
+    IgnoreRule(ApplicationTarget),
     /// Add a rule to always manage the specified application
     #[clap(arg_required_else_help = true)]
-    ManageRule(ManageRule),
+    ManageRule(ApplicationTarget),
     /// Add a rule to associate an application with a workspace on first show
     #[clap(arg_required_else_help = true)]
     InitialWorkspaceRule(InitialWorkspaceRule),
@@ -1521,22 +1257,22 @@ enum SubCommand {
     EnforceWorkspaceRules,
     /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
     #[clap(arg_required_else_help = true)]
-    IdentifyObjectNameChangeApplication(IdentifyObjectNameChangeApplication),
+    IdentifyObjectNameChangeApplication(ApplicationTarget),
     /// Identify an application that closes to the system tray
     #[clap(arg_required_else_help = true)]
-    IdentifyTrayApplication(IdentifyTrayApplication),
+    IdentifyTrayApplication(ApplicationTarget),
     /// Identify an application that has WS_EX_LAYERED, but should still be managed
     #[clap(arg_required_else_help = true)]
-    IdentifyLayeredApplication(IdentifyLayeredApplication),
+    IdentifyLayeredApplication(ApplicationTarget),
     /// Whitelist an application for title bar removal
     #[clap(arg_required_else_help = true)]
-    RemoveTitleBar(RemoveTitleBar),
+    RemoveTitleBar(ApplicationTarget),
     /// Toggle title bars for whitelisted applications
     ToggleTitleBars,
     /// Identify an application that has overflowing borders
     #[clap(hide = true)]
     #[clap(alias = "identify-border-overflow")]
-    IdentifyBorderOverflowApplication(IdentifyBorderOverflowApplication),
+    IdentifyBorderOverflowApplication(ApplicationTarget),
     /// Enable or disable borders
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "active-window-border")]
@@ -1592,7 +1328,7 @@ enum SubCommand {
     ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
     /// Enable or disable mouse follows focus on all workspaces
     #[clap(arg_required_else_help = true)]
-    MouseFollowsFocus(MouseFollowsFocus),
+    MouseFollowsFocus(OneEnum<BooleanState>),
     /// Toggle mouse follows focus on all workspaces
     ToggleMouseFollowsFocus,
     /// Generate common app-specific configurations and fixes to use in komorebi.ahk
@@ -2102,7 +1838,7 @@ fn main() -> eyre::Result<()> {
             }
         }
         SubCommand::Focus(args) => {
-            send_message(&SocketMessage::FocusWindow(args.operation_direction))?;
+            send_message(&SocketMessage::FocusWindow(args.value))?;
         }
         SubCommand::ForceFocus => {
             send_message(&SocketMessage::ForceFocus)?;
@@ -2123,7 +1859,7 @@ fn main() -> eyre::Result<()> {
             send_message(&SocketMessage::PromoteFocus)?;
         }
         SubCommand::PromoteWindow(args) => {
-            send_message(&SocketMessage::PromoteWindow(args.operation_direction))?;
+            send_message(&SocketMessage::PromoteWindow(args.value))?;
         }
         SubCommand::TogglePause => {
             send_message(&SocketMessage::TogglePause)?;
@@ -2132,19 +1868,19 @@ fn main() -> eyre::Result<()> {
             send_message(&SocketMessage::Retile)?;
         }
         SubCommand::Move(args) => {
-            send_message(&SocketMessage::MoveWindow(args.operation_direction))?;
+            send_message(&SocketMessage::MoveWindow(args.value))?;
         }
         SubCommand::PreselectDirection(args) => {
-            send_message(&SocketMessage::PreselectDirection(args.operation_direction))?;
+            send_message(&SocketMessage::PreselectDirection(args.value))?;
         }
         SubCommand::CancelPreselect => {
             send_message(&SocketMessage::CancelPreselect)?;
         }
         SubCommand::CycleFocus(args) => {
-            send_message(&SocketMessage::CycleFocusWindow(args.cycle_direction))?;
+            send_message(&SocketMessage::CycleFocusWindow(args.value))?;
         }
         SubCommand::CycleMove(args) => {
-            send_message(&SocketMessage::CycleMoveWindow(args.cycle_direction))?;
+            send_message(&SocketMessage::CycleMoveWindow(args.value))?;
         }
         SubCommand::EagerFocus(args) => {
             send_message(&SocketMessage::EagerFocus(args.exe))?;
@@ -2153,9 +1889,7 @@ fn main() -> eyre::Result<()> {
             send_message(&SocketMessage::MoveContainerToMonitorNumber(args.target))?;
         }
         SubCommand::CycleMoveToMonitor(args) => {
-            send_message(&SocketMessage::CycleMoveContainerToMonitor(
-                args.cycle_direction,
-            ))?;
+            send_message(&SocketMessage::CycleMoveContainerToMonitor(args.value))?;
         }
         SubCommand::MoveToWorkspace(args) => {
             send_message(&SocketMessage::MoveContainerToWorkspaceNumber(args.target))?;
@@ -2166,17 +1900,13 @@ fn main() -> eyre::Result<()> {
             ))?;
         }
         SubCommand::CycleMoveToWorkspace(args) => {
-            send_message(&SocketMessage::CycleMoveContainerToWorkspace(
-                args.cycle_direction,
-            ))?;
+            send_message(&SocketMessage::CycleMoveContainerToWorkspace(args.value))?;
         }
         SubCommand::SendToMonitor(args) => {
             send_message(&SocketMessage::SendContainerToMonitorNumber(args.target))?;
         }
         SubCommand::CycleSendToMonitor(args) => {
-            send_message(&SocketMessage::CycleSendContainerToMonitor(
-                args.cycle_direction,
-            ))?;
+            send_message(&SocketMessage::CycleSendContainerToMonitor(args.value))?;
         }
         SubCommand::SendToWorkspace(args) => {
             send_message(&SocketMessage::SendContainerToWorkspaceNumber(args.target))?;
@@ -2187,9 +1917,7 @@ fn main() -> eyre::Result<()> {
             ))?;
         }
         SubCommand::CycleSendToWorkspace(args) => {
-            send_message(&SocketMessage::CycleSendContainerToWorkspace(
-                args.cycle_direction,
-            ))?;
+            send_message(&SocketMessage::CycleSendContainerToWorkspace(args.value))?;
         }
         SubCommand::SendToMonitorWorkspace(args) => {
             send_message(&SocketMessage::SendContainerToMonitorWorkspaceNumber(
@@ -2207,9 +1935,7 @@ fn main() -> eyre::Result<()> {
             send_message(&SocketMessage::MoveWorkspaceToMonitorNumber(args.target))?;
         }
         SubCommand::CycleMoveWorkspaceToMonitor(args) => {
-            send_message(&SocketMessage::CycleMoveWorkspaceToMonitor(
-                args.cycle_direction,
-            ))?;
+            send_message(&SocketMessage::CycleMoveWorkspaceToMonitor(args.value))?;
         }
         SubCommand::MoveToLastWorkspace => {
             send_message(&SocketMessage::MoveContainerToLastWorkspace)?;
@@ -2266,27 +1992,27 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ContainerPadding(args) => {
             send_message(&SocketMessage::ContainerPadding(
-                args.monitor,
-                args.workspace,
+                args.target.monitor,
+                args.target.workspace,
                 args.size,
             ))?;
         }
         SubCommand::NamedWorkspaceContainerPadding(args) => {
             send_message(&SocketMessage::NamedWorkspaceContainerPadding(
-                args.workspace,
+                args.target.workspace,
                 args.size,
             ))?;
         }
         SubCommand::WorkspacePadding(args) => {
             send_message(&SocketMessage::WorkspacePadding(
-                args.monitor,
-                args.workspace,
+                args.target.monitor,
+                args.target.workspace,
                 args.size,
             ))?;
         }
         SubCommand::NamedWorkspacePadding(args) => {
             send_message(&SocketMessage::NamedWorkspacePadding(
-                args.workspace,
+                args.target.workspace,
                 args.size,
             ))?;
         }
@@ -2328,14 +2054,14 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::WorkspaceLayout(args) => {
             send_message(&SocketMessage::WorkspaceLayout(
-                args.monitor,
-                args.workspace,
+                args.target.monitor,
+                args.target.workspace,
                 args.value,
             ))?;
         }
         SubCommand::NamedWorkspaceLayout(args) => {
             send_message(&SocketMessage::NamedWorkspaceLayout(
-                args.workspace,
+                args.target.workspace,
                 args.value,
             ))?;
         }
@@ -2395,14 +2121,14 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::WorkspaceTiling(args) => {
             send_message(&SocketMessage::WorkspaceTiling(
-                args.monitor,
-                args.workspace,
+                args.target.monitor,
+                args.target.workspace,
                 args.value.into(),
             ))?;
         }
         SubCommand::NamedWorkspaceTiling(args) => {
             send_message(&SocketMessage::NamedWorkspaceTiling(
-                args.workspace,
+                args.target.workspace,
                 args.value.into(),
             ))?;
         }
@@ -2978,7 +2704,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::EnforceWorkspaceRules)?;
         }
         SubCommand::Stack(args) => {
-            send_message(&SocketMessage::StackWindow(args.operation_direction))?;
+            send_message(&SocketMessage::StackWindow(args.value))?;
         }
         SubCommand::StackAll => {
             send_message(&SocketMessage::StackAll)?;
@@ -2993,16 +2719,16 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::FocusStackWindow(args.target))?;
         }
         SubCommand::CycleStack(args) => {
-            send_message(&SocketMessage::CycleStack(args.cycle_direction))?;
+            send_message(&SocketMessage::CycleStack(args.value))?;
         }
         SubCommand::CycleStackIndex(args) => {
-            send_message(&SocketMessage::CycleStackIndex(args.cycle_direction))?;
+            send_message(&SocketMessage::CycleStackIndex(args.value))?;
         }
         SubCommand::ChangeLayout(args) => {
-            send_message(&SocketMessage::ChangeLayout(args.default_layout))?;
+            send_message(&SocketMessage::ChangeLayout(args.value))?;
         }
         SubCommand::CycleLayout(args) => {
-            send_message(&SocketMessage::CycleLayout(args.cycle_direction))?;
+            send_message(&SocketMessage::CycleLayout(args.value))?;
         }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
@@ -3017,7 +2743,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::Expand)?;
         }
         SubCommand::Consume(args) => {
-            send_message(&SocketMessage::Consume(args.operation_direction))?;
+            send_message(&SocketMessage::Consume(args.value))?;
         }
         SubCommand::Expel => {
             send_message(&SocketMessage::Expel)?;
@@ -3064,7 +2790,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::ChangeLayoutCustom(args.path))?;
         }
         SubCommand::FlipLayout(args) => {
-            send_message(&SocketMessage::FlipLayout(args.axis))?;
+            send_message(&SocketMessage::FlipLayout(args.value))?;
         }
         SubCommand::FocusMonitor(args) => {
             send_message(&SocketMessage::FocusMonitorNumber(args.target))?;
@@ -3094,23 +2820,21 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::CloseWorkspace)?;
         }
         SubCommand::CycleMonitor(args) => {
-            send_message(&SocketMessage::CycleFocusMonitor(args.cycle_direction))?;
+            send_message(&SocketMessage::CycleFocusMonitor(args.value))?;
         }
         SubCommand::CycleWorkspace(args) => {
-            send_message(&SocketMessage::CycleFocusWorkspace(args.cycle_direction))?;
+            send_message(&SocketMessage::CycleFocusWorkspace(args.value))?;
         }
         SubCommand::CycleEmptyWorkspace(args) => {
-            send_message(&SocketMessage::CycleFocusEmptyWorkspace(
-                args.cycle_direction,
-            ))?;
+            send_message(&SocketMessage::CycleFocusEmptyWorkspace(args.value))?;
         }
         SubCommand::NewWorkspace => {
             send_message(&SocketMessage::NewWorkspace)?;
         }
         SubCommand::WorkspaceName(name) => {
             send_message(&SocketMessage::WorkspaceName(
-                name.monitor,
-                name.workspace,
+                name.target.monitor,
+                name.target.workspace,
                 name.value,
             ))?;
         }
@@ -3166,7 +2890,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             print_query(&SocketMessage::MonitorInformation);
         }
         SubCommand::Query(args) => {
-            print_query(&SocketMessage::Query(args.state_query));
+            print_query(&SocketMessage::Query(args.value));
         }
         SubCommand::RestoreWindows => {
             let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
@@ -3198,9 +2922,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::ReloadConfiguration)?;
         }
         SubCommand::WatchConfiguration(args) => {
-            send_message(&SocketMessage::WatchConfiguration(
-                args.boolean_state.into(),
-            ))?;
+            send_message(&SocketMessage::WatchConfiguration(args.value.into()))?;
         }
         SubCommand::CompleteConfiguration => {
             send_message(&SocketMessage::CompleteConfiguration)?;
@@ -3270,7 +2992,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::ToggleMouseFollowsFocus)?;
         }
         SubCommand::MouseFollowsFocus(args) => {
-            send_message(&SocketMessage::MouseFollowsFocus(args.boolean_state.into()))?;
+            send_message(&SocketMessage::MouseFollowsFocus(args.value.into()))?;
         }
         SubCommand::Border(args) => {
             send_message(&SocketMessage::Border(args.boolean_state.into()))?;
@@ -3348,12 +3070,10 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::ToggleWorkspaceLayer)?;
         }
         SubCommand::WindowHidingBehaviour(args) => {
-            send_message(&SocketMessage::WindowHidingBehaviour(args.hiding_behaviour))?;
+            send_message(&SocketMessage::WindowHidingBehaviour(args.value))?;
         }
         SubCommand::CrossMonitorMoveBehaviour(args) => {
-            send_message(&SocketMessage::CrossMonitorMoveBehaviour(
-                args.move_behaviour,
-            ))?;
+            send_message(&SocketMessage::CrossMonitorMoveBehaviour(args.value))?;
         }
         SubCommand::ToggleCrossMonitorMoveBehaviour => {
             send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour)?;
@@ -3366,7 +3086,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::UnmanagedWindowOperationBehaviour(args) => {
             send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
-                args.operation_behaviour,
+                args.value,
             ))?;
         }
         SubCommand::AhkAppSpecificConfiguration(args) => {
