@@ -3473,7 +3473,6 @@ version = "0.1.42"
 dependencies = [
  "clap",
  "color-eyre",
- "dirs 6.0.0",
  "komorebi-layouts",
  "komorebi-themes",
  "schemars 1.2.3",

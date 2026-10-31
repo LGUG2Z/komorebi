@@ -9,6 +9,7 @@ komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 komorebi-themes = { workspace = true }
 komorebi-layouts = { workspace = true }
 komorebi-scrolling = { workspace = true }
+komorebi-protocol = { workspace = true }
 version = { path = "../version" }
 
 clap = { workspace = true }

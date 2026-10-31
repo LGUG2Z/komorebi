@@ -53,7 +53,7 @@ pub use komorebi_layouts::validate_ratios;
 pub mod animation;
 pub mod asc;
 pub mod config_generation;
-pub mod pathext;
+pub use komorebi_protocol::pathext;
 
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
