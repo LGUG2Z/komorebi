@@ -22,11 +22,13 @@ use komorebi_layouts::CycleDirection;
 use komorebi_layouts::DefaultLayout;
 use komorebi_layouts::OperationDirection;
 use komorebi_layouts::Sizing;
+use komorebi_protocol::pathext::replace_env_in_path;
 use komorebi_protocol::types::ApplicationIdentifier;
 use komorebi_protocol::types::HidingBehaviour;
 use komorebi_protocol::types::MoveBehaviour;
 use komorebi_protocol::types::OperationBehaviour;
 use komorebi_protocol::types::StateQuery;
+use std::path::PathBuf;
 
 /// `enable` or `disable`, the way most of the subcommands that turn something on or off say it.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -175,6 +177,211 @@ pub struct ApplicationTarget {
     pub id: String,
 }
 
+// The arguments of the subcommands that have a block of their own, and the blocks they share.
+
+// Which socket to send the event notifications to.
+#[derive(Args, Clone, Debug)]
+pub struct SubscribeSocket {
+    /// Name of the socket to send event notifications to
+    pub socket: String,
+}
+
+// Which socket to stop sending the event notifications to.
+#[derive(Args, Clone, Debug)]
+pub struct UnsubscribeSocket {
+    /// Name of the socket to stop sending event notifications to
+    pub socket: String,
+}
+
+// Where to save the resize layout dimensions to.
+#[derive(Args, Clone, Debug)]
+pub struct SaveResize {
+    /// File to which the resize layout dimensions should be saved
+    #[clap(value_parser = replace_env_in_path)]
+    pub path: PathBuf,
+}
+
+// Where to load the resize layout dimensions from.
+#[derive(Args, Clone, Debug)]
+pub struct LoadResize {
+    /// File from which the resize layout dimensions should be loaded
+    #[clap(value_parser = replace_env_in_path)]
+    pub path: PathBuf,
+}
+
+// Where the static configuration of a running komorebi is read from.
+#[derive(Args, Clone, Debug)]
+pub struct ReplaceConfiguration {
+    /// Static configuration JSON file from which the configuration should be loaded
+    #[clap(value_parser = replace_env_in_path)]
+    pub path: PathBuf,
+}
+
+// The edge of the focused window to resize and whether to grow or shrink it.
+#[derive(Args, Clone, Debug)]
+pub struct Resize {
+    #[clap(value_enum)]
+    pub edge: OperationDirection,
+    #[clap(value_enum)]
+    pub sizing: Sizing,
+}
+
+// The axis to resize along and whether to grow or shrink.
+#[derive(Args, Clone, Debug)]
+pub struct ResizeAxis {
+    #[clap(value_enum)]
+    pub axis: Axis,
+    #[clap(value_enum)]
+    pub sizing: Sizing,
+}
+
+// The pixels the resize commands change a window by.
+#[derive(Args, Clone, Debug)]
+pub struct ResizeDelta {
+    /// The delta of pixels by which to increase or decrease window dimensions when resizing
+    pub pixels: i32,
+}
+
+// A workspace of another monitor.
+#[derive(Args, Clone, Debug)]
+pub struct MonitorWorkspace {
+    /// Target monitor index (zero-indexed)
+    pub target_monitor: usize,
+    /// Workspace index on the target monitor (zero-indexed)
+    pub target_workspace: usize,
+}
+
+// The four sides of a work area offset.
+#[derive(Args, Clone, Debug)]
+pub struct WorkAreaOffset {
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    pub left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    pub top: i32,
+    /// Size of the right work area offset
+    pub right: i32,
+    /// Size of the bottom work area offset
+    pub bottom: i32,
+}
+
+// The work area offset of a monitor.
+#[derive(Args, Clone, Debug)]
+pub struct MonitorWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    pub monitor: usize,
+    #[command(flatten)]
+    pub offset: WorkAreaOffset,
+}
+
+// The work area offset of a workspace.
+#[derive(Args, Clone, Debug)]
+pub struct WorkspaceWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    pub monitor: usize,
+    /// Workspace index (zero-indexed)
+    pub workspace: usize,
+    #[command(flatten)]
+    pub offset: WorkAreaOffset,
+}
+
+// A monitor to give an index to.
+#[derive(Args, Clone, Debug)]
+pub struct DisplayIndexPreference {
+    /// Preferred monitor index (zero-indexed)
+    pub index_preference: usize,
+    /// Display name as identified in komorebic state
+    pub display: String,
+}
+
+// How many workspaces a monitor has at least.
+#[derive(Args, Clone, Debug)]
+pub struct EnsureWorkspaces {
+    /// Monitor index (zero-indexed)
+    pub monitor: usize,
+    /// Number of desired workspaces
+    pub workspace_count: usize,
+}
+
+// The names of the workspaces a monitor has.
+#[derive(Args, Clone, Debug)]
+pub struct EnsureNamedWorkspaces {
+    /// Monitor index (zero-indexed)
+    pub monitor: usize,
+    /// Names of desired workspaces
+    pub names: Vec<String>,
+}
+
+// A layout a workspace changes to at a number of containers.
+#[derive(Args, Clone, Debug)]
+pub struct WorkspaceLayoutRule {
+    #[command(flatten)]
+    pub target: WorkspaceTarget,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    pub at_container_count: usize,
+
+    #[clap(value_enum)]
+    pub layout: DefaultLayout,
+}
+
+// A layout a named workspace changes to at a number of containers.
+#[derive(Args, Clone, Debug)]
+pub struct NamedWorkspaceLayoutRule {
+    #[command(flatten)]
+    pub target: NamedTarget,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    pub at_container_count: usize,
+
+    #[clap(value_enum)]
+    pub layout: DefaultLayout,
+}
+
+// A named workspace whose rules are cleared.
+#[derive(Args, Clone, Debug)]
+pub struct ClearNamedWorkspaceRules {
+    /// Name of a workspace
+    pub workspace: String,
+}
+
+// An application and the workspace its windows go to.
+#[derive(Args, Clone, Debug)]
+pub struct WorkspaceRule {
+    #[command(flatten)]
+    pub application: ApplicationTarget,
+    #[command(flatten)]
+    pub target: WorkspaceTarget,
+}
+
+// An application and the named workspace its windows go to.
+#[derive(Args, Clone, Debug)]
+pub struct NamedWorkspaceRule {
+    #[command(flatten)]
+    pub application: ApplicationTarget,
+    /// Name of a workspace
+    pub workspace: String,
+}
+
+// The width of the border.
+#[derive(Args, Clone, Debug)]
+pub struct BorderWidth {
+    /// Desired width of the window border
+    pub width: i32,
+}
+
+// The offset of the border.
+#[derive(Args, Clone, Debug)]
+pub struct BorderOffset {
+    /// Desired offset of the window border
+    pub offset: i32,
+}
+
+// The frame rate of the animations.
+#[derive(Args, Clone, Debug)]
+pub struct AnimationFps {
+    /// Desired animation frames per second
+    pub fps: u64,
+}
 #[cfg(test)]
 mod tests {
     use super::*;
