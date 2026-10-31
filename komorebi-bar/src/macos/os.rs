@@ -37,6 +37,10 @@ impl BarPlatform for MacBar {
         "https://api.github.com/repos/LGUG2Z/komorebi-for-mac/releases/latest"
     }
 
+    fn release_page_url(&self, version: &str) -> String {
+        format!("https://github.com/LGUG2Z/komorebi-for-mac/releases/tag/v{version}")
+    }
+
     fn calendar_icon(&self) -> &'static str {
         CALENDAR
     }

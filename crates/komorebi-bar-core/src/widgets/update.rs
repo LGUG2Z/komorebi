@@ -83,7 +83,7 @@ impl Update {
         {
             let client = reqwest::blocking::Client::new();
             if let Ok(response) = client
-                .get("https://api.github.com/repos/LGUG2Z/komorebi/releases/latest")
+                .get(platform().latest_release_api_url())
                 .header("User-Agent", "komorebi-bar-version-checker")
                 .send()
             {
@@ -143,10 +143,9 @@ impl BarWidget for Update {
                     if SelectableFrame::new(false)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                        && let Err(error) = platform().open_system_tool(SystemTool::Url(format!(
-                            "https://github.com/LGUG2Z/komorebi/releases/v{}",
-                            self.latest_version
-                        )))
+                        && let Err(error) = platform().open_system_tool(SystemTool::Url(
+                            platform().release_page_url(&self.latest_version),
+                        ))
                     {
                         eprintln!("{error}")
                     }
