@@ -2,6 +2,5 @@
 /result*
 /.idea
 /.direnv
-/komorebic/applications.json
 /komorebi-schema
 /bar-schema

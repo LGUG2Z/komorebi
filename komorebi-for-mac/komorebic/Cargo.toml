@@ -23,10 +23,6 @@ serde_json = { workspace = true }
 shadow-rs = { workspace = true }
 sysinfo = { workspace = true }
 
-[build-dependencies]
-reqwest = { version = "0.12", features = ["blocking"] }
-shadow-rs = { workspace = true }
-
 [features]
 default = ["schemars"]
 schemars = ["dep:schemars", "komorebi-client/default"]

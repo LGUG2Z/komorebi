@@ -1,0 +1,3299 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.asc.json",
+  "1Password": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "1Password.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Ableton Live": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "AbletonVstPlugClass",
+        "matching_strategy": "Legacy"
+      },
+      {
+        "kind": "Class",
+        "id": "Vst3PlugWindow",
+        "matching_strategy": "Legacy"
+      },
+      [
+        {
+          "kind": "Class",
+          "id": "Ableton Live Window Class",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Ableton",
+          "matching_strategy": "DoesNotContain"
+        }
+      ]
+    ]
+  },
+  "Adobe Creative Cloud": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "CreativeCloudDesktopWindowClass",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Adobe Photoshop": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "PSDialogBox",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Adobe Premiere Pro": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "DroverLord - Window Class",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Affinity Designer 2": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Designer.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "manage": [
+      {
+        "kind": "Title",
+        "id": "Affinity Designer 2",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Affinity Photo 2": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Photo.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "manage": [
+      {
+        "kind": "Title",
+        "id": "Affinity Photo 2",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Affinity Publisher 2": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Publisher.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "manage": [
+      {
+        "kind": "Title",
+        "id": "Affinity Publisher 2",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Akiflow": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Akiflow.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Amazon Chime": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "Meeting Controls",
+        "matching_strategy": "EndsWith"
+      }
+    ]
+  },
+  "Android Studio": {
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "studio64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Anki": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Anki.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Anki.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "- Anki",
+          "matching_strategy": "DoesNotEndWith"
+        }
+      ]
+    ]
+  },
+  "ApplicationFrameHost": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ApplicationFrameHost.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Arc Browser": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "Arc picture in picture",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Title",
+        "id": "Arc extension popup",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ArmCord": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ArmCord.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "AutoDesk AutoCAD Suite": {
+    "ignore": [
+      [
+        {
+          "kind": "Class",
+          "id": "Afx:",
+          "matching_strategy": "Contains"
+        },
+        {
+          "kind": "Exe",
+          "id": "acad.exe",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Class",
+          "id": "HwndWrapper[DefaultDomain",
+          "matching_strategy": "StartsWith"
+        },
+        {
+          "kind": "Exe",
+          "id": "acad.exe",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Class",
+          "id": "WindowsForms10.Window",
+          "matching_strategy": "StartsWith"
+        },
+        {
+          "kind": "Exe",
+          "id": "acad.exe",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "AutoHotkey": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "Window Spy",
+        "matching_strategy": "StartsWith"
+      },
+      {
+        "kind": "Exe",
+        "id": "AutoHotkeyUX.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "AutoHotkeyU64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Ayugram": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ayugram.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Balabolka": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "balabolka.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "TBalabolkaForm",
+          "matching_strategy": "DoesNotEqual"
+        }
+      ]
+    ]
+  },
+  "Barrier": {
+    "floating": [
+      {
+        "kind": "Exe",
+        "id": "barrier.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Battlestate Games Launcher": {
+    "floating": [
+      {
+        "kind": "Exe",
+        "id": "BsgLauncher.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Beeper": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Beeper.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Bitwarden": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Bitwarden.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Blender": {
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "blender.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Blender",
+          "matching_strategy": "DoesNotContain"
+        }
+      ]
+    ],
+    "slow_application": [
+      {
+        "kind": "Exe",
+        "id": "blender.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Blitz": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Blitz.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Bloxstrap": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Bloxstrap.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Brave Browser": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "brave.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Browser Tamer": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "bt.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Calculator": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "Calculator",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Citrix Receiver": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "SelfService.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "SelfService.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Clash Verge": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Clash Verge.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Clementine": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "clementine.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "CLion": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "clion64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "clion64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Clumsy": {
+    "floating": [
+      {
+        "kind": "Exe",
+        "id": "clumsy.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "CopyQ": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "copyq.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Core Temp": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Core Temp.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Credential Manager UI Host": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "CredentialUIBroker.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Cron": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Cron.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "DataGrip": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "datagrip64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "datagrip64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Dell Display Manager": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "DDM.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Delphi applications": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "TApplication",
+        "matching_strategy": "Legacy"
+      },
+      {
+        "kind": "Class",
+        "id": "TWizardForm",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "DesktopMate": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "DesktopMate.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Discord": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Discord.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "Discord.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "DiscordCanary": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "DiscordCanary.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "DiscordCanary.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "DiscordDevelopment": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "DiscordDevelopment.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "DiscordDevelopment.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "DiscordPTB": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "DiscordPTB.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "DiscordPTB.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Dropbox": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Dropbox.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "DS4Windows": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "DS4Windows.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "EA Desktop": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "EADesktop.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Eagle": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Eagle.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Eclipse SWT": {
+    "object_name_change": [
+      {
+        "kind": "Class",
+        "id": "SWT_Window",
+        "matching_strategy": "StartsWith"
+      }
+    ]
+  },
+  "ElectronMail": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ElectronMail.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Electrum": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "Create/Restore wallet",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Element": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Element.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Elephicon": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Elephicon.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ElevenClock": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ElevenClock.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Elgato Camera Hub": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Camera Hub.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Elgato Control Center": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "ControlCenter.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Elgato Wave Link": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "WaveLink.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Epic Games Launcher": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "EpicGamesLauncher.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Everything": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "EVERYTHING",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Everything1.5a": {
+    "manage": [
+      {
+        "kind": "Class",
+        "id": "EVERYTHING_(1.5a)",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "EVERYTHING_(1.5a)",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "f.lux": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "flux.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "flux.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "FFMetrics": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "FFMetrics.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Files": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Files.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Fork": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Fork.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Fork -",
+          "matching_strategy": "DoesNotStartWith"
+        }
+      ]
+    ]
+  },
+  "FreeCAD": {
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "freecad.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "Qt51515QWindowIcon",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "FreeTube": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "FreeTube.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "FreeTube.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Picture in picture",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "GIMP": {
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "gimp",
+          "matching_strategy": "StartsWith"
+        },
+        {
+          "kind": "Title",
+          "id": "GNU",
+          "matching_strategy": "DoesNotContain"
+        },
+        {
+          "kind": "Title",
+          "id": "GIMP",
+          "matching_strategy": "DoesNotEndWith"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "gimp",
+          "matching_strategy": "StartsWith"
+        },
+        {
+          "kind": "Title",
+          "id": "About GIMP",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "GitHub Credential Manager": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "git-credential-manager.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Godot Engine": {
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "Godot_v",
+        "matching_strategy": "StartsWith"
+      }
+    ]
+  },
+  "Godot Manager": {
+    "manage": [
+      {
+        "kind": "Exe",
+        "id": "GodotManager.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "GodotManager.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "GOG Galaxy": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "Chrome_RenderWidgetHostHWND",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "manage": [
+      {
+        "kind": "Exe",
+        "id": "GalaxyClient.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "GalaxyClient.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "GoLand": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "goland64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "goland64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Golden Dict": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "GoldenDict.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Google Chrome": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "chrome.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Google Drive": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "GoogleDriveFS.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "GoogleDriveFS.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Google Earth Pro": {
+    "ignore": [
+      [
+        {
+          "kind": "Class",
+          "id": "Qt5QWindowToolSaveBits",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Exe",
+          "id": "googleearth.exe",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Class",
+          "id": "Qt5QWindowIcon",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Google Earth Pro",
+          "matching_strategy": "DoesNotEqual"
+        },
+        {
+          "kind": "Exe",
+          "id": "googleearth.exe",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "GoPro Webcam": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "GoPro Webcam",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Grayjay": {
+    "manage": [
+      [
+        {
+          "kind": "Exe",
+          "id": "dotcefnative.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Grayjay",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "dotcefnative.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Grayjay (Sub)",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Guitar Rig 7": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Guitar Rig 7.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Hammer": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "hammer.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "hammer.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "Afx:",
+          "matching_strategy": "StartsWith"
+        }
+      ]
+    ],
+    "slow_application": [
+      {
+        "kind": "Exe",
+        "id": "hammer.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Honkai Star Rail": {
+    "manage": [
+      {
+        "kind": "Exe",
+        "id": "StarRail.Exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "HWiNFO64": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "HWiNFO64.EXE",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "HxD": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "HxD.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "HxD.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "TFormHexView",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "IDA": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ida.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "ida64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "ida.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "IDA -",
+          "matching_strategy": "DoesNotStartWith"
+        },
+        {
+          "kind": "Title",
+          "id": "IDA v",
+          "matching_strategy": "DoesNotStartWith"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "ida64.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "IDA -",
+          "matching_strategy": "DoesNotStartWith"
+        },
+        {
+          "kind": "Title",
+          "id": "IDA v",
+          "matching_strategy": "DoesNotStartWith"
+        }
+      ]
+    ]
+  },
+  "IntelliJ IDEA": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "idea64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "idea64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Itch.io": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "itch.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "JavaFX": {
+    "object_name_change": [
+      {
+        "kind": "Class",
+        "id": "GlassWndClass-GlassWindowClass",
+        "matching_strategy": "StartsWith"
+      }
+    ]
+  },
+  "JetBrains Client": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "jetbrains_client64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "jetbrains_client64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Keyviz": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "keyviz.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Kleopatra": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "kleopatra.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "komorebi-bar": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "komorebi-bar.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "komorebi-gui": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "komorebi-gui.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "KOOK": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "KOOK.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Kotatogram": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Kotatogram.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Lens": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Lens.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Loading",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Libre Hardware Monitor": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "LibreHardwareMonitor.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "LibreCAD": {
+    "ignore": [
+      [
+        {
+          "kind": "Title",
+          "id": "LibreCAD",
+          "matching_strategy": "DoesNotStartWith"
+        },
+        {
+          "kind": "Exe",
+          "id": "LibreCAD.exe",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "LibreOffice": {
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "soffice.bin",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Line": {
+    "floating": [
+      {
+        "kind": "Exe",
+        "id": "LineMediaPlayer.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "LocalSend": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "localsend_app.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Logi Bolt": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "LogiBolt.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Logitech G HUB": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "lghub.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Logitech Options": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "LogiOptionsUI.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "LogiTune": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "LogiTune.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "LogiTune.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "MacType": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "MacTray.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Mailspring": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "mailspring.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ManicTime": {
+    "manage": [
+      {
+        "kind": "Exe",
+        "id": "ManicTimeClient.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ManicTimeClient.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "ManicTimeClient.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ManyCam": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ManyCam.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Mattermost": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Mattermost.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "MaxxAudioPro": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "ApplicationFrameHost.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "MaxxAudioPro",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "MicMute": {
+    "floating": [
+      {
+        "kind": "Exe",
+        "id": "MicMute.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Microsoft Active Accessibility": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "#32770",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Microsoft Edge": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "msedge.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "Chrome_WidgetWin_2",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Microsoft Excel": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "_WwB",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "EXCEL.EXE",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Microsoft IME Pad": {
+    "floating": [
+      {
+        "kind": "Exe",
+        "id": "IMEPADSV.EXE",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Microsoft Outlook": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "_WwB",
+        "matching_strategy": "Legacy"
+      },
+      {
+        "kind": "Class",
+        "id": "MsoSplash",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "OUTLOOK.EXE",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "OUTLOOK.EXE",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Microsoft PC Manager": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "MSPCManager.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Microsoft PowerPoint": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "_WwB",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "POWERPNT.EXE",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Microsoft SQL Server Management Studio": {
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Ssms.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "WindowsForms10.Window.8.app",
+          "matching_strategy": "StartsWith"
+        }
+      ]
+    ]
+  },
+  "Microsoft Teams": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "TeamsWebView",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Microsoft Teams classic": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "Microsoft Teams Notification",
+        "matching_strategy": "Legacy"
+      },
+      {
+        "kind": "Title",
+        "id": "Microsoft Teams Call",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Microsoft Terminal Services Client": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "OPContainerClass",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "IHWindowClass",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Microsoft Word": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "_WwB",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "WINWORD.EXE",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "WINWORD.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "MobaXterm": {
+    "manage": [
+      [
+        {
+          "kind": "Exe",
+          "id": "MobaXterm.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "TMobaXtermForm",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Mod Organizer 2": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "ModOrganizer.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Extracting files",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Modern Flyouts": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ModernFlyoutsHost.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "MOTU M-Series": {
+    "floating": [
+      {
+        "kind": "Exe",
+        "id": "MOTUMSeries.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Mozilla Firefox": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "MozillaDialogClass",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "MozillaTaskbarPreviewClass",
+        "matching_strategy": "Legacy"
+      },
+      [
+        {
+          "kind": "Title",
+          "id": "Picture-in-Picture",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Exe",
+          "id": "firefox.exe",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "firefox.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "firefox.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "slow_application": [
+      {
+        "kind": "Exe",
+        "id": "firefox.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "mpv": {
+    "object_name_change": [
+      {
+        "kind": "Class",
+        "id": "mpv",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "mpv.net": {
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "mpvnet.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "NetEase Cloud Music": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "cloudmusic.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "NiceHash Miner": {
+    "manage": [
+      {
+        "kind": "Exe",
+        "id": "nhm_app.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "NohBoard": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "NohBoard.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Notion": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "Notion - Command Search",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Notion.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Notion Calendar": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Notion Calendar.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Notion Enhanced": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Notion Enhanced.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "NZXT CAM": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "NZXT CAM.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "OBS Studio (32-bit)": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "obs32.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "OBS Studio (64-bit)": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "obs64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "OneDrive": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "OneDriveReactNativeWin32WindowClass",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "OneQuick": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "OneQuick.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ONLYOFFICE Editors": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "DocEditorsWindowClass",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "OpenRGB": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "OpenRGB.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "paint.net": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "paintdotnet.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Paradox Launcher": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Paradox Launcher.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "PAYDAY 2": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "payday2_win32_release.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "PhpStorm": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "phpstorm64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "phpstorm64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "pinentry": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "pinentry.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Playnite": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Playnite.FullscreenApp.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Playnite.DesktopApp.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "PowerToys": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "PowerToys.ColorPickerUI.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "PowerToys.CropAndLock.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "PowerToys.ImageResizer.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "PowerToys.Peek.UI.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "PowerToys.PowerLauncher.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "PowerToys.PowerAccent.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "PowerToys.AdvancedPaste.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "PowerToys.FileLocksmithUI.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "PowerToys.QuickAccess.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "Microsoft.CmdPal.UI.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Prime95": {
+    "floating": [
+      {
+        "kind": "Exe",
+        "id": "prime95.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Prism Launcher": {
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "prismlauncher.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "- Prism Launcher",
+          "matching_strategy": "Contains"
+        }
+      ]
+    ]
+  },
+  "Process Hacker": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "ProcessHacker.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ProcessHacker.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ProtonDrive": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ProtonDrive.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ProtonVPN": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ProtonVPN.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "PyCharm": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "pycharm64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "pycharm64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "qBittorrent": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "qbittorrent.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "qbittorrent.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Exiting qBittorrent",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "QGIS": {
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "qgis-bin.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "QGIS",
+          "matching_strategy": "DoesNotContain"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "qgis-ltr-bin.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "QGIS",
+          "matching_strategy": "DoesNotContain"
+        }
+      ]
+    ]
+  },
+  "QQ": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "图片查看器",
+        "matching_strategy": "Legacy"
+      },
+      {
+        "kind": "Title",
+        "id": "群聊的聊天记录",
+        "matching_strategy": "Legacy"
+      },
+      {
+        "kind": "Title",
+        "id": "语音通话",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "QQ.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "QtScrcpy": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "QtScrcpy.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "QuickLook": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "QuickLook.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "RepoZ": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "RepoZ.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Rider": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Title",
+        "id": "PopupMessageWindow",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "rider64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "rider64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Roblox FPS Unlocker": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "rbxfpsunlocker.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "RoundedTB": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "RoundedTB.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "RustRover": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "rustrover64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "rustrover64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Sandboxie Plus": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "SandMan.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ShareX": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ShareX.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Sideloadly": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "sideloadly.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Signal": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Signal.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "SiriKali": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "sirikali.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Slack": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "Chrome_RenderWidgetHostHWND",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "slack.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Smart Install Maker": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "obj_App",
+        "matching_strategy": "Legacy"
+      },
+      {
+        "kind": "Class",
+        "id": "obj_Form",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "SnippingTool": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "SnippingTool.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "SoulseekQt": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "SoulseekQt.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Spotify": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Spotify.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Steam": {
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "steam.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "steam.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "steamwebhelper.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Steam",
+          "matching_strategy": "DoesNotEqual"
+        }
+      ]
+    ],
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "steam.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "BootstrapUpdateUIClass",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Steam Beta": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "notificationtoasts_",
+        "matching_strategy": "Legacy"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "SDL_app",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Stremio": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "stremio.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Stremio Desktop Community": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "stremio-shell-ng.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "System Informer": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "SystemInformer.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "SystemInformer.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "SystemSettings": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "Shell_Dialog",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Tabby": {
+    "manage": [
+      [
+        {
+          "kind": "Class",
+          "id": "Chrome_WidgetWin_1",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Exe",
+          "id": "Tabby.exe",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "TablePlus": {
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "TablePlus.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Task Manager": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "TaskManagerWindow",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Telegram": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Telegram.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "TeraCopy": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "TeraCopy.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "TickTick": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "TickTick.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Tobit.Team": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "TobitTeamFrame",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Total Commander": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "TDLG2FILEACTIONMIN",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "TFindFile",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "TLister",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "TCHANGETREEDLG",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "TCONNECT",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "TSEARCHTEXT",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "TouchCursor": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "tcconfig.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "tcconfig.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "TranslucentTB": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "TranslucentTB.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "ueli": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "ueli.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "ueli.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "UniGetUI": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "UniGetUI.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Unity": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "UnityWndClass",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Unity Editor": {
+    "transparency_ignore": [
+      {
+        "kind": "Exe",
+        "id": "Unity.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Unity.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Unity Hub": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "Unity Hub.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Unreal Editor": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "UnrealEditor.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "UnrealEditor.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "- Unreal Editor",
+          "matching_strategy": "DoesNotEndWith"
+        }
+      ]
+    ]
+  },
+  "Unreal Engine": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "UnrealWindow",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Title",
+        "id": "SplashScreenGuard",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "visio": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "VISIOS",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "VISIOQ",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "manage": [
+      {
+        "kind": "Class",
+        "id": "VISIOA",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Visual Studio": {
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "devenv.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "floating": [
+      [
+        {
+          "kind": "Exe",
+          "id": "devenv.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "QuickWatch",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "devenv.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": " - Microsoft Visual Studio",
+          "matching_strategy": "DoesNotContain"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "DevHub.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "ThreadedWaitDialog",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ],
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "VsDebugConsole.exe",
+        "matching_strategy": "Equals"
+      },
+      [
+        {
+          "kind": "Exe",
+          "id": "iisexpresstray.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Class",
+          "id": "WindowsForms10.Window",
+          "matching_strategy": "StartsWith"
+        }
+      ],
+      {
+        "kind": "Title",
+        "id": "WindowsFormsParkingWindow",
+        "matching_strategy": "Equals"
+      },
+      [
+        {
+          "kind": "Exe",
+          "id": "devenv.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Move files to a new location?",
+          "matching_strategy": "Equals"
+        }
+      ],
+      {
+        "kind": "Exe",
+        "id": "ServiceHub.ThreadedWaitDialog.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "VLC": {
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "vlc.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Open URL",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "About",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Preferences",
+          "matching_strategy": "Contains"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Adjustments and Effects",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Open Media",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Current Media Information",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Messages",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "VLC media player updates",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Help",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Plugins and extensions",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "vlc.exe",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Building font cache",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "VMware Horizon Client": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "vmware-view.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Voice.ai": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "VoiceAI.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "VRCX": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "VRCX.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "WebStorm": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "SunAwtDialog",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "webstorm64.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "webstorm64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "WebTorrent Desktop": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "WebTorrent.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "WeChat": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "WeChatLoginWndForPC",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "FileListMgrWnd",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "CWebviewControlHostWnd",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "ChatWnd",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "EmotionTipWnd",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "ChatContactMenu",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Exe",
+        "id": "WeChatAppEx.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "manage": [
+      {
+        "kind": "Class",
+        "id": "WeChatMainWndForPC",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Class",
+        "id": "WeChatMainWndForPC",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "WinCompose": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "wincompose.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Windows Console (conhost.exe)": {
+    "manage": [
+      {
+        "kind": "Class",
+        "id": "ConsoleWindowClass",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Windows Explorer": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "explorer.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "NativeHWNDHost",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "OperationStatusWindow",
+        "matching_strategy": "Legacy"
+      },
+      {
+        "kind": "Title",
+        "id": "Control Panel",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Windows Installer": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "msiexec.exe",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "MsiDialogCloseClass",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Windows Subsystem for Android": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "android(splash)",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "Windows Terminal": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "WindowsTerminal.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Windows Update Standalone Installer": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "wusa.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "WingetUI": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "wingetui.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "WinZip (32-bit)": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "winzip32.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "WinZip (64-bit)": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "winzip64.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Wox": {
+    "ignore": [
+      {
+        "kind": "Title",
+        "id": "Hotkey sink",
+        "matching_strategy": "Legacy"
+      }
+    ]
+  },
+  "XAMPP Control Panel": {
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "xampp-control.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Zebar": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "zebar.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Zed": {
+    "layered": [
+      {
+        "kind": "Exe",
+        "id": "zed.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Zen Browser": {
+    "ignore": [
+      {
+        "kind": "Class",
+        "id": "MozillaDialogClass",
+        "matching_strategy": "Equals"
+      },
+      {
+        "kind": "Class",
+        "id": "MozillaTaskbarPreviewClass",
+        "matching_strategy": "Legacy"
+      },
+      [
+        {
+          "kind": "Title",
+          "id": "Picture-in-Picture",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Exe",
+          "id": "zen.exe",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ],
+    "tray_and_multi_window": [
+      {
+        "kind": "Exe",
+        "id": "zen.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "object_name_change": [
+      {
+        "kind": "Exe",
+        "id": "zen.exe",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "slow_application": [
+      {
+        "kind": "Exe",
+        "id": "zen.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Zoom": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Zoom.exe",
+        "matching_strategy": "Equals"
+      }
+    ]
+  }
+}
