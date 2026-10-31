@@ -1,3 +1,5 @@
+//! Resolving environment variables in the paths of the configuration.
+
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Component;
@@ -33,8 +35,8 @@ impl<P: AsRef<Path>> PathExt for P {
                         c = OsStr::new("$Env:USERPROFILE");
                     }
 
-                    #[cfg(target_os = "macos")]
-                    // Special case for ~, replace with $HOME
+                    #[cfg(unix)]
+                    // Special case for ~, replace with $HOME (macOS and Linux)
                     if c == OsStr::new("~") {
                         c = OsStr::new("$HOME");
                     }
@@ -135,9 +137,15 @@ impl serde_with::schemars_1::JsonSchemaAs<PathBuf> for ResolvedPathBuf {
     }
 
     fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        // the description is part of the checked-in schemas, which differ per platform
+        #[cfg(target_os = "windows")]
+        let description = "A file system path. Environment variables like %VAR%, $Env:VAR, or $VAR are automatically resolved.";
+        #[cfg(not(target_os = "windows"))]
+        let description = "A file system path. Environment variables like $VAR are automatically resolved.";
+
         schemars::json_schema!({
             "type": "string",
-            "description": "A file system path. Environment variables like $VAR are automatically resolved."
+            "description": description
         })
     }
 }
@@ -206,7 +214,7 @@ mod tests {
             assert_eq!(resolve("$HOME"), expected("C:\\Users\\user"));
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             // Set a $env:USERPROFILE variable for testing
             unsafe {
