@@ -2626,12 +2626,21 @@ dependencies = [
  "komorebi",
  "komorebi-client",
  "komorebi-hotkeys",
+ "komorebic-core",
  "lazy_static",
- "pastey",
  "schemars 1.2.3",
  "serde_json_lenient",
  "sysinfo",
  "version",
+]
+
+[[package]]
+name = "komorebic-core"
+version = "0.1.42"
+dependencies = [
+ "clap",
+ "komorebi-layouts",
+ "komorebi-protocol",
 ]
 
 [[package]]

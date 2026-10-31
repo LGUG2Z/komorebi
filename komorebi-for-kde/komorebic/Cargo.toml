@@ -8,6 +8,7 @@ edition = "2024"
 komorebi = { path = "../komorebi", default-features = false }
 komorebi-client = { path = "../komorebi-client", default-features = false }
 komorebi-hotkeys = { path = "../komorebi-hotkeys" }
+komorebic-core = { path = "../../crates/komorebic-core" }
 version = { path = "../version" }
 
 clap = { workspace = true }
@@ -17,7 +18,6 @@ color-eyre = { workspace = true }
 dirs = { workspace = true }
 fs-tail = "0.1"
 lazy_static = { workspace = true }
-pastey = { workspace = true }
 schemars = { workspace = true, optional = true }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
