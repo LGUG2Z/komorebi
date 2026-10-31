@@ -52,6 +52,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_backend::WindowId;
 use komorebi_core::ContainerWindow;
+pub use komorebi_core::WorkspaceGlobals;
 use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::Base16ColourPalette;
 use komorebi_themes::KomorebiThemeCustom as Custom;
@@ -181,21 +182,6 @@ pub enum WorkspaceWindowLocation {
     Maximized,
     Container(usize, usize), // container_idx, window_idx
     Floating(usize),         // idx in floating_windows
-}
-
-#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Settings setup either by the parent monitor or by the `WindowManager`
-pub struct WorkspaceGlobals {
-    pub container_padding: Option<i32>,
-    pub workspace_padding: Option<i32>,
-    pub border_width: i32,
-    pub border_offset: i32,
-    pub work_area: Rect,
-    pub work_area_offset: Option<Rect>,
-    pub window_based_work_area_offset: Option<Rect>,
-    pub window_based_work_area_offset_limit: isize,
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
