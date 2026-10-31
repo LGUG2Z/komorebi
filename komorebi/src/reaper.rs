@@ -134,14 +134,7 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
         }
 
         // Save to file
-        let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
-        let file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(hwnd_json)?;
-
-        serde_json::to_writer_pretty(&file, &wm.known_hwnds.keys().collect::<Vec<_>>())?;
+        save_known_hwnds(wm.known_hwnds.keys().copied().collect());
     }
 
     Ok(())
@@ -212,4 +205,50 @@ fn find_orphans() -> color_eyre::Result<()> {
             event_tx().send(ReaperNotification(orphan_hwnds))?;
         }
     }
+}
+
+static PENDING_HWNDS: Mutex<Option<Vec<isize>>> = Mutex::new(None);
+static PENDING_HWNDS_CHANGED: parking_lot::Condvar = parking_lot::Condvar::new();
+static HWNDS_WRITER: std::sync::Once = std::sync::Once::new();
+
+/// Saves the list of known handles to `komorebi.hwnd.json`, from a thread of its own: writing the
+/// file with the window manager locked made every other thread wait for the disk. Only the latest
+/// list is written when several arrive before the writer is done, as the file only ever says what
+/// is known now.
+pub fn save_known_hwnds(hwnds: Vec<isize>) {
+    *PENDING_HWNDS.lock() = Some(hwnds);
+    HWNDS_WRITER.call_once(|| {
+        std::thread::spawn(|| {
+            loop {
+                let hwnds = {
+                    let mut pending = PENDING_HWNDS.lock();
+                    while pending.is_none() {
+                        PENDING_HWNDS_CHANGED.wait(&mut pending);
+                    }
+                    pending.take().unwrap_or_default()
+                };
+
+                let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
+                match OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(hwnd_json)
+                {
+                    Ok(file) => {
+                        if let Err(error) = serde_json::to_writer_pretty(&file, &hwnds) {
+                            tracing::error!(
+                                "Failed to save list of known_hwnds on file: {}",
+                                error
+                            );
+                        }
+                    }
+                    Err(error) => {
+                        tracing::error!("Failed to save list of known_hwnds on file: {}", error);
+                    }
+                }
+            }
+        });
+    });
+    PENDING_HWNDS_CHANGED.notify_one();
 }
