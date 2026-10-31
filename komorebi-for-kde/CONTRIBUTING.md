@@ -184,8 +184,8 @@ nixpkgs is not pinned back.
 
 ## Releases
 
-A release is a tag. Set `version` under `[workspace.package]` in
-[`Cargo.toml`](Cargo.toml) to the new version, commit it, and push the tag
+A release is a tag. Set `version` in
+[`komorebi/Cargo.toml`](komorebi/Cargo.toml) (which the flake reads) to the new version, commit it, and push the tag
 `vVERSION` on that commit. For every run, the `build` job of `ci.yaml` builds
 `komorebi` and `komorebic` with nix on an x86_64 and an arm64 runner, and keeps
 them as an artifact of the run for 14 days. On a tag, once `lint`, `vm-fast` and

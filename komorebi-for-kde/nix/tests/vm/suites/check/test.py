@@ -6,7 +6,7 @@
 # own answer, that a bus with no KWin on it is an error with an exit status that says so, and that
 # the shortcut files the check compares with are in the directory `komorebic hotkeys compile`
 # writes to in a session. The configuration and the exit status are covered by
-# `komorebi/src/check.rs` and `komorebic/tests/check.rs`, against no desktop.
+# `komorebi/src/check.rs` and `komorebic/tests/linux_check.rs`, against no desktop.
 
 from komorebi_vm import Checks
 from komorebi_vm.core.suite import platform_only, run_suite
