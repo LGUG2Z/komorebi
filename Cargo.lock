@@ -3342,6 +3342,7 @@ dependencies = [
  "komorebi-protocol",
  "komorebi-scrolling",
  "komorebi-themes",
+ "komorebi-transport",
  "lazy_static",
  "miow",
  "nanoid",

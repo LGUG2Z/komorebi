@@ -2,6 +2,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::WrapErr;
 use komorebi_themes::colour::Rgb;
+use komorebi_transport::allowed_while_paused;
 use miow::pipe::connect;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -2291,15 +2292,11 @@ pub fn read_commands_uds(
             }
             Some(mut wm) => {
                 if wm.is_paused {
-                    return match message {
-                        SocketMessage::TogglePause
-                        | SocketMessage::State
-                        | SocketMessage::GlobalState
-                        | SocketMessage::Stop => Ok(wm.process_command(message, &mut stream)?),
-                        _ => {
-                            tracing::trace!("ignoring while paused");
-                            Ok(())
-                        }
+                    return if allowed_while_paused(&message) {
+                        Ok(wm.process_command(message, &mut stream)?)
+                    } else {
+                        tracing::trace!("ignoring while paused");
+                        Ok(())
                     };
                 }
 
@@ -2339,15 +2336,11 @@ pub fn read_commands_tcp(
                 let mut wm = wm.lock();
 
                 if wm.is_paused {
-                    return match message {
-                        SocketMessage::TogglePause
-                        | SocketMessage::State
-                        | SocketMessage::GlobalState
-                        | SocketMessage::Stop => Ok(wm.process_command(message, stream)?),
-                        _ => {
-                            tracing::trace!("ignoring while paused");
-                            Ok(())
-                        }
+                    return if allowed_while_paused(&message) {
+                        Ok(wm.process_command(message, stream)?)
+                    } else {
+                        tracing::trace!("ignoring while paused");
+                        Ok(())
                     };
                 }
 
