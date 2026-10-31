@@ -29,23 +29,11 @@ use raw_window_handle::RawWindowHandle;
 use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicI32;
-use std::sync::atomic::AtomicU32;
-use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
-pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
-pub static MONITOR_LEFT: AtomicI32 = AtomicI32::new(0);
-pub static MONITOR_TOP: AtomicI32 = AtomicI32::new(0);
-pub static MONITOR_RIGHT: AtomicI32 = AtomicI32::new(0);
-pub static MONITOR_INDEX: AtomicUsize = AtomicUsize::new(0);
-pub static BAR_HEIGHT: f32 = 50.0;
-pub static DEFAULT_PADDING: f32 = 10.0;
-
-pub static AUTO_SELECT_FILL_COLOUR: AtomicU32 = AtomicU32::new(0);
-pub static AUTO_SELECT_TEXT_COLOUR: AtomicU32 = AtomicU32::new(0);
+pub use komorebi_bar_core::statics::*;
 
 #[derive(Parser)]
 #[clap(author, about, version)]

@@ -7,3 +7,6 @@
 
 pub mod selected_frame;
 pub mod ui;
+
+pub mod alignment;
+pub mod statics;

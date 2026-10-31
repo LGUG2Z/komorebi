@@ -1332,12 +1332,7 @@ impl eframe::App for Komobar {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum Alignment {
-    Left,
-    Center,
-    Right,
-}
+pub use komorebi_bar_core::alignment::Alignment;
 
 #[allow(clippy::too_many_arguments)]
 fn handle_notification(
