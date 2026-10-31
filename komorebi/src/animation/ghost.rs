@@ -940,6 +940,8 @@ pub fn nudge_swap_chain_window(hwnd: isize, rect: &Rect, top: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::windows_backend::backend;
+    use komorebi_backend::WindowId;
 
     #[test]
     fn swap_chain_classes() {
@@ -1193,7 +1195,8 @@ mod tests {
 
         // the screen is read in pixels, and the windows were put where they are in
         // the units of a process that the display's scaling is applied to
-        let scale = WindowsApi::window_rect(host.0 as isize)
+        let scale = backend()
+            .frame(WindowId::from_hwnd(host.0 as isize))
             .map(|rect| f64::from(rect.right) / 800.0)
             .unwrap_or(1.0);
 
