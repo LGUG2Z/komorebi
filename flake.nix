@@ -16,10 +16,40 @@
       flake = false;
     };
 
-    # the other platforms' flakes: their inputs and locks are used, their outputs are made with this
-    # tree as the source (see the imports below)
-    kfde.url = "path:./komorebi-for-kde";
-    kfm.url = "path:./komorebi-for-mac";
+    # the other platforms' flakes (komorebi-for-kde/flake.nix, komorebi-for-mac/flake.nix) are not inputs: their
+    # flake.nix files are imported below and called with these inputs, which are pinned to exactly the
+    # revisions of their flake.lock (so nothing here pins the content of those directories)
+    # inputs of komorebi-for-kde, pinned to the revisions in komorebi-for-kde/flake.lock (keep them equal to it)
+    kfde-nixpkgs.url = "github:NixOS/nixpkgs/f05535a0efcb2134c478d1e88434fadf486d42b5";
+    kfde-nixpkgs-lib.url = "github:nix-community/nixpkgs.lib/f7cd230690d9fc982d06129f9189b101fddcfa3b";
+    kfde-flake-compat = { url = "github:NixOS/flake-compat/5edf11c44bc78a0d334f6334cdaf7d60d732daab"; flake = false; };
+    kfde-flake-parts.url = "github:hercules-ci/flake-parts/024633cd702b10285db5cb19b40ad48d2399ba60";
+    kfde-flake-parts.inputs.nixpkgs-lib.follows = "kfde-nixpkgs-lib";
+    kfde-crane.url = "github:ipetkov/crane/e675a36b7377bebe41d548388a2501cbb16d380d";
+    kfde-rust-overlay.url = "github:oxalica/rust-overlay/19ecdd08213836b36c4296a3a4f4af5a3d5308db";
+    kfde-rust-overlay.inputs.nixpkgs.follows = "kfde-nixpkgs";
+    kfde-treefmt-nix.url = "github:numtide/treefmt-nix/0d6d739a833ba9a9c93034862e4a7b061a062a1c";
+    kfde-treefmt-nix.inputs.nixpkgs.follows = "kfde-nixpkgs";
+    kfde-git-hooks-nix.url = "github:cachix/git-hooks.nix/1ba1dbfe28738c9a71c266be6efa5b89e75491a9";
+    kfde-git-hooks-nix.inputs.nixpkgs.follows = "kfde-nixpkgs";
+    kfde-git-hooks-nix.inputs.flake-compat.follows = "kfde-flake-compat";
+
+    # inputs of komorebi-for-mac, pinned to the revisions in komorebi-for-mac/flake.lock (keep them equal to it)
+    kfm-nixpkgs.url = "github:NixOS/nixpkgs/16c7794d0a28b5a37904d55bcca36003b9109aaa";
+    kfm-nixpkgs-lib.url = "github:nix-community/nixpkgs.lib/2075416fcb47225d9b68ac469a5c4801a9c4dd85";
+    kfm-flake-compat = { url = "github:NixOS/flake-compat/5edf11c44bc78a0d334f6334cdaf7d60d732daab"; flake = false; };
+    kfm-flake-parts.url = "github:hercules-ci/flake-parts/a34fae9c08a15ad73f295041fec82323541400a9";
+    kfm-flake-parts.inputs.nixpkgs-lib.follows = "kfm-nixpkgs-lib";
+    kfm-crane.url = "github:ipetkov/crane/7d59256814085fd9666a2ae3e774dc5ee216b630";
+    kfm-rust-overlay.url = "github:oxalica/rust-overlay/1d3f83babdd21e16bf5cfe0f1efcb4f49ee1bc2c";
+    kfm-rust-overlay.inputs.nixpkgs.follows = "kfm-nixpkgs";
+    kfm-treefmt-nix.url = "github:numtide/treefmt-nix/d56486eb9493ad9c4777c65932618e9c2d0468fc";
+    kfm-treefmt-nix.inputs.nixpkgs.follows = "kfm-nixpkgs";
+    kfm-git-hooks-nix.url = "github:cachix/git-hooks.nix/f0927703b7b1c8d97511c4116eb9b4ec6645a0fa";
+    kfm-git-hooks-nix.inputs.nixpkgs.follows = "kfm-nixpkgs";
+    kfm-git-hooks-nix.inputs.flake-compat.follows = "kfm-flake-compat";
+    kfm-gitignore = { url = "github:hercules-ci/gitignore.nix/637db329424fd7e46cf4185293b9cc8c88c95394"; inputs.nixpkgs.follows = "kfm-nixpkgs"; };
+    kfm-git-hooks-nix.inputs.gitignore.follows = "kfm-gitignore";
   };
 
   outputs =
@@ -307,20 +337,32 @@
         (
           { lib, ... }:
           let
+            # the nested flake.nix files are plain attribute sets: import them and call their
+            # `lib.mkOutputs` with the inputs declared above (same revisions as their own locks).
             # `self` of a nested flake: its own outputs, with the revision and the path of this one
             nestedOutputs =
               name: dir:
               let
+                nestedInputs = lib.genAttrs [
+                  "nixpkgs"
+                  "flake-parts"
+                  "crane"
+                  "rust-overlay"
+                  "treefmt-nix"
+                  "git-hooks-nix"
+                ] (n: inputs."${name}-${n}");
+                mkOutputs =
+                  ((import (self.outPath + "/${dir}/flake.nix")).outputs (nestedInputs // { inherit self; })).lib.mkOutputs;
                 nestedSelf =
                   outputs
                   // lib.filterAttrs (n: _: n == "rev" || n == "dirtyRev") self
                   // {
                     outPath = self.outPath + "/${dir}";
-                    inputs = inputs.${name}.inputs;
+                    inputs = nestedInputs;
                   };
-                outputs = inputs.${name}.lib.mkOutputs {
+                outputs = mkOutputs {
                   self = nestedSelf;
-                  inputs = inputs.${name}.inputs // {
+                  inputs = nestedInputs // {
                     self = nestedSelf;
                   };
                   repoRoot = self;
