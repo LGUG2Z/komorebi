@@ -2002,7 +2002,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
     pub fn add_session_float_rule(&mut self) -> eyre::Result<()> {
         let foreground_window = WindowsApi::foreground_window()?;
         let window = Window::from(foreground_window);
-        if let (Ok(exe), Ok(title), Ok(class)) = (window.exe(), window.title(), window.class()) {
+        if let (Some(exe), Some(title), Some(class)) = (window.exe(), window.title(), window.class()) {
             let rule = MatchingRule::Composite(vec![
                 IdWithIdentifier {
                     kind: ApplicationIdentifier::Exe,
@@ -2052,22 +2052,22 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 for window in container.windows() {
                     match identifier {
                         ApplicationIdentifier::Path => {
-                            if window.path()? == *id {
+                            if window.path().ok_or_eyre("the window has no path")? == *id {
                                 hwnds_to_purge.push((i, window.hwnd));
                             }
                         }
                         ApplicationIdentifier::Exe => {
-                            if window.exe()? == *id {
+                            if window.exe().ok_or_eyre("the window has no exe")? == *id {
                                 hwnds_to_purge.push((i, window.hwnd));
                             }
                         }
                         ApplicationIdentifier::Class => {
-                            if window.class()? == *id {
+                            if window.class().ok_or_eyre("the window has no class")? == *id {
                                 hwnds_to_purge.push((i, window.hwnd));
                             }
                         }
                         ApplicationIdentifier::Title => {
-                            if window.title()? == *id {
+                            if window.title().ok_or_eyre("the window has no title")? == *id {
                                 hwnds_to_purge.push((i, window.hwnd));
                             }
                         }

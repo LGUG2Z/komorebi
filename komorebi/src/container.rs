@@ -19,7 +19,7 @@ impl ContainerWindow for Window {
     }
 
     fn exe_name(&self) -> Option<String> {
-        Window::exe(*self).ok()
+        Window::exe(*self)
     }
 
     fn hide_window(&self) {
@@ -48,7 +48,7 @@ pub trait ContainerExt {
 impl ContainerExt for Container {
     fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
         for window in self.windows() {
-            if let Ok(window_exe) = window.exe()
+            if let Some(window_exe) = window.exe()
                 && exe == window_exe
             {
                 return Option::from(window.hwnd);

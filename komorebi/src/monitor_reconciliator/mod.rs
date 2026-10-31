@@ -786,7 +786,7 @@ where
                                         workspace.containers_mut().iter_mut().enumerate()
                                     {
                                         container.windows_mut().retain(|window| {
-                                            window.exe().is_ok()
+                                            window.exe().is_some()
                                                 && !known_hwnds.contains_key(&window.hwnd)
                                         });
 
@@ -828,7 +828,7 @@ where
                                     }
 
                                     if let Some(window) = &workspace.maximized_window {
-                                        if window.exe().is_err()
+                                        if window.exe().is_none()
                                             || known_hwnds.contains_key(&window.hwnd)
                                         {
                                             workspace.maximized_window = None;
@@ -841,7 +841,7 @@ where
 
                                     if let Some(container) = &mut workspace.monocle_container {
                                         container.windows_mut().retain(|window| {
-                                            window.exe().is_ok()
+                                            window.exe().is_some()
                                                 && !known_hwnds.contains_key(&window.hwnd)
                                         });
 
@@ -868,7 +868,7 @@ where
                                     }
 
                                     workspace.floating_windows_mut().retain(|window| {
-                                        window.exe().is_ok()
+                                        window.exe().is_some()
                                             && !known_hwnds.contains_key(&window.hwnd)
                                     });
 

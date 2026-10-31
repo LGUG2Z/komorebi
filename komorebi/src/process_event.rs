@@ -282,7 +282,7 @@ impl WindowManager {
                     //
                     // This check ensures that we only update the focused monitor when the window
                     // triggering monitor reconciliation is known to not be tied to a specific monitor.
-                    if let Ok(class) = window.class()
+                    if let Some(class) = window.class()
                         && class != "OleMainThreadWndClass"
                         && self.focused_monitor_idx() != monitor_idx
                     {
@@ -364,10 +364,10 @@ impl WindowManager {
                         TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
                     let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-                    let title = &window.title()?;
-                    let exe_name = &window.exe()?;
-                    let class = &window.class()?;
-                    let path = &window.path()?;
+                    let title = &window.title().ok_or_eyre("the window has no title")?;
+                    let exe_name = &window.exe().ok_or_eyre("the window has no exe")?;
+                    let class = &window.class().ok_or_eyre("the window has no class")?;
+                    let path = &window.path().ok_or_eyre("the window has no path")?;
 
                     // We don't want to purge windows that have been deliberately hidden by us, eg. when
                     // they are not on the top of a container stack.
@@ -550,7 +550,7 @@ impl WindowManager {
                             if !floating_applications.is_empty() {
                                 let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-                                if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) =
+                                if let (Some(title), Some(exe_name), Some(class), Some(path)) =
                                     (window.title(), window.exe(), window.class(), window.path())
                                 {
                                     should_float = should_act(

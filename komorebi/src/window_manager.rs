@@ -212,7 +212,7 @@ impl WindowManager {
             for workspace in monitor.workspaces() {
                 for container in workspace.containers() {
                     for window in container.windows() {
-                        if window.exe().is_err() {
+                        if window.exe().is_none() {
                             can_apply = false;
                             break;
                         }
@@ -220,7 +220,7 @@ impl WindowManager {
                 }
 
                 if let Some(window) = workspace.maximized_window
-                    && window.exe().is_err()
+                    && window.exe().is_none()
                 {
                     can_apply = false;
                     break;
@@ -228,7 +228,7 @@ impl WindowManager {
 
                 if let Some(container) = &workspace.monocle_container {
                     for window in container.windows() {
-                        if window.exe().is_err() {
+                        if window.exe().is_none() {
                             can_apply = false;
                             break;
                         }
@@ -236,7 +236,7 @@ impl WindowManager {
                 }
 
                 for window in workspace.floating_windows() {
-                    if window.exe().is_err() {
+                    if window.exe().is_none() {
                         can_apply = false;
                         break;
                     }
@@ -599,7 +599,7 @@ impl WindowManager {
                         let mut already_moved_window_handles =
                             self.already_moved_window_handles.lock();
 
-                        if let (Ok(exe_name), Ok(title), Ok(class), Ok(path)) =
+                        if let (Some(exe_name), Some(title), Some(class), Some(path)) =
                             (window.exe(), window.title(), window.class(), window.path())
                         {
                             for rule in &*workspace_matching_rules {
@@ -637,7 +637,7 @@ impl WindowManager {
                                             already_moved_window_handles.insert(window.hwnd);
 
                                             self.add_window_handle_to_move_based_on_workspace_rule(
-                                                &window.title()?,
+                                                &window.title().ok_or_eyre("the window has no title")?,
                                                 window.hwnd,
                                                 i,
                                                 j,
@@ -649,7 +649,7 @@ impl WindowManager {
                                         }
                                     } else {
                                         self.add_window_handle_to_move_based_on_workspace_rule(
-                                            &window.title()?,
+                                            &window.title().ok_or_eyre("the window has no title")?,
                                             window.hwnd,
                                             i,
                                             j,

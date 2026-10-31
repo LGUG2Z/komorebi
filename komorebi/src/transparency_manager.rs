@@ -153,7 +153,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             if window_idx == focused_window_idx {
                                 let mut should_make_transparent = true;
                                 if !transparency_blacklist.is_empty()
-                                    && let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) = (
+                                    && let (Some(title), Some(exe_name), Some(class), Some(path)) = (
                                         window.title(),
                                         window.exe(),
                                         window.class(),

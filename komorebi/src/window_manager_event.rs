@@ -195,10 +195,10 @@ impl WindowManagerEvent {
                     OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST.lock();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-                let title = &window.title().ok()?;
-                let exe_name = &window.exe().ok()?;
-                let class = &window.class().ok()?;
-                let path = &window.path().ok()?;
+                let title = &window.title()?;
+                let exe_name = &window.exe()?;
+                let class = &window.class()?;
+                let path = &window.path()?;
 
                 let mut should_trigger_show = should_act(
                     title,

@@ -226,8 +226,8 @@ extern "system" fn enum_window(
     if window.is_window()
         && !window.is_miminized()
         && window.is_visible()
-        && window.title().is_ok()
-        && window.exe().is_ok()
+        && window.title().is_some()
+        && window.exe().is_some()
     {
         windows.push(window);
     }
@@ -252,7 +252,7 @@ impl eframe::App for KomorebiGui {
                     ui.collapsing("Window Rules", |ui| {
                         let window = Window::from(self.debug_hwnd);
 
-                        let label = if let (Ok(title), Ok(exe)) = (window.title(), window.exe()) {
+                        let label = if let (Some(title), Some(exe)) = (window.title(), window.exe()) {
                             format!("{title} ({exe})")
                         } else {
                             String::from("Select a Window")

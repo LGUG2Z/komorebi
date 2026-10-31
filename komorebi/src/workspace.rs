@@ -948,7 +948,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window
-            && let Ok(window_exe) = window.exe()
+            && let Some(window_exe) = window.exe()
             && exe == window_exe
         {
             return Option::from(window.hwnd);
@@ -961,7 +961,7 @@ impl Workspace {
         }
 
         for window in self.floating_windows() {
-            if let Ok(window_exe) = window.exe()
+            if let Some(window_exe) = window.exe()
                 && exe == window_exe
             {
                 return Option::from(window.hwnd);
@@ -982,7 +982,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window
-            && let Ok(window_exe) = window.exe()
+            && let Some(window_exe) = window.exe()
             && exe == window_exe
         {
             return Some(WorkspaceWindowLocation::Maximized);
@@ -995,7 +995,7 @@ impl Workspace {
         }
 
         for (window_idx, window) in self.floating_windows().iter().enumerate() {
-            if let Ok(window_exe) = window.exe()
+            if let Some(window_exe) = window.exe()
                 && exe == window_exe
             {
                 return Some(WorkspaceWindowLocation::Floating(window_idx));
@@ -1403,16 +1403,16 @@ impl Workspace {
                 self.resolve_placement_target(target, fallback_idx)
             }
             InitialWindowPlacementRules::Rules(rules_map) => {
-                let Ok(title) = window.title() else {
+                let Some(title) = window.title() else {
                     return fallback_idx;
                 };
-                let Ok(exe_name) = window.exe() else {
+                let Some(exe_name) = window.exe() else {
                     return fallback_idx;
                 };
-                let Ok(class) = window.class() else {
+                let Some(class) = window.class() else {
                     return fallback_idx;
                 };
-                let Ok(path) = window.path() else {
+                let Some(path) = window.path() else {
                     return fallback_idx;
                 };
 
@@ -2087,30 +2087,25 @@ impl Workspace {
     pub fn visible_window_details(&self) -> Vec<WindowDetails> {
         let mut vec: Vec<WindowDetails> = vec![];
 
-        if let Some(maximized) = self.maximized_window
-            && let Ok(details) = (maximized).try_into()
-        {
-            vec.push(details);
+        if let Some(maximized) = self.maximized_window {
+            vec.push(WindowDetails::from(maximized));
         }
 
         if let Some(monocle) = &self.monocle_container
             && let Some(focused) = monocle.focused_window()
-            && let Ok(details) = (*focused).try_into()
         {
-            vec.push(details);
+            vec.push(WindowDetails::from(*focused));
         }
 
         for container in self.containers() {
-            if let Some(focused) = container.focused_window()
-                && let Ok(details) = (*focused).try_into()
-            {
-                vec.push(details);
+            if let Some(focused) = container.focused_window() {
+                vec.push(WindowDetails::from(*focused));
             }
         }
 
         for window in self.floating_windows() {
-            if let Ok(details) = (*window).try_into() {
-                vec.push(details);
+            {
+                vec.push(WindowDetails::from(*window));
             }
         }
 

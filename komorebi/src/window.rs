@@ -96,15 +96,13 @@ pub struct WindowDetails {
     pub class: String,
 }
 
-impl TryFrom<Window> for WindowDetails {
-    type Error = eyre::ErrReport;
-
-    fn try_from(value: Window) -> std::result::Result<Self, Self::Error> {
-        Ok(Self {
-            title: value.title()?,
-            exe: value.exe()?,
-            class: value.class()?,
-        })
+impl From<Window> for WindowDetails {
+    fn from(value: Window) -> Self {
+        Self {
+            title: value.title().unwrap_or_default(),
+            exe: value.exe().unwrap_or_default(),
+            class: value.class().unwrap_or_default(),
+        }
     }
 }
 
@@ -112,15 +110,15 @@ impl Display for Window {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut display = format!("(hwnd: {}", self.hwnd);
 
-        if let Ok(title) = self.title() {
+        if let Some(title) = self.title() {
             write!(display, ", title: {title}")?;
         }
 
-        if let Ok(exe) = self.exe() {
+        if let Some(exe) = self.exe() {
             write!(display, ", exe: {exe}")?;
         }
 
-        if let Ok(class) = self.class() {
+        if let Some(class) = self.class() {
             write!(display, ", class: {class}")?;
         }
 
@@ -141,19 +139,19 @@ impl Serialize for Window {
             "title",
             &self
                 .title()
-                .unwrap_or_else(|_| String::from("could not get window title")),
+                .unwrap_or_else(|| String::from("could not get window title")),
         )?;
         state.serialize_field(
             "exe",
             &self
                 .exe()
-                .unwrap_or_else(|_| String::from("could not get window exe")),
+                .unwrap_or_else(|| String::from("could not get window exe")),
         )?;
         state.serialize_field(
             "class",
             &self
                 .class()
-                .unwrap_or_else(|_| String::from("could not get window class")),
+                .unwrap_or_else(|| String::from("could not get window class")),
         )?;
         state.serialize_field(
             "rect",
@@ -710,24 +708,32 @@ impl Window {
         Ok(ExtendedWindowStyle::from_bits_truncate(bits))
     }
 
-    pub fn title(self) -> eyre::Result<String> {
-        WindowsApi::window_text_w(self.hwnd)
+    pub fn title(self) -> Option<String> {
+        WindowsApi::window_text_w(self.hwnd).ok()
     }
 
-    pub fn path(self) -> eyre::Result<String> {
-        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
-        let handle = WindowsApi::process_handle(process_id)?;
-        let path = WindowsApi::exe_path(handle);
-        WindowsApi::close_process(handle)?;
-        path
+    pub fn path(self) -> Option<String> {
+        let lookup = || -> eyre::Result<String> {
+            let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
+            let handle = WindowsApi::process_handle(process_id)?;
+            let path = WindowsApi::exe_path(handle);
+            WindowsApi::close_process(handle)?;
+            path
+        };
+
+        lookup().ok()
     }
 
-    pub fn exe(self) -> eyre::Result<String> {
-        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
-        let handle = WindowsApi::process_handle(process_id)?;
-        let exe = WindowsApi::exe(handle);
-        WindowsApi::close_process(handle)?;
-        exe
+    pub fn exe(self) -> Option<String> {
+        let lookup = || -> eyre::Result<String> {
+            let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
+            let handle = WindowsApi::process_handle(process_id)?;
+            let exe = WindowsApi::exe(handle);
+            WindowsApi::close_process(handle)?;
+            exe
+        };
+
+        lookup().ok()
     }
 
     pub fn process_id(self) -> u32 {
@@ -735,8 +741,8 @@ impl Window {
         process_id
     }
 
-    pub fn class(self) -> eyre::Result<String> {
-        WindowsApi::real_window_class_w(self.hwnd)
+    pub fn class(self) -> Option<String> {
+        WindowsApi::real_window_class_w(self.hwnd).ok()
     }
 
     pub fn is_cloaked(self) -> eyre::Result<bool> {
@@ -836,7 +842,7 @@ impl Window {
 
         debug.has_minimum_height = true;
 
-        if self.title().is_err() {
+        if self.title().is_none() {
             return Ok(false);
         }
 
@@ -864,7 +870,7 @@ impl Window {
             (true, _) |
             // If not allowing cloaked windows, we need to ensure the window is not cloaked
             (false, false) => {
-                if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) = (self.title(), self.exe(), self.class(), self.path()) {
+                if let (Some(title), Some(exe_name), Some(class), Some(path)) = (self.title(), self.exe(), self.class(), self.path()) {
                     debug.title = Some(title.clone());
                     debug.exe_name = Some(exe_name.clone());
                     debug.class = Some(class.clone());

@@ -1015,7 +1015,7 @@ pub struct WindowInfo {
 impl From<&Window> for WindowInfo {
     fn from(value: &Window) -> Self {
         Self {
-            title: value.title().ok(),
+            title: value.title(),
             icon: ImageIcon::try_load(value.hwnd, || {
                 windows_icons::get_icon_by_hwnd(value.hwnd)
                     .or_else(|| windows_icons_fallback::get_icon_by_process_id(value.process_id()))

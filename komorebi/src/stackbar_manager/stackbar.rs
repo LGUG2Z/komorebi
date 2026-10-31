@@ -1,3 +1,4 @@
+use color_eyre::eyre::OptionExt;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::WINDOWS_11;
 use crate::WindowsApi;
@@ -276,10 +277,10 @@ impl Stackbar {
 
                 let label = match STACKBAR_LABEL.load() {
                     StackbarLabel::Process => {
-                        let exe = window.exe()?;
+                        let exe = window.exe().ok_or_eyre("the window has no exe")?;
                         exe.trim_end_matches(".exe").to_string()
                     }
-                    StackbarLabel::Title => window.title()?,
+                    StackbarLabel::Title => window.title().ok_or_eyre("the window has no title")?,
                 };
 
                 let mut tab_title: Vec<u16> = label.encode_utf16().collect();
