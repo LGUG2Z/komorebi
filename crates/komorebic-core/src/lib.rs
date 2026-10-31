@@ -6,6 +6,7 @@
 //! - [`args`] has the argument blocks the subcommands are built from.
 //! - [`cli`] has [`cli::Opts`], the command line of a platform, generic over its own subcommands.
 //! - [`messages`] has the subcommands that are one message to the daemon.
+//! - [`pan`] reads the stream of touchpad gestures that `komorebic pan --stream` is given.
 //! - [`platform`] has the subcommands of each platform that are not in [`messages`].
 //! - [`docgen`] renders the pages of `docs/cli`.
 
@@ -13,4 +14,5 @@ pub mod args;
 pub mod cli;
 pub mod docgen;
 pub mod messages;
+pub mod pan;
 pub mod platform;
