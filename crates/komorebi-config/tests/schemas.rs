@@ -216,3 +216,21 @@ fn the_applications_schema_is_a_view_of_one_union() {
         );
     }
 }
+
+#[test]
+fn the_placement_types_are_the_definitions_of_windows_and_kde() {
+    use komorebi_config::placement::InitialWindowPlacementRules;
+
+    let [windows, kde, _] = &TREES;
+    // PlacementTarget is not compared: its schema is written by hand and reads differently on
+    // Windows (it is carried as a per-platform difference of the view).
+    assert_same_definitions::<InitialWindowPlacementRules>(
+        &[windows, kde],
+        &[
+            "InitialWindowPlacementRules",
+            "PlacementMatchingRules",
+            "WindowPlacement",
+        ],
+    );
+    assert_same_definitions::<InitialWindowPlacementRules>(&[kde], &["PlacementTarget"]);
+}

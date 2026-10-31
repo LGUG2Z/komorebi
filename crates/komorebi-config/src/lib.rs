@@ -16,3 +16,4 @@ pub mod asc;
 pub mod aspect_ratio;
 pub mod behaviour;
 pub mod matching;
+pub mod placement;
