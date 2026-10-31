@@ -32,12 +32,10 @@ jsonschema:
     cargo run --package komorebic --locked -- application-specific-configuration-schema > schema.asc.json
 
 # the options of the module's `config`, from schema.json, with the hash of the schema they were
-# made from in the first line (the check `schema-fresh` compares it); needs schemars-nixgen
+# made from in the first line (written by schemars-nixgen; the check `schema-fresh` compares it); needs schemars-nixgen
 # (`cargo install schemars-nixgen`), which the dev shell does not have
 nixgen:
     schemars-nixgen schema.json -o nix/komorebi-options.nix --name komorebi --description "komorebi for KDE Plasma configuration"
-    printf '# schema-sha256: %s\n' "$(nix hash file --type sha256 --base16 schema.json)" | cat - nix/komorebi-options.nix > nix/komorebi-options.nix.new
-    mv nix/komorebi-options.nix.new nix/komorebi-options.nix
     nix fmt nix/komorebi-options.nix
     nix build -L --no-link ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).nix-options-validation"
 
