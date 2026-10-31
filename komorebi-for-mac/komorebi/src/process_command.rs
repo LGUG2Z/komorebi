@@ -113,6 +113,148 @@ impl CommandTarget for WindowManager {
 }
 
 impl WindowManager {
+    /// Sets the column and row ratios of the focused workspace's layout
+    pub fn set_layout_ratios(
+        &mut self,
+        columns: &Option<Vec<f32>>,
+        rows: &Option<Vec<f32>>,
+    ) -> eyre::Result<()> {
+        use crate::core::validate_ratios;
+
+        let focused_workspace = self.focused_workspace_mut()?;
+
+        let mut options = focused_workspace.layout_options.unwrap_or(LayoutOptions {
+            scrolling: None,
+            grid: None,
+            column_ratios: None,
+            row_ratios: None,
+        });
+
+        if let Some(cols) = columns {
+            options.column_ratios = Some(validate_ratios(cols));
+        }
+
+        if let Some(rws) = rows {
+            options.row_ratios = Some(validate_ratios(rws));
+        }
+
+        focused_workspace.layout_options = Some(options);
+        self.update_focused_workspace(false, false)?;
+        Ok(())
+    }
+
+    /// Writes the answer to a state query to `reply`
+    pub fn answer_query(
+        &mut self,
+        query: StateQuery,
+        reply: &mut impl std::io::Write,
+    ) -> eyre::Result<()> {
+        let response = match query {
+            StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
+            StateQuery::FocusedWorkspaceIndex => self
+                .focused_monitor()
+                .ok_or_eyre("there is no monitor")?
+                .focused_workspace_idx()
+                .to_string(),
+            StateQuery::FocusedContainerIndex => self
+                .focused_workspace()?
+                .focused_container_idx()
+                .to_string(),
+            StateQuery::FocusedWindowIndex => {
+                self.focused_container()?.focused_window_idx().to_string()
+            }
+            StateQuery::FocusedWorkspaceName => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                focused_monitor
+                    .focused_workspace_name()
+                    .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
+            }
+            StateQuery::Version => build::VERSION.to_string(),
+            StateQuery::FocusedWorkspaceLayout => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                focused_monitor.focused_workspace_layout().map_or_else(
+                    || "None".to_string(),
+                    |layout| match layout {
+                        Layout::Default(default_layout) => default_layout.to_string(),
+                    },
+                )
+            }
+            StateQuery::FocusedContainerKind => {
+                match self.focused_workspace()?.focused_container() {
+                    None => "None".to_string(),
+                    Some(container) => {
+                        if container.windows().len() > 1 {
+                            "Stack".to_string()
+                        } else {
+                            "Single".to_string()
+                        }
+                    }
+                }
+            }
+        };
+
+        reply.write_all(response.as_bytes())?;
+        Ok(())
+    }
+
+    /// Adds a rule that puts the windows matching `id` on a named workspace, if the workspace exists
+    pub fn add_named_workspace_rule(
+        &mut self,
+        identifier: ApplicationIdentifier,
+        id: &str,
+        workspace: &str,
+    ) -> eyre::Result<()> {
+        if let Some((monitor_idx, workspace_idx)) = self.monitor_workspace_index_by_name(workspace)
+        {
+            let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+            let workspace_matching_rule = WorkspaceMatchingRule {
+                monitor_index: monitor_idx,
+                workspace_index: workspace_idx,
+                matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                    kind: identifier,
+                    id: id.to_string(),
+                    matching_strategy: Some(MatchingStrategy::Legacy),
+                }),
+                initial_only: false,
+            };
+
+            if !workspace_rules.contains(&workspace_matching_rule) {
+                workspace_rules.push(workspace_matching_rule);
+            }
+        }
+        Ok(())
+    }
+
+    /// Adds a rule that puts a window matching `id` on a named workspace when it first appears, if the workspace exists
+    pub fn add_initial_named_workspace_rule(
+        &mut self,
+        identifier: ApplicationIdentifier,
+        id: &str,
+        workspace: &str,
+    ) -> eyre::Result<()> {
+        if let Some((monitor_idx, workspace_idx)) = self.monitor_workspace_index_by_name(workspace)
+        {
+            let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+            let workspace_matching_rule = WorkspaceMatchingRule {
+                monitor_index: monitor_idx,
+                workspace_index: workspace_idx,
+                matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                    kind: identifier,
+                    id: id.to_string(),
+                    matching_strategy: Some(MatchingStrategy::Legacy),
+                }),
+                initial_only: true,
+            };
+
+            if !workspace_rules.contains(&workspace_matching_rule) {
+                workspace_rules.push(workspace_matching_rule);
+            }
+        }
+        Ok(())
+    }
+
     /// Sets the border colour of one kind of window
     pub fn set_border_colour(&mut self, kind: WindowKind, r: u32, g: u32, b: u32) {
         match kind {
@@ -1107,57 +1249,7 @@ impl WindowManager {
 
                 reply.write_all(monitors_state.as_bytes())?;
             }
-            SocketMessage::Query(query) => {
-                let response = match query {
-                    StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
-                    StateQuery::FocusedWorkspaceIndex => self
-                        .focused_monitor()
-                        .ok_or_eyre("there is no monitor")?
-                        .focused_workspace_idx()
-                        .to_string(),
-                    StateQuery::FocusedContainerIndex => self
-                        .focused_workspace()?
-                        .focused_container_idx()
-                        .to_string(),
-                    StateQuery::FocusedWindowIndex => {
-                        self.focused_container()?.focused_window_idx().to_string()
-                    }
-                    StateQuery::FocusedWorkspaceName => {
-                        let focused_monitor =
-                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
-
-                        focused_monitor
-                            .focused_workspace_name()
-                            .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
-                    }
-                    StateQuery::Version => build::VERSION.to_string(),
-                    StateQuery::FocusedWorkspaceLayout => {
-                        let focused_monitor =
-                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
-
-                        focused_monitor.focused_workspace_layout().map_or_else(
-                            || "None".to_string(),
-                            |layout| match layout {
-                                Layout::Default(default_layout) => default_layout.to_string(),
-                            },
-                        )
-                    }
-                    StateQuery::FocusedContainerKind => {
-                        match self.focused_workspace()?.focused_container() {
-                            None => "None".to_string(),
-                            Some(container) => {
-                                if container.windows().len() > 1 {
-                                    "Stack".to_string()
-                                } else {
-                                    "Single".to_string()
-                                }
-                            }
-                        }
-                    }
-                };
-
-                reply.write_all(response.as_bytes())?;
-            }
+            SocketMessage::Query(query) => self.answer_query(query, &mut reply)?,
             SocketMessage::SessionFloatRule => {
                 let foreground_window =
                     MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
@@ -1225,25 +1317,7 @@ impl WindowManager {
                 }
             }
             SocketMessage::InitialNamedWorkspaceRule(identifier, ref id, ref workspace) => {
-                if let Some((monitor_idx, workspace_idx)) =
-                    self.monitor_workspace_index_by_name(workspace)
-                {
-                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
-                    let workspace_matching_rule = WorkspaceMatchingRule {
-                        monitor_index: monitor_idx,
-                        workspace_index: workspace_idx,
-                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
-                            kind: identifier,
-                            id: id.to_string(),
-                            matching_strategy: Some(MatchingStrategy::Legacy),
-                        }),
-                        initial_only: true,
-                    };
-
-                    if !workspace_rules.contains(&workspace_matching_rule) {
-                        workspace_rules.push(workspace_matching_rule);
-                    }
-                }
+                self.add_initial_named_workspace_rule(identifier, id, workspace)?
             }
             SocketMessage::WorkspaceRule(identifier, ref id, monitor_idx, workspace_idx) => {
                 let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1263,25 +1337,7 @@ impl WindowManager {
                 }
             }
             SocketMessage::NamedWorkspaceRule(identifier, ref id, ref workspace) => {
-                if let Some((monitor_idx, workspace_idx)) =
-                    self.monitor_workspace_index_by_name(workspace)
-                {
-                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
-                    let workspace_matching_rule = WorkspaceMatchingRule {
-                        monitor_index: monitor_idx,
-                        workspace_index: workspace_idx,
-                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
-                            kind: identifier,
-                            id: id.to_string(),
-                            matching_strategy: Some(MatchingStrategy::Legacy),
-                        }),
-                        initial_only: false,
-                    };
-
-                    if !workspace_rules.contains(&workspace_matching_rule) {
-                        workspace_rules.push(workspace_matching_rule);
-                    }
-                }
+                self.add_named_workspace_rule(identifier, id, workspace)?
             }
             SocketMessage::ClearWorkspaceRules(monitor_idx, workspace_idx) => {
                 let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1545,27 +1601,7 @@ impl WindowManager {
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::LayoutRatios(ref columns, ref rows) => {
-                use crate::core::validate_ratios;
-
-                let focused_workspace = self.focused_workspace_mut()?;
-
-                let mut options = focused_workspace.layout_options.unwrap_or(LayoutOptions {
-                    scrolling: None,
-                    grid: None,
-                    column_ratios: None,
-                    row_ratios: None,
-                });
-
-                if let Some(cols) = columns {
-                    options.column_ratios = Some(validate_ratios(cols));
-                }
-
-                if let Some(rws) = rows {
-                    options.row_ratios = Some(validate_ratios(rws));
-                }
-
-                focused_workspace.layout_options = Some(options);
-                self.update_focused_workspace(false, false)?;
+                self.set_layout_ratios(columns, rows)?
             }
             SocketMessage::NamedWorkspaceLayoutRule(ref workspace, at_container_count, layout) => {
                 if let Some((monitor_idx, workspace_idx)) =
