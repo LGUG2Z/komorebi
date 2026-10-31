@@ -2179,9 +2179,10 @@ fn main() -> eyre::Result<()> {
         SubCommand::ApplicationSpecificConfigurationSchema => {
             #[cfg(feature = "schemars")]
             {
-                let asc = schemars::schema_for!(komorebi_client::ApplicationSpecificConfiguration);
-                let schema = serde_json::to_string_pretty(&asc)?;
-                println!("{schema}");
+                let schema = komorebi_config::schema::view::<
+                    komorebi_client::ApplicationSpecificConfiguration,
+                >(komorebi_config::schema::Platform::CURRENT);
+                print!("{schema}");
             }
         }
         SubCommand::NotificationSchema => {

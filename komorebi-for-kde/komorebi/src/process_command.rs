@@ -1858,10 +1858,10 @@ impl WindowManager {
             SocketMessage::ApplicationSpecificConfigurationSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let asc = schemars::schema_for!(
-                        Vec<crate::core::asc::ApplicationSpecificConfiguration>
-                    );
-                    let schema = serde_json::to_string_pretty(&asc)?;
+                    let schema = komorebi_config::schema::view::<
+                        Vec<crate::core::asc::ApplicationSpecificConfiguration>,
+                    >(komorebi_config::schema::Platform::CURRENT);
+                    let schema = schema.trim_end();
 
                     reply.write_all(schema.as_bytes())?;
                 }

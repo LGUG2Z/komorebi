@@ -2629,6 +2629,7 @@ dependencies = [
  "fs-tail",
  "komorebi",
  "komorebi-client",
+ "komorebi-config",
  "komorebi-hotkeys",
  "lazy_static",
  "pastey",
