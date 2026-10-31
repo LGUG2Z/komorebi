@@ -48,6 +48,13 @@ pub use komorebi_layouts::validate_ratios;
 
 // Local modules and exports
 pub use animation::AnimationStyle;
+pub use komorebi_protocol::types::ApplicationIdentifier;
+pub use komorebi_protocol::types::MonocleFocusBehaviour;
+pub use komorebi_protocol::types::MoveBehaviour;
+pub use komorebi_protocol::types::OperationBehaviour;
+pub use komorebi_protocol::types::StateQuery;
+pub use komorebi_protocol::types::SubscribeOptions;
+pub use komorebi_protocol::types::WindowKind;
 pub use pathext::PathExt;
 pub use pathext::ResolvedPathBuf;
 pub use pathext::replace_env_in_path;
@@ -289,21 +296,6 @@ impl FromStr for SocketMessage {
     }
 }
 
-/// The options of a subscriber, which `SocketMessage::AddSubscriberSocketWithOptions` sets
-///
-/// A subscriber added with `SocketMessage::AddSubscriberSocket` has the default options, and is
-/// sent a notification for every event and message the window manager handles. With
-/// `filter_state_changes`, it is sent one only when the event or the message changed the
-/// state, and always when a window is shown, when a subscriber is added (so a new subscriber
-/// receives the state as soon as it subscribes), when a theme is set (the colors of the borders
-/// are not part of the state) and when the configuration is reloaded.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct SubscribeOptions {
-    /// Only emit notifications when the window manager state has changed
-    pub filter_state_changes: bool,
-}
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display, Serialize, Deserialize, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Stackbar mode
@@ -353,76 +345,6 @@ pub enum BorderImplementation {
     Komorebi,
     /// Use the thin Windows accent border implementation
     Windows,
-}
-
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    Display,
-    EnumString,
-    ValueEnum,
-    PartialEq,
-    Eq,
-    Hash,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// What a window is to the layout, which decides the color of its border
-pub enum WindowKind {
-    /// Single window
-    Single,
-    /// Stack container
-    Stack,
-    /// Monocle container
-    Monocle,
-    #[default]
-    /// Unfocused window
-    Unfocused,
-    /// Unfocused locked container
-    UnfocusedLocked,
-    /// Floating window
-    Floating,
-}
-
-/// A question about the window manager that `SocketMessage::Query` asks, answered with one
-/// value as text: an index, the name of a layout or of a container kind, or the version of the
-/// daemon.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub enum StateQuery {
-    FocusedMonitorIndex,
-    FocusedWorkspaceIndex,
-    FocusedContainerIndex,
-    FocusedWindowIndex,
-    FocusedWorkspaceName,
-    FocusedWorkspaceLayout,
-    FocusedContainerKind,
-    Version,
-}
-
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Application identifier
-pub enum ApplicationIdentifier {
-    /// Executable name
-    #[serde(alias = "exe")]
-    Exe,
-    // the description is part of the checked-in schemas, which differ per platform
-    #[cfg_attr(target_os = "windows", doc = " Class")]
-    #[cfg_attr(not(target_os = "windows"), doc = " Role or subrole")]
-    #[serde(alias = "class")]
-    Class,
-    #[serde(alias = "title")]
-    /// Window title
-    Title,
-    /// Executable path
-    #[serde(alias = "path")]
-    Path,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
@@ -755,21 +677,6 @@ pub enum PlacementMatchingRules {
 }
 
 #[derive(
-    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Move behaviour when the operation works across a monitor boundary
-pub enum MoveBehaviour {
-    /// Swap the window container with the window container at the edge of the adjacent monitor
-    #[default]
-    Swap,
-    /// Insert the window container into the focused workspace on the adjacent monitor
-    Insert,
-    /// Do nothing if trying to move a window container in the direction of an adjacent monitor
-    NoOp,
-}
-
-#[derive(
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -780,19 +687,6 @@ pub enum CrossBoundaryBehaviour {
     /// Attempt to perform actions across a monitor boundary
     #[default]
     Monitor,
-}
-
-#[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Behaviour when focusing in a direction while a monocle container is active
-pub enum MonocleFocusBehaviour {
-    /// Cycle the monocle container to the next/previous container in the workspace
-    Cycle,
-    /// Do nothing, allowing focus to fall through to cross-monitor logic
-    #[default]
-    NoOp,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
@@ -806,19 +700,6 @@ pub enum HidingBehaviour {
     Minimize,
     /// Use the undocumented SetCloak Win32 function to hide windows when switching workspaces
     Cloak,
-}
-
-#[derive(
-    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
-)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Operation behaviour for temporarily unmanaged and floating windows
-pub enum OperationBehaviour {
-    /// Process commands on temporarily unmanaged/floated windows
-    #[default]
-    Op,
-    /// Ignore commands on temporarily unmanaged/floated windows
-    NoOp,
 }
 
 #[derive(
