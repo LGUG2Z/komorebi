@@ -482,3 +482,34 @@ three change a signature.
    function imports the extension trait. This is one revision per cluster of functions, and it is
    the first step that cannot be verified on Windows without the e2e scenarios.
 3. `Monitor<P>` with `#[serde(flatten)] platform: P`.
+
+## 10. Status of the Workspace move (after D-coord-5)
+
+Landed on `wip-u-core`: `WorkspaceGlobals` in the crate; the nine id/focus/cursor functions of
+`workspace.rs` have the same text on both sides (`PlatformWindowId`, `window.id()`,
+`foreground_window_id()`, `cursor_position()` as per-daemon helpers in `window.rs`, which are the
+future `WorkspacePlatform::foreground_window` and `cursor_pos` hooks).
+
+Measured now (per-function, same method as section 7): 58 functions of `workspace.rs` are
+identical on both sides, about 530 lines outside the tests, and they use only the `Container`, `Ring`,
+layout and `ContainerWindow` API (the one window call is `window.exe()`). The only identical function
+that calls a differing one is `new_container_for_window`, which calls `resolve_placement_index`.
+So the first move is: the struct, the 58 identical functions and `resolve_placement_index`, with
+every other differing function an extension trait per daemon. What still differs, function by
+function, and what removes the difference:
+
+| function | differs by | converge step |
+|---|---|---|
+| `resolve_placement_index` (25) | `should_act` takes `&[class]` on KDE and `&class` on Windows; `path` is a `PathBuf` on KDE and a `String` on Windows | one `should_act` signature and one `path()` type on both sides (KDE's slice form, `String`) |
+| `default` (31) | field order; Windows seeds `workspace_padding`/`container_padding` from the `DEFAULT_*` statics; KDE has `scrolling_placed` | `P::WorkspaceState` for `scrolling_placed`; the padding seed as a `WorkspacePlatform::default_padding` hook |
+| `new_maximized_window`, `new_floating_window`, `reintegrate_maximized_window`, `remove_floating_window` | the `unmaximize_window` and `after_floating_removed` hooks of section 8; Windows' `load_focused_window` after reintegration | the hooks |
+| `update`, `apply_wallpaper`, `hide`, `restore`, `remove_window` | the (c) hooks of sections 8 and 9 | the hooks, one per revision |
+| `load_static_config`, `effective_layout_options`, `promote_container` | the Windows `Layout::Custom` arms | decision of the owner: KDE gains the arms (they are unreachable on KDE today: it cannot load a custom layout) or they stay Windows-only through a hook |
+| `visible_window_details` | `into` on both after the Option change; KDE iterates by reference | none beyond a text pass |
+| `border_kinds_on_show`, `windows_on_show`, `hwnd_from_exe` (Windows); `adopt_maximized_window`, `prune_duplicate_windows`, `reap_invalid_windows`, `focus_*_floating_window` (KDE) | one-sided | extension traits (section 9, item 7) |
+| the unit tests | use the fake backend (KDE) or Win32 (Windows) | stay in each daemon over the alias |
+
+Not done: the move itself and the hook revisions; each needs `P::Window` to carry `title`, `exe`,
+`class`, `path`, `focus`, `maximize`, `unmaximize`, `rect` and `set_position` on `ContainerWindow` (or a
+`WorkspaceWindow` supertrait) before the first generic function compiles, which is itself a revision
+with a stub window in the crate's tests.
