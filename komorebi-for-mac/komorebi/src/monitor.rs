@@ -1,6 +1,7 @@
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::container::Container;
+use crate::container::ContainerExt;
 use crate::core::DefaultLayout;
 use crate::core::FloatingLayerBehaviour;
 use crate::core::Layout;
@@ -361,7 +362,7 @@ impl Monitor {
 
             if target_workspace.monocle_container.is_some() {
                 for container in target_workspace.containers_mut() {
-                    container.restore()?;
+                    container.restore_focused_window()?;
                 }
 
                 for window in target_workspace.floating_windows_mut() {
@@ -419,7 +420,7 @@ impl Monitor {
 
         if target_workspace.monocle_container.is_some() {
             for container in target_workspace.containers_mut() {
-                container.restore()?;
+                container.restore_focused_window()?;
             }
 
             target_workspace.reintegrate_monocle_container()?;

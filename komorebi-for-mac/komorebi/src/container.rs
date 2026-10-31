@@ -1,96 +1,93 @@
+//! [`Container`], the windows that share one tile of a workspace's layout.
+//!
+//! The container is [`komorebi_core::Container`], shared with the other komorebi daemons, over the
+//! macOS [`Window`]. What it cannot share is how a window is hidden: macOS needs the monitor's
+//! `WindowHidingPosition` (and for a whole container the bounds of its display) with every hide,
+//! and a hide can fail. Those four operations are [`ContainerExt`], under names the shared
+//! container does not use (`add_window_at`, `load_focused_window_at`, `hide_on`,
+//! `restore_focused_window`), because an inherent method of the shared type would hide an
+//! extension method of the same name.
+
 use crate::accessibility::error::AccessibilityError;
 use crate::core::WindowHidingPosition;
-use crate::lockable_sequence::Lockable;
-use crate::ring::Ring;
 use crate::window::Window;
 use color_eyre::eyre;
-use nanoid::nanoid;
+use komorebi_core::ContainerWindow;
 use objc2_core_foundation::CGRect;
-use serde::Deserialize;
-use serde::Serialize;
 
-impl_ring_elements!(Container, Window);
+/// The windows that share one tile of a workspace's layout
+pub type Container = komorebi_core::Container<Window>;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct Container {
-    pub id: String,
-    pub locked: bool,
-    pub windows: Ring<Window>,
+impl ContainerWindow for Window {
+    type Id = u32;
+
+    fn id(&self) -> u32 {
+        self.id
+    }
+
+    fn exe_name(&self) -> Option<String> {
+        self.exe()
+    }
+
+    /// Hides the window in the default corner. The macOS daemon does not hide through this: it
+    /// uses [`ContainerExt`], which carries the monitor's corner and display, and logs a failure
+    /// instead of ignoring it. This is the shared model's one-argument form.
+    fn hide_window(&self) {
+        if let Err(error) = self.hide(WindowHidingPosition::default()) {
+            tracing::warn!("failed to hide window {}: {error}", self.id);
+        }
+    }
+
+    fn restore_window(&self) {
+        if let Err(error) = self.restore() {
+            tracing::warn!("failed to restore window {}: {error}", self.id);
+        }
+    }
+
+    fn hide_stacked(&self) {
+        self.hide_window();
+    }
+
+    fn restore_stacked(&self) {
+        self.restore_window();
+    }
 }
 
-impl Default for Container {
-    fn default() -> Self {
-        Self {
-            id: nanoid!(),
-            locked: false,
-            windows: Default::default(),
-        }
-    }
+/// What a macOS container does that the shared one cannot: hide and restore its windows with the
+/// monitor's hiding position, and say when that failed.
+pub trait ContainerExt {
+    /// Puts a window at the back of the container and gives it the front, hiding every other
+    /// window of the container at `hiding_position`
+    fn add_window_at(
+        &mut self,
+        window: &Window,
+        hiding_position: WindowHidingPosition,
+    ) -> eyre::Result<()>;
+
+    /// Hides the unfocused windows of the container and restores the focused one. This function
+    /// is used to make sure we update the window that should be shown on a stack. If the container
+    /// isn't a stack this function won't change anything.
+    fn load_focused_window_at(
+        &mut self,
+        hiding_position: WindowHidingPosition,
+    ) -> Result<(), AccessibilityError>;
+
+    /// Hide the windows of the container, other than `omit`, on `screen`, the bounds of the display
+    /// of the monitor that has the container, or on whichever display they are found on if that is
+    /// not given
+    fn hide_on(
+        &mut self,
+        hiding_position: WindowHidingPosition,
+        omit: Option<u32>,
+        screen: Option<CGRect>,
+    ) -> eyre::Result<()>;
+
+    /// Restores the window in front, which is the one that is shown when the container is a stack
+    fn restore_focused_window(&mut self) -> eyre::Result<()>;
 }
 
-impl Lockable for Container {
-    fn locked(&self) -> bool {
-        self.locked
-    }
-
-    fn set_locked(&mut self, locked: bool) -> &mut Self {
-        self.locked = locked;
-        self
-    }
-}
-
-impl Container {
-    pub fn preselect() -> Self {
-        Self {
-            id: "PRESELECT".to_string(),
-            locked: false,
-            windows: Default::default(),
-        }
-    }
-
-    pub fn is_preselect(&self) -> bool {
-        self.id == "PRESELECT"
-    }
-
-    pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
-        for (idx, window) in self.windows().iter().enumerate() {
-            if let Some(window_exe) = window.exe()
-                && exe == window_exe
-            {
-                return Option::from(idx);
-            }
-        }
-
-        None
-    }
-
-    pub fn contains_window(&self, window_id: u32) -> bool {
-        for window in self.windows() {
-            if window.id == window_id {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn idx_for_window(&self, window_id: u32) -> Option<usize> {
-        for (i, window) in self.windows().iter().enumerate() {
-            if window.id == window_id {
-                return Option::from(i);
-            }
-        }
-
-        None
-    }
-
-    pub fn remove_focused_window(&mut self) -> Option<Window> {
-        let focused_idx = self.focused_window_idx();
-        self.remove_window_by_idx(focused_idx)
-    }
-
-    pub fn add_window(
+impl ContainerExt for Container {
+    fn add_window_at(
         &mut self,
         window: &Window,
         hiding_position: WindowHidingPosition,
@@ -113,16 +110,7 @@ impl Container {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn focus_window(&mut self, idx: usize) {
-        tracing::info!("focusing window");
-        self.windows.focus(idx);
-    }
-
-    /// Hides the unfocused windows of the container and restores the focused one. This function
-    /// is used to make sure we update the window that should be shown on a stack. If the container
-    /// isn't a stack this function won't change anything.
-    pub fn load_focused_window(
+    fn load_focused_window_at(
         &mut self,
         hiding_position: WindowHidingPosition,
     ) -> Result<(), AccessibilityError> {
@@ -145,16 +133,7 @@ impl Container {
         Ok(())
     }
 
-    pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
-        let window = self.windows_mut().remove(idx);
-        self.focus_window(idx.saturating_sub(1));
-        window
-    }
-
-    /// Hide the windows of the container, other than `omit`, on `screen`, the bounds of the display
-    /// of the monitor that has the container, or on whichever display they are found on if that is
-    /// not given
-    pub fn hide(
+    fn hide_on(
         &mut self,
         hiding_position: WindowHidingPosition,
         omit: Option<u32>,
@@ -179,7 +158,7 @@ impl Container {
         Ok(())
     }
 
-    pub fn restore(&mut self) -> eyre::Result<()> {
+    fn restore_focused_window(&mut self) -> eyre::Result<()> {
         if let Some(window) = self.focused_window_mut() {
             window.restore()?;
         }
@@ -191,6 +170,7 @@ impl Container {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use komorebi_collections::Lockable;
     use serde_json;
 
     #[test]
@@ -199,7 +179,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
                 .unwrap();
         }
 
@@ -218,7 +198,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
                 .unwrap();
         }
 
@@ -238,7 +218,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
                 .unwrap();
         }
 
@@ -260,7 +240,7 @@ mod tests {
         let mut container = Container::default();
 
         container
-            .add_window(&Window::from(1), WindowHidingPosition::BottomLeft)
+            .add_window_at(&Window::from(1), WindowHidingPosition::BottomLeft)
             .unwrap();
 
         assert_eq!(container.windows().len(), 1);
@@ -274,7 +254,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
                 .unwrap();
         }
 
@@ -300,7 +280,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
                 .unwrap();
         }
 
@@ -322,5 +302,35 @@ mod tests {
 
         assert!(deserialized.locked);
         assert_eq!(deserialized.id, container.id);
+    }
+}
+
+#[cfg(test)]
+mod state_pin {
+    use super::*;
+
+    /// `komorebic state` prints a container as `{id, locked, windows: {elements, focused}}`; the
+    /// shared container must keep writing exactly that for macOS.
+    #[test]
+    fn a_container_is_written_as_id_locked_and_windows() {
+        let container = Container {
+            id: "c1".to_string(),
+            locked: true,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            serde_json::to_string(&container).unwrap(),
+            r#"{"id":"c1","locked":true,"windows":{"elements":[],"focused":0}}"#
+        );
+    }
+
+    /// the old macOS container needed `locked` to be present; the shared one does not
+    #[test]
+    fn a_container_without_locked_is_read() {
+        let container: Container =
+            serde_json::from_str(r#"{"id":"c1","windows":{"elements":[],"focused":0}}"#).unwrap();
+
+        assert!(!container.locked);
     }
 }

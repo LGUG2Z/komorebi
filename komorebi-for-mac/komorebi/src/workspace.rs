@@ -1,5 +1,6 @@
 use crate::DATA_DIR;
 use crate::container::Container;
+use crate::container::ContainerExt;
 use crate::core::Axis;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
@@ -438,7 +439,7 @@ impl Workspace {
 
         if !cfg!(test) {
             if should_load {
-                container.load_focused_window(window_hiding_position)?;
+                container.load_focused_window_at(window_hiding_position)?;
             }
         } else {
             tracing::info!(
@@ -466,7 +467,7 @@ impl Workspace {
         };
 
         let mut container = Container::default();
-        container.add_window(window, self.globals.window_hiding_position)?;
+        container.add_window_at(window, self.globals.window_hiding_position)?;
 
         self.insert_container_at_idx(next_idx, container);
 
@@ -651,7 +652,7 @@ impl Workspace {
             }
 
             for c in self.containers_mut() {
-                c.restore()?;
+                c.restore_focused_window()?;
             }
 
             return Ok(window);
@@ -689,7 +690,7 @@ impl Workspace {
                 self.focus_previous_container();
             }
         } else {
-            container.load_focused_window(window_hiding_position)?;
+            container.load_focused_window_at(window_hiding_position)?;
             if let Some(window) = container.focused_window() {
                 window.focus(false)?;
             }
@@ -849,7 +850,7 @@ impl Workspace {
                 target_container_idx
             }
         } else {
-            container.load_focused_window(window_hiding_position)?;
+            container.load_focused_window_at(window_hiding_position)?;
             target_container_idx
         };
 
@@ -858,12 +859,12 @@ impl Workspace {
             .get_mut(adjusted_target_container_index)
             .ok_or_eyre("there is no container")?;
 
-        target_container.add_window(&window, window_hiding_position)?;
+        target_container.add_window_at(&window, window_hiding_position)?;
 
         self.focus_container(adjusted_target_container_index);
         self.focused_container_mut()
             .ok_or_eyre("there is no container")?
-            .load_focused_window(window_hiding_position)?;
+            .load_focused_window_at(window_hiding_position)?;
 
         Ok(())
     }
@@ -883,13 +884,13 @@ impl Workspace {
         if container.windows().is_empty() {
             self.remove_container_by_idx(focused_container_idx);
         } else {
-            container.load_focused_window(window_hiding_position)?;
+            container.load_focused_window_at(window_hiding_position)?;
         }
 
         self.new_container_for_window(&window)?;
 
         let mut container = Container::default();
-        container.add_window(&window, window_hiding_position)?;
+        container.add_window_at(&window, window_hiding_position)?;
         Ok(())
     }
 
@@ -920,7 +921,7 @@ impl Workspace {
         }
 
         for container in self.containers_mut() {
-            container.hide(window_hiding_position, omit, screen)?;
+            container.hide_on(window_hiding_position, omit, screen)?;
         }
 
         // if let Some(window) = self.maximized_window() {
@@ -928,7 +929,7 @@ impl Workspace {
         // }
 
         if let Some(container) = &mut self.monocle_container {
-            container.hide(window_hiding_position, omit, screen)?;
+            container.hide_on(window_hiding_position, omit, screen)?;
         }
 
         Ok(())
@@ -948,7 +949,7 @@ impl Workspace {
     /// which is all of [`Workspace::restore`] that is windows being moved
     pub fn restore_windows(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         if let Some(container) = &mut self.monocle_container {
-            container.restore()?;
+            container.restore_focused_window()?;
 
             if let Some(window) = container.focused_window() {
                 window.focus(mouse_follows_focus)?;
@@ -969,7 +970,7 @@ impl Workspace {
         }
 
         for container in self.containers_mut() {
-            container.restore()?;
+            container.restore_focused_window()?;
         }
 
         if let Some(container) = self.focused_container_mut() {
@@ -1077,7 +1078,7 @@ impl Workspace {
         self.monocle_container
             .as_mut()
             .ok_or_eyre("there is no monocle container")?
-            .load_focused_window(self.globals.window_hiding_position)?;
+            .load_focused_window_at(self.globals.window_hiding_position)?;
 
         Ok(())
     }
@@ -1124,7 +1125,7 @@ impl Workspace {
         self.focus_container(restore_idx);
         self.focused_container_mut()
             .ok_or_eyre("there is no container")?
-            .load_focused_window(window_hiding_position)?;
+            .load_focused_window_at(window_hiding_position)?;
 
         self.monocle_container = None;
         self.monocle_container_restore_idx = None;
@@ -1144,7 +1145,7 @@ impl Workspace {
                 self.monocle_container = None;
                 self.monocle_container_restore_idx = None;
             } else {
-                monocle_container.load_focused_window(self.globals.window_hiding_position)?;
+                monocle_container.load_focused_window_at(self.globals.window_hiding_position)?;
             }
 
             window
@@ -1166,7 +1167,7 @@ impl Workspace {
                     self.focus_container(focused_idx.saturating_sub(1));
                 }
             } else {
-                container.load_focused_window(window_hiding_position)?;
+                container.load_focused_window_at(window_hiding_position)?;
             }
 
             window
@@ -1184,7 +1185,7 @@ impl Workspace {
             .ok_or_eyre("there is no floating window")?;
 
         let mut container = Container::default();
-        container.add_window(&window, self.globals.window_hiding_position)?;
+        container.add_window_at(&window, self.globals.window_hiding_position)?;
 
         self.insert_container_at_idx(focused_idx, container);
 
@@ -2028,7 +2029,7 @@ mod tests {
         let window = ws.floating_windows_mut().pop_back().unwrap();
         let mut container = Container::default();
         container
-            .add_window(&window, WindowHidingPosition::BottomLeft)
+            .add_window_at(&window, WindowHidingPosition::BottomLeft)
             .unwrap();
         ws.insert_container_at_idx(ws.focused_container_idx(), container);
 

@@ -8,6 +8,7 @@ edition = "2024"
 komorebi-themes = { path = "../../komorebi-themes" }
 komorebi-backend = { path = "../../crates/komorebi-backend" }
 komorebi-collections = { path = "../../crates/komorebi-collections" }
+komorebi-core = { path = "../../crates/komorebi-core" }
 komorebi-layouts = { path = "../../komorebi-layouts", features = ["darwin", "schemars"] }
 komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = ["schemars"] }
 komorebi-settings = { path = "../../crates/komorebi-settings" }
@@ -133,7 +134,7 @@ uuid = { version = "1", features = ["v4"] }
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-schemars = ["dep:schemars", "komorebi-collections/schemars"]
+schemars = ["dep:schemars", "komorebi-collections/schemars", "komorebi-core/schemars"]
 
 [lib]
 name = "komorebi"

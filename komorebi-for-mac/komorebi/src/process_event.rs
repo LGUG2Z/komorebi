@@ -1,4 +1,5 @@
 use crate::AccessibilityUiElement;
+use crate::container::ContainerExt;
 use crate::FLOATING_APPLICATIONS;
 use crate::Notification;
 use crate::NotificationEvent;
@@ -691,7 +692,7 @@ impl WindowManager {
                                 workspace
                                     .focused_container_mut()
                                     .ok_or_eyre("there is no focused container")?
-                                    .add_window(&window, window_hiding_position)?;
+                                    .add_window_at(&window, window_hiding_position)?;
                                 workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(true, false)?;
                             }
