@@ -88,7 +88,7 @@ Method (reproducible from the repo root). Windows: every `WindowsApi::<name>` oc
 | `MacosApi` | 14 | 78 | 14 |
 | `CoreGraphicsApi` | 5 | 13 | 8 (+1 free fn `display_for_frame` `M/core_graphics/mod.rs:143`) |
 | `AccessibilityApi` | 13 | 67 (33 in `M/window.rs`, 11 in `M/application.rs`, 4 each in `M/animation/animator.rs`, `M/border_manager/border.rs`, `M/process_event.rs`, rest 1-2 each) | 13 |
-| KDE `Backend` | 31 methods = 19 required + 12 provided (28 primitives + 3 derived) | 73 `backend()` call sites outside `K/backend/` | n/a |
+| KDE `Backend` | 31 methods = 19 required + 12 provided (28 primitives + 3 derived) | 65 `backend()` call sites outside `K/backend/` (non-comment lines) | n/a |
 
 Split rule. A function is **generic** when the operation it performs has a counterpart on at least one other platform (a KDE `Backend` method or a macOS function in the table above). It is split in two tiers because the boundary is a judgement:
 
@@ -118,3 +118,62 @@ macOS, outside the API files (G1, G2, P):
 - G1: MacosApi::window_rect:39, MacosApi::foreground_window_id:14, MacosApi::foreground_window:7, MacosApi::center_cursor_in_rect:3, MacosApi::load_monitor_information:2, MacosApi::cursor_pos:2, MacosApi::update_monitor_work_areas:1, MacosApi::set_wallpaper:1, MacosApi::monitor_from_point:1, MacosApi::load_workspace_information:1, MacosApi::latest_monitor_information:1, CoreGraphicsApi::display_bounds_for_window_rect:5, CoreGraphicsApi::display_bounds:4, CoreGraphicsApi::window_list_info:1, CoreGraphicsApi::connected_display_ids:1
 - G2: MacosApi::left_mouse_button_is_pressed:4
 - P: MacosApi::frontmost_process_id:1, MacosApi::activate_finder:1, CoreGraphicsApi::contains_rect:2, AccessibilityApi::copy_attribute_value:17, AccessibilityApi::window_id:11, AccessibilityApi::set_attribute_cf_value:9, AccessibilityApi::set_attribute_ax_value:8, AccessibilityApi::set_messaging_timeout:6, AccessibilityApi::invalidate_observer:3, AccessibilityApi::create_observer:3, AccessibilityApi::copy_attribute_names:3, AccessibilityApi::add_observer_to_run_loop:3, AccessibilityApi::remove_notification_from_observer:1, AccessibilityApi::perform_action:1, AccessibilityApi::create_application:1, AccessibilityApi::add_notification_to_observer:1
+
+## 3. Threads, locks and who calls the platform
+
+Common to all three trees: the window manager is `Arc<parking_lot::Mutex<WindowManager>>`; the event consumer thread takes `wm.lock()` and holds it for the whole event; command connections take it with `try_lock_for(1 s)` on UDS (`K/process_command.rs:2125`, `M/process_command.rs:1882`, `W/process_command.rs:2280`; the Windows TCP path uses a blocking `lock()`, `:2333`). The event channel producers use `try_send` on KDE and macOS (`K/window_manager_event_listener.rs:55`, `M/window_manager_event_listener.rs:54`) and a blocking `send` on Windows (`W/windows_callbacks.rs:212, 233`); see the step 5 prep entries for the channel facts, not repeated here.
+
+### 3.1 KDE: who calls `backend()`
+
+`backend()` returns `OVERRIDE` (thread-local) else the process-wide `BACKEND` (`RwLock<Option<Arc<dyn Backend>>>`) else, in the library's own unit tests only, a permissive fake installed in the calling thread's thread-local (`K/backend/mod.rs:631-657, 661-673`). 65 call sites outside `K/backend/` (`window.rs` 17, `window_manager.rs` 15, `workspace.rs` 5, `transparency_manager.rs` 5, `process_command.rs` 5, `process_event.rs` 4, `monitor.rs` 4, `desktop.rs` 4, `border_manager/mod.rs` 3, `static_config.rs` 2, `main.rs` 1; non-comment lines, counted by `grep -rn "backend()"`); all of them are reached from window-manager code.
+
+| Thread | Started at | Locks it takes | Calls `backend()`? |
+|---|---|---|---|
+| main | process entry `K/main.rs:271` | WM lock for `init`, `sync_workspace_desktops`, `retile_all`, colour/transparency setup (`:320-342`); again for the restore at stop (`:382-386`) | **Yes**: indirectly through those WM methods, and directly at `K/main.rs:387` (`backend().shutdown()`, WM lock released). Installs the backend first (`:281`/`:284`). Then blocks on `quit_receiver.recv()` (`:379`), so it is idle while running. |
+| `kwin-bridge-main` plus two tokio workers `kwin-bridge` | `K/kwin/mod.rs:366-412` | `Shared::table`, `Shared::queue` (own mutexes); **never the WM lock** | **No** (no `backend()` in `K/kwin/*.rs` outside tests, `grep`). The D-Bus handlers `Events::event` (`:230-255`) and `Poll::poll` (`:268-300`) only update the table, `try_send` window and monitor notifications (`Shared::dispatch` `:191-206`), push commands, answer cursor waiters and call `hotkeys::focus`. |
+| tokio tasks spawned by the backend on that runtime | `K/kwin/mod.rs:865, 995, 1081`; `K/kwin/power.rs:66-70` | `Shared` mutexes | No: they move the pointer, ask Plasma for a wallpaper, watch logind (they send monitor notifications). |
+| `kwin-hotkeys` (current-thread runtime) | `K/kwin/hotkeys.rs:599-617` | its own | No: a key runs `komorebic` as a child process (`K/kwin/hotkeys.rs:356-360`), which reaches the daemon like any other client, i.e. through a command thread. |
+| event consumer | `K/process_event.rs:132-149` | **WM lock held for each event** (`:136`) | **Yes**: `backend().window`, `foreground_window`, `drag_origin`, `drag_end` directly (`:460, 521, 796, 864`) and everything in `Window` methods. |
+| command accept thread, restarted on panic, and one thread per client | `K/process_command.rs:296-330` | WM lock for `try_clone` of the listener (`:303-306`); then `try_lock_for(1 s)` per connection (`:2125`) | **Yes**: every command is processed under the WM lock. |
+| monitor reconciliator | `K/monitor_reconciliator.rs:155-` | WM lock per notification (`:538, 545, 552, 559, 567`) | **Yes**: `desktop::latest_monitor_information` = `backend().monitors()` (`K/desktop.rs:83-89`) under the lock. |
+| settle thread (spawned once per burst) | `K/monitor_reconciliator.rs:123-135` | WM lock after 1.5 s (`:127`) | **Yes**: `follow_windows_to_their_monitors`. |
+| deadlock detector (feature `deadlock_detection`) | `K/main.rs:136-159` | none | No. |
+| tests | `with_backend` `K/backend/mod.rs:697-707` | n/a | see below |
+
+Findings (KDE).
+
+1. **Every `Backend` call from non-test code happens either at start-up/shutdown on the main thread, or from a thread that holds the WM lock.** The KWin bridge threads never call it. So a `Backend` method may block the WM lock but never the bridge.
+2. **Two kinds of backend methods block their caller**, which is why finding 1 matters. `cursor_pos` blocks up to 250 ms on a reply that arrives on the bridge runtime (`K/kwin/mod.rs:841-849`). `ensure_workspaces`, `hide` when the park desktop does not exist yet, `apply_look`, `set_border_colours`, `set_focus_follows_mouse` and `shutdown` use `Handle::block_on` (`Shared::block_on` `:178-183`, uses at `:901, 931, 1007, 1027, 1097, 1114`). `block_on` from inside a tokio worker panics (tokio's documented behaviour, not re-verified here), so the code relies on no runtime thread calling `backend()`; finding 1 shows that holds today.
+3. **Tests.** `with_backend` sets a **thread-local** override (`:633-635, 697-707`), so a thread spawned inside it does not see the test's fake: it falls through to `BACKEND` (unset in a test), then to a fresh permissive fake of its own in unit tests, or panics with "no backend installed" elsewhere (`:649-657`). In integration tests (`komorebi/tests/*.rs`) the library is not built with `cfg(test)`, so `test_default` returns `None` (`:670-673`) and a test must install a backend. 54 of the 60 files in `komorebi-for-kde/komorebi/tests/` mention `with_backend`, `set_backend` or `FakeBackend`; the six that do not are `power.rs`, `config_parity.rs`, `hot_reload.rs`, `no_kwin.rs`, `version.rs`, `socket.rs`. Production code that spawns a thread which calls `backend()` would work under `set_backend` but silently get a different (permissive) fake in a unit test: nothing today does (the only test-spawned thread, `K/process_command.rs:2229`, only reads a socket).
+4. **`FakeBackend`** records 18 command kinds (`K/backend/fake.rs:43-81`), has a `min_sizes` table so a window can refuse a size (`:90`), and has **no failure injection**: its only error is `no such window` (`:509`). It has no frame offset (shadow) model either.
+
+### 3.2 Windows: who calls `WindowsApi`
+
+`WindowsApi` is a unit struct of associated functions (`W/windows_api.rs:252-254`), so there is no state and no handle: any thread may call any function. Threads, from `W/main.rs` and the `listen_for_*` functions:
+
+| Thread | Started at | WM lock | `WindowsApi` calls (examples) |
+|---|---|---|---|
+| main | `W/main.rs` | before the loop: `init`, `retile_all` (`:327`); after ctrl-c: `restore_all_windows` (`:368`) | start-up (`:205-223`: `allow_set_foreground_window`, `set_process_dpi_awareness_context`, `foreground_lock_timeout`), shutdown `disable_focus_follows_mouse` (`:372`). Otherwise blocked in `ctrlc_receiver.recv()` (`:357`): **there is no message pump on the main thread**. |
+| WinEvent pump | `W/winevent_listener.rs:24-56` | none | **Calls `SetWinEventHook` and then runs `GetMessageW` / `DispatchMessageW` on the same thread** (`:28-50`). The hook callback `win_event_hook` (`W/windows_callbacks.rs:144-236`) runs here: `window.exe()`, `title()`, `class()` (`:224-230`), `SendNotifyMessageW` to a border, and a **blocking** `event_tx().send(..)` (`:212, 233`). |
+| event consumer | `W/process_event.rs:117-134` | held per event (`:121`) | every `Window` method: `position_window`, `restore_window`, `foreground_window`, ... |
+| command threads (UDS accept + one per client, and TCP) | `W/process_command.rs:105-130`, `:151` | `try_lock_for(1 s)` (`:2280`); TCP blocking `lock()` (`:2333`) | the same, via `process_command` |
+| reaper (two threads) | `W/reaper.rs:58, 155` | handler: WM lock (`:79`); poller: **none** | poller calls `Window::is_window`/`is_visible` every 20 ms (`:173-203`) |
+| border manager | `W/border_manager/mod.rs:390` (+ watcher `:365`, helper threads `:1068-1194`) | WM lock per notification (`:421`) | `window_rect`, `set_border_pos`, border window create/destroy |
+| one thread per border window | `W/border_manager/border.rs:304-340` | none | **creates the border window (`create_border_window`) and runs its own `GetMessageW` loop**; the `Border` is owned by that thread (`W/border_manager/mod.rs:1054-1056`) |
+| one thread per stackbar window | `W/stackbar_manager/stackbar.rs:117-150` | none | `CreateWindowExW` and its own message loop; `position_window` is called from another thread under a documented ordering constraint (`:178-193`) |
+| stackbar manager | `W/stackbar_manager/mod.rs:74-98` | WM lock (`:98`) | stackbar updates |
+| hidden window thread | `W/monitor_reconciliator/hidden.rs:82-100` | none | `create_hidden_window`, message loop; registers WTS session, power and device notifications |
+| monitor reconciliator | `W/monitor_reconciliator/mod.rs:226-` | WM lock (`:276`) | `load_monitor_information`, `monitor` |
+| transparency, focus manager, theme manager | `W/transparency_manager.rs:52`, `W/focus_manager.rs:47`, `W/theme_manager.rs:57` | WM lock (`:87`, `:67`; theme: none) | `set_transparent`; `Window::focus` (`W/focus_manager.rs:68`) |
+| live resize | `W/live_resize.rs:707-775`, `:442`, `:533`, `:760` | WM lock per step (`:732, 767`) | `position_window` (`:522, 548, 1044`) |
+| animation engine | `W/animation/engine.rs:100-130, 217-235` (frame thread, a scoped thread per animation, a landing thread per animation) | none; `ANIMATION_MANAGER` lock only | `position_window` through the dispatchers (`W/animation/ghost_dispatcher.rs:376, 513, 599, 673`), DWM thumbnails |
+| ghost owner | `W/animation/ghost.rs:154-156` | none | creates the host window, owns the thumbnails (`:10-14`) |
+| `winput` mouse thread | `W/process_movement.rs:14-20` | WM lock per move (`:20, 32`) | `raise_window_at_cursor_pos` |
+| config watcher and loader | `W/window_manager.rs:348, 465`, `W/main.rs:304` | WM lock inside | everything |
+
+Thread-affinity findings (Windows).
+
+1. **Documented or evident thread-affine operations are all window creation and message handling, not window manipulation.** A window must be created by a thread that pumps its messages (`W/animation/ghost.rs:10-14`); the border's Direct2D brush update must run on the window's own thread, which is why it is posted as `WM_UPDATE_BRUSHES` (`W/border_manager/border.rs:75-79, 457-459`); the `Border` is owned by the thread that created its window (`W/border_manager/mod.rs:1054-1056`); the WinEvent hook is installed on the thread that pumps (`W/winevent_listener.rs:26-53`). That `WINEVENT_OUTOFCONTEXT` callbacks are delivered on the installing thread is Microsoft's documented behaviour, not verified here.
+2. **No `WindowsApi` function that acts on a managed window is documented thread-affine, and none is called from a single thread.** `position_window` alone is called from the event thread, command threads, animation threads and live-resize threads (see the list above). The code comments explain the one cross-thread cost: `SetWindowPos` waits for the target window's own thread unless `ASYNC_WINDOW_POS` is used (`W/windows_api.rs:518-520`), which is a property of the target app, not of komorebi's threads. `SetCloak` initialises COM per thread through a thread-local (`W/com/mod.rs:40-45, 68-72`), so it is callable from any thread too.
+3. **Consequence for a Windows `Backend` adapter**: it can be a stateless wrapper over `WindowsApi`, callable from any thread, **except for the pieces that create windows** (borders, stackbars, ghosts, the hidden window and the WinEvent hook), which stay with their own message-loop threads and are exactly the "platform subsystems" of section 2.2.
+4. **Hazard that exists today**: the hook callback blocks in `send` when the 20-slot channel is full (`W/winevent_listener.rs:59`, `W/windows_callbacks.rs:212, 233`), while the consumer needs the WM lock that a command thread may hold while itself sending into the same channel (`W/window_manager.rs:802, 809, 865`). Reading only; not reproduced (this is the plan's step 5 latent bug 2).
