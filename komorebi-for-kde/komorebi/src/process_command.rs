@@ -376,6 +376,166 @@ fn is_layout_command(message: &SocketMessage) -> bool {
 }
 
 impl WindowManager {
+    /// Adds a float rule for the focused window (its executable, title and class), until the daemon stops
+    pub fn add_session_float_rule(&mut self) -> eyre::Result<()> {
+        let foreground_window = Window::from(
+            backend()
+                .foreground_window()
+                .ok_or_eyre("there is no foreground window")?,
+        );
+        let (exe, title, class) = (
+            foreground_window.exe(),
+            foreground_window.title(),
+            foreground_window.class(),
+        );
+
+        if let (Some(exe), Some(title), Some(class)) = (exe, title, class) {
+            let rule = MatchingRule::Composite(vec![
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Exe,
+                    id: exe,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Title,
+                    id: title,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Class,
+                    id: class,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+            ]);
+
+            let mut floating_applications = FLOATING_APPLICATIONS.lock();
+            floating_applications.push(rule.clone());
+            let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+            session_floating_applications.push(rule.clone());
+
+            self.toggle_float(true)?;
+        }
+        Ok(())
+    }
+
+    /// Adds a rule that ignores the windows matching `id`, and takes the ones it matches out of the workspaces
+    pub fn add_ignore_rule(
+        &mut self,
+        identifier: ApplicationIdentifier,
+        id: &str,
+    ) -> eyre::Result<()> {
+        let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+
+        push_simple_rule(&mut ignore_identifiers, identifier, id);
+
+        let offset = self.work_area_offset;
+
+        let mut window_ids_to_purge = vec![];
+        for (i, monitor) in self.monitors().iter().enumerate() {
+            for container in monitor
+                .focused_workspace()
+                .ok_or_eyre("there is no workspace")?
+                .containers()
+            {
+                for window in container.windows() {
+                    match identifier {
+                        ApplicationIdentifier::Path => {
+                            if window.path().unwrap_or_default().to_string_lossy() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+                        }
+                        ApplicationIdentifier::Exe => {
+                            if window.exe().unwrap_or_default() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+                        }
+                        ApplicationIdentifier::Class => {
+                            if window.class().unwrap_or_default() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+                        }
+                        ApplicationIdentifier::Title => {
+                            if window.title().unwrap_or_default() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (monitor_idx, id) in window_ids_to_purge {
+            let monitor = self
+                .monitors_mut()
+                .get_mut(monitor_idx)
+                .ok_or_eyre("there is no monitor")?;
+
+            monitor
+                .focused_workspace_mut()
+                .ok_or_eyre("there is no focused workspace")?
+                .remove_window(id)?;
+
+            monitor.update_focused_workspace(offset)?;
+        }
+        Ok(())
+    }
+
+    /// Adds a rule that puts a window matching `id` on a named workspace when it first appears, if the workspace exists
+    pub fn add_initial_named_workspace_rule(
+        &mut self,
+        identifier: ApplicationIdentifier,
+        id: &str,
+        workspace: &str,
+    ) -> eyre::Result<()> {
+        if let Some((monitor_idx, workspace_idx)) = self.monitor_workspace_index_by_name(workspace)
+        {
+            let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+            let workspace_matching_rule = WorkspaceMatchingRule {
+                monitor_index: monitor_idx,
+                workspace_index: workspace_idx,
+                matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                    kind: identifier,
+                    id: id.to_string(),
+                    matching_strategy: Some(MatchingStrategy::Legacy),
+                }),
+                initial_only: true,
+            };
+
+            if !workspace_rules.contains(&workspace_matching_rule) {
+                workspace_rules.push(workspace_matching_rule);
+            }
+        }
+        Ok(())
+    }
+
+    /// Adds a rule that puts the windows matching `id` on a named workspace, if the workspace exists
+    pub fn add_named_workspace_rule(
+        &mut self,
+        identifier: ApplicationIdentifier,
+        id: &str,
+        workspace: &str,
+    ) -> eyre::Result<()> {
+        if let Some((monitor_idx, workspace_idx)) = self.monitor_workspace_index_by_name(workspace)
+        {
+            let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+            let workspace_matching_rule = WorkspaceMatchingRule {
+                monitor_index: monitor_idx,
+                workspace_index: workspace_idx,
+                matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                    kind: identifier,
+                    id: id.to_string(),
+                    matching_strategy: Some(MatchingStrategy::Legacy),
+                }),
+                initial_only: false,
+            };
+
+            if !workspace_rules.contains(&workspace_matching_rule) {
+                workspace_rules.push(workspace_matching_rule);
+            }
+        }
+        Ok(())
+    }
+
     /// Resizes the focused window along one axis
     pub fn resize_window_axis(&mut self, axis: Axis, sizing: Sizing) -> eyre::Result<()> {
         match axis {
@@ -1477,45 +1637,7 @@ impl WindowManager {
 
                 reply.write_all(response.as_bytes())?;
             }
-            SocketMessage::SessionFloatRule => {
-                let foreground_window = Window::from(
-                    backend()
-                        .foreground_window()
-                        .ok_or_eyre("there is no foreground window")?,
-                );
-                let (exe, title, class) = (
-                    foreground_window.exe(),
-                    foreground_window.title(),
-                    foreground_window.class(),
-                );
-
-                if let (Some(exe), Some(title), Some(class)) = (exe, title, class) {
-                    let rule = MatchingRule::Composite(vec![
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Exe,
-                            id: exe,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Title,
-                            id: title,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Class,
-                            id: class,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                    ]);
-
-                    let mut floating_applications = FLOATING_APPLICATIONS.lock();
-                    floating_applications.push(rule.clone());
-                    let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
-                    session_floating_applications.push(rule.clone());
-
-                    self.toggle_float(true)?;
-                }
-            }
+            SocketMessage::SessionFloatRule => self.add_session_float_rule()?,
             SocketMessage::SessionFloatRules => {
                 let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
                 let rules = serde_json::to_string_pretty(&*session_floating_applications)
@@ -1547,25 +1669,7 @@ impl WindowManager {
                 }
             }
             SocketMessage::InitialNamedWorkspaceRule(identifier, ref id, ref workspace) => {
-                if let Some((monitor_idx, workspace_idx)) =
-                    self.monitor_workspace_index_by_name(workspace)
-                {
-                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
-                    let workspace_matching_rule = WorkspaceMatchingRule {
-                        monitor_index: monitor_idx,
-                        workspace_index: workspace_idx,
-                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
-                            kind: identifier,
-                            id: id.to_string(),
-                            matching_strategy: Some(MatchingStrategy::Legacy),
-                        }),
-                        initial_only: true,
-                    };
-
-                    if !workspace_rules.contains(&workspace_matching_rule) {
-                        workspace_rules.push(workspace_matching_rule);
-                    }
-                }
+                self.add_initial_named_workspace_rule(identifier, id, workspace)?
             }
             SocketMessage::WorkspaceRule(identifier, ref id, monitor_idx, workspace_idx) => {
                 let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1585,25 +1689,7 @@ impl WindowManager {
                 }
             }
             SocketMessage::NamedWorkspaceRule(identifier, ref id, ref workspace) => {
-                if let Some((monitor_idx, workspace_idx)) =
-                    self.monitor_workspace_index_by_name(workspace)
-                {
-                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
-                    let workspace_matching_rule = WorkspaceMatchingRule {
-                        monitor_index: monitor_idx,
-                        workspace_index: workspace_idx,
-                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
-                            kind: identifier,
-                            id: id.to_string(),
-                            matching_strategy: Some(MatchingStrategy::Legacy),
-                        }),
-                        initial_only: false,
-                    };
-
-                    if !workspace_rules.contains(&workspace_matching_rule) {
-                        workspace_rules.push(workspace_matching_rule);
-                    }
-                }
+                self.add_named_workspace_rule(identifier, id, workspace)?
             }
             SocketMessage::ClearWorkspaceRules(monitor_idx, workspace_idx) => {
                 let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1634,59 +1720,7 @@ impl WindowManager {
                 self.enforce_workspace_rules()?;
             }
             SocketMessage::IgnoreRule(identifier, ref id) => {
-                let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
-
-                push_simple_rule(&mut ignore_identifiers, identifier, id);
-
-                let offset = self.work_area_offset;
-
-                let mut window_ids_to_purge = vec![];
-                for (i, monitor) in self.monitors().iter().enumerate() {
-                    for container in monitor
-                        .focused_workspace()
-                        .ok_or_eyre("there is no workspace")?
-                        .containers()
-                    {
-                        for window in container.windows() {
-                            match identifier {
-                                ApplicationIdentifier::Path => {
-                                    if window.path().unwrap_or_default().to_string_lossy() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-                                }
-                                ApplicationIdentifier::Exe => {
-                                    if window.exe().unwrap_or_default() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-                                }
-                                ApplicationIdentifier::Class => {
-                                    if window.class().unwrap_or_default() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-                                }
-                                ApplicationIdentifier::Title => {
-                                    if window.title().unwrap_or_default() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                for (monitor_idx, id) in window_ids_to_purge {
-                    let monitor = self
-                        .monitors_mut()
-                        .get_mut(monitor_idx)
-                        .ok_or_eyre("there is no monitor")?;
-
-                    monitor
-                        .focused_workspace_mut()
-                        .ok_or_eyre("there is no focused workspace")?
-                        .remove_window(id)?;
-
-                    monitor.update_focused_workspace(offset)?;
-                }
+                self.add_ignore_rule(identifier, id)?
             }
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
