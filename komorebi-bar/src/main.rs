@@ -1,5 +1,7 @@
 mod bar;
 mod config;
+mod os;
+pub use komorebi_bar_core::platform;
 pub use komorebi_bar_core::render;
 pub use komorebi_bar_core::selected_frame;
 pub use komorebi_bar_core::ui;
@@ -96,6 +98,8 @@ pub enum KomorebiEvent {
 }
 
 fn main() -> color_eyre::Result<()> {
+    komorebi_bar_core::platform::install(&os::WindowsBar);
+
     unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }?;
 
     let opts: Opts = Opts::parse();

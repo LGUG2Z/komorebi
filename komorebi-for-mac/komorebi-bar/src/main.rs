@@ -1,5 +1,7 @@
 mod bar;
 mod config;
+mod os;
+pub use komorebi_bar_core::platform;
 pub use komorebi_bar_core::render;
 pub use komorebi_bar_core::selected_frame;
 pub use komorebi_bar_core::ui;
@@ -63,6 +65,8 @@ pub enum KomorebiEvent {
 }
 
 fn main() -> eyre::Result<()> {
+    komorebi_bar_core::platform::install(&os::MacBar);
+
     let opts: Opts = Opts::parse();
 
     #[cfg(feature = "schemars")]
