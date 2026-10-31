@@ -43,3 +43,10 @@ DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
 AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT  
 OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
+
+## Developer documentation
+
+How the repository is laid out after the consolidation of the Windows, KDE
+Plasma and macOS trees is in `docs/dev/ARCHITECTURE-UNIFIED.md`; the exact
+build, test, e2e and VM commands for each platform, and the known flakes, are
+in `docs/dev/build-and-test.md`.
