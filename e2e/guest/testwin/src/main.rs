@@ -393,8 +393,8 @@ fn main() -> windows::core::Result<()> {
                 std::thread::sleep(std::time::Duration::from_secs_f64(after));
                 let hwnd = HWND(HWND_RAW.load(Ordering::SeqCst) as *mut _);
                 let title = wide(&new);
-                // SAFETY: `title` is NUL-terminated and outlives the call.
-                let _ = unsafe { SetWindowTextW(hwnd, PCWSTR(title.as_ptr())) };
+                // `title` is NUL-terminated and outlives the call.
+                let _ = SetWindowTextW(hwnd, PCWSTR(title.as_ptr()));
             });
         }
 
