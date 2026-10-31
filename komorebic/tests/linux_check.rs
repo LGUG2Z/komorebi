@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 //! `komorebic check`, as a person runs it: a configuration in, a report and an exit status out.
 
 use std::path::Path;

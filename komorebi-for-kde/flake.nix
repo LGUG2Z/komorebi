@@ -73,8 +73,21 @@
                     ) rootCrates;
                     # the directory that holds the crates of crates/, to reach the listed ones
                     rootCrateParent = relative == "crates";
+                    # the unified komorebic package: its manifest, build script, main and the Linux module
+                    # and tests; not the Windows and macOS files
+                    komorebic =
+                      builtins.elem relative [
+                        "komorebic"
+                        "komorebic/Cargo.toml"
+                        "komorebic/build.rs"
+                        "komorebic/src"
+                        "komorebic/src/main.rs"
+                        "komorebic/tests"
+                      ]
+                      || pkgs.lib.hasPrefix "komorebic/src/linux" relative
+                      || pkgs.lib.hasPrefix "komorebic/tests/linux_" relative;
                   in
-                  ((rootCrate || rootCrateParent) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
+                  ((rootCrate || rootCrateParent || komorebic) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
                   &&
                     # the VM tests (their library, scripts and the states they keep) are not built, so
                     # editing one does not change the source the daemon is built from
@@ -105,9 +118,10 @@
                 isReal =
                   member:
                   pkgs.lib.hasPrefix "${platformDir}/" member
+                  || member == "komorebic"
                   || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
               };
-              packages = "-p komorebi-linux -p komorebic-linux -p komorebi-client-linux -p komorebi-hotkeys";
+              packages = "-p komorebi-linux -p komorebic -p komorebi-client-linux -p komorebi-hotkeys";
               workspaceArgs = {
                 pname = "komorebi-workspace";
                 version = (builtins.fromTOML (builtins.readFile ./komorebi/Cargo.toml)).package.version;
@@ -179,7 +193,7 @@
                 individualCrateArgs
                 // {
                   pname = "komorebic-for-checks";
-                  cargoExtraArgs = "--package komorebic-linux --bin komorebic";
+                  cargoExtraArgs = "--package komorebic --bin komorebic";
                 }
               );
             };
@@ -329,7 +343,6 @@
                         "komorebi-windows"
                         "komorebi-client"
                         "komorebi-gui"
-                        "komorebic"
                         "komorebic-no-console"
                         "komorebi-bar"
                         "komorebi-shortcuts"

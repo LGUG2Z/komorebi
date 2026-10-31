@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 //! `komorebic` as a person runs it, against a socket the test serves in place of the daemon: what
 //! each subcommand writes on the socket, and what it prints.
 
@@ -872,18 +873,18 @@ fn quickstart_writes_the_example_files_and_asks_before_it_overwrites_one() {
 
     let output = quickstart(&runtime, &home, "");
     assert!(output.status.success(), "{output:?}");
-    let example = include_str!("../../docs/komorebi.example.json");
+    let example = include_str!("../../komorebi-for-kde/docs/komorebi.example.json");
     assert_eq!(
         std::fs::read_to_string(home.join("komorebi.json")).unwrap(),
         example
     );
     assert_eq!(
         std::fs::read_to_string(home.join("applications.json")).unwrap(),
-        include_str!("../applications.json")
+        include_str!("../src/linux/applications.json")
     );
     assert_eq!(
         std::fs::read_to_string(home.join("skhdrc")).unwrap(),
-        include_str!("../../docs/skhdrc.sample")
+        include_str!("../../komorebi-for-kde/docs/skhdrc.sample")
     );
     assert!(stdout(&output).contains("The following example files were written"));
     assert!(stdout(&output).contains("komorebic start"));
@@ -899,12 +900,12 @@ fn quickstart_writes_the_example_files_and_asks_before_it_overwrites_one() {
     );
     assert_eq!(
         std::fs::read_to_string(home.join("applications.json")).unwrap(),
-        include_str!("../applications.json")
+        include_str!("../src/linux/applications.json")
     );
     // the third question has no answer, which is not a yes
     assert_eq!(
         std::fs::read_to_string(home.join("skhdrc")).unwrap(),
-        include_str!("../../docs/skhdrc.sample")
+        include_str!("../../komorebi-for-kde/docs/skhdrc.sample")
     );
     assert!(stdout(&output).contains("Skipping"));
 }
@@ -997,7 +998,7 @@ fn the_schema_subcommands_print_a_json_schema_without_a_daemon() {
 
 #[test]
 fn the_schema_files_of_the_repository_are_what_the_subcommands_print() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join("komorebi-for-kde");
 
     for (file, subcommand) in [
         ("schema.json", "static-config-schema"),

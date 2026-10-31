@@ -223,6 +223,8 @@
               path: type:
               # the other platforms' crates are added as stubs below
               !(pkgs.lib.hasInfix "/komorebi-for-kde" path || pkgs.lib.hasInfix "/komorebi-for-mac" path)
+              # the Linux and macOS files of komorebic are not read when building for Windows
+              && !(builtins.match ".*/komorebic/(src/(linux|macos)|tests/(linux|macos)_).*" path != null)
               && (
                 (craneLib.filterCargoSources path type)
                 || (pkgs.lib.hasInfix "/docs/" path)

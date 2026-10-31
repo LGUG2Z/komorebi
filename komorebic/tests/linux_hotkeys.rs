@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 //! `export-kde-shortcuts` and `hotkeys compile` as a person runs them: the shortcut files they
 //! write for a key binding file, what they print, and when they refuse.
 
@@ -77,7 +78,7 @@ fn stderr(output: &Output) -> String {
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../komorebi-hotkeys/tests/fixtures")
+        .join("../komorebi-for-kde/komorebi-hotkeys/tests/fixtures")
         .join(name)
 }
 

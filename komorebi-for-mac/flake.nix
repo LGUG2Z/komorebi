@@ -230,7 +230,6 @@
                         "komorebi-windows"
                         "komorebi-client"
                         "komorebi-gui"
-                        "komorebic"
                         "komorebic-no-console"
                         "komorebi-bar"
                         "komorebi-shortcuts"

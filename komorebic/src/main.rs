@@ -14,7 +14,6 @@ cfg_select! {
         extern crate komorebi_client_linux as komorebi_client;
         extern crate komorebi_linux as komorebi;
         extern crate version_linux as version;
-        #[path = "../../komorebi-for-kde/komorebic/src/main.rs"]
         mod linux;
         use linux as platform;
     }
