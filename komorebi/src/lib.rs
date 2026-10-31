@@ -268,11 +268,13 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
 }
 
-pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
-pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(10);
-pub static DEFAULT_RESIZE_DELTA: i32 = 50;
+pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 =
+    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::WINDOWS.workspace_padding);
+pub static DEFAULT_CONTAINER_PADDING: AtomicI32 =
+    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::WINDOWS.container_padding);
+pub static DEFAULT_RESIZE_DELTA: i32 = komorebi_settings::shared::DEFAULT_RESIZE_DELTA;
 
-pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = true;
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);

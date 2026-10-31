@@ -3815,6 +3815,7 @@ dependencies = [
  "komorebi-layouts",
  "komorebi-protocol",
  "komorebi-scrolling",
+ "komorebi-settings",
  "komorebi-themes",
  "komorebi-transport",
  "lazy_static",
