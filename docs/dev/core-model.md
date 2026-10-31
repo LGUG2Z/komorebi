@@ -237,3 +237,101 @@ After kfw's convergence the Windows and KDE `monitor.rs` still differ by 657 cha
    `focus_previous_floating_window`, `remove_floating_window` as optional `Platform` hooks or
    extension traits; the scrolling glue is measured before it moves.
 3. `WindowManager`, then the router and `process_event` (unchanged from section 3).
+
+## 7. Classification of the `workspace.rs` and `monitor.rs` differences
+
+Method: each file is cut into functions (impl-level and free `fn`s, tests apart), comments and blank
+lines are dropped, and each function is compared with its namesake on the other side (`diff`; a
+changed line counts on both sides). The earlier whole-file figures (workspace 2314, monitor 657)
+come from one `diff` of the stripped files, which misaligns after every insertion; per function the
+picture is much smaller. Classes: **(a)** cosmetic or ordering drift, **(b)** same behaviour written
+differently, **(c)** a real platform difference (a hook is needed), **(d)** a feature one side lacks.
+Measured at the tip of `wip-u-core` (Container already moved; the Windows tree is kfw's `wip-u-kfw`).
+
+### `workspace.rs`
+
+| | functions | changed lines |
+|---|---|---|
+| identical on both sides (non-test) | 36 | 0 |
+| (a) drift | 1 | 31 |
+| (b) same behaviour, different text | 15 | 196 |
+| (c) platform difference | 6 | 356 |
+| (d) feature on one side only | 14 | 270 |
+| tests present on both sides | 26 | 71 (all (b): the id rename) |
+| tests only in KDE | 20 | 275 |
+
+(c) is `update` (161: Windows adds title bars, stackbars, the animation batch, the scrolling
+`adopt_actual_widths` pass and `live_resize::is_stepping`; KDE clamps layouts to the work area, has the
+percentage override, `scrolling_placed` and `has_settled`), `apply_wallpaper` (110: Windows writes
+the wallpaper through `WindowsApi` and builds the palette theme inline, KDE asks the backend and
+calls `theme_manager::wallpaper_palette`), `remove_window` (41: Windows deletes the border and
+returns `()`; KDE returns the `Window` and unmaximizes it), `hide` (28: KDE re-runs `update` for a
+scrolling workspace whose resize dimensions are set), `reintegrate_maximized_window` (12: KDE
+unmaximizes and adds through `add_window`; Windows loads the focused window) and
+`new_floating_window` (4: KDE unmaximizes).
+
+(d) Windows: `border_kinds_on_show` (34), `windows_on_show` (10), `hwnd_from_exe` (26), custom layouts
+in `load_static_config` (23), `promote_container` (5), `effective_layout_options` (1). KDE:
+`adopt_maximized_window` (60), `prune_duplicate_windows` (40), `reap_invalid_windows` (33),
+`remove_floating_window` (19), `focus_floating_window` (4), `focus_previous_floating_window` (4),
+`percentage_within_horizontal_bounds` (11), and the `scrolling_placed` field.
+
+(b) is almost all of: `hwnd: isize` against `window_id: u32` (`contains_window`,
+`contains_managed_window`, `container_idx_for_window`, `container_for_window`,
+`focus_container_by_window`, `is_focused_window_monocle_or_maximized`, `move_container_to_workspace`
+of the monitor), `WindowsApi::foreground_window()` / `cursor_pos()` against `backend()`,
+`let _ = backend().hide(WindowId::from_hwnd(..))` against `window.hide()` (also restore, focus,
+maximize), `Option` against `Result` for the title, exe and class (`resolve_placement_index`,
+`location_from_exe`), `try_into` against `into` (`visible_window_details`),
+`new_container_for_window(Window)` against `(&Window) -> Result<()>`, and `by value` against
+`&self.maximized_window` patterns.
+
+### `monitor.rs`
+
+| | functions | changed lines |
+|---|---|---|
+| identical (non-test) | 8 | 0 |
+| (b) | 2 | 18 (`move_container_to_workspace`, `add_container`) |
+| (c) | 3 | 40 (`load_focused_workspace`, `update_workspaces_globals`, `update_workspace_globals`) |
+| (d) | 9 | 113 (the Windows `name`, `device_id` and `workspace_names` fields: `new`, `placeholder`, `From`, `focus_workspace`, the id serde adapter; Custom layouts in `add_container_with_direction`; KDE `assign_windows_to_workspaces`) |
+
+### What each remaining cluster needs
+
+KDE-side converge revisions (this stack): the (a) and (b) clusters where the Windows form is the
+better one. What stays, and what kfw does (the list to hand over):
+
+1. **id parameter name and type** (b): KDE keeps `window_id`; kfw renames `hwnd` to `window_id` and
+   takes the id as the `ContainerWindow::Id` (`isize`) so the text is the same.
+2. **Backend calls inline** (b): kfw's `backend().hide(WindowId::from_hwnd(..))` and KDE's
+   `window.hide()` both become `ContainerWindow::hide_window()` / `restore_window()` (already in the
+   crate); focus and maximize become `Window::focus` and `Window::maximize` on both. kfw: Windows `Window`
+   needs `focus`, `maximize`, `unmaximize` that call `backend()`; the Windows result handling
+   (`let _ =`) moves inside them.
+3. **`Option` against `Result`** for title, exe, class, path (b): kfw's `Window::title/exe/class/path`
+   return `Option` (as KDE) or both return `Result`; recommended `Option`, since Windows never
+   distinguishes the failures.
+4. **`WindowDetails`** (b): `From` (KDE) against `TryFrom` (Windows); kfw makes Windows' infallible
+   (the `Err` arms were never distinguished).
+5. **`new_container_for_window(Window)`** (b): KDE adopts the Windows form in this stack.
+6. **`remove_focused_floating_window`** (b): kfw adopts KDE's two-line form over
+   `remove_floating_window` (which Windows lacks: add it, it is 19 lines).
+7. **Error strings** of `reintegrate_maximized_window` (b): KDE's ("no maximized restore index") are
+   right; Windows' copy the monocle ones. kfw adopts KDE's.
+8. **(c) hooks**, to be a `WorkspacePlatform` trait the workspace is generic over: `update` needs
+   `before_layout` / `after_layout` (Windows: animation batch, `INITIAL_CONFIGURATION_LOADED`, title
+   bars, stackbar; KDE: clamp, `scrolling_placed`), `place_window(window, rect)` (set_rect with the
+   top flag against `set_position`), and `apply_wallpaper`; `remove_window` needs `on_window_removed`
+   (Windows: `border_manager::delete_border`) and a decision on the return value (KDE's `Window` is
+   what callers need: kfw returns it too); `hide` needs the scrolling step as a hook
+   (`after_hide`) or moves into KDE only; `reintegrate_maximized_window` and `new_floating_window`
+   need `unmaximize_window`, a no-op on Windows if its native maximize is not undone there (kfw to
+   state which).
+9. **(d)** Windows-only features become optional hooks or extension traits (`border_kinds_on_show`,
+   `windows_on_show`, custom layouts) and KDE-only ones likewise (`adopt_maximized_window`,
+   `prune_duplicate_windows`, `reap_invalid_windows`, floating-window focus helpers,
+   `scrolling_placed`). Custom layouts exist in `komorebi-layouts` for both; KDE ignores them today
+   (`Layout::Custom` arms): the question for the owner is whether KDE gains them (a behaviour change)
+   or the shared code keeps `#[cfg]`-free arms that KDE never reaches.
+10. **Monitor fields** (d): `Monitor<P>` with `#[serde(flatten)] platform: P` (decided: the schemars
+    `required` order of the runtime notification and socket schemas changes, nothing checked in
+    does).
