@@ -1,5 +1,4 @@
 use crate::DATA_DIR;
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
@@ -635,8 +634,7 @@ impl WindowManager {
 
                         // Sort by window area
                         window_idx_pairs.sort_by_key(|(_, w)| {
-                            let rect =
-                                Rect::from(w.window_rect().unwrap_or_default());
+                            let rect = Rect::from(w.window_rect().unwrap_or_default());
                             rect.right * rect.bottom
                         });
                         window_idx_pairs.reverse();
@@ -705,9 +703,7 @@ impl WindowManager {
 
                             // Sort by window area
                             window_idx_pairs.sort_by_key(|w| {
-                                let rect = Rect::from(
-                                    w.window_rect().unwrap_or_default(),
-                                );
+                                let rect = Rect::from(w.window_rect().unwrap_or_default());
                                 rect.right * rect.bottom
                             });
 
@@ -1733,8 +1729,12 @@ impl WindowManager {
                 }
             }
             SocketMessage::DisplayIndexPreference(index_preference, ref display) => {
-                let mut display_index_preferences = DISPLAY_INDEX_PREFERENCES.write();
-                display_index_preferences.insert(index_preference, display.clone());
+                crate::settings::settings().update(|settings| {
+                    settings
+                        .shared
+                        .display_index_preferences
+                        .insert(index_preference, display.clone());
+                });
             }
             SocketMessage::ReplaceConfiguration(ref config) => {
                 // Check that this is a valid static config file first
@@ -1880,8 +1880,7 @@ impl WindowManager {
             | SocketMessage::WatchConfiguration(..)
             | SocketMessage::WindowHidingBehaviour(..)
             | SocketMessage::WorkspaceLayoutCustom(..)
-            | SocketMessage::WorkspaceLayoutCustomRule(..)
- => {
+            | SocketMessage::WorkspaceLayoutCustomRule(..) => {
                 reply.write_all(message.not_supported_reply().as_bytes())?;
                 return Ok(());
             }
@@ -1909,10 +1908,7 @@ impl WindowManager {
     }
 }
 
-pub fn read_commands_uds(
-    wm: &Arc<Mutex<WindowManager>>,
-    stream: UnixStream,
-) -> eyre::Result<()> {
+pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> eyre::Result<()> {
     komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &NoPolicy)
 }
 

@@ -2,8 +2,6 @@
 
 use crate::accessibility::error::AccessibilityError;
 use crate::core::ApplicationIdentifier;
-use crate::core::DefaultLayout;
-use crate::core::LayoutDefaultEntry;
 use crate::core::SocketMessage;
 use crate::core::SubscribeOptions;
 use crate::core::WindowHidingPosition;
@@ -14,8 +12,6 @@ use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core_graphics::error::CoreGraphicsError;
 use crate::monitor_reconciliator::MonitorNotification;
 use crate::state::State;
-use crate::window::AspectRatio;
-use crate::window::PredefinedAspectRatio;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
 use core::pathext::PathExt;
@@ -31,7 +27,6 @@ use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
 use parking_lot::Mutex;
-use parking_lot::RwLock;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -42,7 +37,6 @@ use std::panic;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::sync::Arc;
-use std::sync::atomic::AtomicI32;
 
 #[macro_use]
 extern crate komorebi_collections;
@@ -115,11 +109,6 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref SUBSCRIPTION_SOCKET_OPTIONS: Arc<Mutex<HashMap<String, SubscribeOptions>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
-        AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
-    ));
-    static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<usize, String>>> =
-        Arc::new(RwLock::new(HashMap::new()));
     static ref WINDOW_RESTORE_POSITIONS: Arc<Mutex<HashMap<u32, CGRect>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
@@ -161,16 +150,11 @@ lazy_static! {
     ]));
     static ref TITLELESS_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     static ref UNMANAGED_WINDOW_IDS: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(vec![]));
-    pub static ref LAYOUT_DEFAULTS: Arc<Mutex<HashMap<DefaultLayout, LayoutDefaultEntry>>> =
-        Arc::new(Mutex::new(HashMap::new()));
 }
 
-pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 =
-    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::MACOS.workspace_padding);
-pub static DEFAULT_CONTAINER_PADDING: AtomicI32 =
-    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::MACOS.container_padding);
 pub static DEFAULT_RESIZE_DELTA: i32 = komorebi_settings::shared::DEFAULT_RESIZE_DELTA;
-pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool =
+    komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 
 pub const PUBLIC_KEY: [u8; 32] = [
     0x5a, 0x69, 0x4a, 0xe1, 0x3c, 0x4b, 0xc8, 0x4e, 0xc3, 0x79, 0x0f, 0xab, 0x27, 0x6b, 0x7e, 0xdd,
