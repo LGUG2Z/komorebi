@@ -1103,11 +1103,7 @@ impl Workspace {
     /// windows of every container, the maximized window and the monocle container. A scrolling
     /// workspace is tiled again first without its resize adjustments, which are put back after,
     /// so that the windows are hidden where the layout has them and not where they were dragged.
-    ///
-    /// # Errors
-    ///
-    /// Never: the result is there so that callers can use `?`.
-    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
+    pub fn hide(&mut self, omit: Option<u32>) {
         for window in self.floating_windows_mut().iter_mut().rev() {
             let mut should_hide = omit.is_none();
 
@@ -1149,8 +1145,6 @@ impl Workspace {
         if let Some(container) = &mut self.monocle_container {
             container.hide(omit);
         }
-
-        Ok(())
     }
 
     /// Restores the window of every container that is in front, and the floating windows, and
@@ -3449,10 +3443,10 @@ mod tests {
     fn hiding_a_workspace_hides_every_window_but_the_one_it_is_told_to_leave() -> eyre::Result<()> {
         let (fake, mut workspace) = workspace_with_a_stack(&[471, 472, 473]);
 
-        with_backend(fake.clone(), || workspace.hide(Some(471)))?;
+        with_backend(fake.clone(), || workspace.hide(Some(471)));
         assert!(!fake.is_hidden(471) && fake.is_hidden(472) && fake.is_hidden(473));
 
-        with_backend(fake.clone(), || workspace.hide(None))?;
+        with_backend(fake.clone(), || workspace.hide(None));
         assert!(fake.is_hidden(471));
         Ok(())
     }
@@ -3475,7 +3469,7 @@ mod tests {
     {
         let (fake, mut workspace) = workspace_in_monocle(&[481, 482, 483]);
         assert!(fake.is_hidden(481) && fake.is_hidden(482) && !fake.is_hidden(483));
-        with_backend(fake.clone(), || workspace.hide(None))?;
+        with_backend(fake.clone(), || workspace.hide(None));
         assert!(
             fake.is_hidden(483),
             "leaving the workspace hides the monocle window too"
@@ -3495,7 +3489,7 @@ mod tests {
     fn hiding_a_workspace_in_monocle_hides_the_monocle_window_too() -> eyre::Result<()> {
         let (fake, mut workspace) = workspace_in_monocle(&[491, 492]);
 
-        with_backend(fake.clone(), || workspace.hide(None))?;
+        with_backend(fake.clone(), || workspace.hide(None));
 
         assert!(fake.is_hidden(491) && fake.is_hidden(492));
         Ok(())
