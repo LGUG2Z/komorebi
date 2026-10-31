@@ -318,3 +318,15 @@ Windows S1/S2, to apply when told (all in the files kfw is changing, so not done
 4. Gate: Windows clippy (`-D warnings`) and `cargo test -p komorebi --lib`; `tools/e2e-needed` will
    say YES (the crate is in the closure of `komorebi.exe`) so one e2e run is owed, but behaviour is
    unchanged.
+
+## 9. S1, S2 (Windows) and S3 (all three) as landed on `wip-u-settings2`
+
+Windows S1 and S2 were applied as described in section 8 (package `komorebi-windows`). S3 moved the two
+default paddings, the floating-window aspect ratio, `layout_defaults` and `display_index_preferences` on
+all three daemons: statics removed, `apply_globals` applies them with one `Handle::update` of a
+`SharedDelta` that names only these keys (so the other groups are untouched), the
+`DisplayIndexPreference` command is one `update`, and readers call the accessors in `settings.rs`
+(`container_padding()`, `workspace_padding()`, `floating_window_aspect_ratio()`, `layout_defaults()`,
+`display_index_preferences()`), each a clone from one snapshot. The only BEHAVIOUR is the single
+publish. Note the KDE integration test harness (`tests/config.rs`) now resets the paddings through
+`settings()`; it is the oracle that loads configurations over a fake desktop.
