@@ -3388,6 +3388,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-backend"
+version = "0.1.42"
+dependencies = [
+ "komorebi-layouts",
+]
+
+[[package]]
 name = "komorebi-bar"
 version = "0.1.42"
 dependencies = [

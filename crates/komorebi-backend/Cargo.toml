@@ -1,0 +1,8 @@
+[package]
+name = "komorebi-backend"
+version = "0.1.42"
+description = "What every komorebi daemon asks of its platform: the Backend trait, WindowId, plain-data window and monitor infos, and an in-memory FakeBackend"
+edition = "2024"
+
+[dependencies]
+komorebi-layouts = { path = "../../komorebi-layouts" }
