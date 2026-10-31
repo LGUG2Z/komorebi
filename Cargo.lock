@@ -3429,6 +3429,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-collections"
+version = "0.1.42"
+dependencies = [
+ "pastey 0.2.3",
+ "serde",
+ "serde_json_lenient",
+]
+
+[[package]]
 name = "komorebi-e2e-agent"
 version = "0.1.0"
 dependencies = [

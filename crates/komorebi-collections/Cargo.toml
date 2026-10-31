@@ -1,0 +1,17 @@
+[package]
+name = "komorebi-collections"
+version = "0.1.42"
+description = "The ring and the lockable sequence that every komorebi keeps its windows, containers, workspaces and monitors in"
+edition = "2024"
+
+[dependencies]
+pastey = "0.2"
+schemars = { version = "1.1", optional = true }
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = { package = "serde_json_lenient", version = "0.2" }
+
+[features]
+# derives `schemars::JsonSchema` for `Ring`
+schemars = ["dep:schemars"]

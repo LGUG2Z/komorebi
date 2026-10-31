@@ -5,6 +5,7 @@ members = [
   "komorebi",
   "komorebi-client",
   "komorebi-gui",
+  "crates/komorebi-collections",
   "komorebi-layouts",
   "komorebi-scrolling",
   "komorebic",
