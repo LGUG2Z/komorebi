@@ -113,6 +113,24 @@ impl CommandTarget for WindowManager {
 }
 
 impl WindowManager {
+    /// Switches the focused workspace between creating a container for a new window and adding it to the focused one
+    pub fn toggle_workspace_window_container_behaviour(&mut self) -> eyre::Result<()> {
+        let current_global_behaviour = self.window_management_behaviour.current_behaviour;
+        if let Some(behaviour) = &mut self.focused_workspace_mut()?.window_container_behaviour {
+            match behaviour {
+                WindowContainerBehaviour::Create => *behaviour = WindowContainerBehaviour::Append,
+                WindowContainerBehaviour::Append => *behaviour = WindowContainerBehaviour::Create,
+            }
+        } else {
+            self.focused_workspace_mut()?.window_container_behaviour =
+                Some(match current_global_behaviour {
+                    WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
+                    WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
+                });
+        };
+        Ok(())
+    }
+
     /// Sets the column and row ratios of the focused workspace's layout
     pub fn set_layout_ratios(
         &mut self,
@@ -1008,25 +1026,7 @@ impl WindowManager {
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
             SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
-                let current_global_behaviour = self.window_management_behaviour.current_behaviour;
-                if let Some(behaviour) =
-                    &mut self.focused_workspace_mut()?.window_container_behaviour
-                {
-                    match behaviour {
-                        WindowContainerBehaviour::Create => {
-                            *behaviour = WindowContainerBehaviour::Append
-                        }
-                        WindowContainerBehaviour::Append => {
-                            *behaviour = WindowContainerBehaviour::Create
-                        }
-                    }
-                } else {
-                    self.focused_workspace_mut()?.window_container_behaviour =
-                        Some(match current_global_behaviour {
-                            WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
-                            WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
-                        });
-                };
+                self.toggle_workspace_window_container_behaviour()?
             }
             SocketMessage::ToggleWorkspaceFloatOverride => {
                 let current_global_override = self.window_management_behaviour.float_override;
