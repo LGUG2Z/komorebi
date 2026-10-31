@@ -1256,6 +1256,7 @@ fn handle_asc_file(
     match path.extension() {
         None => {}
         Some(ext) => {
+            #[allow(clippy::collapsible_match)] // collapsing the nested if into a guard would restructure a 40-line block
             if ext.to_string_lossy().to_string().as_str() == "json" {
                 tracing::info!("loading applications.json from: {}", path.display());
                 let mut asc = ApplicationSpecificConfiguration::load(path)?;
