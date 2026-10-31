@@ -18,7 +18,6 @@ use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
 use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
-use crate::WINDOW_HANDLING_BEHAVIOUR;
 use crate::WINDOWS_11;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::animation::DEFAULT_GHOST_MOVEMENT;
@@ -367,7 +366,7 @@ impl From<&WindowManager> for StaticConfig {
             floating_window_aspect_ratio: Option::from(
                 crate::settings::floating_window_aspect_ratio(),
             ),
-            window_handling_behaviour: Option::from(WINDOW_HANDLING_BEHAVIOUR.load()),
+            window_handling_behaviour: Option::from(crate::settings::window_handling_behaviour()),
             ..Default::default()
         }
     }
@@ -664,7 +663,9 @@ impl ApplyGlobals for StaticConfig {
         }
 
         if let Some(behaviour) = self.window_handling_behaviour {
-            WINDOW_HANDLING_BEHAVIOUR.store(behaviour);
+            crate::settings::settings().update(|settings| {
+                settings.platform.window_handling_behaviour = behaviour;
+            });
         }
 
         Ok(())
