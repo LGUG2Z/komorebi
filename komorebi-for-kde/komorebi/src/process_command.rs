@@ -219,6 +219,7 @@
 //! Once a message has been handled, every subscriber is sent a notification of it
 //! ([`notify_subscribers`]).
 
+use crate::monitor::MonitorExt;
 use crate::scrolling::WorkspaceScrolling;
 use crate::workspace::WorkspaceExt;
 use crate::DATA_DIR;

@@ -35,6 +35,7 @@
 
 #![deny(missing_docs)]
 
+use crate::monitor::MonitorExt;
 use crate::workspace::WorkspaceExt;
 use crate::core::Rect;
 use crate::window::Window;

@@ -48,6 +48,7 @@
 //!
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
+use crate::monitor::MonitorExt;
 use crate::scrolling::WorkspaceScrolling;
 use crate::workspace::WorkspaceExt;
 use crate::DATA_DIR;

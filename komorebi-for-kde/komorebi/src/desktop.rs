@@ -36,6 +36,7 @@
 
 #![deny(missing_docs)]
 
+use crate::monitor::MonitorExt;
 use crate::workspace::WorkspaceExt;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::backend::backend;

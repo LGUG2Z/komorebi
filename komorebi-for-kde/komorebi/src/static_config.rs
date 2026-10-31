@@ -24,6 +24,7 @@
 //! [`DEFAULT_WORKSPACE_PADDING`] and the others in [`crate`]), and an optional key set to `null`
 //! is the same as one that is left out.
 
+use crate::monitor::MonitorExt;
 use crate::workspace::WorkspaceExt;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
@@ -207,8 +208,10 @@ pub fn workspace_config(value: &Workspace) -> WorkspaceConfig {
     }
 }
 
-impl From<&Monitor> for MonitorConfig {
-    fn from(value: &Monitor) -> Self {
+/// The `komorebi.json` entry that describes a monitor (the shared `Monitor` is not local, so this is
+/// a function and not a `From` impl)
+pub fn monitor_config(value: &Monitor) -> MonitorConfig {
+    {
         let mut workspaces = vec![];
         for w in value.workspaces() {
             workspaces.push(workspace_config(w));
@@ -233,7 +236,7 @@ impl From<&Monitor> for MonitorConfig {
             }
         });
 
-        Self {
+        MonitorConfig {
             workspaces,
             work_area_offset: value.work_area_offset,
             window_based_work_area_offset: value.window_based_work_area_offset,
@@ -292,7 +295,7 @@ impl From<&WindowManager> for StaticConfig {
     fn from(value: &WindowManager) -> Self {
         let mut monitors = vec![];
         for m in value.monitors() {
-            monitors.push(MonitorConfig::from(m));
+            monitors.push(monitor_config(m));
         }
 
         let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {

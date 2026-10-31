@@ -20,13 +20,12 @@ use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::container::Container;
 use crate::core::DefaultLayout;
-use crate::core::FloatingLayerBehaviour;
 use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::ring::Ring;
-use crate::static_config::Wallpaper;
 use crate::workspace::Workspace;
+use crate::workspace::KdePlatform;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
@@ -35,35 +34,27 @@ use komorebi_backend::MonitorId;
 use komorebi_backend::WindowId;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct Monitor {
-    pub id: u32,
-    pub device: String,
-    pub serial_number_id: String,
-    pub workspaces: Ring<Workspace>,
-    pub size: Rect,
-    pub work_area_offset: Option<Rect>,
-    pub work_area_size: Rect,
-    pub window_based_work_area_offset: Option<Rect>,
-    pub window_based_work_area_offset_limit: isize,
-    pub container_padding: Option<i32>,
-    pub workspace_padding: Option<i32>,
-    /// The workspace that was in front before the one in front now, which `focus-last-workspace`
-    /// shows again
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_focused_workspace: Option<usize>,
-    /// The wallpaper this monitor shows, unless the workspace in front has one of its own
-    pub wallpaper: Option<Wallpaper>,
-    /// Whether a window that opens on a workspace on its floating layer floats, for the
-    /// workspaces of this monitor that have no behaviour of their own
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
-}
+/// The monitor over KDE's [`Window`], which is `komorebi_core::Monitor` with this platform's methods
+/// added by [`MonitorExt`]
+pub type Monitor = komorebi_core::Monitor<KdePlatform>;
 
-impl_ring_elements!(Monitor, Workspace);
+impl komorebi_core::MonitorPlatform for KdePlatform {
+    type Id = u32;
+    type SerialNumber = String;
+    type Extra = komorebi_core::NoExtra;
+    #[cfg(feature = "schemars")]
+    type IdSchema = u32;
+
+    fn serialize_id<S: serde::Serializer>(id: &u32, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u32(*id)
+    }
+
+    fn deserialize_id<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<u32, D::Error> {
+        u32::deserialize(deserializer)
+    }
+}
 
 /// A monitor's identity and bounds, as the daemon answers
 /// [`SocketMessage::MonitorInformation`](crate::core::SocketMessage::MonitorInformation) with them
@@ -99,6 +90,7 @@ pub fn new(
     workspaces.elements_mut().push_back(Workspace::default());
 
     Monitor {
+            extra: Default::default(),
         id,
         device,
         serial_number_id,
@@ -116,9 +108,73 @@ pub fn new(
     }
 }
 
-impl Monitor {
+
+pub trait MonitorExt {
+    fn new(
+        id: u32,
+        size: Rect,
+        work_area_size: Rect,
+        device: &str,
+        serial_number_id: &str,
+    ) -> Self;
+
+    /// A stand-in for a monitor the user gave an index to (`DisplayIndexPreference`) that is not
+    /// connected, so that the monitors after it keep their indices while it is not there
+    fn placeholder() -> Self;
+
+    /// Tiles the focused workspace in this monitor's work area, less `offset` if the monitor has
+    /// no offset of its own
+    fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()>;
+
+    /// Updates the `globals` field of workspace with index `workspace_idx`
+    fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>);
+
+    /// Make this monitor show its focused workspace.
+    ///
+    /// The workspaces are the compositor's virtual desktops, so this is a request to switch the
+    /// desktop this monitor shows, and the compositor shows the windows on it and hides the rest.
+    /// What is left for komorebi is to tile the windows that came into view.
+    fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()>;
+
+    /// Put every window of every workspace of this monitor on that workspace's desktop, unless it
+    /// already is. komorebi decides which workspace a window belongs to (a window sent to another
+    /// workspace, a new window, a rule); this is how the compositor learns of it.
+    fn assign_windows_to_workspaces(&self);
+
+    /// Moves the focused container of the focused workspace, or the focused window when it is a
+    /// floating one, to the back of workspace `target_workspace_idx`, creating the workspace (and
+    /// the ones before it) if it does not exist, and focuses that workspace when `follow` is set.
+    ///
+    /// With a `direction`, the container goes where a container moved across a boundary in that
+    /// direction goes ([`Monitor::add_container_with_direction`]). A container that moves to a
+    /// workspace with a monocle container first turns the monocle off there. The target workspace
+    /// is on the floating layer after a floating window moved to it, and on the tiling layer after
+    /// a container did.
+    fn move_container_to_workspace(
+        &mut self,
+        target_workspace_idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()>;
+
+    /// Adds a container to this `Monitor` using the move direction to calculate if the container
+    /// should be added in front of all containers, in the back or in place of the focused
+    /// container, moving the rest along. The move direction should be from the origin monitor
+    /// towards the target monitor or from the origin workspace towards the target workspace.
+    fn add_container_with_direction(
+        &mut self,
+        container: Container,
+        workspace_idx: Option<usize>,
+        direction: OperationDirection,
+    ) -> eyre::Result<()>;
+
+    fn update_workspaces_globals(&mut self, offset: Option<Rect>);
+
+}
+
+impl MonitorExt for Monitor {
     #[allow(clippy::field_reassign_with_default)]
-    pub fn new(
+    fn new(
         id: u32,
         size: Rect,
         work_area_size: Rect,
@@ -129,6 +185,7 @@ impl Monitor {
         workspaces.elements_mut().push_back(Workspace::default());
 
         Self {
+            extra: Default::default(),
             id,
             device: device.to_string(),
             serial_number_id: serial_number_id.to_string(),
@@ -146,10 +203,9 @@ impl Monitor {
         }
     }
 
-    /// A stand-in for a monitor the user gave an index to (`DisplayIndexPreference`) that is not
-    /// connected, so that the monitors after it keep their indices while it is not there
-    pub fn placeholder() -> Self {
+    fn placeholder() -> Self {
         Self {
+            extra: Default::default(),
             // temp
             id: 2051316,
             device: "".to_string(),
@@ -168,10 +224,8 @@ impl Monitor {
         }
     }
 
-    /// Tiles the focused workspace in this monitor's work area, less `offset` if the monitor has
-    /// no offset of its own
     #[tracing::instrument(skip_all)]
-    pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()> {
+    fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()> {
         let offset = if self.work_area_offset.is_some() {
             self.work_area_offset
         } else {
@@ -187,8 +241,7 @@ impl Monitor {
         Ok(())
     }
 
-    /// Updates the `globals` field of workspace with index `workspace_idx`
-    pub fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
+    fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
             .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::Relaxed)));
@@ -225,29 +278,7 @@ impl Monitor {
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
-        tracing::info!("focusing workspace");
-
-        {
-            let workspaces = self.workspaces_mut();
-
-            if workspaces.get(idx).is_none() {
-                workspaces.resize(idx + 1, Workspace::default());
-            }
-            self.last_focused_workspace = Some(self.workspaces.focused_idx());
-            self.workspaces.focus(idx);
-        }
-
-        Ok(())
-    }
-
-    /// Make this monitor show its focused workspace.
-    ///
-    /// The workspaces are the compositor's virtual desktops, so this is a request to switch the
-    /// desktop this monitor shows, and the compositor shows the windows on it and hides the rest.
-    /// What is left for komorebi is to tile the windows that came into view.
-    pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+    fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
         let monitor_id = self.id;
         let monitor_wp = self.wallpaper.clone();
@@ -269,10 +300,7 @@ impl Monitor {
         Ok(())
     }
 
-    /// Put every window of every workspace of this monitor on that workspace's desktop, unless it
-    /// already is. komorebi decides which workspace a window belongs to (a window sent to another
-    /// workspace, a new window, a rule); this is how the compositor learns of it.
-    pub fn assign_windows_to_workspaces(&self) {
+    fn assign_windows_to_workspaces(&self) {
         for (idx, workspace) in self.workspaces().iter().enumerate() {
             let windows = workspace
                 .containers()
@@ -305,21 +333,8 @@ impl Monitor {
         }
     }
 
-    pub fn new_workspace_idx(&self) -> usize {
-        self.workspaces().len()
-    }
-
-    /// Moves the focused container of the focused workspace, or the focused window when it is a
-    /// floating one, to the back of workspace `target_workspace_idx`, creating the workspace (and
-    /// the ones before it) if it does not exist, and focuses that workspace when `follow` is set.
-    ///
-    /// With a `direction`, the container goes where a container moved across a boundary in that
-    /// direction goes ([`Monitor::add_container_with_direction`]). A container that moves to a
-    /// workspace with a monocle container first turns the monocle off there. The target workspace
-    /// is on the floating layer after a floating window moved to it, and on the tiling layer after
-    /// a container did.
     #[tracing::instrument(skip(self))]
-    pub fn move_container_to_workspace(
+    fn move_container_to_workspace(
         &mut self,
         target_workspace_idx: usize,
         follow: bool,
@@ -406,11 +421,7 @@ impl Monitor {
         Ok(())
     }
 
-    /// Adds a container to this `Monitor` using the move direction to calculate if the container
-    /// should be added in front of all containers, in the back or in place of the focused
-    /// container, moving the rest along. The move direction should be from the origin monitor
-    /// towards the target monitor or from the origin workspace towards the target workspace.
-    pub fn add_container_with_direction(
+    fn add_container_with_direction(
         &mut self,
         container: Container,
         workspace_idx: Option<usize>,
@@ -476,7 +487,7 @@ impl Monitor {
         Ok(())
     }
 
-    pub fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
+    fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
             .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
@@ -505,67 +516,6 @@ impl Monitor {
         }
     }
 
-    pub fn remove_workspace_by_idx(&mut self, idx: usize) -> Option<Workspace> {
-        if idx < self.workspaces().len() {
-            return self.workspaces_mut().remove(idx);
-        }
-
-        if idx == 0 {
-            self.workspaces_mut().push_back(Workspace::default());
-        } else {
-            self.focus_workspace(idx.saturating_sub(1)).ok()?;
-        };
-
-        None
-    }
-
-    pub fn add_container(
-        &mut self,
-        container: Container,
-        workspace_idx: Option<usize>,
-    ) -> eyre::Result<()> {
-        let workspace = if let Some(idx) = workspace_idx {
-            self.workspaces_mut()
-                .get_mut(idx)
-                .ok_or_eyre(format!("there is no workspace at index {}", idx))?
-        } else {
-            self.focused_workspace_mut()
-                .ok_or_eyre("there is no workspace")?
-        };
-
-        workspace.add_container_to_back(container);
-
-        Ok(())
-    }
-
-    pub fn remove_workspaces(&mut self) -> VecDeque<Workspace> {
-        std::mem::take(self.workspaces_mut())
-    }
-
-    pub fn ensure_workspace_count(&mut self, ensure_count: usize) {
-        if self.workspaces().len() < ensure_count {
-            self.workspaces_mut()
-                .resize(ensure_count, Workspace::default());
-        }
-    }
-
-    /// The name of the focused workspace, if it has one
-    pub fn focused_workspace_name(&self) -> Option<String> {
-        self.focused_workspace()
-            .map(|w| w.name.clone())
-            .unwrap_or(None)
-    }
-
-    /// The layout of the focused workspace, if the monitor has one and its tiling is on
-    pub fn focused_workspace_layout(&self) -> Option<Layout> {
-        self.focused_workspace().and_then(|workspace| {
-            if workspace.tile {
-                Some(workspace.layout.clone())
-            } else {
-                None
-            }
-        })
-    }
 }
 
 #[cfg(test)]

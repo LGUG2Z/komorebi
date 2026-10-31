@@ -88,6 +88,7 @@
 //! [`Monitor::assign_windows_to_workspaces`]: crate::monitor::Monitor::assign_windows_to_workspaces
 //! [`Window::set_position`]: crate::window::Window::set_position
 
+use crate::monitor::MonitorExt;
 use crate::workspace::WorkspaceExt;
 use crate::FLOATING_APPLICATIONS;
 use crate::HIDDEN_WINDOWS;

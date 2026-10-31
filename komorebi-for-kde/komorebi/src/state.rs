@@ -175,6 +175,7 @@ impl From<&WindowManager> for State {
             .monitors()
             .iter()
             .map(|monitor| Monitor {
+            extra: Default::default(),
                 id: monitor.id,
                 device: monitor.device.clone(),
                 serial_number_id: monitor.serial_number_id.clone(),

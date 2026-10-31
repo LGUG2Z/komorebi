@@ -26,6 +26,7 @@
 //! Covered by `tests/monitor_resize.rs`, `tests/hotplug.rs`, `tests/follow_output.rs` and
 //! `tests/wake.rs` against the fake backend, and by the `vm-hotplug` and `vm-lock-sleep` VM suites.
 
+use crate::monitor::MonitorExt;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::Notification;
 use crate::NotificationEvent;
@@ -356,6 +357,7 @@ pub fn reconcile_display_change(wm: &mut WindowManager) -> color_eyre::Result<()
                     // load the cached monitor removing any window that has since been
                     // closed or moved to another workspace
                     *m = Monitor {
+            extra: Default::default(),
                         // Data that should be the one just read from the compositor
                         id: m.id,
                         device: m.device.clone(),
