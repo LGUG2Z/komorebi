@@ -2507,6 +2507,7 @@ dependencies = [
  "komorebi-protocol",
  "komorebi-scrolling",
  "komorebi-themes",
+ "komorebi-transport",
  "lazy_static",
  "nanoid",
  "parking_lot 0.13.0",
@@ -2599,6 +2600,13 @@ dependencies = [
  "serde",
  "serde_variant",
  "strum",
+]
+
+[[package]]
+name = "komorebi-transport"
+version = "0.1.42"
+dependencies = [
+ "komorebi-protocol",
 ]
 
 [[package]]

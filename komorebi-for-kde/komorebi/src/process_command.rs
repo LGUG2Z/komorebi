@@ -272,6 +272,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
 use komorebi_themes::colour::Rgb;
+use komorebi_transport::allowed_while_paused;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fs::File;
@@ -2172,15 +2173,11 @@ pub fn read_commands_uds(
             }
             Some(mut wm) => {
                 if wm.is_paused {
-                    return match message {
-                        SocketMessage::TogglePause
-                        | SocketMessage::State
-                        | SocketMessage::GlobalState
-                        | SocketMessage::Stop => Ok(wm.process_command(message, &mut stream)?),
-                        _ => {
-                            tracing::trace!("ignoring while paused");
-                            Ok(())
-                        }
+                    return if allowed_while_paused(&message) {
+                        Ok(wm.process_command(message, &mut stream)?)
+                    } else {
+                        tracing::trace!("ignoring while paused");
+                        Ok(())
                     };
                 }
 
