@@ -283,7 +283,7 @@ pub enum SocketMessage {
     SocketSchema,
     StaticConfigSchema,
     GenerateStaticConfig,
-    DebugWindow(isize),
+    DebugWindow(i64),
     // low level commands
     ApplyState(State),
 }

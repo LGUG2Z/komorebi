@@ -2214,7 +2214,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::DebugWindow(hwnd) => {
-                let window = Window::from(hwnd);
+                let window = Window::from(hwnd as isize);
                 let mut rule_debug = RuleDebug::default();
                 let _ = window.should_manage(None, &mut rule_debug);
                 let schema = serde_json::to_string_pretty(&rule_debug)?;
