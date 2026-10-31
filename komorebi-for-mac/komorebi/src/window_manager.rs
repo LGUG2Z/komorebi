@@ -2265,9 +2265,7 @@ impl WindowManager {
 
             // Reset any resize adjustments if we want to force a retile
             if !preserve_resize_dimensions {
-                for resize in &mut workspace.resize_dimensions {
-                    *resize = None;
-                }
+                workspace.resize_dimensions.fill(None);
 
                 // and the widths and heights of the Scrolling layout, which are resize
                 // adjustments too
