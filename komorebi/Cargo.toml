@@ -8,6 +8,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+komorebi-collections = { path = "../crates/komorebi-collections" }
 komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
 komorebi-scrolling = { path = "../komorebi-scrolling" }
 komorebi-themes = { path = "../komorebi-themes" }
@@ -30,7 +31,6 @@ net2 = "0.2"
 os_info = "3.10"
 parking_lot = { workspace = true }
 paste = { workspace = true }
-pastey = { workspace = true }
 powershell_script = "1.0"
 regex = "1"
 reqwest = { version = "0.12", features = ["blocking"] }
@@ -66,4 +66,4 @@ uuid = { version = "1", features = ["v4"] }
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-schemars = ["dep:schemars", "komorebi-layouts/schemars"]
+schemars = ["dep:schemars", "komorebi-collections/schemars", "komorebi-layouts/schemars"]

@@ -18,7 +18,7 @@ use serde::Serialize;
 /// # Example
 ///
 /// ```rust
-/// use komorebi::ring::Ring;
+/// use komorebi_collections::ring::Ring;
 ///
 /// let mut ring = Ring::default();
 /// ring.elements_mut().push_back("a");
@@ -83,9 +83,10 @@ impl<T> Ring<T> {
 /// `focused_container_idx()` and `focused_container_mut()`. The field is named after the element
 /// type in lower case with an `s` appended, and the methods after the field, so that "the focused
 /// container" is spelled the same way on every type that has one.
+#[macro_export]
 macro_rules! impl_ring_elements {
     ($name:ty, $element:ident) => {
-        pastey::paste! {
+        $crate::pastey::paste! {
             impl $name {
                 pub const fn [<$element:lower s>](&self) -> &std::collections::VecDeque<$element> {
                     self.[<$element:lower s>].elements()
@@ -116,7 +117,7 @@ macro_rules! impl_ring_elements {
     // ```
     // Which allows using the `Window` element but name the functions as `floating_window`
     ($name:ty, $element:ident, $el_name:literal) => {
-        pastey::paste! {
+        $crate::pastey::paste! {
             impl $name {
                 pub const fn [<$el_name:lower s>](&self) -> &std::collections::VecDeque<$element> {
                     self.[<$el_name:lower s>].elements()

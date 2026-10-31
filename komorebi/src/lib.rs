@@ -1,17 +1,19 @@
 #![warn(clippy::all)]
 
+#[macro_use]
+extern crate komorebi_collections;
+
 pub mod animation;
 pub mod border_manager;
 pub mod cloaked;
 pub mod com;
-#[macro_use]
-pub mod ring;
+pub use komorebi_collections::ring;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
 pub mod live_resize;
-pub mod lockable_sequence;
-pub use lockable_sequence::Lockable;
+pub use komorebi_collections::lockable_sequence;
+pub use komorebi_collections::Lockable;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod pan;

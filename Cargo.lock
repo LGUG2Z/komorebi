@@ -3337,6 +3337,7 @@ dependencies = [
  "dirs 6.0.0",
  "ed25519-dalek",
  "hotwatch",
+ "komorebi-collections",
  "komorebi-layouts",
  "komorebi-scrolling",
  "komorebi-themes",
@@ -3347,7 +3348,6 @@ dependencies = [
  "os_info",
  "parking_lot",
  "paste",
- "pastey 0.2.3",
  "powershell_script",
  "regex",
  "reqwest",
@@ -3433,6 +3433,7 @@ name = "komorebi-collections"
 version = "0.1.42"
 dependencies = [
  "pastey 0.2.3",
+ "schemars 1.2.3",
  "serde",
  "serde_json_lenient",
 ]
