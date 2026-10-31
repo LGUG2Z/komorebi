@@ -86,7 +86,7 @@ pub use komorebi::workspace::Workspace;
 pub use komorebi::workspace::WorkspaceGlobals;
 pub use komorebi::workspace::WorkspaceLayer;
 
-use komorebi::DATA_DIR;
+pub use komorebi::DATA_DIR;
 
 use std::borrow::Borrow;
 use std::io::BufReader;
@@ -117,7 +117,11 @@ pub struct Connection {
 impl Connection {
     pub fn open() -> std::io::Result<Self> {
         let socket = DATA_DIR.join(KOMOREBI);
-        let stream = UnixStream::connect(socket)?;
+
+        Self::from_stream(UnixStream::connect(socket)?)
+    }
+
+    fn from_stream(stream: UnixStream) -> std::io::Result<Self> {
         stream.set_write_timeout(Some(Duration::from_secs(1)))?;
 
         Ok(Self { stream })

@@ -140,6 +140,45 @@ pub fn send_message(message: &SocketMessage) -> std::io::Result<()> {
     stream.write_all(serde_json::to_string(message)?.as_bytes())
 }
 
+/// A connection to komorebi that messages are written to one after the other, which komorebi
+/// handles in the order that they were written, as it does the lines of a batch. Messages sent
+/// with [`send_message`] are each on a connection of their own, which komorebi handles on a
+/// thread of its own, so two that are sent together can be handled in either order.
+pub struct Connection {
+    stream: UnixStream,
+}
+
+impl Connection {
+    /// Opens a connection to the daemon's socket.
+    ///
+    /// # Errors
+    ///
+    /// The daemon's socket cannot be connected to, or written to within a second.
+    pub fn open() -> std::io::Result<Self> {
+        let socket = DATA_DIR.join(KOMOREBI);
+
+        Self::from_stream(UnixStream::connect(socket)?)
+    }
+
+    fn from_stream(stream: UnixStream) -> std::io::Result<Self> {
+        stream.set_write_timeout(Some(Duration::from_secs(1)))?;
+
+        Ok(Self { stream })
+    }
+
+    /// Writes one message as a line.
+    ///
+    /// # Errors
+    ///
+    /// The message cannot be written, for example because the daemon let go of the connection.
+    pub fn send(&mut self, message: &SocketMessage) -> std::io::Result<()> {
+        let mut line = serde_json::to_string(message)?;
+        line.push('\n');
+
+        self.stream.write_all(line.as_bytes())
+    }
+}
+
 /// Sends several messages to the daemon on one connection, which handles them in order, and does
 /// not wait for them to be handled
 ///
