@@ -219,6 +219,7 @@
 //! Once a message has been handled, every subscriber is sent a notification of it
 //! ([`notify_subscribers`]).
 
+use crate::settings::animation_off;
 use crate::DATA_DIR;
 use crate::FLOATING_APPLICATIONS;
 use crate::IGNORE_IDENTIFIERS;
@@ -229,13 +230,6 @@ use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
-use crate::animation::ANIMATION_DURATION_GLOBAL;
-use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
-use crate::animation::ANIMATION_FPS;
-use crate::animation::ANIMATION_STYLE_GLOBAL;
-use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::backend::backend;
 use crate::border_manager;
 use crate::core::ApplicationIdentifier;
@@ -1174,36 +1168,30 @@ impl WindowManager {
                 self.move_container_in_cycle_direction(direction)?;
             }
             SocketMessage::StackWindow(direction) => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _animation_off = animation_off();
                 self.add_window_to_container(direction)?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::UnstackWindow => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _animation_off = animation_off();
                 self.remove_window_from_container()?;
                 border_manager::destroy_all_borders()?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::StackAll => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _animation_off = animation_off();
                 self.stack_all()?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::UnstackAll => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _animation_off = animation_off();
                 self.unstack_all(true)?;
                 border_manager::destroy_all_borders()?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::CycleStack(direction) => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _animation_off = animation_off();
                 self.cycle_container_window_in_direction(direction)?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::CycleStackIndex(direction) => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _animation_off = animation_off();
                 self.cycle_container_window_index_in_direction(direction)?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::FocusStackWindow(idx) => {
                 // In case you are using this command on a bar on a monitor
@@ -1213,9 +1201,8 @@ impl WindowManager {
                 if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
                     self.focus_monitor(monitor_idx)?;
                 }
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _animation_off = animation_off();
                 self.focus_container_window(idx)?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::CycleFocusMonitor(direction) => {
                 let monitor_idx = direction.next_idx(
@@ -2067,41 +2054,51 @@ impl WindowManager {
                 border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
                 border_manager::destroy_all_borders()?;
             }
-            SocketMessage::Animation(enable, prefix) => match prefix {
-                Some(prefix) => {
-                    ANIMATION_ENABLED_PER_ANIMATION
-                        .lock()
-                        .insert(prefix, enable);
-                }
-                None => {
-                    ANIMATION_ENABLED_GLOBAL.store(enable, Ordering::SeqCst);
-                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
-                }
-            },
-            SocketMessage::AnimationDuration(duration, prefix) => match prefix {
-                Some(prefix) => {
-                    ANIMATION_DURATION_PER_ANIMATION
-                        .lock()
-                        .insert(prefix, duration);
-                }
-                None => {
-                    ANIMATION_DURATION_GLOBAL.store(duration, Ordering::SeqCst);
-                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
-                }
-            },
-            SocketMessage::AnimationFps(fps) => {
-                ANIMATION_FPS.store(fps, Ordering::SeqCst);
+            SocketMessage::Animation(enable, prefix) => {
+                crate::settings::settings().update(|settings| {
+                    let animation = &mut settings.shared.animation;
+                    match prefix {
+                        Some(prefix) => {
+                            animation.enabled_per_animation.insert(prefix, enable);
+                        }
+                        None => {
+                            animation.enabled = enable;
+                            animation.enabled_per_animation.clear();
+                        }
+                    }
+                });
             }
-            SocketMessage::AnimationStyle(style, prefix) => match prefix {
-                Some(prefix) => {
-                    ANIMATION_STYLE_PER_ANIMATION.lock().insert(prefix, style);
-                }
-                None => {
-                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
-                    *animation_style = style;
-                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
-                }
-            },
+            SocketMessage::AnimationDuration(duration, prefix) => {
+                crate::settings::settings().update(|settings| {
+                    let animation = &mut settings.shared.animation;
+                    match prefix {
+                        Some(prefix) => {
+                            animation.duration_per_animation.insert(prefix, duration);
+                        }
+                        None => {
+                            animation.duration = duration;
+                            animation.duration_per_animation.clear();
+                        }
+                    }
+                });
+            }
+            SocketMessage::AnimationFps(fps) => {
+                crate::settings::settings().update(|settings| settings.shared.animation.fps = fps);
+            }
+            SocketMessage::AnimationStyle(style, prefix) => {
+                crate::settings::settings().update(|settings| {
+                    let animation = &mut settings.shared.animation;
+                    match prefix {
+                        Some(prefix) => {
+                            animation.style_per_animation.insert(prefix, style);
+                        }
+                        None => {
+                            animation.style = style;
+                            animation.style_per_animation.clear();
+                        }
+                    }
+                });
+            }
             SocketMessage::ReloadHotkeys => crate::kwin::hotkeys::reload()?,
             SocketMessage::HotkeysState => {
                 let state = serde_json::to_string_pretty(&crate::kwin::hotkeys::state())?;

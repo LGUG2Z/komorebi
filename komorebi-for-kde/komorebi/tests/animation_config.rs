@@ -6,7 +6,6 @@
 //! other test that asks for the look would see.
 
 use color_eyre::eyre;
-use komorebi::animation::ANIMATION_FPS;
 use komorebi::animation::movement_animation;
 use komorebi::animation::movement_style;
 use komorebi::backend::fake::FakeBackend;
@@ -19,7 +18,6 @@ use parking_lot::Mutex;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 fn write_config(name: &str, json: &str) -> PathBuf {
     let path = PathBuf::from(format!("/tmp/kmb-anim-{name}-{}.json", std::process::id()));
@@ -52,7 +50,7 @@ fn the_animation_key_of_the_file_is_the_animation_settings() {
     // one value for every kind of animation
     assert_eq!(movement_animation(), Some(120));
     assert_eq!(movement_style(), AnimationStyle::EaseOutExpo);
-    assert_eq!(ANIMATION_FPS.load(Ordering::SeqCst), 30);
+    assert_eq!(komorebi::settings::animation_fps(), 30);
 
     // a value for the kinds a file names wins over the global ones, which a global value takes away
     let by_kind = write_config(
@@ -66,7 +64,7 @@ fn the_animation_key_of_the_file_is_the_animation_settings() {
     assert_eq!(movement_animation(), None, "movement is off");
     assert_eq!(movement_style(), AnimationStyle::EaseInOutSine);
     assert_eq!(
-        ANIMATION_FPS.load(Ordering::SeqCst),
+        komorebi::settings::animation_fps(),
         60,
         "a file that leaves fps out has the default"
     );

@@ -77,6 +77,23 @@ pub fn transparency_alpha() -> u8 {
     settings().snapshot().shared.transparency.alpha
 }
 
+/// Turns the global animation off until the guard is dropped, then puts back what it was unless
+/// something changed it meanwhile (a reload or a command wins). Per-animation values are not touched.
+/// This replaces the `swap(false)` and `store(restore)` pair of the commands that rearrange a stack.
+pub fn animation_off() -> komorebi_settings::Scoped<'static, KdeSettings, bool> {
+    settings().scoped(|settings| &mut settings.shared.animation.enabled, false)
+}
+
+/// `animation.fps`.
+pub fn animation_fps() -> u64 {
+    settings().snapshot().shared.animation.fps
+}
+
+/// The global `animation.enabled`.
+pub fn animation_enabled() -> bool {
+    settings().snapshot().shared.animation.enabled
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::Ordering;

@@ -4,7 +4,6 @@
 //! This file has one test because it changes the process-wide animation settings, which every
 //! other test that asks for the look would see.
 
-use komorebi::animation::ANIMATION_FPS;
 use komorebi::animation::AnimationPrefix;
 use komorebi::backend::AnimationLook;
 use komorebi::backend::fake::Command;
@@ -14,7 +13,6 @@ use komorebi::core::SocketMessage;
 use komorebi::core::animation::AnimationStyle;
 use komorebi::window_manager::WindowManager;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 #[test]
 fn the_animation_messages_set_the_animation_and_the_compositor_is_asked_for_it() {
@@ -86,6 +84,6 @@ fn the_animation_messages_set_the_animation_and_the_compositor_is_asked_for_it()
     // the frame rate is kept, and asks nothing of the compositor
     let asked = fake.commands().len();
     send(&mut wm, SocketMessage::AnimationFps(30));
-    assert_eq!(ANIMATION_FPS.load(Ordering::SeqCst), 30);
+    assert_eq!(komorebi::settings::animation_fps(), 30);
     assert_eq!(fake.commands().len(), asked);
 }
