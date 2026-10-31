@@ -59,8 +59,8 @@ use crate::build;
 use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
-use crate::core::CycleDirection;
 use crate::core::BorderImplementation;
+use crate::core::CycleDirection;
 use crate::core::FocusFollowsMouseImplementation;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
@@ -585,36 +585,7 @@ impl WindowManager {
                 push_simple_rule(&mut manage_identifiers, identifier, id);
             }
             SocketMessage::SessionFloatRule => {
-                let foreground_window = WindowsApi::foreground_window()?;
-                let window = Window::from(foreground_window);
-                if let (Ok(exe), Ok(title), Ok(class)) =
-                    (window.exe(), window.title(), window.class())
-                {
-                    let rule = MatchingRule::Composite(vec![
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Exe,
-                            id: exe,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Title,
-                            id: title,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Class,
-                            id: class,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                    ]);
-
-                    let mut floating_applications = FLOATING_APPLICATIONS.lock();
-                    floating_applications.push(rule.clone());
-                    let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
-                    session_floating_applications.push(rule.clone());
-
-                    self.toggle_float(true)?;
-                }
+                self.add_session_float_rule()?;
             }
             SocketMessage::SessionFloatRules => {
                 let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
@@ -632,59 +603,7 @@ impl WindowManager {
                 session_floating_applications.clear()
             }
             SocketMessage::IgnoreRule(identifier, ref id) => {
-                let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
-
-                push_simple_rule(&mut ignore_identifiers, identifier, id);
-
-                let offset = self.work_area_offset;
-
-                let mut hwnds_to_purge = vec![];
-                for (i, monitor) in self.monitors().iter().enumerate() {
-                    for container in monitor
-                        .focused_workspace()
-                        .ok_or_eyre("there is no workspace")?
-                        .containers()
-                    {
-                        for window in container.windows() {
-                            match identifier {
-                                ApplicationIdentifier::Path => {
-                                    if window.path()? == *id {
-                                        hwnds_to_purge.push((i, window.hwnd));
-                                    }
-                                }
-                                ApplicationIdentifier::Exe => {
-                                    if window.exe()? == *id {
-                                        hwnds_to_purge.push((i, window.hwnd));
-                                    }
-                                }
-                                ApplicationIdentifier::Class => {
-                                    if window.class()? == *id {
-                                        hwnds_to_purge.push((i, window.hwnd));
-                                    }
-                                }
-                                ApplicationIdentifier::Title => {
-                                    if window.title()? == *id {
-                                        hwnds_to_purge.push((i, window.hwnd));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                for (monitor_idx, hwnd) in hwnds_to_purge {
-                    let monitor = self
-                        .monitors_mut()
-                        .get_mut(monitor_idx)
-                        .ok_or_eyre("there is no monitor")?;
-
-                    monitor
-                        .focused_workspace_mut()
-                        .ok_or_eyre("there is no focused workspace")?
-                        .remove_window(hwnd)?;
-
-                    monitor.update_focused_workspace(offset)?;
-                }
+                self.add_ignore_rule(identifier, id)?;
             }
             SocketMessage::FocusedWorkspaceContainerPadding(adjustment) => {
                 let focused_monitor_idx = self.focused_monitor_idx();
@@ -916,27 +835,7 @@ impl WindowManager {
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::LayoutRatios(ref columns, ref rows) => {
-                use crate::core::validate_ratios;
-
-                let focused_workspace = self.focused_workspace_mut()?;
-
-                let mut options = focused_workspace.layout_options.unwrap_or(LayoutOptions {
-                    scrolling: None,
-                    grid: None,
-                    column_ratios: None,
-                    row_ratios: None,
-                });
-
-                if let Some(cols) = columns {
-                    options.column_ratios = Some(validate_ratios(cols));
-                }
-
-                if let Some(rws) = rows {
-                    options.row_ratios = Some(validate_ratios(rws));
-                }
-
-                focused_workspace.layout_options = Some(options);
-                self.update_focused_workspace(false, false)?;
+                self.set_layout_ratios(columns, rows)?;
             }
             SocketMessage::ChangeLayoutCustom(ref path) => {
                 self.change_workspace_custom_layout(path)?;
@@ -2069,6 +1968,127 @@ fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, 
 
 // extracted-arms-impl
 impl WindowManager {
+    pub fn set_layout_ratios(
+        &mut self,
+        columns: &Option<Vec<f32>>,
+        rows: &Option<Vec<f32>>,
+    ) -> eyre::Result<()> {
+        use crate::core::validate_ratios;
+
+        let focused_workspace = self.focused_workspace_mut()?;
+
+        let mut options = focused_workspace.layout_options.unwrap_or(LayoutOptions {
+            scrolling: None,
+            grid: None,
+            column_ratios: None,
+            row_ratios: None,
+        });
+
+        if let Some(cols) = columns {
+            options.column_ratios = Some(validate_ratios(cols));
+        }
+
+        if let Some(rws) = rows {
+            options.row_ratios = Some(validate_ratios(rws));
+        }
+
+        focused_workspace.layout_options = Some(options);
+        self.update_focused_workspace(false, false)?;
+        Ok(())
+    }
+
+    pub fn add_session_float_rule(&mut self) -> eyre::Result<()> {
+        let foreground_window = WindowsApi::foreground_window()?;
+        let window = Window::from(foreground_window);
+        if let (Ok(exe), Ok(title), Ok(class)) = (window.exe(), window.title(), window.class()) {
+            let rule = MatchingRule::Composite(vec![
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Exe,
+                    id: exe,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Title,
+                    id: title,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Class,
+                    id: class,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+            ]);
+
+            let mut floating_applications = FLOATING_APPLICATIONS.lock();
+            floating_applications.push(rule.clone());
+            let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+            session_floating_applications.push(rule.clone());
+
+            self.toggle_float(true)?;
+        }
+        Ok(())
+    }
+
+    pub fn add_ignore_rule(
+        &mut self,
+        identifier: ApplicationIdentifier,
+        id: &str,
+    ) -> eyre::Result<()> {
+        let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+
+        push_simple_rule(&mut ignore_identifiers, identifier, id);
+
+        let offset = self.work_area_offset;
+
+        let mut hwnds_to_purge = vec![];
+        for (i, monitor) in self.monitors().iter().enumerate() {
+            for container in monitor
+                .focused_workspace()
+                .ok_or_eyre("there is no workspace")?
+                .containers()
+            {
+                for window in container.windows() {
+                    match identifier {
+                        ApplicationIdentifier::Path => {
+                            if window.path()? == *id {
+                                hwnds_to_purge.push((i, window.hwnd));
+                            }
+                        }
+                        ApplicationIdentifier::Exe => {
+                            if window.exe()? == *id {
+                                hwnds_to_purge.push((i, window.hwnd));
+                            }
+                        }
+                        ApplicationIdentifier::Class => {
+                            if window.class()? == *id {
+                                hwnds_to_purge.push((i, window.hwnd));
+                            }
+                        }
+                        ApplicationIdentifier::Title => {
+                            if window.title()? == *id {
+                                hwnds_to_purge.push((i, window.hwnd));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (monitor_idx, hwnd) in hwnds_to_purge {
+            let monitor = self
+                .monitors_mut()
+                .get_mut(monitor_idx)
+                .ok_or_eyre("there is no monitor")?;
+
+            monitor
+                .focused_workspace_mut()
+                .ok_or_eyre("there is no focused workspace")?
+                .remove_window(hwnd)?;
+
+            monitor.update_focused_workspace(offset)?;
+        }
+        Ok(())
+    }
     pub fn move_container_to_last_workspace(&mut self, follow: bool) -> eyre::Result<()> {
         // This is to ensure that even on an empty workspace on a secondary monitor, the
         // secondary monitor where the cursor is focused will be used as the target for
