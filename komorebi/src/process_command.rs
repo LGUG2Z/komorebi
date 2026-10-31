@@ -85,7 +85,6 @@ use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
 use crate::stackbar_manager::STACKBAR_FONT_SIZE;
-use crate::state;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
@@ -515,10 +514,8 @@ impl WindowManager {
             }
             SocketMessage::SessionFloatRules => {
                 let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
-                let rules = match serde_json::to_string_pretty(&*session_floating_applications) {
-                    Ok(rules) => rules,
-                    Err(error) => error.to_string(),
-                };
+                let rules = serde_json::to_string_pretty(&*session_floating_applications)
+                    .unwrap_or_else(|error| error.to_string());
 
                 reply.write_all(rules.as_bytes())?;
             }
@@ -953,7 +950,7 @@ impl WindowManager {
                 self.set_workspace_name(monitor_idx, workspace_idx, name.to_string())?;
             }
             SocketMessage::State => {
-                let state = match serde_json::to_string_pretty(&state::State::from(&*self)) {
+                let state = match serde_json::to_string_pretty(&State::from(&*self)) {
                     Ok(state) => state,
                     Err(error) => error.to_string(),
                 };
