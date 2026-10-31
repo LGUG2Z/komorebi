@@ -13,8 +13,6 @@ use komorebi::core::config_generation::MatchingRule;
 use komorebi::core::config_generation::MatchingStrategy;
 use komorebi::state::GlobalState;
 use komorebi::transparency_manager;
-use komorebi::transparency_manager::TRANSPARENCY_ALPHA;
-use komorebi::transparency_manager::TRANSPARENCY_ENABLED;
 use komorebi::window::Window;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event::KWinNotification;
@@ -75,8 +73,10 @@ static TRANSPARENCY: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// The settings are process-wide, as they are on Windows: one test at a time, from the defaults
 fn transparency_settings() -> std::sync::MutexGuard<'static, ()> {
     let guard = TRANSPARENCY.lock().unwrap_or_else(|e| e.into_inner());
-    TRANSPARENCY_ENABLED.store(false, std::sync::atomic::Ordering::SeqCst);
-    TRANSPARENCY_ALPHA.store(200, std::sync::atomic::Ordering::SeqCst);
+    komorebi::settings::settings().update(|settings| {
+        settings.shared.transparency.enabled = false;
+        settings.shared.transparency.alpha = 200;
+    });
     TRANSPARENCY_BLACKLIST.lock().clear();
     guard
 }

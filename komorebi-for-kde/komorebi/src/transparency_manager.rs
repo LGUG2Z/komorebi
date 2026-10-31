@@ -19,12 +19,7 @@ use crate::window::should_act;
 use crate::window_manager::WindowManager;
 use komorebi_backend::WindowId;
 use std::collections::HashSet;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicU8;
-use std::sync::atomic::Ordering;
 
-pub static TRANSPARENCY_ENABLED: AtomicBool = AtomicBool::new(false);
-pub static TRANSPARENCY_ALPHA: AtomicU8 = AtomicU8::new(200);
 
 /// The opacity of a window that is not see-through at all.
 const OPAQUE: u8 = 255;
@@ -107,8 +102,10 @@ pub fn transparent_windows(wm: &WindowManager) -> Vec<u32> {
 /// are made opaque, and the others are given [`TRANSPARENCY_ALPHA`]. With transparency off, every
 /// window is opaque. A failure is logged.
 pub fn apply(wm: &mut WindowManager) {
-    let alpha = TRANSPARENCY_ALPHA.load(Ordering::SeqCst);
-    let wanted: HashSet<u32> = if TRANSPARENCY_ENABLED.load(Ordering::SeqCst) {
+    // one snapshot, so the flag and the alpha are from the same configuration
+    let settings = crate::settings::settings().snapshot();
+    let alpha = settings.shared.transparency.alpha;
+    let wanted: HashSet<u32> = if settings.shared.transparency.enabled {
         transparent_windows(wm).into_iter().collect()
     } else {
         HashSet::new()

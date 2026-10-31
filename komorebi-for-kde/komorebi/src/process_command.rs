@@ -2048,14 +2048,15 @@ impl WindowManager {
                 theme_manager::send_notification(*theme.clone());
             }
             SocketMessage::Transparency(enable) => {
-                transparency_manager::TRANSPARENCY_ENABLED.store(enable, Ordering::SeqCst);
+                crate::settings::settings().update(|settings| settings.shared.transparency.enabled = enable);
             }
             SocketMessage::ToggleTransparency => {
-                let current = transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst);
-                transparency_manager::TRANSPARENCY_ENABLED.store(!current, Ordering::SeqCst);
+                crate::settings::settings().update(|settings| {
+                    settings.shared.transparency.enabled = !settings.shared.transparency.enabled;
+                });
             }
             SocketMessage::TransparencyAlpha(alpha) => {
-                transparency_manager::TRANSPARENCY_ALPHA.store(alpha, Ordering::SeqCst);
+                crate::settings::settings().update(|settings| settings.shared.transparency.alpha = alpha);
             }
             SocketMessage::BorderColour(kind, r, g, b) => self.set_border_colour(kind, r, g, b),
             SocketMessage::BorderWidth(width) => {

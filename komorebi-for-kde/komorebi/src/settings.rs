@@ -67,6 +67,16 @@ pub fn display_index_preferences() -> HashMap<usize, String> {
         .clone()
 }
 
+/// `transparency`: whether windows that are not focused are made see-through.
+pub fn transparency_enabled() -> bool {
+    settings().snapshot().shared.transparency.enabled
+}
+
+/// `transparency_alpha`: the opacity, 0 to 255, of a see-through window.
+pub fn transparency_alpha() -> u8 {
+    settings().snapshot().shared.transparency.alpha
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::Ordering;
