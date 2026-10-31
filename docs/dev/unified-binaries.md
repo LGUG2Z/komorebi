@@ -310,7 +310,7 @@ none of which can be shown to be mechanical without a screen.
 Run on the revisions of `wip-u-pkg-mig` at or after the stated one, from the repository root:
 
 ```
-cargo build --locked -p komorebic -p komorebi -p komorebi-bar            # after "one komorebi-bar package"
+cargo build --locked -p komorebic -p komorebi-macos -p komorebi-bar    # after "one komorebi-bar package"
 cargo build --locked -p komorebic-macos -p komorebi-bar-macos -p komorebi-client-macos   # the shims still build
 cargo clippy --locked -p komorebic -p komorebi-client -p komorebi-bar -p komorebi-bar-core -p komorebi-macos --all-targets -- -D warnings
 cargo test --locked -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar-core -p komorebi-bar
@@ -318,8 +318,8 @@ target/debug/komorebic --help; target/debug/komorebic --version; target/debug/ko
 target/debug/komorebi-bar --schema | cmp - komorebi-for-mac/schema.bar.json
 ```
 
-Note: the package `komorebi` (daemon) is still `komorebi-macos` on this platform, with binary name
-`komorebi`; there is no unified `komorebi` package yet (step 8). The macOS checks that matter by revision:
+Note: there is no package named `komorebi` yet: the daemon is `komorebi-macos` on macOS and `komorebi-windows` on Windows (binary name `komorebi` for both; the single `komorebi` package is step 8). Never write `-p komorebi`. Do not build `komorebic` and `komorebic-macos` in the same command (same binary name). The lint fix `fix(bar-core): WidgetConfig::supported as matches!` is needed for clippy to pass.
+The macOS checks that matter by revision:
 `refactor(komorebic): move the macOS CLI ...` (komorebic, quickstart, start, stop), `refactor(client): one
 komorebi-client ...` (the client tests in `komorebi-client/src/macos.rs`), and `refactor(bar): one
 komorebi-bar package ...` (the bar opens, `--schema`). Everything in `docs/dev/macos-handcheck.md` still applies.
