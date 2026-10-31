@@ -44,12 +44,12 @@ allow = [
 confidence-threshold = 0.8
 
 [[licenses.clarify]]
-crate = "komorebi"
+crate = "komorebi-macos"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "komorebi-client"
+crate = "komorebi-client-macos"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
@@ -64,12 +64,12 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "komorebic"
+crate = "komorebic-macos"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "komorebi-bar"
+crate = "komorebi-bar-macos"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
@@ -79,7 +79,7 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "version"
+crate = "version-macos"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 

@@ -39,12 +39,12 @@ allow = [
 confidence-threshold = 0.8
 
 [[licenses.clarify]]
-crate = "komorebi"
+crate = "komorebi-linux"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "komorebi-client"
+crate = "komorebi-client-linux"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
@@ -64,7 +64,7 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "komorebic"
+crate = "komorebic-linux"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
@@ -74,7 +74,7 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "version"
+crate = "version-linux"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 

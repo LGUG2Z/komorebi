@@ -28,8 +28,8 @@ lint:
 
 # the JSON Schemas of komorebi.json and of applications.json, from the Rust types
 jsonschema:
-    cargo run --package komorebic --locked -- static-config-schema > schema.json
-    cargo run --package komorebic --locked -- application-specific-configuration-schema > schema.asc.json
+    cargo run --package komorebic-linux --locked -- static-config-schema > schema.json
+    cargo run --package komorebic-linux --locked -- application-specific-configuration-schema > schema.asc.json
 
 # the options of the module's `config`, from schema.json, with the hash of the schema they were
 # made from in the first line (written by schemars-nixgen; the check `schema-fresh` compares it); needs schemars-nixgen
@@ -66,7 +66,7 @@ vm-all:
 # write the help of every komorebic subcommand to docs/cli, one page each
 docgen:
     rm -f docs/cli/*.md
-    cargo run --package komorebic --locked -- docgen --output docs/cli
+    cargo run --package komorebic-linux --locked -- docgen --output docs/cli
 
 # the demo guest in a virtual machine, with komorebi tiling a few windows (docs/trying-it.md);
 # `just run-kde --doctor` says what this machine is missing

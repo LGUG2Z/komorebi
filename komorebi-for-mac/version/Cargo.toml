@@ -1,5 +1,5 @@
 [package]
-name = "version"
+name = "version-macos"
 edition = "2024"
 version.workspace = true
 
@@ -8,3 +8,6 @@ shadow-rs = { workspace = true }
 
 [build-dependencies]
 shadow-rs = { workspace = true }
+
+[lib]
+name = "version"

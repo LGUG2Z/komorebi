@@ -1,5 +1,5 @@
 [package]
-name = "komorebi"
+name = "komorebi-linux"
 version.workspace = true
 description = "A tiling window manager for KDE Plasma"
 edition = "2024"
@@ -15,7 +15,7 @@ komorebi-config = { workspace = true }
 komorebi-settings = { workspace = true }
 komorebi-protocol = { workspace = true }
 komorebi-transport = { workspace = true }
-version = { path = "../version" }
+version = { package = "version-linux", path = "../version" }
 
 clap = { workspace = true }
 color-eyre = { workspace = true }
@@ -57,3 +57,10 @@ uuid = { version = "1", features = ["v4"] }
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 schemars = ["dep:schemars", "komorebi-collections/schemars"]
+
+[lib]
+name = "komorebi"
+
+[[bin]]
+name = "komorebi"
+path = "src/main.rs"

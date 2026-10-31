@@ -1,5 +1,5 @@
 [package]
-name = "komorebi-bar"
+name = "komorebi-bar-macos"
 version = "0.1.1"
 edition = "2024"
 
@@ -7,7 +7,7 @@ edition = "2024"
 
 [dependencies]
 komorebi-bar-core = { path = "../../crates/komorebi-bar-core", default-features = false }
-komorebi-client = { path = "../komorebi-client", default-features = false }
+komorebi-client = { package = "komorebi-client-macos", path = "../komorebi-client", default-features = false }
 komorebi-themes = { workspace = true }
 
 chrono = { workspace = true }
@@ -55,3 +55,7 @@ schemars = [
   "komorebi-client/default",
   "komorebi-themes/default",
 ]
+
+[[bin]]
+name = "komorebi-bar"
+path = "src/main.rs"

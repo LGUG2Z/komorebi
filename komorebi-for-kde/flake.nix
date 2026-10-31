@@ -164,7 +164,7 @@
                 individualCrateArgs
                 // {
                   pname = "komorebic-for-checks";
-                  cargoExtraArgs = "--package komorebic --bin komorebic";
+                  cargoExtraArgs = "--package komorebic-linux --bin komorebic";
                 }
               );
             };

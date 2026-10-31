@@ -1,14 +1,14 @@
 [package]
-name = "komorebic"
+name = "komorebic-macos"
 version = "0.1.1"
 description = "The command-line interface for Komorebi, a tiling window manager for macOS"
 edition = "2024"
 
 [dependencies]
 komorebi-config = { workspace = true }
-komorebi-client = { path = "../komorebi-client", default-features = false }
+komorebi-client = { package = "komorebi-client-macos", path = "../komorebi-client", default-features = false }
 komorebic-core = { path = "../../crates/komorebic-core" }
-version = { path = "../version" }
+version = { package = "version-macos", path = "../version" }
 
 clap = { workspace = true }
 clap_complete = "4"
@@ -29,3 +29,7 @@ schemars = ["dep:schemars", "komorebi-client/default"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(FALSE)'] }
+
+[[bin]]
+name = "komorebic"
+path = "src/main.rs"

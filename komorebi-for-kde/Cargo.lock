@@ -2490,47 +2490,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
-name = "komorebi"
-version = "0.1.0"
-dependencies = [
- "clap",
- "color-eyre",
- "crossbeam-channel",
- "crossbeam-utils",
- "ctrlc",
- "dirs 7.0.0",
- "futures-util",
- "hotwatch",
- "komorebi-backend",
- "komorebi-collections",
- "komorebi-config",
- "komorebi-hotkeys",
- "komorebi-layouts",
- "komorebi-protocol",
- "komorebi-scrolling",
- "komorebi-settings",
- "komorebi-themes",
- "komorebi-transport",
- "lazy_static",
- "nanoid",
- "parking_lot 0.13.0",
- "pastey",
- "regex",
- "schemars 1.2.3",
- "serde",
- "serde_json_lenient",
- "serde_with",
- "strum",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uuid",
- "version",
- "zbus 6.1.0",
-]
-
-[[package]]
 name = "komorebi-backend"
 version = "0.1.42"
 dependencies = [
@@ -2538,10 +2497,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "komorebi-client"
+name = "komorebi-client-linux"
 version = "0.1.0"
 dependencies = [
- "komorebi",
+ "komorebi-linux",
  "komorebi-themes",
  "parking_lot 0.13.0",
  "serde_json_lenient",
@@ -2592,6 +2551,47 @@ dependencies = [
  "serde_yaml 0.9.34+deprecated",
  "strum",
  "tracing",
+]
+
+[[package]]
+name = "komorebi-linux"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "ctrlc",
+ "dirs 7.0.0",
+ "futures-util",
+ "hotwatch",
+ "komorebi-backend",
+ "komorebi-collections",
+ "komorebi-config",
+ "komorebi-hotkeys",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-scrolling",
+ "komorebi-settings",
+ "komorebi-themes",
+ "komorebi-transport",
+ "lazy_static",
+ "nanoid",
+ "parking_lot 0.13.0",
+ "pastey",
+ "regex",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "serde_with",
+ "strum",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+ "version-linux",
+ "zbus 6.1.0",
 ]
 
 [[package]]
@@ -2651,28 +2651,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "komorebic"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "clap_complete",
- "color-eyre",
- "dirs 7.0.0",
- "fs-tail",
- "komorebi",
- "komorebi-client",
- "komorebi-config",
- "komorebi-hotkeys",
- "komorebic-core",
- "lazy_static",
- "schemars 1.2.3",
- "serde_json_lenient",
- "sysinfo",
- "version",
-]
-
-[[package]]
 name = "komorebic-core"
 version = "0.1.42"
 dependencies = [
@@ -2681,6 +2659,28 @@ dependencies = [
  "color-eyre",
  "komorebi-layouts",
  "komorebi-protocol",
+]
+
+[[package]]
+name = "komorebic-linux"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "clap_complete",
+ "color-eyre",
+ "dirs 7.0.0",
+ "fs-tail",
+ "komorebi-client-linux",
+ "komorebi-config",
+ "komorebi-hotkeys",
+ "komorebi-linux",
+ "komorebic-core",
+ "lazy_static",
+ "schemars 1.2.3",
+ "serde_json_lenient",
+ "sysinfo",
+ "version-linux",
 ]
 
 [[package]]
@@ -5209,7 +5209,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
-name = "version"
+name = "version-linux"
 version = "0.1.0"
 dependencies = [
  "shadow-rs",

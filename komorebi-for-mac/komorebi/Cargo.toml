@@ -1,5 +1,5 @@
 [package]
-name = "komorebi"
+name = "komorebi-macos"
 version = "0.1.1"
 description = "A tiling window manager for macOS"
 edition = "2024"
@@ -14,7 +14,7 @@ komorebi-settings = { workspace = true }
 komorebi-protocol = { workspace = true }
 komorebi-transport = { workspace = true }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
-version = { path = "../version" }
+version = { package = "version-macos", path = "../version" }
 
 base64 = "0.22"
 block2 = "0.6"
@@ -134,3 +134,10 @@ uuid = { version = "1", features = ["v4"] }
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 schemars = ["dep:schemars", "komorebi-collections/schemars"]
+
+[lib]
+name = "komorebi"
+
+[[bin]]
+name = "komorebi"
+path = "src/main.rs"
