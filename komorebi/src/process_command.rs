@@ -406,10 +406,10 @@ impl WindowManager {
                 WindowsApi::left_click();
             }
             SocketMessage::Close => {
-                Window::from(WindowsApi::foreground_window()?).close()?;
+                backend().close(WindowId::from_hwnd(WindowsApi::foreground_window()?))?;
             }
             SocketMessage::Minimize => {
-                Window::from(WindowsApi::foreground_window()?).minimize();
+                let _ = backend().minimize(WindowId::from_hwnd(WindowsApi::foreground_window()?));
             }
             SocketMessage::LockMonitorWorkspaceContainer(
                 monitor_idx,
@@ -1309,7 +1309,7 @@ impl WindowManager {
                                 to_focus = Some(*window);
                             } else {
                                 let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
-                                window.raise()?;
+                                backend().raise(WindowId::from_hwnd(window.hwnd))?;
                             }
                         }
 
@@ -1317,7 +1317,7 @@ impl WindowManager {
                             // The focused window should be the last one raised to make sure it is
                             // on top
                             let _ = backend().restore(WindowId::from_hwnd(focused_window.hwnd));
-                            focused_window.raise()?;
+                            backend().raise(WindowId::from_hwnd(focused_window.hwnd))?;
                         }
 
                         for container in workspace.containers() {
@@ -1338,7 +1338,7 @@ impl WindowManager {
                         if let Some(monocle) = &workspace.monocle_container {
                             if let Some(window) = monocle.focused_window() {
                                 to_focus = Some(*window);
-                                window.raise()?;
+                                backend().raise(WindowId::from_hwnd(window.hwnd))?;
                             }
                             for window in workspace.floating_windows() {
                                 let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
@@ -1351,7 +1351,7 @@ impl WindowManager {
                                     if i == focused_container_idx {
                                         to_focus = Some(*window);
                                     }
-                                    window.raise()?;
+                                    backend().raise(WindowId::from_hwnd(window.hwnd))?;
                                 }
                             }
 
