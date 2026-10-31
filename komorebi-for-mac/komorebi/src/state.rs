@@ -163,7 +163,7 @@ impl From<&WindowManager> for State {
                 workspace_padding: monitor.workspace_padding,
                 wallpaper: monitor.wallpaper.clone(),
                 floating_layer_behaviour: monitor.floating_layer_behaviour,
-                window_hiding_position: monitor.window_hiding_position,
+                extra: monitor.extra.clone(),
             })
             .collect::<VecDeque<_>>();
         stripped_monitors.focus(wm.monitors.focused_idx());

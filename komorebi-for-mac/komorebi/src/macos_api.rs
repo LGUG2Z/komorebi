@@ -15,6 +15,7 @@ use crate::core::rect_ext::RectExt;
 use crate::core_graphics::CoreGraphicsApi;
 use crate::ioreg::IoReg;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
 use crate::monitor::MonitorInfo;
 use crate::window::RuleDebug;
 use crate::window::WindowInfo;

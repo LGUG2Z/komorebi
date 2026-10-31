@@ -1,3 +1,4 @@
+use crate::monitor::MonitorExt;
 use crate::AccessibilityUiElement;
 use crate::CoreFoundationRunLoop;
 use crate::DATA_DIR;
@@ -1547,7 +1548,7 @@ impl WindowManager {
         let hiding_position = self
             .focused_monitor()
             .ok_or_eyre("there is no monitor")?
-            .window_hiding_position;
+            .extra.window_hiding_position;
 
         let workspace = self.focused_workspace_mut()?;
         workspace.new_monocle_container()?;
@@ -1583,7 +1584,7 @@ impl WindowManager {
         let hiding_position = self
             .focused_monitor()
             .ok_or_eyre("there is no monitor")?
-            .window_hiding_position;
+            .extra.window_hiding_position;
 
         self.focused_workspace_mut()?
             .cycle_monocle_container(direction)?;

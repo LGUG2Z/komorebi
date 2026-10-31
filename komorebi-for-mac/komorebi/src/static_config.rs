@@ -42,6 +42,7 @@ use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::current_space_id;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
 use crate::monitor_reconciliator;
 use crate::ring::Ring;
 use crate::theme_manager;
@@ -183,43 +184,42 @@ fn workspace_config(value: &Workspace) -> WorkspaceConfig {
     }
 }
 
-impl From<&Monitor> for MonitorConfig {
-    fn from(value: &Monitor) -> Self {
-        let mut workspaces = vec![];
-        for w in value.workspaces() {
-            workspaces.push(workspace_config(w));
+/// The configuration entry that a monitor would be loaded from (what `komorebic` writes out)
+fn monitor_config(value: &Monitor) -> MonitorConfig {
+    let mut workspaces = vec![];
+    for w in value.workspaces() {
+        workspaces.push(workspace_config(w));
+    }
+
+    let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
+    let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
+
+    let container_padding = value.container_padding.and_then(|container_padding| {
+        if container_padding == default_container_padding {
+            None
+        } else {
+            Option::from(container_padding)
         }
+    });
 
-        let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
-        let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
-
-        let container_padding = value.container_padding.and_then(|container_padding| {
-            if container_padding == default_container_padding {
-                None
-            } else {
-                Option::from(container_padding)
-            }
-        });
-
-        let workspace_padding = value.workspace_padding.and_then(|workspace_padding| {
-            if workspace_padding == default_workspace_padding {
-                None
-            } else {
-                Option::from(workspace_padding)
-            }
-        });
-
-        Self {
-            workspaces,
-            work_area_offset: value.work_area_offset,
-            window_based_work_area_offset: value.window_based_work_area_offset,
-            window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit),
-            container_padding,
-            workspace_padding,
-            wallpaper: value.wallpaper.clone(),
-            floating_layer_behaviour: value.floating_layer_behaviour,
-            window_hiding_position: Some(value.window_hiding_position),
+    let workspace_padding = value.workspace_padding.and_then(|workspace_padding| {
+        if workspace_padding == default_workspace_padding {
+            None
+        } else {
+            Option::from(workspace_padding)
         }
+    });
+
+    MonitorConfig {
+        workspaces,
+        work_area_offset: value.work_area_offset,
+        window_based_work_area_offset: value.window_based_work_area_offset,
+        window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit),
+        container_padding,
+        workspace_padding,
+        wallpaper: value.wallpaper.clone(),
+        floating_layer_behaviour: value.floating_layer_behaviour,
+        window_hiding_position: Some(value.extra.window_hiding_position),
     }
 }
 
@@ -268,7 +268,7 @@ impl From<&WindowManager> for StaticConfig {
     fn from(value: &WindowManager) -> Self {
         let mut monitors = vec![];
         for m in value.monitors() {
-            monitors.push(MonitorConfig::from(m));
+            monitors.push(monitor_config(m));
         }
 
         let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {
@@ -891,7 +891,7 @@ impl StaticConfigExt for StaticConfig {
                 monitor.workspace_padding = monitor_config.workspace_padding;
                 monitor.wallpaper = monitor_config.wallpaper.clone();
                 monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
-                monitor.window_hiding_position =
+                monitor.extra.window_hiding_position =
                     monitor_config.window_hiding_position.unwrap_or_default();
 
                 monitor.update_workspaces_globals(offset);
@@ -965,7 +965,7 @@ impl StaticConfigExt for StaticConfig {
                     m.container_padding = monitor_config.container_padding;
                     m.workspace_padding = monitor_config.workspace_padding;
                     m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
-                    m.window_hiding_position =
+                    m.extra.window_hiding_position =
                         monitor_config.window_hiding_position.unwrap_or_default();
 
                     m.update_workspaces_globals(offset);
@@ -1055,7 +1055,7 @@ impl StaticConfigExt for StaticConfig {
                 monitor.workspace_padding = monitor_config.workspace_padding;
                 monitor.wallpaper = monitor_config.wallpaper.clone();
                 monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
-                monitor.window_hiding_position =
+                monitor.extra.window_hiding_position =
                     monitor_config.window_hiding_position.unwrap_or_default();
 
                 monitor.update_workspaces_globals(offset);
@@ -1130,7 +1130,7 @@ impl StaticConfigExt for StaticConfig {
                     m.container_padding = monitor_config.container_padding;
                     m.workspace_padding = monitor_config.workspace_padding;
                     m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
-                    m.window_hiding_position =
+                    m.extra.window_hiding_position =
                         monitor_config.window_hiding_position.unwrap_or_default();
 
                     m.update_workspaces_globals(offset);

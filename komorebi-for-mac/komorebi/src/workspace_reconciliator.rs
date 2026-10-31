@@ -1,5 +1,6 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::monitor::MonitorExt;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crossbeam_channel::Receiver;

@@ -6,6 +6,7 @@ use crate::border_manager;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
 use crate::notify_subscribers;
 use crate::state::State;
 use crate::window_manager::WindowManager;
@@ -447,7 +448,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     workspace_padding: cached.workspace_padding,
                                     wallpaper: cached.wallpaper.clone(),
                                     floating_layer_behaviour: cached.floating_layer_behaviour,
-                                    window_hiding_position: cached.window_hiding_position,
+                                    extra: cached.extra.clone(),
                                 };
 
                                 let focused_workspace_idx = m.focused_workspace_idx();

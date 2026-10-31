@@ -1,9 +1,15 @@
+//! [`Monitor`], the workspaces a monitor shows.
+//!
+//! The monitor is `komorebi_core::Monitor`, shared with the other komorebi daemons, over
+//! [`MacosPlatform`]. What macOS keeps in it besides the shared fields is the corner its workspaces
+//! hide their windows in ([`MacosMonitorExtra`], written into the monitor's JSON as it always
+//! was), and what it does differently from the shared monitor is [`MonitorExt`].
+
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::container::Container;
 use crate::container::ContainerExt;
 use crate::core::DefaultLayout;
-use crate::core::FloatingLayerBehaviour;
 use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
@@ -11,7 +17,7 @@ use crate::core::WindowHidingPosition;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
 use crate::skylight::BatchedUpdates;
-use crate::static_config::Wallpaper;
+use crate::workspace::MacosPlatform;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceExt;
 use crate::workspace::WorkspaceGlobals;
@@ -20,8 +26,35 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
+
+/// The monitor over the macOS [`Window`](crate::window::Window), which is
+/// `komorebi_core::Monitor` with this platform's methods added by [`MonitorExt`]
+pub type Monitor = komorebi_core::Monitor<MacosPlatform>;
+
+/// What only macOS keeps in a monitor, written flat into its JSON
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct MacosMonitorExtra {
+    /// The corner of the monitor that its workspaces hide their windows in
+    pub window_hiding_position: WindowHidingPosition,
+}
+
+impl komorebi_core::MonitorPlatform for MacosPlatform {
+    type Id = u32;
+    type SerialNumber = String;
+    type Extra = MacosMonitorExtra;
+    #[cfg(feature = "schemars")]
+    type IdSchema = u32;
+
+    fn serialize_id<S: serde::Serializer>(id: &u32, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u32(*id)
+    }
+
+    fn deserialize_id<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<u32, D::Error> {
+        u32::deserialize(deserializer)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MonitorInfo {
@@ -54,29 +87,6 @@ impl From<&Monitor> for MonitorInformation {
     }
 }
 
-impl_ring_elements!(Monitor, Workspace);
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct Monitor {
-    pub id: u32,
-    pub device: String,
-    pub serial_number_id: String,
-    pub workspaces: Ring<Workspace>,
-    pub size: Rect,
-    pub work_area_offset: Option<Rect>,
-    pub work_area_size: Rect,
-    pub window_based_work_area_offset: Option<Rect>,
-    pub window_based_work_area_offset_limit: isize,
-    pub container_padding: Option<i32>,
-    pub workspace_padding: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_focused_workspace: Option<usize>,
-    pub wallpaper: Option<Wallpaper>,
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
-    pub window_hiding_position: WindowHidingPosition,
-}
-
 pub fn new(
     id: u32,
     size: Rect,
@@ -102,13 +112,70 @@ pub fn new(
         workspace_padding: None,
         wallpaper: None,
         floating_layer_behaviour: None,
-        window_hiding_position: WindowHidingPosition::default(),
+        extra: Default::default(),
     }
 }
 
-impl Monitor {
+/// What a macOS monitor does that the shared one does not
+pub trait MonitorExt {
+    fn new(id: u32, size: Rect, work_area_size: Rect, device: &str, serial_number_id: &str)
+    -> Self;
+
+    fn placeholder() -> Self;
+
+    fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()>;
+
+    /// Updates the `globals` field of workspace with index `workspace_idx`
+    /// Give every workspace the work area of this monitor, not only the focused one
+    ///
+    /// A workspace that is put away is hidden on the display that its work area is on, so after
+    /// the display of a monitor changes, the workspaces that are not showing would be hidden on
+    /// the display that is gone, and their windows would be left in view.
+    fn update_all_workspace_globals(&mut self, offset: Option<Rect>);
+
+    fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>);
+
+    fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()>;
+
+    /// Put the windows of every workspace but the focused one away, which is the half of
+    /// [`Monitor::load_focused_workspace`] that a transition can do before it is over
+    fn hide_unfocused_workspaces(&mut self) -> eyre::Result<()>;
+
+    /// Bring the windows of the focused workspace back, which is the other half of
+    /// [`Monitor::load_focused_workspace`]
+    fn restore_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()>;
+
+    fn move_container_to_workspace(
+        &mut self,
+        target_workspace_idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()>;
+
+    fn move_container_to_workspace1(
+        &mut self,
+        target_workspace_idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()>;
+
+    /// Adds a container to this `Monitor` using the move direction to calculate if the container
+    /// should be added in front of all containers, in the back or in place of the focused
+    /// container, moving the rest along. The move direction should be from the origin monitor
+    /// towards the target monitor or from the origin workspace towards the target workspace.
+    fn add_container_with_direction(
+        &mut self,
+        container: Container,
+        workspace_idx: Option<usize>,
+        direction: OperationDirection,
+    ) -> eyre::Result<()>;
+
+    fn update_workspaces_globals(&mut self, offset: Option<Rect>);
+}
+
+impl MonitorExt for Monitor {
     #[allow(clippy::field_reassign_with_default)]
-    pub fn new(
+    fn new(
         id: u32,
         size: Rect,
         work_area_size: Rect,
@@ -133,11 +200,11 @@ impl Monitor {
             last_focused_workspace: None,
             wallpaper: None,
             floating_layer_behaviour: None,
-            window_hiding_position: WindowHidingPosition::default(),
+            extra: Default::default(),
         }
     }
 
-    pub fn placeholder() -> Self {
+    fn placeholder() -> Self {
         Self {
             // temp
             id: 2051316,
@@ -154,12 +221,12 @@ impl Monitor {
             workspace_padding: None,
             wallpaper: None,
             floating_layer_behaviour: None,
-            window_hiding_position: WindowHidingPosition::default(),
+            extra: Default::default(),
         }
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()> {
+    fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()> {
         let offset = if self.work_area_offset.is_some() {
             self.work_area_offset
         } else {
@@ -175,19 +242,13 @@ impl Monitor {
         Ok(())
     }
 
-    /// Updates the `globals` field of workspace with index `workspace_idx`
-    /// Give every workspace the work area of this monitor, not only the focused one
-    ///
-    /// A workspace that is put away is hidden on the display that its work area is on, so after
-    /// the display of a monitor changes, the workspaces that are not showing would be hidden on
-    /// the display that is gone, and their windows would be left in view.
-    pub fn update_all_workspace_globals(&mut self, offset: Option<Rect>) {
+    fn update_all_workspace_globals(&mut self, offset: Option<Rect>) {
         for idx in 0..self.workspaces().len() {
             self.update_workspace_globals(idx, offset);
         }
     }
 
-    pub fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
+    fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
             .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::Relaxed)));
@@ -200,7 +261,7 @@ impl Monitor {
         let window_based_work_area_offset = self.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
         let floating_layer_behaviour = self.floating_layer_behaviour;
-        let window_hiding_position = self.window_hiding_position;
+        let window_hiding_position = self.extra.window_hiding_position;
 
         if let Some(workspace) = self.workspaces_mut().get_mut(workspace_idx) {
             workspace.globals = WorkspaceGlobals {
@@ -218,24 +279,7 @@ impl Monitor {
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
-        tracing::info!("focusing workspace");
-
-        {
-            let workspaces = self.workspaces_mut();
-
-            if workspaces.get(idx).is_none() {
-                workspaces.resize(idx + 1, Workspace::default());
-            }
-            self.last_focused_workspace = Some(self.workspaces.focused_idx());
-            self.workspaces.focus(idx);
-        }
-
-        Ok(())
-    }
-
-    pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+    fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
         let monitor_id = self.id;
         let monitor_wp = self.wallpaper.clone();
@@ -267,9 +311,7 @@ impl Monitor {
         Ok(())
     }
 
-    /// Put the windows of every workspace but the focused one away, which is the half of
-    /// [`Monitor::load_focused_workspace`] that a transition can do before it is over
-    pub fn hide_unfocused_workspaces(&mut self) -> eyre::Result<()> {
+    fn hide_unfocused_workspaces(&mut self) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
 
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
@@ -281,9 +323,7 @@ impl Monitor {
         Ok(())
     }
 
-    /// Bring the windows of the focused workspace back, which is the other half of
-    /// [`Monitor::load_focused_workspace`]
-    pub fn restore_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+    fn restore_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let monitor_id = self.id;
         let monitor_wp = self.wallpaper.clone();
 
@@ -300,12 +340,8 @@ impl Monitor {
         Ok(())
     }
 
-    pub fn new_workspace_idx(&self) -> usize {
-        self.workspaces().len()
-    }
-
     #[tracing::instrument(skip(self))]
-    pub fn move_container_to_workspace(
+    fn move_container_to_workspace(
         &mut self,
         target_workspace_idx: usize,
         follow: bool,
@@ -394,7 +430,7 @@ impl Monitor {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn move_container_to_workspace1(
+    fn move_container_to_workspace1(
         &mut self,
         target_workspace_idx: usize,
         follow: bool,
@@ -440,11 +476,7 @@ impl Monitor {
         Ok(())
     }
 
-    /// Adds a container to this `Monitor` using the move direction to calculate if the container
-    /// should be added in front of all containers, in the back or in place of the focused
-    /// container, moving the rest along. The move direction should be from the origin monitor
-    /// towards the target monitor or from the origin workspace towards the target workspace.
-    pub fn add_container_with_direction(
+    fn add_container_with_direction(
         &mut self,
         container: Container,
         workspace_idx: Option<usize>,
@@ -518,7 +550,7 @@ impl Monitor {
         Ok(())
     }
 
-    pub fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
+    fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
             .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
@@ -531,7 +563,7 @@ impl Monitor {
         let window_based_work_area_offset = self.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
         let floating_layer_behaviour = self.floating_layer_behaviour;
-        let window_hiding_position = self.window_hiding_position;
+        let window_hiding_position = self.extra.window_hiding_position;
 
         for workspace in self.workspaces_mut() {
             workspace.globals = WorkspaceGlobals {
@@ -547,66 +579,6 @@ impl Monitor {
             };
             workspace.state.window_hiding_position = window_hiding_position;
         }
-    }
-
-    pub fn remove_workspace_by_idx(&mut self, idx: usize) -> Option<Workspace> {
-        if idx < self.workspaces().len() {
-            return self.workspaces_mut().remove(idx);
-        }
-
-        if idx == 0 {
-            self.workspaces_mut().push_back(Workspace::default());
-        } else {
-            self.focus_workspace(idx.saturating_sub(1)).ok()?;
-        };
-
-        None
-    }
-
-    pub fn add_container(
-        &mut self,
-        container: Container,
-        workspace_idx: Option<usize>,
-    ) -> eyre::Result<()> {
-        let workspace = if let Some(idx) = workspace_idx {
-            self.workspaces_mut()
-                .get_mut(idx)
-                .ok_or_eyre(format!("there is no workspace at index {}", idx))?
-        } else {
-            self.focused_workspace_mut()
-                .ok_or_eyre("there is no workspace")?
-        };
-
-        workspace.add_container_to_back(container);
-
-        Ok(())
-    }
-
-    pub fn remove_workspaces(&mut self) -> VecDeque<Workspace> {
-        std::mem::take(self.workspaces_mut())
-    }
-
-    pub fn ensure_workspace_count(&mut self, ensure_count: usize) {
-        if self.workspaces().len() < ensure_count {
-            self.workspaces_mut()
-                .resize(ensure_count, Workspace::default());
-        }
-    }
-
-    pub fn focused_workspace_name(&self) -> Option<String> {
-        self.focused_workspace()
-            .map(|w| w.name.clone())
-            .unwrap_or(None)
-    }
-
-    pub fn focused_workspace_layout(&self) -> Option<Layout> {
-        self.focused_workspace().and_then(|workspace| {
-            if workspace.tile {
-                Some(workspace.layout.clone())
-            } else {
-                None
-            }
-        })
     }
 }
 
@@ -895,5 +867,45 @@ mod tests {
         // Try to call the ensure workspace count again to ensure it doesn't change
         m.ensure_workspace_count(3);
         assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
+    }
+}
+
+#[cfg(test)]
+mod state_pin {
+    use super::*;
+
+    /// `komorebic state` prints a monitor with these keys in this order, the corner last: the
+    /// macOS monitor is the shared `komorebi_core::Monitor`, whose platform fields are flattened
+    /// at the end.
+    #[test]
+    fn a_monitor_is_written_with_the_keys_it_always_had_and_the_corner_last() {
+        let mut monitor = new(7, Rect::default(), Rect::default(), "d".into(), "s".into());
+        monitor.workspaces_mut().clear();
+        let json = serde_json::to_string(&monitor).unwrap();
+
+        let keys = [
+            "\"id\":7",
+            "\"device\"",
+            "\"serial_number_id\"",
+            "\"workspaces\"",
+            "\"size\"",
+            "\"work_area_offset\"",
+            "\"work_area_size\"",
+            "\"window_based_work_area_offset\"",
+            "\"window_based_work_area_offset_limit\"",
+            "\"container_padding\"",
+            "\"workspace_padding\"",
+            "\"wallpaper\"",
+            "\"floating_layer_behaviour\"",
+            "\"window_hiding_position\"",
+        ];
+
+        let mut at = 0;
+        for key in keys {
+            let found = json[at..]
+                .find(key)
+                .unwrap_or_else(|| panic!("{key} is missing or out of order in {json}"));
+            at += found + key.len();
+        }
     }
 }
