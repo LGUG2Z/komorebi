@@ -25,6 +25,15 @@
 //! # Ok::<(), color_eyre::eyre::Report>(())
 //! ```
 
+//!
+//! # Built on the shared fake
+//!
+//! The desktop itself is `komorebi_backend::fake::FakeBackend`, which every komorebi shares, and
+//! this type puts komorebi for KDE's names on it: ids are `u32`, errors are `eyre` reports (the
+//! text of a command about a window that is gone is `no such window: <id>`), and the commands
+//! that only the KDE backend has (the look, the border colors, the wallpaper, the frames of a
+//! drag) are kept here, in the order they were given among the shared ones.
+
 #![deny(missing_docs)]
 
 use super::Backend;
@@ -33,7 +42,12 @@ use super::MonitorInfo;
 use super::WindowInfo;
 use crate::core::Rect;
 use color_eyre::eyre;
+use komorebi_backend as shared;
+use komorebi_backend::MonitorId;
+use komorebi_backend::WindowId;
+use komorebi_backend::fake::Command as SharedCommand;
 use parking_lot::Mutex;
+use shared::Backend as SharedBackend;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -80,33 +94,19 @@ pub enum Command {
     SetWallpaper(u32, PathBuf),
 }
 
+/// The commands only the KDE backend has: they go in the shared fake's log (so that they keep
+/// their place among the shared ones) and come out as [`Command`]s.
+#[derive(Clone, Debug, PartialEq)]
+enum KdeCommand {
+    ApplyLook(Look),
+    BorderColours(Vec<(u32, u32)>),
+    SetWallpaper(u32, PathBuf),
+}
+
 #[derive(Default)]
-struct State {
-    /// When set, a command about a window nobody opened creates that window first (see
-    /// [`FakeBackend::permissive`]).
-    permissive: bool,
-    windows: HashMap<u32, WindowInfo>,
-    /// the windows that are hidden, in the order they were
-    hidden: Vec<u32>,
-    min_sizes: HashMap<u32, (i32, i32)>,
+struct KdeState {
     /// the frame the user asked for when they last let go of an edge of each window
     drag_ends: HashMap<u32, Rect>,
-    monitors: Vec<MonitorInfo>,
-    foreground: Option<u32>,
-    cursor: Option<(i32, i32)>,
-    commands: Vec<Command>,
-    /// windows the compositor has maximized, with the frame to give back
-    maximized: HashMap<u32, Rect>,
-    /// windows that are fullscreen, with the frame they had before
-    fullscreen: HashMap<u32, Rect>,
-    /// how many virtual desktops there are
-    desktops: usize,
-    /// the desktop every window is on
-    window_ws: HashMap<u32, usize>,
-    /// the desktop each monitor (by id) shows
-    shown: HashMap<u32, usize>,
-    /// how opaque each window was last asked to be
-    opacity: HashMap<u32, u8>,
     /// the border color each window was last given, `0xRRGGBB`
     border_colours: HashMap<u32, u32>,
     /// the wallpaper the WM last asked for on each monitor
@@ -117,83 +117,85 @@ struct State {
     borders_drawn: bool,
 }
 
-impl State {
-    /// Maximizes a window to the work area of its monitor, or gives it back the frame it had
-    fn set_maximized(&mut self, id: u32, maximize: bool) {
-        let Some(window) = self.windows.get(&id) else {
-            return;
-        };
-        let current = window.rect;
+/// The id of a window of this backend: always one that was made from a `u32`.
+fn raw(id: WindowId) -> u32 {
+    id.to_u32().unwrap_or(u32::MAX)
+}
 
-        if maximize {
-            // the work area of the monitor the window is on (the first one if none is)
-            let center = (
-                current.left + current.right / 2,
-                current.top + current.bottom / 2,
-            );
-            let area = self
-                .monitors
-                .iter()
-                .find(|m| {
-                    center.0 >= m.size.left
-                        && center.0 < m.size.left + m.size.right
-                        && center.1 >= m.size.top
-                        && center.1 < m.size.top + m.size.bottom
-                })
-                .or_else(|| self.monitors.first())
-                .map(|m| m.work_area);
+fn raw_monitor(id: MonitorId) -> u32 {
+    id.to_u32().unwrap_or(u32::MAX)
+}
 
-            if let Some(area) = area
-                && !self.maximized.contains_key(&id)
-            {
-                self.maximized.insert(id, current);
-                if let Some(window) = self.windows.get_mut(&id) {
-                    window.rect = area;
-                }
-            }
-        } else if let Some(before) = self.maximized.remove(&id)
-            && let Some(window) = self.windows.get_mut(&id)
-        {
-            window.rect = before;
+fn wid(id: u32) -> WindowId {
+    WindowId::from_u32(id)
+}
+
+fn eyre_of(error: shared::Error) -> eyre::Report {
+    eyre::Report::new(error)
+}
+
+fn window_info(info: shared::WindowInfo) -> WindowInfo {
+    WindowInfo {
+        id: raw(info.id),
+        pid: info.pid,
+        title: info.title.unwrap_or_default(),
+        class: info.class.unwrap_or_default(),
+        exe: info.exe.unwrap_or_default(),
+        path: info.path.unwrap_or_default(),
+        rect: info.rect,
+        minimized: info.minimized,
+        fullscreen: info.fullscreen.unwrap_or_default(),
+        maximized: info.maximized.unwrap_or_default(),
+        normal: info.normal.unwrap_or(true),
+        alive: info.alive,
+    }
+}
+
+fn command(command: SharedCommand<KdeCommand>) -> Option<Command> {
+    Some(match command {
+        SharedCommand::SetRect(id, rect) => Command::SetRect(raw(id), rect),
+        SharedCommand::Focus(id, follow) => Command::Focus(raw(id), follow),
+        SharedCommand::Raise(id) => Command::Raise(raw(id)),
+        SharedCommand::Hide(id) => Command::Hide(raw(id)),
+        SharedCommand::Restore(id) => Command::Restore(raw(id)),
+        SharedCommand::Minimize(id) => Command::Minimize(raw(id)),
+        SharedCommand::Unminimize(id) => Command::Unminimize(raw(id)),
+        SharedCommand::Close(id) => Command::Close(raw(id)),
+        SharedCommand::CenterCursor(rect) => Command::CenterCursor(rect),
+        SharedCommand::EnsureWorkspaces(count) => Command::EnsureWorkspaces(count),
+        SharedCommand::Maximize(id, on) => Command::Maximize(raw(id), on),
+        SharedCommand::SwitchWorkspace(monitor, idx) => {
+            Command::SwitchWorkspace(raw_monitor(monitor), idx)
         }
-    }
-
-    /// The monitor a window is on: the one that holds the middle of it, else the first
-    fn monitor_of(&self, id: u32) -> Option<u32> {
-        let w = self.windows.get(&id)?;
-        let (x, y) = (
-            w.rect.left + w.rect.right / 2,
-            w.rect.top + w.rect.bottom / 2,
-        );
-        self.monitors
-            .iter()
-            .find(|m| {
-                x >= m.size.left
-                    && x < m.size.left + m.size.right
-                    && y >= m.size.top
-                    && y < m.size.top + m.size.bottom
-            })
-            .or_else(|| self.monitors.first())
-            .map(|m| m.id)
-    }
-
-    /// What a window opened now would be on, as in KWin: the desktop its monitor is showing
-    fn desktop_for_new_window(&self) -> usize {
-        self.monitors
-            .first()
-            .and_then(|m| self.shown.get(&m.id))
-            .copied()
-            .unwrap_or(0)
-    }
+        SharedCommand::SetWindowWorkspace(id, idx) => Command::SetWindowWorkspace(raw(id), idx),
+        SharedCommand::SetOpacity(id, alpha) => Command::SetOpacity(raw(id), alpha),
+        SharedCommand::FocusFollowsMouse(on) => Command::FocusFollowsMouse(on),
+        SharedCommand::Ext(KdeCommand::ApplyLook(look)) => Command::ApplyLook(look),
+        SharedCommand::Ext(KdeCommand::BorderColours(colours)) => Command::BorderColours(colours),
+        SharedCommand::Ext(KdeCommand::SetWallpaper(monitor, path)) => {
+            Command::SetWallpaper(monitor, path)
+        }
+        // KDE's trait never opens a batch
+        SharedCommand::BatchBegin | SharedCommand::BatchEnd => return None,
+    })
 }
 
 /// An in-memory [`Backend`].
 ///
 /// It has no windows and no monitors until a test adds them. The window manager reaches it through
 /// [`crate::backend::backend`], installed with [`crate::backend::with_backend`].
-#[derive(Default)]
 pub struct FakeBackend {
-    state: Mutex<State>,
+    inner: shared::fake::FakeBackend<KdeCommand>,
+    kde: Mutex<KdeState>,
+}
+
+impl Default for FakeBackend {
+    fn default() -> Self {
+        Self {
+            inner: shared::fake::FakeBackend::empty(),
+            kde: Mutex::new(KdeState::default()),
+        }
+    }
 }
 
 impl FakeBackend {
@@ -207,154 +209,98 @@ impl FakeBackend {
     /// The crate's own unit tests get one by default, so that a test of pure window manager logic,
     /// which moves and focuses windows it never opened, needs no set-up.
     pub fn permissive() -> Self {
-        let fake = Self::with_one_monitor();
-        fake.state.lock().permissive = true;
-        fake
+        Self {
+            inner: shared::fake::FakeBackend::permissive_ext(),
+            kde: Mutex::new(KdeState::default()),
+        }
     }
 
     /// Returns a fake with one 1920x1080 monitor, named `Virtual-0`, whose work area leaves 30
     /// pixels at the bottom for a panel.
     pub fn with_one_monitor() -> Self {
-        let fake = Self::new();
-        fake.add_monitor(
-            1,
-            "Virtual-0",
-            Rect {
-                left: 0,
-                top: 0,
-                right: 1920,
-                bottom: 1080,
-            },
-            Rect {
-                left: 0,
-                top: 0,
-                right: 1920,
-                bottom: 1050,
-            },
-        );
-        fake
+        Self {
+            inner: shared::fake::FakeBackend::one_monitor(),
+            kde: Mutex::new(KdeState::default()),
+        }
     }
 
     /// Unplugs a monitor. The compositor takes its windows to the others by itself: a test moves
     /// them (`move_window_by_user`) as it sees fit. Nothing is done when there is no monitor with
     /// this id.
     pub fn remove_monitor(&self, id: u32) {
-        self.state.lock().monitors.retain(|m| m.id != id);
+        self.inner.remove_monitor(MonitorId::from_u32(id));
     }
 
     /// Gives a monitor another size and work area, as a change of resolution or scale, or a panel
     /// that moves, does. Nothing is done when there is no monitor with this id.
     pub fn resize_monitor(&self, id: u32, size: Rect, work_area: Rect) {
-        if let Some(monitor) = self.state.lock().monitors.iter_mut().find(|m| m.id == id) {
-            monitor.size = size;
-            monitor.work_area = work_area;
-        }
+        self.inner
+            .resize_monitor(MonitorId::from_u32(id), size, work_area);
     }
 
     /// Adds a monitor. Its serial number identity is its name.
     pub fn add_monitor(&self, id: u32, name: &str, size: Rect, work_area: Rect) {
-        self.state.lock().monitors.push(MonitorInfo {
-            id,
-            name: name.to_string(),
-            serial_number_id: name.to_string(),
-            size,
-            work_area,
-        });
+        self.inner
+            .add_monitor(MonitorId::from_u32(id), name, size, work_area);
     }
 
     /// Opens a window of an application. It starts at 800x600 at (100, 100), a normal window with
     /// no focus, on the workspace the first monitor shows.
     pub fn open_window(&self, id: u32, exe: &str, class: &str, title: &str) {
-        let mut state = self.state.lock();
-        let desktop = state.desktop_for_new_window();
-        state.window_ws.insert(id, desktop);
-        state.windows.insert(
-            id,
-            WindowInfo {
-                id,
-                pid: i32::try_from(id).unwrap_or_default() + 1000,
-                title: title.to_string(),
-                class: class.to_string(),
-                exe: exe.to_string(),
-                path: format!("/usr/bin/{exe}"),
-                rect: Rect {
-                    left: 100,
-                    top: 100,
-                    right: 800,
-                    bottom: 600,
-                },
-                minimized: false,
-                fullscreen: false,
-                maximized: false,
-                normal: true,
-                alive: true,
-            },
-        );
+        self.inner.open_window_as(wid(id), exe, class, title);
     }
 
     /// Destroys a window, as the user closing it does: the window manager is not asked. If it had
     /// the focus, nothing has it now.
     pub fn close_window_now(&self, id: u32) {
-        let mut state = self.state.lock();
-        if let Some(window) = state.windows.get_mut(&id) {
-            window.alive = false;
-        }
-        if state.foreground == Some(id) {
-            state.foreground = None;
-        }
+        self.inner.close_window_now(wid(id));
     }
 
     /// Marks a window as a dialog, a splash screen, a utility window or the like, or as a normal
     /// one again.
     pub fn set_normal(&self, id: u32, normal: bool) {
-        if let Some(w) = self.state.lock().windows.get_mut(&id) {
-            w.normal = normal;
-        }
+        self.inner.set_normal(wid(id), normal);
     }
 
     /// Puts a window somewhere without the window manager having asked, as a user dragging it
     /// does.
     pub fn move_window_by_user(&self, id: u32, rect: Rect) {
-        if let Some(w) = self.state.lock().windows.get_mut(&id) {
-            w.rect = rect;
-        }
+        self.inner.move_window_by_user(wid(id), rect);
     }
 
     /// Sets what [`Backend::drag_end`] answers for a window: the frame the user asked for when
     /// they let go of one of its edges, as a client that has not finished drawing is short of it.
     /// [`FakeBackend::move_window_by_user`] puts the frame the window has.
     pub fn set_drag_end(&self, id: u32, rect: Rect) {
-        self.state.lock().drag_ends.insert(id, rect);
+        self.kde.lock().drag_ends.insert(id, rect);
     }
 
     /// Gives a window a minimum size. A [`Backend::set_rect`] for something smaller leaves it at
     /// the minimum, which is how a GTK4 client answers.
     pub fn set_min_size(&self, id: u32, width: i32, height: i32) {
-        self.state.lock().min_sizes.insert(id, (width, height));
+        self.inner.set_min_size(wid(id), width, height);
     }
 
     /// Changes a window's title.
     pub fn set_title(&self, id: u32, title: &str) {
-        if let Some(w) = self.state.lock().windows.get_mut(&id) {
-            w.title = title.to_string();
-        }
+        self.inner.set_title(wid(id), title);
     }
 
     /// Changes which window has the focus, as the user does, without the window manager asking.
     pub fn set_foreground(&self, id: Option<u32>) {
-        self.state.lock().foreground = id;
+        self.inner.set_foreground(id.map(wid));
     }
 
     /// Puts the pointer somewhere.
     pub fn set_cursor(&self, x: i32, y: i32) {
-        self.state.lock().cursor = Some((x, y));
+        self.inner.set_cursor(x, y);
     }
 
     /// Maximizes or restores a window as the user does with its title bar: the compositor does it
     /// and nobody asks the window manager, so no command is recorded. A test sends the event that
     /// says so.
     pub fn user_maximize(&self, id: u32, maximize: bool) {
-        self.state.lock().set_maximized(id, maximize);
+        self.inner.user_maximize(wid(id), maximize);
     }
 
     /// Puts a window in or out of fullscreen as a compositor does, without the window manager
@@ -362,116 +308,81 @@ impl FakeBackend {
     /// fullscreen it gets the frame it had before, which may not be where the window manager would
     /// put it now. A test sends the event that says so.
     pub fn set_fullscreen(&self, id: u32, fullscreen: bool) {
-        let mut state = self.state.lock();
-        let covers = state
-            .monitor_of(id)
-            .and_then(|m| state.monitors.iter().find(|monitor| monitor.id == m))
-            .map(|monitor| monitor.size);
-
-        if fullscreen {
-            let Some(window) = state.windows.get_mut(&id) else {
-                return;
-            };
-            let before = window.rect;
-            window.fullscreen = true;
-            if let Some(covers) = covers {
-                window.rect = covers;
-            }
-            state.fullscreen.insert(id, before);
-        } else if let Some(before) = state.fullscreen.remove(&id)
-            && let Some(window) = state.windows.get_mut(&id)
-        {
-            window.fullscreen = false;
-            window.rect = before;
-        }
+        self.inner.set_fullscreen(wid(id), fullscreen);
     }
 
     /// Returns true if and only if the window is maximized, by a command or by
     /// [`FakeBackend::user_maximize`], and has not been restored since.
     pub fn is_maximized(&self, id: u32) -> bool {
-        self.state.lock().maximized.contains_key(&id)
+        self.inner.is_maximized(wid(id))
     }
 
     /// Returns where a window is, if it was ever opened.
     pub fn rect_of(&self, id: u32) -> Option<Rect> {
-        self.state.lock().windows.get(&id).map(|w| w.rect)
+        self.inner.rect_of(wid(id))
     }
 
     /// Returns true if and only if the window is hidden ([`Backend::hide`]), as opposed to being
     /// on a workspace that is not showing.
     pub fn is_hidden(&self, id: u32) -> bool {
-        self.state.lock().hidden.contains(&id)
+        self.inner.is_hidden(wid(id))
     }
 
     /// Returns true if and only if the window can be seen: it is alive, not minimized, not hidden
     /// and on the workspace its monitor shows. This is what the compositor does with desktops.
     pub fn on_screen(&self, id: u32) -> bool {
-        let state = self.state.lock();
-        let Some(window) = state.windows.get(&id) else {
-            return false;
-        };
-        let monitor = state.monitor_of(id);
-        let shown = monitor
-            .and_then(|m| state.shown.get(&m))
-            .copied()
-            .unwrap_or(0);
-        window.alive
-            && !window.minimized
-            && !state.hidden.contains(&id)
-            && state.window_ws.get(&id).copied().unwrap_or(0) == shown
+        self.inner.on_screen(wid(id))
     }
 
     /// Returns the workspace a window is on, if it was ever opened.
     pub fn workspace_of(&self, id: u32) -> Option<usize> {
-        self.state.lock().window_ws.get(&id).copied()
+        self.inner.workspace_of(wid(id))
     }
 
     /// Returns the workspace a monitor shows.
     pub fn shown_workspace(&self, monitor_id: u32) -> usize {
-        self.state
-            .lock()
-            .shown
-            .get(&monitor_id)
-            .copied()
-            .unwrap_or(0)
+        self.inner.shown_workspace(MonitorId::from_u32(monitor_id))
     }
 
     /// Shows workspace `idx` on a monitor the way something other than komorebi does (a pager, a
     /// shortcut, a click on a window of another desktop): no command is recorded, and the
     /// compositor's event about it is the test's to send.
     pub fn show_workspace_by_user(&self, monitor_id: u32, idx: usize) {
-        let mut state = self.state.lock();
-        state.desktops = state.desktops.max(idx + 1);
-        state.shown.insert(monitor_id, idx);
+        self.inner
+            .show_workspace_by_user(MonitorId::from_u32(monitor_id), idx);
     }
 
     /// Returns how opaque the window manager last asked this window to be, 255 being not see-through
     /// at all, which is what a window is until it is asked otherwise.
     pub fn opacity_of(&self, id: u32) -> u8 {
-        self.state.lock().opacity.get(&id).copied().unwrap_or(255)
+        self.inner.opacity_of(wid(id))
     }
 
     /// Returns the border color the window manager last gave this window, `0xRRGGBB`, if it gave
     /// it one.
     pub fn border_colour_of(&self, id: u32) -> Option<u32> {
-        self.state.lock().border_colours.get(&id).copied()
+        self.kde.lock().border_colours.get(&id).copied()
     }
 
     /// Returns the wallpaper the window manager last asked this monitor to show, if it asked.
     pub fn wallpaper_of(&self, monitor_id: u32) -> Option<PathBuf> {
-        self.state.lock().wallpapers.get(&monitor_id).cloned()
+        self.kde.lock().wallpapers.get(&monitor_id).cloned()
     }
 
     /// Says whether the compositor has an effect that draws borders. Without one, which is how a
     /// fake starts, [`Backend::apply_look`] answers false however much of a border it is asked
     /// for, as it does on a machine where the effect is not installed.
     pub fn set_borders_drawn(&self, drawn: bool) {
-        self.state.lock().borders_drawn = drawn;
+        self.kde.lock().borders_drawn = drawn;
     }
 
     /// Returns every command received so far, oldest first.
     pub fn commands(&self) -> Vec<Command> {
-        self.state.lock().commands.clone()
+        self.inner
+            .commands()
+            .into_iter()
+            .filter_map(command)
+            .collect()
     }
 
     /// Returns every command received so far that is not about the look, oldest first.
@@ -490,254 +401,154 @@ impl FakeBackend {
 
     /// Forgets the commands received so far.
     pub fn clear_commands(&self) {
-        self.state.lock().commands.clear();
-    }
-
-    fn record<T>(
-        &self,
-        id: u32,
-        command: Command,
-        f: impl FnOnce(&mut State) -> T,
-    ) -> eyre::Result<T> {
-        let mut state = self.state.lock();
-        state.commands.push(command);
-        if state.permissive && !state.windows.contains_key(&id) {
-            state.windows.insert(id, permissive_window(id));
-        }
-        match state.windows.get(&id) {
-            Some(w) if w.alive => Ok(f(&mut state)),
-            _ => eyre::bail!("no such window: {id}"),
-        }
-    }
-}
-
-fn permissive_window(id: u32) -> WindowInfo {
-    WindowInfo {
-        id,
-        pid: i32::try_from(id).unwrap_or_default() + 1000,
-        title: format!("window {id}"),
-        class: format!("class.{id}"),
-        exe: format!("exe{id}"),
-        path: format!("/usr/bin/exe{id}"),
-        rect: Rect::default(),
-        minimized: false,
-        fullscreen: false,
-        maximized: false,
-        normal: true,
-        alive: true,
+        self.inner.clear_commands();
     }
 }
 
 impl Backend for FakeBackend {
     fn windows(&self) -> Vec<WindowInfo> {
-        let state = self.state.lock();
-        let mut windows: Vec<_> = state
-            .windows
-            .values()
-            .filter(|w| w.alive)
-            .cloned()
-            .map(|mut w| {
-                w.maximized = state.maximized.contains_key(&w.id);
-                w
-            })
-            .collect();
-        windows.sort_by_key(|w| w.id);
-        windows
+        self.inner.windows().into_iter().map(window_info).collect()
     }
 
     fn window(&self, id: u32) -> Option<WindowInfo> {
-        let mut state = self.state.lock();
-        if state.permissive && !state.windows.contains_key(&id) {
-            state.windows.insert(id, permissive_window(id));
-        }
-        let maximized = state.maximized.contains_key(&id);
-        state.windows.get(&id).cloned().map(|mut w| {
-            w.maximized = maximized;
-            w
-        })
+        self.inner.window(wid(id)).map(window_info)
     }
 
     fn foreground_window(&self) -> Option<u32> {
-        self.state.lock().foreground
+        self.inner.foreground_window().map(raw)
     }
 
     fn monitors(&self) -> eyre::Result<Vec<MonitorInfo>> {
-        Ok(self.state.lock().monitors.clone())
+        Ok(self
+            .inner
+            .monitors()
+            .map_err(eyre_of)?
+            .into_iter()
+            .map(|m| MonitorInfo {
+                id: raw_monitor(m.id),
+                name: m.name.unwrap_or_default(),
+                serial_number_id: m.serial_number_id.unwrap_or_default(),
+                size: m.size,
+                work_area: m.work_area,
+            })
+            .collect())
     }
 
     fn cursor_pos(&self) -> Option<(i32, i32)> {
-        self.state.lock().cursor
+        self.inner.cursor_pos()
     }
 
     fn drag_end(&self, id: u32) -> Option<Rect> {
-        self.state.lock().drag_ends.get(&id).copied()
+        self.kde.lock().drag_ends.get(&id).copied()
     }
 
     fn set_rect(&self, id: u32, rect: &Rect) -> eyre::Result<()> {
-        let rect = *rect;
-        self.record(id, Command::SetRect(id, rect), |state| {
-            let (min_w, min_h) = state.min_sizes.get(&id).copied().unwrap_or((0, 0));
-            if let Some(w) = state.windows.get_mut(&id) {
-                w.rect = Rect {
-                    left: rect.left,
-                    top: rect.top,
-                    right: rect.right.max(min_w),
-                    bottom: rect.bottom.max(min_h),
-                };
-            }
-        })
+        self.inner.set_rect(wid(id), rect).map_err(eyre_of)
     }
 
     fn focus(&self, id: u32, mouse_follows_focus: bool) -> eyre::Result<()> {
-        self.record(id, Command::Focus(id, mouse_follows_focus), |state| {
-            state.foreground = Some(id);
-            if mouse_follows_focus && let Some(w) = state.windows.get(&id) {
-                state.cursor = Some((
-                    w.rect.left + w.rect.right / 2,
-                    w.rect.top + w.rect.bottom / 2,
-                ));
-            }
-        })
+        self.inner
+            .focus(wid(id), mouse_follows_focus)
+            .map_err(eyre_of)
     }
 
     fn raise(&self, id: u32) -> eyre::Result<()> {
-        self.record(id, Command::Raise(id), |_| ())
+        self.inner.raise(wid(id)).map_err(eyre_of)
     }
 
     fn hide(&self, id: u32) -> eyre::Result<()> {
-        self.record(id, Command::Hide(id), |state| {
-            if !state.hidden.contains(&id) {
-                state.hidden.push(id);
-            }
-        })
+        self.inner.hide(wid(id)).map_err(eyre_of)
     }
 
     fn restore(&self, id: u32) -> eyre::Result<()> {
-        self.record(id, Command::Restore(id), |state| {
-            state.hidden.retain(|h| *h != id);
-        })
+        self.inner.restore(wid(id)).map_err(eyre_of)
     }
 
     fn minimize(&self, id: u32) -> eyre::Result<()> {
-        self.record(id, Command::Minimize(id), |state| {
-            if let Some(w) = state.windows.get_mut(&id) {
-                w.minimized = true;
-            }
-        })
+        self.inner.minimize(wid(id)).map_err(eyre_of)
     }
 
     fn unminimize(&self, id: u32) -> eyre::Result<()> {
-        self.record(id, Command::Unminimize(id), |state| {
-            if let Some(w) = state.windows.get_mut(&id) {
-                w.minimized = false;
-            }
-        })
+        self.inner.unminimize(wid(id)).map_err(eyre_of)
     }
 
     fn close(&self, id: u32) -> eyre::Result<()> {
-        self.record(id, Command::Close(id), |state| {
-            if let Some(w) = state.windows.get_mut(&id) {
-                w.alive = false;
-            }
-        })
+        self.inner.close(wid(id)).map_err(eyre_of)
     }
 
     fn center_cursor_in(&self, rect: &Rect) -> eyre::Result<()> {
-        let mut state = self.state.lock();
-        state.commands.push(Command::CenterCursor(*rect));
-        state.cursor = Some((rect.left + rect.right / 2, rect.top + rect.bottom / 2));
-        Ok(())
+        self.inner.center_cursor_in(rect).map_err(eyre_of)
     }
 
     fn ensure_workspaces(&self, names: &[String]) -> eyre::Result<()> {
-        let mut state = self.state.lock();
-        state.commands.push(Command::EnsureWorkspaces(names.len()));
-        state.desktops = state.desktops.max(names.len());
-        Ok(())
+        self.inner.ensure_workspaces(names).map_err(eyre_of)
     }
 
     fn switch_workspace(&self, monitor_id: u32, idx: usize) -> eyre::Result<()> {
-        let mut state = self.state.lock();
-        state
-            .commands
-            .push(Command::SwitchWorkspace(monitor_id, idx));
-        state.desktops = state.desktops.max(idx + 1);
-        state.shown.insert(monitor_id, idx);
-        Ok(())
+        self.inner
+            .switch_workspace(MonitorId::from_u32(monitor_id), idx)
+            .map_err(eyre_of)
     }
 
     fn set_window_workspace(&self, id: u32, idx: usize) -> eyre::Result<()> {
-        self.record(id, Command::SetWindowWorkspace(id, idx), |state| {
-            state.desktops = state.desktops.max(idx + 1);
-            state.window_ws.insert(id, idx);
-        })
+        self.inner
+            .set_window_workspace(wid(id), idx)
+            .map_err(eyre_of)
     }
 
     fn window_workspace(&self, id: u32) -> Option<usize> {
-        let mut state = self.state.lock();
-        if state.permissive && !state.windows.contains_key(&id) {
-            state.windows.insert(id, permissive_window(id));
-        }
-        state.window_ws.get(&id).copied()
-    }
-
-    fn maximize(&self, id: u32, maximize: bool) -> eyre::Result<()> {
-        self.record(id, Command::Maximize(id, maximize), |state| {
-            state.set_maximized(id, maximize);
-        })
+        self.inner.window_workspace(wid(id)).ok().flatten()
     }
 
     fn current_workspaces(&self) -> Vec<(u32, usize)> {
-        let state = self.state.lock();
-        state
-            .monitors
-            .iter()
-            .map(|m| (m.id, state.shown.get(&m.id).copied().unwrap_or(0)))
+        self.inner
+            .current_workspaces()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(monitor, idx)| (raw_monitor(monitor), idx))
             .collect()
     }
 
+    fn maximize(&self, id: u32, maximize: bool) -> eyre::Result<()> {
+        self.inner.maximize(wid(id), maximize).map_err(eyre_of)
+    }
+
     fn apply_look(&self, look: &Look) -> eyre::Result<bool> {
-        let mut state = self.state.lock();
+        let mut kde = self.kde.lock();
         // like a real backend, remember what was applied and say nothing twice
-        if state.last_look.as_ref() != Some(look) {
-            state.commands.push(Command::ApplyLook(look.clone()));
-            state.last_look = Some(look.clone());
+        if kde.last_look.as_ref() != Some(look) {
+            self.inner.record_ext(KdeCommand::ApplyLook(look.clone()));
+            kde.last_look = Some(look.clone());
         }
-        Ok(state.borders_drawn && look.border.is_some())
+        Ok(kde.borders_drawn && look.border.is_some())
     }
 
     fn set_focus_follows_mouse(&self, enable: bool) -> eyre::Result<()> {
-        self.state
-            .lock()
-            .commands
-            .push(Command::FocusFollowsMouse(enable));
-        Ok(())
+        self.inner.set_focus_follows_mouse(enable).map_err(eyre_of)
     }
 
     fn set_wallpaper(&self, monitor_id: u32, path: &Path) -> eyre::Result<()> {
-        let mut state = self.state.lock();
-        state.wallpapers.insert(monitor_id, path.to_path_buf());
-        state
-            .commands
-            .push(Command::SetWallpaper(monitor_id, path.to_path_buf()));
+        self.kde
+            .lock()
+            .wallpapers
+            .insert(monitor_id, path.to_path_buf());
+        self.inner
+            .record_ext(KdeCommand::SetWallpaper(monitor_id, path.to_path_buf()));
         Ok(())
     }
 
     fn set_opacity(&self, id: u32, alpha: u8) -> eyre::Result<()> {
-        self.record(id, Command::SetOpacity(id, alpha), |state| {
-            state.opacity.insert(id, alpha);
-        })
+        self.inner.set_opacity(wid(id), alpha).map_err(eyre_of)
     }
 
     fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
-        let mut state = self.state.lock();
+        let mut kde = self.kde.lock();
         let colours_now: HashMap<u32, u32> = colours.iter().copied().collect();
         // like a real backend: nothing is sent for what has not changed
-        if state.border_colours != colours_now {
-            state.border_colours = colours_now;
-            state
-                .commands
-                .push(Command::BorderColours(colours.to_vec()));
+        if kde.border_colours != colours_now {
+            kde.border_colours = colours_now;
+            self.inner
+                .record_ext(KdeCommand::BorderColours(colours.to_vec()));
         }
         Ok(true)
     }

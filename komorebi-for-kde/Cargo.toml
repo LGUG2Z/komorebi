@@ -13,6 +13,8 @@ members = [
 version = "0.1.0"
 
 [workspace.dependencies]
+# the Backend trait every komorebi shares, and its in-memory fake
+komorebi-backend = { path = "../crates/komorebi-backend" }
 # upstream's layouts, at a revision of its `next` branch that has the fix for resizing a tile by
 # dragging its edge (LGUG2Z/komorebi#1765), the placement helpers komorebi for KDE uses and the
 # platform-free half of the rework of the Scrolling layout

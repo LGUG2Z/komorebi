@@ -7,6 +7,7 @@ edition = "2024"
 [dependencies]
 komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 komorebi-themes = { workspace = true }
+komorebi-backend = { workspace = true }
 komorebi-collections = { workspace = true }
 komorebi-layouts = { workspace = true }
 komorebi-scrolling = { workspace = true }

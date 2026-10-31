@@ -2501,6 +2501,7 @@ dependencies = [
  "dirs 7.0.0",
  "futures-util",
  "hotwatch",
+ "komorebi-backend",
  "komorebi-collections",
  "komorebi-config",
  "komorebi-hotkeys",
@@ -2526,6 +2527,13 @@ dependencies = [
  "uuid",
  "version",
  "zbus 6.1.0",
+]
+
+[[package]]
+name = "komorebi-backend"
+version = "0.1.42"
+dependencies = [
+ "komorebi-layouts",
 ]
 
 [[package]]
