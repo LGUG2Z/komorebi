@@ -21,11 +21,12 @@ fn main() -> std::io::Result<()> {
     let out = PathBuf::from(args.next().expect("usage: docgen-all OUTDIR [platform]..."));
     let mut platforms: Vec<String> = args.collect();
     if platforms.is_empty() {
-        platforms = ["macos"].map(String::from).to_vec();
+        platforms = ["windows", "macos"].map(String::from).to_vec();
     }
     for platform in platforms {
         let cli = match platform.as_str() {
             "macos" => command::<komorebic_core::platform::macos::MacosCommands>(&META),
+            "windows" => command::<komorebic_core::platform::windows::WindowsCommands>(&META),
             other => panic!("no platform {other} in this crate"),
         };
         let pages = write(cli, &DocFormat::PLAIN, &out.join(&platform))?;
