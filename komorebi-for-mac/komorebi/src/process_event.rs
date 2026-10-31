@@ -6,7 +6,6 @@ use crate::REGEX_IDENTIFIERS;
 use crate::TABBED_APPLICATIONS;
 use crate::UNMANAGED_WINDOW_IDS;
 use crate::WORKSPACE_MATCHING_RULES;
-use crate::accessibility::AccessibilityApi;
 use crate::accessibility::enhanced_ui;
 use crate::accessibility::error::AccessibilityApiError;
 use crate::accessibility::error::AccessibilityError;
@@ -182,7 +181,7 @@ impl WindowManager {
         {
             let application = self.application(event.process_id())?;
             if let Some(element) = application.main_window()
-                && let Ok(wid) = AccessibilityApi::window_id(&element)
+                && let Ok(wid) = crate::ax_registry::identify(&element)
             {
                 window_id = Some(wid);
                 window_element = Some(AccessibilityUiElement(element.clone()));
@@ -296,7 +295,7 @@ impl WindowManager {
                                     // Additional check: verify the stored element belongs to this container
                                     // This prevents treating separate windows as tabs when they have matching geometry
                                     if let Ok(stored_window_id) =
-                                        AccessibilityApi::window_id(&window.element.0)
+                                        crate::ax_registry::identify(&window.element.0)
                                         && stored_window_id == window.id
                                     {
                                         // All checks pass: stored element matches container ID = true tab change
@@ -538,7 +537,7 @@ impl WindowManager {
                 {
                     let application = self.application(process_id)?;
                     if let Some(element) = application.main_window()
-                        && let Ok(wid) = AccessibilityApi::window_id(&element)
+                        && let Ok(wid) = crate::ax_registry::identify(&element)
                     {
                         window_id = Some(wid);
                         window_element = Some(element.clone());
@@ -552,7 +551,7 @@ impl WindowManager {
                     let tabbed_applications = TABBED_APPLICATIONS.lock();
                     if tabbed_applications.contains(&application_name) {
                         // Get the window_id for the new window
-                        if let Ok(new_window_id) = AccessibilityApi::window_id(element) {
+                        if let Ok(new_window_id) = crate::ax_registry::identify(element) {
                             for window in workspace.visible_windows().iter().flatten() {
                                 if window.application.name().unwrap_or_default() == application_name
                                 {

@@ -102,3 +102,13 @@ pub fn windows() -> Vec<Window> {
         .filter_map(|(id, entry)| Some(Window::from_entry(id.to_u32()?, entry)))
         .collect()
 }
+
+/// The `CGWindowID` of the window that an Accessibility element is, as handed over by the system
+/// (an observer callback, the event tap, the focused window of an application). This is the one
+/// way to turn an element into the key of the table; a window is registered under what it
+/// returns.
+pub fn identify(
+    element: &objc2_application_services::AXUIElement,
+) -> std::result::Result<u32, crate::accessibility::error::AccessibilityError> {
+    crate::accessibility::AccessibilityApi::window_id(element)
+}

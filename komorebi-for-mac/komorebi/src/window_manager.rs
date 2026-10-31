@@ -1180,7 +1180,7 @@ impl WindowManager {
         let mut valid_window_ids = vec![];
         if let Some(elements) = application.window_elements() {
             for element in elements {
-                if let Ok(window_id) = AccessibilityApi::window_id(&element) {
+                if let Ok(window_id) = crate::ax_registry::identify(&element) {
                     valid_window_ids.push(window_id);
                 }
             }

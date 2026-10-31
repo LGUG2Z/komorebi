@@ -9,7 +9,6 @@ use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
-use crate::accessibility::AccessibilityApi;
 use crate::animation;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
@@ -1718,7 +1717,7 @@ impl WindowManager {
                         let application = Application::new(raw_info.owner_pid)?;
                         if let Some(elements) = application.window_elements() {
                             for element in elements {
-                                if let Ok(wid) = AccessibilityApi::window_id(&element)
+                                if let Ok(wid) = crate::ax_registry::identify(&element)
                                     && i64::from(wid) == window_id
                                     && let Ok(window) = Window::new(element, application.clone())
                                 {

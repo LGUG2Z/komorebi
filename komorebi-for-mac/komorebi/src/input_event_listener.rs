@@ -1,4 +1,3 @@
-use crate::accessibility::AccessibilityApi;
 use crate::macos_api::MacosApi;
 use crate::reaper;
 use crate::reaper::ReaperNotification;
@@ -93,7 +92,7 @@ extern "C-unwind" fn callback(
         }
 
         if pid != 0 {
-            let window_id = AccessibilityApi::window_id(&element).ok();
+            let window_id = crate::ax_registry::identify(&element).ok();
 
             // Send MoveEnd to handle pending drag-to-swap operations
             // macOS doesn't reliably fire AXWindowMoved after mouse release
