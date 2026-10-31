@@ -11,6 +11,7 @@ members = [
   "komorebic-no-console",
   "komorebi-bar",
   "komorebi-themes",
+  "crates/komorebi-protocol",
   "komorebi-shortcuts",
   "e2e/guest/agent",
   "e2e/guest/testwin",
