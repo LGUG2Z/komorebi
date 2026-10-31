@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 komorebi-client = { path = "../komorebi-client", default-features = false }
+komorebic-core = { path = "../../crates/komorebic-core" }
 version = { path = "../version" }
 
 clap = { workspace = true }
@@ -15,7 +16,6 @@ color-eyre = { workspace = true }
 dirs = { workspace = true }
 fs-tail = "0.1"
 lazy_static = { workspace = true }
-pastey = { workspace = true }
 reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { workspace = true, optional = true }
 serde_json = { workspace = true }
