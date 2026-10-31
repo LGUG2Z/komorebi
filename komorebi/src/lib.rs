@@ -31,6 +31,7 @@ pub mod styles;
 pub mod theme_manager;
 pub mod transparency_manager;
 pub mod window;
+pub mod windows_backend;
 pub mod window_manager;
 pub mod window_manager_event;
 pub mod windows_api;

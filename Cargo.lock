@@ -3346,6 +3346,7 @@ dependencies = [
  "dirs 6.0.0",
  "ed25519-dalek",
  "hotwatch",
+ "komorebi-backend",
  "komorebi-collections",
  "komorebi-config",
  "komorebi-layouts",

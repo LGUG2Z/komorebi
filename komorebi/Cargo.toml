@@ -8,6 +8,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+komorebi-backend = { path = "../crates/komorebi-backend" }
 komorebi-collections = { path = "../crates/komorebi-collections" }
 komorebi-config = { path = "../crates/komorebi-config", default-features = false }
 komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
