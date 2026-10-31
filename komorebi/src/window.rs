@@ -43,7 +43,6 @@ use crate::windows_api;
 use crate::windows_api::WindowsApi;
 use crate::windows_backend::backend;
 use color_eyre::eyre;
-use crossbeam_utils::atomic::AtomicConsume;
 use komorebi_backend::WindowId;
 pub use komorebi_config::aspect_ratio::AspectRatio;
 pub use komorebi_config::aspect_ratio::PredefinedAspectRatio;
@@ -632,7 +631,7 @@ impl Window {
                 self.hwnd,
                 false,
                 WindowsApi::get_transparent(self.hwnd).unwrap_or(255),
-                transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
+                crate::settings::transparency_alpha(),
                 style,
             );
 
@@ -643,7 +642,7 @@ impl Window {
             self.update_ex_style(&ex_style)?;
             WindowsApi::set_transparent(
                 self.hwnd,
-                transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
+                crate::settings::transparency_alpha(),
             )
         }
     }
@@ -670,7 +669,7 @@ impl Window {
                 self.hwnd,
                 true,
                 WindowsApi::get_transparent(self.hwnd)
-                    .unwrap_or(transparency_manager::TRANSPARENCY_ALPHA.load_consume()),
+                    .unwrap_or(crate::settings::transparency_alpha()),
                 255,
                 style,
             );

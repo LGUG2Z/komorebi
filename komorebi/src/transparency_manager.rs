@@ -2,12 +2,9 @@
 
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
-use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicU8;
 
 use crate::REGEX_IDENTIFIERS;
 use crate::TRANSPARENCY_BLACKLIST;
@@ -15,9 +12,6 @@ use crate::Window;
 use crate::WindowManager;
 use crate::WindowsApi;
 use crate::should_act;
-
-pub static TRANSPARENCY_ENABLED: AtomicBool = AtomicBool::new(false);
-pub static TRANSPARENCY_ALPHA: AtomicU8 = AtomicU8::new(200);
 
 static KNOWN_HWNDS: OnceLock<Mutex<Vec<isize>>> = OnceLock::new();
 
@@ -71,7 +65,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
     'receiver: for _ in receiver {
         let known_hwnds = KNOWN_HWNDS.get_or_init(|| Mutex::new(Vec::new()));
-        if !TRANSPARENCY_ENABLED.load_consume() {
+        if !crate::settings::transparency_enabled() {
             for hwnd in known_hwnds.lock().iter() {
                 if let Err(error) = Window::from(*hwnd).opaque() {
                     tracing::error!("failed to make window {hwnd} opaque: {error}")
