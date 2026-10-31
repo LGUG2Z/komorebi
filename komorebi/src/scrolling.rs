@@ -18,7 +18,6 @@ use crate::core::Sizing;
 use crate::core::WindowHandlingBehaviour;
 use crate::windows_backend::backend;
 use crate::workspace::Workspace;
-use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use komorebi_backend::WindowId;
 use komorebi_layouts::scrolling;

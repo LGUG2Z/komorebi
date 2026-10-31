@@ -6,7 +6,6 @@ use std::num::NonZeroUsize;
 
 pub use komorebi_core::WorkspaceLayer;
 pub use komorebi_core::WorkspaceWindowLocation;
-pub(crate) use komorebi_core::resolve_threshold_match;
 pub(crate) use komorebi_core::sorted_layout_options_rules;
 
 /// The workspace over the Windows [`Window`], which is `komorebi_core::Workspace` with this
@@ -70,6 +69,17 @@ impl komorebi_core::WorkspacePlatform for WindowsPlatform {
         )
     }
 
+    fn primary_container_idx(layout: &Layout) -> eyre::Result<usize> {
+        Ok(match layout {
+            Layout::Default(_) => 0,
+            Layout::Custom(layout) => layout.first_container_idx(
+                layout
+                    .primary_idx()
+                    .ok_or_eyre("this custom layout does not have a primary column")?,
+            ),
+        })
+    }
+
     fn scrolling_idx_for_direction(
         workspace: &Workspace,
         direction: OperationDirection,
@@ -106,10 +116,8 @@ use crate::core::CustomLayout;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::LayoutDefaultEntry;
-use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::WindowKind;
-use crate::lockable_sequence::LockableSequence;
 use crate::should_act;
 use crate::should_act_window;
 use crate::should_act_window_individual;
@@ -138,20 +146,6 @@ pub trait WorkspaceExt {
         layout_defaults: Option<&HashMap<DefaultLayout, LayoutDefaultEntry>>,
     ) -> eyre::Result<()>;
 
-    /// Compute effective layout options using the complete-replacement cascade:
-    ///
-    /// If the workspace defines EITHER `layout_options` OR `layout_options_rules`,
-    /// it completely replaces the global `layout_defaults` for this layout.
-    /// Global defaults are only used when the workspace has NEITHER setting.
-    ///
-    /// Within the effective source (workspace or global):
-    ///   1. Try threshold match from rules (highest matching threshold wins)
-    ///   2. If a rule matches -> use it (full replacement of base)
-    ///   3. Else -> use the base `layout_options`
-    fn effective_layout_options(&self) -> Option<LayoutOptions>;
-
-    fn hide(&mut self, omit: Option<isize>);
-
     fn apply_wallpaper(&self, hmonitor: isize, monitor_wp: &Option<Wallpaper>) -> eyre::Result<()>;
 
     fn restore(
@@ -165,11 +159,7 @@ pub trait WorkspaceExt {
 
     fn hwnd_from_exe(&self, exe: &str) -> Option<isize>;
 
-    fn promote_container(&mut self) -> eyre::Result<()>;
-
     fn remove_window(&mut self, window_id: isize) -> eyre::Result<()>;
-
-    fn new_floating_window(&mut self) -> eyre::Result<()>;
 
     fn new_maximized_window(&mut self) -> eyre::Result<()>;
 
@@ -314,57 +304,6 @@ impl WorkspaceExt for Workspace {
         self.workspace_config = Some(config.clone());
 
         Ok(())
-    }
-
-    fn effective_layout_options(&self) -> Option<LayoutOptions> {
-        let container_count = self.containers().len();
-
-        let has_workspace_overrides =
-            self.layout_options.is_some() || !self.layout_options_rules.is_empty();
-
-        let (effective_base, effective_rules): (Option<LayoutOptions>, &[(usize, LayoutOptions)]) =
-            if has_workspace_overrides {
-                (self.layout_options, &self.layout_options_rules)
-            } else {
-                match &self.layout {
-                    Layout::Default(dl) => match self.layout_defaults_cache.get(dl) {
-                        Some(entry) => (entry.layout_options, &entry.layout_options_rules),
-                        None => (None, &[]),
-                    },
-                    Layout::Custom(_) => (None, &[]),
-                }
-            };
-
-        resolve_threshold_match(effective_rules, container_count).or(effective_base)
-    }
-
-    fn hide(&mut self, omit: Option<isize>) {
-        for window in self.floating_windows_mut().iter_mut().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide
-                && let Some(omit) = omit
-                && omit != window.hwnd
-            {
-                should_hide = true
-            }
-
-            if should_hide {
-                window.hide_window();
-            }
-        }
-
-        for container in self.containers_mut() {
-            container.hide(omit)
-        }
-
-        if let Some(window) = self.maximized_window {
-            window.hide_window();
-        }
-
-        if let Some(container) = &self.monocle_container {
-            container.hide(omit)
-        }
     }
 
     fn apply_wallpaper(&self, hmonitor: isize, monitor_wp: &Option<Wallpaper>) -> eyre::Result<()> {
@@ -852,30 +791,6 @@ impl WorkspaceExt for Workspace {
         None
     }
 
-    fn promote_container(&mut self) -> eyre::Result<()> {
-        let focused_idx = self.focused_container_idx();
-        let container = self
-            .containers_mut()
-            .remove_respecting_locks(focused_idx)
-            .ok_or_eyre("there is no container")?;
-
-        let primary_idx = match &self.layout {
-            Layout::Default(_) => 0,
-            Layout::Custom(layout) => layout.first_container_idx(
-                layout
-                    .primary_idx()
-                    .ok_or_eyre("this custom layout does not have a primary column")?,
-            ),
-        };
-
-        let insertion_idx = self
-            .containers_mut()
-            .insert_respecting_locks(primary_idx, container);
-        self.focus_container(insertion_idx);
-
-        Ok(())
-    }
-
     fn remove_window(&mut self, window_id: isize) -> eyre::Result<()> {
         border_manager::delete_border(window_id);
 
@@ -947,54 +862,6 @@ impl WorkspaceExt for Workspace {
                 window.focus(false)?;
             }
         }
-
-        Ok(())
-    }
-
-    fn new_floating_window(&mut self) -> eyre::Result<()> {
-        let window = if let Some(maximized_window) = self.maximized_window {
-            let window = maximized_window;
-            self.maximized_window = None;
-            self.maximized_window_restore_idx = None;
-            window
-        } else if let Some(monocle_container) = &mut self.monocle_container {
-            let window = monocle_container
-                .remove_focused_window()
-                .ok_or_eyre("there is no window")?;
-
-            if monocle_container.windows().is_empty() {
-                self.monocle_container = None;
-                self.monocle_container_restore_idx = None;
-            } else {
-                monocle_container.load_focused_window();
-            }
-
-            window
-        } else {
-            let focused_idx = self.focused_container_idx();
-
-            let container = self
-                .focused_container_mut()
-                .ok_or_eyre("there is no container")?;
-
-            let window = container
-                .remove_focused_window()
-                .ok_or_eyre("there is no window")?;
-
-            if container.windows().is_empty() {
-                self.remove_container_by_idx(focused_idx);
-
-                if focused_idx == self.containers().len() {
-                    self.focus_container(focused_idx.saturating_sub(1));
-                }
-            } else {
-                container.load_focused_window();
-            }
-
-            window
-        };
-
-        self.floating_windows_mut().push_back(window);
 
         Ok(())
     }
