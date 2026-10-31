@@ -1,43 +1,41 @@
 use crate::AUTO_SELECT_FILL_COLOUR;
 use crate::AUTO_SELECT_TEXT_COLOUR;
 use crate::DEFAULT_PADDING;
+use crate::platform::platform;
+use crate::render::Grouping;
 use crate::render::RenderConfig;
 use crate::render::RenderExt;
+use crate::widgets::widget::WidgetConfig;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::FontId;
+use eframe::egui::TextBuffer;
 use eframe::egui::TextStyle;
+use komorebi_client::PathExt;
+use komorebi_client::Rect;
+use komorebi_client::SocketMessage;
 use komorebi_themes::colour::Colour;
 use komorebi_themes::colour::Rgb;
-use std::num::NonZeroU32;
-use std::sync::atomic::Ordering;
-// use crate::bar::exec_powershell;
-use crate::render::Grouping;
-use crate::widgets::widget::WidgetConfig;
-use color_eyre::eyre;
-use eframe::egui::TextBuffer;
-use komorebi_client::Rect;
-use komorebi_themes::KomobarTheme;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::num::NonZeroU32;
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.bar.json` static configuration file reference for komorebi for Mac `v0.1.0`
-///
-/// `"$schema": "https://komorebi-for-mac.lgug2z.com/komorebi.bar.0.1.0.schema.json"`
+/// The `komorebi.bar.json` configuration file reference for `v0.1.42`
 pub struct KomobarConfig {
     /// Bar height
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = 50.0)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 50)))]
     pub height: Option<f32>,
     /// Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or
     /// vertical definition which can each take a single value for a symmetric padding or two
     /// values for each side, i.e.:
     /// ```json
     /// "padding": {
-    ///     "horizontal": 10.0
+    ///     "horizontal": 10
     /// }
     /// ```
     /// or:
@@ -49,19 +47,20 @@ pub struct KomobarConfig {
     /// You can also set individual padding on each side like this:
     /// ```json
     /// "padding": {
-    ///     "top": 10.0,
-    ///     "bottom": 10.0,
-    ///     "left": 10.0,
-    ///     "right": 10.0
+    ///     "top": 10,
+    ///     "bottom": 10,
+    ///     "left": 10,
+    ///     "right": 10,
     /// }
     /// ```
+    /// By default, padding is set to 10 on all sides.
     pub padding: Option<Padding>,
     /// Bar margin. Use one value for all sides or use a grouped margin for horizontal and/or
     /// vertical definition which can each take a single value for a symmetric margin or two
     /// values for each side, i.e.:
     /// ```json
     /// "margin": {
-    ///     "horizontal": 10.0
+    ///     "horizontal": 10
     /// }
     /// ```
     /// or:
@@ -73,12 +72,13 @@ pub struct KomobarConfig {
     /// You can also set individual margin on each side like this:
     /// ```json
     /// "margin": {
-    ///     "top": 10.0,
-    ///     "bottom": 10.0,
-    ///     "left": 10.0,
-    ///     "right": 10.0
+    ///     "top": 10,
+    ///     "bottom": 10,
+    ///     "left": 10,
+    ///     "right": 10,
     /// }
     /// ```
+    /// By default, margin is set to 0 on all sides.
     pub margin: Option<Margin>,
     /// Bar positioning options
     #[serde(alias = "viewport")]
@@ -109,8 +109,8 @@ pub struct KomobarConfig {
     pub widget_spacing: Option<f32>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,
-    // /// Options for mouse interaction on the bar
-    // pub mouse: Option<MouseConfig>,
+    /// Options for mouse interaction on the bar
+    pub mouse: Option<MouseConfig>,
     /// Left side widgets (ordered left-to-right)
     pub left_widgets: Vec<WidgetConfig>,
     /// Center widgets (ordered left-to-right)
@@ -367,148 +367,158 @@ pub fn get_individual_spacing(
         })
 }
 
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-// #[serde(untagged)]
-// pub enum MouseMessage {
-//     /// Send a message to the komorebi client.
-//     /// By default, a batch of messages are sent in the following order:
-//     /// FocusMonitorAtCursor =>
-//     /// MouseFollowsFocus(false) =>
-//     /// {message} =>
-//     /// MouseFollowsFocus({original.value})
-//     ///
-//     /// Example:
-//     /// ```json
-//     /// "on_extra2_click": {
-//     ///   "message": {
-//     ///     "type": "NewWorkspace"
-//     ///   }
-//     /// },
-//     /// ```
-//     /// or:
-//     /// ```json
-//     /// "on_middle_click": {
-//     ///   "focus_monitor_at_cursor": false,
-//     ///   "ignore_mouse_follows_focus": false,
-//     ///   "message": {
-//     ///     "type": "TogglePause"
-//     ///   }
-//     /// }
-//     /// ```
-//     /// or:
-//     /// ```json
-//     /// "on_scroll_up": {
-//     ///   "message": {
-//     ///     "type": "CycleFocusWorkspace",
-//     ///     "content": "Previous"
-//     ///   }
-//     /// }
-//     /// ```
-//     Komorebi(KomorebiMouseMessage),
-//     /// Execute a custom command.
-//     /// CMD (%variable%), Bash ($variable) and PowerShell ($Env:variable) variables will be resolved.
-//     /// Example: `komorebic toggle-pause`
-//     Command(String),
-// }
-//
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-// pub struct KomorebiMouseMessage {
-//     /// Send the FocusMonitorAtCursor message (default:true)
-//     pub focus_monitor_at_cursor: Option<bool>,
-//     /// Wrap the {message} with a MouseFollowsFocus(false) and MouseFollowsFocus({original.value}) message (default:true)
-//     pub ignore_mouse_follows_focus: Option<bool>,
-//     /// The message to send to the komorebi client
-//     pub message: komorebi_client::SocketMessage,
-// }
-//
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-// pub struct MouseConfig {
-//     /// Command to send on primary/left double button click
-//     pub on_primary_double_click: Option<MouseMessage>,
-//     /// Command to send on secondary/right button click
-//     pub on_secondary_click: Option<MouseMessage>,
-//     /// Command to send on middle button click
-//     pub on_middle_click: Option<MouseMessage>,
-//     /// Command to send on extra1/back button click
-//     pub on_extra1_click: Option<MouseMessage>,
-//     /// Command to send on extra2/forward button click
-//     pub on_extra2_click: Option<MouseMessage>,
-//
-//     /// Defines how many points a user needs to scroll vertically to make a "tick" on a mouse/touchpad/touchscreen (default: 30)
-//     pub vertical_scroll_threshold: Option<f32>,
-//     /// Command to send on scrolling up (every tick)
-//     pub on_scroll_up: Option<MouseMessage>,
-//     /// Command to send on scrolling down (every tick)
-//     pub on_scroll_down: Option<MouseMessage>,
-//
-//     /// Defines how many points a user needs to scroll horizontally to make a "tick" on a mouse/touchpad/touchscreen (default: 30)
-//     pub horizontal_scroll_threshold: Option<f32>,
-//     /// Command to send on scrolling left (every tick)
-//     pub on_scroll_left: Option<MouseMessage>,
-//     /// Command to send on scrolling right (every tick)
-//     pub on_scroll_right: Option<MouseMessage>,
-// }
-//
-// impl MouseConfig {
-//     pub fn has_command(&self) -> bool {
-//         [
-//             &self.on_primary_double_click,
-//             &self.on_secondary_click,
-//             &self.on_middle_click,
-//             &self.on_extra1_click,
-//             &self.on_extra2_click,
-//             &self.on_scroll_up,
-//             &self.on_scroll_down,
-//             &self.on_scroll_left,
-//             &self.on_scroll_right,
-//         ]
-//         .iter()
-//         .any(|opt| matches!(opt, Some(MouseMessage::Command(_))))
-//     }
-// }
-//
-// impl MouseMessage {
-//     pub fn execute(&self, mouse_follows_focus: bool) {
-//         match self {
-//             MouseMessage::Komorebi(config) => {
-//                 let mut messages = Vec::new();
-//
-//                 if config.focus_monitor_at_cursor.unwrap_or(true) {
-//                     messages.push(SocketMessage::FocusMonitorAtCursor);
-//                 }
-//
-//                 if config.ignore_mouse_follows_focus.unwrap_or(true) {
-//                     messages.push(SocketMessage::MouseFollowsFocus(false));
-//                     messages.push(config.message.clone());
-//                     messages.push(SocketMessage::MouseFollowsFocus(mouse_follows_focus));
-//                 } else {
-//                     messages.push(config.message.clone());
-//                 }
-//
-//                 tracing::debug!("Sending messages: {messages:?}");
-//
-//                 if komorebi_client::send_batch(messages).is_err() {
-//                     tracing::error!("could not send commands");
-//                 }
-//             }
-//             MouseMessage::Command(cmd) => {
-//                 tracing::debug!("Executing command: {}", cmd);
-//
-//                 let cmd_no_env = cmd.replace_env();
-//
-//                 if exec_powershell(cmd_no_env.to_str().expect("Invalid command")).is_err() {
-//                     tracing::error!("Failed to execute '{}'", cmd);
-//                 }
-//             }
-//         };
-//     }
-// }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+/// Mouse message
+pub enum MouseMessage {
+    /// Send a message to the komorebi client.
+    /// By default, a batch of messages are sent in the following order:
+    /// FocusMonitorAtCursor =>
+    /// MouseFollowsFocus(false) =>
+    /// {message} =>
+    /// MouseFollowsFocus({original.value})
+    ///
+    /// Example:
+    /// ```json
+    /// "on_extra2_click": {
+    ///   "message": {
+    ///     "type": "NewWorkspace"
+    ///   }
+    /// },
+    /// ```
+    /// or:
+    /// ```json
+    /// "on_middle_click": {
+    ///   "focus_monitor_at_cursor": false,
+    ///   "ignore_mouse_follows_focus": false,
+    ///   "message": {
+    ///     "type": "TogglePause"
+    ///   }
+    /// }
+    /// ```
+    /// or:
+    /// ```json
+    /// "on_scroll_up": {
+    ///   "message": {
+    ///     "type": "CycleFocusWorkspace",
+    ///     "content": "Previous"
+    ///   }
+    /// }
+    /// ```
+    Komorebi(KomorebiMouseMessage),
+    /// Execute a custom command.
+    /// CMD (%variable%), Bash ($variable) and PowerShell ($Env:variable) variables will be resolved.
+    /// Example: `komorebic toggle-pause`
+    Command(String),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Komorebi socket mouse message
+pub struct KomorebiMouseMessage {
+    /// Send the FocusMonitorAtCursor message
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
+    pub focus_monitor_at_cursor: Option<bool>,
+    /// Wrap the {message} with a MouseFollowsFocus(false) and MouseFollowsFocus({original.value}) message
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
+    pub ignore_mouse_follows_focus: Option<bool>,
+    /// The message to send to the komorebi client
+    pub message: komorebi_client::SocketMessage,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Mouse configuration
+pub struct MouseConfig {
+    /// Command to send on primary/left double button click
+    pub on_primary_double_click: Option<MouseMessage>,
+    /// Command to send on secondary/right button click
+    pub on_secondary_click: Option<MouseMessage>,
+    /// Command to send on middle button click
+    pub on_middle_click: Option<MouseMessage>,
+    /// Command to send on extra1/back button click
+    pub on_extra1_click: Option<MouseMessage>,
+    /// Command to send on extra2/forward button click
+    pub on_extra2_click: Option<MouseMessage>,
+
+    /// Defines how many points a user needs to scroll vertically to make a "tick" on a mouse/touchpad/touchscreen
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 30.0)))]
+    pub vertical_scroll_threshold: Option<f32>,
+    /// Command to send on scrolling up (every tick)
+    pub on_scroll_up: Option<MouseMessage>,
+    /// Command to send on scrolling down (every tick)
+    pub on_scroll_down: Option<MouseMessage>,
+
+    /// Defines how many points a user needs to scroll horizontally to make a "tick" on a mouse/touchpad/touchscreen
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 30.0)))]
+    pub horizontal_scroll_threshold: Option<f32>,
+    /// Command to send on scrolling left (every tick)
+    pub on_scroll_left: Option<MouseMessage>,
+    /// Command to send on scrolling right (every tick)
+    pub on_scroll_right: Option<MouseMessage>,
+}
+
+impl MouseConfig {
+    pub fn has_command(&self) -> bool {
+        [
+            &self.on_primary_double_click,
+            &self.on_secondary_click,
+            &self.on_middle_click,
+            &self.on_extra1_click,
+            &self.on_extra2_click,
+            &self.on_scroll_up,
+            &self.on_scroll_down,
+            &self.on_scroll_left,
+            &self.on_scroll_right,
+        ]
+        .iter()
+        .any(|opt| matches!(opt, Some(MouseMessage::Command(_))))
+    }
+}
+
+impl MouseMessage {
+    pub fn execute(&self, mouse_follows_focus: bool) {
+        match self {
+            MouseMessage::Komorebi(config) => {
+                let mut messages = Vec::new();
+
+                if config.focus_monitor_at_cursor.unwrap_or(true) {
+                    messages.push(SocketMessage::FocusMonitorAtCursor);
+                }
+
+                if config.ignore_mouse_follows_focus.unwrap_or(true) {
+                    messages.push(SocketMessage::MouseFollowsFocus(false));
+                    messages.push(config.message.clone());
+                    messages.push(SocketMessage::MouseFollowsFocus(mouse_follows_focus));
+                } else {
+                    messages.push(config.message.clone());
+                }
+
+                tracing::debug!("Sending messages: {messages:?}");
+
+                if platform().send_komorebi_batch(messages).is_err() {
+                    tracing::error!("could not send commands");
+                }
+            }
+            MouseMessage::Command(cmd) => {
+                tracing::debug!("Executing command: {}", cmd);
+
+                let cmd_no_env = cmd.replace_env();
+
+                if platform()
+                    .exec_shell_command(cmd_no_env.to_str().expect("Invalid command"))
+                    .is_err()
+                {
+                    tracing::error!("Failed to execute '{}'", cmd);
+                }
+            }
+        };
+    }
+}
 
 impl KomobarConfig {
-    pub fn read(path: &PathBuf) -> eyre::Result<Self> {
+    pub fn read(path: &PathBuf) -> color_eyre::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let mut value: Self = match path.extension().unwrap().to_string_lossy().as_str() {
             "json" => serde_json::from_str(&content)?,
@@ -522,6 +532,10 @@ impl KomobarConfig {
                 .chain(value.center_widgets.iter().flatten())
                 .chain(value.right_widgets.iter()),
         );
+
+        if value.mouse.is_some() && !cfg!(target_os = "windows") {
+            tracing::warn!("the `mouse` options are not supported on this platform and are ignored");
+        }
 
         if value.frame.is_none() {
             value.frame = Some(FrameConfig {
@@ -588,3 +602,4 @@ impl RenderExt for &KomobarConfig {
 }
 
 pub use komorebi_bar_core::config::types::*;
+pub use komorebi_themes::KomobarTheme;

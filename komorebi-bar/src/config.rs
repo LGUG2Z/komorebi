@@ -533,6 +533,10 @@ impl KomobarConfig {
                 .chain(value.right_widgets.iter()),
         );
 
+        if value.mouse.is_some() && !cfg!(target_os = "windows") {
+            tracing::warn!("the `mouse` options are not supported on this platform and are ignored");
+        }
+
         if value.frame.is_none() {
             value.frame = Some(FrameConfig {
                 inner_margin: Position {
