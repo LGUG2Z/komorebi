@@ -286,3 +286,25 @@ KDE is the precedent: its `Backend` also takes only ids and keeps an id-to-UUID 
 2. A window's visible frame is not the frame the OS lets you set on Windows; set and get agree only because `window_rect` returns the visible bounds and `position_window` adds the shadow offset back (`W/windows_api.rs:534-540`). The Windows `set_position` compares `window_rect` to the layout before writing (`W/window.rs:394-396`), so the two must stay consistent. KDE and macOS have no such offset in the code; whether macOS AX frames include a shadow is not verified.
 
 The shared fake would have to model a frame offset to exercise the Windows case (plan 7b, "frame offsets"); `FakeBackend` has none today (section 3.1, finding 4).
+
+## 6. Events
+
+The channel facts (capacities, `try_send` versus blocking `send`, `ResizeStep` coalescing, the missing `Changed` reconcile, the two latent bugs) were established in the step 5 prep entries of the progress log and are not repeated. What matters for the seam is where events originate and on which thread.
+
+| | Event sources | Reach the window manager how | Thread of the producer |
+|---|---|---|---|
+| Windows | `SetWinEventHook` (`W/winevent_listener.rs:28-36`); WTS session, power and device notifications on the hidden window (`W/monitor_reconciliator/hidden.rs:60-110`); a 20 ms `IsWindow` poll for dead windows (`W/reaper.rs:173-210`); a `winput` mouse hook (`W/process_movement.rs:14-20`) | `win_event_hook` builds a `WindowManagerEvent` and does a **blocking** `send` into `bounded(20)` (`W/winevent_listener.rs:59`, `W/windows_callbacks.rs:212, 233`); other sources have their own channels | the WinEvent message-pump thread; the hidden-window thread; the reaper poller |
+| KDE | the KWin script, reporting over D-Bus (`K/kwin/mod.rs:228-255`); logind and screen-lock (`K/kwin/power.rs:60-72`); the compositor's presence on the bus | `Table::handle` turns each report into `Output::Event`/`Monitor`/`Command`/`Cursor` (`K/kwin/mod.rs:191-206`); `try_send` into `bounded(20)` with `ResizeStep` coalescing (`K/window_manager_event_listener.rs:22, 36, 51-56`) | the tokio runtime of the bridge |
+| macOS | AX observers per application and per window (`M/application.rs:54`, `M/window.rs:288-350`); `NSWorkspace` (`M/notification_center_listener.rs:183-229`); CG display callback (`M/display_reconfiguration_listener.rs:12-30`); `CGEventTap` (`M/input_event_listener.rs:63-100`) | `try_send` into `bounded(20)` (`M/window_manager_event_listener.rs:15, 54`) and the reaper, monitor and border channels | **the main thread**, from the run loop (section 3.3) |
+
+Every consumer is a single thread that takes the WM lock for the whole event (`K/process_event.rs:132-149`, `M/process_event.rs:70-86`, `W/process_event.rs:117-134`).
+
+### 6.1 Evidence for "a frame request returns once made; landing is observed later"
+
+The three platforms disagree about whether a frame write has landed when the call returns, and each tree has grown a way to find out afterwards:
+
+- **KDE**: the command is queued and goes out as the reply to a held `Poll` (`K/kwin/mod.rs:185-188, 268-300`). The trait says so: commands "return once the compositor has accepted them, not once the client has acted on them" (`K/backend/mod.rs:21-22`) and a client "may refuse the size, so the frame the window ends up with is `window_rect`, not `rect`" (`:319-320`). `window_rect` is optimistic until the `geometry` event arrives (`K/kwin/state.rs:594-600`).
+- **macOS**: "An app is free to refuse a size, and many do" (`M/arrival.rs:1-12`): after a direct write the layout reads the frame back (`M/window.rs:944-972`) and, with animation on, the animator verifies each journey (`M/animation/animator.rs:6-14, 902`); both report to `arrival`, which says "Nothing in this module waits for anything or takes the lock of the window manager, so it can be called from any thread. The layout picks up what has been said the next time that it runs" (`:8-10`). `settle` does it again after a drag: "A window can be told where to go and not get there ... A quarter of a second after the drag ... the windows are looked at and any that are not where they are to be are sent there again, and looked at once more after that" (`M/settle.rs:1-9, 31`). The animator's own moves come back as AX notifications and "must not be mistaken for somebody moving a window" (`M/window.rs:300-301`).
+- **Windows**: `SetWindowPos` is synchronous unless `ASYNC_WINDOW_POS` (`W/windows_api.rs:518-528`), and the same two ideas exist: `set_position` compares the frame to the layout before writing (`W/window.rs:394-396`), and after a drag the windows are looked at again after 250 ms, "a window that is busy with what an earlier move made it do is seen to be left where that put it" (`W/live_resize.rs:713-724`).
+
+So the facts support: **a frame request may complete before, after or never at the requested size; the achieved frame is learned from events or from a separate, possibly slow, query.** They do not support "never read back": section 7, consequence 2.
