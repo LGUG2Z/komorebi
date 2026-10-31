@@ -7,15 +7,29 @@
 //!
 //! # Lifetime
 //!
-//! An entry is created by `Window::new` and by [`sync`] when a window's element or id changes
-//! (a native tab). It ends at every place the daemon learns of a death:
+//! An entry is created by `Window::observe`, when the window's observer has been attached to the run
+//! loop (a `Window` made only to ask an application about a window is never observed, so never
+//! registered, and the observer in the table is the attached one), and by [`sync`] when a window's
+//! element or id changes (a native tab). The entry holds an *inert* copy of the application
+//! ([`crate::application::Application::inert`]): dropping a normal copy asks the application
+//! something over Accessibility and may invalidate the shared observer, which must never happen
+//! inside a table operation.
 //!
-//! - `Window::drop`, when the window is no longer alive ([`forget`]);
-//! - the reaper, when it reaps a window ([`forget`]);
-//! - an application terminating ([`forget_pid`], from `WindowManagerEvent::Destroy`).
+//! It ends where the daemon knows a window is gone:
 //!
-//! A window that is alive and never managed stays registered until it dies or its application
-//! quits: the entry only holds retained references that the `Window` clones held anyway.
+//! - the reaper, when it reaps a window ([`forget`]), and the application reaper
+//!   (`reap_invalid_windows_for_application`, [`forget`]);
+//! - an application terminating ([`forget_pid`], the first thing `process_event` does for
+//!   `NSWorkspaceDidTerminateApplication`, ahead of the pause and other-space returns).
+//!
+//! It does not end in `Window::drop`: that runs for every clone, `alive()` is false for any failed
+//! Accessibility call, and a transient failure must not deregister a live window.
+//!
+//! Not enforced: an observed window that closes without passing through the reapers keeps its entry
+//! until its application quits (`WindowManagerEvent::Destroy` carries no window id). The table is
+//! bounded by the windows observed per running application; a sweep would cost one Accessibility call
+//! per entry under the window manager lock. What an unattached observer costs (a Mach port?) is not
+//! verified (hand check H4).
 //!
 //! # Threads
 //!
