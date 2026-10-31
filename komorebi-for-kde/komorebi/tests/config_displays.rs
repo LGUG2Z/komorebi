@@ -10,6 +10,7 @@ use komorebi::backend::with_backend;
 use komorebi::core::Rect;
 use komorebi::monitor::Monitor;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use parking_lot::Mutex;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;

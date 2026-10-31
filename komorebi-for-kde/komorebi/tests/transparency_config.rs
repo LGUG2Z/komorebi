@@ -11,6 +11,7 @@ use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::with_backend;
 use komorebi::core::SocketMessage;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::transparency_manager;
 use komorebi::window::Window;
 use komorebi::window_manager::WindowManager;

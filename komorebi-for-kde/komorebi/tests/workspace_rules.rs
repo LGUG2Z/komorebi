@@ -15,6 +15,7 @@ use komorebi::core::ApplicationIdentifier;
 use komorebi::core::Rect;
 use komorebi::core::SocketMessage;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::window::Window;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event::KWinNotification;

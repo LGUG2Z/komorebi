@@ -48,6 +48,7 @@ use komorebi::monitor_reconciliator;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
 use komorebi::static_config::StaticConfig;
+use komorebi::static_config::StaticConfigExt;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
 use komorebi_hotkeys::Format;

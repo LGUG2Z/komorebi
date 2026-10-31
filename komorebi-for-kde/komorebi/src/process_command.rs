@@ -260,6 +260,7 @@ use crate::notify_subscribers;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
+use crate::static_config::StaticConfigExt;
 use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
