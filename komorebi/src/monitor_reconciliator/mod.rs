@@ -1,6 +1,5 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::Notification;
 use crate::NotificationEvent;
@@ -106,7 +105,7 @@ pub fn display_change_in_progress(grace_period: std::time::Duration) -> bool {
 }
 
 pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
-    let dip = DISPLAY_INDEX_PREFERENCES.read();
+    let dip = crate::settings::display_index_preferences();
     let mut dip_ids = dip.values();
     let preferred_id = if dip_ids.any(|id| id.eq(&monitor.extra.device_id)) {
         monitor.extra.device_id.clone()
@@ -653,7 +652,7 @@ where
 
                             // Let's add their state to the cache for later, make sure to use what
                             // the user set as preference as the id.
-                            let dip = DISPLAY_INDEX_PREFERENCES.read();
+                            let dip = crate::settings::display_index_preferences();
                             let mut dip_ids = dip.values();
                             let preferred_id = if dip_ids.any(|id| id.eq(&m.extra.device_id)) {
                                 m.extra.device_id.clone()

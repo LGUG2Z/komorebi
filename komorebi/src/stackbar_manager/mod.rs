@@ -1,6 +1,5 @@
 mod stackbar;
 
-use crate::DEFAULT_CONTAINER_PADDING;
 use crate::WindowManager;
 use crate::WindowsApi;
 use crate::container::Container;
@@ -11,7 +10,6 @@ use crate::windows_backend::backend;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
-use crossbeam_utils::atomic::AtomicConsume;
 use komorebi_backend::WindowId;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
@@ -175,7 +173,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 let container_padding = ws
                     .container_padding
-                    .unwrap_or_else(|| DEFAULT_CONTAINER_PADDING.load_consume());
+                    .unwrap_or_else(crate::settings::container_padding);
 
                 'containers: for container in ws.containers_mut() {
                     let should_add_stackbar = match STACKBAR_MODE.load() {

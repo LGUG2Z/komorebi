@@ -161,7 +161,6 @@ use windows_core::HSTRING;
 
 use crate::core::Rect;
 
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::WINDOW_HANDLING_BEHAVIOUR;
@@ -369,8 +368,8 @@ impl WindowsApi {
                 }
             }
 
-            let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-            for (index, id) in &*display_index_preferences {
+            let display_index_preferences = crate::settings::display_index_preferences();
+            for (index, id) in &display_index_preferences {
                 if m.serial_number_id.as_ref().is_some_and(|sn| sn == id)
                     || id.eq(&m.extra.device_id)
                 {
@@ -405,7 +404,7 @@ impl WindowsApi {
         // Rebuild monitor index map
         *monitor_usr_idx_map = HashMap::new();
         let mut added_monitor_idxs = Vec::new();
-        for (index, id) in &*DISPLAY_INDEX_PREFERENCES.read() {
+        for (index, id) in &crate::settings::display_index_preferences() {
             if let Some(m_idx) = monitors.elements().iter().position(|m| {
                 m.serial_number_id.as_ref().is_some_and(|sn| sn == id) || m.extra.device_id.eq(id)
             }) {

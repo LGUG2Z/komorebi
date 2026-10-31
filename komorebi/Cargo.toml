@@ -12,6 +12,7 @@ komorebi-backend = { path = "../crates/komorebi-backend" }
 komorebi-collections = { path = "../crates/komorebi-collections" }
 komorebi-core = { path = "../crates/komorebi-core" }
 komorebi-config = { path = "../crates/komorebi-config", default-features = false }
+komorebi-settings = { path = "../crates/komorebi-settings" }
 komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
 komorebi-scrolling = { path = "../komorebi-scrolling" }
 komorebi-themes = { path = "../komorebi-themes" }

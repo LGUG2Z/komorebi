@@ -13,8 +13,6 @@
 //! of a test are still there in the next one.
 
 use color_eyre::eyre;
-use komorebi::DEFAULT_CONTAINER_PADDING;
-use komorebi::DEFAULT_WORKSPACE_PADDING;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::with_backend;
 use komorebi::core::CrossBoundaryBehaviour;
@@ -81,8 +79,10 @@ fn added(id: u32) -> WindowManagerEvent {
 /// Loads `json` over a fake desktop with one monitor, as `main` does
 fn load(json: &str) -> Loaded {
     let turn = TURN.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    DEFAULT_WORKSPACE_PADDING.store(5, Ordering::SeqCst);
-    DEFAULT_CONTAINER_PADDING.store(5, Ordering::SeqCst);
+    komorebi::settings::settings().update(|settings| {
+        settings.shared.defaults.workspace_padding = 5;
+        settings.shared.defaults.container_padding = 5;
+    });
 
     let fake = Arc::new(FakeBackend::with_one_monitor());
     let path = write_config(json);

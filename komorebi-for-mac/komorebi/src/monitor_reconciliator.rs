@@ -1,4 +1,3 @@
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::WORKSPACE_MATCHING_RULES;
@@ -47,7 +46,7 @@ fn event_rx() -> Receiver<MonitorNotification> {
 }
 
 pub fn insert_in_monitor_cache(serial_number_id: &str, monitor: Monitor) {
-    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+    let display_index_preferences = crate::settings::display_index_preferences();
     let mut dip_ids = display_index_preferences.values();
     let preferred_id = if dip_ids.any(|id| id == serial_number_id) {
         monitor.serial_number_id.clone()
@@ -318,7 +317,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             // Let's add their state to the cache for later, make sure to use what
                             // the user set as preference as the id.
-                            let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                            let display_index_preferences =
+                                crate::settings::display_index_preferences();
                             let mut dip_ids = display_index_preferences.values();
 
                             let preferred_id = if dip_ids.any(|id| m.serial_number_id.eq(id)) {

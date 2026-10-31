@@ -36,16 +36,15 @@
 
 #![deny(missing_docs)]
 
-use crate::monitor::MonitorExt;
-use crate::workspace::WorkspaceExt;
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Rect;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
 use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
+use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use komorebi_backend::MonitorId;
 use komorebi_backend::WindowId;
@@ -149,8 +148,8 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
         let m = device.clone();
 
         let mut index_preference = None;
-        let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-        for (index, id) in &*display_index_preferences {
+        let display_index_preferences = crate::settings::display_index_preferences();
+        for (index, id) in &display_index_preferences {
             if m.serial_number_id.eq(id) {
                 index_preference = Option::from(index);
             }
@@ -183,7 +182,7 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
     // Rebuild monitor index map
     *monitor_usr_idx_map = HashMap::new();
     let mut added_monitor_idxs = Vec::new();
-    for (index, id) in &*DISPLAY_INDEX_PREFERENCES.read() {
+    for (index, id) in &crate::settings::display_index_preferences() {
         if let Some(m_idx) = monitors
             .elements()
             .iter()

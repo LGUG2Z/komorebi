@@ -1,7 +1,6 @@
 use crate::AccessibilityObserver;
 use crate::AccessibilityUiElement;
 use crate::FLOATING_APPLICATIONS;
-use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::IGNORE_IDENTIFIERS;
 use crate::LibraryError;
 use crate::MANAGE_IDENTIFIERS;
@@ -42,8 +41,6 @@ use crate::arrival;
 use crate::cf_dictionary_value;
 use crate::core::ApplicationIdentifier;
 use crate::core::Rect;
-pub use komorebi_config::aspect_ratio::AspectRatio;
-pub use komorebi_config::aspect_ratio::PredefinedAspectRatio;
 use crate::core::WindowHidingPosition;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
@@ -60,6 +57,8 @@ use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
 use color_eyre::eyre;
+pub use komorebi_config::aspect_ratio::AspectRatio;
+pub use komorebi_config::aspect_ratio::PredefinedAspectRatio;
 use objc2::__framework_prelude::Retained;
 use objc2_app_kit::NSApplicationActivationOptions;
 use objc2_app_kit::NSRunningApplication;
@@ -521,10 +520,7 @@ impl Serialize for Window {
     {
         let mut state = serializer.serialize_struct("Window", 6)?;
         state.serialize_field("id", &self.id)?;
-        state.serialize_field(
-            "rect",
-            &Rect::from(self.window_rect().unwrap_or_default()),
-        )?;
+        state.serialize_field("rect", &Rect::from(self.window_rect().unwrap_or_default()))?;
         state.serialize_field("details", &WindowDetails::from(self))?;
         state.end()
     }
@@ -1235,9 +1231,8 @@ impl Window {
 
     pub fn center(&mut self, work_area: &Rect, resize: bool) -> Result<(), AccessibilityError> {
         let (target_width, target_height) = if resize {
-            let (aspect_ratio_width, aspect_ratio_height) = FLOATING_WINDOW_TOGGLE_ASPECT_RATIO
-                .lock()
-                .width_and_height();
+            let (aspect_ratio_width, aspect_ratio_height) =
+                crate::settings::floating_window_aspect_ratio().width_and_height();
             let target_height = work_area.bottom / 2;
             let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
             (target_width, target_height)

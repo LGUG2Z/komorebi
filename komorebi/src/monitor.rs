@@ -15,8 +15,6 @@ use crate::core::Rect;
 use komorebi_backend::MonitorId;
 use komorebi_core::ContainerWindow;
 
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DefaultLayout;
 use crate::Layout;
 use crate::OperationDirection;
@@ -260,10 +258,10 @@ impl MonitorExt for Monitor {
     fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
-            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
+            .or(Some(crate::settings::container_padding()));
         let workspace_padding = self
             .workspace_padding
-            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+            .or(Some(crate::settings::workspace_padding()));
         let (border_width, border_offset) = {
             let border_enabled = BORDER_ENABLED.load(Ordering::SeqCst);
             if border_enabled {
@@ -298,10 +296,10 @@ impl MonitorExt for Monitor {
     fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
-            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
+            .or(Some(crate::settings::container_padding()));
         let workspace_padding = self
             .workspace_padding
-            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+            .or(Some(crate::settings::workspace_padding()));
         let (border_width, border_offset) = {
             let border_enabled = BORDER_ENABLED.load(Ordering::SeqCst);
             if border_enabled {

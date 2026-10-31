@@ -1,5 +1,4 @@
 use crate::DATA_DIR;
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
@@ -1734,8 +1733,12 @@ impl WindowManager {
                 }
             }
             SocketMessage::DisplayIndexPreference(index_preference, ref display) => {
-                let mut display_index_preferences = DISPLAY_INDEX_PREFERENCES.write();
-                display_index_preferences.insert(index_preference, display.clone());
+                crate::settings::settings().update(|settings| {
+                    settings
+                        .shared
+                        .display_index_preferences
+                        .insert(index_preference, display.clone());
+                });
             }
             SocketMessage::ReplaceConfiguration(ref config) => {
                 // Check that this is a valid static config file first

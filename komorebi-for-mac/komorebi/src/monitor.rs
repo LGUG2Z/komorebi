@@ -5,8 +5,6 @@
 //! hide their windows in ([`MacosMonitorExtra`], written into the monitor's JSON as it always
 //! was), and what it does differently from the shared monitor is [`MonitorExt`].
 
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::container::Container;
 use crate::container::ContainerExt;
 use crate::core::DefaultLayout;
@@ -26,7 +24,6 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use serde::Deserialize;
 use serde::Serialize;
-use std::sync::atomic::Ordering;
 
 /// The monitor over the macOS [`Window`](crate::window::Window), which is
 /// `komorebi_core::Monitor` with this platform's methods added by [`MonitorExt`]
@@ -251,10 +248,10 @@ impl MonitorExt for Monitor {
     fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
-            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::Relaxed)));
+            .or(Some(crate::settings::container_padding()));
         let workspace_padding = self
             .workspace_padding
-            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::Relaxed)));
+            .or(Some(crate::settings::workspace_padding()));
         let (border_width, border_offset) = (0, 0);
         let work_area = self.work_area_size;
         let work_area_offset = self.work_area_offset.or(offset);
@@ -553,10 +550,10 @@ impl MonitorExt for Monitor {
     fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
-            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
+            .or(Some(crate::settings::container_padding()));
         let workspace_padding = self
             .workspace_padding
-            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+            .or(Some(crate::settings::workspace_padding()));
         let (border_width, border_offset) = (0, 0);
         let work_area = self.work_area_size;
         let work_area_offset = self.work_area_offset.or(offset);

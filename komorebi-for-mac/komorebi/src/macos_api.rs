@@ -1,4 +1,3 @@
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::LibraryError;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::attribute_constants::kAXFocusedApplicationAttribute;
@@ -110,8 +109,8 @@ impl MacosApi {
             let m = device.clone();
 
             let mut index_preference = None;
-            let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-            for (index, id) in &*display_index_preferences {
+            let display_index_preferences = crate::settings::display_index_preferences();
+            for (index, id) in &display_index_preferences {
                 if m.serial_number_id.eq(id) {
                     index_preference = Option::from(index);
                 }
@@ -144,7 +143,7 @@ impl MacosApi {
         // Rebuild monitor index map
         *monitor_usr_idx_map = HashMap::new();
         let mut added_monitor_idxs = Vec::new();
-        for (index, id) in &*DISPLAY_INDEX_PREFERENCES.read() {
+        for (index, id) in &crate::settings::display_index_preferences() {
             if let Some(m_idx) = monitors
                 .elements()
                 .iter()

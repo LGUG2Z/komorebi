@@ -1,5 +1,4 @@
 use crate::DATA_DIR;
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
@@ -61,7 +60,7 @@ impl Default for GlobalState {
         Self {
             ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
-            display_index_preferences: DISPLAY_INDEX_PREFERENCES.read().clone(),
+            display_index_preferences: crate::settings::display_index_preferences(),
             workspace_rules: WORKSPACE_MATCHING_RULES.lock().clone(),
             configuration_dir: HOME_DIR.clone(),
             data_dir: DATA_DIR.clone(),

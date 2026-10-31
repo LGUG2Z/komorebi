@@ -26,8 +26,6 @@
 //! Covered by `tests/monitor_resize.rs`, `tests/hotplug.rs`, `tests/follow_output.rs` and
 //! `tests/wake.rs` against the fake backend, and by the `vm-hotplug` and `vm-lock-sleep` VM suites.
 
-use crate::monitor::MonitorExt;
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::WORKSPACE_MATCHING_RULES;
@@ -35,6 +33,7 @@ use crate::border_manager;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::desktop;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
 use crate::notify_subscribers;
 use crate::state::State;
 use crate::window_manager::WindowManager;
@@ -93,7 +92,7 @@ fn event_rx() -> Receiver<MonitorNotification> {
 /// It is kept under `serial_number_id`, except when a display index preference has that id as its
 /// value: then it is kept under the monitor's own serial number id.
 pub fn insert_in_monitor_cache(serial_number_id: &str, monitor: Monitor) {
-    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+    let display_index_preferences = crate::settings::display_index_preferences();
     let mut dip_ids = display_index_preferences.values();
     let preferred_id = if dip_ids.any(|id| id == serial_number_id) {
         monitor.serial_number_id.clone()
@@ -257,7 +256,7 @@ pub fn reconcile_display_change(wm: &mut WindowManager) -> color_eyre::Result<()
 
                 // Let's add their state to the cache for later, make sure to use what
                 // the user set as preference as the id.
-                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                let display_index_preferences = crate::settings::display_index_preferences();
                 let mut dip_ids = display_index_preferences.values();
 
                 let preferred_id = if dip_ids.any(|id| m.serial_number_id.eq(id)) {
@@ -357,7 +356,7 @@ pub fn reconcile_display_change(wm: &mut WindowManager) -> color_eyre::Result<()
                     // load the cached monitor removing any window that has since been
                     // closed or moved to another workspace
                     *m = Monitor {
-            extra: Default::default(),
+                        extra: Default::default(),
                         // Data that should be the one just read from the compositor
                         id: m.id,
                         device: m.device.clone(),

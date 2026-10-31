@@ -1,6 +1,5 @@
 use crate::AnimationStyle;
 use crate::FLOATING_APPLICATIONS;
-use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::HIDDEN_HWNDS;
 use crate::HIDING_BEHAVIOUR;
 use crate::IGNORE_IDENTIFIERS;
@@ -316,9 +315,8 @@ impl Window {
 
     pub fn center(&mut self, work_area: &Rect, resize: bool) -> eyre::Result<()> {
         let (target_width, target_height) = if resize {
-            let (aspect_ratio_width, aspect_ratio_height) = FLOATING_WINDOW_TOGGLE_ASPECT_RATIO
-                .lock()
-                .width_and_height();
+            let (aspect_ratio_width, aspect_ratio_height) =
+                crate::settings::floating_window_aspect_ratio().width_and_height();
             let target_height = work_area.bottom / 2;
             let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
             (target_width, target_height)
