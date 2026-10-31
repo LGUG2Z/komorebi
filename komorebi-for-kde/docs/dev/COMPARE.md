@@ -1,5 +1,7 @@
 # komorebi for KDE Plasma compared with komorebi for Windows and for macOS
 
+> **STALE (snapshot of 2026-10-27, kfw 173aa802, kfm 125a9a5):** this comparison predates the consolidation. The three programs now share `crates/` (protocol, config, collections, transport, backend, core, settings, komorebic-core) and one `komorebi`, `komorebic`, `komorebi-client` and `komorebi-bar` package, so counts of duplicated commands, messages and keys below are out of date, and `scripts/compare-gen.py` no longer runs against the current tree (it fails with `cannot find '^enum SubCommand'`, because the command definitions moved to `crates/komorebic-core`). For what is shared and what differs on purpose now, read the repository-level [docs/dev/ARCHITECTURE-UNIFIED.md](../../../docs/dev/ARCHITECTURE-UNIFIED.md) and [docs/dev/core-model.md](../../../docs/dev/core-model.md). The platform-difference tables (KWin versus Win32 versus AppKit mechanisms) remain a fair description of the platform layers.
+
 This document compares komorebi for KDE Plasma on KWin and Wayland (kfde) with komorebi for
 Windows (kfw), the original, and komorebi for macOS (kfm). It is written for a reader who knows
 komorebi on one of those two systems and wants to know what is the same on KDE, what is different,
