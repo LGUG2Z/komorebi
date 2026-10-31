@@ -2577,6 +2577,8 @@ name = "komorebi-core"
 version = "0.1.42"
 dependencies = [
  "komorebi-collections",
+ "komorebi-config",
+ "komorebi-layouts",
  "nanoid",
  "schemars 1.2.3",
  "serde",

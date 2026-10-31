@@ -42,6 +42,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_backend::MonitorId;
 use komorebi_backend::WindowId;
+pub use komorebi_core::WorkspaceGlobals;
 use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::KomorebiTheme;
 use komorebi_themes::KomorebiThemeCustom;
@@ -216,23 +217,6 @@ pub enum WorkspaceWindowLocation {
     Maximized,
     Container(usize, usize), // container_idx, window_idx
     Floating(usize),         // idx in floating_windows
-}
-
-#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
-/// The work area a monitor gives the workspace it shows, the padding and the offset the
-/// workspace falls back to when it sets none of its own, the monitor's window-based offset, and
-/// the room around each window that a border drawn by the compositor takes
-pub struct WorkspaceGlobals {
-    pub container_padding: Option<i32>,
-    pub workspace_padding: Option<i32>,
-    pub border_width: i32,
-    pub border_offset: i32,
-    pub work_area: Rect,
-    pub work_area_offset: Option<Rect>,
-    pub window_based_work_area_offset: Option<Rect>,
-    pub window_based_work_area_offset_limit: isize,
-    /// The floating layer behaviour of the monitor, which the workspace's own overrides
-    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
