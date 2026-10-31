@@ -40,6 +40,44 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::num::NonZeroUsize;
 
+/// What [`WorkspacePlatform::begin_update`] answers.
+pub enum Flow {
+    /// Do not update the workspace now.
+    Skip,
+    /// Update it, holding the guard (if any) until the update is done.
+    Run(Option<Box<dyn std::any::Any>>),
+}
+
+/// What [`WorkspacePlatform::end_update`] answers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pass {
+    /// The windows are placed.
+    Done,
+    /// Lay the workspace out and place the windows once more.
+    Again,
+}
+
+/// What the hooks of an update know about the pass that is running.
+#[derive(Clone, Copy, Debug)]
+pub struct Placement {
+    /// The work area less the monitor's and the workspace's offsets and padding.
+    pub adjusted_work_area: Rect,
+    /// The work area of the monitor.
+    pub work_area: Rect,
+    /// The padding around a container.
+    pub container_padding: i32,
+    /// The offset of the border from the window.
+    pub border_offset: i32,
+    /// The width of the border.
+    pub border_width: i32,
+    /// Whether the workspace has the scrolling layout.
+    pub is_scrolling: bool,
+    /// Whether the workspace has no resize adjustments.
+    pub resize_dimensions_is_empty: bool,
+    /// Whether a window is maximized on this workspace.
+    pub managed_maximized_window: bool,
+}
+
 /// What names a window of the platform `P`: the id the shared code compares.
 pub type PlatformWindowId<P> = <<P as WorkspacePlatform>::Window as ContainerWindow>::Id;
 
@@ -134,6 +172,84 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
     /// the adjustments to put back.
     fn before_hide_containers(_workspace: &mut Workspace<Self>) -> Option<Vec<Option<Rect>>> {
         None
+    }
+
+    // ---- the hooks of `update_shared`, in the order it calls them -----------------------------
+
+    /// Called first: the platform may skip the update (`Flow::Skip`) or run it holding a guard
+    /// that is dropped when the update ends (Windows: the animation batch). KDE prunes duplicate
+    /// windows here. Not called by a platform that has its own update.
+    fn begin_update(_workspace: &mut Workspace<Self>) -> eyre::Result<Flow> {
+        Ok(Flow::Run(None))
+    }
+
+    /// Called after the empty containers are dropped, with the index that had the focus before.
+    /// KDE keeps the focus on a container that exists; Windows leaves it where it is.
+    fn containers_pruned(_workspace: &mut Workspace<Self>, _focused_before: usize) {}
+
+    /// Puts the monocle window on the work area it is given.
+    fn place_monocle(_window: &mut Self::Window, _rect: &Rect) -> eyre::Result<()> {
+        Err(eyre::eyre!("this platform has no shared update"))
+    }
+
+    /// Lays the maximized window out: the platform's own maximize.
+    fn maximize_in_layout(_window: &mut Self::Window) -> eyre::Result<()> {
+        Err(eyre::eyre!("this platform has no shared update"))
+    }
+
+    /// Whether the scrolling layout should learn the widths the windows really have before it is
+    /// laid out (Windows: animations on and no live resize; KDE: the last placement has settled).
+    fn adopt_widths_before_layout(_workspace: &Workspace<Self>) -> bool {
+        false
+    }
+
+    /// Has the scrolling layout learn the widths the windows really have; true if one changed.
+    fn adopt_actual_widths(
+        _workspace: &mut Workspace<Self>,
+        _around_window: i32,
+        _viewport_width: i32,
+    ) -> bool {
+        false
+    }
+
+    /// The tile of every container of a scrolling workspace and whether each rests hidden past an
+    /// edge with another monitor next to it.
+    fn scrolling_layouts(
+        _workspace: &mut Workspace<Self>,
+        _adjusted_work_area: &Rect,
+        _container_padding: i32,
+    ) -> (Vec<Rect>, Vec<bool>) {
+        (vec![], vec![])
+    }
+
+    /// Adjusts the tile of one container before its windows are placed: the room a border takes,
+    /// and whatever else the platform needs (the clamp to the work area, the stackbar).
+    fn adjust_layout(
+        _container: &mut Container<Self::Window>,
+        _layout: &mut Rect,
+        _placement: &Placement,
+    ) {
+    }
+
+    /// Puts the windows of a container on its (adjusted) tile, or hides them when `hidden`.
+    fn place_container(
+        _container: &mut Container<Self::Window>,
+        _layout: &Rect,
+        _hidden: bool,
+        _placement: &Placement,
+    ) -> eyre::Result<()> {
+        Err(eyre::eyre!("this platform has no shared update"))
+    }
+
+    /// Called after every placement pass; `Pass::Again` runs one more (the Windows scrolling layout
+    /// does once, when a window refused the width it was given).
+    fn end_update(
+        _workspace: &mut Workspace<Self>,
+        _pass: usize,
+        _around_window: i32,
+        _viewport_width: i32,
+    ) -> eyre::Result<Pass> {
+        Ok(Pass::Done)
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1512,6 +1628,228 @@ impl<P: WorkspacePlatform> Workspace<P> {
 
         Ok(())
     }
+
+    /// Lays the windows of the workspace out: asks the layout for a tile per container in the
+    /// work area (less the paddings, the offsets and the room a border takes) and has the platform
+    /// put the windows on their tiles. What is the platform's (animations, title bars, stackbars,
+    /// the clamp to the work area, the scrolling layout's extra pass) is in the hooks of
+    /// [`WorkspacePlatform`] that `update_shared` calls, in the order of its documentation.
+    ///
+    /// Not named `update`, so that a daemon keeps its own `update` (it calls this one).
+    pub fn update_shared(&mut self) -> eyre::Result<()> {
+        // the platform may skip the update, and may hold a guard that lives until it is done
+        let _guard = match P::begin_update(self)? {
+            Flow::Skip => return Ok(()),
+            Flow::Run(guard) => guard,
+        };
+
+        // make sure we are never holding on to empty containers
+        let focused_container_idx = self.focused_container_idx();
+        self.containers_mut()
+            .retain(|c| c.is_preselect() || !c.windows().is_empty());
+        P::containers_pruned(self, focused_container_idx);
+
+        let container_padding = self
+            .container_padding
+            .or(self.globals.container_padding)
+            .unwrap_or_default();
+        let workspace_padding = self
+            .workspace_padding
+            .or(self.globals.workspace_padding)
+            .unwrap_or_default();
+        let border_width = self.globals.border_width;
+        let border_offset = self.globals.border_offset;
+        let work_area = self.globals.work_area;
+        let mut rules_work_area_offset = None;
+
+        if !self.work_area_offset_rules.is_empty() {
+            let count = if self.monocle_container.is_some() {
+                1
+            } else {
+                self.containers().len()
+            };
+
+            for (threshold, work_area_offset_rule) in &self.work_area_offset_rules {
+                if count >= *threshold {
+                    rules_work_area_offset = Some(*work_area_offset_rule);
+                }
+            }
+        };
+
+        let work_area_offset = rules_work_area_offset
+            .or(self.work_area_offset)
+            .or(self.globals.work_area_offset);
+        let window_based_work_area_offset = self.globals.window_based_work_area_offset;
+        let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
+
+        let mut adjusted_work_area = work_area_offset.map_or_else(
+            || work_area,
+            |offset| {
+                let mut with_offset = work_area;
+                with_offset.left += offset.left;
+                with_offset.top += offset.top;
+                with_offset.right -= offset.right;
+                with_offset.bottom -= offset.bottom;
+
+                with_offset
+            },
+        );
+
+        if (self.containers().len() <= window_based_work_area_offset_limit as usize
+            || self.monocle_container.is_some() && window_based_work_area_offset_limit > 0)
+            && self.apply_window_based_work_area_offset
+        {
+            adjusted_work_area = window_based_work_area_offset.map_or_else(
+                || adjusted_work_area,
+                |offset| {
+                    let mut with_offset = adjusted_work_area;
+                    with_offset.left += offset.left;
+                    with_offset.top += offset.top;
+                    with_offset.right -= offset.right;
+                    with_offset.bottom -= offset.bottom;
+
+                    with_offset
+                },
+            );
+        }
+
+        adjusted_work_area.add_padding(workspace_padding);
+
+        self.enforce_resize_constraints();
+
+        if !self.layout_rules.is_empty() {
+            let mut updated_layout = None;
+
+            for (threshold, layout) in &self.layout_rules {
+                if self.containers().len() >= *threshold {
+                    updated_layout = Option::from(layout.clone());
+                }
+            }
+
+            if let Some(updated_layout) = updated_layout {
+                self.layout = updated_layout;
+            }
+        }
+
+        if let Some(window_container_behaviour_rules) = &self.window_container_behaviour_rules {
+            let mut updated_behaviour = None;
+            for (threshold, behaviour) in window_container_behaviour_rules {
+                if self.containers().len() >= *threshold {
+                    updated_behaviour = Option::from(*behaviour);
+                }
+            }
+
+            self.window_container_behaviour = updated_behaviour;
+        }
+
+        let managed_maximized_window = self.maximized_window.is_some();
+
+        if self.tile {
+            if let Some(container) = &mut self.monocle_container {
+                if let Some(window) = container.focused_window_mut() {
+                    adjusted_work_area.add_padding(container_padding);
+                    adjusted_work_area.add_padding(border_offset);
+                    adjusted_work_area.add_padding(border_width);
+                    P::place_monocle(window, &adjusted_work_area)?;
+                };
+            } else if let Some(window) = &mut self.maximized_window {
+                P::maximize_in_layout(window)?;
+            } else if !self.containers().is_empty() {
+                let is_scrolling = self.is_scrolling();
+                let around_window = container_padding + border_offset + border_width;
+
+                // windows that were not what they were told to be since the last layout
+                if is_scrolling && P::adopt_widths_before_layout(self) {
+                    P::adopt_actual_widths(self, around_window, adjusted_work_area.right);
+                }
+
+                let mut pass = 0;
+                loop {
+                    let effective_layout_options = self.effective_layout_options();
+
+                    tracing::debug!(
+                        "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",
+                        self.name.as_deref().unwrap_or("unnamed"),
+                        effective_layout_options,
+                        self.layout_options,
+                        self.layout_options_rules.len(),
+                    );
+
+                    // the containers that rest where another monitor is seen from, which are hidden
+                    let mut hidden = vec![];
+                    let mut layouts = if is_scrolling {
+                        let (layouts, hide) =
+                            P::scrolling_layouts(self, &adjusted_work_area, container_padding);
+                        hidden = hide;
+                        layouts
+                    } else {
+                        self.layout.as_boxed_arrangement().calculate(
+                            &adjusted_work_area,
+                            NonZeroUsize::new(self.containers().len()).ok_or_eyre(
+                                "there must be at least one container to calculate a workspace layout",
+                            )?,
+                            Some(container_padding),
+                            self.layout_flip,
+                            &self.resize_dimensions,
+                            self.focused_container_idx(),
+                            effective_layout_options,
+                            &self.latest_layout,
+                        )
+                    };
+
+                    let placement = Placement {
+                        adjusted_work_area,
+                        work_area,
+                        container_padding,
+                        border_offset,
+                        border_width,
+                        is_scrolling,
+                        resize_dimensions_is_empty: self.resize_dimensions.is_empty(),
+                        managed_maximized_window,
+                    };
+
+                    for (i, container) in self.containers_mut().iter_mut().enumerate() {
+                        if let Some(layout) = layouts.get_mut(i) {
+                            P::adjust_layout(container, layout, &placement);
+                            P::place_container(
+                                container,
+                                layout,
+                                hidden.get(i).copied().unwrap_or_default(),
+                                &placement,
+                            )?;
+                        }
+                    }
+
+                    self.latest_layout = layouts;
+
+                    match P::end_update(self, pass, around_window, adjusted_work_area.right)? {
+                        Pass::Again => {
+                            pass += 1;
+                            continue;
+                        }
+                        Pass::Done => break,
+                    }
+                }
+            }
+        }
+
+        // Always make sure that the length of the resize dimensions vec is the same as the
+        // number of layouts / containers. This should never actually truncate as the remove_window
+        // function takes care of cleaning up resize dimensions when destroying empty containers
+        let container_count = self.containers().len();
+
+        // since monocle is a toggle, we never want to truncate the resize dimensions since it will
+        // almost always be toggled off and the container will be reintegrated into layout
+        //
+        // without this check, if there are exactly two containers, when one is toggled to monocle
+        // the resize dimensions will be truncated to len == 1, and when it is reintegrated, if it
+        // had a resize adjustment before, that will have been lost
+        if self.monocle_container.is_none() {
+            self.resize_dimensions.resize(container_count, None);
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1520,6 +1858,14 @@ mod tests {
 
     #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
     struct W(u32);
+
+    thread_local! {
+        static LOG: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+
+    fn log() -> Vec<String> {
+        LOG.with(|log| std::mem::take(&mut *log.borrow_mut()))
+    }
 
     thread_local! {
         static HIDDEN: std::cell::RefCell<Vec<(u32, u8)>> = const { std::cell::RefCell::new(Vec::new()) };
@@ -1638,6 +1984,41 @@ mod tests {
         }
 
         fn note_scrolling_departure(_: &Workspace<Self>, _: usize) {}
+
+        fn begin_update(_: &mut Workspace<Self>) -> eyre::Result<Flow> {
+            LOG.with(|log| log.borrow_mut().push("begin".to_string()));
+            Ok(Flow::Run(None))
+        }
+
+        fn containers_pruned(_: &mut Workspace<Self>, focused_before: usize) {
+            LOG.with(|log| log.borrow_mut().push(format!("pruned {focused_before}")));
+        }
+
+        fn adjust_layout(_: &mut Container<W>, layout: &mut Rect, _: &Placement) {
+            layout.add_padding(1);
+        }
+
+        fn place_container(
+            container: &mut Container<W>,
+            layout: &Rect,
+            hidden: bool,
+            _: &Placement,
+        ) -> eyre::Result<()> {
+            LOG.with(|log| {
+                log.borrow_mut().push(format!(
+                    "place {} {} {}",
+                    container.windows()[0].0,
+                    layout.left,
+                    hidden
+                ))
+            });
+            Ok(())
+        }
+
+        fn end_update(_: &mut Workspace<Self>, pass: usize, _: i32, _: i32) -> eyre::Result<Pass> {
+            LOG.with(|log| log.borrow_mut().push(format!("end {pass}")));
+            Ok(if pass == 0 { Pass::Again } else { Pass::Done })
+        }
     }
 
     fn workspace_of(ids: &[u32]) -> Workspace<Plat> {
@@ -1683,6 +2064,29 @@ mod tests {
         assert!(!keys.contains(&"globals"));
         assert!(!keys.contains(&"state"));
         assert!(!keys.contains(&"scrolling"));
+    }
+
+    #[test]
+    fn the_shared_update_calls_the_hooks_in_order_and_runs_again_when_asked() {
+        let mut workspace = workspace_of(&[1, 2]);
+        workspace.globals.work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        log();
+
+        workspace.update_shared().unwrap();
+
+        let log = log();
+        assert_eq!(log[0], "begin");
+        assert_eq!(log[1], "pruned 1");
+        assert_eq!(log.iter().filter(|l| l.starts_with("place ")).count(), 4);
+        assert_eq!(log[4], "end 0");
+        assert_eq!(log[7], "end 1");
+        assert_eq!(workspace.latest_layout.len(), 2);
+        assert_eq!(workspace.resize_dimensions.len(), 2);
     }
 
     #[test]
