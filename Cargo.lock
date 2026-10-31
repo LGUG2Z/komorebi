@@ -3349,6 +3349,7 @@ dependencies = [
  "komorebi-backend",
  "komorebi-collections",
  "komorebi-config",
+ "komorebi-core",
  "komorebi-layouts",
  "komorebi-protocol",
  "komorebi-scrolling",

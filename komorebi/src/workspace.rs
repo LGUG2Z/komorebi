@@ -22,6 +22,7 @@ use crate::WindowContainerBehaviour;
 use crate::animation::engine::AnimationBatch;
 use crate::border_manager;
 use crate::container::Container;
+use crate::container::ContainerExt;
 use crate::core::Axis;
 use crate::core::CustomLayout;
 use crate::core::CycleDirection;
