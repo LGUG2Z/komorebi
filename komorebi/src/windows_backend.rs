@@ -54,7 +54,7 @@ fn platform(report: eyre::Report) -> Error {
 impl WindowsBackend {
     fn info(window: Window) -> Option<WindowInfo> {
         let hwnd = window.hwnd;
-        if !WindowsApi::is_window(hwnd) {
+        if !window.alive() {
             return None;
         }
 
@@ -63,7 +63,7 @@ impl WindowsBackend {
             pid: i32::try_from(window.process_id()).unwrap_or_default(),
             // Windows reports the visible bounds (without the shadow); an error leaves the
             // default, which a caller cannot tell from a window at the origin: see seam.md 9
-            rect: WindowsApi::window_rect(hwnd).unwrap_or_default(),
+            rect: window.window_rect().unwrap_or_default(),
             minimized: window.is_miminized(),
             alive: true,
             title: window.title().ok(),
@@ -136,7 +136,7 @@ impl Backend for WindowsBackend {
         // contract does not have: it is false here and a caller raises with `raise`.
         // `Window::set_position` also keeps its animation, slide-in and live-resize guards
         // and skips the write when the frame is already right: see seam.md 9.
-        window.set_position(rect, false).map_err(|e| failed(id, e))
+        window.set_rect(rect).map_err(|e| failed(id, e))
     }
 
     fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> Result<()> {
@@ -172,7 +172,7 @@ impl Backend for WindowsBackend {
         // for the `Hide` and `Minimize` hiding behaviours, and without the HIDDEN_HWNDS and
         // border bookkeeping of `Window::restore`
         live(id)?;
-        WindowsApi::restore_window(id.to_hwnd());
+        Window::from(id.to_hwnd()).unminimize();
         Ok(())
     }
 

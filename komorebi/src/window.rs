@@ -725,6 +725,31 @@ impl Window {
         WindowsApi::is_window(self.hwnd)
     }
 
+    // The operation names of the shared `komorebi_backend::Backend` (docs/dev/seam.md, section 2).
+    // `set_rect`, `alive`, `window_rect` and `unminimize` only delegate; `focus`, `raise`, `hide`,
+    // `restore`, `minimize` and `close` above already carry the shared name.
+
+    /// Set frame: `set_position` without raising the window to the front.
+    pub fn set_rect(self, rect: &Rect) -> eyre::Result<()> {
+        self.set_position(rect, false)
+    }
+
+    /// Alive check: Windows still has the window (`IsWindow`).
+    pub fn alive(self) -> bool {
+        self.is_window()
+    }
+
+    /// Frame query: the visible bounds (without the shadow), see `WindowsApi::window_rect`.
+    pub fn window_rect(self) -> eyre::Result<Rect> {
+        WindowsApi::window_rect(self.hwnd)
+    }
+
+    /// Windows has no unminimize of its own: `SW_SHOWNOACTIVATE`, as `restore` ends in for the
+    /// `Hide` and `Minimize` hiding behaviours, without the `HIDDEN_HWNDS` and border bookkeeping.
+    pub fn unminimize(self) {
+        WindowsApi::restore_window(self.hwnd);
+    }
+
     pub fn remove_title_bar(self) -> eyre::Result<()> {
         let mut style = self.style()?;
         style.remove(WindowStyle::CAPTION);
