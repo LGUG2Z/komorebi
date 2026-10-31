@@ -1,4 +1,6 @@
 use crate::config::LabelPrefix;
+use crate::platform::SystemTool;
+use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
@@ -10,7 +12,6 @@ use eframe::egui::Ui;
 use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
-use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -35,7 +36,7 @@ impl From<UpdateConfig> for Update {
 
         let client = reqwest::blocking::Client::new();
         if let Ok(response) = client
-            .get("https://api.github.com/repos/LGUG2Z/komorebi-for-mac/releases/latest")
+            .get(platform().latest_release_api_url())
             .header("User-Agent", "komorebi-bar-version-checker")
             .send()
         {
@@ -142,12 +143,10 @@ impl BarWidget for Update {
                     if SelectableFrame::new(false)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                        && let Err(error) = Command::new("explorer.exe")
-                            .args([format!(
-                                "https://github.com/LGUG2Z/komorebi/releases/v{}",
-                                self.latest_version
-                            )])
-                            .spawn()
+                        && let Err(error) = platform().open_system_tool(SystemTool::Url(format!(
+                            "https://github.com/LGUG2Z/komorebi/releases/v{}",
+                            self.latest_version
+                        )))
                     {
                         eprintln!("{error}")
                     }

@@ -1,4 +1,5 @@
 use crate::config::LabelPrefix;
+use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
@@ -202,7 +203,7 @@ impl BarWidget for Date {
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => {
-                            egui_phosphor::regular::CALENDAR_DOTS.to_string()
+                            platform().calendar_icon().to_string()
                         }
                         LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },

@@ -1,4 +1,6 @@
 use crate::config::LabelPrefix;
+use crate::platform::SystemTool;
+use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
@@ -10,7 +12,6 @@ use eframe::egui::Ui;
 use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
-use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::RefreshKind;
@@ -126,9 +127,7 @@ impl BarWidget for Memory {
                     if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                        && let Err(error) = Command::new("open")
-                            .args(["-a", "Activity Monitor"])
-                            .spawn()
+                        && let Err(error) = platform().open_system_tool(SystemTool::TaskManager)
                     {
                         eprintln!("{error}")
                     }
