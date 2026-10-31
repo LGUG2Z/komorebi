@@ -316,8 +316,10 @@ impl WindowManager {
                                 workspace.containers_mut().get_mut(container_idx)
                             && let Some(window) = container.focused_window_mut()
                         {
+                            let old_id = window.id;
                             window.id = window_id;
                             window.element = AccessibilityUiElement(element.clone());
+                            crate::ax_registry::sync(old_id, window);
                         }
 
                         // check monocle_container for tabbed applications
@@ -349,8 +351,10 @@ impl WindowManager {
                             && let Some(monocle) = workspace.monocle_container.as_mut()
                             && let Some(window) = monocle.focused_window_mut()
                         {
+                            let old_id = window.id;
                             window.id = window_id;
                             window.element = AccessibilityUiElement(element.clone());
+                            crate::ax_registry::sync(old_id, window);
                         }
 
                         if first_tab_destroyed {
