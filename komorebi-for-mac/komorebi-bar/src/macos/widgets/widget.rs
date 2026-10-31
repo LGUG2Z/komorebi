@@ -1,13 +1,13 @@
-use crate::widgets::applications::Applications;
-use crate::widgets::battery::Battery;
-use crate::widgets::cpu::Cpu;
-use crate::widgets::date::Date;
-use crate::widgets::komorebi::Komorebi;
-use crate::widgets::memory::Memory;
-use crate::widgets::network::Network;
-use crate::widgets::storage::Storage;
-use crate::widgets::time::Time;
-use crate::widgets::update::Update;
+use crate::macos::widgets::applications::Applications;
+use crate::macos::widgets::battery::Battery;
+use crate::macos::widgets::cpu::Cpu;
+use crate::macos::widgets::date::Date;
+use crate::macos::widgets::komorebi::Komorebi;
+use crate::macos::widgets::memory::Memory;
+use crate::macos::widgets::network::Network;
+use crate::macos::widgets::storage::Storage;
+use crate::macos::widgets::time::Time;
+use crate::macos::widgets::update::Update;
 use eframe::egui::Context;
 use eframe::egui::Ui;
 

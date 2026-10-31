@@ -1,10 +1,10 @@
-use crate::bar::Alignment;
+use crate::macos::bar::Alignment;
 pub use komorebi_bar_core::widgets::network_config::NetworkConfig;
 pub use komorebi_bar_core::widgets::network_config::NetworkSelectConfig;
-use crate::config::LabelPrefix;
-use crate::render::RenderConfig;
-use crate::selected_frame::SelectableFrame;
-use crate::widgets::widget::BarWidget;
+use crate::macos::config::LabelPrefix;
+use crate::macos::render::RenderConfig;
+use crate::macos::selected_frame::SelectableFrame;
+use crate::macos::widgets::widget::BarWidget;
 use eframe::egui::Align;
 use eframe::egui::Color32;
 use eframe::egui::Context;

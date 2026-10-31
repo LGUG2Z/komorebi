@@ -1,4 +1,4 @@
-use crate::widgets::ImageIcon;
+use crate::macos::widgets::ImageIcon;
 use egui_phosphor::regular::CALENDAR;
 use komorebi_bar_core::platform::BarPlatform;
 use komorebi_bar_core::platform::SystemTool;
