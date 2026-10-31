@@ -58,18 +58,18 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
     )
 
 
-# What is asked of the layout, which a maximized window is not in: none of it does anything.
+# What is asked of the layout, which a maximized window is not in: none of it does anything. Not in
+# the list, because komorebi for Windows does not ignore them either: `toggle-float`, which floats
+# the maximized window (`user` ends with it), and `stack left` and `stack right`, which stack the
+# tiles that are left.
 IGNORED = (
     "move left",
     "move right",
     "move up",
     "move down",
-    "stack left",
-    "stack right",
     "unstack",
     "cycle-move next",
     "promote",
-    "toggle-float",
     "toggle-monocle",
     "resize-edge left increase",
     "send-to-workspace 1",
@@ -161,6 +161,35 @@ def user(platform: Platform, checks: Checks, clients: list[Client]) -> None:
                 maximized() is None
                 and containers() == count
                 and positions(platform, [other]) == {other.title: tiles[other.title]}
+            ),
+            timeout=20,
+        ),
+    )
+
+    # `toggle-float` is asked of the window in front, and that is the maximized one: it floats and
+    # is not maximized any more, as on komorebi for Windows
+    platform.user_maximize(target)
+    platform.wait_for(lambda: maximized() == target.title, timeout=20)
+    platform.komorebic("toggle-float")
+    checks.check(
+        f"toggle-float floats {target.title}, which the user maximized, and ends the maximize",
+        platform.wait_for(
+            lambda: (
+                maximized() is None
+                and [w.title for w in platform.state().workspace().floating] == [target.title]
+                and containers() == count - 1
+            ),
+            timeout=20,
+        ),
+    )
+    platform.komorebic("toggle-float")
+    checks.check(
+        f"... and again puts {target.title} back in the layout",
+        platform.wait_for(
+            lambda: (
+                containers() == count
+                and platform.state().workspace().floating == []
+                and tiled(platform, clients)
             ),
             timeout=20,
         ),

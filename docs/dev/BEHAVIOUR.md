@@ -261,13 +261,12 @@ counts when it needs them and asks only that the monitor it left shows a workspa
 Windows runs on `next` (komorebi `6d862a11`), with the decision of what to do with each:
 
 - **A window the user maximizes** (`maximizing.user`, the title bar button). kfde takes it as the
-  workspace's maximized window, as for `toggle-maximize`. kfw's `next` (aa353a71) does too now, and
-  the first checks pass. What differs is what the layout commands do while it is maximized: kfde
-  ignores them all, and kfw, with a window the user maximized, still ignores `move`, `cycle-move`,
-  `promote` and `unstack`, but `stack left/right` stacks the other windows (two containers become
-  one) and `toggle-float` floats the window and ends the maximize. **Which is the reference is a
-  decision, with the maintainer**; the scenario stays as it is and the Windows runner records the
-  rest as known failures.
+  workspace's maximized window, as for `toggle-maximize`, and kfw's `next` (3fa3d429) does too.
+  The two ports now agree on what the layout commands do while it is maximized: `move`,
+  `cycle-move`, `promote`, `unstack`, the resize, send and lock commands and the monocle do
+  nothing, `toggle-float` floats the maximized window and ends the maximize, and `stack left` and
+  `stack right` stack the tiles that are left. kfde used to ignore the last two as well; it
+  follows kfw (**decided**, and the only difference there was). The scenario asserts what is common.
 - **A window moved to another display by something other than a drag** (`hotplug.user_move`,
   `SetWindowPos` on Windows). kfde follows the window to the other monitor; kfw relocates a window
   only when a drag ends (`MoveResizeEnd`) and a move by any other means raises no such event, so it
