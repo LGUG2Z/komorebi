@@ -1587,7 +1587,7 @@ impl From<&CFDictionary> for WindowInfo {
             Self {
                 name: cf_dictionary_value::<CFString>(value, kCGWindowName)
                     .map(|s| s.as_ref().to_string())
-                    .and_then(|s| if s.is_empty() { None } else { Some(s) }),
+                    .filter(|s| !s.is_empty()),
                 owner_pid: cf_dictionary_value::<CFNumber>(value, kCGWindowOwnerPID)
                     .and_then(|s| s.as_ref().as_i32())
                     .expect("window must have an owner process id"),
