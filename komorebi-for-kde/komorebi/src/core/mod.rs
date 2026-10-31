@@ -613,7 +613,7 @@ pub enum SocketMessage {
     SocketSchema,
     StaticConfigSchema,
     GenerateStaticConfig,
-    DebugWindow(u32),
+    DebugWindow(i64),
     ReloadHotkeys,
     HotkeysState,
 }

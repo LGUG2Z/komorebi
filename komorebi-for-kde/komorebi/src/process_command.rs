@@ -1974,8 +1974,11 @@ impl WindowManager {
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::DebugWindow(window_id) => {
-                let window = Window::from(window_id);
-                if window.is_valid() {
+                // an id that is not a u32 is not a window
+                let window = u32::try_from(window_id).map(Window::from);
+                if let Ok(window) = window
+                    && window.is_valid()
+                {
                     let mut rule_debug = RuleDebug::default();
                     let _ = window.should_manage(None, &mut rule_debug);
                     let schema = serde_json::to_string_pretty(&rule_debug)?;
