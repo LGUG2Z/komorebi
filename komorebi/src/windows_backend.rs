@@ -150,7 +150,7 @@ impl Backend for WindowsBackend {
 
     fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> Result<()> {
         live(id)?
-            .focus(mouse_follows_focus)
+            .focus_native(mouse_follows_focus)
             .map_err(|e| failed(id, e))
     }
 
@@ -203,9 +203,9 @@ impl Backend for WindowsBackend {
     fn maximize(&self, id: WindowId, maximize: bool) -> Result<()> {
         let window = live(id)?;
         if maximize {
-            window.maximize();
+            window.maximize_native();
         } else {
-            window.unmaximize();
+            window.unmaximize_native();
         }
         Ok(())
     }

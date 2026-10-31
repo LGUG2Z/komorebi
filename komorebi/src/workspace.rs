@@ -557,7 +557,7 @@ impl Workspace {
             && let Some(window) = container.focused_window()
         {
             container.restore();
-            backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
+            window.focus(mouse_follows_focus)?;
             return self.apply_wallpaper(hmonitor, monitor_wp);
         }
 
@@ -587,30 +587,18 @@ impl Workspace {
         // when switching to a workspace
         if let Some(window) = to_focus {
             if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
-                backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
+                window.focus(mouse_follows_focus)?;
             } else if let Some(maximized_window) = self.maximized_window {
                 maximized_window.restore_window();
-                backend().focus(
-                    WindowId::from_hwnd(maximized_window.hwnd),
-                    mouse_follows_focus,
-                )?;
+                maximized_window.focus(mouse_follows_focus)?;
             } else if let Some(floating_window) = self.focused_floating_window() {
-                backend().focus(
-                    WindowId::from_hwnd(floating_window.hwnd),
-                    mouse_follows_focus,
-                )?;
+                floating_window.focus(mouse_follows_focus)?;
             }
         } else if let Some(maximized_window) = self.maximized_window {
             maximized_window.restore_window();
-            backend().focus(
-                WindowId::from_hwnd(maximized_window.hwnd),
-                mouse_follows_focus,
-            )?;
+            maximized_window.focus(mouse_follows_focus)?;
         } else if let Some(floating_window) = self.focused_floating_window() {
-            backend().focus(
-                WindowId::from_hwnd(floating_window.hwnd),
-                mouse_follows_focus,
-            )?;
+            floating_window.focus(mouse_follows_focus)?;
         }
 
         self.apply_wallpaper(hmonitor, monitor_wp)
@@ -731,7 +719,7 @@ impl Workspace {
                     window.set_position(&adjusted_work_area, true)?;
                 };
             } else if let Some(window) = &mut self.maximized_window {
-                let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), true);
+                window.maximize();
             } else if !self.containers().is_empty() {
                 // windows that were not what they were told to be since the last layout, which
                 // is something that animations only show once they are done
@@ -1202,7 +1190,7 @@ impl Workspace {
         if let Some(window) = self.maximized_window
             && window.hwnd == window_id
         {
-            let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), false);
+            window.unmaximize();
             self.maximized_window = None;
             self.maximized_window_restore_idx = None;
             return Ok(());
@@ -1237,7 +1225,7 @@ impl Workspace {
         } else {
             container.load_focused_window();
             if let Some(window) = container.focused_window() {
-                backend().focus(WindowId::from_hwnd(window.hwnd), false)?;
+                window.focus(false)?;
             }
         }
 
@@ -1892,7 +1880,7 @@ impl Workspace {
             self.maximized_window = floating_window;
             self.maximized_window_restore_idx = Option::from(focused_idx);
             if let Some(window) = self.maximized_window {
-                let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), true);
+                window.maximize();
             }
 
             return Ok(());
@@ -1914,7 +1902,7 @@ impl Workspace {
             self.maximized_window = Option::from(window);
             self.maximized_window_restore_idx = monocle_restore_idx;
             if let Some(window) = self.maximized_window {
-                let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), true);
+                window.maximize();
             }
 
             return Ok(());
@@ -1944,7 +1932,7 @@ impl Workspace {
         self.maximized_window_restore_idx = Option::from(focused_idx);
 
         if let Some(window) = self.maximized_window {
-            let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), true);
+            window.maximize();
         }
 
         self.focus_previous_container();

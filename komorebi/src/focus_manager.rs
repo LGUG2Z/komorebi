@@ -8,8 +8,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 
 use crate::WindowManager;
-use crate::windows_backend::backend;
-use komorebi_backend::WindowId;
+use crate::window::Window;
 
 pub struct Notification(isize);
 
@@ -66,7 +65,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
     for notification in receiver {
         let mouse_follows_focus = wm.lock().mouse_follows_focus;
-        let _ = backend().focus(WindowId::from_hwnd(*notification), mouse_follows_focus);
+        let _ = Window::from(*notification).focus(mouse_follows_focus);
     }
 
     Ok(())

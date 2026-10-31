@@ -531,7 +531,7 @@ pub fn focus_if_asked(hwnd: isize) {
     let asked = FOCUS_LATER.lock().take(hwnd, Instant::now());
 
     if let Some(mouse_follows_focus) = asked
-        && let Err(error) = (crate::window::Window { hwnd }).focus(mouse_follows_focus)
+        && let Err(error) = (crate::window::Window { hwnd }).focus_native(mouse_follows_focus)
     {
         tracing::warn!("workspace transition: failed to focus hwnd {hwnd}: {error}");
     }

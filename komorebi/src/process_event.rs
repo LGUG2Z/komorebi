@@ -304,7 +304,7 @@ impl WindowManager {
 
         match event {
             WindowManagerEvent::Raise(window) => {
-                backend().focus(WindowId::from_hwnd(window.hwnd), false)?;
+                window.focus(false)?;
                 self.has_pending_raise_op = false;
             }
             WindowManagerEvent::Destroy(_, window) | WindowManagerEvent::Unmanage(window) => {
@@ -438,7 +438,7 @@ impl WindowManager {
 
                         if let Some(monocle) = &workspace.monocle_container {
                             if let Some(window) = monocle.focused_window() {
-                                backend().focus(WindowId::from_hwnd(window.hwnd), false)?;
+                                window.focus(false)?;
                             }
                         } else {
                             workspace.focus_container_by_window(window.hwnd)?;
@@ -624,10 +624,7 @@ impl WindowManager {
                                 // first send the `FocusChange` event and only the `Show` event after
                                 // and we will be focusing the desktop on the `FocusChange` event since
                                 // it is still empty.
-                                backend().focus(
-                                    WindowId::from_hwnd(window.hwnd),
-                                    self.mouse_follows_focus,
-                                )?;
+                                window.focus(self.mouse_follows_focus)?;
                             }
                         }
 
@@ -818,10 +815,7 @@ impl WindowManager {
                                 self.update_focused_workspace(false, false)?;
 
                                 // Make sure to give focus to the moved window again
-                                backend().focus(
-                                    WindowId::from_hwnd(window.hwnd),
-                                    self.mouse_follows_focus,
-                                )?;
+                                window.focus(self.mouse_follows_focus)?;
                             }
                         } else if window_management_behaviour.float_override {
                             workspace.floating_windows_mut().push_back(window);

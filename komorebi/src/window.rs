@@ -42,8 +42,10 @@ use crate::transparency_manager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api;
 use crate::windows_api::WindowsApi;
+use crate::windows_backend::backend;
 use color_eyre::eyre;
 use crossbeam_utils::atomic::AtomicConsume;
+use komorebi_backend::WindowId;
 pub use komorebi_config::aspect_ratio::AspectRatio;
 pub use komorebi_config::aspect_ratio::PredefinedAspectRatio;
 use regex::Regex;
@@ -519,7 +521,7 @@ impl Window {
         WindowsApi::close_window(self.hwnd)
     }
 
-    pub fn maximize(self) {
+    pub fn maximize_native(self) {
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()
@@ -531,7 +533,7 @@ impl Window {
         WindowsApi::maximize_window(self.hwnd);
     }
 
-    pub fn unmaximize(self) {
+    pub fn unmaximize_native(self) {
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()
@@ -543,7 +545,27 @@ impl Window {
         WindowsApi::unmaximize_window(self.hwnd);
     }
 
+    // The operations the shared code calls on a window go through the backend, as on KDE
+    // (`Window::focus`, `maximize` and `unmaximize` there call `backend()` too). The Windows
+    // primitives they end in are `focus_native`, `maximize_native` and `unmaximize_native`, which
+    // `WindowsBackend` calls; they stay public for the animation code that is inside the focus.
+
+    /// Gives the window the focus (and the pointer, if `mouse_follows_focus`).
     pub fn focus(self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        Ok(backend().focus(WindowId::from_hwnd(self.hwnd), mouse_follows_focus)?)
+    }
+
+    /// Maximizes the window; a window that is gone is left alone.
+    pub fn maximize(self) {
+        let _ = backend().maximize(WindowId::from_hwnd(self.hwnd), true);
+    }
+
+    /// Undoes `maximize`; a window that is gone is left alone.
+    pub fn unmaximize(self) {
+        let _ = backend().maximize(WindowId::from_hwnd(self.hwnd), false);
+    }
+
+    pub fn focus_native(self, mouse_follows_focus: bool) -> eyre::Result<()> {
         // Focusing a window that is hidden shows it, which is not for it to be
         // when it is yet to slide in: it is focused when its animation shows it
         if transition::is_entering(self.hwnd) {

@@ -1939,8 +1939,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 }
                 WorkspaceWindowLocation::Maximized => {
                     if let Some(window) = &mut self.focused_workspace_mut()?.maximized_window {
-                        backend()
-                            .focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
+                        window.focus(self.mouse_follows_focus)?;
                     }
                 }
                 WorkspaceWindowLocation::Container(container_idx, window_idx) => {
@@ -1957,8 +1956,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                         .floating_windows_mut()
                         .get_mut(window_idx)
                     {
-                        backend()
-                            .focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
+                        window.focus(self.mouse_follows_focus)?;
                     }
                 }
             }
@@ -2390,7 +2388,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             }
         };
         if let Some(window) = to_focus {
-            backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
+            window.focus(mouse_follows_focus)?;
         }
         Ok(())
     }

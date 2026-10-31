@@ -375,9 +375,7 @@ impl Stackbar {
 
                                 // Restore the window corresponding to the tab we have clicked
                                 window.restore_with_border(false);
-                                if let Err(err) =
-                                    backend().focus(WindowId::from_hwnd(window.hwnd), false)
-                                {
+                                if let Err(err) = window.focus(false) {
                                     tracing::error!(
                                         "stackbar WMLBUTTONDOWN focus error: hwnd {} ({})",
                                         *window,
