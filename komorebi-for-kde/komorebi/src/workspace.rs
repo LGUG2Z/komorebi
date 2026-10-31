@@ -557,7 +557,7 @@ impl Workspace {
     /// preselection reserved, if there is one, and otherwise at the index the workspace's initial
     /// window placement rules give it ([`Workspace::initial_window_placement_rules`]), which is
     /// after the focused container unless they say otherwise (at the start of an empty workspace)
-    pub fn new_container_for_window(&mut self, window: &Window) -> eyre::Result<()> {
+    pub fn new_container_for_window(&mut self, window: Window) {
         let next_idx = if let Some(idx) = self.preselected_container_idx {
             let next = idx;
             self.preselected_container_idx = None;
@@ -568,15 +568,13 @@ impl Workspace {
         } else if let Some(idx) = self.scrolling_insertion_idx() {
             idx
         } else {
-            self.resolve_placement_index(window)
+            self.resolve_placement_index(&window)
         };
 
         let mut container = Container::default();
-        container.add_window(*window);
+        container.add_window(window);
 
         self.insert_container_at_idx(next_idx, container);
-
-        Ok(())
     }
 
     /// Resolves the container index at which a new window should be placed,
@@ -1094,7 +1092,7 @@ impl Workspace {
             container.load_focused_window();
         }
 
-        self.new_container_for_window(&window)?;
+        self.new_container_for_window(window);
 
         let mut container = Container::default();
         container.add_window(window);
@@ -2458,7 +2456,7 @@ mod tests {
         ws.focus_container(2);
 
         // simulate a new window being launched on this workspace
-        ws.new_container_for_window(&Window::from(123)).unwrap();
+        ws.new_container_for_window(Window::from(123));
 
         // new length should be 5, with the focus on the new window at index 4
         assert_eq!(ws.containers().len(), 5);
@@ -2470,7 +2468,7 @@ mod tests {
 
         // when inserting a new container at index 0, index 3's container should not change
         ws.focus_container(0);
-        ws.new_container_for_window(&Window::from(234)).unwrap();
+        ws.new_container_for_window(Window::from(234));
         assert_eq!(
             ws.containers()[3].id.to_string(),
             state.get(&3).unwrap().to_string()
@@ -2970,9 +2968,7 @@ mod tests {
         }
 
         // Add new window to container
-        workspace
-            .new_container_for_window(&Window::from(2))
-            .unwrap();
+        workspace.new_container_for_window(Window::from(2));
 
         // Container 0 should have 1 window
         let container = workspace.focused_container_mut().unwrap();
@@ -3360,9 +3356,7 @@ mod tests {
 
         for id in ids {
             fake.open_window(*id, "foot", "foot", &format!("terminal {id}"));
-            workspace
-                .new_container_for_window(&Window::from(*id))
-                .unwrap();
+            workspace.new_container_for_window(Window::from(*id));
         }
 
         (fake, workspace)

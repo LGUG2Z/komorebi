@@ -340,7 +340,7 @@ impl WindowManager {
                         }
 
                         if let Some(to) = monitor.workspaces_mut().get_mut(idx) {
-                            to.new_container_for_window(&window)?;
+                            to.new_container_for_window(window);
                         }
 
                         // whichever of the two is showing needs its tiles redone
@@ -432,7 +432,7 @@ impl WindowManager {
                     } else {
                         match behaviour.current_behaviour {
                             WindowContainerBehaviour::Create => {
-                                workspace.new_container_for_window(&window)?;
+                                workspace.new_container_for_window(window);
                                 workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(false, false)?;
                             }
@@ -554,7 +554,7 @@ impl WindowManager {
                 None => {}
                 Some(window) => {
                     let workspace = self.focused_workspace_mut()?;
-                    workspace.new_container_for_window(&window)?;
+                    workspace.new_container_for_window(window);
                     self.update_focused_workspace(false, false)?;
                 }
             },

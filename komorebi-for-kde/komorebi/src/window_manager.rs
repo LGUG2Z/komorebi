@@ -3182,7 +3182,7 @@ impl WindowManager {
                 //workspace `window_container_behaviour` in my opinion! Maybe this should be done
                 //on the `new_container_for_window` function instead.
                 // TODO: not sure about this clone
-                target_workspace.new_container_for_window(window)?;
+                target_workspace.new_container_for_window(*window);
             }
         }
 

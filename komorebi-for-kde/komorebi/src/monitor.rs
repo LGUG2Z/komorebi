@@ -881,8 +881,7 @@ mod tests {
         );
         m.focused_workspace_mut()
             .unwrap()
-            .new_container_for_window(&Window::from(id))
-            .unwrap();
+            .new_container_for_window(Window::from(id));
 
         (fake, m)
     }
