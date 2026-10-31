@@ -9,6 +9,8 @@ use crate::border_manager::window_kind_colour;
 use crate::core::BorderStyle;
 use crate::core::Rect;
 use crate::windows_api;
+use crate::windows_backend::backend;
+use komorebi_backend::WindowId;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -308,7 +310,9 @@ impl Border {
                 monitor_idx: Some(monitor_idx),
                 render_target: None,
                 tracking_hwnd,
-                window_rect: WindowsApi::window_rect(tracking_hwnd).unwrap_or_default(),
+                window_rect: backend()
+                    .frame(WindowId::from_hwnd(tracking_hwnd))
+                    .unwrap_or_default(),
                 rendered_rect: Rect::default(),
                 window_kind: WindowKind::Unfocused,
                 style: STYLE.load(),
@@ -566,7 +570,9 @@ impl Border {
                         return LRESULT(0);
                     }
 
-                    let rect = WindowsApi::window_rect(reference_hwnd).unwrap_or_default();
+                    let rect = backend()
+                        .frame(WindowId::from_hwnd(reference_hwnd))
+                        .unwrap_or_default();
                     apply_tracked_rect(border_pointer, rect);
                     LRESULT(0)
                 }
@@ -593,14 +599,14 @@ impl Border {
                 }
                 WM_PAINT => {
                     tracing::trace!("border {}: WM_PAINT", window.0 as isize);
-                    if let Err(error) = WindowsApi::window_rect(window.0 as isize) {
+                    if let Err(error) = backend().frame(WindowId::from_hwnd(window.0 as isize)) {
                         tracing::trace!(
                             "border {}: not painted, its own rect cannot be read: {error}",
                             window.0 as isize
                         );
                     }
 
-                    if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
+                    if let Ok(rect) = backend().frame(WindowId::from_hwnd(window.0 as isize)) {
                         let border_pointer: *mut Border =
                             GetWindowLongPtrW(window, GWLP_USERDATA) as _;
 
