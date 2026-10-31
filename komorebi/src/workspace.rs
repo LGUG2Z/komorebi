@@ -1990,7 +1990,10 @@ impl Workspace {
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
         let window_id = WindowsApi::foreground_window().ok()?;
+        self.remove_floating_window(window_id)
+    }
 
+    pub fn remove_floating_window(&mut self, window_id: isize) -> Option<Window> {
         let mut idx = None;
         for (i, window) in self.floating_windows().iter().enumerate() {
             if window_id == window.hwnd {
