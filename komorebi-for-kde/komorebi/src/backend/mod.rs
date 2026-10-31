@@ -57,6 +57,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub mod fake;
+pub mod shared;
 
 /// What the compositor currently knows about one window.
 #[derive(Clone, Debug, Default, PartialEq)]
