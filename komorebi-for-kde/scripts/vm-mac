@@ -17,8 +17,17 @@ name="${1:?usage: scripts/vm-mac NAME [driver arguments]}"
 shift
 builder="${KOMOREBI_BUILDER:?set KOMOREBI_BUILDER to the store URL of a Linux builder}"
 cd "$(dirname "$0")/.."
-test="path:$PWD#legacyPackages.aarch64-darwin.vm.$name"
-[ -d .git ] && test="git+file://$PWD#legacyPackages.aarch64-darwin.vm.$name"
+attr="legacyPackages.aarch64-darwin.vm.$name"
+test="path:$PWD#$attr"
+# a git checkout is a flake source without its untracked files (.vm, target); this tree may be the
+# komorebi-for-kde directory of a bigger repository, whose toplevel is not $PWD
+if top=$(git rev-parse --show-toplevel 2> /dev/null); then
+  if [ "$top" = "$PWD" ]; then
+    test="git+file://$PWD#$attr"
+  else
+    test="git+file://$top?dir=${PWD#"$top"/}#$attr"
+  fi
+fi
 
 echo "== building the guests on $builder"
 nix eval --json "$test.nodes" --apply 'nodes: builtins.mapAttrs (_: node: node.system.build.toplevel.drvPath) nodes' |
