@@ -38,6 +38,9 @@ pub trait BarPlatform: Send + Sync {
     /// Runs a command line in the bar's shell session (Windows: its PowerShell session).
     fn exec_shell_command(&self, command: &str) -> color_eyre::Result<()>;
 
+    /// Sends one message to the komorebi daemon.
+    fn send_komorebi_message(&self, message: &SocketMessage) -> io::Result<()>;
+
     /// Sends messages to the komorebi daemon as one batch.
     fn send_komorebi_batch(&self, messages: Vec<SocketMessage>) -> io::Result<()>;
 

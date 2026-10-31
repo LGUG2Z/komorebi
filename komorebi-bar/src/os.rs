@@ -43,6 +43,10 @@ impl BarPlatform for WindowsBar {
         crate::bar::exec_powershell(command)
     }
 
+    fn send_komorebi_message(&self, message: &SocketMessage) -> io::Result<()> {
+        komorebi_client::send_message(message)
+    }
+
     fn send_komorebi_batch(&self, messages: Vec<SocketMessage>) -> io::Result<()> {
         komorebi_client::send_batch(messages)
     }

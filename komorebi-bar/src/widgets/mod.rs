@@ -5,7 +5,7 @@ pub use komorebi_bar_core::widgets::cpu;
 pub use komorebi_bar_core::widgets::date;
 pub mod keyboard;
 pub mod komorebi;
-mod komorebi_layout;
+pub use komorebi_bar_core::widgets::komorebi_layout;
 pub mod media;
 pub use komorebi_bar_core::widgets::memory;
 pub mod network;

@@ -46,6 +46,10 @@ impl BarPlatform for MacBar {
         Err(io::Error::new(io::ErrorKind::Unsupported, "no shell session on macOS").into())
     }
 
+    fn send_komorebi_message(&self, message: &SocketMessage) -> io::Result<()> {
+        komorebi_client::send_message(message)
+    }
+
     fn send_komorebi_batch(&self, messages: Vec<SocketMessage>) -> io::Result<()> {
         komorebi_client::send_batch(messages)
     }
