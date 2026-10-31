@@ -360,8 +360,10 @@ impl Stackbar {
                                 // on top of other tiles before eventually ending up in the correct
                                 // tile
                                 if index != focused_window_idx
-                                    && let Err(err) =
-                                        window.set_position(&focused_window_rect, false)
+                                    && let Err(err) = backend().set_rect(
+                                        WindowId::from_hwnd(window.hwnd),
+                                        &focused_window_rect,
+                                    )
                                 {
                                     tracing::error!(
                                         "stackbar WM_LBUTTONDOWN repositioning error: hwnd {} ({})",

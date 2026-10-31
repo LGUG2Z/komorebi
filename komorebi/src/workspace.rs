@@ -850,7 +850,7 @@ impl Workspace {
                                         window.restore();
                                     }
 
-                                    window.set_position(layout, false)?;
+                                    backend().set_rect(WindowId::from_hwnd(window.hwnd), layout)?;
                                 }
                             }
                         }
