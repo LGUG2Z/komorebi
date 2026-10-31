@@ -15,10 +15,17 @@ Arguments:
 
 Options:
   -w, --window-kind <WINDOW_KIND>
+          Possible values:
+          - single:           Single window
+          - stack:            Stack container
+          - monocle:          Monocle container
+          - unfocused:        Unfocused window
+          - unfocused-locked: Unfocused locked container
+          - floating:         Floating window
+          
           [default: single]
-          [possible values: single, stack, monocle, unfocused, unfocused-locked, floating]
 
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 
 ```
