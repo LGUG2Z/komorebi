@@ -21,6 +21,12 @@ impl BarPlatform for MacBar {
                 .spawn(),
             // explorer.exe does not exist on macOS: this is what the update widget does today
             SystemTool::Url(url) => Command::new("explorer.exe").args([url]).spawn(),
+            SystemTool::StorageLocation(label) => {
+                let parts: Vec<&str> = label.split(' ').collect();
+                let path = parts[..parts.len() - 1].join(" ");
+
+                Command::new("open").args([path]).spawn()
+            }
         }
         .map(|_| ())
     }

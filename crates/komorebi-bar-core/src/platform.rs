@@ -17,6 +17,9 @@ pub enum SystemTool {
     NetworkSettings,
     /// A URL, in the default browser
     Url(String),
+    /// The location a storage widget label names (the label text, as shown: the platform
+    /// knows how its labels are built), in the file manager
+    StorageLocation(String),
 }
 
 pub trait BarPlatform: Send + Sync {

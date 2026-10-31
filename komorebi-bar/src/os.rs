@@ -15,6 +15,9 @@ impl BarPlatform for WindowsBar {
                 .spawn(),
             SystemTool::NetworkSettings => Command::new("cmd.exe").args(["/C", "ncpa"]).spawn(),
             SystemTool::Url(url) => Command::new("explorer.exe").args([url]).spawn(),
+            SystemTool::StorageLocation(label) => Command::new("cmd.exe")
+                .args(["/C", "explorer.exe", label.split(' ').collect::<Vec<&str>>()[0]])
+                .spawn(),
         }
         .map(|_| ())
     }

@@ -11,7 +11,8 @@ use eframe::egui::Ui;
 use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
-use std::process::Command;
+use crate::platform::SystemTool;
+use crate::platform::platform;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Disks;
@@ -63,13 +64,13 @@ impl From<StorageConfig> for Storage {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum StorageDisplayName {
-    /// Display label as mount point eg. /
+    /// Display label as mount point eg. C:\
     Mount,
-    /// Display label as name eg. Macintosh HD
+    /// Display label as name eg. Local Disk
     Name,
-    /// Display label as mount then name eg. / Macintosh HD
+    /// Display label as mount then name eg. C:\ Local Disk
     MountAndName,
-    /// Display label as name then mount eg. Macintosh HD /
+    /// Display label as name then mount eg. Local Disk C:\
     NameAndMount,
 }
 
@@ -190,13 +191,10 @@ impl BarWidget for Storage {
                     if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
+                        && let Err(error) = platform()
+                            .open_system_tool(SystemTool::StorageLocation(output.label.clone()))
                     {
-                        let parts: Vec<&str> = output.label.split(' ').collect();
-                        let path = parts[..parts.len() - 1].join(" ");
-
-                        if let Err(error) = Command::new("open").args([path]).spawn() {
-                            eprintln!("{error}")
-                        }
+                        eprintln!("{error}")
                     }
                 });
             }
