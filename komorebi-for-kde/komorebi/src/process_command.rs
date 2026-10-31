@@ -376,6 +376,123 @@ fn is_layout_command(message: &SocketMessage) -> bool {
 }
 
 impl WindowManager {
+    /// Sets the border colour of one kind of window
+    pub fn set_border_colour(&mut self, kind: WindowKind, r: u32, g: u32, b: u32) {
+        match kind {
+            WindowKind::Single => {
+                border_manager::FOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::Stack => {
+                border_manager::STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::Monocle => {
+                border_manager::MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::Unfocused => {
+                border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::UnfocusedLocked => {
+                border_manager::UNFOCUSED_LOCKED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::Floating => {
+                border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+        }
+    }
+
+    /// Writes the answer to a state query to `reply`
+    pub fn answer_query(
+        &mut self,
+        query: StateQuery,
+        reply: &mut impl std::io::Write,
+    ) -> eyre::Result<()> {
+        let response = match query {
+            StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
+            StateQuery::FocusedWorkspaceIndex => self
+                .focused_monitor()
+                .ok_or_eyre("there is no monitor")?
+                .focused_workspace_idx()
+                .to_string(),
+            StateQuery::FocusedContainerIndex => self
+                .focused_workspace()?
+                .focused_container_idx()
+                .to_string(),
+            StateQuery::FocusedWindowIndex => {
+                self.focused_container()?.focused_window_idx().to_string()
+            }
+            StateQuery::FocusedWorkspaceName => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                focused_monitor
+                    .focused_workspace_name()
+                    .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
+            }
+            StateQuery::Version => build::VERSION.to_string(),
+            StateQuery::FocusedWorkspaceLayout => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                focused_monitor.focused_workspace_layout().map_or_else(
+                    || "None".to_string(),
+                    |layout| match layout {
+                        Layout::Default(default_layout) => default_layout.to_string(),
+                    },
+                )
+            }
+            StateQuery::FocusedContainerKind => {
+                match self.focused_workspace()?.focused_container() {
+                    None => "None".to_string(),
+                    Some(container) => {
+                        if container.windows().len() > 1 {
+                            "Stack".to_string()
+                        } else {
+                            "Single".to_string()
+                        }
+                    }
+                }
+            }
+        };
+
+        reply.write_all(response.as_bytes())?;
+        Ok(())
+    }
+
+    /// Replaces the running configuration with the one in the file
+    pub fn replace_configuration(&mut self, config: &std::path::PathBuf) -> eyre::Result<()> {
+        // Check that this is a valid static config file first
+        if StaticConfig::read(config).is_ok() {
+            // Clear workspace rules; these will need to be replaced
+            WORKSPACE_MATCHING_RULES.lock().clear();
+            // Pause so that restored windows come to the foreground from all workspaces
+            self.is_paused = true;
+            // Bring all windows to the foreground
+            self.restore_all_windows(false)?;
+
+            // Create a new wm from the config path
+            let mut wm = StaticConfig::preload(
+                config,
+                window_manager_event_listener::event_rx(),
+                self.command_listener.try_clone().ok(),
+            )?;
+
+            // Initialize the new wm
+            wm.init()?;
+
+            wm.restore_all_windows(true)?;
+
+            // This is equivalent to StaticConfig::postload for this use case
+            StaticConfig::reload(config, &mut wm)?;
+
+            // Set self to the new wm instance
+            *self = wm;
+        } else {
+            tracing::warn!(
+                "not replacing the configuration: {} is not a komorebi.json",
+                config.display()
+            );
+        }
+        Ok(())
+    }
+
     /// Adds a float rule for the focused window (its executable, title and class), until the daemon stops
     pub fn add_session_float_rule(&mut self) -> eyre::Result<()> {
         let foreground_window = Window::from(
@@ -1327,38 +1444,7 @@ impl WindowManager {
                 display_index_preferences.insert(index_preference, display.clone());
             }
             SocketMessage::ReplaceConfiguration(ref config) => {
-                // Check that this is a valid static config file first
-                if StaticConfig::read(config).is_ok() {
-                    // Clear workspace rules; these will need to be replaced
-                    WORKSPACE_MATCHING_RULES.lock().clear();
-                    // Pause so that restored windows come to the foreground from all workspaces
-                    self.is_paused = true;
-                    // Bring all windows to the foreground
-                    self.restore_all_windows(false)?;
-
-                    // Create a new wm from the config path
-                    let mut wm = StaticConfig::preload(
-                        config,
-                        window_manager_event_listener::event_rx(),
-                        self.command_listener.try_clone().ok(),
-                    )?;
-
-                    // Initialize the new wm
-                    wm.init()?;
-
-                    wm.restore_all_windows(true)?;
-
-                    // This is equivalent to StaticConfig::postload for this use case
-                    StaticConfig::reload(config, &mut wm)?;
-
-                    // Set self to the new wm instance
-                    *self = wm;
-                } else {
-                    tracing::warn!(
-                        "not replacing the configuration: {} is not a komorebi.json",
-                        config.display()
-                    );
-                }
+                self.replace_configuration(config)?
             }
             SocketMessage::NewWorkspace => {
                 self.new_workspace()?;
@@ -1586,57 +1672,7 @@ impl WindowManager {
 
                 reply.write_all(monitors_state.as_bytes())?;
             }
-            SocketMessage::Query(query) => {
-                let response = match query {
-                    StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
-                    StateQuery::FocusedWorkspaceIndex => self
-                        .focused_monitor()
-                        .ok_or_eyre("there is no monitor")?
-                        .focused_workspace_idx()
-                        .to_string(),
-                    StateQuery::FocusedContainerIndex => self
-                        .focused_workspace()?
-                        .focused_container_idx()
-                        .to_string(),
-                    StateQuery::FocusedWindowIndex => {
-                        self.focused_container()?.focused_window_idx().to_string()
-                    }
-                    StateQuery::FocusedWorkspaceName => {
-                        let focused_monitor =
-                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
-
-                        focused_monitor
-                            .focused_workspace_name()
-                            .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
-                    }
-                    StateQuery::Version => build::VERSION.to_string(),
-                    StateQuery::FocusedWorkspaceLayout => {
-                        let focused_monitor =
-                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
-
-                        focused_monitor.focused_workspace_layout().map_or_else(
-                            || "None".to_string(),
-                            |layout| match layout {
-                                Layout::Default(default_layout) => default_layout.to_string(),
-                            },
-                        )
-                    }
-                    StateQuery::FocusedContainerKind => {
-                        match self.focused_workspace()?.focused_container() {
-                            None => "None".to_string(),
-                            Some(container) => {
-                                if container.windows().len() > 1 {
-                                    "Stack".to_string()
-                                } else {
-                                    "Single".to_string()
-                                }
-                            }
-                        }
-                    }
-                };
-
-                reply.write_all(response.as_bytes())?;
-            }
+            SocketMessage::Query(query) => self.answer_query(query, &mut reply)?,
             SocketMessage::SessionFloatRule => self.add_session_float_rule()?,
             SocketMessage::SessionFloatRules => {
                 let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
@@ -2015,27 +2051,7 @@ impl WindowManager {
             SocketMessage::TransparencyAlpha(alpha) => {
                 transparency_manager::TRANSPARENCY_ALPHA.store(alpha, Ordering::SeqCst);
             }
-            SocketMessage::BorderColour(kind, r, g, b) => match kind {
-                WindowKind::Single => {
-                    border_manager::FOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                }
-                WindowKind::Stack => {
-                    border_manager::STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                }
-                WindowKind::Monocle => {
-                    border_manager::MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                }
-                WindowKind::Unfocused => {
-                    border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                }
-                WindowKind::UnfocusedLocked => {
-                    border_manager::UNFOCUSED_LOCKED
-                        .store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                }
-                WindowKind::Floating => {
-                    border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                }
-            },
+            SocketMessage::BorderColour(kind, r, g, b) => self.set_border_colour(kind, r, g, b),
             SocketMessage::BorderWidth(width) => {
                 border_manager::BORDER_WIDTH.store(width, Ordering::SeqCst);
                 border_manager::destroy_all_borders()?;
