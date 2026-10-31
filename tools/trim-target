@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Delete stale test executables from the shared cargo target dirs. A debug test binary is about
+# 290MB and every workspace path that builds the KDE tests adds up to 79 of them; the KDE target
+# dir grew from 30G to 109G in one evening this way. The binaries are rebuilt on demand.
+#   tools/trim-target [MINUTES]     (default 45: binaries untouched for that long are removed)
+set -euo pipefail
+minutes=${1:-45}
+S=${FAST_CHECK_SCRATCH:-${XDG_CACHE_HOME:-$HOME/.cache}/komorebi-fast-check}
+for d in "$S"/kde-target "$S"/target-fast-win "$S"/target-fast-mac "$S"/target-fast-native "$S"/target-spikes; do
+  [ -d "$d/debug/deps" ] || continue
+  before=$(du -sm "$d" | cut -f1)
+  find "$d/debug/deps" -maxdepth 1 -type f -perm -u+x ! -name '*.*' -mmin +"$minutes" -delete
+  after=$(du -sm "$d" | cut -f1)
+  echo "$d: ${before}M -> ${after}M"
+done
+df -h / /mnt/e | tail -2

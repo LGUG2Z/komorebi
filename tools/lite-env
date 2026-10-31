@@ -1,0 +1,10 @@
+# shellcheck shell=bash
+# lite-env: source this (". tools/lite-env") before gate builds that write a lot of disk.
+# Debug info off for the dev/test profiles: same code, same tests, same pass/fail; much smaller
+# test binaries (less disk write, shorter link). Panic backtraces lose line numbers.
+# Use with its OWN target dir (the fingerprint changes, so the first build is cold):
+#   CARGO_TARGET_DIR=$FAST_CHECK_SCRATCH/target-lite-<name> . tools/lite-env
+export CARGO_PROFILE_DEV_DEBUG=0
+export CARGO_PROFILE_TEST_DEBUG=0
+export CARGO_INCREMENTAL=${CARGO_INCREMENTAL:-0}
+export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-3}
