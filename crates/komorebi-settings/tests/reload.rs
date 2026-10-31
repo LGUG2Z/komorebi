@@ -125,3 +125,89 @@ fn a_load_never_touches_the_groups_it_does_not_name() {
     assert_eq!(after.shared.animation, before.shared.animation);
     assert_eq!(after.shared.transparency, before.shared.transparency);
 }
+
+#[test]
+fn transparency_is_kept_by_a_load_without_the_key_unless_the_daemon_resets_it() {
+    // Windows passes the keys as they are: absent keeps the value
+    let windows = handle();
+    load(
+        &windows,
+        SharedDelta {
+            transparency: Some(true),
+            transparency_alpha: Some(90),
+            ..SharedDelta::default()
+        },
+    );
+    load(&windows, SharedDelta::default());
+    let kept = windows.snapshot().shared.transparency;
+    assert!(kept.enabled);
+    assert_eq!(kept.alpha, 90);
+
+    // KDE passes `unwrap_or(false)` and `unwrap_or(200)`: absent resets to the defaults
+    let kde = handle();
+    load(
+        &kde,
+        SharedDelta {
+            transparency: Some(true),
+            transparency_alpha: Some(90),
+            ..SharedDelta::default()
+        },
+    );
+    let (transparency, alpha): (Option<bool>, Option<u8>) = (None, None);
+    load(
+        &kde,
+        SharedDelta {
+            transparency: Some(transparency.unwrap_or(false)),
+            transparency_alpha: Some(alpha.unwrap_or(200)),
+            ..SharedDelta::default()
+        },
+    );
+    let reset = kde.snapshot().shared.transparency;
+    assert!(!reset.enabled);
+    assert_eq!(reset.alpha, 200);
+}
+
+#[test]
+fn the_animation_block_follows_the_load_rules() {
+    use komorebi_config::animation::PerAnimationPrefixConfig;
+    use komorebi_protocol::animation::AnimationStyle;
+    use komorebi_protocol::animation::prefix::AnimationPrefix;
+    use komorebi_settings::shared::AnimationDelta;
+
+    let handle = handle();
+    let block = |enabled, fps| SharedDelta {
+        animation: Some(AnimationDelta {
+            enabled,
+            style: None,
+            duration: Some(PerAnimationPrefixConfig::Global(120)),
+            fps,
+        }),
+        ..SharedDelta::default()
+    };
+
+    // a per-kind map replaces the map, the global flag is left alone; fps given
+    load(
+        &handle,
+        block(
+            PerAnimationPrefixConfig::Prefix(HashMap::from([(AnimationPrefix::Movement, true)])),
+            Some(30),
+        ),
+    );
+    let first = handle.snapshot().shared.animation.clone();
+    assert!(!first.enabled);
+    assert_eq!(first.enabled_per_animation.len(), 1);
+    assert_eq!(first.duration, 120);
+    assert_eq!(first.fps, 30);
+    assert_eq!(first.style, AnimationStyle::Linear);
+
+    // a load with no animation block keeps all of it
+    load(&handle, SharedDelta::default());
+    assert_eq!(handle.snapshot().shared.animation, first);
+
+    // a global flag clears the map, and a block without fps resets fps
+    load(&handle, block(PerAnimationPrefixConfig::Global(true), None));
+    let second = handle.snapshot().shared.animation.clone();
+    assert!(second.enabled);
+    assert!(second.enabled_per_animation.is_empty());
+    assert_eq!(second.fps, 60);
+}
