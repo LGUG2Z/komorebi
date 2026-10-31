@@ -7,7 +7,7 @@ edition = "2024"
 
 [dependencies]
 komorebi-bar-core = { path = "../../crates/komorebi-bar-core", default-features = false }
-komorebi-client = { package = "komorebi-client-macos", path = "../komorebi-client", default-features = false }
+komorebi-client = { path = "../../komorebi-client", default-features = false }
 komorebi-themes = { path = "../../komorebi-themes" }
 
 chrono = { version = "0.4" }
