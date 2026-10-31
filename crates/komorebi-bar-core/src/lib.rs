@@ -10,3 +10,5 @@ pub mod ui;
 
 pub mod alignment;
 pub mod statics;
+
+pub mod config;

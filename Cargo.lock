@@ -3437,6 +3437,9 @@ name = "komorebi-bar-core"
 version = "0.1.42"
 dependencies = [
  "eframe",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
 ]
 
 [[package]]
