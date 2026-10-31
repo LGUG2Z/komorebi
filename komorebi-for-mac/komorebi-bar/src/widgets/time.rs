@@ -317,7 +317,7 @@ impl Time {
         let (response, painter) =
             ui.allocate_painter(Vec2::new(width, full_height + offset * 2.0), Sense::hover());
         let color = ctx.style().visuals.text_color();
-        let stroke = Stroke::new(1.0, color);
+        let stroke = Stroke::new(1.0_f32, color);
 
         let round_all = CornerRadius::same((response.rect.width() * 0.1) as u8);
         let round_top = CornerRadius {

@@ -310,7 +310,7 @@ impl Icon {
     #[inline]
     pub fn draw_fallback(ui: &mut Ui, icon_size: Vec2) {
         let (response, painter) = ui.allocate_painter(icon_size, Sense::hover());
-        let stroke = Stroke::new(1.0, ui.style().visuals.text_color());
+        let stroke = Stroke::new(1.0_f32, ui.style().visuals.text_color());
         let mut rect = response.rect;
         let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
         rect = rect.shrink(stroke.width);

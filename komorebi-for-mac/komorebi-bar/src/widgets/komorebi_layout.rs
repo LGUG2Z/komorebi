@@ -146,7 +146,7 @@ impl KomorebiLayout {
         } else {
             ui.style().visuals.text_color()
         };
-        let stroke = Stroke::new(1.0, color);
+        let stroke = Stroke::new(1.0_f32, color);
         let mut rect = response.rect;
         let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
         rect = rect.shrink(stroke.width);
