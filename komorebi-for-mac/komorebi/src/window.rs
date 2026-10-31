@@ -639,7 +639,7 @@ impl Window {
     /// edge of a display is not always on the display that the lookup by position finds.
     #[tracing::instrument(skip_all)]
     pub fn hide(
-        &mut self,
+        &self,
         hiding_position: WindowHidingPosition,
     ) -> Result<(), AccessibilityError> {
         self.hide_on(hiding_position, None)
@@ -653,7 +653,7 @@ impl Window {
     /// it is not given it is looked up from where the window is.
     #[tracing::instrument(skip_all)]
     pub fn hide_on(
-        &mut self,
+        &self,
         hiding_position: WindowHidingPosition,
         screen: Option<CGRect>,
     ) -> Result<(), AccessibilityError> {
@@ -715,7 +715,7 @@ impl Window {
     /// of the screen instead, as with [`Window::hide`].
     #[tracing::instrument(skip_all)]
     pub fn hide_scrolling(
-        &mut self,
+        &self,
         hiding_position: WindowHidingPosition,
         screen: Option<CGRect>,
     ) -> Result<(), AccessibilityError> {
@@ -836,13 +836,13 @@ impl Window {
             .is_some_and(|b| b.as_bool())
     }
 
-    pub fn minimize(&mut self) -> Result<(), AccessibilityError> {
+    pub fn minimize(&self) -> Result<(), AccessibilityError> {
         let cf_boolean = CFBoolean::new(true);
         let value = &**cf_boolean;
         AccessibilityApi::set_attribute_cf_value(&self.element, kAXMinimizedAttribute, value)
     }
 
-    pub fn unminimize(&mut self) -> Result<(), AccessibilityError> {
+    pub fn unminimize(&self) -> Result<(), AccessibilityError> {
         let cf_boolean = CFBoolean::new(false);
         let value = &**cf_boolean;
         AccessibilityApi::set_attribute_cf_value(&self.element, kAXMinimizedAttribute, value)
@@ -854,7 +854,7 @@ impl Window {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn restore(&mut self) -> Result<(), AccessibilityError> {
+    pub fn restore(&self) -> Result<(), AccessibilityError> {
         // waiting for what is on its way to the window is not something to do with a lock held
         animator::take_over(self.id);
         PARKED_WINDOWS.lock().remove(&self.id);

@@ -612,7 +612,7 @@ impl WindowManager {
                 if create
                     && !tabbed_window
                     && let Some(element) = window_element
-                    && let Ok(mut window) = Window::new(element, application.clone())
+                    && let Ok(window) = Window::new(element, application.clone())
                 {
                     window.observe(&self.run_loop, None)?;
                     let behaviour = self

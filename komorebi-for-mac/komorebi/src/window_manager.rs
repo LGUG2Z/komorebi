@@ -3162,7 +3162,7 @@ impl WindowManager {
                 .get_mut(op.origin_workspace_idx)
                 .ok_or_eyre("there is no workspace with that index")?;
 
-            let mut window = origin_workspace.remove_window(op.window_id)?;
+            let window = origin_workspace.remove_window(op.window_id)?;
 
             // If it is a floating window move it to the target area
             if op.floating {

@@ -211,24 +211,24 @@ impl Backend for MacosBackend {
 
     fn hide(&self, id: WindowId) -> Result<()> {
         // a sliver in a corner of the display, observable by the app and the user
-        let mut window = self.lookup(id)?;
+        let window = self.lookup(id)?;
         window
             .hide(self.hiding_position)
             .map_err(|e| Self::failed(id, &window, e))
     }
 
     fn restore(&self, id: WindowId) -> Result<()> {
-        let mut window = self.lookup(id)?;
+        let window = self.lookup(id)?;
         window.restore().map_err(|e| Self::failed(id, &window, e))
     }
 
     fn minimize(&self, id: WindowId) -> Result<()> {
-        let mut window = self.lookup(id)?;
+        let window = self.lookup(id)?;
         window.minimize().map_err(|e| Self::failed(id, &window, e))
     }
 
     fn unminimize(&self, id: WindowId) -> Result<()> {
-        let mut window = self.lookup(id)?;
+        let window = self.lookup(id)?;
         window
             .unminimize()
             .map_err(|e| Self::failed(id, &window, e))
