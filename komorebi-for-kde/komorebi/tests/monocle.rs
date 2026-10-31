@@ -508,7 +508,10 @@ fn focusing_towards_a_monitor_in_monocle_gives_the_focus_to_its_monocle_window()
     );
 
     assert_eq!(wm.focused_monitor_idx(), 1);
-    assert_eq!(fake.foreground_window(), Some(35_113));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(35_113)
+    );
     assert_eq!(
         wm.monitors()[1]
             .focused_workspace()
@@ -592,5 +595,8 @@ fn eager_focus_finds_the_window_of_an_executable_in_the_monocle() {
         SocketMessage::EagerFocus(String::from("kate")),
     );
 
-    assert_eq!(fake.foreground_window(), Some(35_142));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(35_142)
+    );
 }

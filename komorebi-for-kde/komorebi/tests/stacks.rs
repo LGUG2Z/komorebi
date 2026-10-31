@@ -168,7 +168,10 @@ fn stacking_puts_two_windows_in_one_container_and_hides_the_one_behind() {
     // 33_023 is the bottom right tile and had the focus: it goes onto 33_022, above it
     assert_eq!(containers(&wm), [vec![33_021], vec![33_023, 33_022]]);
     assert_eq!(hidden(&fake, &ids), [33_022]);
-    assert_eq!(fake.foreground_window(), Some(33_023));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(33_023)
+    );
 }
 
 #[test]
@@ -258,7 +261,10 @@ fn closing_the_window_in_front_of_a_stack_brings_the_next_one_forward() {
 
     assert_eq!(containers(&wm), [vec![33_071]]);
     assert!(hidden(&fake, &ids).is_empty());
-    assert_eq!(fake.foreground_window(), Some(33_071));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(33_071)
+    );
 }
 
 #[test]
@@ -504,7 +510,10 @@ fn cycling_the_stack_brings_the_next_window_to_the_front_and_hides_the_one_that_
 
     assert_eq!(wm.focused_window().unwrap().id, 33_201);
     assert_eq!(hidden(&fake, &ids), [33_202, 33_203]);
-    assert_eq!(fake.foreground_window(), Some(33_201));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(33_201)
+    );
 
     send(
         &fake,
@@ -515,7 +524,10 @@ fn cycling_the_stack_brings_the_next_window_to_the_front_and_hides_the_one_that_
 
     assert_eq!(wm.focused_window().unwrap().id, 33_203);
     assert_eq!(hidden(&fake, &ids), [33_201, 33_202]);
-    assert_eq!(fake.foreground_window(), Some(33_203));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(33_203)
+    );
 }
 
 #[test]
@@ -560,7 +572,10 @@ fn cycling_the_index_moves_the_front_window_along_the_stack_and_keeps_it_in_fron
     assert_eq!(order(&wm), [33_223, 33_222, 33_221]);
     assert_eq!(wm.focused_window().unwrap().id, 33_223);
     assert_eq!(hidden(&fake, &ids), [33_221, 33_222]);
-    assert_eq!(fake.foreground_window(), Some(33_223));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(33_223)
+    );
 }
 
 #[test]
@@ -572,7 +587,10 @@ fn focus_stack_window_brings_the_window_at_an_index_to_the_front() {
 
     assert_eq!(wm.focused_window().unwrap().id, 33_232);
     assert_eq!(hidden(&fake, &ids), [33_231, 33_233]);
-    assert_eq!(fake.foreground_window(), Some(33_232));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(33_232)
+    );
 
     send(&fake, &mut wm, SocketMessage::FocusStackWindow(0)).unwrap();
     assert_eq!(wm.focused_window().unwrap().id, 33_231);

@@ -264,7 +264,7 @@ fn a_window_open_on_a_desktop_at_startup_starts_on_that_workspace() {
     fake.show_workspace_by_user(MONITOR, 0);
     {
         use komorebi::backend::Backend;
-        fake.set_window_workspace(10_112, 1).unwrap();
+        fake.set_window_workspace(10_112.into(), 1).unwrap();
         fake.clear_commands();
     }
     let (_fake, wm) = desktop_on(fake);

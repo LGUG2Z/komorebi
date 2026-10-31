@@ -18,7 +18,7 @@
 //! fake.open_window(1, "foot", "foot", "a terminal");
 //!
 //! let tile = Rect { left: 0, top: 0, right: 960, bottom: 1050 };
-//! fake.set_rect(1, &tile)?;
+//! fake.set_rect(1.into(), &tile)?;
 //!
 //! assert_eq!(fake.rect_of(1), Some(tile));
 //! assert_eq!(fake.commands(), [Command::SetRect(1, tile)]);
@@ -406,12 +406,12 @@ impl Backend for FakeBackend {
         self.inner.windows().into_iter().map(window_info).collect()
     }
 
-    fn window(&self, id: u32) -> Option<WindowInfo> {
-        self.inner.window(wid(id)).map(window_info)
+    fn window(&self, id: WindowId) -> Option<WindowInfo> {
+        self.inner.window(id).map(window_info)
     }
 
-    fn foreground_window(&self) -> Option<u32> {
-        self.inner.foreground_window().map(raw)
+    fn foreground_window(&self) -> Option<WindowId> {
+        self.inner.foreground_window()
     }
 
     fn monitors(&self) -> shared::Result<Vec<MonitorInfo>> {
@@ -433,41 +433,40 @@ impl Backend for FakeBackend {
         self.inner.cursor_pos()
     }
 
-    fn drag_end(&self, id: u32) -> Option<Rect> {
-        self.kde.lock().drag_ends.get(&id).copied()
+    fn drag_end(&self, id: WindowId) -> Option<Rect> {
+        self.kde.lock().drag_ends.get(&raw(id)).copied()
     }
 
-    fn set_rect(&self, id: u32, rect: &Rect) -> shared::Result<()> {
-        self.inner.set_rect(wid(id), rect)
+    fn set_rect(&self, id: WindowId, rect: &Rect) -> shared::Result<()> {
+        self.inner.set_rect(id, rect)
     }
 
-    fn focus(&self, id: u32, mouse_follows_focus: bool) -> shared::Result<()> {
-        self.inner
-            .focus(wid(id), mouse_follows_focus)
+    fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> shared::Result<()> {
+        self.inner.focus(id, mouse_follows_focus)
     }
 
-    fn raise(&self, id: u32) -> shared::Result<()> {
-        self.inner.raise(wid(id))
+    fn raise(&self, id: WindowId) -> shared::Result<()> {
+        self.inner.raise(id)
     }
 
-    fn hide(&self, id: u32) -> shared::Result<()> {
-        self.inner.hide(wid(id))
+    fn hide(&self, id: WindowId) -> shared::Result<()> {
+        self.inner.hide(id)
     }
 
-    fn restore(&self, id: u32) -> shared::Result<()> {
-        self.inner.restore(wid(id))
+    fn restore(&self, id: WindowId) -> shared::Result<()> {
+        self.inner.restore(id)
     }
 
-    fn minimize(&self, id: u32) -> shared::Result<()> {
-        self.inner.minimize(wid(id))
+    fn minimize(&self, id: WindowId) -> shared::Result<()> {
+        self.inner.minimize(id)
     }
 
-    fn unminimize(&self, id: u32) -> shared::Result<()> {
-        self.inner.unminimize(wid(id))
+    fn unminimize(&self, id: WindowId) -> shared::Result<()> {
+        self.inner.unminimize(id)
     }
 
-    fn close(&self, id: u32) -> shared::Result<()> {
-        self.inner.close(wid(id))
+    fn close(&self, id: WindowId) -> shared::Result<()> {
+        self.inner.close(id)
     }
 
     fn center_cursor_in(&self, rect: &Rect) -> shared::Result<()> {
@@ -478,31 +477,24 @@ impl Backend for FakeBackend {
         self.inner.ensure_workspaces(names)
     }
 
-    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> shared::Result<()> {
-        self.inner
-            .switch_workspace(MonitorId::from_u32(monitor_id), idx)
+    fn switch_workspace(&self, monitor_id: MonitorId, idx: usize) -> shared::Result<()> {
+        self.inner.switch_workspace(monitor_id, idx)
     }
 
-    fn set_window_workspace(&self, id: u32, idx: usize) -> shared::Result<()> {
-        self.inner
-            .set_window_workspace(wid(id), idx)
+    fn set_window_workspace(&self, id: WindowId, idx: usize) -> shared::Result<()> {
+        self.inner.set_window_workspace(id, idx)
     }
 
-    fn window_workspace(&self, id: u32) -> Option<usize> {
-        self.inner.window_workspace(wid(id)).ok().flatten()
+    fn window_workspace(&self, id: WindowId) -> komorebi_backend::Result<Option<usize>> {
+        self.inner.window_workspace(id)
     }
 
-    fn current_workspaces(&self) -> Vec<(u32, usize)> {
-        self.inner
-            .current_workspaces()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(monitor, idx)| (raw_monitor(monitor), idx))
-            .collect()
+    fn current_workspaces(&self) -> shared::Result<Vec<(MonitorId, usize)>> {
+        self.inner.current_workspaces()
     }
 
-    fn maximize(&self, id: u32, maximize: bool) -> shared::Result<()> {
-        self.inner.maximize(wid(id), maximize)
+    fn maximize(&self, id: WindowId, maximize: bool) -> shared::Result<()> {
+        self.inner.maximize(id, maximize)
     }
 
     fn apply_look(&self, look: &Look) -> eyre::Result<bool> {
@@ -519,18 +511,20 @@ impl Backend for FakeBackend {
         self.inner.set_focus_follows_mouse(enable)
     }
 
-    fn set_wallpaper(&self, monitor_id: u32, path: &Path) -> eyre::Result<()> {
+    fn set_wallpaper(&self, monitor_id: MonitorId, path: &Path) -> eyre::Result<()> {
         self.kde
             .lock()
             .wallpapers
-            .insert(monitor_id, path.to_path_buf());
-        self.inner
-            .record_ext(KdeCommand::SetWallpaper(monitor_id, path.to_path_buf()));
+            .insert(raw_monitor(monitor_id), path.to_path_buf());
+        self.inner.record_ext(KdeCommand::SetWallpaper(
+            raw_monitor(monitor_id),
+            path.to_path_buf(),
+        ));
         Ok(())
     }
 
-    fn set_opacity(&self, id: u32, alpha: u8) -> shared::Result<()> {
-        self.inner.set_opacity(wid(id), alpha)
+    fn set_opacity(&self, id: WindowId, alpha: u8) -> shared::Result<()> {
+        self.inner.set_opacity(id, alpha)
     }
 
     fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
@@ -571,7 +565,7 @@ mod tests {
     fn a_window_asked_to_move_is_where_it_was_asked() -> eyre::Result<()> {
         let fake = fake_with(&[1]);
 
-        fake.set_rect(1, &tile(10, 500))?;
+        fake.set_rect(1.into(), &tile(10, 500))?;
 
         assert_eq!(fake.rect_of(1), Some(tile(10, 500)));
         Ok(())
@@ -582,7 +576,7 @@ mod tests {
         let fake = fake_with(&[1]);
         fake.set_min_size(1, 600, 400);
 
-        fake.set_rect(1, &tile(0, 300))?;
+        fake.set_rect(1.into(), &tile(0, 300))?;
 
         let rect = fake.rect_of(1).expect("window 1 was opened");
         assert_eq!((rect.right, rect.bottom), (600, 1050));
@@ -593,11 +587,11 @@ mod tests {
     fn every_command_is_recorded_in_order() -> eyre::Result<()> {
         let fake = fake_with(&[1, 2]);
 
-        fake.focus(1, false)?;
-        fake.raise(2)?;
-        fake.minimize(1)?;
-        fake.unminimize(1)?;
-        fake.close(2)?;
+        fake.focus(1.into(), false)?;
+        fake.raise(2.into())?;
+        fake.minimize(1.into())?;
+        fake.unminimize(1.into())?;
+        fake.close(2.into())?;
 
         assert_eq!(
             fake.commands(),
@@ -617,16 +611,16 @@ mod tests {
     #[test]
     fn a_maximized_window_has_the_work_area_and_gets_its_frame_back() -> eyre::Result<()> {
         let fake = fake_with(&[1]);
-        fake.set_rect(1, &tile(100, 200))?;
+        fake.set_rect(1.into(), &tile(100, 200))?;
 
-        fake.maximize(1, true)?;
+        fake.maximize(1.into(), true)?;
         // a second maximize does not make the maximized frame the one to give back
-        fake.maximize(1, true)?;
+        fake.maximize(1.into(), true)?;
 
         assert!(fake.is_maximized(1));
         assert_eq!(fake.rect_of(1), Some(tile(0, 1920)));
 
-        fake.maximize(1, false)?;
+        fake.maximize(1.into(), false)?;
 
         assert!(!fake.is_maximized(1));
         assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
@@ -645,32 +639,45 @@ mod tests {
     #[test]
     fn a_window_the_user_maximizes_is_maximized_and_no_command_is_recorded() {
         let fake = fake_with(&[1]);
-        fake.set_rect(1, &tile(100, 200)).unwrap();
+        fake.set_rect(1.into(), &tile(100, 200)).unwrap();
         fake.clear_commands();
 
         fake.user_maximize(1, true);
 
         assert!(fake.is_maximized(1));
-        assert!(fake.window(1).expect("window 1 was opened").maximized);
+        assert!(
+            fake.window(1.into())
+                .expect("window 1 was opened")
+                .maximized
+        );
         assert!(fake.windows()[0].maximized);
         assert_eq!(fake.rect_of(1), Some(tile(0, 1920)));
         assert!(fake.commands().is_empty());
 
         fake.user_maximize(1, false);
 
-        assert!(!fake.window(1).expect("window 1 was opened").maximized);
+        assert!(
+            !fake
+                .window(1.into())
+                .expect("window 1 was opened")
+                .maximized
+        );
         assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
     }
 
     #[test]
     fn a_fullscreen_window_covers_its_monitor_and_gets_its_frame_back() {
         let fake = fake_with(&[1]);
-        fake.set_rect(1, &tile(100, 200)).unwrap();
+        fake.set_rect(1.into(), &tile(100, 200)).unwrap();
         fake.clear_commands();
 
         fake.set_fullscreen(1, true);
 
-        assert!(fake.window(1).expect("window 1 was opened").fullscreen);
+        assert!(
+            fake.window(1.into())
+                .expect("window 1 was opened")
+                .fullscreen
+        );
         assert!(fake.windows()[0].fullscreen);
         assert_eq!(
             fake.rect_of(1),
@@ -686,7 +693,12 @@ mod tests {
 
         fake.set_fullscreen(1, false);
 
-        assert!(!fake.window(1).expect("window 1 was opened").fullscreen);
+        assert!(
+            !fake
+                .window(1.into())
+                .expect("window 1 was opened")
+                .fullscreen
+        );
         assert_eq!(fake.rect_of(1), Some(tile(100, 200)));
     }
 
@@ -694,7 +706,9 @@ mod tests {
     fn a_command_about_a_window_nobody_opened_is_an_error() {
         let fake = fake_with(&[1]);
 
-        let error = fake.focus(9, false).expect_err("window 9 does not exist");
+        let error = fake
+            .focus(9.into(), false)
+            .expect_err("window 9 does not exist");
 
         assert_eq!(error.to_string(), "no such window: 9");
     }
@@ -704,17 +718,20 @@ mod tests {
         let fake = fake_with(&[1]);
         fake.close_window_now(1);
 
-        assert!(fake.raise(1).is_err());
+        assert!(fake.raise(1.into()).is_err());
     }
 
     #[test]
     fn a_permissive_fake_creates_the_windows_it_is_asked_about() -> eyre::Result<()> {
         let fake = FakeBackend::permissive();
 
-        fake.focus(77, false)?;
+        fake.focus(77.into(), false)?;
 
-        assert!(fake.is_window(77));
-        assert_eq!(fake.foreground_window(), Some(77));
+        assert!(fake.is_window(77.into()));
+        assert_eq!(
+            fake.foreground_window().and_then(|id| id.to_u32()),
+            Some(77)
+        );
         Ok(())
     }
 
@@ -722,9 +739,9 @@ mod tests {
     fn focusing_with_the_mouse_following_puts_the_pointer_in_the_middle_of_the_window()
     -> eyre::Result<()> {
         let fake = fake_with(&[1]);
-        fake.set_rect(1, &tile(100, 200))?;
+        fake.set_rect(1.into(), &tile(100, 200))?;
 
-        fake.focus(1, true)?;
+        fake.focus(1.into(), true)?;
 
         assert_eq!(fake.cursor_pos(), Some((200, 525)));
         Ok(())
@@ -735,7 +752,7 @@ mod tests {
         let fake = fake_with(&[1]);
         fake.set_cursor(5, 5);
 
-        fake.focus(1, false)?;
+        fake.focus(1.into(), false)?;
 
         assert_eq!(fake.cursor_pos(), Some((5, 5)));
         Ok(())
@@ -761,7 +778,7 @@ mod tests {
 
         assert!(fake.commands().is_empty());
         assert_eq!(fake.rect_of(1), Some(tile(300, 300)));
-        let window = fake.window(1).expect("window 1 was opened");
+        let window = fake.window(1.into()).expect("window 1 was opened");
         assert_eq!(window.title, "renamed");
         assert!(!window.normal);
     }
@@ -784,22 +801,25 @@ mod tests {
         fake.open_window(1, "foot", "foot", "window 1");
 
         assert_eq!(fake.workspace_of(1), Some(2));
-        assert_eq!(fake.window_workspace(1), Some(2));
+        assert_eq!(fake.window_workspace(1.into()).unwrap(), Some(2));
         assert!(fake.on_screen(1));
     }
 
     #[test]
     fn a_monitor_shows_the_windows_of_its_workspace_and_no_others() -> eyre::Result<()> {
         let fake = fake_with(&[1, 2]);
-        fake.set_window_workspace(2, 1)?;
+        fake.set_window_workspace(2.into(), 1)?;
 
         assert!(fake.on_screen(1) && !fake.on_screen(2));
 
-        fake.switch_workspace(1, 1)?;
+        fake.switch_workspace(1.into(), 1)?;
 
         assert!(!fake.on_screen(1) && fake.on_screen(2));
         assert_eq!(fake.shown_workspace(1), 1);
-        assert_eq!(fake.current_workspaces(), [(1, 1)]);
+        assert_eq!(
+            fake.current_workspaces().unwrap(),
+            [(MonitorId::from_u32(1), 1)]
+        );
         assert_eq!(
             fake.commands(),
             [
@@ -816,7 +836,10 @@ mod tests {
 
         fake.show_workspace_by_user(1, 3);
 
-        assert_eq!(fake.current_workspaces(), [(1, 3)]);
+        assert_eq!(
+            fake.current_workspaces().unwrap(),
+            [(MonitorId::from_u32(1), 3)]
+        );
         assert!(fake.commands().is_empty());
     }
 
@@ -824,7 +847,7 @@ mod tests {
     fn a_minimized_window_or_one_that_closed_is_not_on_screen() -> eyre::Result<()> {
         let fake = fake_with(&[1, 2]);
 
-        fake.minimize(1)?;
+        fake.minimize(1.into())?;
         fake.close_window_now(2);
 
         assert!(!fake.on_screen(1) && !fake.on_screen(2));
@@ -835,14 +858,17 @@ mod tests {
     fn a_hidden_window_is_out_of_sight_on_its_workspace_until_it_is_restored() -> eyre::Result<()> {
         let fake = fake_with(&[1]);
 
-        fake.hide(1)?;
-        fake.hide(1)?;
+        fake.hide(1.into())?;
+        fake.hide(1.into())?;
 
         assert!(fake.is_hidden(1) && !fake.on_screen(1));
-        assert_eq!(fake.window_workspace(1), Some(0));
-        assert!(fake.window(1).is_some_and(|w| w.alive && !w.minimized));
+        assert_eq!(fake.window_workspace(1.into()).unwrap(), Some(0));
+        assert!(
+            fake.window(1.into())
+                .is_some_and(|w| w.alive && !w.minimized)
+        );
 
-        fake.restore(1)?;
+        fake.restore(1.into())?;
 
         assert!(!fake.is_hidden(1) && fake.on_screen(1));
         assert_eq!(
@@ -856,15 +882,15 @@ mod tests {
     fn hiding_or_restoring_a_window_nobody_opened_is_an_error() {
         let fake = fake_with(&[1]);
 
-        assert!(fake.hide(9).is_err());
-        assert!(fake.restore(9).is_err());
+        assert!(fake.hide(9.into()).is_err());
+        assert!(fake.restore(9.into()).is_err());
     }
 
     #[test]
     fn putting_a_window_nobody_opened_on_a_workspace_is_an_error() {
         let fake = fake_with(&[1]);
 
-        assert!(fake.set_window_workspace(9, 1).is_err());
+        assert!(fake.set_window_workspace(9.into(), 1).is_err());
         assert_eq!(fake.workspace_of(9), None);
     }
 
@@ -926,11 +952,11 @@ mod tests {
         let fake = fake_with(&[1]);
         assert_eq!(fake.opacity_of(1), 255);
 
-        fake.set_opacity(1, 100)?;
+        fake.set_opacity(1.into(), 100)?;
 
         assert_eq!(fake.opacity_of(1), 100);
         assert_eq!(fake.commands(), [Command::SetOpacity(1, 100)]);
-        assert!(fake.set_opacity(9, 100).is_err());
+        assert!(fake.set_opacity(9.into(), 100).is_err());
         Ok(())
     }
 
@@ -939,7 +965,7 @@ mod tests {
         let fake = fake_with(&[1]);
 
         fake.apply_look(&Look::default())?;
-        fake.focus(1, false)?;
+        fake.focus(1.into(), false)?;
         fake.set_border_colours(&[(1, 0xFF0000)])?;
 
         assert_eq!(fake.commands().len(), 3);

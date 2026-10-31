@@ -17,6 +17,7 @@ use crate::backend::backend;
 use crate::window::Window;
 use crate::window::should_act;
 use crate::window_manager::WindowManager;
+use komorebi_backend::WindowId;
 use std::collections::HashSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU8;
@@ -121,8 +122,8 @@ pub fn apply(wm: &mut WindowManager) {
         .copied()
         .collect();
     for id in no_longer {
-        if backend().is_window(id)
-            && let Err(error) = backend().set_opacity(id, OPAQUE)
+        if backend().is_window(WindowId::from_u32(id))
+            && let Err(error) = backend().set_opacity(WindowId::from_u32(id), OPAQUE)
         {
             tracing::warn!("could not make window {id} opaque: {error}");
         }
@@ -134,7 +135,7 @@ pub fn apply(wm: &mut WindowManager) {
             continue;
         }
 
-        match backend().set_opacity(id, alpha) {
+        match backend().set_opacity(WindowId::from_u32(id), alpha) {
             Ok(()) => {
                 wm.opacity_applied.insert(id, alpha);
             }
@@ -146,8 +147,8 @@ pub fn apply(wm: &mut WindowManager) {
 /// Makes every window komorebi made see-through opaque again, when komorebi exits.
 pub fn restore(wm: &mut WindowManager) {
     for (id, _) in wm.opacity_applied.drain() {
-        if backend().is_window(id) {
-            let _ = backend().set_opacity(id, OPAQUE);
+        if backend().is_window(WindowId::from_u32(id)) {
+            let _ = backend().set_opacity(WindowId::from_u32(id), OPAQUE);
         }
     }
 }

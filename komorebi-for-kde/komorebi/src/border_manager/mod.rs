@@ -26,6 +26,7 @@ use crate::core::animation::AnimationStyle;
 use crate::core::animation::QtCurve;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
+use komorebi_backend::WindowId;
 use komorebi_themes::colour::Colour;
 use komorebi_themes::colour::Rgb;
 use lazy_static::lazy_static;
@@ -113,7 +114,7 @@ fn kind_colour(kind: WindowKind) -> u32 {
 pub fn window_kinds(wm: &WindowManager) -> Vec<(u32, WindowKind)> {
     let mut out = vec![];
     let focused_monitor_idx = wm.focused_monitor_idx();
-    let foreground = backend().foreground_window();
+    let foreground = backend().foreground_window().and_then(WindowId::to_u32);
 
     let floating = |workspace: &crate::workspace::Workspace, out: &mut Vec<(u32, WindowKind)>| {
         for window in workspace.floating_windows() {

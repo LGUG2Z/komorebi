@@ -45,6 +45,8 @@ use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
+use komorebi_backend::MonitorId;
+use komorebi_backend::WindowId;
 use std::collections::HashMap;
 
 fn contains_point(area: &Rect, x: i32, y: i32) -> bool {
@@ -339,8 +341,12 @@ pub fn load_workspace_information(wm: &mut WindowManager) -> eyre::Result<()> {
     let mut valid_window_count = 0;
 
     // each monitor starts out showing the workspace the compositor is showing on it
-    for (monitor_id, idx) in backend().current_workspaces() {
-        if let Some(monitor) = wm.monitors_mut().iter_mut().find(|m| m.id == monitor_id) {
+    for (monitor_id, idx) in backend().current_workspaces().unwrap_or_default() {
+        if let Some(monitor) = wm
+            .monitors_mut()
+            .iter_mut()
+            .find(|m| MonitorId::from_u32(m.id) == monitor_id)
+        {
             monitor.focus_workspace(idx)?;
         }
     }
@@ -374,7 +380,9 @@ pub fn load_workspace_information(wm: &mut WindowManager) -> eyre::Result<()> {
             continue;
         };
         let workspace_idx = backend()
-            .window_workspace(info.id)
+            .window_workspace(WindowId::from_u32(info.id))
+            .ok()
+            .flatten()
             .unwrap_or_else(|| monitor.focused_workspace_idx());
         monitor.ensure_workspace_count(workspace_idx + 1);
 

@@ -51,6 +51,8 @@
 
 use crate::core::Rect;
 use color_eyre::eyre;
+use komorebi_backend::MonitorId;
+use komorebi_backend::WindowId;
 use parking_lot::RwLock;
 use std::cell::RefCell;
 use std::path::Path;
@@ -212,28 +214,29 @@ pub struct BorderLook {
 /// # use color_eyre::eyre;
 /// # use komorebi::backend::{Backend, MonitorInfo, WindowInfo};
 /// # use komorebi::core::Rect;
+/// # use komorebi_backend::{MonitorId, WindowId};
 /// struct NotShareable(Rc<u8>);
 ///
 /// # impl Backend for NotShareable {
 /// #     fn windows(&self) -> Vec<WindowInfo> { vec![] }
-/// #     fn window(&self, _: u32) -> Option<WindowInfo> { None }
-/// #     fn foreground_window(&self) -> Option<u32> { None }
+/// #     fn window(&self, _: WindowId) -> Option<WindowInfo> { None }
+/// #     fn foreground_window(&self) -> Option<WindowId> { None }
 /// #     fn monitors(&self) -> komorebi_backend::Result<Vec<MonitorInfo>> { Ok(vec![]) }
 /// #     fn cursor_pos(&self) -> Option<(i32, i32)> { None }
-/// #     fn set_rect(&self, _: u32, _: &Rect) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn focus(&self, _: u32, _: bool) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn raise(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn hide(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn restore(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn minimize(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn unminimize(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn close(&self, _: u32) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn set_rect(&self, _: WindowId, _: &Rect) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn focus(&self, _: WindowId, _: bool) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn raise(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn hide(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn restore(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn minimize(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn unminimize(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn close(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
 /// #     fn center_cursor_in(&self, _: &Rect) -> komorebi_backend::Result<()> { Ok(()) }
 /// #     fn ensure_workspaces(&self, _: &[String]) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn switch_workspace(&self, _: u32, _: usize) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn set_window_workspace(&self, _: u32, _: usize) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn window_workspace(&self, _: u32) -> Option<usize> { None }
-/// #     fn current_workspaces(&self) -> Vec<(u32, usize)> { vec![] }
+/// #     fn switch_workspace(&self, _: MonitorId, _: usize) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn set_window_workspace(&self, _: WindowId, _: usize) -> komorebi_backend::Result<()> { Ok(()) }
+/// #     fn window_workspace(&self, _: WindowId) -> komorebi_backend::Result<Option<usize>> { Ok(None) }
+/// #     fn current_workspaces(&self) -> komorebi_backend::Result<Vec<(MonitorId, usize)>> { Ok(vec![]) }
 /// # }
 /// ```
 pub trait Backend: Send + Sync + 'static {
@@ -243,10 +246,10 @@ pub trait Backend: Send + Sync + 'static {
     fn windows(&self) -> Vec<WindowInfo>;
 
     /// Returns what is known about the window, or `None` if the compositor has never heard of it.
-    fn window(&self, id: u32) -> Option<WindowInfo>;
+    fn window(&self, id: WindowId) -> Option<WindowInfo>;
 
     /// Returns the id of the window that has the focus, if any window does.
-    fn foreground_window(&self) -> Option<u32>;
+    fn foreground_window(&self) -> Option<WindowId>;
 
     /// Returns every connected monitor.
     ///
@@ -276,9 +279,9 @@ pub trait Backend: Send + Sync + 'static {
     /// let fake = FakeBackend::with_one_monitor();
     /// fake.open_window(1, "foot", "foot", "a terminal");
     ///
-    /// assert_eq!(fake.drag_origin(1), None);
+    /// assert_eq!(fake.drag_origin(1.into()), None);
     /// ```
-    fn drag_origin(&self, _id: u32) -> Option<Rect> {
+    fn drag_origin(&self, _id: WindowId) -> Option<Rect> {
         None
     }
 
@@ -303,13 +306,13 @@ pub trait Backend: Send + Sync + 'static {
     ///
     /// let fake = FakeBackend::with_one_monitor();
     /// fake.open_window(1, "foot", "foot", "a terminal");
-    /// assert_eq!(fake.drag_end(1), None);
+    /// assert_eq!(fake.drag_end(1.into()), None);
     ///
     /// let asked = Rect { left: 0, top: 0, right: 672, bottom: 704 };
     /// fake.set_drag_end(1, asked);
-    /// assert_eq!(fake.drag_end(1), Some(asked));
+    /// assert_eq!(fake.drag_end(1.into()), Some(asked));
     /// ```
-    fn drag_end(&self, _id: u32) -> Option<Rect> {
+    fn drag_end(&self, _id: WindowId) -> Option<Rect> {
         None
     }
 
@@ -323,21 +326,21 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn set_rect(&self, id: u32, rect: &Rect) -> komorebi_backend::Result<()>;
+    fn set_rect(&self, id: WindowId, rect: &Rect) -> komorebi_backend::Result<()>;
 
     /// Gives the window the focus, and, if `mouse_follows_focus`, puts the pointer in its middle.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn focus(&self, id: u32, mouse_follows_focus: bool) -> komorebi_backend::Result<()>;
+    fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> komorebi_backend::Result<()>;
 
     /// Raises the window above the others.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn raise(&self, id: u32) -> komorebi_backend::Result<()>;
+    fn raise(&self, id: WindowId) -> komorebi_backend::Result<()>;
 
     /// Takes the window out of sight without closing or minimizing it, which is how the window
     /// manager keeps the back of a stack out of the way. On KWin it goes to a virtual desktop that
@@ -351,7 +354,7 @@ pub trait Backend: Send + Sync + 'static {
     ///
     /// When the window does not exist or is no longer alive, or the compositor cannot make the
     /// place the window is hidden in.
-    fn hide(&self, id: u32) -> komorebi_backend::Result<()>;
+    fn hide(&self, id: WindowId) -> komorebi_backend::Result<()>;
 
     /// Brings a hidden window back, to the workspace it is on. A window that is not hidden is left
     /// as it is.
@@ -359,28 +362,28 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn restore(&self, id: u32) -> komorebi_backend::Result<()>;
+    fn restore(&self, id: WindowId) -> komorebi_backend::Result<()>;
 
     /// Minimizes the window.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn minimize(&self, id: u32) -> komorebi_backend::Result<()>;
+    fn minimize(&self, id: WindowId) -> komorebi_backend::Result<()>;
 
     /// Brings a minimized window back.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn unminimize(&self, id: u32) -> komorebi_backend::Result<()>;
+    fn unminimize(&self, id: WindowId) -> komorebi_backend::Result<()>;
 
     /// Asks the window to close.
     ///
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn close(&self, id: u32) -> komorebi_backend::Result<()>;
+    fn close(&self, id: WindowId) -> komorebi_backend::Result<()>;
 
     /// Puts the pointer in the middle of `rect`.
     ///
@@ -416,21 +419,21 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When there is no desktop for `idx` and one cannot be made.
-    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> komorebi_backend::Result<()>;
+    fn switch_workspace(&self, monitor_id: MonitorId, idx: usize) -> komorebi_backend::Result<()>;
 
     /// Puts a window on workspace `idx`. It is visible at once to [`Backend::window_workspace`].
     ///
     /// # Errors
     ///
     /// When the window does not exist, or there is no desktop for `idx` and one cannot be made.
-    fn set_window_workspace(&self, id: u32, idx: usize) -> komorebi_backend::Result<()>;
+    fn set_window_workspace(&self, id: WindowId, idx: usize) -> komorebi_backend::Result<()>;
 
     /// Returns the workspace a window is on, or `None` for a window the compositor does not know or
     /// that is on every workspace.
-    fn window_workspace(&self, id: u32) -> Option<usize>;
+    fn window_workspace(&self, id: WindowId) -> komorebi_backend::Result<Option<usize>>;
 
     /// Returns the workspace each monitor shows, as `(monitor id, workspace index)`.
-    fn current_workspaces(&self) -> Vec<(u32, usize)>;
+    fn current_workspaces(&self) -> komorebi_backend::Result<Vec<(MonitorId, usize)>>;
 
     // ---- look, which a backend that draws nothing need not say anything about --------------------
 
@@ -523,11 +526,11 @@ pub trait Backend: Send + Sync + 'static {
     /// fake.open_window(7, "foot", "foot", "a terminal");
     /// assert_eq!(fake.opacity_of(7), 255);
     ///
-    /// fake.set_opacity(7, 150)?;
+    /// fake.set_opacity(7.into(), 150)?;
     /// assert_eq!(fake.opacity_of(7), 150);
     /// # Ok::<(), color_eyre::eyre::Report>(())
     /// ```
-    fn set_opacity(&self, _id: u32, _alpha: u8) -> komorebi_backend::Result<()> {
+    fn set_opacity(&self, _id: WindowId, _alpha: u8) -> komorebi_backend::Result<()> {
         Ok(())
     }
 
@@ -576,7 +579,7 @@ pub trait Backend: Send + Sync + 'static {
     /// let fake = FakeBackend::with_one_monitor();
     /// assert_eq!(fake.wallpaper_of(1), None);
     ///
-    /// fake.set_wallpaper(1, Path::new("/pictures/dunes.png"))?;
+    /// fake.set_wallpaper(1.into(), Path::new("/pictures/dunes.png"))?;
     /// assert_eq!(fake.wallpaper_of(1), Some("/pictures/dunes.png".into()));
     /// assert_eq!(
     ///     fake.commands(),
@@ -584,7 +587,7 @@ pub trait Backend: Send + Sync + 'static {
     /// );
     /// # Ok::<(), color_eyre::eyre::Report>(())
     /// ```
-    fn set_wallpaper(&self, _monitor_id: u32, _path: &Path) -> eyre::Result<()> {
+    fn set_wallpaper(&self, _monitor_id: MonitorId, _path: &Path) -> eyre::Result<()> {
         Ok(())
     }
 
@@ -605,26 +608,26 @@ pub trait Backend: Send + Sync + 'static {
     /// # Errors
     ///
     /// When the window does not exist or is no longer alive.
-    fn maximize(&self, _id: u32, _maximize: bool) -> komorebi_backend::Result<()> {
+    fn maximize(&self, _id: WindowId, _maximize: bool) -> komorebi_backend::Result<()> {
         Ok(())
     }
 
     /// Returns true if and only if the compositor has a live window with this id.
-    fn is_window(&self, id: u32) -> bool {
+    fn is_window(&self, id: WindowId) -> bool {
         self.window(id).is_some_and(|w| w.alive)
     }
 
     /// Returns the window's frame, if the compositor knows the window.
-    fn window_rect(&self, id: u32) -> Option<Rect> {
+    fn window_rect(&self, id: WindowId) -> Option<Rect> {
         self.window(id).map(|w| w.rect)
     }
 
     /// Returns the id of the monitor whose bounds contain the point.
-    fn monitor_from_point(&self, x: i32, y: i32) -> Option<u32> {
+    fn monitor_from_point(&self, x: i32, y: i32) -> Option<MonitorId> {
         self.monitors().ok()?.into_iter().find_map(|m| {
             let (l, t) = (m.size.left, m.size.top);
             let (r, b) = (l + m.size.right, t + m.size.bottom);
-            (x >= l && x < r && y >= t && y < b).then_some(m.id)
+            (x >= l && x < r && y >= t && y < b).then_some(MonitorId::from_u32(m.id))
         })
     }
 }
@@ -716,7 +719,7 @@ mod tests {
     fn a_thread_that_installs_nothing_gets_a_permissive_fake_in_unit_tests() {
         let id = 41;
 
-        assert!(backend().window(id).is_some());
+        assert!(backend().window(id.into()).is_some());
     }
 
     #[test]
@@ -728,12 +731,12 @@ mod tests {
 
         with_backend(outer, || {
             with_backend(inner, || {
-                assert!(backend().is_window(2));
-                assert!(!backend().is_window(1));
+                assert!(backend().is_window(2.into()));
+                assert!(!backend().is_window(1.into()));
             });
 
-            assert!(backend().is_window(1));
-            assert!(!backend().is_window(2));
+            assert!(backend().is_window(1.into()));
+            assert!(!backend().is_window(2.into()));
         });
     }
 
@@ -749,7 +752,7 @@ mod tests {
             }));
 
             assert!(result.is_err());
-            assert!(backend().is_window(1));
+            assert!(backend().is_window(1.into()));
         });
     }
 
@@ -758,10 +761,10 @@ mod tests {
         let fake = FakeBackend::with_one_monitor();
         fake.open_window(5, "foot", "foot", "a terminal");
 
-        assert!(fake.is_window(5));
-        assert!(!fake.is_window(6));
-        assert_eq!(fake.window_rect(5), fake.rect_of(5));
-        assert_eq!(fake.monitor_from_point(10, 10), Some(1));
+        assert!(fake.is_window(5.into()));
+        assert!(!fake.is_window(6.into()));
+        assert_eq!(fake.window_rect(5.into()), fake.rect_of(5));
+        assert_eq!(fake.monitor_from_point(10, 10), Some(1.into()));
         assert_eq!(fake.monitor_from_point(5000, 10), None);
     }
 
@@ -772,8 +775,8 @@ mod tests {
 
         fake.close_window_now(5);
 
-        assert!(!fake.is_window(5));
-        assert!(fake.window(5).is_some_and(|w| !w.alive));
+        assert!(!fake.is_window(5.into()));
+        assert!(fake.window(5.into()).is_some_and(|w| !w.alive));
         assert!(fake.windows().is_empty());
     }
 }

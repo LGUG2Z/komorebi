@@ -91,6 +91,7 @@ use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
 use crossbeam_channel::Receiver;
 use hotwatch::Hotwatch;
+use komorebi_backend::WindowId;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -322,6 +323,7 @@ impl WindowManager {
         if len > 1 {
             let focused_window_id = backend()
                 .foreground_window()
+                .and_then(WindowId::to_u32)
                 .ok_or_eyre("no foreground window")?;
             let focused_rect = Window::from(focused_window_id).rect()?;
 
@@ -797,6 +799,7 @@ impl WindowManager {
 
         let focused_window_id = backend()
             .foreground_window()
+            .and_then(WindowId::to_u32)
             .ok_or_eyre("no foreground window")?;
         for window in focused_workspace.floating_windows().iter() {
             if window.id == focused_window_id {
@@ -1702,6 +1705,7 @@ impl WindowManager {
     pub fn toggle_float(&mut self, force_float: bool) -> eyre::Result<()> {
         let window_id = backend()
             .foreground_window()
+            .and_then(WindowId::to_u32)
             .ok_or_eyre("no foreground window")?;
 
         let workspace = self.focused_workspace_mut()?;
@@ -1811,6 +1815,7 @@ impl WindowManager {
                 let workspace = self.focused_workspace()?;
                 let focused_window_id = backend()
                     .foreground_window()
+                    .and_then(WindowId::to_u32)
                     .ok_or_eyre("no foreground window")?;
 
                 let border_offset = 0;
@@ -2359,7 +2364,7 @@ impl WindowManager {
 
     pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
         let (x, y) = backend().cursor_pos()?;
-        let monitor_id = backend().monitor_from_point(x, y)?;
+        let monitor_id = backend().monitor_from_point(x, y)?.to_u32()?;
 
         for (i, monitor) in self.monitors().iter().enumerate() {
             if monitor.id == monitor_id {
@@ -2470,6 +2475,7 @@ impl WindowManager {
 
         let foreground_window_id = backend()
             .foreground_window()
+            .and_then(WindowId::to_u32)
             .ok_or_eyre("no foreground window")?;
         let floating_window_index = workspace
             .floating_windows()
@@ -2765,6 +2771,7 @@ impl WindowManager {
         if len > 1 {
             let focused_window_id = backend()
                 .foreground_window()
+                .and_then(WindowId::to_u32)
                 .ok_or_eyre("no foreground window")?;
             for (idx, window) in focused_workspace.floating_windows().iter().enumerate() {
                 if window.id == focused_window_id {
@@ -3268,6 +3275,7 @@ impl WindowManager {
             let workspace = self.focused_workspace()?;
             let focused_hwnd = backend()
                 .foreground_window()
+                .and_then(WindowId::to_u32)
                 .ok_or_eyre("there is no foreground window")?;
             if !workspace.contains_managed_window(focused_hwnd) {
                 bail!("ignoring commands while active window is not managed by komorebi");
@@ -3801,6 +3809,7 @@ impl WindowManager {
     pub fn manage_focused_window(&mut self) -> eyre::Result<()> {
         let window_id = backend()
             .foreground_window()
+            .and_then(WindowId::to_u32)
             .ok_or_eyre("there is no foreground window")?;
 
         UNMANAGED_WINDOW_IDS.lock().retain(|id| *id != window_id);
@@ -3823,6 +3832,7 @@ impl WindowManager {
     pub fn unmanage_focused_window(&mut self) -> eyre::Result<()> {
         let window_id = backend()
             .foreground_window()
+            .and_then(WindowId::to_u32)
             .ok_or_eyre("there is no foreground window")?;
 
         window_manager_event_listener::send_notification(WindowManagerEvent::Unmanage(

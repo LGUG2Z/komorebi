@@ -101,6 +101,8 @@ use crate::window_manager_event_listener;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use futures_util::StreamExt;
+use komorebi_backend::MonitorId;
+use komorebi_backend::WindowId;
 use parking_lot::Condvar;
 use parking_lot::Mutex;
 use serde_json::Value;
@@ -788,6 +790,11 @@ fn platform(report: eyre::Report) -> komorebi_backend::Error {
     komorebi_backend::Error::Platform(report.into())
 }
 
+/// The compositor's number for a window id, which is always one that was made from a `u32`
+fn raw(id: komorebi_backend::WindowId) -> komorebi_backend::Result<u32> {
+    id.to_u32().ok_or(komorebi_backend::Error::WindowGone(id))
+}
+
 fn command_rect(uuid: &str, rect: &Rect) -> Value {
     json!({ "op": "geo", "id": uuid, "x": rect.left, "y": rect.top, "w": rect.right, "h": rect.bottom })
 }
@@ -810,11 +817,7 @@ impl KWinBackend {
             ))
     }
 
-    fn command(
-        &self,
-        id: u32,
-        build: impl FnOnce(&str) -> Value,
-    ) -> komorebi_backend::Result<()> {
+    fn command(&self, id: u32, build: impl FnOnce(&str) -> Value) -> komorebi_backend::Result<()> {
         let uuid = self.uuid_of(id)?;
         self.shared.push(build(&uuid));
         Ok(())
@@ -826,19 +829,26 @@ impl Backend for KWinBackend {
         self.shared.table.lock().windows()
     }
 
-    fn window(&self, id: u32) -> Option<WindowInfo> {
+    fn window(&self, id: WindowId) -> Option<WindowInfo> {
+        let id = id.to_u32()?;
         self.shared.table.lock().window(id)
     }
 
-    fn foreground_window(&self) -> Option<u32> {
-        self.shared.table.lock().foreground()
+    fn foreground_window(&self) -> Option<WindowId> {
+        self.shared
+            .table
+            .lock()
+            .foreground()
+            .map(WindowId::from_u32)
     }
 
-    fn drag_origin(&self, id: u32) -> Option<Rect> {
+    fn drag_origin(&self, id: WindowId) -> Option<Rect> {
+        let id = id.to_u32()?;
         self.shared.table.lock().drag_origin(id)
     }
 
-    fn drag_end(&self, id: u32) -> Option<Rect> {
+    fn drag_end(&self, id: WindowId) -> Option<Rect> {
+        let id = id.to_u32()?;
         self.shared.table.lock().drag_end(id)
     }
 
@@ -864,14 +874,16 @@ impl Backend for KWinBackend {
         answer.or_else(|| self.shared.table.lock().cursor())
     }
 
-    fn set_rect(&self, id: u32, rect: &Rect) -> komorebi_backend::Result<()> {
+    fn set_rect(&self, id: WindowId, rect: &Rect) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         tracing::debug!("asking for window {id} to be at {rect:?}");
         self.command(id, |uuid| command_rect(uuid, rect))?;
         self.shared.table.lock().note_requested_rect(id, *rect);
         Ok(())
     }
 
-    fn focus(&self, id: u32, mouse_follows_focus: bool) -> komorebi_backend::Result<()> {
+    fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.command(id, |uuid| json!({ "op": "activate", "id": uuid }))?;
 
         if mouse_follows_focus {
@@ -894,11 +906,13 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn raise(&self, id: u32) -> komorebi_backend::Result<()> {
+    fn raise(&self, id: WindowId) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.command(id, |uuid| json!({ "op": "raise", "id": uuid }))
     }
 
-    fn hide(&self, id: u32) -> komorebi_backend::Result<()> {
+    fn hide(&self, id: WindowId) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.uuid_of(id)?;
 
         let commands = loop {
@@ -923,7 +937,8 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn restore(&self, id: u32) -> komorebi_backend::Result<()> {
+    fn restore(&self, id: WindowId) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.uuid_of(id)?;
 
         let commands = self.shared.table.lock().restore_commands(id);
@@ -942,9 +957,13 @@ impl Backend for KWinBackend {
             .map_err(platform)
     }
 
-    fn switch_workspace(&self, monitor_id: u32, idx: usize) -> komorebi_backend::Result<()> {
+    fn switch_workspace(&self, monitor_id: MonitorId, idx: usize) -> komorebi_backend::Result<()> {
         let commands = loop {
-            let attempt = self.shared.table.lock().switch_commands(monitor_id, idx);
+            let attempt = self
+                .shared
+                .table
+                .lock()
+                .switch_commands(monitor_id.to_u32().unwrap_or(u32::MAX), idx);
             match attempt {
                 Ok(commands) => break commands,
                 Err(NeedsDesktops(count)) => self.make_desktops(count)?,
@@ -957,7 +976,8 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn set_window_workspace(&self, id: u32, idx: usize) -> komorebi_backend::Result<()> {
+    fn set_window_workspace(&self, id: WindowId, idx: usize) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         let commands = loop {
             let attempt = self.shared.table.lock().window_workspace_commands(id, idx);
             match attempt {
@@ -972,27 +992,41 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn window_workspace(&self, id: u32) -> Option<usize> {
-        self.shared.table.lock().window_workspace(id)
+    fn window_workspace(&self, id: WindowId) -> komorebi_backend::Result<Option<usize>> {
+        let Some(id) = id.to_u32() else {
+            return Ok(None);
+        };
+        Ok(self.shared.table.lock().window_workspace(id))
     }
 
-    fn current_workspaces(&self) -> Vec<(u32, usize)> {
-        self.shared.table.lock().current_workspaces()
+    fn current_workspaces(&self) -> komorebi_backend::Result<Vec<(MonitorId, usize)>> {
+        Ok(self
+            .shared
+            .table
+            .lock()
+            .current_workspaces()
+            .into_iter()
+            .map(|(monitor, idx)| (MonitorId::from_u32(monitor), idx))
+            .collect())
     }
 
-    fn minimize(&self, id: u32) -> komorebi_backend::Result<()> {
+    fn minimize(&self, id: WindowId) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.command(id, |uuid| json!({ "op": "min", "id": uuid, "v": true }))
     }
 
-    fn unminimize(&self, id: u32) -> komorebi_backend::Result<()> {
+    fn unminimize(&self, id: WindowId) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.command(id, |uuid| json!({ "op": "min", "id": uuid, "v": false }))
     }
 
-    fn close(&self, id: u32) -> komorebi_backend::Result<()> {
+    fn close(&self, id: WindowId) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.command(id, |uuid| json!({ "op": "close", "id": uuid }))
     }
 
-    fn maximize(&self, id: u32, maximize: bool) -> komorebi_backend::Result<()> {
+    fn maximize(&self, id: WindowId, maximize: bool) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.command(
             id,
             |uuid| json!({ "op": "maximize", "id": uuid, "v": maximize }),
@@ -1025,7 +1059,8 @@ impl Backend for KWinBackend {
         })?
     }
 
-    fn set_opacity(&self, id: u32, alpha: u8) -> komorebi_backend::Result<()> {
+    fn set_opacity(&self, id: WindowId, alpha: u8) -> komorebi_backend::Result<()> {
+        let id = raw(id)?;
         self.command(
             id,
             |uuid| json!({ "op": "opacity", "id": uuid, "v": f64::from(alpha) / 255.0 }),
@@ -1037,31 +1072,31 @@ impl Backend for KWinBackend {
 
         self.shared
             .block_on(async move {
-            let Some(kwinrc) = &shared.kwinrc else {
-                eyre::bail!("there is no configuration directory to find kwinrc in");
-            };
+                let Some(kwinrc) = &shared.kwinrc else {
+                    eyre::bail!("there is no configuration directory to find kwinrc in");
+                };
 
-            if enable {
-                kwinrc.set(
-                    "Windows",
-                    &[
-                        ("FocusPolicy", "1".to_string()),
-                        ("DelayFocusInterval", "0".to_string()),
-                    ],
-                )?;
-            } else {
-                kwinrc.restore_keys("Windows", &["FocusPolicy", "DelayFocusInterval"])?;
-            }
+                if enable {
+                    kwinrc.set(
+                        "Windows",
+                        &[
+                            ("FocusPolicy", "1".to_string()),
+                            ("DelayFocusInterval", "0".to_string()),
+                        ],
+                    )?;
+                } else {
+                    kwinrc.restore_keys("Windows", &["FocusPolicy", "DelayFocusInterval"])?;
+                }
 
-            let connection = shared.connection().await?;
-            kwin_reconfigure(&connection).await;
-            Ok(())
-        })
+                let connection = shared.connection().await?;
+                kwin_reconfigure(&connection).await;
+                Ok(())
+            })
             .map_err(platform)?
             .map_err(platform)
     }
 
-    fn set_wallpaper(&self, monitor_id: u32, path: &std::path::Path) -> eyre::Result<()> {
+    fn set_wallpaper(&self, monitor_id: MonitorId, path: &std::path::Path) -> eyre::Result<()> {
         if !self.shared.alive.load(Ordering::SeqCst) {
             eyre::bail!("KWin is gone");
         }
@@ -1072,7 +1107,7 @@ impl Backend for KWinBackend {
             .lock()
             .monitors()
             .into_iter()
-            .find(|m| m.id == monitor_id)
+            .find(|m| MonitorId::from_u32(m.id) == monitor_id)
             .map(|m| m.name)
             .ok_or_eyre("there is no such monitor")?;
 
@@ -1251,28 +1286,28 @@ mod tests {
                     bottom: 1050,
                 };
                 // the editor is 1, the terminal 2 and the dialog 3
-                backend.set_rect(1, &left(0)).unwrap();
-                backend.focus(1, false).unwrap();
-                backend.raise(1).unwrap();
-                backend.minimize(1).unwrap();
-                backend.unminimize(1).unwrap();
-                backend.maximize(1, true).unwrap();
-                backend.maximize(1, false).unwrap();
-                backend.close(3).unwrap();
+                backend.set_rect(1.into(), &left(0)).unwrap();
+                backend.focus(1.into(), false).unwrap();
+                backend.raise(1.into()).unwrap();
+                backend.minimize(1.into()).unwrap();
+                backend.unminimize(1.into()).unwrap();
+                backend.maximize(1.into(), true).unwrap();
+                backend.maximize(1.into(), false).unwrap();
+                backend.close(3.into()).unwrap();
                 // the terminal has closed, and the table still knows it: the bridge gives it back
-                backend.set_rect(2, &left(960)).unwrap();
+                backend.set_rect(2.into(), &left(960)).unwrap();
             },
             |backend| {
                 // the editor goes to the second workspace before the monitor is switched to it
                 let monitor = backend.monitors().unwrap()[0].id;
-                backend.set_window_workspace(1, 1).unwrap();
-                backend.switch_workspace(monitor, 1).unwrap();
-                assert_eq!(backend.window_workspace(1), Some(1));
-                assert_eq!(backend.current_workspaces(), [(monitor, 1)]);
+                backend.set_window_workspace(1.into(), 1).unwrap();
+                backend.switch_workspace(monitor.into(), 1).unwrap();
+                assert_eq!(backend.window_workspace(1.into()).unwrap(), Some(1));
+                assert_eq!(backend.current_workspaces().unwrap(), [(monitor.into(), 1)]);
             },
             |backend| {
                 // 51 of 255 is a fifth
-                backend.set_opacity(1, 51).unwrap();
+                backend.set_opacity(1.into(), 51).unwrap();
             },
         ];
         assert_eq!(asks.len(), commands.len());
@@ -1362,7 +1397,7 @@ mod tests {
         }
 
         // the right tile, as the window manager put it
-        let tile = backend.window_rect(2).unwrap();
+        let tile = backend.window_rect(2.into()).unwrap();
         assert!(tile.left > 900, "{tile:?}");
 
         let started = report(json!({
@@ -1382,7 +1417,7 @@ mod tests {
         process(&mut wm, waiting);
 
         assert_eq!(
-            backend.window_rect(2).unwrap().left,
+            backend.window_rect(2.into()).unwrap().left,
             tile.left - 200,
             "the tile took what the user asked for"
         );
@@ -1393,9 +1428,9 @@ mod tests {
     fn a_command_about_a_window_the_table_does_not_know_is_an_error_and_sends_nothing() {
         let (runtime, backend) = offline();
 
-        assert!(backend.focus(7, false).is_err());
-        assert!(backend.hide(7).is_err());
-        assert!(backend.restore(7).is_err());
+        assert!(backend.focus(7.into(), false).is_err());
+        assert!(backend.hide(7.into()).is_err());
+        assert!(backend.restore(7.into()).is_err());
         assert_eq!(next_poll(&runtime, &backend), json!([]));
     }
 
@@ -1429,20 +1464,20 @@ mod tests {
             table.set_park(String::from("p1"));
         }
 
-        backend.hide(1).unwrap();
+        backend.hide(1.into()).unwrap();
         assert_eq!(
             next_poll(&runtime, &backend),
             json!([{ "batch": 1, "cmds": [{ "op": "desktop", "id": "{a}", "v": "p1" }] }])
         );
 
-        backend.restore(1).unwrap();
+        backend.restore(1.into()).unwrap();
         assert_eq!(
             next_poll(&runtime, &backend),
             json!([{ "batch": 2, "cmds": [{ "op": "desktop", "id": "{a}", "v": "d1" }] }])
         );
 
         // a window that is not hidden is not sent anywhere
-        backend.restore(1).unwrap();
+        backend.restore(1.into()).unwrap();
         assert_eq!(next_poll(&runtime, &backend), json!([]));
     }
 
@@ -1451,7 +1486,7 @@ mod tests {
         let (_runtime, backend) = offline();
 
         // no snapshot yet: there is no monitor
-        let nowhere = backend.set_wallpaper(1, std::path::Path::new("/nonexistent/a.png"));
+        let nowhere = backend.set_wallpaper(1.into(), std::path::Path::new("/nonexistent/a.png"));
         assert!(nowhere.unwrap_err().to_string().contains("no such monitor"));
 
         let events: Vec<Value> =
@@ -1463,7 +1498,8 @@ mod tests {
             .handle(&events[0], Instant::now());
         let monitor = backend.monitors().unwrap()[0].id;
 
-        let missing = backend.set_wallpaper(monitor, std::path::Path::new("/nonexistent/a.png"));
+        let missing =
+            backend.set_wallpaper(monitor.into(), std::path::Path::new("/nonexistent/a.png"));
         assert!(missing.unwrap_err().to_string().contains("is not a file"));
         assert!(backend.shared.wallpapers.lock().is_empty());
     }

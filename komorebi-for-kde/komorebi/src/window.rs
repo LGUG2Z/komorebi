@@ -27,14 +27,15 @@ use crate::REGEX_IDENTIFIERS;
 use crate::backend::backend;
 use crate::core::ApplicationIdentifier;
 use crate::core::Rect;
-pub use komorebi_config::aspect_ratio::AspectRatio;
-pub use komorebi_config::aspect_ratio::PredefinedAspectRatio;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_backend::WindowId;
+pub use komorebi_config::aspect_ratio::AspectRatio;
+pub use komorebi_config::aspect_ratio::PredefinedAspectRatio;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -88,6 +89,16 @@ pub struct Window {
 impl From<u32> for Window {
     fn from(id: u32) -> Self {
         Self { id }
+    }
+}
+
+impl From<WindowId> for Window {
+    /// An id too wide for a `u32` is not one this compositor ever gave: it becomes `u32::MAX`, which
+    /// no window has.
+    fn from(id: WindowId) -> Self {
+        Self {
+            id: id.to_u32().unwrap_or(u32::MAX),
+        }
     }
 }
 
@@ -174,18 +185,23 @@ impl schemars::JsonSchema for Window {
 }
 
 impl Window {
+    /// The id as the backend names it
+    pub fn window_id(self) -> WindowId {
+        WindowId::from_u32(self.id)
+    }
+
     /// What the compositor knows about this window, including for a few moments after it closed
     pub fn info(self) -> Option<crate::backend::WindowInfo> {
-        backend().window(self.id)
+        backend().window(self.window_id())
     }
 
     /// Whether the window still exists
     pub fn is_valid(self) -> bool {
-        backend().is_window(self.id)
+        backend().is_window(self.window_id())
     }
 
     pub fn is_focused(self) -> bool {
-        backend().foreground_window() == Some(self.id)
+        backend().foreground_window() == Some(self.window_id())
     }
 
     pub fn is_minimized(self) -> bool {
@@ -216,7 +232,7 @@ impl Window {
     /// The window's current frame geometry, as last reported by the compositor
     pub fn rect(self) -> eyre::Result<Rect> {
         backend()
-            .window_rect(self.id)
+            .window_rect(self.window_id())
             .ok_or_eyre("the window does not exist")
     }
 
@@ -240,21 +256,23 @@ impl Window {
             return Ok(());
         }
 
-        backend().set_rect(self.id, rect)
+        backend().set_rect(self.window_id(), rect)
     }
 
     /// Returns true if and only if the window is fullscreen
     pub fn is_fullscreen(self) -> bool {
-        backend().window(self.id).is_some_and(|w| w.fullscreen)
+        backend()
+            .window(self.window_id())
+            .is_some_and(|w| w.fullscreen)
     }
 
     /// Asks the compositor to draw the window with this opacity, 255 being not see-through at all
     pub fn set_opacity(self, alpha: u8) -> komorebi_backend::Result<()> {
-        backend().set_opacity(self.id, alpha)
+        backend().set_opacity(self.window_id(), alpha)
     }
 
     pub fn focus(self, mouse_follows_focus: bool) -> komorebi_backend::Result<()> {
-        backend().focus(self.id, mouse_follows_focus)
+        backend().focus(self.window_id(), mouse_follows_focus)
     }
 
     /// Have the compositor maximize the window (the work area, panels respected)
@@ -263,7 +281,7 @@ impl Window {
     ///
     /// The backend does not know the window, or refuses to maximize it.
     pub fn maximize(self) -> komorebi_backend::Result<()> {
-        backend().maximize(self.id, true)
+        backend().maximize(self.window_id(), true)
     }
 
     /// Have the compositor give the window back the frame it had before it was maximized
@@ -272,25 +290,25 @@ impl Window {
     ///
     /// The backend does not know the window, or refuses to restore it.
     pub fn unmaximize(self) -> komorebi_backend::Result<()> {
-        backend().maximize(self.id, false)
+        backend().maximize(self.window_id(), false)
     }
 
     pub fn raise(self) -> komorebi_backend::Result<()> {
-        backend().raise(self.id)
+        backend().raise(self.window_id())
     }
 
     pub fn close(self) -> komorebi_backend::Result<()> {
-        backend().close(self.id)
+        backend().close(self.window_id())
     }
 
     /// Minimizes the window, as the user asking for it would. [`Window::hide`] is what komorebi
     /// does to keep the back of a stack out of the way.
     pub fn minimize(self) -> komorebi_backend::Result<()> {
-        backend().minimize(self.id)
+        backend().minimize(self.window_id())
     }
 
     pub fn unminimize(self) -> komorebi_backend::Result<()> {
-        backend().unminimize(self.id)
+        backend().unminimize(self.window_id())
     }
 
     /// Takes the window out of sight ([`Backend::hide`](crate::backend::Backend::hide)): the back
@@ -302,7 +320,7 @@ impl Window {
     /// stays where it is, and stays recorded as hidden until [`Window::restore`].
     pub fn hide(self) {
         HIDDEN_WINDOWS.lock().insert(self.id);
-        if let Err(error) = backend().hide(self.id) {
+        if let Err(error) = backend().hide(self.window_id()) {
             tracing::warn!("failed to hide window {}: {error}", self.id);
         }
     }
@@ -311,7 +329,7 @@ impl Window {
     /// [`struct@HIDDEN_WINDOWS`]. A failure is logged, as for [`Window::hide`].
     pub fn restore(self) {
         HIDDEN_WINDOWS.lock().remove(&self.id);
-        if let Err(error) = backend().restore(self.id) {
+        if let Err(error) = backend().restore(self.window_id()) {
             tracing::warn!("failed to restore window {}: {error}", self.id);
         }
     }

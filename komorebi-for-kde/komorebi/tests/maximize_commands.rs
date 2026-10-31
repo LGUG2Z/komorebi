@@ -306,7 +306,10 @@ fn focusing_towards_a_monitor_with_a_maximized_window_gives_it_the_focus() {
     );
 
     assert_eq!(wm.focused_monitor_idx(), 1);
-    assert_eq!(fake.foreground_window(), Some(36_064));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(36_064)
+    );
 }
 
 #[test]
@@ -352,7 +355,10 @@ fn eager_focus_finds_the_maximized_window_of_an_executable() {
     event(&fake, &mut wm, added(36_092));
     send(&fake, &mut wm, SocketMessage::ToggleMaximize);
     event(&fake, &mut wm, activated(36_091));
-    assert_eq!(fake.foreground_window(), Some(36_091));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(36_091)
+    );
 
     send(
         &fake,
@@ -360,5 +366,8 @@ fn eager_focus_finds_the_maximized_window_of_an_executable() {
         SocketMessage::EagerFocus(String::from("kate")),
     );
 
-    assert_eq!(fake.foreground_window(), Some(36_092));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(36_092)
+    );
 }

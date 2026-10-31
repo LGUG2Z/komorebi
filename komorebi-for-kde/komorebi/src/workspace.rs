@@ -40,6 +40,8 @@ use crate::window::should_act;
 use crate::window::should_act_individual;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_backend::MonitorId;
+use komorebi_backend::WindowId;
 use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::KomorebiTheme;
 use komorebi_themes::KomorebiThemeCustom;
@@ -905,6 +907,7 @@ impl Workspace {
     pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
         let window_id = backend()
             .foreground_window()
+            .and_then(WindowId::to_u32)
             .ok_or_eyre("no foreground window")?;
         if let Some(window) = &self.maximized_window
             && window_id == window.id
@@ -1663,7 +1666,7 @@ impl Workspace {
     }
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
-        let window_id = backend().foreground_window()?;
+        let window_id = backend().foreground_window().and_then(WindowId::to_u32)?;
         self.remove_floating_window(window_id)
     }
 
@@ -2137,7 +2140,9 @@ impl Workspace {
         monitor_wp: &Option<Wallpaper>,
     ) -> eyre::Result<()> {
         if let Some(wallpaper) = self.wallpaper.as_ref().or(monitor_wp.as_ref()) {
-            if let Err(error) = backend().set_wallpaper(monitor_id, &wallpaper.path) {
+            if let Err(error) =
+                backend().set_wallpaper(MonitorId::from_u32(monitor_id), &wallpaper.path)
+            {
                 tracing::error!("failed to set wallpaper: {error}");
             }
 

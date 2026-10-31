@@ -20,7 +20,6 @@
 use super::Backend;
 use komorebi_backend as shared;
 use komorebi_backend::Capability;
-use komorebi_backend::Error;
 use komorebi_backend::MonitorId;
 use komorebi_backend::Rect;
 use komorebi_backend::WindowId;
@@ -33,18 +32,6 @@ impl<B: Backend + ?Sized> Shared<B> {
     /// Returns the KDE backend underneath.
     pub fn kde(&self) -> &B {
         &self.0
-    }
-
-    /// Runs a window command through KDE's trait; an id too wide for KDE is a window it never had.
-    fn window_command(
-        &self,
-        id: WindowId,
-        command: impl FnOnce(&B, u32) -> shared::Result<()>,
-    ) -> shared::Result<()> {
-        let Some(raw) = id.to_u32() else {
-            return Err(Error::WindowGone(id));
-        };
-        command(&self.0, raw)
     }
 }
 
@@ -71,11 +58,11 @@ impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     }
 
     fn window(&self, id: WindowId) -> Option<shared::WindowInfo> {
-        self.0.window(id.to_u32()?).map(window_info)
+        self.0.window(id).map(window_info)
     }
 
     fn foreground_window(&self) -> Option<WindowId> {
-        self.0.foreground_window().map(WindowId::from_u32)
+        self.0.foreground_window()
     }
 
     fn monitors(&self) -> shared::Result<Vec<shared::MonitorInfo>> {
@@ -98,35 +85,35 @@ impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     }
 
     fn set_rect(&self, id: WindowId, rect: &Rect) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.set_rect(raw, rect))
+        self.0.set_rect(id, rect)
     }
 
     fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.focus(raw, mouse_follows_focus))
+        self.0.focus(id, mouse_follows_focus)
     }
 
     fn raise(&self, id: WindowId) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.raise(raw))
+        self.0.raise(id)
     }
 
     fn hide(&self, id: WindowId) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.hide(raw))
+        self.0.hide(id)
     }
 
     fn restore(&self, id: WindowId) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.restore(raw))
+        self.0.restore(id)
     }
 
     fn minimize(&self, id: WindowId) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.minimize(raw))
+        self.0.minimize(id)
     }
 
     fn unminimize(&self, id: WindowId) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.unminimize(raw))
+        self.0.unminimize(id)
     }
 
     fn close(&self, id: WindowId) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.close(raw))
+        self.0.close(id)
     }
 
     fn center_cursor_in(&self, rect: &Rect) -> shared::Result<()> {
@@ -138,11 +125,11 @@ impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     }
 
     fn maximize(&self, id: WindowId, maximize: bool) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.maximize(raw, maximize))
+        self.0.maximize(id, maximize)
     }
 
     fn set_opacity(&self, id: WindowId, alpha: u8) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.set_opacity(raw, alpha))
+        self.0.set_opacity(id, alpha)
     }
 
     fn set_focus_follows_mouse(&self, enable: bool) -> shared::Result<()> {
@@ -154,25 +141,19 @@ impl<B: Backend + ?Sized> shared::Backend for Shared<B> {
     }
 
     fn switch_workspace(&self, monitor: MonitorId, idx: usize) -> shared::Result<()> {
-        let id = monitor.to_u32().unwrap_or(u32::MAX);
-        self.0.switch_workspace(id, idx)
+        self.0.switch_workspace(monitor, idx)
     }
 
     fn set_window_workspace(&self, id: WindowId, idx: usize) -> shared::Result<()> {
-        self.window_command(id, |b, raw| b.set_window_workspace(raw, idx))
+        self.0.set_window_workspace(id, idx)
     }
 
     fn window_workspace(&self, id: WindowId) -> shared::Result<Option<usize>> {
-        Ok(id.to_u32().and_then(|raw| self.0.window_workspace(raw)))
+        self.0.window_workspace(id)
     }
 
     fn current_workspaces(&self) -> shared::Result<Vec<(MonitorId, usize)>> {
-        Ok(self
-            .0
-            .current_workspaces()
-            .into_iter()
-            .map(|(monitor, idx)| (MonitorId::from_u32(monitor), idx))
-            .collect())
+        self.0.current_workspaces()
     }
 
     // `is_window`, `window_rect` and `monitor_from_point` are the provided ones, over `window` and
@@ -185,6 +166,7 @@ mod tests {
     use super::*;
     use crate::backend::fake::FakeBackend;
     use komorebi_backend::Backend as _;
+    use komorebi_backend::Error;
     use komorebi_backend::contract::Harness;
     use komorebi_backend::contract::check_all;
 

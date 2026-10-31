@@ -145,7 +145,10 @@ fn the_focus_crosses_to_the_monitor_on_that_side() {
     .unwrap();
 
     assert_eq!(wm.focused_monitor_idx(), 1);
-    assert_eq!(fake.foreground_window(), Some(32_011));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(32_011)
+    );
 
     // and with no monitor further right, it is an error that changes nothing
     let result = send(
@@ -258,7 +261,10 @@ fn a_monitor_is_focused_by_its_index_or_in_order() {
 
     send(&fake, &mut wm, SocketMessage::FocusMonitorNumber(0)).unwrap();
     assert_eq!(wm.focused_monitor_idx(), 0);
-    assert_eq!(fake.foreground_window(), Some(32_051));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(32_051)
+    );
 
     send(
         &fake,
@@ -267,7 +273,10 @@ fn a_monitor_is_focused_by_its_index_or_in_order() {
     )
     .unwrap();
     assert_eq!(wm.focused_monitor_idx(), 1);
-    assert_eq!(fake.foreground_window(), Some(32_052));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(32_052)
+    );
 
     assert!(send(&fake, &mut wm, SocketMessage::FocusMonitorNumber(5)).is_err());
     assert_eq!(wm.focused_monitor_idx(), 1);
@@ -396,7 +405,10 @@ fn eager_focus_finds_the_window_of_an_executable_on_any_monitor_and_workspace() 
 
     assert_eq!(wm.focused_monitor_idx(), 1);
     assert_eq!(wm.focused_workspace_idx().unwrap(), 1);
-    assert_eq!(fake.foreground_window(), Some(32_102));
+    assert_eq!(
+        fake.foreground_window().and_then(|id| id.to_u32()),
+        Some(32_102)
+    );
     assert_eq!(fake.shown_workspace(RIGHT), 1);
     assert_eq!(fake.shown_workspace(LEFT), 0);
 }

@@ -30,6 +30,8 @@ use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_backend::MonitorId;
+use komorebi_backend::WindowId;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::VecDeque;
@@ -254,7 +256,8 @@ impl Monitor {
         // was on
         self.assign_windows_to_workspaces();
 
-        if let Err(error) = backend().switch_workspace(monitor_id, focused_idx) {
+        if let Err(error) = backend().switch_workspace(MonitorId::from_u32(monitor_id), focused_idx)
+        {
             tracing::warn!("could not show workspace {focused_idx}: {error}");
         }
 
@@ -284,8 +287,13 @@ impl Monitor {
                 .chain(workspace.maximized_window.iter());
 
             for window in windows {
-                if backend().window_workspace(window.id) != Some(idx)
-                    && let Err(error) = backend().set_window_workspace(window.id, idx)
+                if backend()
+                    .window_workspace(WindowId::from_u32(window.id))
+                    .ok()
+                    .flatten()
+                    != Some(idx)
+                    && let Err(error) =
+                        backend().set_window_workspace(WindowId::from_u32(window.id), idx)
                 {
                     tracing::debug!(
                         "could not put window {} on workspace {idx}: {error}",
@@ -323,6 +331,7 @@ impl Monitor {
         let foreground_hwnd = if !cfg!(test) {
             backend()
                 .foreground_window()
+                .and_then(WindowId::to_u32)
                 .ok_or_eyre("no foreground window")?
         } else {
             0

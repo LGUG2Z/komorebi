@@ -116,6 +116,7 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_backend::WindowId;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use tracing::instrument;
@@ -457,7 +458,10 @@ impl WindowManager {
                     }
 
                     // an app that remembers it was maximized opens that way
-                    if backend().window(window_id).is_some_and(|w| w.maximized) {
+                    if backend()
+                        .window(WindowId::from_u32(window_id))
+                        .is_some_and(|w| w.maximized)
+                    {
                         self.update_known_window_ids();
                         self.adopt_maximize_change(window_id, true)?;
                     }
@@ -518,7 +522,9 @@ impl WindowManager {
                     }
 
                     if focused {
-                        let refocus = should_refocus_after_destroy(backend().foreground_window());
+                        let refocus = should_refocus_after_destroy(
+                            backend().foreground_window().and_then(WindowId::to_u32),
+                        );
                         self.update_focused_workspace(refocus, refocus)?;
                     }
                 }
@@ -793,7 +799,9 @@ impl WindowManager {
                 );
 
                 if !already_started {
-                    let started_from = match crate::backend::backend().drag_origin(window_id) {
+                    let started_from = match crate::backend::backend()
+                        .drag_origin(WindowId::from_u32(window_id))
+                    {
                         Some(origin) => origin,
                         None => window.rect()?,
                     };
@@ -861,10 +869,11 @@ impl WindowManager {
                     // client is still drawing at the new size, and the frame events after the
                     // drag can have changed that by now: the end of a resize does not wait for
                     // them
-                    let new_position = match crate::backend::backend().drag_end(window_id) {
-                        Some(asked) => asked,
-                        None => window.rect()?,
-                    };
+                    let new_position =
+                        match crate::backend::backend().drag_end(WindowId::from_u32(window_id)) {
+                            Some(asked) => asked,
+                            None => window.rect()?,
+                        };
                     let resized = self.apply_mouse_resize(window, started_from, new_position)?;
 
                     // put every window where the layout now says: the dragged one too when
