@@ -1,4 +1,4 @@
-use crate::bar::Alignment;
+use crate::alignment::Alignment;
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;

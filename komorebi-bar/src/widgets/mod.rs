@@ -22,7 +22,7 @@ pub mod network;
 pub use komorebi_bar_core::widgets::storage;
 #[cfg(target_os = "windows")]
 pub mod systray;
-pub mod time;
+pub use komorebi_bar_core::widgets::time;
 pub use komorebi_bar_core::widgets::update;
 pub mod widget;
 
