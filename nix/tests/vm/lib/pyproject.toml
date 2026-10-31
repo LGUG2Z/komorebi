@@ -11,12 +11,12 @@ dependencies = ["pillow"]
 
 [tool.setuptools]
 packages = [
-    "komorebi_vm",
-    "komorebi_vm.core",
-    "komorebi_vm.core.scenarios",
-    "komorebi_vm.platforms",
-    "komorebi_vm.platforms.kde",
-    "komorebi_vm.platforms.kde.extras",
+  "komorebi_vm",
+  "komorebi_vm.core",
+  "komorebi_vm.core.scenarios",
+  "komorebi_vm.platforms",
+  "komorebi_vm.platforms.kde",
+  "komorebi_vm.platforms.kde.extras",
 ]
 
 [tool.setuptools.package-data]
