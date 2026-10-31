@@ -1054,3 +1054,36 @@ shared crate that touches KDE and Windows (an associated `HideSpot` type, `()` f
 the workspace globals); keeping it out of the shared text means the 8 workspace functions stay
 macOS's own. The container is the one layer that can move without deciding it, because its four
 hiding functions can stay in a macOS extension trait.
+
+### Result of the macOS move so far, and where it stops (kfm)
+
+Done: `ContainerWindow` is `Clone` (the macOS `Window` holds retained references and cannot be
+`Copy`; KDE and Windows are unchanged), and the macOS `Container` is
+`komorebi_core::Container<Window>` with `ContainerExt` for the four hiding functions
+(`add_window_at`, `load_focused_window_at`, `hide_on`, `restore_focused_window`).
+
+Stopped before `Workspace<MacosPlatform>`, on one decision that the macOS tests cannot make:
+
+- Eight shared workspace functions (`hide`, `move_window_to_container`, `new_floating_window`,
+  `new_container_for_focused_window`, `new_container_for_window`, `reintegrate_monocle_container`,
+  `new_monocle_container`, `focus_container_by_window`) call the no-argument, infallible
+  `Container::load_focused_window` / `add_window` / `hide` and `ContainerWindow::hide_window`. macOS
+  passes the monitor's corner (and the display bounds) and propagates the error. Four of the eight
+  have the same signature as macOS's own, so after the switch the shared body would be called
+  silently, hiding every window in the default corner: that is a behaviour change, not a type error,
+  and the type-check would not catch it.
+- `ContainerWindow::hide_window`, `restore_window`, `hide_stacked`, `restore_stacked` on macOS can
+  only use the default corner, because a window does not know its monitor.
+
+Proposed core change (not made: it touches KDE and Windows and needs their gates): an associated
+`type HideSpot: Copy + Default` on `ContainerWindow` (`()` on KDE and Windows), taken by the four
+hiding operations, with `WorkspacePlatform::hide_spot(&WorkspaceGlobals) -> W::HideSpot` (macOS: the
+monitor's corner and display, put into `WorkspaceGlobals` as a platform field) and the result type
+`eyre::Result<()>` for the four operations (`Ok(())` on KDE and Windows). About 10 shared functions
+change signature; the KDE and Windows callers pass `Default::default()`.
+
+Also needed before the Workspace switch, all small: `WorkspaceWindow::path` is `Option<String>` and
+the macOS `Window::path` is a `PathBuf`; `class` has no macOS counterpart (role and subrole);
+`should_act_window` takes a class slice in the macOS `should_act`; the scrolling glue
+(`scrolling_insertion_idx`, `scrolling_idx_for_direction`, `note_scrolling_departure`) are methods of
+the macOS `Workspace` today and become the `WorkspacePlatform` hooks as in KDE.
