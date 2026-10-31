@@ -851,24 +851,6 @@ exit 1
                     args.b,
                 ))?;
             }
-            MacosCommands::Animation(args) => {
-                send_message(&SocketMessage::Animation(
-                    args.boolean_state.into(),
-                    args.animation_type,
-                ))?;
-            }
-            MacosCommands::AnimationDuration(args) => {
-                send_message(&SocketMessage::AnimationDuration(
-                    args.duration,
-                    args.animation_type,
-                ))?;
-            }
-            MacosCommands::AnimationStyle(args) => {
-                send_message(&SocketMessage::AnimationStyle(
-                    args.style,
-                    args.animation_type,
-                ))?;
-            }
         },
     }
 

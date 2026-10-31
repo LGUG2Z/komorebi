@@ -4,7 +4,6 @@ use crate::args::*;
 use clap::Parser;
 use clap::Subcommand;
 use komorebi_layouts::*;
-use komorebi_protocol::animation::prefix::AnimationPrefix;
 use komorebi_protocol::pathext::replace_env_in_path;
 use komorebi_protocol::types::*;
 use std::num::NonZeroUsize;
@@ -152,34 +151,6 @@ pub struct StackbarMode {
     /// Desired stackbar mode
     #[clap(value_enum)]
     pub mode: komorebi_protocol::types::StackbarMode,
-}
-
-#[derive(Parser)]
-pub struct Animation {
-    #[clap(value_enum)]
-    pub boolean_state: BooleanState,
-    /// Animation type to apply the state to. If not specified, sets global state
-    #[clap(value_enum, short, long)]
-    pub animation_type: Option<AnimationPrefix>,
-}
-
-#[derive(Parser)]
-pub struct AnimationDuration {
-    /// Desired animation durations in ms
-    pub duration: u64,
-    /// Animation type to apply the duration to. If not specified, sets global duration
-    #[clap(value_enum, short, long)]
-    pub animation_type: Option<AnimationPrefix>,
-}
-
-#[derive(Parser)]
-pub struct AnimationStyle {
-    /// Desired ease function for animation
-    #[clap(value_enum, short, long, default_value = "linear")]
-    pub style: komorebi_protocol::animation::AnimationStyle,
-    /// Animation type to apply the style to. If not specified, sets global style
-    #[clap(value_enum, short, long)]
-    pub animation_type: Option<AnimationPrefix>,
 }
 
 #[derive(Parser)]
@@ -588,15 +559,6 @@ pub enum WindowsCommands {
     TransparencyAlpha(TransparencyAlpha),
     /// Toggle transparency for unfocused windows
     ToggleTransparency,
-    /// Enable or disable movement animations
-    #[clap(arg_required_else_help = true)]
-    Animation(Animation),
-    /// Set the duration for movement animations in ms
-    #[clap(arg_required_else_help = true)]
-    AnimationDuration(AnimationDuration),
-    /// Set the ease function for movement animations
-    #[clap(arg_required_else_help = true)]
-    AnimationStyle(AnimationStyle),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(hide = true)]
     #[clap(arg_required_else_help = true)]

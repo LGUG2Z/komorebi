@@ -354,6 +354,15 @@ pub enum Messages {
     /// Replace the configuration of a running instance of komorebi from a static configuration file
     #[clap(arg_required_else_help = true)]
     ReplaceConfiguration(ReplaceConfiguration),
+    /// Enable or disable movement animations
+    #[clap(arg_required_else_help = true)]
+    Animation(Animation),
+    /// Set the duration for movement animations in ms
+    #[clap(arg_required_else_help = true)]
+    AnimationDuration(AnimationDuration),
+    /// Set the ease function for movement animations
+    #[clap(arg_required_else_help = true)]
+    AnimationStyle(AnimationStyle),
 }
 
 impl Messages {
@@ -644,6 +653,15 @@ impl From<Messages> for SocketMessage {
             }
             Messages::ToggleMouseFollowsFocus => SocketMessage::ToggleMouseFollowsFocus,
             Messages::ReplaceConfiguration(args) => SocketMessage::ReplaceConfiguration(args.path),
+            Messages::Animation(args) => {
+                SocketMessage::Animation(args.boolean_state.into(), args.animation_type)
+            }
+            Messages::AnimationDuration(args) => {
+                SocketMessage::AnimationDuration(args.duration, args.animation_type)
+            }
+            Messages::AnimationStyle(args) => {
+                SocketMessage::AnimationStyle(args.style, args.animation_type)
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ use komorebi_layouts::CycleDirection;
 use komorebi_layouts::DefaultLayout;
 use komorebi_layouts::OperationDirection;
 use komorebi_layouts::Sizing;
+use komorebi_protocol::animation::prefix::AnimationPrefix;
 use komorebi_protocol::pathext::replace_env_in_path;
 use komorebi_protocol::types::ApplicationIdentifier;
 use komorebi_protocol::types::HidingBehaviour;
@@ -382,6 +383,35 @@ pub struct AnimationFps {
     /// Desired animation frames per second
     pub fps: u64,
 }
+
+#[derive(Args, Clone, Debug)]
+pub struct Animation {
+    #[clap(value_enum)]
+    pub boolean_state: BooleanState,
+    /// Animation type to apply the state to. If not specified, sets global state
+    #[clap(value_enum, short, long)]
+    pub animation_type: Option<AnimationPrefix>,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct AnimationDuration {
+    /// Desired animation durations in ms
+    pub duration: u64,
+    /// Animation type to apply the duration to. If not specified, sets global duration
+    #[clap(value_enum, short, long)]
+    pub animation_type: Option<AnimationPrefix>,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct AnimationStyle {
+    /// Desired ease function for animation
+    #[clap(value_enum, short, long, default_value = "linear")]
+    pub style: komorebi_protocol::animation::AnimationStyle,
+    /// Animation type to apply the style to. If not specified, sets global style
+    #[clap(value_enum, short, long)]
+    pub animation_type: Option<AnimationPrefix>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

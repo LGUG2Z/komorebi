@@ -455,15 +455,6 @@ enum KdeCommands {
     TransparencyAlpha(TransparencyAlpha),
     /// Toggle transparency for unfocused windows
     ToggleTransparency,
-    /// Enable or disable movement animations
-    #[clap(arg_required_else_help = true)]
-    Animation(Animation),
-    /// Set the duration for movement animations in ms
-    #[clap(arg_required_else_help = true)]
-    AnimationDuration(AnimationDuration),
-    /// Set the ease function for movement animations
-    #[clap(arg_required_else_help = true)]
-    AnimationStyle(AnimationStyle),
     /// Enable or disable focus follows mouse (KWin's own focus policy)
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -885,24 +876,6 @@ fn main() -> eyre::Result<()> {
             }
             KdeCommands::ToggleFocusFollowsMouse(args) => {
                 send_message(&SocketMessage::ToggleFocusFollowsMouse(args.implementation))?;
-            }
-            KdeCommands::Animation(args) => {
-                send_message(&SocketMessage::Animation(
-                    args.boolean_state.into(),
-                    args.animation_type,
-                ))?;
-            }
-            KdeCommands::AnimationDuration(args) => {
-                send_message(&SocketMessage::AnimationDuration(
-                    args.duration,
-                    args.animation_type,
-                ))?;
-            }
-            KdeCommands::AnimationStyle(args) => {
-                send_message(&SocketMessage::AnimationStyle(
-                    args.style,
-                    args.animation_type,
-                ))?;
             }
         },
     }
