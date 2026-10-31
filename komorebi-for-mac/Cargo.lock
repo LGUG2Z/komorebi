@@ -3243,10 +3243,14 @@ dependencies = [
 name = "komorebi-bar-core"
 version = "0.1.42"
 dependencies = [
+ "chrono",
+ "chrono-tz",
  "eframe",
  "egui-phosphor",
+ "reqwest",
  "schemars 1.2.3",
  "serde",
+ "serde_json_lenient",
  "starship-battery",
  "sysinfo 0.39.6",
 ]

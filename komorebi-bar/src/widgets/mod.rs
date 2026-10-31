@@ -12,18 +12,18 @@ use std::sync::RwLock;
 pub mod applications;
 pub use komorebi_bar_core::widgets::battery;
 pub use komorebi_bar_core::widgets::cpu;
-pub mod date;
+pub use komorebi_bar_core::widgets::date;
 pub mod keyboard;
 pub mod komorebi;
 mod komorebi_layout;
 pub mod media;
-pub mod memory;
+pub use komorebi_bar_core::widgets::memory;
 pub mod network;
 pub mod storage;
 #[cfg(target_os = "windows")]
 pub mod systray;
 pub mod time;
-pub mod update;
+pub use komorebi_bar_core::widgets::update;
 pub mod widget;
 
 /// Global cache for icon images and their associated GPU textures.
