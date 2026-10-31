@@ -28,12 +28,28 @@ use windows::Win32::Foundation::POINT;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WindowsBackend;
 
-/// The window, if Windows still has it.
+/// Takes a handle out of the list of the windows komorebi has hidden, which is what
+/// `Window::restore`, `maximize` and `unmaximize` do to every window they are given. Says whether
+/// it was there.
+fn forget_hidden(hidden: &mut Vec<isize>, hwnd: isize) -> bool {
+    match hidden.iter().position(|&h| h == hwnd) {
+        Some(idx) => {
+            hidden.remove(idx);
+            true
+        }
+        None => false,
+    }
+}
+
+/// The window, if Windows still has it. A window that is gone is taken out of `HIDDEN_HWNDS` before
+/// the call fails: the original `Window::restore`, `maximize` and `unmaximize` always did, and
+/// the entry of a dead handle would stay for ever, as nothing is left to restore it.
 fn live(id: WindowId) -> Result<Window> {
     let hwnd = id.to_hwnd();
     if WindowsApi::is_window(hwnd) {
         Ok(Window::from(hwnd))
     } else {
+        forget_hidden(&mut crate::HIDDEN_HWNDS.lock(), hwnd);
         Err(Error::WindowGone(id))
     }
 }
@@ -249,4 +265,31 @@ static BACKEND: WindowsBackend = WindowsBackend;
 /// `docs/dev/backend-switch.md` for which are.
 pub fn backend() -> &'static dyn Backend {
     &BACKEND
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_hidden_handle_is_forgotten_once() {
+        let mut hidden = vec![3, 7, 9];
+
+        assert!(forget_hidden(&mut hidden, 7));
+        assert_eq!(hidden, [3, 9]);
+        assert!(!forget_hidden(&mut hidden, 7));
+        assert_eq!(hidden, [3, 9]);
+    }
+
+    #[test]
+    fn a_handle_that_is_not_a_window_is_taken_out_of_the_hidden_list() {
+        // 0x7fff_fff0 is not a window of this process or of any other
+        let dead = 0x7fff_fff0;
+        crate::HIDDEN_HWNDS.lock().push(dead);
+
+        let result = live(WindowId::from_hwnd(dead));
+
+        assert!(matches!(result, Err(Error::WindowGone(_))));
+        assert!(!crate::HIDDEN_HWNDS.lock().contains(&dead));
+    }
 }
