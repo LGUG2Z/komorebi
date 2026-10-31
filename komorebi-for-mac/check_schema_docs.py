@@ -373,7 +373,9 @@ def print_results(all_missing: list[MissingDoc], display_name: str) -> None:
 
 
 def main():
-    project_root = Path.cwd()
+    # Resolve the macOS tree from this file, not the cwd, so the script also works
+    # when komorebi-for-mac/ is a subdirectory of a larger repository.
+    project_root = Path(__file__).resolve().parent
 
     # Define schemas to check with their respective search paths
     schemas = [
