@@ -658,7 +658,7 @@ impl WindowManager {
 
                 WindowsApi::bring_window_to_top(window.hwnd)?;
 
-                let started_from = WindowsApi::window_rect(window.hwnd)?;
+                let started_from = backend().frame(WindowId::from_hwnd(window.hwnd))?;
 
                 let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
                 *pending_move_op =
@@ -701,7 +701,7 @@ impl WindowManager {
 
                 let workspace = self.focused_workspace_mut()?;
                 let focused_container_idx = workspace.focused_container_idx();
-                let new_position = WindowsApi::window_rect(window.hwnd)?;
+                let new_position = backend().frame(WindowId::from_hwnd(window.hwnd))?;
                 // Measure against the rect the window had when the drag started, which is what
                 // the user had under the pointer; a window is not always exactly on its tile
                 // (cell grids, minimum sizes, border insets)
