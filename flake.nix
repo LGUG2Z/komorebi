@@ -457,8 +457,10 @@
                 cp ${e2eBuild.komorebi}/bin/komorebi.exe "$bins"
                 cp ${e2eBuild.komorebic}/bin/komorebic.exe "$bins"
                 cp ${e2eBuild.komorebi-testwin}/bin/komorebi-testwin.exe "$bins"
+                cp ${e2eBuild.komorebi-bar}/bin/komorebi-bar.exe "$bins"
               fi
               export OVMF_FD=${ovmfWithTpm}
+              export KOMOREBI_E2E_BAR_SCHEMA=${./schema.bar.json}
               export KOMOREBI_E2E_COMMIT=''${KOMOREBI_E2E_COMMIT:-${self.rev or "dirty"}}
               export PYTHONPATH=${./e2e/lib}:${./e2e}
               exec python -m platforms.qemu_windows.run \

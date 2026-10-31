@@ -30,7 +30,7 @@ git -C "$root" worktree add --detach "$tree" "$commit"
 cp "$root/flake.nix" "$root/flake.lock" "$tree/"
 
 mkdir -p "$out"
-for package in komorebi komorebic; do
+for package in komorebi komorebic komorebi-bar; do
   path=$(nix build "$tree#$package" --no-link --print-out-paths)
   cp "$path/bin/$package.exe" "$out/"
 done
