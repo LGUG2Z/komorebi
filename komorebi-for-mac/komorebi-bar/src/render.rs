@@ -1,8 +1,4 @@
-use crate::AUTO_SELECT_FILL_COLOUR;
-use crate::AUTO_SELECT_TEXT_COLOUR;
 use crate::bar::Alignment;
-use crate::config::KomobarConfig;
-use crate::config::MonitorConfigOrIndex;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
@@ -11,13 +7,9 @@ use eframe::egui::Frame;
 use eframe::egui::InnerResponse;
 use eframe::egui::Margin;
 use eframe::egui::Shadow;
-use eframe::egui::TextStyle;
 use eframe::egui::Ui;
-use komorebi_themes::colour::Colour;
-use komorebi_themes::colour::Rgb;
 use serde::Deserialize;
 use serde::Serialize;
-use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
@@ -79,57 +71,6 @@ pub trait RenderExt {
         background_color: Color32,
         icon_scale: Option<f32>,
     ) -> RenderConfig;
-}
-
-impl RenderExt for &KomobarConfig {
-    fn new_renderconfig(
-        &self,
-        ctx: &Context,
-        background_color: Color32,
-        icon_scale: Option<f32>,
-    ) -> RenderConfig {
-        let text_font_id = ctx
-            .style()
-            .text_styles
-            .get(&TextStyle::Body)
-            .cloned()
-            .unwrap_or_else(FontId::default);
-
-        let mut icon_font_id = text_font_id.clone();
-        icon_font_id.size *= icon_scale.unwrap_or(1.4).clamp(1.0, 2.0);
-
-        let monitor_idx = match &self.monitor {
-            Some(MonitorConfigOrIndex::MonitorConfig(monitor_config)) => monitor_config.index,
-            Some(MonitorConfigOrIndex::Index(idx)) => *idx,
-            None => 0,
-        };
-
-        // check if any of the alignments have a komorebi widget with the workspace set to show all icons
-        let show_all_icons =
-            KomobarConfig::show_all_icons_on_komorebi_workspace(&self.left_widgets)
-                || self
-                    .center_widgets
-                    .as_ref()
-                    .is_some_and(|list| KomobarConfig::show_all_icons_on_komorebi_workspace(list))
-                || KomobarConfig::show_all_icons_on_komorebi_workspace(&self.right_widgets);
-
-        RenderConfig {
-            monitor_idx,
-            spacing: self.widget_spacing.unwrap_or(10.0),
-            grouping: self.grouping.unwrap_or(Grouping::None),
-            background_color,
-            alignment: None,
-            more_inner_margin: false,
-            applied_on_widget: false,
-            text_font_id,
-            icon_font_id,
-            show_all_icons,
-            auto_select_fill: NonZeroU32::new(AUTO_SELECT_FILL_COLOUR.load(Ordering::SeqCst))
-                .map(|c| Colour::Rgb(Rgb::from(c.get())).into()),
-            auto_select_text: NonZeroU32::new(AUTO_SELECT_TEXT_COLOUR.load(Ordering::SeqCst))
-                .map(|c| Colour::Rgb(Rgb::from(c.get())).into()),
-        }
-    }
 }
 
 impl RenderConfig {
