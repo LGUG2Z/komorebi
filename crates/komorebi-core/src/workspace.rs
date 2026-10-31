@@ -59,7 +59,7 @@ pub enum Pass {
 
 /// What the hooks of an update know about the pass that is running.
 #[derive(Clone, Copy, Debug)]
-pub struct Placement {
+pub struct Placement<'a> {
     /// The work area less the monitor's and the workspace's offsets and padding.
     pub adjusted_work_area: Rect,
     /// The work area of the monitor.
@@ -76,6 +76,8 @@ pub struct Placement {
     pub resize_dimensions_is_empty: bool,
     /// Whether a window is maximized on this workspace.
     pub managed_maximized_window: bool,
+    /// What [`WorkspacePlatform::begin_pass`] returned for this pass.
+    pub pass: Option<&'a dyn std::any::Any>,
 }
 
 /// What names a window of the platform `P`: the id the shared code compares.
@@ -224,12 +226,20 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
         (vec![], vec![])
     }
 
+    /// Called once per placement pass, after the layout is computed and before the containers are
+    /// placed: whatever the platform needs to read once for the whole pass (Windows takes a snapshot
+    /// of the title-bar rules here, so that two containers of a pass see the same one). The answer
+    /// is handed to the hooks of the pass as [`Placement::pass`].
+    fn begin_pass(_workspace: &Workspace<Self>) -> Option<Box<dyn std::any::Any>> {
+        None
+    }
+
     /// Adjusts the tile of one container before its windows are placed: the room a border takes,
     /// and whatever else the platform needs (the clamp to the work area, the stackbar).
     fn adjust_layout(
         _container: &mut Container<Self::Window>,
         _layout: &mut Rect,
-        _placement: &Placement,
+        _placement: &Placement<'_>,
     ) {
     }
 
@@ -238,7 +248,7 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
         _container: &mut Container<Self::Window>,
         _layout: &Rect,
         _hidden: bool,
-        _placement: &Placement,
+        _placement: &Placement<'_>,
     ) -> eyre::Result<()> {
         Err(eyre::eyre!("this platform has no shared update"))
     }
@@ -1799,6 +1809,8 @@ impl<P: WorkspacePlatform> Workspace<P> {
                         )
                     };
 
+                    let pass_state = P::begin_pass(self);
+
                     let placement = Placement {
                         adjusted_work_area,
                         work_area,
@@ -1808,6 +1820,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
                         is_scrolling,
                         resize_dimensions_is_empty: self.resize_dimensions.is_empty(),
                         managed_maximized_window,
+                        pass: pass_state.as_deref(),
                     };
 
                     for (i, container) in self.containers_mut().iter_mut().enumerate() {
@@ -1999,6 +2012,11 @@ mod tests {
             Ok(Flow::Run(None))
         }
 
+        fn begin_pass(_: &Workspace<Self>) -> Option<Box<dyn std::any::Any>> {
+            LOG.with(|log| log.borrow_mut().push("begin_pass".to_string()));
+            Some(Box::new(7u8))
+        }
+
         fn containers_pruned(_: &mut Workspace<Self>, focused_before: usize) {
             LOG.with(|log| log.borrow_mut().push(format!("pruned {focused_before}")));
         }
@@ -2011,14 +2029,15 @@ mod tests {
             container: &mut Container<W>,
             layout: &Rect,
             hidden: bool,
-            _: &Placement,
+            placement: &Placement,
         ) -> eyre::Result<()> {
             LOG.with(|log| {
                 log.borrow_mut().push(format!(
-                    "place {} {} {}",
+                    "place {} {} {} {:?}",
                     container.windows()[0].0,
                     layout.left,
-                    hidden
+                    hidden,
+                    placement.pass.and_then(|pass| pass.downcast_ref::<u8>())
                 ))
             });
             Ok(())
@@ -2092,8 +2111,11 @@ mod tests {
         assert_eq!(log[0], "begin");
         assert_eq!(log[1], "pruned 1");
         assert_eq!(log.iter().filter(|l| l.starts_with("place ")).count(), 4);
-        assert_eq!(log[4], "end 0");
-        assert_eq!(log[7], "end 1");
+        assert_eq!(log[2], "begin_pass");
+        assert_eq!(log[3], "place 1 1 false Some(7)");
+        assert_eq!(log[5], "end 0");
+        assert_eq!(log[6], "begin_pass");
+        assert_eq!(log[9], "end 1");
         assert_eq!(workspace.latest_layout.len(), 2);
         assert_eq!(workspace.resize_dimensions.len(), 2);
     }
