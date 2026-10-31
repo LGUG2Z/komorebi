@@ -173,7 +173,7 @@
           windowsSdk,
           # the commit stamped into the binaries; a build for the e2e guest
           # gives a constant one, so that a new commit does not rebuild it
-          commit ? self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev),
+          commit ? self.rev or (pkgs.lib.removeSuffix "-dirty" (self.dirtyRev or "unknown")),
         }:
         let
           # toolchain with windows msvc target
