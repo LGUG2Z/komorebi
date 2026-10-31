@@ -1,8 +1,8 @@
 use crate::core::animation::AnimationStyle;
 
+pub use komorebi_config::animation::PerAnimationPrefixConfig;
 use parking_lot::Mutex;
 pub use prefix::AnimationPrefix;
-pub use komorebi_config::animation::PerAnimationPrefixConfig;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -25,7 +25,6 @@ pub mod throttle;
 pub mod tracks;
 pub mod transition;
 pub mod workspace_transition;
-
 
 pub const DEFAULT_ANIMATION_ENABLED: bool = false;
 pub const DEFAULT_ANIMATION_STYLE: AnimationStyle = AnimationStyle::Linear;

@@ -1,4 +1,3 @@
-use komorebi_settings::shared::SharedDelta;
 use crate::CoreFoundationRunLoop;
 use crate::DATA_DIR;
 use crate::DEFAULT_MOUSE_FOLLOWS_FOCUS;
@@ -50,6 +49,7 @@ use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_settings::shared::SharedDelta;
 use komorebi_themes::colour::Colour;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
@@ -332,12 +332,8 @@ impl From<&WindowManager> for StaticConfig {
             // border_style: Option::from(STYLE.load()),
             // border_z_order: None,
             // border_implementation: Option::from(IMPLEMENTATION.load()),
-            default_workspace_padding: Option::from(
-                crate::settings::workspace_padding(),
-            ),
-            default_container_padding: Option::from(
-                crate::settings::container_padding(),
-            ),
+            default_workspace_padding: Option::from(crate::settings::workspace_padding()),
+            default_container_padding: Option::from(crate::settings::container_padding()),
             layout_defaults: {
                 let guard = crate::settings::layout_defaults();
                 if guard.is_empty() {
@@ -369,7 +365,9 @@ impl From<&WindowManager> for StaticConfig {
             // slow_application_identifiers: Option::from(SLOW_APPLICATION_IDENTIFIERS.lock().clone()),
             // bar_configurations: None,
             // remove_titlebar_applications: Option::from(NO_TITLEBAR.lock().clone()),
-            floating_window_aspect_ratio: Option::from(crate::settings::floating_window_aspect_ratio()),
+            floating_window_aspect_ratio: Option::from(
+                crate::settings::floating_window_aspect_ratio(),
+            ),
             // window_handling_behaviour: Option::from(WINDOW_HANDLING_BEHAVIOUR.load()),
             tabbed_applications: None,
             ..Default::default()
@@ -823,8 +821,10 @@ impl StaticConfigExt for StaticConfig {
         let mut value = Self::read(path)?;
         let mut wm = wm.lock();
 
-        let configs_with_preference: Vec<_> =
-            crate::settings::display_index_preferences().keys().copied().collect();
+        let configs_with_preference: Vec<_> = crate::settings::display_index_preferences()
+            .keys()
+            .copied()
+            .collect();
         let mut configs_used = Vec::new();
 
         let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -986,8 +986,10 @@ impl StaticConfigExt for StaticConfig {
 
         value.apply_globals()?;
 
-        let configs_with_preference: Vec<_> =
-            crate::settings::display_index_preferences().keys().copied().collect();
+        let configs_with_preference: Vec<_> = crate::settings::display_index_preferences()
+            .keys()
+            .copied()
+            .collect();
         let mut configs_used = Vec::new();
 
         let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();

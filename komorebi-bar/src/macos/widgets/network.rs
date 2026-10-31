@@ -1,6 +1,4 @@
 use crate::macos::bar::Alignment;
-pub use komorebi_bar_core::widgets::network_config::NetworkConfig;
-pub use komorebi_bar_core::widgets::network_config::NetworkSelectConfig;
 use crate::macos::config::LabelPrefix;
 use crate::macos::render::RenderConfig;
 use crate::macos::selected_frame::SelectableFrame;
@@ -12,6 +10,8 @@ use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::text::LayoutJob;
+pub use komorebi_bar_core::widgets::network_config::NetworkConfig;
+pub use komorebi_bar_core::widgets::network_config::NetworkSelectConfig;
 use num_derive::FromPrimitive;
 use parking_lot::Mutex;
 use std::fmt;

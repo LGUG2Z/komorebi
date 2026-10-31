@@ -11,9 +11,9 @@ use crate::macos::widgets::update::Update;
 use eframe::egui::Context;
 use eframe::egui::Ui;
 
+use komorebi_bar_core::render::RenderConfig;
 pub use komorebi_bar_core::widgets::widget::BarWidget;
 pub use komorebi_bar_core::widgets::widget::WidgetConfig;
-use komorebi_bar_core::render::RenderConfig;
 
 /// Stands in for a widget that macOS cannot run; `WidgetConfig::enabled` is false for those, so
 /// this is never built from a configuration that the bar loads.
