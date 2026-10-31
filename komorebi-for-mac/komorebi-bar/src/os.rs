@@ -2,6 +2,7 @@ use crate::widgets::ImageIcon;
 use egui_phosphor::regular::CALENDAR;
 use komorebi_bar_core::platform::BarPlatform;
 use komorebi_bar_core::platform::SystemTool;
+use komorebi_client::SocketMessage;
 use std::io;
 use std::process::Command;
 
@@ -38,6 +39,15 @@ impl BarPlatform for MacBar {
 
     fn calendar_icon(&self) -> &'static str {
         CALENDAR
+    }
+
+    fn exec_shell_command(&self, _command: &str) -> color_eyre::Result<()> {
+        // the macOS bar has no shell session: the mouse commands are not supported here
+        Err(io::Error::new(io::ErrorKind::Unsupported, "no shell session on macOS").into())
+    }
+
+    fn send_komorebi_batch(&self, messages: Vec<SocketMessage>) -> io::Result<()> {
+        komorebi_client::send_batch(messages)
     }
 
     fn command_icon(&self, _command: &str) -> Option<ImageIcon> {

@@ -1,7 +1,7 @@
 use crate::AUTO_SELECT_FILL_COLOUR;
 use crate::AUTO_SELECT_TEXT_COLOUR;
 use crate::DEFAULT_PADDING;
-use crate::bar::exec_powershell;
+use crate::platform::platform;
 use crate::render::Grouping;
 use crate::render::RenderConfig;
 use crate::render::RenderExt;
@@ -497,7 +497,7 @@ impl MouseMessage {
 
                 tracing::debug!("Sending messages: {messages:?}");
 
-                if komorebi_client::send_batch(messages).is_err() {
+                if platform().send_komorebi_batch(messages).is_err() {
                     tracing::error!("could not send commands");
                 }
             }
@@ -506,7 +506,10 @@ impl MouseMessage {
 
                 let cmd_no_env = cmd.replace_env();
 
-                if exec_powershell(cmd_no_env.to_str().expect("Invalid command")).is_err() {
+                if platform()
+                    .exec_shell_command(cmd_no_env.to_str().expect("Invalid command"))
+                    .is_err()
+                {
                     tracing::error!("Failed to execute '{}'", cmd);
                 }
             }

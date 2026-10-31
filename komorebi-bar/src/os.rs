@@ -3,6 +3,7 @@ use egui_phosphor::regular::CALENDAR_DOTS;
 use komorebi_bar_core::platform::BarPlatform;
 use komorebi_bar_core::platform::SystemTool;
 use std::borrow::Cow;
+use komorebi_client::SocketMessage;
 use std::io;
 use std::path::Path;
 use std::process::Command;
@@ -36,6 +37,14 @@ impl BarPlatform for WindowsBar {
 
     fn calendar_icon(&self) -> &'static str {
         CALENDAR_DOTS
+    }
+
+    fn exec_shell_command(&self, command: &str) -> color_eyre::Result<()> {
+        crate::bar::exec_powershell(command)
+    }
+
+    fn send_komorebi_batch(&self, messages: Vec<SocketMessage>) -> io::Result<()> {
+        komorebi_client::send_batch(messages)
     }
 
     fn command_icon(&self, command: &str) -> Option<ImageIcon> {

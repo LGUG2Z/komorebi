@@ -4,6 +4,7 @@
 //! reach it through [`platform`] when they are built or clicked.
 
 use crate::widgets::icons::ImageIcon;
+use komorebi_protocol::message::SocketMessage;
 use std::io;
 use std::sync::OnceLock;
 
@@ -33,6 +34,12 @@ pub trait BarPlatform: Send + Sync {
     /// The icon of the program a command string would start (Windows: the executable's icon;
     /// macOS: none).
     fn command_icon(&self, command: &str) -> Option<ImageIcon>;
+
+    /// Runs a command line in the bar's shell session (Windows: its PowerShell session).
+    fn exec_shell_command(&self, command: &str) -> color_eyre::Result<()>;
+
+    /// Sends messages to the komorebi daemon as one batch.
+    fn send_komorebi_batch(&self, messages: Vec<SocketMessage>) -> io::Result<()>;
 
     /// The glyph the date widget shows as its calendar icon.
     fn calendar_icon(&self) -> &'static str;
