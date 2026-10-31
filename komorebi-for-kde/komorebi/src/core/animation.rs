@@ -80,7 +80,11 @@ pub enum AnimationStyle {
     CubicBezier(f64, f64, f64, f64),
 }
 
-impl AnimationStyle {
+/// The Qt easing curve of an animation style, as KWin's animation API takes it.
+///
+/// A trait because `AnimationStyle` is to live in a crate shared with the other platforms, and an
+/// inherent impl cannot be written outside the crate that defines the type.
+pub trait QtCurve {
     /// Returns the name of the Qt easing curve of this style, as KWin's animation API takes it
     /// (`QEasingCurve.<name>`).
     ///
@@ -89,6 +93,7 @@ impl AnimationStyle {
     ///
     /// ```rust
     /// use komorebi::core::animation::AnimationStyle;
+    /// use komorebi::core::animation::QtCurve;
     ///
     /// assert_eq!(AnimationStyle::Linear.qt_curve(), "Linear");
     /// assert_eq!(AnimationStyle::EaseInOutSine.qt_curve(), "InOutSine");
@@ -97,7 +102,11 @@ impl AnimationStyle {
     ///     "OutCubic"
     /// );
     /// ```
-    pub const fn qt_curve(&self) -> &'static str {
+    fn qt_curve(&self) -> &'static str;
+}
+
+impl QtCurve for AnimationStyle {
+    fn qt_curve(&self) -> &'static str {
         match self {
             Self::Linear => "Linear",
             Self::EaseInSine => "InSine",
