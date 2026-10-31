@@ -975,3 +975,27 @@ Constraints that make this safe to implement, all checked against the diff:
  
          // Always make sure that the length of the resize dimensions vec is the same as the
 ```
+
+## 13. Monitor<P> and the three hook-shared functions (landed)
+
+`komorebi-core` has `Monitor<P: MonitorPlatform>`: `MonitorPlatform` extends `WorkspacePlatform` with
+`Id`, `SerialNumber` (`Default`, so a missing `serial_number_id` reads as the platform's default),
+`Extra` (flattened into the JSON; `NoExtra` on KDE, `WindowsMonitorExtra` {name, device_id,
+workspace_names} on Windows), `serialize_id`/`deserialize_id` (each daemon keeps writing its id as the
+plain number it always did), and `known_workspace_name`. Eight functions are shared
+(`focused_workspace_layout`, `focused_workspace_name`, `new_workspace_idx`, `ensure_workspace_count`,
+`remove_workspaces`, `remove_workspace_by_idx`, `add_container`, `focus_workspace`); the rest of the old
+impl (the constructors, `load_focused_workspace`, the globals updates, `update_focused_workspace`,
+`move_container_to_workspace`, `add_container_with_direction`, `assign_windows_to_workspaces`) is the
+daemons' `MonitorExt`. The two globals updates are NOT shared: KDE's `update_workspaces_globals`
+hard-codes no border while its `update_workspace_globals` honours `BORDER_DRAWN`, so one hook
+would change KDE.
+
+Facts the tests pin: the JSON of a monitor with flat extra fields and the id as a number; a flattened
+map reads its keys as strings, so integer-keyed extra fields need a `deserialize_with`; the schemars
+`required` order of the runtime schema has the flattened fields last (D-coord-4, accepted).
+
+`promote_container`, `effective_layout_options`, `new_floating_window` and `hide` are shared too, with
+the hooks `primary_container_idx` (Windows custom layouts), `unmaximize_window` (KDE) and
+`before_hide_containers` (the KDE scrolling prelude). `effective_layout_options` needed no hook: its
+Windows `Custom` arm is the crate's fallback arm, unreachable on KDE.
