@@ -325,3 +325,39 @@ fn a_monitor_with_workspaces_round_trips_through_json() {
     assert_eq!(back, monitor);
     assert_eq!(serde_json::to_value(&back).unwrap(), json);
 }
+
+#[test]
+fn removing_the_workspace_at_the_length_focuses_the_last_one_and_removes_nothing() {
+    fresh();
+    let mut monitor = monitor(3);
+
+    assert!(monitor.remove_workspace_by_idx(3).is_none());
+
+    assert_eq!(monitor.workspaces().len(), 3);
+    assert_eq!(monitor.focused_workspace_idx(), 2);
+}
+
+#[test]
+fn an_old_monitor_file_with_workspaces_and_without_optional_keys_loads() {
+    fresh();
+    let workspace = serde_json::to_value(Workspace::<StubPlatform>::default()).unwrap();
+    let mut workspace = workspace;
+    for key in ["layout_options_rules", "name", "layout_flip", "wallpaper"] {
+        workspace.as_object_mut().unwrap().remove(key);
+    }
+    let monitor: Monitor<StubPlatform> = serde_json::from_value(serde_json::json!({
+        "id": 1, "device": "d",
+        "size": { "left": 0, "top": 0, "right": 1, "bottom": 1 },
+        "work_area_size": { "left": 0, "top": 0, "right": 1, "bottom": 1 },
+        "work_area_offset": null, "window_based_work_area_offset": null,
+        "window_based_work_area_offset_limit": 1,
+        "workspaces": { "elements": [workspace.clone(), workspace], "focused": 1 },
+        "container_padding": null, "workspace_padding": null,
+        "wallpaper": null, "floating_layer_behaviour": null
+    }))
+    .unwrap();
+
+    assert_eq!(monitor.workspaces().len(), 2);
+    assert_eq!(monitor.focused_workspace_idx(), 1);
+    assert!(monitor.workspaces()[0].layout_options_rules.is_empty());
+}

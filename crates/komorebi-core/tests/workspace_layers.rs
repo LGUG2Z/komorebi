@@ -284,7 +284,7 @@ fn a_floating_window_is_removed_by_id_and_the_hook_runs_before_it_goes() {
     let removed = workspace.remove_floating_window(8).unwrap();
 
     assert_eq!(removed.id, 8);
-    assert_eq!(log(), ["after_floating_removed"]);
+    assert_eq!(log(), ["after_floating_removed len=2 focus=0"]);
     assert!(workspace.remove_floating_window(8).is_none());
     // nothing is logged for a window that is not there
     assert!(log().is_empty());
@@ -516,4 +516,19 @@ fn an_empty_container_among_the_containers_is_hidden_without_a_call() {
     workspace.hide(None).unwrap();
 
     assert_eq!(log(), ["before_hide_containers", "hide 1 @100"]);
+}
+
+#[test]
+fn the_floating_removal_hook_runs_before_the_window_is_taken_out() {
+    fresh();
+    let mut workspace = Workspace::<StubPlatform>::default();
+    workspace.floating_windows_mut().push_back(w(1));
+    workspace.floating_windows_mut().push_back(w(2));
+    workspace.focus_floating_window(1);
+
+    assert_eq!(workspace.remove_floating_window(2).map(|w| w.id), Some(2));
+
+    // pins today's order (the KDE and macOS order): the hook sees both windows and the old
+    // focus, although the trait doc says "after a floating window was taken out"
+    assert_eq!(log(), ["after_floating_removed len=2 focus=1"]);
 }

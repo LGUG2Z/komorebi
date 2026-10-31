@@ -68,6 +68,8 @@ struct Settings {
     known_names: HashMap<usize, String>,
     /// how much `adjust_layout` shrinks a tile
     adjust: i32,
+    /// the id the placement rule matchers answer true for
+    match_id: Option<String>,
 }
 
 thread_local! {
@@ -133,6 +135,10 @@ pub fn set_scrolling_hidden(hidden: &[bool]) {
 
 pub fn set_known_workspace_name(idx: usize, name: &str) {
     settings(|s| s.known_names.insert(idx, name.to_string()));
+}
+
+pub fn set_match_id(id: &str) {
+    settings(|s| s.match_id = Some(id.to_string()));
 }
 
 pub fn set_adjust(by: i32) {
@@ -207,7 +213,7 @@ impl WorkspaceWindow for StubWindow {
     }
 
     fn path(&self) -> Option<String> {
-        None
+        Some(format!("/bin/exe{}", self.id))
     }
 }
 
@@ -244,9 +250,13 @@ impl WorkspacePlatform for StubPlatform {
         _: &str,
         _: &str,
         _: &str,
-        _: &[MatchingRule],
+        rules: &[MatchingRule],
     ) -> Option<MatchingRule> {
-        None
+        let id = settings(|s| s.match_id.clone())?;
+        rules
+            .iter()
+            .find(|rule| matches!(rule, MatchingRule::Simple(r) if r.id == id))
+            .cloned()
     }
 
     fn should_act_window_individual(
@@ -254,9 +264,9 @@ impl WorkspacePlatform for StubPlatform {
         _: &str,
         _: &str,
         _: &str,
-        _: &IdWithIdentifier,
+        rule: &IdWithIdentifier,
     ) -> bool {
-        false
+        settings(|s| s.match_id.clone()).is_some_and(|id| id == rule.id)
     }
 
     fn scrolling_idx_for_direction(_: &Workspace<Self>, _: OperationDirection) -> Option<usize> {
@@ -271,8 +281,12 @@ impl WorkspacePlatform for StubPlatform {
         push(format!("note_scrolling_departure {idx}"));
     }
 
-    fn after_floating_removed(_: &mut Workspace<Self>) {
-        push("after_floating_removed".to_string());
+    fn after_floating_removed(workspace: &mut Workspace<Self>) {
+        push(format!(
+            "after_floating_removed len={} focus={}",
+            workspace.floating_windows().len(),
+            workspace.focused_floating_window_idx()
+        ));
     }
 
     fn unmaximize_window(window: &StubWindow) -> eyre::Result<()> {

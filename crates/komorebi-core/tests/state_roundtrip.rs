@@ -559,3 +559,86 @@ fn the_fixtures_are_the_ones_the_e2e_library_has() {
         );
     }
 }
+
+#[test]
+fn a_platform_that_overrides_no_optional_hook_gets_the_documented_defaults() {
+    use komorebi_layouts::DefaultLayout;
+    use komorebi_layouts::Layout;
+    let workspace = komorebi_core::Workspace::<Kde>::default();
+
+    assert_eq!(
+        Kde::primary_container_idx(&Layout::Default(DefaultLayout::BSP)).unwrap(),
+        0
+    );
+    assert!(
+        Kde::unmaximize_window(&KdeWindow {
+            id: 1,
+            json: Value::Null
+        })
+        .is_ok()
+    );
+    let () = Kde::hide_spot_on_display(&workspace);
+    assert_eq!(Kde::default_padding(), (None, None));
+    let mut workspace = workspace;
+    assert!(Kde::before_hide_containers(&mut workspace).is_none());
+    assert!(matches!(
+        Kde::begin_update(&mut workspace).unwrap(),
+        komorebi_core::Flow::Run(None)
+    ));
+    assert_eq!(
+        Kde::end_update(&mut workspace, 0, 0, 0).unwrap(),
+        komorebi_core::Pass::Done
+    );
+    assert!(!Kde::adopt_widths_before_layout(&workspace));
+    assert_eq!(
+        Kde::scrolling_layouts(&mut workspace, &Default::default(), 0),
+        (vec![], vec![])
+    );
+}
+
+#[test]
+fn the_default_place_hooks_fail_so_a_platform_must_override_them_to_use_update_shared() {
+    let mut workspace = komorebi_core::Workspace::<Kde>::default();
+    workspace
+        .new_container_for_window(KdeWindow {
+            id: 1,
+            json: Value::Null,
+        })
+        .unwrap();
+    workspace.globals.work_area = komorebi_layouts::Rect {
+        left: 0,
+        top: 0,
+        right: 100,
+        bottom: 100,
+    };
+
+    assert!(workspace.update_shared().is_err());
+}
+
+#[test]
+fn the_json_keys_of_a_monitor_per_platform_extra() {
+    fn keys(written: &Value) -> Vec<String> {
+        let mut keys: Vec<String> = written["elements"][0]
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        keys.sort();
+        keys
+    }
+    let windows = keys(&round_trip::<Windows>(&json(KFW_TILED)).1);
+    let macos = keys(&round_trip::<Macos>(&json(MACOS_TILED)).1);
+
+    assert!(windows.starts_with(&[
+        "container_padding".to_string(),
+        "device".to_string(),
+        "device_id".to_string()
+    ]));
+    for key in ["name", "device_id", "workspace_names"] {
+        assert!(windows.contains(&key.to_string()), "{key}");
+    }
+    assert!(!windows.contains(&"last_focused_workspace".to_string()));
+    assert!(macos.contains(&"window_hiding_position".to_string()));
+    assert!(!macos.contains(&"name".to_string()));
+}

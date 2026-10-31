@@ -667,3 +667,85 @@ fn only_the_default_layouts_are_the_scrolling_layout_when_it_is_scrolling() {
     workspace.layout = Layout::Default(DefaultLayout::Scrolling);
     assert!(workspace.is_scrolling());
 }
+
+#[test]
+fn a_placement_rule_that_matches_the_window_decides_where_it_goes() {
+    use komorebi_config::placement::InitialWindowPlacementRules;
+    fresh();
+    let rules = |json: serde_json::Value| -> InitialWindowPlacementRules {
+        serde_json::from_value(json).unwrap()
+    };
+    let single = serde_json::json!({ "Last": { "kind": "Exe", "id": "exe9" } });
+    let many = serde_json::json!({ "Last": [{ "kind": "Exe", "id": "other" }, { "kind": "Exe", "id": "exe9" }] });
+    let secondary = serde_json::json!({ "Secondary": { "kind": "Exe", "id": "exe9" } });
+
+    for (json, expected) in [(single, 3), (many, 3), (secondary, 1)] {
+        let mut workspace = workspace_of(&[1, 2, 3]);
+        workspace.focus_container(0);
+        workspace.initial_window_placement_rules = Some(rules(json.clone()));
+
+        // no rule matches this window: after the focused container
+        assert_eq!(workspace.resolve_placement_index(&w(9)), 1, "{json}");
+
+        set_match_id("exe9");
+        assert_eq!(workspace.resolve_placement_index(&w(9)), expected, "{json}");
+        fresh();
+    }
+}
+
+#[test]
+fn the_hooks_a_platform_does_not_override_do_nothing_to_the_workspace() {
+    fresh();
+    let mut workspace = workspace_of(&[1, 2]);
+    workspace.floating_windows_mut().push_back(w(5));
+    workspace.floating_windows_mut().push_back(w(6));
+    workspace.focus_floating_window(1);
+
+    // the stub overrides after_floating_removed only to log: the focus index is the workspace's
+    // own business, and the default platform of the other tests keeps it
+    workspace.remove_floating_window(6);
+    assert_eq!(workspace.focused_floating_window_idx(), 1);
+}
+
+#[test]
+fn the_json_keys_of_a_default_workspace_are_the_ones_every_daemon_prints() {
+    fresh();
+    let value = serde_json::to_value(Workspace::<StubPlatform>::default()).unwrap();
+    let mut keys: Vec<&str> = value
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    keys.sort_unstable();
+
+    assert_eq!(
+        keys,
+        [
+            "apply_window_based_work_area_offset",
+            "container_padding",
+            "containers",
+            "float_override",
+            "floating_layer_behaviour",
+            "floating_windows",
+            "latest_layout",
+            "layer",
+            "layout",
+            "layout_flip",
+            "layout_options",
+            "layout_options_rules",
+            "layout_rules",
+            "maximized_window",
+            "monocle_container",
+            "name",
+            "resize_dimensions",
+            "tile",
+            "wallpaper",
+            "window_container_behaviour",
+            "window_container_behaviour_rules",
+            "work_area_offset",
+            "work_area_offset_rules",
+            "workspace_padding",
+        ]
+    );
+}
