@@ -1,4 +1,3 @@
-use crate::render::RenderConfig;
 use crate::widgets::applications::Applications;
 use crate::widgets::applications::ApplicationsConfig;
 use crate::widgets::battery::Battery;
@@ -27,14 +26,10 @@ use crate::widgets::time::Time;
 use crate::widgets::time::TimeConfig;
 use crate::widgets::update::Update;
 use crate::widgets::update::UpdateConfig;
-use eframe::egui::Context;
-use eframe::egui::Ui;
 use serde::Deserialize;
 use serde::Serialize;
 
-pub trait BarWidget {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig);
-}
+pub use komorebi_bar_core::widgets::widget::BarWidget;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

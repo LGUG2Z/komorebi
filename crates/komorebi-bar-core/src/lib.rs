@@ -14,3 +14,5 @@ pub mod statics;
 pub mod config;
 
 pub mod render;
+
+pub mod widgets;
