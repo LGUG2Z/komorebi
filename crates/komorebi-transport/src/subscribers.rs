@@ -43,23 +43,7 @@ pub fn notify_sockets<S: Write>(
             match connect(path) {
                 Ok(mut stream) => {
                     tracing::debug!(target: LOG_TARGET, "pushed notification to subscriber: {socket}");
-                    match stream.write_all(notification.as_bytes()) {
-                        Ok(()) => {}
-                        // a subscriber that does not read (the stream has a write timeout)
-                        // is skipped, so that it cannot hold up the one that is pushing
-                        Err(error)
-                            if matches!(
-                                error.kind(),
-                                std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
-                            ) =>
-                        {
-                            tracing::warn!(
-                                target: LOG_TARGET,
-                                "subscriber {socket} did not take the notification in time: {error}"
-                            );
-                        }
-                        Err(error) => return Err(error),
-                    }
+                    stream.write_all(notification.as_bytes())?;
                 }
                 Err(_) => {
                     stale_sockets.push(socket.clone());
@@ -146,43 +130,6 @@ mod tests {
         })
         .unwrap();
         assert!(live.accept().is_ok());
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// A stream whose write times out, as one with a write timeout does when nobody reads it
-    struct Stuck;
-
-    impl Write for Stuck {
-        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
-            Err(std::io::ErrorKind::TimedOut.into())
-        }
-
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-
-    #[test]
-    fn a_subscriber_that_times_out_is_skipped_and_stays_subscribed() {
-        let dir = dir("timeout");
-        let mut sockets = HashMap::from([
-            ("a.sock".to_string(), dir.join("a.sock")),
-            ("b.sock".to_string(), dir.join("b.sock")),
-        ]);
-        let pushed = std::cell::Cell::new(0);
-
-        let result = notify_sockets("{}", &mut sockets, &HashMap::new(), false, &dir, |_| {
-            pushed.set(pushed.get() + 1);
-            Ok(Stuck)
-        });
-
-        assert!(result.is_ok());
-        assert_eq!(
-            pushed.get(),
-            2,
-            "the subscribers after the stuck one are tried"
-        );
-        assert_eq!(sockets.len(), 2, "a slow subscriber is not removed");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
