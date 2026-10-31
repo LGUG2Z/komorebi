@@ -29,6 +29,21 @@ shims `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-c
 - Heavy builds and e2e should not run at the same time as a timing-sensitive e2e: the Windows `commands`
   scenario is the most sensitive (section 6).
 
+## Developer tools
+
+`tools/` (README: [tools/README.md](../../tools/README.md)) holds the helper scripts, runnable from any jj
+workspace of the repository; none of them writes to the source tree.
+
+| Command | Use |
+|---|---|
+| `tools/fast-check [--list] [--range \| --since REV]` | only the checks the touched paths need; warm in seconds (Windows clippy 8-9 s, KDE 1-3 s, macOS 2-3 s) |
+| `tools/e2e-needed [--since REV]` | does this diff change the Windows e2e binaries (`NO` carries a previous passing e2e over) |
+| `tools/kde-closure-check` | the KDE source filter list matches the KDE cargo closure |
+| `tools/mac-check.sh` | macOS type-check on Linux (fake C compiler `tools/cc-fake.sh`) |
+| `tools/trim-target`, `tools/gate-lock`, `tools/lite-env` | disk trimming, a heavy-gate lock, debug-info-off builds |
+
+The persistent target directories are under `$FAST_CHECK_SCRATCH` (default `~/.cache/komorebi-fast-check`).
+
 ## 1. Windows (cross build from Linux via nix)
 
 Binaries (the flake cross-compiles to `x86_64-pc-windows-msvc` with an xwin SDK):
@@ -48,7 +63,7 @@ nix build -L --no-link .#checks.x86_64-linux.komorebi-workspace-fmt .#checks.x86
 nix build -L --no-link .#checks.x86_64-linux.e2e-tests       # the Python of the e2e (pytest), no guest needed
 ```
 
-Quick loop without nix (what `fast-check` runs; clippy of the Windows tree from the nix dev shell):
+Quick loop without nix builds (what `tools/fast-check` runs; clippy of the Windows tree from the nix dev shell):
 
 ```sh
 nix develop --command cargo clippy --workspace --locked --all-targets -- -D warnings
@@ -77,7 +92,7 @@ A single test file: `cargo test -p komorebi-linux --test NAME` (the files are in
 The `-p komorebi --lib` that older notes use is the thin binary package now: the unit tests are in
 `komorebi-linux`.
 
-Run `tools/kde-closure-check` after any dependency change in the KDE tree or the crates it uses: the KDE
+Run `tools/kde-closure-check` (see [tools/README.md](../../tools/README.md)) after any dependency change in the KDE tree or the crates it uses: the KDE
 flake takes only the crates listed in `komorebi-for-kde/nix/root-crates.json`.
 
 KDE nix checks (no VM): from the root flake they are prefixed `kfde-`, and the VM checks are left out:
@@ -147,10 +162,11 @@ and `komorebi-bar-macos` still build alone). Before any change that touches macO
 the Mac first: nothing else can run them. After that walk [macos-handcheck.md](macos-handcheck.md).
 
 On Linux, macOS can only be type-checked, through a fake C compiler and the target
-`aarch64-apple-darwin` (`tools/fast-check` does it; it cannot link or run):
+`aarch64-apple-darwin`: `tools/mac-check.sh` does it unconditionally, `tools/fast-check` when macOS files changed
+(fake compiler: `tools/cc-fake.sh`); it cannot link or run:
 
 ```sh
-COMMIT_HASH=dev cargo check --target aarch64-apple-darwin --workspace --all-targets   # with CC_aarch64_apple_darwin set to a fake cc
+tools/mac-check.sh     # = COMMIT_HASH=dev cargo check --target aarch64-apple-darwin ... --all-targets, CC set to tools/cc-fake.sh
 ```
 
 Nix, on a Mac: the checks of `komorebi-for-mac/flake.nix` (`komorebi-workspace-{clippy,fmt,toml-fmt,deny,nextest}`,
