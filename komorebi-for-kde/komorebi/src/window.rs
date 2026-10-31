@@ -86,6 +86,19 @@ pub struct Window {
     pub id: u32,
 }
 
+/// What names a [`Window`]: the type the shared container and workspace code compares ids as
+pub type PlatformWindowId = <Window as komorebi_core::ContainerWindow>::Id;
+
+/// The id of the window that has the focus, if any window does
+pub fn foreground_window_id() -> Option<PlatformWindowId> {
+    backend().foreground_window().and_then(WindowId::to_u32)
+}
+
+/// Where the pointer is, if the compositor says
+pub fn cursor_position() -> Option<(i32, i32)> {
+    backend().cursor_pos()
+}
+
 impl From<u32> for Window {
     fn from(id: u32) -> Self {
         Self { id }

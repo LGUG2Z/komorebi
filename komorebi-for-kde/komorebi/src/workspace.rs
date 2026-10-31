@@ -34,14 +34,17 @@ use crate::ring::Ring;
 use crate::static_config::Wallpaper;
 use crate::static_config::WorkspaceConfig;
 use crate::theme_manager;
+use crate::window::PlatformWindowId;
 use crate::window::Window;
 use crate::window::WindowDetails;
+use crate::window::cursor_position;
+use crate::window::foreground_window_id;
 use crate::window::should_act;
 use crate::window::should_act_individual;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_backend::MonitorId;
-use komorebi_backend::WindowId;
+use komorebi_core::ContainerWindow;
 pub use komorebi_core::WorkspaceGlobals;
 use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::KomorebiTheme;
@@ -489,7 +492,7 @@ impl Workspace {
         ))
     }
 
-    pub fn container_idx_for_window(&self, window_id: u32) -> Option<usize> {
+    pub fn container_idx_for_window(&self, window_id: PlatformWindowId) -> Option<usize> {
         let mut idx = None;
         for (i, x) in self.containers().iter().enumerate() {
             if x.contains_window(window_id) {
@@ -506,7 +509,7 @@ impl Workspace {
     /// # Errors
     ///
     /// No container of the workspace has the window.
-    pub fn focus_container_by_window(&mut self, window_id: u32) -> eyre::Result<()> {
+    pub fn focus_container_by_window(&mut self, window_id: PlatformWindowId) -> eyre::Result<()> {
         let container_idx = self
             .container_idx_for_window(window_id)
             .ok_or_eyre("there is no container/window")?;
@@ -887,12 +890,9 @@ impl Workspace {
     ///
     /// The compositor reports no focused window.
     pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
-        let window_id = backend()
-            .foreground_window()
-            .and_then(WindowId::to_u32)
-            .ok_or_eyre("no foreground window")?;
+        let window_id = foreground_window_id().ok_or_eyre("no foreground window")?;
         if let Some(window) = self.maximized_window
-            && window_id == window.id
+            && window_id == window.id()
         {
             return Ok(true);
         }
@@ -913,7 +913,7 @@ impl Workspace {
             && self.floating_windows().is_empty()
     }
 
-    pub fn contains_window(&self, window_id: u32) -> bool {
+    pub fn contains_window(&self, window_id: PlatformWindowId) -> bool {
         for container in self.containers() {
             if container.contains_window(window_id) {
                 return true;
@@ -921,7 +921,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window
-            && window_id == window.id
+            && window_id == window.id()
         {
             return true;
         }
@@ -933,7 +933,7 @@ impl Workspace {
         }
 
         for window in self.floating_windows() {
-            if window_id == window.id {
+            if window_id == window.id() {
                 return true;
             }
         }
@@ -980,7 +980,7 @@ impl Workspace {
     /// Returns true if and only if the window is in one of the containers, is the maximized
     /// window or is in the monocle container, which leaves out the floating windows: the windows
     /// komorebi tiles
-    pub fn contains_managed_window(&self, window_id: u32) -> bool {
+    pub fn contains_managed_window(&self, window_id: PlatformWindowId) -> bool {
         for container in self.containers() {
             if container.contains_window(window_id) {
                 return true;
@@ -988,7 +988,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window
-            && window_id == window.id
+            && window_id == window.id()
         {
             return true;
         }
@@ -1642,14 +1642,14 @@ impl Workspace {
     }
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
-        let window_id = backend().foreground_window().and_then(WindowId::to_u32)?;
+        let window_id = foreground_window_id()?;
         self.remove_floating_window(window_id)
     }
 
-    pub fn remove_floating_window(&mut self, window_id: u32) -> Option<Window> {
+    pub fn remove_floating_window(&mut self, window_id: PlatformWindowId) -> Option<Window> {
         let mut idx = None;
         for (i, window) in self.floating_windows().iter().enumerate() {
-            if window_id == window.id {
+            if window_id == window.id() {
                 idx = Option::from(i);
             }
         }
@@ -2026,7 +2026,7 @@ impl Workspace {
     pub fn container_idx_from_current_point(&self) -> Option<usize> {
         let mut idx = None;
 
-        let point = backend().cursor_pos()?;
+        let point = cursor_position()?;
 
         for (i, _container) in self.containers().iter().enumerate() {
             if let Some(rect) = self.latest_layout.get(i)
@@ -2040,7 +2040,7 @@ impl Workspace {
     }
 
     /// The container that has the window, if one of this workspace's does
-    pub fn container_for_window(&self, window_id: u32) -> Option<&Container> {
+    pub fn container_for_window(&self, window_id: PlatformWindowId) -> Option<&Container> {
         self.containers()
             .get(self.container_idx_for_window(window_id)?)
     }
