@@ -16,8 +16,8 @@
       flake = false;
     };
 
-    # the other platforms' flakes, built from their own directories with their own locks until
-    # their crates depend on the ones in this tree (see the build(nix) revisions that follow)
+    # the other platforms' flakes: their inputs and locks are used, their outputs are made with this
+    # tree as the source (see the imports below)
     kfde.url = "path:./komorebi-for-kde";
     kfm.url = "path:./komorebi-for-mac";
   };
@@ -298,15 +298,44 @@
         inputs.treefmt-nix.flakeModule
         inputs.git-hooks-nix.flakeModule
         # komorebi for KDE Plasma (kfde) and komorebi for macOS (kfm), re-exported with a prefix.
-        # The VM tests of kfde are not re-exported as checks, so that `nix flake check` of this
-        # flake does not boot them; they are reachable as legacyPackages.<system>.kfde-vm.
+        # Their flakes keep their own inputs and lock files (inputs.<name>.inputs), but their
+        # outputs are made here, from the whole repository as the source: the Rust workspaces of
+        # both depend on the crates of this tree by path, which a flake of their own directory
+        # cannot see (their `lib.mkOutputs`). The VM tests of kfde are not re-exported as checks,
+        # so that `nix flake check` of this flake does not boot them; they are reachable as
+        # legacyPackages.<system>.kfde-vm.
         (
           { lib, ... }:
+          let
+            # `self` of a nested flake: its own outputs, with the revision and the path of this one
+            nestedOutputs =
+              name: dir:
+              let
+                nestedSelf =
+                  outputs
+                  // lib.filterAttrs (n: _: n == "rev" || n == "dirtyRev") self
+                  // {
+                    outPath = self.outPath + "/${dir}";
+                    inputs = inputs.${name}.inputs;
+                  };
+                outputs = inputs.${name}.lib.mkOutputs {
+                  self = nestedSelf;
+                  inputs = inputs.${name}.inputs // {
+                    self = nestedSelf;
+                  };
+                  repoRoot = self;
+                  platformDir = dir;
+                };
+              in
+              outputs;
+            kfde = nestedOutputs "kfde" "komorebi-for-kde";
+            kfm = nestedOutputs "kfm" "komorebi-for-mac";
+          in
           {
             flake = {
-              nixosModules.komorebi-for-kde = inputs.kfde.nixosModules.default;
-              overlays.komorebi-for-kde = inputs.kfde.overlays.default;
-              darwinModules.komorebi-for-mac = inputs.kfm.darwinModules.default;
+              nixosModules.komorebi-for-kde = kfde.nixosModules.default;
+              overlays.komorebi-for-kde = kfde.overlays.default;
+              darwinModules.komorebi-for-mac = kfm.darwinModules.default;
             };
 
             perSystem =
@@ -317,12 +346,11 @@
               in
               {
                 packages =
-                  prefixed "kfde" (inputs.kfde.packages.${system} or { })
-                  // prefixed "kfm" (inputs.kfm.packages.${system} or { });
+                  prefixed "kfde" (kfde.packages.${system} or { }) // prefixed "kfm" (kfm.packages.${system} or { });
                 checks =
-                  prefixed "kfde" (withoutVmTests (inputs.kfde.checks.${system} or { }))
-                  // prefixed "kfm" (inputs.kfm.checks.${system} or { });
-                legacyPackages.kfde-vm = (inputs.kfde.legacyPackages.${system} or { }).vm or { };
+                  prefixed "kfde" (withoutVmTests (kfde.checks.${system} or { }))
+                  // prefixed "kfm" (kfm.checks.${system} or { });
+                legacyPackages.kfde-vm = (kfde.legacyPackages.${system} or { }).vm or { };
               };
           }
         )
