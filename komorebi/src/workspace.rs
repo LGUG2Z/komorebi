@@ -1943,14 +1943,12 @@ impl Workspace {
     pub fn reintegrate_maximized_window(&mut self) -> eyre::Result<()> {
         let restore_idx = self
             .maximized_window_restore_idx
-            .ok_or_eyre("there is no monocle restore index")?;
+            .ok_or_eyre("there is no maximized restore index")?;
 
         let window = self
             .maximized_window
-            .as_ref()
-            .ok_or_eyre("there is no monocle container")?;
+            .ok_or_eyre("there is no maximized window")?;
 
-        let window = *window;
         if !self.containers().is_empty() && restore_idx > self.containers().len().saturating_sub(1)
         {
             self.containers_mut()
