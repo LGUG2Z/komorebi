@@ -72,12 +72,10 @@ impl WidgetConfig {
     /// accepted and skipped (see [`WidgetConfig::unsupported`]).
     #[must_use]
     pub const fn supported(&self) -> bool {
-        match self {
-            WidgetConfig::Keyboard(_) | WidgetConfig::Media(_) | WidgetConfig::Systray(_) => {
-                cfg!(target_os = "windows")
-            }
-            _ => true,
-        }
+        !matches!(
+            self,
+            WidgetConfig::Keyboard(_) | WidgetConfig::Media(_) | WidgetConfig::Systray(_)
+        ) || cfg!(target_os = "windows")
     }
 
     /// The name of this widget when the platform cannot run it.
