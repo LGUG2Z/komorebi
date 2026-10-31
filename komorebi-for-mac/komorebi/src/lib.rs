@@ -122,6 +122,10 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
         Arc::new(Mutex::new(Vec::new()));
+    // LOCK ORDER for the rule lists (as in the KDE tree, minus the lists macOS does not have):
+    // FLOATING_APPLICATIONS, SESSION_FLOATING_APPLICATIONS, IGNORE_IDENTIFIERS, MANAGE_IDENTIFIERS,
+    // WORKSPACE_MATCHING_RULES, REGEX_IDENTIFIERS. Take the ones you need in that order and never
+    // the other way round; a thread that does can deadlock with one that does not.
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
