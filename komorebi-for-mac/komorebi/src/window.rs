@@ -569,6 +569,26 @@ impl Window {
         })
     }
 
+    /// The handles that act on this window, as the registry keeps them
+    pub(crate) fn entry(&self) -> crate::ax_registry::AxEntry {
+        crate::ax_registry::AxEntry {
+            element: self.element.clone(),
+            observer: self.observer.clone(),
+            application: self.application.clone(),
+        }
+    }
+
+    /// A window made from a registry entry
+    pub(crate) fn from_entry(id: u32, entry: crate::ax_registry::AxEntry) -> Self {
+        Self {
+            id,
+            element: entry.element,
+            application: entry.application,
+            observer: entry.observer,
+            details: None,
+        }
+    }
+
     /// The frame query (`Backend::window_rect`): the Accessibility position and size, in points.
     pub fn window_rect(&self) -> Result<CGRect, AccessibilityError> {
         MacosApi::window_rect(&self.element)

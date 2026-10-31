@@ -9,7 +9,8 @@
 //! `docs/dev/seam.md`, section 9, and commented where they are.
 //!
 //! The trait names a window by an id, and nothing on macOS acts from a bare id: a window is its
-//! Accessibility element. So the adapter owns the **id registry** of consequence (1): the daemon
+//! Accessibility element. So the backend looks windows up in the **id registry** of consequence
+//! (1), `ax_registry`: the daemon
 //! registers each `Window` it learns of ([`MacosBackend::register`]) and forgets it when it is
 //! gone, and every method looks the element up by id. An id the registry does not hold is a
 //! window that is gone.
@@ -34,7 +35,6 @@ use komorebi_backend::WindowId;
 use komorebi_backend::WindowInfo;
 use objc2::MainThreadMarker;
 use parking_lot::Mutex;
-use std::collections::HashMap;
 
 /// The shared [`Backend`] for macOS.
 ///
@@ -42,7 +42,6 @@ use std::collections::HashMap;
 /// opacity and no focus follows mouse (`docs/dev/seam.md` section 2.1), so those methods answer
 /// `Unsupported`.
 pub struct MacosBackend {
-    windows: Mutex<HashMap<u32, Window>>,
     monitors: Mutex<Vec<MonitorInfo>>,
     hiding_position: WindowHidingPosition,
     batches: Mutex<Vec<BatchedUpdates>>,
@@ -64,7 +63,6 @@ impl MacosBackend {
     /// the monitor's configuration, and the trait has no place for it.
     pub fn new(hiding_position: WindowHidingPosition) -> Self {
         Self {
-            windows: Mutex::new(HashMap::new()),
             monitors: Mutex::new(Vec::new()),
             hiding_position,
             batches: Mutex::new(Vec::new()),
@@ -73,12 +71,12 @@ impl MacosBackend {
 
     /// Makes the window known to the backend, by its `CGWindowID`.
     pub fn register(&self, window: Window) {
-        self.windows.lock().insert(window.id, window);
+        crate::ax_registry::register(&window);
     }
 
     /// Forgets a window that is gone.
     pub fn forget(&self, id: u32) {
-        self.windows.lock().remove(&id);
+        crate::ax_registry::forget(id);
     }
 
     /// Reads the monitors from `NSScreen` into the cache that [`Backend::monitors`] answers
@@ -102,9 +100,7 @@ impl MacosBackend {
     }
 
     fn lookup(&self, id: WindowId) -> Result<Window> {
-        id.to_u32()
-            .and_then(|raw| self.windows.lock().get(&raw).cloned())
-            .ok_or(Error::WindowGone(id))
+        crate::ax_registry::window(id)
     }
 
     /// Says why a call about a window failed. A failed write is how macOS finds out that a window
@@ -131,9 +127,7 @@ impl MacosBackend {
             id: WindowId::from_u32(window.id),
             pid: window.application.process_id,
             // the Accessibility position and size, in points; a failure leaves the default
-            rect: window.window_rect()
-                .map(Rect::from)
-                .unwrap_or_default(),
+            rect: window.window_rect().map(Rect::from).unwrap_or_default(),
             minimized: window.minimized(),
             alive: true,
             title: window.title(),
@@ -153,7 +147,7 @@ impl Backend for MacosBackend {
         // The registry is the only list there is: the CoreGraphics list joined with the
         // Accessibility elements by title lives inside `load_workspace_information`, which fills
         // a `WindowManager`, and the daemon registers what it finds
-        let registered: Vec<_> = self.windows.lock().values().cloned().collect();
+        let registered = crate::ax_registry::windows();
         let mut windows: Vec<_> = registered.iter().filter_map(Self::info).collect();
         windows.sort_by_key(|w| w.id);
         windows
