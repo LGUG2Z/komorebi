@@ -522,6 +522,14 @@ impl KomobarConfig {
             _ => panic!("unsupported format"),
         };
 
+        komorebi_bar_core::widgets::widget::warn_unsupported(
+            value
+                .left_widgets
+                .iter()
+                .chain(value.center_widgets.iter().flatten())
+                .chain(value.right_widgets.iter()),
+        );
+
         if value.frame.is_none() {
             value.frame = Some(FrameConfig {
                 inner_margin: Position {
