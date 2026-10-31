@@ -42,7 +42,7 @@
           commonArgs = {
             inherit src version;
             strictDeps = true;
-            COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev);
+            COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" (self.dirtyRev or "unknown"));
             nativeBuildInputs = [
               pkgs.darwin.cctools
             ];
