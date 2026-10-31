@@ -57,11 +57,7 @@ impl<P: Clone + 'static> Handle<P> {
     /// The previous value is restored only if the field still holds the value this call set. If a
     /// reload or a command changed the field meanwhile, that change wins. (The statics did the
     /// opposite: the saved value overwrote whatever had been written in between.)
-    pub fn scoped<T>(
-        &self,
-        field: fn(&mut Settings<P>) -> &mut T,
-        value: T,
-    ) -> Scoped<'_, P, T>
+    pub fn scoped<T>(&self, field: fn(&mut Settings<P>) -> &mut T, value: T) -> Scoped<'_, P, T>
     where
         T: Clone + PartialEq,
     {
