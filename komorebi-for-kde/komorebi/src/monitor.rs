@@ -3,7 +3,7 @@
 //! A monitor has the bounds and the work area the backend reports for it
 //! ([`MonitorInfo`](crate::backend::MonitorInfo)), and shows one of its workspaces, the focused
 //! one. Before the focused workspace is tiled it is given the monitor's work area, the monitor's
-//! padding (or [`DEFAULT_CONTAINER_PADDING`] and [`DEFAULT_WORKSPACE_PADDING`]), the work area
+//! padding (or [`crate::settings::container_padding`] and [`crate::settings::workspace_padding`]), the work area
 //! offset and, while the compositor draws borders, the room they take ([`WorkspaceGlobals`]).
 //!
 //! Workspace `i` of a monitor is the compositor's virtual desktop `i` on that monitor. Showing
@@ -11,9 +11,6 @@
 //! workspace it is in, asks the compositor to show the focused workspace's desktop, which shows its
 //! windows and hides the others, and gives the focus to the workspace's focused window.
 
-use crate::workspace::WorkspaceExt;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::backend::backend;
 use crate::border_manager::BORDER_DRAWN;
 use crate::border_manager::BORDER_OFFSET;
@@ -24,8 +21,9 @@ use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::ring::Ring;
-use crate::workspace::Workspace;
 use crate::workspace::KdePlatform;
+use crate::workspace::Workspace;
+use crate::workspace::WorkspaceExt;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
@@ -90,7 +88,7 @@ pub fn new(
     workspaces.elements_mut().push_back(Workspace::default());
 
     Monitor {
-            extra: Default::default(),
+        extra: Default::default(),
         id,
         device,
         serial_number_id,
@@ -108,15 +106,9 @@ pub fn new(
     }
 }
 
-
 pub trait MonitorExt {
-    fn new(
-        id: u32,
-        size: Rect,
-        work_area_size: Rect,
-        device: &str,
-        serial_number_id: &str,
-    ) -> Self;
+    fn new(id: u32, size: Rect, work_area_size: Rect, device: &str, serial_number_id: &str)
+    -> Self;
 
     /// A stand-in for a monitor the user gave an index to (`DisplayIndexPreference`) that is not
     /// connected, so that the monitors after it keep their indices while it is not there
@@ -169,7 +161,6 @@ pub trait MonitorExt {
     ) -> eyre::Result<()>;
 
     fn update_workspaces_globals(&mut self, offset: Option<Rect>);
-
 }
 
 impl MonitorExt for Monitor {
@@ -244,10 +235,10 @@ impl MonitorExt for Monitor {
     fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
-            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::Relaxed)));
+            .or(Some(crate::settings::container_padding()));
         let workspace_padding = self
             .workspace_padding
-            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::Relaxed)));
+            .or(Some(crate::settings::workspace_padding()));
         // a border the compositor draws outside the window takes room that the window leaves
         let (border_width, border_offset) = if BORDER_DRAWN.load(Ordering::SeqCst) {
             (
@@ -490,10 +481,10 @@ impl MonitorExt for Monitor {
     fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
-            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
+            .or(Some(crate::settings::container_padding()));
         let workspace_padding = self
             .workspace_padding
-            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+            .or(Some(crate::settings::workspace_padding()));
         let (border_width, border_offset) = (0, 0);
         let work_area = self.work_area_size;
         let work_area_offset = self.work_area_offset.or(offset);
@@ -515,7 +506,6 @@ impl MonitorExt for Monitor {
             }
         }
     }
-
 }
 
 #[cfg(test)]

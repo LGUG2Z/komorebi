@@ -21,21 +21,14 @@
 //! rules are added to the ones the configuration itself has.
 //!
 //! Settings that have no key are left to their defaults ([`DEFAULT_RESIZE_DELTA`],
-//! [`DEFAULT_WORKSPACE_PADDING`] and the others in [`crate`]), and an optional key set to `null`
+//! [`crate::settings`] holds the others), and an optional key set to `null`
 //! is the same as one that is left out.
 
-use crate::monitor::MonitorExt;
-use crate::workspace::WorkspaceExt;
 use crate::DATA_DIR;
-use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 use crate::DEFAULT_RESIZE_DELTA;
-use crate::DEFAULT_WORKSPACE_PADDING;
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
-use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::IGNORE_IDENTIFIERS;
-use crate::LAYOUT_DEFAULTS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
 use crate::TRANSPARENCY_BLACKLIST;
@@ -67,19 +60,20 @@ use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorExt;
 use crate::monitor_reconciliator;
 use crate::ring::Ring;
 use crate::theme_manager;
 use crate::transparency_manager;
-use crate::window::AspectRatio;
-use crate::window::PredefinedAspectRatio;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_settings::shared::SharedDelta;
 use komorebi_themes::colour::Colour;
 use parking_lot::Mutex;
 use regex::Regex;
@@ -129,8 +123,8 @@ pub fn workspace_config(value: &Workspace) -> WorkspaceConfig {
             window_container_behaviour_rules.insert(*threshold, *behaviour);
         }
 
-        let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
-        let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
+        let default_container_padding = crate::settings::container_padding();
+        let default_workspace_padding = crate::settings::workspace_padding();
 
         let container_padding = value.container_padding.and_then(|container_padding| {
             if container_padding == default_container_padding {
@@ -218,8 +212,8 @@ pub fn monitor_config(value: &Monitor) -> MonitorConfig {
             workspaces.push(workspace_config(w));
         }
 
-        let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
-        let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
+        let default_container_padding = crate::settings::container_padding();
+        let default_workspace_padding = crate::settings::workspace_padding();
 
         let container_padding = value.container_padding.and_then(|container_padding| {
             if container_padding == default_container_padding {
@@ -366,14 +360,10 @@ impl From<&WindowManager> for StaticConfig {
             // border_style: Option::from(STYLE.load()),
             // border_z_order: None,
             // border_implementation: Option::from(IMPLEMENTATION.load()),
-            default_workspace_padding: Option::from(
-                DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
-            ),
-            default_container_padding: Option::from(
-                DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst),
-            ),
+            default_workspace_padding: Option::from(crate::settings::workspace_padding()),
+            default_container_padding: Option::from(crate::settings::container_padding()),
             layout_defaults: {
-                let guard = LAYOUT_DEFAULTS.lock();
+                let guard = crate::settings::layout_defaults();
                 if guard.is_empty() {
                     None
                 } else {
@@ -393,7 +383,7 @@ impl From<&WindowManager> for StaticConfig {
             // object_name_change_applications: None,
             // object_name_change_title_ignore_list: None,
             // monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
-            display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.read().clone()),
+            display_index_preferences: Option::from(crate::settings::display_index_preferences()),
             // stackbar: None,
             animation: None,
             theme: None,
@@ -403,7 +393,9 @@ impl From<&WindowManager> for StaticConfig {
             // slow_application_identifiers: Option::from(SLOW_APPLICATION_IDENTIFIERS.lock().clone()),
             // bar_configurations: None,
             // remove_titlebar_applications: Option::from(NO_TITLEBAR.lock().clone()),
-            floating_window_aspect_ratio: Option::from(*FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock()),
+            floating_window_aspect_ratio: Option::from(
+                crate::settings::floating_window_aspect_ratio(),
+            ),
             // window_handling_behaviour: Option::from(WINDOW_HANDLING_BEHAVIOUR.load()),
             tabbed_applications: None,
             ..Default::default()
@@ -419,20 +411,28 @@ trait ApplyGlobals {
 impl ApplyGlobals for StaticConfig {
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     fn apply_globals(&mut self) -> eyre::Result<()> {
-        *FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock() = self
-            .floating_window_aspect_ratio
-            .unwrap_or(AspectRatio::Predefined(PredefinedAspectRatio::Standard));
+        // The groups that have moved to `Settings` (the two default paddings, the aspect ratio of a
+        // window toggled to floating, `layout_defaults` and `display_index_preferences`) are applied
+        // as one update, with the rules the statics had: a missing padding or display index
+        // preferences key keeps the value, a missing `layout_defaults` clears it and a missing
+        // aspect ratio is Standard (`SharedDelta::apply`).
+        crate::settings::settings().update(|settings| {
+            SharedDelta {
+                default_container_padding: self.default_container_padding,
+                default_workspace_padding: self.default_workspace_padding,
+                floating_window_aspect_ratio: self.floating_window_aspect_ratio,
+                layout_defaults: self.layout_defaults.clone(),
+                display_index_preferences: self.display_index_preferences.clone(),
+                ..SharedDelta::default()
+            }
+            .apply(&mut settings.shared);
+        });
 
         // if let Some(monitor_index_preferences) = &self.monitor_index_preferences {
         //     let mut preferences = MONITOR_INDEX_PREFERENCES.lock();
         //     preferences.clone_from(monitor_index_preferences);
         // }
         //
-
-        if let Some(display_index_preferences) = &self.display_index_preferences {
-            let mut preferences = DISPLAY_INDEX_PREFERENCES.write();
-            preferences.clone_from(display_index_preferences);
-        }
 
         // if let Some(behaviour) = self.window_hiding_behaviour {
         //     let mut window_hiding_behaviour = HIDING_BEHAVIOUR.lock();
@@ -485,20 +485,6 @@ impl ApplyGlobals for StaticConfig {
                 animations.fps.unwrap_or(DEFAULT_ANIMATION_FPS),
                 Ordering::SeqCst,
             );
-        }
-
-        if let Some(container) = self.default_container_padding {
-            DEFAULT_CONTAINER_PADDING.store(container, Ordering::SeqCst);
-        }
-
-        if let Some(workspace) = self.default_workspace_padding {
-            DEFAULT_WORKSPACE_PADDING.store(workspace, Ordering::SeqCst);
-        }
-
-        if let Some(defaults) = &self.layout_defaults {
-            *LAYOUT_DEFAULTS.lock() = defaults.clone();
-        } else {
-            LAYOUT_DEFAULTS.lock().clear();
         }
 
         if let Some(border_width) = self.border_width {
@@ -871,8 +857,10 @@ impl StaticConfigExt for StaticConfig {
         let mut value = Self::read(path)?;
         let mut wm = wm.lock();
 
-        let configs_with_preference: Vec<_> =
-            DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
+        let configs_with_preference: Vec<_> = crate::settings::display_index_preferences()
+            .keys()
+            .copied()
+            .collect();
         let mut configs_used = Vec::new();
 
         let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -882,7 +870,7 @@ impl StaticConfigExt for StaticConfig {
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
-                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                let display_index_preferences = crate::settings::display_index_preferences();
 
                 display_index_preferences.iter().find_map(|(c_idx, id)| {
                     if monitor.serial_number_id.eq(id) {
@@ -978,7 +966,7 @@ impl StaticConfigExt for StaticConfig {
                 .filter(|i| !configs_used.contains(i))
             {
                 let id = {
-                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                    let display_index_preferences = crate::settings::display_index_preferences();
                     display_index_preferences.get(i).cloned()
                 };
                 if let (Some(id), Some(monitor_config)) =
@@ -1048,8 +1036,10 @@ impl StaticConfigExt for StaticConfig {
 
         value.apply_globals()?;
 
-        let configs_with_preference: Vec<_> =
-            DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
+        let configs_with_preference: Vec<_> = crate::settings::display_index_preferences()
+            .keys()
+            .copied()
+            .collect();
         let mut configs_used = Vec::new();
 
         let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1059,7 +1049,7 @@ impl StaticConfigExt for StaticConfig {
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
-                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                let display_index_preferences = crate::settings::display_index_preferences();
 
                 display_index_preferences.iter().find_map(|(c_idx, id)| {
                     if monitor.serial_number_id.eq(id) {
@@ -1157,7 +1147,7 @@ impl StaticConfigExt for StaticConfig {
                 .filter(|i| !configs_used.contains(i))
             {
                 let id = {
-                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                    let display_index_preferences = crate::settings::display_index_preferences();
                     display_index_preferences.get(i).cloned()
                 };
                 if let (Some(id), Some(monitor_config)) =

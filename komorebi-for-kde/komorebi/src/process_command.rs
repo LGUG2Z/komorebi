@@ -219,11 +219,7 @@
 //! Once a message has been handled, every subscriber is sent a notification of it
 //! ([`notify_subscribers`]).
 
-use crate::monitor::MonitorExt;
-use crate::scrolling::WorkspaceScrolling;
-use crate::workspace::WorkspaceExt;
 use crate::DATA_DIR;
-use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
@@ -260,8 +256,10 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
+use crate::monitor::MonitorExt;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
+use crate::scrolling::WorkspaceScrolling;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
@@ -272,6 +270,7 @@ use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event_listener;
+use crate::workspace::WorkspaceExt;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
@@ -1443,8 +1442,12 @@ impl WindowManager {
                 self.cross_monitor_move_behaviour = behaviour;
             }
             SocketMessage::DisplayIndexPreference(index_preference, ref display) => {
-                let mut display_index_preferences = DISPLAY_INDEX_PREFERENCES.write();
-                display_index_preferences.insert(index_preference, display.clone());
+                crate::settings::settings().update(|settings| {
+                    settings
+                        .shared
+                        .display_index_preferences
+                        .insert(index_preference, display.clone());
+                });
             }
             SocketMessage::ReplaceConfiguration(ref config) => {
                 self.replace_configuration(config)?

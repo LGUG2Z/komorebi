@@ -37,8 +37,6 @@
 //! [`check`].
 
 use crate::core::ApplicationIdentifier;
-use crate::core::DefaultLayout;
-use crate::core::LayoutDefaultEntry;
 use crate::core::SocketMessage;
 use crate::core::SubscribeOptions;
 use crate::core::config_generation::IdWithIdentifier;
@@ -47,14 +45,11 @@ use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::monitor_reconciliator::MonitorNotification;
 use crate::state::State;
-use crate::window::AspectRatio;
-use crate::window::PredefinedAspectRatio;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
 use core::pathext::PathExt;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use parking_lot::RwLock;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -63,7 +58,6 @@ use std::collections::HashSet;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::AtomicI32;
 
 #[macro_use]
 extern crate komorebi_collections;
@@ -154,15 +148,6 @@ lazy_static! {
     /// same name, without options, keeps the options it had.
     pub static ref SUBSCRIPTION_SOCKET_OPTIONS: Arc<Mutex<HashMap<String, SubscribeOptions>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    /// The aspect ratio a window that is floated by `ToggleFloat` is given when the placement of
-    /// floated windows centers and resizes them
-    static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
-        AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
-    ));
-    /// The index the user gives each monitor, by its serial number id
-    /// ([`SocketMessage::DisplayIndexPreference`]): the window manager orders its monitors by it
-    static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<usize, String>>> =
-        Arc::new(RwLock::new(HashMap::new()));
     /// The rules that send the windows of an application to a workspace: when they open
     /// (`initial_only`) or whenever the window manager looks at them
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
@@ -201,26 +186,15 @@ lazy_static! {
     /// The windows komorebi took out of sight (the back of a stack, on the parking desktop), so
     /// that what the compositor reports about them is not mistaken for something the user did
     pub static ref HIDDEN_WINDOWS: Arc<Mutex<HashSet<u32>>> = Arc::new(Mutex::new(HashSet::new()));
-    /// The layout options and the layout options rules that `layout_defaults` in `komorebi.json`
-    /// gives each layout, for a workspace that sets neither of its own
-    pub static ref LAYOUT_DEFAULTS: Arc<Mutex<HashMap<DefaultLayout, LayoutDefaultEntry>>> =
-        Arc::new(Mutex::new(HashMap::new()));
 }
 
-/// The padding, in pixels, between the edge of a monitor's work area and the tiles of its
-/// workspaces, for a monitor that sets none of its own. The default for this is 5.
-pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 =
-    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::KDE.workspace_padding);
-/// The padding, in pixels, around each tile, for a monitor that sets none of its own. The default
-/// for this is 5.
-pub static DEFAULT_CONTAINER_PADDING: AtomicI32 =
-    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::KDE.container_padding);
 /// How many pixels `ResizeWindowEdge` and `ResizeWindowAxis` resize by, when `komorebi.json` does
 /// not say
 pub static DEFAULT_RESIZE_DELTA: i32 = komorebi_settings::shared::DEFAULT_RESIZE_DELTA;
 /// Whether the pointer goes to the window that is given the focus, when `komorebi.json` does not
 /// say
-pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool =
+    komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 
 /// The event, the message or the change of the monitors a [`Notification`] is about
 ///
