@@ -2190,14 +2190,13 @@ impl WindowManager {
             return Ok(());
         }
 
-        let element = self
-            .focused_workspace()?
-            .container_for_window(window_id)
-            .and_then(|container| container.windows().iter().find(|w| w.id == window_id))
-            .map(|window| window.element.clone())
-            .ok_or_eyre("the dragged window is not in a container on the focused workspace")?;
-
-        let now = Rect::from(MacosApi::window_rect(&element)?);
+        let now = Rect::from(
+            self.focused_workspace()?
+                .container_for_window(window_id)
+                .and_then(|container| container.windows().iter().find(|w| w.id == window_id))
+                .ok_or_eyre("the dragged window is not in a container on the focused workspace")?
+                .window_rect()?,
+        );
 
         if !self.live_resize_apply(now)? {
             return Ok(());
