@@ -193,7 +193,7 @@ impl Launcher for WindowsLauncher {
 /// What the top of the help and `--version` say.
 const META: Meta = Meta {
     name: "komorebic",
-    about: env!("CARGO_PKG_DESCRIPTION"),
+    about: "The command-line interface for Komorebi, a tiling window manager for Windows",
     author: env!("CARGO_PKG_AUTHORS"),
     version: build::CLAP_LONG_VERSION,
 };
