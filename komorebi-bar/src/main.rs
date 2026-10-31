@@ -1,6 +1,6 @@
 mod bar;
 mod config;
-mod render;
+pub use komorebi_bar_core::render;
 pub use komorebi_bar_core::selected_frame;
 pub use komorebi_bar_core::ui;
 mod widgets;

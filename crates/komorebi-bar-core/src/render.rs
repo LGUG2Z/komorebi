@@ -1,4 +1,4 @@
-use crate::bar::Alignment;
+use crate::alignment::Alignment;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
@@ -82,6 +82,7 @@ impl RenderConfig {
         SHOW_KOMOREBI_LAYOUT_OPTIONS.store(show as usize, Ordering::SeqCst);
     }
 
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             monitor_idx: 0,
