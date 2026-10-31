@@ -2074,6 +2074,45 @@ impl WindowManager {
                 let state = serde_json::to_string_pretty(&crate::kwin::hotkeys::state())?;
                 reply.write_all(state.as_bytes())?;
             }
+            // Messages of other platforms: answered, and nothing else happens
+            SocketMessage::AddSubscriberPipe(..)
+            | SocketMessage::AltFocusHack(..)
+            | SocketMessage::ApplyState(..)
+            | SocketMessage::BorderImplementation(..)
+            | SocketMessage::BorderStyle(..)
+            | SocketMessage::ChangeLayoutCustom(..)
+            | SocketMessage::CompleteConfiguration
+            | SocketMessage::ForceFocus
+            | SocketMessage::IdentifyBorderOverflowApplication(..)
+            | SocketMessage::IdentifyLayeredApplication(..)
+            | SocketMessage::IdentifyObjectNameChangeApplication(..)
+            | SocketMessage::IdentifyTrayApplication(..)
+            | SocketMessage::InvisibleBorders(..)
+            | SocketMessage::MonitorIndexPreference(..)
+            | SocketMessage::NamedWorkspaceLayoutCustom(..)
+            | SocketMessage::NamedWorkspaceLayoutCustomRule(..)
+            | SocketMessage::PanGesture(..)
+            | SocketMessage::ReloadConfiguration
+            | SocketMessage::RemoveSubscriberPipe(..)
+            | SocketMessage::RemoveTitleBar(..)
+            | SocketMessage::StackbarBackgroundColour(..)
+            | SocketMessage::StackbarFocusedTextColour(..)
+            | SocketMessage::StackbarFontFamily(..)
+            | SocketMessage::StackbarFontSize(..)
+            | SocketMessage::StackbarHeight(..)
+            | SocketMessage::StackbarLabel(..)
+            | SocketMessage::StackbarMode(..)
+            | SocketMessage::StackbarTabWidth(..)
+            | SocketMessage::StackbarUnfocusedTextColour(..)
+            | SocketMessage::ToggleTitleBars
+            | SocketMessage::WatchConfiguration(..)
+            | SocketMessage::WindowHidingBehaviour(..)
+            | SocketMessage::WorkspaceLayoutCustom(..)
+            | SocketMessage::WorkspaceLayoutCustomRule(..)
+ => {
+                reply.write_all(message.not_supported_reply().as_bytes())?;
+                return Ok(());
+            }
         }
 
         self.update_known_window_ids();
