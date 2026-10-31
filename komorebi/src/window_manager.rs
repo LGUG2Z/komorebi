@@ -68,6 +68,7 @@ use crate::should_act;
 use crate::should_act_individual;
 use crate::state::State;
 use crate::static_config::StaticConfig;
+use crate::static_config::StaticConfigExt;
 use crate::transparency_manager;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
