@@ -47,6 +47,24 @@ pub trait ContainerWindow: Copy + PartialEq {
     fn restore_stacked(&self);
 }
 
+/// What a workspace asks of a platform window, besides what a container asks.
+///
+/// The four lookups answer from what the platform knows about the window and are `None` when it
+/// cannot say (the window is gone, or the platform has no source for the field).
+pub trait WorkspaceWindow: ContainerWindow {
+    /// The window's title.
+    fn title(&self) -> Option<String>;
+
+    /// The file name of the executable that owns the window.
+    fn exe(&self) -> Option<String>;
+
+    /// The window class (the `app_id` on KDE, the Win32 class on Windows).
+    fn class(&self) -> Option<String>;
+
+    /// The full path of the executable that owns the window.
+    fn path(&self) -> Option<String>;
+}
+
 /// A ring of windows that share one tile of a workspace's layout.
 ///
 /// The serialised form is `{"id", "locked", "windows": {"elements", "focused"}}`, which is what
@@ -282,6 +300,34 @@ mod tests {
         fn restore_stacked(&self) {
             LOG.with(|log| log.borrow_mut().push(format!("restore-stacked {}", self.0)));
         }
+    }
+
+    impl WorkspaceWindow for Stub {
+        fn title(&self) -> Option<String> {
+            Some(format!("title{}", self.0))
+        }
+
+        fn exe(&self) -> Option<String> {
+            self.exe_name()
+        }
+
+        fn class(&self) -> Option<String> {
+            Some("class".to_string())
+        }
+
+        fn path(&self) -> Option<String> {
+            None
+        }
+    }
+
+    #[test]
+    fn a_workspace_window_answers_the_four_lookups() {
+        let window = Stub(3);
+
+        assert_eq!(window.title().as_deref(), Some("title3"));
+        assert_eq!(WorkspaceWindow::exe(&window).as_deref(), Some("exe3"));
+        assert_eq!(window.class().as_deref(), Some("class"));
+        assert_eq!(window.path(), None);
     }
 
     fn container_of(ids: &[u32]) -> Container<Stub> {
