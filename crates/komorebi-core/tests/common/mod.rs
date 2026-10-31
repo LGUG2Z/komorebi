@@ -483,3 +483,4 @@ pub fn work_area(right: i32, bottom: i32) -> Rect {
         bottom,
     }
 }
+pub mod fixtures;
