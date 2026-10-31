@@ -99,6 +99,7 @@ use crate::winevent_listener;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use komorebi_backend::WindowId;
+use komorebi_core::ContainerWindow;
 use stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use stackbar_manager::STACKBAR_LABEL;
 use stackbar_manager::STACKBAR_MODE;
@@ -2322,7 +2323,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                     if i == focused_idx {
                         to_focus = Some(*window);
                     } else {
-                        let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+                        window.restore_window();
                         backend().raise(WindowId::from_hwnd(window.hwnd))?;
                     }
                 }
@@ -2330,7 +2331,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 if let Some(focused_window) = &to_focus {
                     // The focused window should be the last one raised to make sure it is
                     // on top
-                    let _ = backend().restore(WindowId::from_hwnd(focused_window.hwnd));
+                    focused_window.restore_window();
                     backend().raise(WindowId::from_hwnd(focused_window.hwnd))?;
                 }
 
@@ -2355,7 +2356,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                         backend().raise(WindowId::from_hwnd(window.hwnd))?;
                     }
                     for window in workspace.floating_windows() {
-                        let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
+                        window.hide_window();
                     }
                 } else {
                     let focused_container_idx = workspace.focused_container_idx();

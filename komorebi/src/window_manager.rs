@@ -50,6 +50,7 @@ use crate::core::WindowManagementBehaviour;
 use crate::core::config_generation::MatchingRule;
 use crate::windows_backend::backend;
 use komorebi_backend::WindowId;
+use komorebi_core::ContainerWindow;
 
 use crate::CrossBoundaryBehaviour;
 use crate::DATA_DIR;
@@ -702,7 +703,7 @@ impl WindowManager {
 
             // Hide the window we are about to remove if it is on the currently focused workspace
             if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
-                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
+                window.hide_window();
                 should_update_focused_workspace = true;
             }
 
@@ -1510,7 +1511,7 @@ impl WindowManager {
                         }
 
                         if !ignore_restore {
-                            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+                            window.restore_window();
                         }
                     }
                 }
@@ -1758,7 +1759,7 @@ impl WindowManager {
             }
 
             for window in target_workspace.floating_windows_mut() {
-                let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+                window.restore_window();
             }
 
             target_workspace.reintegrate_monocle_container()?;
@@ -3178,7 +3179,7 @@ impl WindowManager {
         }
 
         for window in workspace.floating_windows_mut() {
-            let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
+            window.hide_window();
         }
 
         Ok(())
@@ -3195,7 +3196,7 @@ impl WindowManager {
         }
 
         for window in workspace.floating_windows_mut() {
-            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+            window.restore_window();
         }
 
         workspace.reintegrate_monocle_container()

@@ -51,6 +51,7 @@ use crate::windows_backend::backend;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_backend::WindowId;
+use komorebi_core::ContainerWindow;
 use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::Base16ColourPalette;
 use komorebi_themes::KomorebiThemeCustom as Custom;
@@ -409,7 +410,7 @@ impl Workspace {
             }
 
             if should_hide {
-                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
+                window.hide_window();
             }
         }
 
@@ -418,7 +419,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window {
-            let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
+            window.hide_window();
         }
 
         if let Some(container) = &self.monocle_container {
@@ -578,7 +579,7 @@ impl Workspace {
         }
 
         for window in self.floating_windows() {
-            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+            window.restore_window();
         }
 
         // Do this here to make sure that an error doesn't stop the restoration of other windows
@@ -588,7 +589,7 @@ impl Workspace {
             if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
                 backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
             } else if let Some(maximized_window) = self.maximized_window {
-                let _ = backend().restore(WindowId::from_hwnd(maximized_window.hwnd));
+                maximized_window.restore_window();
                 backend().focus(
                     WindowId::from_hwnd(maximized_window.hwnd),
                     mouse_follows_focus,
@@ -600,7 +601,7 @@ impl Workspace {
                 )?;
             }
         } else if let Some(maximized_window) = self.maximized_window {
-            let _ = backend().restore(WindowId::from_hwnd(maximized_window.hwnd));
+            maximized_window.restore_window();
             backend().focus(
                 WindowId::from_hwnd(maximized_window.hwnd),
                 mouse_follows_focus,
@@ -836,19 +837,20 @@ impl Workspace {
                                     // If a window has been unmaximized via toggle-maximize, this block
                                     // will make sure that it is unmaximized via restore_window
                                     if window.is_maximized() && !managed_maximized_window {
-                                        let _ = backend().unminimize(WindowId::from_hwnd(window.hwnd));
+                                        let _ =
+                                            backend().unminimize(WindowId::from_hwnd(window.hwnd));
                                     }
                                 }
                                 if hidden.get(i).copied().unwrap_or_default() {
                                     // it is seen on another monitor wherever it rests here
-                                    let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
+                                    window.hide_window();
                                 } else {
                                     if crate::scrolling::should_restore_when_placed(
                                         window.hwnd,
                                         container.focused_window().map(|w| w.hwnd),
                                         &HIDDEN_HWNDS.lock(),
                                     ) {
-                                        let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+                                        window.restore_window();
                                     }
 
                                     backend().set_rect(WindowId::from_hwnd(window.hwnd), layout)?;
@@ -896,7 +898,8 @@ impl Workspace {
     }
 
     pub fn container_for_window(&self, window_id: isize) -> Option<&Container> {
-        self.containers().get(self.container_idx_for_window(window_id)?)
+        self.containers()
+            .get(self.container_idx_for_window(window_id)?)
     }
 
     /// If there is a container which holds the window with `window_id` it will focus that container.

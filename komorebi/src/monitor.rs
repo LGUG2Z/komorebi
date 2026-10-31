@@ -12,9 +12,8 @@ use crate::border_manager::BORDER_ENABLED;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::core::Rect;
-use crate::windows_backend::backend;
 use komorebi_backend::MonitorId;
-use komorebi_backend::WindowId;
+use komorebi_core::ContainerWindow;
 
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -459,7 +458,7 @@ impl Monitor {
                 }
 
                 for window in target_workspace.floating_windows_mut() {
-                    let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+                    window.restore_window();
                 }
 
                 target_workspace.reintegrate_monocle_container()?;

@@ -10,6 +10,7 @@ use crate::core::Rect;
 use crate::core::WindowContainerBehaviour;
 use crate::windows_backend::backend;
 use komorebi_backend::WindowId;
+use komorebi_core::ContainerWindow;
 
 use crate::CURRENT_VIRTUAL_DESKTOP;
 use crate::DefaultLayout;
@@ -511,7 +512,7 @@ impl WindowManager {
                             "ignoring show event for window already associated with another workspace"
                         );
 
-                        let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
+                        window.hide_window();
                         proceed = false;
                     }
 
@@ -643,7 +644,7 @@ impl WindowManager {
                             if !(monocle_window_event || workspace.layer != WorkspaceLayer::Tiling)
                                 && monocle_container.is_some()
                             {
-                                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
+                                window.hide_window();
                             }
                         }
                     }
@@ -1063,7 +1064,7 @@ impl WindowManager {
                             container.restore();
                         }
                         for window in workspace.floating_windows_mut() {
-                            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+                            window.restore_window();
                         }
                         workspace.reintegrate_monocle_container()?;
                     }
