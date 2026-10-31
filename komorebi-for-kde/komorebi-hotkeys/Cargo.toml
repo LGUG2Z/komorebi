@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-hotkeys"
-version.workspace = true
+version = "0.1.0"
 description = "Reads skhd, whkd and sxhkd key binding files and plans them as KDE global shortcuts"
 edition = "2024"
 

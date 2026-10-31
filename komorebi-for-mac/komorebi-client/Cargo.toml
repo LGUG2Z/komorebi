@@ -1,14 +1,17 @@
 [package]
-name = "komorebi-client"
+name = "komorebi-client-macos"
 version = "0.1.1"
 edition = "2024"
 
 [dependencies]
-komorebi = { path = "../komorebi", default-features = false }
-komorebi-themes = { workspace = true }
+komorebi = { package = "komorebi-macos", path = "../komorebi", default-features = false }
+komorebi-themes = { path = "../../komorebi-themes" }
 
-serde_json = { workspace = true }
+serde_json = { package = "serde_json_lenient", version = "0.2" }
 
 [features]
 default = ["schemars"]
 schemars = ["komorebi/default"]
+
+[lib]
+name = "komorebi_client"

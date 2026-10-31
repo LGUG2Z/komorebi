@@ -40,7 +40,9 @@ let
       pyproject = true;
       src = lib.fileset.toSource {
         root = ./lib;
-        fileset = ./lib;
+        # not the unit tests: the VM never runs them (setuptools does not package them), so
+        # editing one must not rebuild every suite; `libCheck` keeps them
+        fileset = lib.fileset.difference ./lib ./lib/tests;
       };
       build-system = [ ps.setuptools ];
       dependencies = [ ps.pillow ];

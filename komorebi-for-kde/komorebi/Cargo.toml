@@ -1,37 +1,38 @@
 [package]
-name = "komorebi"
-version.workspace = true
+name = "komorebi-linux"
+version = "0.1.0"
 description = "A tiling window manager for KDE Plasma"
 edition = "2024"
 
 [dependencies]
 komorebi-hotkeys = { path = "../komorebi-hotkeys" }
-komorebi-themes = { workspace = true }
-komorebi-backend = { workspace = true }
-komorebi-collections = { workspace = true }
-komorebi-core = { workspace = true }
-komorebi-layouts = { workspace = true }
-komorebi-scrolling = { workspace = true }
-komorebi-config = { workspace = true }
-komorebi-protocol = { workspace = true }
-komorebi-transport = { workspace = true }
-version = { path = "../version" }
+komorebi-themes = { path = "../../komorebi-themes" }
+komorebi-backend = { path = "../../crates/komorebi-backend" }
+komorebi-collections = { path = "../../crates/komorebi-collections" }
+komorebi-core = { path = "../../crates/komorebi-core" }
+komorebi-layouts = { path = "../../komorebi-layouts", features = ["schemars"] }
+komorebi-scrolling = { path = "../../komorebi-scrolling" }
+komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = ["schemars"] }
+komorebi-settings = { path = "../../crates/komorebi-settings" }
+komorebi-protocol = { path = "../../crates/komorebi-protocol", default-features = false, features = ["schemars"] }
+komorebi-transport = { path = "../../crates/komorebi-transport" }
+version = { package = "version-linux", path = "../version" }
 
-clap = { workspace = true }
-color-eyre = { workspace = true }
-crossbeam-channel = { workspace = true }
-crossbeam-utils = { workspace = true }
+clap = { version = "4", features = ["derive", "wrap_help"] }
+color-eyre = { version = "0.6" }
+crossbeam-channel = { version = "0.5" }
+crossbeam-utils = { version = "0.8" }
 ctrlc = { version = "3", features = ["termination"] }
-dirs = { workspace = true }
-hotwatch = { workspace = true }
-lazy_static = { workspace = true }
+dirs = { version = "7" }
+hotwatch = { version = "0.5" }
+lazy_static = { version = "1" }
 nanoid = "0.5"
 parking_lot = "0.13"
-pastey = { workspace = true }
+pastey = { version = "0.2" }
 regex = "1"
-schemars = { workspace = true, optional = true }
-serde = { workspace = true }
-serde_json = { workspace = true, features = ["preserve_order"] }
+schemars = { version = "1.1", optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = { package = "serde_json_lenient", version = "0.2", features = ["preserve_order"] }
 serde_with = { version = "3", features = ["schemars_1"] }
 strum = { version = "0.28", features = ["derive"] }
 tokio = { version = "1", features = [
@@ -40,9 +41,9 @@ tokio = { version = "1", features = [
   "sync",
   "time",
 ] }
-tracing = { workspace = true }
-tracing-appender = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing = { version = "0.1" }
+tracing-appender = { version = "0.2" }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zbus = { version = "6", default-features = false, features = [
   "tokio",
   "proxy",
@@ -57,3 +58,10 @@ uuid = { version = "1", features = ["v4"] }
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 schemars = ["dep:schemars", "komorebi-collections/schemars", "komorebi-core/schemars"]
+
+[lib]
+name = "komorebi"
+
+[[bin]]
+name = "komorebi"
+path = "src/main.rs"

@@ -51,7 +51,7 @@
 
               # the repository, cut down to this workspace and the crates of the root workspace it depends
               # on by path, with the root manifest those crates inherit their dependencies from
-              src = pkgs.lib.cleanSourceWith {
+              real = pkgs.lib.cleanSourceWith {
                 src = repoRoot;
                 filter =
                   path: type:
@@ -62,23 +62,72 @@
                     rootCrate = builtins.any (
                       crate: relative == crate || pkgs.lib.hasPrefix "${crate}/" relative
                     ) rootCrates;
+                    # the unified komorebic package: its manifest, build script, main and the macOS module
+                    komorebic =
+                      builtins.elem relative [
+                        "komorebic"
+                        "komorebic/Cargo.toml"
+                        "komorebic/build.rs"
+                        "komorebic/src"
+                        "komorebic/src/main.rs"
+                      ]
+                      || pkgs.lib.hasPrefix "komorebic/src/macos" relative;
+
+                    # the unified komorebi-client package: its manifest, lib.rs and the module of this platform
+                    komorebiClient =
+                      builtins.elem relative [
+                        "komorebi-client"
+                        "komorebi-client/Cargo.toml"
+                        "komorebi-client/src"
+                        "komorebi-client/src/lib.rs"
+                        "komorebi-client/src/macos.rs"
+                        "komorebi-client/tests"
+                      ];
+
+                    # the unified komorebi-bar package: its manifest, main.rs and the macOS module
+                    komorebiBar =
+                      builtins.elem relative [
+                        "komorebi-bar"
+                        "komorebi-bar/Cargo.toml"
+                        "komorebi-bar/src"
+                        "komorebi-bar/src/main.rs"
+                      ]
+                      || pkgs.lib.hasPrefix "komorebi-bar/src/macos" relative;
                   in
-                  (rootCrate && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || inTree)
+                  ((rootCrate || komorebic || komorebiClient || komorebiBar) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
                   && (
                     (craneLib.filterCargoSources path type)
                     || (pkgs.lib.hasInfix "/docs/" path)
                     || (builtins.match ".*/docs/.*" path != null)
+                    # embedded by include_str! in komorebic
+                    || (pkgs.lib.hasSuffix "/komorebic/src/macos/applications.json" path)
                   );
               };
 
-              # the workspace is in a subdirectory of the source, next to the crates it depends on
+              # the platform is a part of the one workspace of the repository: cargo loads every member (the
+              # others are stubs, see nix/workspace-src.nix) and is told which packages are this platform's
+              src = import (repoRoot + "/nix/workspace-src.nix") {
+                inherit pkgs repoRoot real;
+                isReal =
+                  member:
+                  pkgs.lib.hasPrefix "${platformDir}/" member
+                  || member == "komorebic"
+                  || member == "komorebi-client"
+                  || member == "komorebi-bar"
+                  || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
+              };
+              packages = "-p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar";
               workspaceArgs = {
-                cargoLock = "${src}/${platformDir}/Cargo.lock";
-                cargoToml = "${src}/${platformDir}/Cargo.toml";
-                postUnpack = "cd $sourceRoot/${platformDir}; sourceRoot=$PWD";
+                pname = "komorebi-workspace";
+                inherit version;
+                cargoLock = "${real}/Cargo.lock";
+                cargoToml = "${real}/Cargo.toml";
+                # vendored from the filtered source, not the stubbed one: no build is needed to evaluate
+                cargoVendorDir = craneLib.vendorCargoDeps { src = real; };
               };
 
               commonArgs = workspaceArgs // {
+                cargoExtraArgs = "--locked ${packages}";
                 inherit src version;
                 strictDeps = true;
                 COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" (self.dirtyRev or "unknown"));
@@ -127,7 +176,9 @@
               inherit
                 craneLib
                 src
+                real
                 workspaceArgs
+                packages
                 individualCrateArgs
                 fullBuild
                 ;
@@ -192,17 +243,38 @@
               checks = {
                 komorebi-workspace-clippy = build.craneLib.cargoClippy build.individualCrateArgs;
 
-                komorebi-workspace-fmt = build.craneLib.cargoFmt (build.workspaceArgs // { inherit (build) src; });
+                komorebi-workspace-fmt = build.craneLib.cargoFmt (build.workspaceArgs // { inherit (build) src; cargoExtraArgs = build.packages; });
 
                 komorebi-workspace-toml-fmt = build.craneLib.taploFmt (
                   build.workspaceArgs
                   // {
-                    src = pkgs.lib.sources.sourceFilesBySuffices build.src [ ".toml" ];
+                    src = pkgs.lib.sources.sourceFilesBySuffices build.real [ ".toml" ];
                   }
                 );
 
+                # cargo deny sees every member of the workspace: leave out the other platforms' packages
+                # and use this tree's policy
                 komorebi-workspace-deny = build.craneLib.cargoDeny (
-                  build.workspaceArgs // { inherit (build) src; }
+                  build.workspaceArgs
+                  // {
+                    inherit (build) src;
+                    cargoDenyExtraArgs =
+                      "--workspace "
+                      + pkgs.lib.concatMapStringsSep " " (p: "--exclude ${p}") [
+                        "komorebi-windows"
+                        "komorebi-gui"
+                        "komorebic-no-console"
+                        "komorebi-shortcuts"
+                        "komorebi-e2e-agent"
+                        "komorebi-testwin"
+                        "komorebi-linux"
+                        "komorebic-linux"
+                        "komorebi-client-linux"
+                        "komorebi-hotkeys"
+                        "version-linux"
+                      ];
+                    cargoDenyChecks = "--config ${platformDir}/deny.toml bans licenses sources";
+                  }
                 );
 
                 komorebi-workspace-nextest = build.craneLib.cargoNextest build.individualCrateArgs;

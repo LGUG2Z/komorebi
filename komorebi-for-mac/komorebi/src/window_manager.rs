@@ -279,7 +279,7 @@ impl WindowManager {
                         .enumerate()
                         .flat_map(|(idx, w)| {
                             (w.id != focused_window_id).then_some(
-                                MacosApi::window_rect(&w.element)
+                                w.window_rect()
                                     .ok()
                                     .map(|r| (idx, Rect::from(r))),
                             )
@@ -305,7 +305,7 @@ impl WindowManager {
                         .enumerate()
                         .flat_map(|(idx, w)| {
                             (w.id != focused_window_id).then_some(
-                                MacosApi::window_rect(&w.element)
+                                w.window_rect()
                                     .ok()
                                     .map(|r| (idx, Rect::from(r))),
                             )
@@ -331,7 +331,7 @@ impl WindowManager {
                         .enumerate()
                         .flat_map(|(idx, w)| {
                             (w.id != focused_window_id).then_some(
-                                MacosApi::window_rect(&w.element)
+                                w.window_rect()
                                     .ok()
                                     .map(|r| (idx, Rect::from(r))),
                             )
@@ -357,7 +357,7 @@ impl WindowManager {
                         .enumerate()
                         .flat_map(|(idx, w)| {
                             (w.id != focused_window_id).then_some(
-                                MacosApi::window_rect(&w.element)
+                                w.window_rect()
                                     .ok()
                                     .map(|r| (idx, Rect::from(r))),
                             )
@@ -747,7 +747,7 @@ impl WindowManager {
             MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
         for window in focused_workspace.floating_windows().iter() {
             if window.id == focused_window_id {
-                let mut rect = Rect::from(MacosApi::window_rect(&window.element)?);
+                let mut rect = Rect::from(window.window_rect()?);
                 match direction {
                     OperationDirection::Left => {
                         if rect.left - delta < focused_monitor_work_area.left {
@@ -787,7 +787,7 @@ impl WindowManager {
                     }
                 }
 
-                window.set_position(&rect)?;
+                window.set_rect(&rect)?;
 
                 if mouse_follows_focus {
                     MacosApi::center_cursor_in_rect(&rect)?;
@@ -1180,7 +1180,7 @@ impl WindowManager {
         let mut valid_window_ids = vec![];
         if let Some(elements) = application.window_elements() {
             for element in elements {
-                if let Ok(window_id) = AccessibilityApi::window_id(&element) {
+                if let Ok(window_id) = crate::ax_registry::identify(&element) {
                     valid_window_ids.push(window_id);
                 }
             }
@@ -1475,7 +1475,7 @@ impl WindowManager {
             .into_iter()
             .flatten()
             .filter_map(|window| {
-                MacosApi::window_rect(&window.element)
+                window.window_rect()
                     .ok()
                     .map(|rect| (window.id, Rect::from(rect)))
             })
@@ -1696,7 +1696,7 @@ impl WindowManager {
 
                 for window in workspace.floating_windows().iter() {
                     if window.id == focused_window_id {
-                        let mut rect = Rect::from(MacosApi::window_rect(&window.element)?);
+                        let mut rect = Rect::from(window.window_rect()?);
                         match (direction, sizing) {
                             (OperationDirection::Left, Sizing::Increase) => {
                                 if rect.left - delta < focused_monitor_work_area.left {
@@ -1750,7 +1750,7 @@ impl WindowManager {
                             }
                         }
 
-                        window.set_position(&rect)?;
+                        window.set_rect(&rect)?;
 
                         if mouse_follows_focus {
                             MacosApi::center_cursor_in_rect(&rect)?;
@@ -2190,14 +2190,13 @@ impl WindowManager {
             return Ok(());
         }
 
-        let element = self
-            .focused_workspace()?
-            .container_for_window(window_id)
-            .and_then(|container| container.windows().iter().find(|w| w.id == window_id))
-            .map(|window| window.element.clone())
-            .ok_or_eyre("the dragged window is not in a container on the focused workspace")?;
-
-        let now = Rect::from(MacosApi::window_rect(&element)?);
+        let now = Rect::from(
+            self.focused_workspace()?
+                .container_for_window(window_id)
+                .and_then(|container| container.windows().iter().find(|w| w.id == window_id))
+                .ok_or_eyre("the dragged window is not in a container on the focused workspace")?
+                .window_rect()?,
+        );
 
         if !self.live_resize_apply(now)? {
             return Ok(());
@@ -2266,9 +2265,7 @@ impl WindowManager {
 
             // Reset any resize adjustments if we want to force a retile
             if !preserve_resize_dimensions {
-                for resize in &mut workspace.resize_dimensions {
-                    *resize = None;
-                }
+                workspace.resize_dimensions.fill(None);
 
                 // and the widths and heights of the Scrolling layout, which are resize
                 // adjustments too
@@ -3518,7 +3515,7 @@ impl WindowManager {
         let rules: &mut Vec<(usize, Layout)> = &mut workspace.layout_rules;
         rules.retain(|pair| pair.0 != at_container_count);
         rules.push((at_container_count, Layout::Default(layout)));
-        rules.sort_by(|a, b| a.0.cmp(&b.0));
+        rules.sort_by_key(|a| a.0);
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {

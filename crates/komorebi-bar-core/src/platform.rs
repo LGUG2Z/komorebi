@@ -3,6 +3,8 @@
 //! A shell implements [`BarPlatform`] and calls [`install`] first thing in `main`; the widgets
 //! reach it through [`platform`] when they are built or clicked.
 
+use crate::widgets::icons::ImageIcon;
+use komorebi_protocol::message::SocketMessage;
 use std::io;
 use std::sync::OnceLock;
 
@@ -17,6 +19,9 @@ pub enum SystemTool {
     NetworkSettings,
     /// A URL, in the default browser
     Url(String),
+    /// The location a storage widget label names (the label text, as shown: the platform
+    /// knows how its labels are built), in the file manager
+    StorageLocation(String),
 }
 
 pub trait BarPlatform: Send + Sync {
@@ -25,6 +30,19 @@ pub trait BarPlatform: Send + Sync {
 
     /// The GitHub API URL that says which release of this platform's komorebi is the latest.
     fn latest_release_api_url(&self) -> &'static str;
+
+    /// The icon of the program a command string would start (Windows: the executable's icon;
+    /// macOS: none).
+    fn command_icon(&self, command: &str) -> Option<ImageIcon>;
+
+    /// Runs a command line in the bar's shell session (Windows: its PowerShell session).
+    fn exec_shell_command(&self, command: &str) -> color_eyre::Result<()>;
+
+    /// Sends one message to the komorebi daemon.
+    fn send_komorebi_message(&self, message: &SocketMessage) -> io::Result<()>;
+
+    /// Sends messages to the komorebi daemon as one batch.
+    fn send_komorebi_batch(&self, messages: Vec<SocketMessage>) -> io::Result<()>;
 
     /// The glyph the date widget shows as its calendar icon.
     fn calendar_icon(&self) -> &'static str;

@@ -186,7 +186,7 @@ enum LogLevel {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version = version::LONG_VERSION)]
+#[clap(name = "komorebi", author, about, version = version::LONG_VERSION)]
 struct Opts {
     /// Path to a static configuration JSON file
     #[clap(short, long)]

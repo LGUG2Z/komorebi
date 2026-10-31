@@ -54,6 +54,7 @@ pub mod animation;
 pub mod app_kit_notification_constants;
 pub mod application;
 pub mod arrival;
+pub mod ax_registry;
 pub mod border_manager;
 pub mod container;
 pub mod core;
@@ -72,6 +73,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod reaper;
 pub mod scrolling;
+pub mod settings;
 pub mod settle;
 pub mod skylight;
 pub mod splash;
@@ -122,6 +124,10 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
         Arc::new(Mutex::new(Vec::new()));
+    // LOCK ORDER for the rule lists (as in the KDE tree, minus the lists macOS does not have):
+    // FLOATING_APPLICATIONS, SESSION_FLOATING_APPLICATIONS, IGNORE_IDENTIFIERS, MANAGE_IDENTIFIERS,
+    // WORKSPACE_MATCHING_RULES, REGEX_IDENTIFIERS. Take the ones you need in that order and never
+    // the other way round; a thread that does can deadlock with one that does not.
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
@@ -159,10 +165,12 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
 }
 
-pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
-pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(5);
-pub static DEFAULT_RESIZE_DELTA: i32 = 50;
-pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = true;
+pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 =
+    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::MACOS.workspace_padding);
+pub static DEFAULT_CONTAINER_PADDING: AtomicI32 =
+    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::MACOS.container_padding);
+pub static DEFAULT_RESIZE_DELTA: i32 = komorebi_settings::shared::DEFAULT_RESIZE_DELTA;
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 
 pub const PUBLIC_KEY: [u8; 32] = [
     0x5a, 0x69, 0x4a, 0xe1, 0x3c, 0x4b, 0xc8, 0x4e, 0xc3, 0x79, 0x0f, 0xab, 0x27, 0x6b, 0x7e, 0xdd,

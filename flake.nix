@@ -215,12 +215,16 @@
 
           msvcEnv = mkMsvcEnv { inherit pkgs windowsSdk; };
 
-          src = pkgs.lib.cleanSourceWith {
+          # the files of the Windows crates; the KDE and macOS crates are in the same Cargo workspace and
+          # are added as stubs (nix/workspace-src.nix), so that an edit of one changes nothing here
+          real = pkgs.lib.cleanSourceWith {
             src = ./.;
             filter =
               path: type:
-              # the other platforms' trees have their own workspaces and are built by their own outputs
+              # the other platforms' crates are added as stubs below
               !(pkgs.lib.hasInfix "/komorebi-for-kde" path || pkgs.lib.hasInfix "/komorebi-for-mac" path)
+              # the Linux and macOS files of komorebic are not read when building for Windows
+              && !(builtins.match ".*/komorebi(c/(src/(linux|macos)|tests/(linux|macos)_)|-client/(src/(linux|macos)\\.rs|tests/(linux|macos)_)|-bar/src/macos)[^/]*.*" path != null)
               && (
                 (craneLib.filterCargoSources path type)
                 || (pkgs.lib.hasInfix "/docs/" path)
@@ -229,13 +233,25 @@
               );
           };
 
+          src = import ./nix/workspace-src.nix {
+            inherit pkgs real;
+            repoRoot = ./.;
+            isReal = member: !(pkgs.lib.hasPrefix "komorebi-for-" member);
+          };
+
           commonArgs = {
             inherit src version;
+            cargoLock = "${real}/Cargo.lock";
+            cargoToml = "${real}/Cargo.toml";
+            # vendored from the filtered source, not the stubbed one: no build is needed to evaluate
+            cargoVendorDir = craneLib.vendorCargoDeps { src = real; };
             strictDeps = true;
-            # komorebic/build.rs downloads applications.json if it is missing, which
-            # is not possible in the sandbox, so provide the pinned copy instead
+            # applications.json is committed now; this copies the pinned asc input over it, so that the
+            # embedded file is the pinned one even when the committed copy is older
             preBuild = "mkdir -p komorebic && cp ${inputs.asc}/applications.json komorebic/applications.json";
-            COMMIT_HASH = commit;
+            # a constant, so that the dependencies and every check are the same
+            # derivations for every commit; only fullBuild stamps the real one
+            COMMIT_HASH = "nix-check";
 
             # build inputs for cross-compilation
             nativeBuildInputs = [
@@ -278,6 +294,7 @@
             individualCrateArgs
             // {
               pname = "komorebi-workspace";
+              COMMIT_HASH = commit;
             }
           );
 
@@ -296,6 +313,7 @@
           inherit
             craneLib
             src
+            real
             individualCrateArgs
             fullBuild
             msvcEnv
@@ -493,14 +511,37 @@
 
             komorebi-workspace-fmt = build.craneLib.cargoFmt {
               inherit (build) src;
+              pname = "komorebi-workspace";
+              version = "0.1.0";
+              cargoToml = "${build.real}/Cargo.toml";
             };
 
             komorebi-workspace-toml-fmt = build.craneLib.taploFmt {
-              src = pkgs.lib.sources.sourceFilesBySuffices build.src [ ".toml" ];
+              src = pkgs.lib.sources.sourceFilesBySuffices build.real [ ".toml" ];
             };
 
+            # cargo deny sees every member of the workspace: leave out the KDE and macOS packages, which
+            # have their own policy (komorebi-for-*/deny.toml) in their own checks
             komorebi-workspace-deny = build.craneLib.cargoDeny {
               inherit (build) src;
+              pname = "komorebi-workspace";
+              version = "0.1.0";
+              cargoToml = "${build.real}/Cargo.toml";
+              cargoLock = "${build.real}/Cargo.lock";
+              cargoDenyExtraArgs =
+                "--workspace "
+                + pkgs.lib.concatMapStringsSep " " (p: "--exclude ${p}") [
+                  "komorebi-linux"
+                  "komorebic-linux"
+                  "komorebi-client-linux"
+                  "komorebi-hotkeys"
+                  "version-linux"
+                  "komorebi-macos"
+                  "komorebic-macos"
+                  "komorebi-client-macos"
+                  "komorebi-bar-macos"
+                  "version-macos"
+                ];
             };
 
             komorebi-workspace-nextest = build.craneLib.cargoNextest build.individualCrateArgs;

@@ -77,7 +77,7 @@ dependencies = [
  "futures-lite",
  "futures-util",
  "serde",
- "zbus",
+ "zbus 5.19.0",
 ]
 
 [[package]]
@@ -324,9 +324,9 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
- "parking_lot",
+ "parking_lot 0.12.5",
  "percent-encoding",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
  "x11rb",
 ]
 
@@ -534,7 +534,7 @@ dependencies = [
  "enumflags2",
  "serde",
  "static_assertions",
- "zbus",
+ "zbus 5.19.0",
  "zbus-lockstep",
  "zbus-lockstep-macros",
  "zbus_names",
@@ -550,7 +550,7 @@ dependencies = [
  "atspi-common",
  "atspi-proxies",
  "futures-lite",
- "zbus",
+ "zbus 5.19.0",
 ]
 
 [[package]]
@@ -561,7 +561,7 @@ checksum = "d2eebcb9e7e76f26d0bcfd6f0295e1cd1e6f33bedbc5698a971db8dc43d7751c"
 dependencies = [
  "atspi-common",
  "serde",
- "zbus",
+ "zbus 5.19.0",
 ]
 
 [[package]]
@@ -1546,6 +1546,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d57d423b3c82e89b9a24ca3091fee61f456a26edbd28d26c65906f4bc1dcd8f"
+dependencies = [
+ "dirs-sys 0.5.0",
+]
+
+[[package]]
 name = "dirs-sys"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1565,7 +1574,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.3",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1604,6 +1613,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab8ecd87370524b461f8557c119c405552c396ed91fc0a8eec68679eab26f94a"
 dependencies = [
  "libloading",
+]
+
+[[package]]
+name = "dlopen2"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09b4f5f101177ff01b8ec4ecc81eead416a8aa42819a2869311b3420fa114ffa"
+dependencies = [
+ "libc",
+ "once_cell",
+ "winapi",
 ]
 
 [[package]]
@@ -1706,7 +1726,7 @@ dependencies = [
  "objc2 0.5.3",
  "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
- "parking_lot",
+ "parking_lot 0.12.5",
  "percent-encoding",
  "profiling",
  "raw-window-handle",
@@ -1908,7 +1928,7 @@ dependencies = [
  "epaint_default_fonts",
  "log",
  "nohash-hasher",
- "parking_lot",
+ "parking_lot 0.12.5",
  "profiling",
 ]
 
@@ -1951,7 +1971,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2040,6 +2060,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fearless_simd"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
+
+[[package]]
 name = "fiat-crypto"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2075,6 +2101,12 @@ name = "fixedbitset"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
+
+[[package]]
+name = "fixedbitset"
+version = "0.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 
 [[package]]
 name = "flate2"
@@ -2633,6 +2665,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
+name = "hayro-jpeg2000"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c75ab947623ef4ccaa7acf0579edf7cbb5a73838e3839a7be73335e522f433a1"
+dependencies = [
+ "fearless_simd",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2810,7 +2851,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.57.0",
 ]
 
 [[package]]
@@ -2820,6 +2861,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "icns"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "467efeb2c1e570cebb9863f9173447f8fe92303d66adc97cb89ac824b60e7a0f"
+dependencies = [
+ "byteorder",
+ "hayro-jpeg2000",
+ "png 0.18.1",
 ]
 
 [[package]]
@@ -3332,64 +3384,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
-name = "komorebi"
-version = "0.1.42"
-dependencies = [
- "base64 0.22.1",
- "bitflags 2.13.2",
- "chrono",
- "clap",
- "color-eyre",
- "crossbeam-channel",
- "crossbeam-utils",
- "ctrlc",
- "dirs 6.0.0",
- "ed25519-dalek",
- "hotwatch",
- "komorebi-backend",
- "komorebi-collections",
- "komorebi-config",
- "komorebi-core",
- "komorebi-layouts",
- "komorebi-protocol",
- "komorebi-scrolling",
- "komorebi-themes",
- "komorebi-transport",
- "lazy_static",
- "miow",
- "nanoid",
- "net2",
- "os_info",
- "parking_lot",
- "paste",
- "powershell_script",
- "regex",
- "reqwest",
- "schemars 1.2.3",
- "serde",
- "serde_json_lenient",
- "serde_with",
- "serde_yaml 0.9.34+deprecated",
- "shadow-rs",
- "strum",
- "sysinfo 0.39.6",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uds_windows",
- "uuid",
- "which",
- "win32-display-data",
- "windows 0.62.2",
- "windows-core 0.62.2",
- "windows-implement 0.60.2",
- "windows-interface 0.59.3",
- "windows-numerics 0.3.1",
- "winput",
- "winreg",
-]
-
-[[package]]
 name = "komorebi-backend"
 version = "0.1.42"
 dependencies = [
@@ -3412,22 +3406,28 @@ dependencies = [
  "egui_extras",
  "font-loader",
  "hotwatch",
+ "icns",
  "image 0.25.10",
  "komorebi-bar-core",
  "komorebi-client",
  "komorebi-themes",
  "lazy_static",
- "netdev",
+ "netdev 0.40.1",
+ "netdev 0.46.3",
  "num",
  "num-derive",
  "num-traits",
- "parking_lot",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "parking_lot 0.12.5",
  "random_word",
+ "raw-window-handle",
  "regex",
  "reqwest",
  "schemars 1.2.3",
  "serde",
  "serde_json_lenient",
+ "sysinfo 0.38.4",
  "sysinfo 0.39.6",
  "systray-util",
  "tokio",
@@ -3446,23 +3446,93 @@ version = "0.1.42"
 dependencies = [
  "chrono",
  "chrono-tz",
+ "color-eyre",
  "eframe",
  "egui-phosphor",
+ "image 0.25.10",
+ "komorebi-config",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "lazy_static",
  "reqwest",
  "schemars 1.2.3",
  "serde",
  "serde_json_lenient",
  "starship-battery",
  "sysinfo 0.39.6",
+ "tracing",
+]
+
+[[package]]
+name = "komorebi-bar-macos"
+version = "0.1.1"
+dependencies = [
+ "chrono",
+ "chrono-tz",
+ "clap",
+ "color-eyre",
+ "crossbeam-channel",
+ "dirs 6.0.0",
+ "dunce",
+ "eframe",
+ "egui-phosphor",
+ "font-loader",
+ "hotwatch",
+ "icns",
+ "image 0.25.10",
+ "komorebi-bar-core",
+ "komorebi-client",
+ "komorebi-themes",
+ "lazy_static",
+ "netdev 0.40.1",
+ "num",
+ "num-derive",
+ "num-traits",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "parking_lot 0.12.5",
+ "random_word",
+ "raw-window-handle",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "sysinfo 0.38.4",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
 name = "komorebi-client"
 version = "0.1.42"
 dependencies = [
- "komorebi",
+ "komorebi-linux",
+ "komorebi-macos",
+ "komorebi-themes",
+ "komorebi-windows",
+ "parking_lot 0.13.0",
  "serde_json_lenient",
  "uds_windows",
+]
+
+[[package]]
+name = "komorebi-client-linux"
+version = "0.1.0"
+dependencies = [
+ "komorebi-linux",
+ "komorebi-themes",
+ "parking_lot 0.13.0",
+ "serde_json_lenient",
+]
+
+[[package]]
+name = "komorebi-client-macos"
+version = "0.1.1"
+dependencies = [
+ "komorebi-macos",
+ "komorebi-themes",
+ "serde_json_lenient",
 ]
 
 [[package]]
@@ -3500,7 +3570,7 @@ dependencies = [
  "komorebi-config",
  "komorebi-layouts",
  "komorebi-scrolling",
- "nanoid",
+ "nanoid 0.5.0",
  "schemars 1.2.3",
  "serde",
  "serde_json_lenient",
@@ -3530,6 +3600,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-hotkeys"
+version = "0.1.0"
+dependencies = [
+ "whkd-parser",
+]
+
+[[package]]
 name = "komorebi-layouts"
 version = "0.1.42"
 dependencies = [
@@ -3544,6 +3621,101 @@ dependencies = [
  "strum",
  "tracing",
  "windows 0.62.2",
+]
+
+[[package]]
+name = "komorebi-linux"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "ctrlc",
+ "dirs 7.0.0",
+ "futures-util",
+ "hotwatch",
+ "komorebi-backend",
+ "komorebi-collections",
+ "komorebi-config",
+ "komorebi-core",
+ "komorebi-hotkeys",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-scrolling",
+ "komorebi-settings",
+ "komorebi-themes",
+ "komorebi-transport",
+ "lazy_static",
+ "nanoid 0.5.0",
+ "parking_lot 0.13.0",
+ "pastey 0.2.3",
+ "regex",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "serde_with",
+ "strum",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+ "version-linux",
+ "zbus 6.1.0",
+]
+
+[[package]]
+name = "komorebi-macos"
+version = "0.1.1"
+dependencies = [
+ "base64 0.22.1",
+ "block2 0.6.2",
+ "chrono",
+ "clap",
+ "color-eyre",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "ctrlc",
+ "dirs 6.0.0",
+ "dispatch2",
+ "ed25519-dalek",
+ "hotwatch",
+ "komorebi-backend",
+ "komorebi-collections",
+ "komorebi-config",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-settings",
+ "komorebi-themes",
+ "komorebi-transport",
+ "lazy_static",
+ "nanoid 0.4.0",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-application-services",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-foundation 0.3.2",
+ "objc2-quartz-core 0.3.2",
+ "parking_lot 0.12.5",
+ "pastey 0.2.3",
+ "quickxml_to_serde",
+ "regex",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "serde_with",
+ "shadow-rs 1.7.1",
+ "strum",
+ "sysinfo 0.38.4",
+ "thiserror 2.0.21",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+ "version-macos",
 ]
 
 [[package]]
@@ -3564,6 +3736,17 @@ dependencies = [
 [[package]]
 name = "komorebi-scrolling"
 version = "0.1.42"
+
+[[package]]
+name = "komorebi-settings"
+version = "0.1.42"
+dependencies = [
+ "komorebi-config",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "parking_lot 0.12.5",
+]
 
 [[package]]
 name = "komorebi-shortcuts"
@@ -3605,9 +3788,67 @@ dependencies = [
  "color-eyre",
  "crossbeam-channel",
  "komorebi-protocol",
- "parking_lot",
+ "parking_lot 0.12.5",
  "tracing",
  "uds_windows",
+]
+
+[[package]]
+name = "komorebi-windows"
+version = "0.1.42"
+dependencies = [
+ "base64 0.22.1",
+ "bitflags 2.13.2",
+ "chrono",
+ "clap",
+ "color-eyre",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "ctrlc",
+ "dirs 6.0.0",
+ "ed25519-dalek",
+ "hotwatch",
+ "komorebi-backend",
+ "komorebi-collections",
+ "komorebi-config",
+ "komorebi-core",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-scrolling",
+ "komorebi-themes",
+ "komorebi-transport",
+ "lazy_static",
+ "miow",
+ "nanoid 0.5.0",
+ "net2",
+ "os_info",
+ "parking_lot 0.12.5",
+ "paste",
+ "powershell_script",
+ "regex",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "serde_with",
+ "serde_yaml 0.9.34+deprecated",
+ "shadow-rs 2.0.0",
+ "strum",
+ "sysinfo 0.39.6",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uds_windows",
+ "uuid",
+ "which",
+ "win32-display-data",
+ "windows 0.62.2",
+ "windows-core 0.62.2",
+ "windows-implement 0.60.2",
+ "windows-interface 0.59.3",
+ "windows-numerics 0.3.1",
+ "winput",
+ "winreg",
 ]
 
 [[package]]
@@ -3616,12 +3857,15 @@ version = "0.1.42"
 dependencies = [
  "chrono",
  "clap",
+ "clap_complete",
  "color-eyre",
  "dirs 6.0.0",
  "dunce",
  "fs-tail",
  "komorebi-client",
  "komorebi-config",
+ "komorebi-hotkeys",
+ "komorebi-linux",
  "komorebic-core",
  "lazy_static",
  "miette",
@@ -3631,9 +3875,13 @@ dependencies = [
  "schemars 1.2.3",
  "serde",
  "serde_json_lenient",
- "shadow-rs",
+ "shadow-rs 2.0.0",
+ "sysinfo 0.38.4",
  "sysinfo 0.39.6",
+ "sysinfo 0.40.0",
  "thiserror 2.0.21",
+ "version-linux",
+ "version-macos",
  "which",
  "win-msgbox",
  "windows 0.62.2",
@@ -3648,6 +3896,50 @@ dependencies = [
  "color-eyre",
  "komorebi-layouts",
  "komorebi-protocol",
+]
+
+[[package]]
+name = "komorebic-linux"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "clap_complete",
+ "color-eyre",
+ "dirs 7.0.0",
+ "fs-tail",
+ "komorebi-client-linux",
+ "komorebi-config",
+ "komorebi-hotkeys",
+ "komorebi-linux",
+ "komorebic-core",
+ "lazy_static",
+ "schemars 1.2.3",
+ "serde_json_lenient",
+ "sysinfo 0.40.0",
+ "version-linux",
+]
+
+[[package]]
+name = "komorebic-macos"
+version = "0.1.1"
+dependencies = [
+ "chrono",
+ "clap",
+ "clap_complete",
+ "color-eyre",
+ "dirs 6.0.0",
+ "fs-tail",
+ "komorebi-client-macos",
+ "komorebi-config",
+ "komorebic-core",
+ "lazy_static",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde_json_lenient",
+ "shadow-rs 1.7.1",
+ "sysinfo 0.38.4",
+ "version-macos",
 ]
 
 [[package]]
@@ -3810,6 +4102,15 @@ name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
+dependencies = [
+ "scopeguard",
+]
+
+[[package]]
+name = "lock_api"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65d91b22da179613dcf4d6ec8349563f52a363f6849e03b00dd0a185ec4a59af"
 dependencies = [
  "scopeguard",
 ]
@@ -3990,6 +4291,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "minidom"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe549115a674f5ec64c754d85e37d6f42664bd0ef4ffb62b619489ad99c6cb1a"
+dependencies = [
+ "quick-xml 0.17.2",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4110,6 +4420,15 @@ dependencies = [
 
 [[package]]
 name = "nanoid"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ffa00dec017b5b1a8b7cf5e2c008bfda1aa7e0697ac1508b491fdf2622fb4d8"
+dependencies = [
+ "rand 0.8.8",
+]
+
+[[package]]
+name = "nanoid"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8628de41fe064cc3f0cf07f3d299ee3e73521adaff72278731d5c8cae3797873"
@@ -4177,26 +4496,57 @@ dependencies = [
 
 [[package]]
 name = "netdev"
+version = "0.40.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b0a0096d9613ee878dba89bbe595f079d373e3f1960d882e4f2f78ff9c30a0a"
+dependencies = [
+ "block2 0.6.2",
+ "dispatch2",
+ "dlopen2 0.5.0",
+ "ipnet",
+ "libc",
+ "mac-addr",
+ "netlink-packet-core 0.8.2",
+ "netlink-packet-route 0.29.0",
+ "netlink-sys 0.8.8",
+ "objc2-core-foundation",
+ "objc2-system-configuration",
+ "once_cell",
+ "plist",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "netdev"
 version = "0.46.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3c52c2584961c68f5a6e3356797344061f818c93b8acc9cd6d7e284795e563e"
 dependencies = [
  "block2 0.6.2",
  "dispatch2",
- "dlopen2",
+ "dlopen2 0.8.2",
  "ipnet",
  "jni 0.21.1",
  "libc",
  "mac-addr",
  "ndk-context",
- "netlink-packet-core",
- "netlink-packet-route",
- "netlink-sys",
+ "netlink-packet-core 0.9.0",
+ "netlink-packet-route 0.33.0",
+ "netlink-sys 0.9.0",
  "objc2-core-foundation",
  "objc2-system-configuration",
  "once_cell",
  "plist",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "netlink-packet-core"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b897d7bd4f0af82e68d40d0344cf37e97f9c97ddf74a098de3e4da05e96ca395"
+dependencies = [
+ "paste",
 ]
 
 [[package]]
@@ -4207,6 +4557,18 @@ checksum = "2d6e2daf9a8c2e21302714706860a0e6be02e03d17294ecc66b354ea7d4059dd"
 
 [[package]]
 name = "netlink-packet-route"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df9854ea6ad14e3f4698a7f03b65bce0833dd2d81d594a0e4a984170537146b6"
+dependencies = [
+ "bitflags 2.13.2",
+ "libc",
+ "log",
+ "netlink-packet-core 0.8.2",
+]
+
+[[package]]
+name = "netlink-packet-route"
 version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59d48ffc8b73a506e1ff0878528c72668f2bfbc3d875b6be890a96be5d0d5576"
@@ -4214,8 +4576,19 @@ dependencies = [
  "bitflags 2.13.2",
  "libc",
  "log",
- "netlink-packet-core",
+ "netlink-packet-core 0.9.0",
  "zerocopy",
+]
+
+[[package]]
+name = "netlink-sys"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd6c30ed10fa69cc491d491b85cc971f6bdeb8e7367b7cde2ee6cc878d583fae"
+dependencies = [
+ "bytes",
+ "libc",
+ "log",
 ]
 
 [[package]]
@@ -4315,7 +4688,7 @@ dependencies = [
  "crossbeam-channel",
  "file-id",
  "notify",
- "parking_lot",
+ "parking_lot 0.12.5",
  "walkdir",
 ]
 
@@ -4334,7 +4707,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4462,6 +4835,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_threads"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cabcc654086861f9e1bc5115258de62ef92c79b20f4615a1b0cc57c4e82027d4"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "objc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4518,10 +4900,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
 dependencies = [
  "bitflags 2.13.2",
+ "libc",
  "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
+ "objc2-quartz-core 0.3.2",
+]
+
+[[package]]
+name = "objc2-application-services"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69282c2b5bc58fba07cb9de2113619532eb551e98efe3d8d695509ef45fbd53b"
+dependencies = [
+ "bitflags 2.13.2",
+ "libc",
+ "objc2-core-foundation",
 ]
 
 [[package]]
@@ -4781,6 +5176,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-security"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "709fe137109bd1e8b5a99390f77a7d8b2961dafc1a1c5db8f2e60329ad6d895a"
+dependencies = [
+ "bitflags 2.13.2",
+ "objc2 0.6.5",
+ "objc2-core-foundation",
+]
+
+[[package]]
 name = "objc2-symbols"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4797,7 +5203,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7216bd11cbda54ccabcab84d523dc93b858ec75ecfb3a7d89513fa22464da396"
 dependencies = [
  "bitflags 2.13.2",
+ "dispatch2",
+ "libc",
+ "objc2 0.6.5",
  "objc2-core-foundation",
+ "objc2-security",
 ]
 
 [[package]]
@@ -5067,8 +5477,18 @@ version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93857453250e3077bd71ff98b6a65ea6621a19bb0f559a85248955ac12c45a1a"
 dependencies = [
- "lock_api",
- "parking_lot_core",
+ "lock_api 0.4.14",
+ "parking_lot_core 0.9.12",
+]
+
+[[package]]
+name = "parking_lot"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9cf937ca4e1d0b7578784559063422fc39ae7c5a00f02471f2614d5486fd226"
+dependencies = [
+ "lock_api 0.5.0",
+ "parking_lot_core 0.10.0",
 ]
 
 [[package]]
@@ -5080,8 +5500,22 @@ dependencies = [
  "backtrace",
  "cfg-if 1.0.5",
  "libc",
- "petgraph",
+ "petgraph 0.6.5",
  "redox_syscall 0.5.18",
+ "smallvec",
+ "windows-link 0.2.1",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cfff060068cc18aa7815010fcaf80c68c7fb9e85fc7f5c0f9bf142c21d19826"
+dependencies = [
+ "backtrace",
+ "libc",
+ "petgraph 0.8.3",
+ "redox_syscall 0.9.5",
  "smallvec",
  "windows-link 0.2.1",
 ]
@@ -5116,8 +5550,20 @@ version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
- "fixedbitset",
+ "fixedbitset 0.4.2",
  "indexmap 2.14.2",
+]
+
+[[package]]
+name = "petgraph"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8701b58ea97060d5e5b155d383a69952a60943f0e6dfe30b04c287beb0b27455"
+dependencies = [
+ "fixedbitset 0.5.7",
+ "hashbrown 0.15.5",
+ "indexmap 2.14.2",
+ "serde",
 ]
 
 [[package]]
@@ -5457,6 +5903,15 @@ checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quick-xml"
+version = "0.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe1e430bdcf30c9fdc25053b9c459bb1a4672af4617b6c783d7d91dc17c6bbb0"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "quick-xml"
 version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
@@ -5471,6 +5926,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "quickxml_to_serde"
+version = "0.6.1"
+source = "git+https://github.com/LGUG2Z/quickxml_to_serde.git#312fabc913738c544dfcf299f5e73de4f6932236"
+dependencies = [
+ "minidom",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json_lenient",
 ]
 
 [[package]]
@@ -5915,7 +6382,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6265,6 +6732,19 @@ dependencies = [
  "cfg-if 1.0.5",
  "cpufeatures 0.2.17",
  "digest",
+]
+
+[[package]]
+name = "shadow-rs"
+version = "1.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c798acfc78a69c7b038adde44084d8df875555b091da42c90ae46257cdcc41a"
+dependencies = [
+ "const_format",
+ "git2",
+ "is_debug",
+ "time",
+ "tzdb",
 ]
 
 [[package]]
@@ -6666,9 +7146,38 @@ dependencies = [
 
 [[package]]
 name = "sysinfo"
+version = "0.38.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92ab6a2f8bfe508deb3c6406578252e491d299cbbf3bc0529ecc3313aee4a52f"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "windows 0.62.2",
+]
+
+[[package]]
+name = "sysinfo"
 version = "0.39.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2071df9448915b71c4fe6d25deaf1c22f12bd234f01540b77312bb8e41361e6"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "objc2-open-directory",
+ "windows 0.62.2",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "110e37d98880fd804cd47509b90a8444f7aaaab655ae625e83cd442a8bc2ebf2"
 dependencies = [
  "libc",
  "memchr",
@@ -6724,10 +7233,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.6",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6746,7 +7255,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix 1.1.6",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6840,7 +7349,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb87b95ec50ddfa440816d227a17b2ccbdda963a316a727fda0fc4334f7d134"
 dependencies = [
  "deranged",
+ "libc",
  "num-conv",
+ "num_threads",
  "powerfmt",
  "serde_core",
  "time-core",
@@ -6914,7 +7425,7 @@ dependencies = [
  "bytes",
  "libc",
  "mio 1.2.4",
- "parking_lot",
+ "parking_lot 0.12.5",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2",
@@ -7164,6 +7675,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
+name = "tz-rs"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fc6c929ffa10fb34f4a3c7e9a73620a83ef2e85e47f9ec3381b8289e6762f42"
+
+[[package]]
+name = "tzdb"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56d4e985b6dda743ae7fd4140c28105316ffd75bc58258ee6cc12934e3eb7a0c"
+dependencies = [
+ "iana-time-zone",
+ "tz-rs",
+ "tzdb_data",
+]
+
+[[package]]
+name = "tzdb_data"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "febaa995f6852367564e16c3369988b99d471d43ed12b1255b8d294661797f1c"
+dependencies = [
+ "tz-rs",
+]
+
+[[package]]
 name = "uds_windows"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7290,6 +7827,20 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
+name = "version-linux"
+version = "0.1.0"
+dependencies = [
+ "shadow-rs 2.0.0",
+]
+
+[[package]]
+name = "version-macos"
+version = "0.1.0"
+dependencies = [
+ "shadow-rs 1.7.1",
+]
 
 [[package]]
 name = "version_check"
@@ -7579,7 +8130,7 @@ dependencies = [
  "js-sys",
  "log",
  "naga",
- "parking_lot",
+ "parking_lot 0.12.5",
  "portable-atomic",
  "profiling",
  "raw-window-handle",
@@ -7611,7 +8162,7 @@ dependencies = [
  "log",
  "naga",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.5",
  "portable-atomic",
  "profiling",
  "raw-window-handle",
@@ -7685,7 +8236,7 @@ dependencies = [
  "objc",
  "once_cell",
  "ordered-float",
- "parking_lot",
+ "parking_lot 0.12.5",
  "portable-atomic",
  "portable-atomic-util",
  "profiling",
@@ -7783,7 +8334,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -8519,7 +9070,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d6f32a0ff4a9f6f01231eb2059cc85479330739333e0e58cadf03b6af2cca10"
 dependencies = [
  "cfg-if 1.0.5",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -8680,9 +9231,37 @@ dependencies = [
  "uuid",
  "windows-sys 0.61.2",
  "winnow",
- "zbus_macros",
+ "zbus_macros 5.19.0",
  "zbus_names",
  "zvariant",
+]
+
+[[package]]
+name = "zbus"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcff5faa63a63d5b81051740f7382017f10b3440b3f401d97f0cf0b3b39c62d9"
+dependencies = [
+ "async-trait",
+ "bitflags 2.13.2",
+ "endi",
+ "futures-core",
+ "hex",
+ "libc",
+ "ordered-stream",
+ "rustix 1.1.6",
+ "serde",
+ "serde_repr",
+ "socket2",
+ "tokio",
+ "uds_windows",
+ "uuid",
+ "windows-sys 0.61.2",
+ "winnow",
+ "zbus_macros 6.1.0",
+ "zbus_utils",
+ "zcheapstr",
+ "zruntime",
 ]
 
 [[package]]
@@ -8725,6 +9304,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "zbus_macros"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bba6e2bfe19571dc81b3e0be9f8daec6e5422db3e2eea2e766a859553e7bd37"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+ "zbus_utils",
+]
+
+[[package]]
 name = "zbus_names"
 version = "4.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8733,6 +9324,19 @@ dependencies = [
  "serde",
  "winnow",
  "zvariant",
+]
+
+[[package]]
+name = "zbus_utils"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c27a055b114bd9fc3686e90f62bd1fe612d523fc5f620bac3b1d2f42d3f6cab8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 3.0.9",
+ "winnow",
 ]
 
 [[package]]
@@ -8849,6 +9453,16 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[package]]
+name = "zruntime"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dfc035df602243402949ddf3dcc5bcfad7edeb732dd49ec6e605431c4eca54ce"
+dependencies = [
+ "futures-core",
+ "futures-io",
+]
 
 [[package]]
 name = "zune-core"

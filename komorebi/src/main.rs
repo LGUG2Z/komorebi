@@ -172,7 +172,7 @@ enum LogLevel {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version = komorebi::build::CLAP_LONG_VERSION)]
+#[clap(name = "komorebi", author, about, version = komorebi::build::CLAP_LONG_VERSION)]
 struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(short, long = "ffm")]

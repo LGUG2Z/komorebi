@@ -64,6 +64,7 @@ use std::io::ErrorKind;
 use std::io::Write;
 use std::os::unix::net::UnixListener;
 use std::os::unix::net::UnixStream;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -545,16 +546,18 @@ impl ApplyGlobals for StaticConfig {
         // transparency_manager::TRANSPARENCY_ALPHA
         //     .store(self.transparency_alpha.unwrap_or(200), Ordering::SeqCst);
 
+        // the order every other place takes them in (floating, ignore, manage, regex; see lib.rs):
+        // a thread that takes two in another order can wait for one that holds what it needs
+        let mut floating_applications = FLOATING_APPLICATIONS.lock();
         let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
-        let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
+        let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         // let mut tray_and_multi_window_identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
         // let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
         // let mut object_name_change_title_ignore_list = OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST.lock();
         // let mut layered_identifiers = LAYERED_WHITELIST.lock();
         // let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
         // let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
-        let mut floating_applications = FLOATING_APPLICATIONS.lock();
         // let mut no_titlebar_applications = NO_TITLEBAR.lock();
         let mut titleless_applications = TITLELESS_APPLICATIONS.lock();
         let mut tabbed_applications = TABBED_APPLICATIONS.lock();
@@ -714,23 +717,23 @@ impl ApplyGlobals for StaticConfig {
 pub trait StaticConfigExt: Sized {
     /// Makes the window manager from the file at `path`, and starts watching the file
     fn preload(
-        path: &PathBuf,
+        path: &Path,
         incoming: Receiver<WindowManagerEvent>,
         unix_listener: Option<UnixListener>,
         run_loop: &CFRetained<CFRunLoop>,
     ) -> eyre::Result<WindowManager>;
 
     /// Gives the monitors of the window manager what the file says about them
-    fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()>;
+    fn postload(path: &Path, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()>;
 
     /// Replaces the configuration of the window manager with the file at `path`
-    fn reload(path: &PathBuf, wm: &mut WindowManager) -> eyre::Result<()>;
+    fn reload(path: &Path, wm: &mut WindowManager) -> eyre::Result<()>;
 }
 
 impl StaticConfigExt for StaticConfig {
     #[allow(clippy::too_many_lines)]
     fn preload(
-        path: &PathBuf,
+        path: &Path,
         incoming: Receiver<WindowManagerEvent>,
         unix_listener: Option<UnixListener>,
         run_loop: &CFRetained<CFRunLoop>,
@@ -809,7 +812,7 @@ impl StaticConfigExt for StaticConfig {
             known_window_ids: HashMap::new(),
         };
 
-        let bytes = SocketMessage::ReloadStaticConfiguration(path.clone()).as_bytes()?;
+        let bytes = SocketMessage::ReloadStaticConfiguration(path.to_path_buf()).as_bytes()?;
 
         wm.hotwatch.watch(path, move |event| match event.kind {
             // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
@@ -828,7 +831,7 @@ impl StaticConfigExt for StaticConfig {
         Ok(wm)
     }
 
-    fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
+    fn postload(path: &Path, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
         let mut value = Self::read(path)?;
         let mut wm = wm.lock();
 
@@ -990,7 +993,7 @@ impl StaticConfigExt for StaticConfig {
         Ok(())
     }
 
-    fn reload(path: &PathBuf, wm: &mut WindowManager) -> eyre::Result<()> {
+    fn reload(path: &Path, wm: &mut WindowManager) -> eyre::Result<()> {
         let mut value = Self::read(path)?;
 
         value.apply_globals()?;
@@ -1253,6 +1256,7 @@ fn handle_asc_file(
     match path.extension() {
         None => {}
         Some(ext) => {
+            #[allow(clippy::collapsible_match)] // collapsing the nested if into a guard would restructure a 40-line block
             if ext.to_string_lossy().to_string().as_str() == "json" {
                 tracing::info!("loading applications.json from: {}", path.display());
                 let mut asc = ApplicationSpecificConfiguration::load(path)?;

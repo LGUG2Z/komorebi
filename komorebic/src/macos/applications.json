@@ -1,0 +1,286 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi-for-mac/master/schema.asc.json",
+  "Archive Utility": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Archive Utility",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Cloudflare Warp": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Updater",
+        "matching_strategy": "Equals"
+      },
+      [
+        {
+          "kind": "Exe",
+          "id": "Cloudflare WARP",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Updating Cloudflare WARP",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Control Center": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Control Center",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Discord": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Discord",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "DiscordUpdater",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Finder": {
+    "tabbed": [
+      {
+        "kind": "Exe",
+        "id": "Finder",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Finder",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Info",
+          "matching_strategy": "EndsWith"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "Finder",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Copy",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Ghostty": {
+    "tabbed": [
+      {
+        "kind": "Exe",
+        "id": "Ghostty",
+        "matching_strategy": "Equals"
+      }
+    ],
+    "titleless": [
+      {
+        "kind": "Exe",
+        "id": "Ghostty",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Installer": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Installer",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "MobileDeviceUpdater": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "MobileDeviceUpdater",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Notification Center": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "Notification Center",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Photos": {
+    "titleless": [
+      {
+        "kind": "Exe",
+        "id": "Photos",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "RustRover": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "java",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Update",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "RustRover",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "–",
+          "matching_strategy": "DoesNotContain"
+        }
+      ]
+    ]
+  },
+  "SecurityAgent": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "SecurityAgent",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "System Information": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "System Information",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "System Settings": {
+    "ignore": [
+      {
+        "kind": "Exe",
+        "id": "System Settings",
+        "matching_strategy": "Equals"
+      }
+    ]
+  },
+  "Tailscale": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Tailscale",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Software Update",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "Tailscale",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Updating Tailscale",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Zed": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Zed",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Open",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  },
+  "Zen": {
+    "ignore": [
+      [
+        {
+          "kind": "Exe",
+          "id": "Zen",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "File Upload",
+          "matching_strategy": "Equals"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "Zen",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Enter name of file to save to",
+          "matching_strategy": "StartsWith"
+        }
+      ],
+      [
+        {
+          "kind": "Exe",
+          "id": "Zen",
+          "matching_strategy": "Equals"
+        },
+        {
+          "kind": "Title",
+          "id": "Picture-in-Picture",
+          "matching_strategy": "Equals"
+        }
+      ]
+    ]
+  }
+}

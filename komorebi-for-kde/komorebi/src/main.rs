@@ -218,7 +218,7 @@ impl From<KeyPlanMode> for PlanMode {
 
 /// A tiling window manager for KDE Plasma.
 #[derive(Parser)]
-#[clap(author, about, version = version::LONG_VERSION)]
+#[clap(name = "komorebi", author, about, version = version::LONG_VERSION)]
 struct Opts {
     /// Level of log output verbosity
     #[clap(long, value_enum, default_value_t=LogLevel::Info)]

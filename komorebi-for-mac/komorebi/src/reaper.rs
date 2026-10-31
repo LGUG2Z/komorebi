@@ -64,7 +64,7 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
             continue 'notification;
         }
 
-        handle_notification(&mut wm, notification, Window::is_valid)?;
+        handle_notification(&mut wm, notification, Window::alive)?;
     }
 
     Ok(())
@@ -111,6 +111,9 @@ fn invalid_window_ids(
 }
 
 fn reap_window(wm: &mut WindowManager, window_id: u32) -> color_eyre::Result<()> {
+    // whatever else happens to the window, the id no longer names anything
+    crate::ax_registry::forget(window_id);
+
     let mut should_update = false;
     for monitor in wm.monitors_mut() {
         for workspace in monitor.workspaces_mut() {
