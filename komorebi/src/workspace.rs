@@ -22,8 +22,8 @@ impl komorebi_core::WorkspacePlatform for WindowsPlatform {
 
     fn default_padding() -> (Option<i32>, Option<i32>) {
         (
-            Option::from(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)),
-            Option::from(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)),
+            Option::from(crate::settings::container_padding()),
+            Option::from(crate::settings::workspace_padding()),
         )
     }
 
@@ -98,8 +98,6 @@ impl komorebi_core::WorkspacePlatform for WindowsPlatform {
 use std::sync::atomic::Ordering;
 
 use crate::DATA_DIR;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::HIDDEN_HWNDS;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::KomorebiTheme;

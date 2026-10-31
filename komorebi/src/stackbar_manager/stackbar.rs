@@ -1,5 +1,3 @@
-use color_eyre::eyre::OptionExt;
-use crate::DEFAULT_CONTAINER_PADDING;
 use crate::WINDOWS_11;
 use crate::WindowsApi;
 use crate::border_manager::BORDER_OFFSET;
@@ -20,6 +18,7 @@ use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBARS_CONTAINERS;
 use crate::windows_api;
 use crate::windows_backend::backend;
+use color_eyre::eyre::OptionExt;
 use crossbeam_utils::atomic::AtomicConsume;
 use komorebi_backend::WindowId;
 use std::os::windows::ffi::OsStrExt;
@@ -172,7 +171,7 @@ impl Stackbar {
     ) -> color_eyre::Result<()> {
         let width = STACKBAR_TAB_WIDTH.load_consume();
         let height = STACKBAR_TAB_HEIGHT.load_consume();
-        let gap = DEFAULT_CONTAINER_PADDING.load_consume();
+        let gap = crate::settings::container_padding();
         let background = STACKBAR_TAB_BACKGROUND_COLOUR.load_consume();
         let focused_text_colour = STACKBAR_FOCUSED_TEXT_COLOUR.load_consume();
         let unfocused_text_colour = STACKBAR_UNFOCUSED_TEXT_COLOUR.load_consume();
@@ -341,7 +340,7 @@ impl Stackbar {
 
                         let width = STACKBAR_TAB_WIDTH.load_consume();
                         let height = STACKBAR_TAB_HEIGHT.load_consume();
-                        let gap = DEFAULT_CONTAINER_PADDING.load_consume();
+                        let gap = crate::settings::container_padding();
 
                         let focused_window_idx = container.focused_window_idx();
                         let focused_window_rect = backend()

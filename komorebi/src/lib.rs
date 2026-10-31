@@ -12,8 +12,8 @@ pub mod container;
 pub mod core;
 pub mod focus_manager;
 pub mod live_resize;
-pub use komorebi_collections::lockable_sequence;
 pub use komorebi_collections::Lockable;
+pub use komorebi_collections::lockable_sequence;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod pan;
@@ -23,19 +23,19 @@ pub mod process_movement;
 pub mod reaper;
 pub mod scrolling;
 pub mod set_window_position;
+pub mod settings;
 pub mod splash;
 pub mod stackbar_manager;
-pub mod settings;
 pub mod state;
 pub mod static_config;
 pub mod styles;
 pub mod theme_manager;
 pub mod transparency_manager;
 pub mod window;
-pub mod windows_backend;
 pub mod window_manager;
 pub mod window_manager_event;
 pub mod windows_api;
+pub mod windows_backend;
 pub mod windows_callbacks;
 pub mod winevent;
 pub mod winevent_listener;
@@ -52,7 +52,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -162,8 +161,6 @@ lazy_static! {
     static ref TRANSPARENCY_BLACKLIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<usize, String>>> =
-        Arc::new(RwLock::new(HashMap::new()));
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
         Arc::new(Mutex::new(Vec::new()));
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
@@ -261,21 +258,15 @@ lazy_static! {
     static ref WINDOWS_BY_BAR_HWNDS: Arc<Mutex<HashMap<isize, VecDeque<isize>>>> =
         Arc::new(Mutex::new(HashMap::new()));
 
-    static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)));
 
     static ref CURRENT_VIRTUAL_DESKTOP: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
 
-    pub static ref LAYOUT_DEFAULTS: Arc<Mutex<HashMap<DefaultLayout, LayoutDefaultEntry>>> =
-        Arc::new(Mutex::new(HashMap::new()));
 }
 
-pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 =
-    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::WINDOWS.workspace_padding);
-pub static DEFAULT_CONTAINER_PADDING: AtomicI32 =
-    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::WINDOWS.container_padding);
 pub static DEFAULT_RESIZE_DELTA: i32 = komorebi_settings::shared::DEFAULT_RESIZE_DELTA;
 
-pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool =
+    komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
