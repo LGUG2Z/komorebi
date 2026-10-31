@@ -1,20 +1,10 @@
 //! The subcommands of komorebic for Macos that are not a message to the daemon in every `komorebic`.
 
-use crate::args::*;
 use clap::Parser;
 use clap::Subcommand;
 use komorebi_layouts::*;
 use komorebi_protocol::pathext::replace_env_in_path;
-use komorebi_protocol::types::*;
-use std::num::NonZeroUsize;
 use std::path::PathBuf;
-
-#[derive(Parser)]
-pub struct MonocleFocusBehaviour {
-    /// Desired monocle focus behaviour
-    #[clap(value_enum)]
-    pub behaviour: komorebi_protocol::types::MonocleFocusBehaviour,
-}
 
 #[derive(Parser)]
 #[allow(clippy::struct_excessive_bools)]
@@ -53,18 +43,6 @@ pub struct EnableAutostart {
 }
 
 #[derive(Parser)]
-pub struct EagerFocus {
-    /// Case-sensitive exe identifier
-    pub exe: String,
-}
-
-#[derive(Parser)]
-pub struct ScrollingLayoutColumns {
-    /// Number of columns that fit across the screen
-    pub count: NonZeroUsize,
-}
-
-#[derive(Parser)]
 pub struct Pan {
     /// The way that the view goes
     #[clap(
@@ -98,18 +76,6 @@ pub struct LayoutRatios {
     /// Row height ratios (space-separated values between 0.1 and 0.9)
     #[clap(short, long, num_args = 1..)]
     pub rows: Option<Vec<f32>>,
-}
-
-#[derive(Parser)]
-pub struct BorderColour {
-    #[clap(value_enum, short, long, default_value = "single")]
-    pub window_kind: WindowKind,
-    /// Red
-    pub r: u32,
-    /// Green
-    pub g: u32,
-    /// Blue
-    pub b: u32,
 }
 
 #[derive(Parser)]
@@ -189,41 +155,9 @@ pub enum MacosCommands {
     Log,
     // /// Forcibly focus the window at the cursor with a left mouse click
     // ForceFocus,
-    /// Focus the first managed window matching the given executable
-    #[clap(arg_required_else_help = true)]
-    EagerFocus(EagerFocus),
     // /// Set the invisible border dimensions around each window
     // #[clap(arg_required_else_help = true)]
     // InvisibleBorders(InvisibleBorders),
-    /// Set how many columns fit across the Scrolling layout on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    ScrollingLayoutColumns(ScrollingLayoutColumns),
-    /// Make the focused column of the Scrolling layout as wide as the screen, or put it back
-    ScrollingLayoutFullWidth,
-    /// Scroll the Scrolling layout so that the focused column is in the middle of the screen, once
-    ///
-    /// Only the Scrolling layout scrolls, so this does nothing in the other layouts.
-    CenterFocus,
-    /// Take the window on one side into the focused column
-    ///
-    /// Left takes the last window of the column on the left to the top of the focused column, and
-    /// right takes the first window of the column on the right to the bottom of it. Up and down do
-    /// nothing. Only the Scrolling layout has columns of several windows, so this does nothing in
-    /// the other layouts.
-    #[clap(arg_required_else_help = true)]
-    Consume(OneEnum<OperationDirection>),
-    /// Take the focused window out of its column and into a column of its own
-    ///
-    /// Only the Scrolling layout has columns of several windows, so this does nothing in the other
-    /// layouts.
-    Expel,
-    /// Stack the windows of the focused column, or spread a stack out into a column
-    ///
-    /// A column of several windows becomes one stack of all of them, which takes the height of the
-    /// column and shows one window at a time, and the usual stack commands work on it. A stack
-    /// becomes a column with a window in each slot, in the order of its tabs. Only the Scrolling
-    /// layout has columns of several windows, so this does nothing in the other layouts.
-    ToggleColumnStack,
     /// Move the view of the Scrolling layout a column to the left or the right, or with the
     /// fingers on a touchpad
     ///
@@ -246,14 +180,6 @@ pub enum MacosCommands {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // LoadCustomLayout(LoadCustomLayout),
-    /// Promote the user focus to the largest window container
-    PromoteFocus,
-    /// Force the retiling of all managed windows
-    ///
-    /// Every column of a workspace in the Scrolling layout goes back to the width that
-    /// scrolling-layout-columns gives, and every window in a column of several goes back to an
-    /// equal share of its height.
-    Retile,
     // /// Set the monitor index preference for a monitor identified using its size
     // #[clap(arg_required_else_help = true)]
     // MonitorIndexPreference(MonitorIndexPreference),
@@ -273,12 +199,6 @@ pub enum MacosCommands {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // NamedWorkspaceCustomLayoutRule(NamedWorkspaceCustomLayoutRule),
-    /// Toggle the behaviour for new windows (stacking or dynamic tiling)
-    ToggleWindowContainerBehaviour,
-    /// Toggle the behaviour for new windows (stacking or dynamic tiling) for currently focused
-    /// workspace. If there was no behaviour set for the workspace previously it takes the opposite
-    /// of the global value.
-    ToggleWorkspaceWindowContainerBehaviour,
     // /// Toggle native maximization for the focused window
     // ToggleMaximize,
     // /// Restore all hidden windows (debugging command)
@@ -297,14 +217,6 @@ pub enum MacosCommands {
     // /// Set the window behaviour when switching workspaces / cycling stacks
     // #[clap(arg_required_else_help = true)]
     // WindowHidingBehaviour(WindowHidingBehaviour),
-    /// Set the behaviour when focusing in a direction while a monocle container is active
-    #[clap(arg_required_else_help = true)]
-    MonocleFocusBehaviour(MonocleFocusBehaviour),
-    /// Toggle the behaviour when focusing in a direction while a monocle container is active
-    ToggleMonocleFocusBehaviour,
-    /// Set the operation behaviour when the focused window is not managed
-    #[clap(arg_required_else_help = true)]
-    UnmanagedWindowOperationBehaviour(OneEnum<OperationBehaviour>),
     // /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
     // #[clap(arg_required_else_help = true)]
     // IdentifyObjectNameChangeApplication(IdentifyObjectNameChangeApplication),
@@ -323,10 +235,6 @@ pub enum MacosCommands {
     // #[clap(hide = true)]
     // #[clap(alias = "identify-border-overflow")]
     // IdentifyBorderOverflowApplication(IdentifyBorderOverflowApplication),
-    /// Set the colour for a window border kind
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "active-window-border-colour")]
-    BorderColour(BorderColour),
     // /// Set the border style
     // #[clap(arg_required_else_help = true)]
     // BorderStyle(BorderStyle),

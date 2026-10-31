@@ -126,8 +126,6 @@ use clap::Subcommand;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
 use komorebi_client::FocusFollowsMouseImplementation;
-use komorebi_client::OperationBehaviour;
-use komorebi_client::OperationDirection;
 use komorebi_client::PanDirection;
 use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
@@ -365,29 +363,9 @@ enum KdeCommands {
     Log,
     // /// Forcibly focus the window at the cursor with a left mouse click
     // ForceFocus,
-    /// Focus the first managed window matching the given executable
-    #[clap(arg_required_else_help = true)]
-    EagerFocus(EagerFocus),
     // /// Set the invisible border dimensions around each window
     // #[clap(arg_required_else_help = true)]
     // InvisibleBorders(InvisibleBorders),
-    /// Set the number of visible columns for the Scrolling layout on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    ScrollingLayoutColumns(ScrollingLayoutColumns),
-    /// Make the focused column of the Scrolling layout as wide as the screen, or put it back to
-    /// the width that it had
-    ScrollingLayoutFullWidth,
-    /// Scroll the Scrolling layout so that the focused column is in the middle of the screen, once
-    CenterFocus,
-    /// Take the neighbouring window on one side into the focused column of the Scrolling layout
-    #[clap(arg_required_else_help = true)]
-    Consume(OneEnum<OperationDirection>),
-    /// Take the focused window out of its column in the Scrolling layout and put it in a column
-    /// of its own on the right
-    Expel,
-    /// Stack the windows of the focused column of the Scrolling layout, or spread the focused
-    /// stack out into a column with a window in each slot
-    ToggleColumnStack,
     /// Move the view of the Scrolling layout a column to the left or the right, which does
     /// nothing in any other layout
     #[clap(arg_required_else_help = true)]
@@ -398,10 +376,6 @@ enum KdeCommands {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // LoadCustomLayout(LoadCustomLayout),
-    /// Promote the user focus to the largest window container
-    PromoteFocus,
-    /// Force the retiling of all managed windows
-    Retile,
     // /// Set the monitor index preference for a monitor identified using its size
     // #[clap(arg_required_else_help = true)]
     // MonitorIndexPreference(MonitorIndexPreference),
@@ -421,26 +395,8 @@ enum KdeCommands {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // NamedWorkspaceCustomLayoutRule(NamedWorkspaceCustomLayoutRule),
-    /// Toggle the behavior for new windows (stacking or dynamic tiling)
-    ToggleWindowContainerBehaviour,
-    /// Toggle the behavior for new windows (stacking or dynamic tiling) for currently focused
-    /// workspace. If there was no behavior set for the workspace previously it takes the opposite
-    /// of the global value.
-    ToggleWorkspaceWindowContainerBehaviour,
     /// Toggle the compositor's maximization for the focused window
     ToggleMaximize,
-    /// Set the behavior when focusing in a direction while a monocle container is active
-    #[clap(arg_required_else_help = true)]
-    MonocleFocusBehaviour(MonocleFocusBehaviour),
-    /// Toggle the behavior when focusing in a direction while a monocle container is active
-    ToggleMonocleFocusBehaviour,
-    /// Set the operation behavior when the focused window is not managed
-    #[clap(arg_required_else_help = true)]
-    UnmanagedWindowOperationBehaviour(OneEnum<OperationBehaviour>),
-    /// Set the color for a window border kind
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "active-window-border-colour")]
-    BorderColour(BorderColour),
     // /// Set the border style
     // #[clap(arg_required_else_help = true)]
     // BorderStyle(BorderStyle),
@@ -756,44 +712,8 @@ fn main() -> eyre::Result<()> {
                     println!("{line}");
                 }
             }
-            KdeCommands::ToggleMonocleFocusBehaviour => {
-                send_message(&SocketMessage::ToggleMonocleFocusBehaviour)?;
-            }
             KdeCommands::ToggleMaximize => {
                 send_message(&SocketMessage::ToggleMaximize)?;
-            }
-            KdeCommands::Retile => {
-                send_message(&SocketMessage::Retile)?;
-            }
-            KdeCommands::PromoteFocus => {
-                send_message(&SocketMessage::PromoteFocus)?;
-            }
-            KdeCommands::ToggleWindowContainerBehaviour => {
-                send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
-            }
-            KdeCommands::ToggleWorkspaceWindowContainerBehaviour => {
-                send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
-            }
-            KdeCommands::EagerFocus(args) => {
-                send_message(&SocketMessage::EagerFocus(args.exe))?;
-            }
-            KdeCommands::ScrollingLayoutColumns(args) => {
-                send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
-            }
-            KdeCommands::ScrollingLayoutFullWidth => {
-                send_message(&SocketMessage::ScrollingLayoutFullWidth)?;
-            }
-            KdeCommands::CenterFocus => {
-                send_message(&SocketMessage::CenterFocus)?;
-            }
-            KdeCommands::Consume(args) => {
-                send_message(&SocketMessage::Consume(args.value))?;
-            }
-            KdeCommands::Expel => {
-                send_message(&SocketMessage::Expel)?;
-            }
-            KdeCommands::ToggleColumnStack => {
-                send_message(&SocketMessage::ToggleColumnStack)?;
             }
             KdeCommands::Pan(args) => {
                 send_message(&SocketMessage::Pan(args.direction))?;
@@ -806,14 +726,6 @@ fn main() -> eyre::Result<()> {
                 } else {
                     send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
                 }
-            }
-            KdeCommands::MonocleFocusBehaviour(args) => {
-                send_message(&SocketMessage::MonocleFocusBehaviour(args.behaviour))?;
-            }
-            KdeCommands::UnmanagedWindowOperationBehaviour(args) => {
-                send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
-                    args.value,
-                ))?;
             }
             KdeCommands::ApplicationSpecificConfigurationSchema => {
                 #[cfg(feature = "schemars")]
@@ -850,14 +762,6 @@ fn main() -> eyre::Result<()> {
             }
             KdeCommands::GenerateStaticConfig => {
                 print_query(&SocketMessage::GenerateStaticConfig);
-            }
-            KdeCommands::BorderColour(args) => {
-                send_message(&SocketMessage::BorderColour(
-                    args.window_kind,
-                    args.r,
-                    args.g,
-                    args.b,
-                ))?;
             }
             KdeCommands::Transparency(args) => {
                 send_message(&SocketMessage::Transparency(args.value.into()))?;

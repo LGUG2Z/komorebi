@@ -645,15 +645,6 @@ fn main() -> eyre::Result<()> {
             WindowsCommands::ForceFocus => {
                 send_message(&SocketMessage::ForceFocus)?;
             }
-            WindowsCommands::PromoteFocus => {
-                send_message(&SocketMessage::PromoteFocus)?;
-            }
-            WindowsCommands::Retile => {
-                send_message(&SocketMessage::Retile)?;
-            }
-            WindowsCommands::EagerFocus(args) => {
-                send_message(&SocketMessage::EagerFocus(args.exe))?;
-            }
             WindowsCommands::InvisibleBorders(args) => {
                 send_message(&SocketMessage::InvisibleBorders(Rect {
                     left: args.left,
@@ -1165,24 +1156,6 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
                     }
                 }
             }
-            WindowsCommands::ScrollingLayoutColumns(args) => {
-                send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
-            }
-            WindowsCommands::ScrollingLayoutFullWidth => {
-                send_message(&SocketMessage::ScrollingLayoutFullWidth)?;
-            }
-            WindowsCommands::CenterFocus => {
-                send_message(&SocketMessage::CenterFocus)?;
-            }
-            WindowsCommands::Consume(args) => {
-                send_message(&SocketMessage::Consume(args.value))?;
-            }
-            WindowsCommands::Expel => {
-                send_message(&SocketMessage::Expel)?;
-            }
-            WindowsCommands::ToggleColumnStack => {
-                send_message(&SocketMessage::ToggleColumnStack)?;
-            }
             WindowsCommands::Pan(args) => {
                 // a flag that has a default counts as given, so what only goes with --stream
                 // cannot be left to the parser to say
@@ -1305,14 +1278,6 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             WindowsCommands::UnsubscribePipe(args) => {
                 send_message(&SocketMessage::RemoveSubscriberPipe(args.named_pipe))?;
             }
-            WindowsCommands::BorderColour(args) => {
-                send_message(&SocketMessage::BorderColour(
-                    args.window_kind,
-                    args.r,
-                    args.g,
-                    args.b,
-                ))?;
-            }
             WindowsCommands::BorderStyle(args) => {
                 send_message(&SocketMessage::BorderStyle(args.style))?;
             }
@@ -1332,25 +1297,8 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
                 send_message(&SocketMessage::ToggleTransparency)?;
             }
 
-            WindowsCommands::ToggleWindowContainerBehaviour => {
-                send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
-            }
-            WindowsCommands::ToggleWorkspaceWindowContainerBehaviour => {
-                send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
-            }
             WindowsCommands::WindowHidingBehaviour(args) => {
                 send_message(&SocketMessage::WindowHidingBehaviour(args.value))?;
-            }
-            WindowsCommands::MonocleFocusBehaviour(args) => {
-                send_message(&SocketMessage::MonocleFocusBehaviour(args.behaviour))?;
-            }
-            WindowsCommands::ToggleMonocleFocusBehaviour => {
-                send_message(&SocketMessage::ToggleMonocleFocusBehaviour)?;
-            }
-            WindowsCommands::UnmanagedWindowOperationBehaviour(args) => {
-                send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
-                    args.value,
-                ))?;
             }
             WindowsCommands::AhkAppSpecificConfiguration(args) => {
                 let content = std::fs::read_to_string(args.path)?;

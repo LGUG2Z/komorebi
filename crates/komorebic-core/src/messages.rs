@@ -14,6 +14,7 @@ use komorebi_layouts::OperationDirection;
 use komorebi_layouts::Rect;
 use komorebi_protocol::message::SocketMessage;
 use komorebi_protocol::types::MoveBehaviour;
+use komorebi_protocol::types::OperationBehaviour;
 use komorebi_protocol::types::StateQuery;
 
 #[derive(Subcommand, Clone, Debug)]
@@ -363,6 +364,48 @@ pub enum Messages {
     /// Set the ease function for movement animations
     #[clap(arg_required_else_help = true)]
     AnimationStyle(AnimationStyle),
+    /// Set the colour for a window border kind
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border-colour")]
+    BorderColour(BorderColour),
+    /// Set the behaviour when focusing in a direction while a monocle container is active
+    #[clap(arg_required_else_help = true)]
+    MonocleFocusBehaviour(MonocleFocusBehaviour),
+    /// Toggle the behaviour when focusing in a direction while a monocle container is active
+    ToggleMonocleFocusBehaviour,
+    /// Toggle the behaviour for new windows (stacking or dynamic tiling)
+    ToggleWindowContainerBehaviour,
+    /// Toggle the behaviour for new windows (stacking or dynamic tiling) for currently focused
+    /// workspace. If there was no behaviour set for the workspace previously it takes the opposite
+    /// of the global value.
+    ToggleWorkspaceWindowContainerBehaviour,
+    /// Set the operation behaviour when the focused window is not managed
+    #[clap(arg_required_else_help = true)]
+    UnmanagedWindowOperationBehaviour(OneEnum<OperationBehaviour>),
+    /// Set the number of visible columns for the Scrolling layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    ScrollingLayoutColumns(ScrollingLayoutColumns),
+    /// Make the focused column of the Scrolling layout as wide as the screen, or put it back to
+    /// the width that it had
+    ScrollingLayoutFullWidth,
+    /// Take the focused window out of its column in the Scrolling layout and put it in a column
+    /// of its own on the right
+    Expel,
+    /// Force the retiling of all managed windows
+    Retile,
+    /// Scroll the Scrolling layout so that the focused column is in the middle of the screen, once
+    CenterFocus,
+    /// Take the neighbouring window on one side into the focused column of the Scrolling layout
+    #[clap(arg_required_else_help = true)]
+    Consume(OneEnum<OperationDirection>),
+    /// Stack the windows of the focused column of the Scrolling layout, or spread the focused
+    /// stack out into a column with a window in each slot
+    ToggleColumnStack,
+    /// Focus the first managed window matching the given executable
+    #[clap(arg_required_else_help = true)]
+    EagerFocus(EagerFocus),
+    /// Promote the user focus to the largest window container
+    PromoteFocus,
 }
 
 impl Messages {
@@ -662,6 +705,33 @@ impl From<Messages> for SocketMessage {
             Messages::AnimationStyle(args) => {
                 SocketMessage::AnimationStyle(args.style, args.animation_type)
             }
+            Messages::BorderColour(args) => {
+                SocketMessage::BorderColour(args.window_kind, args.r, args.g, args.b)
+            }
+            Messages::MonocleFocusBehaviour(args) => {
+                SocketMessage::MonocleFocusBehaviour(args.behaviour)
+            }
+            Messages::ToggleMonocleFocusBehaviour => SocketMessage::ToggleMonocleFocusBehaviour,
+            Messages::ToggleWindowContainerBehaviour => {
+                SocketMessage::ToggleWindowContainerBehaviour
+            }
+            Messages::ToggleWorkspaceWindowContainerBehaviour => {
+                SocketMessage::ToggleWorkspaceWindowContainerBehaviour
+            }
+            Messages::UnmanagedWindowOperationBehaviour(args) => {
+                SocketMessage::UnmanagedWindowOperationBehaviour(args.value)
+            }
+            Messages::ScrollingLayoutColumns(args) => {
+                SocketMessage::ScrollingLayoutColumns(args.count)
+            }
+            Messages::ScrollingLayoutFullWidth => SocketMessage::ScrollingLayoutFullWidth,
+            Messages::Expel => SocketMessage::Expel,
+            Messages::Retile => SocketMessage::Retile,
+            Messages::CenterFocus => SocketMessage::CenterFocus,
+            Messages::Consume(args) => SocketMessage::Consume(args.value),
+            Messages::ToggleColumnStack => SocketMessage::ToggleColumnStack,
+            Messages::EagerFocus(args) => SocketMessage::EagerFocus(args.exe),
+            Messages::PromoteFocus => SocketMessage::PromoteFocus,
         }
     }
 }

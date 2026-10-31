@@ -6,7 +6,6 @@ use clap::Subcommand;
 use komorebi_layouts::*;
 use komorebi_protocol::pathext::replace_env_in_path;
 use komorebi_protocol::types::*;
-use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -114,29 +113,10 @@ pub struct TransparencyAlpha {
 }
 
 #[derive(Parser)]
-pub struct BorderColour {
-    #[clap(value_enum, short, long, default_value = "single")]
-    pub window_kind: WindowKind,
-    /// Red
-    pub r: u32,
-    /// Green
-    pub g: u32,
-    /// Blue
-    pub b: u32,
-}
-
-#[derive(Parser)]
 pub struct BorderStyle {
     /// Desired border style
     #[clap(value_enum)]
     pub style: komorebi_protocol::types::BorderStyle,
-}
-
-#[derive(Parser)]
-pub struct MonocleFocusBehaviour {
-    /// Desired monocle focus behaviour
-    #[clap(value_enum)]
-    pub behaviour: komorebi_protocol::types::MonocleFocusBehaviour,
 }
 
 #[derive(Parser)]
@@ -325,18 +305,6 @@ pub struct Check {
 }
 
 #[derive(Parser)]
-pub struct EagerFocus {
-    /// Case-sensitive exe identifier
-    pub exe: String,
-}
-
-#[derive(Parser)]
-pub struct ScrollingLayoutColumns {
-    /// Desired number of visible columns
-    pub count: NonZeroUsize,
-}
-
-#[derive(Parser)]
 pub struct Pan {
     /// The way that the view goes
     #[clap(
@@ -431,29 +399,9 @@ pub enum WindowsCommands {
     Log,
     /// Forcibly focus the window at the cursor with a left mouse click
     ForceFocus,
-    /// Focus the first managed window matching the given exe
-    #[clap(arg_required_else_help = true)]
-    EagerFocus(EagerFocus),
     /// Set the invisible border dimensions around each window
     #[clap(arg_required_else_help = true)]
     InvisibleBorders(InvisibleBorders),
-    /// Set the number of visible columns for the Scrolling layout on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    ScrollingLayoutColumns(ScrollingLayoutColumns),
-    /// Make the focused column of the Scrolling layout as wide as the screen, or put it back to
-    /// the width that it had
-    ScrollingLayoutFullWidth,
-    /// Scroll the Scrolling layout so that the focused column is in the middle of the screen, once
-    CenterFocus,
-    /// Take the neighbouring window on one side into the focused column of the Scrolling layout
-    #[clap(arg_required_else_help = true)]
-    Consume(OneEnum<OperationDirection>),
-    /// Take the focused window out of its column in the Scrolling layout and put it in a column
-    /// of its own on the right
-    Expel,
-    /// Stack the windows of the focused column of the Scrolling layout, or spread the focused
-    /// stack out into a column with a window in each slot
-    ToggleColumnStack,
     /// Move the view of the Scrolling layout a column to the left or the right, or with the
     /// fingers on a touchpad, which does nothing in any other layout
     #[clap(arg_required_else_help = true)]
@@ -464,10 +412,6 @@ pub enum WindowsCommands {
     #[clap(hide = true)]
     #[clap(arg_required_else_help = true)]
     LoadCustomLayout(LoadCustomLayout),
-    /// Promote the user focus to the top of the tree
-    PromoteFocus,
-    /// Force the retiling of all managed windows
-    Retile,
     /// Set the monitor index preference for a monitor identified using its size
     #[clap(arg_required_else_help = true)]
     MonitorIndexPreference(MonitorIndexPreference),
@@ -487,12 +431,6 @@ pub enum WindowsCommands {
     #[clap(hide = true)]
     #[clap(arg_required_else_help = true)]
     NamedWorkspaceCustomLayoutRule(NamedWorkspaceCustomLayoutRule),
-    /// Toggle the behaviour for new windows (stacking or dynamic tiling)
-    ToggleWindowContainerBehaviour,
-    /// Toggle the behaviour for new windows (stacking or dynamic tiling) for currently focused
-    /// workspace. If there was no behaviour set for the workspace previously it takes the opposite
-    /// of the global value.
-    ToggleWorkspaceWindowContainerBehaviour,
     /// Toggle native maximization for the focused window
     ToggleMaximize,
     /// Restore all hidden windows (debugging command)
@@ -512,14 +450,6 @@ pub enum WindowsCommands {
     /// Set the window behaviour when switching workspaces / cycling stacks
     #[clap(arg_required_else_help = true)]
     WindowHidingBehaviour(OneEnum<HidingBehaviour>),
-    /// Set the behaviour when focusing in a direction while a monocle container is active
-    #[clap(arg_required_else_help = true)]
-    MonocleFocusBehaviour(MonocleFocusBehaviour),
-    /// Toggle the behaviour when focusing in a direction while a monocle container is active
-    ToggleMonocleFocusBehaviour,
-    /// Set the operation behaviour when the focused window is not managed
-    #[clap(arg_required_else_help = true)]
-    UnmanagedWindowOperationBehaviour(OneEnum<OperationBehaviour>),
     /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
     #[clap(arg_required_else_help = true)]
     IdentifyObjectNameChangeApplication(ApplicationTarget),
@@ -538,10 +468,6 @@ pub enum WindowsCommands {
     #[clap(hide = true)]
     #[clap(alias = "identify-border-overflow")]
     IdentifyBorderOverflowApplication(ApplicationTarget),
-    /// Set the colour for a window border kind
-    #[clap(arg_required_else_help = true)]
-    #[clap(alias = "active-window-border-colour")]
-    BorderColour(BorderColour),
     /// Set the border style
     #[clap(arg_required_else_help = true)]
     BorderStyle(BorderStyle),

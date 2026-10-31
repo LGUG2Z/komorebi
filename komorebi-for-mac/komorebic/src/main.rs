@@ -706,21 +706,6 @@ exit 1
                     println!("{line}");
                 }
             }
-            MacosCommands::Retile => {
-                send_message(&SocketMessage::Retile)?;
-            }
-            MacosCommands::PromoteFocus => {
-                send_message(&SocketMessage::PromoteFocus)?;
-            }
-            MacosCommands::ToggleWindowContainerBehaviour => {
-                send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
-            }
-            MacosCommands::ToggleWorkspaceWindowContainerBehaviour => {
-                send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
-            }
-            MacosCommands::ToggleMonocleFocusBehaviour => {
-                send_message(&SocketMessage::ToggleMonocleFocusBehaviour)?;
-            }
             MacosCommands::FetchAppSpecificConfiguration => {
                 let content = reqwest::blocking::get("https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.mac.json")?
                 .text()?;
@@ -742,27 +727,6 @@ exit 1
                     "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
                     output_file.display().to_string().replace("\\", "/")
                 );
-            }
-            MacosCommands::EagerFocus(args) => {
-                send_message(&SocketMessage::EagerFocus(args.exe))?;
-            }
-            MacosCommands::ScrollingLayoutColumns(args) => {
-                send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
-            }
-            MacosCommands::ScrollingLayoutFullWidth => {
-                send_message(&SocketMessage::ScrollingLayoutFullWidth)?;
-            }
-            MacosCommands::CenterFocus => {
-                send_message(&SocketMessage::CenterFocus)?;
-            }
-            MacosCommands::Consume(args) => {
-                send_message(&SocketMessage::Consume(args.value))?;
-            }
-            MacosCommands::Expel => {
-                send_message(&SocketMessage::Expel)?;
-            }
-            MacosCommands::ToggleColumnStack => {
-                send_message(&SocketMessage::ToggleColumnStack)?;
             }
             MacosCommands::Pan(args) => {
                 // a flag that has a default counts as given, so what only goes with --stream
@@ -799,14 +763,6 @@ exit 1
                     send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
                 }
             }
-            MacosCommands::MonocleFocusBehaviour(args) => {
-                send_message(&SocketMessage::MonocleFocusBehaviour(args.behaviour))?;
-            }
-            MacosCommands::UnmanagedWindowOperationBehaviour(args) => {
-                send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
-                    args.value,
-                ))?;
-            }
             MacosCommands::ApplicationSpecificConfigurationSchema => {
                 #[cfg(feature = "schemars")]
                 {
@@ -842,14 +798,6 @@ exit 1
             }
             MacosCommands::GenerateStaticConfig => {
                 print_query(&SocketMessage::GenerateStaticConfig);
-            }
-            MacosCommands::BorderColour(args) => {
-                send_message(&SocketMessage::BorderColour(
-                    args.window_kind,
-                    args.r,
-                    args.g,
-                    args.b,
-                ))?;
             }
         },
     }

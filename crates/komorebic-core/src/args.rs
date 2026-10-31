@@ -29,6 +29,8 @@ use komorebi_protocol::types::HidingBehaviour;
 use komorebi_protocol::types::MoveBehaviour;
 use komorebi_protocol::types::OperationBehaviour;
 use komorebi_protocol::types::StateQuery;
+use komorebi_protocol::types::WindowKind;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 /// `enable` or `disable`, the way most of the subcommands that turn something on or off say it.
@@ -410,6 +412,37 @@ pub struct AnimationStyle {
     /// Animation type to apply the style to. If not specified, sets global style
     #[clap(value_enum, short, long)]
     pub animation_type: Option<AnimationPrefix>,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct BorderColour {
+    #[clap(value_enum, short, long, default_value = "single")]
+    pub window_kind: WindowKind,
+    /// Red
+    pub r: u32,
+    /// Green
+    pub g: u32,
+    /// Blue
+    pub b: u32,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct MonocleFocusBehaviour {
+    /// Desired monocle focus behaviour
+    #[clap(value_enum)]
+    pub behaviour: komorebi_protocol::types::MonocleFocusBehaviour,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct ScrollingLayoutColumns {
+    /// Desired number of visible columns
+    pub count: NonZeroUsize,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct EagerFocus {
+    /// Case-sensitive exe identifier
+    pub exe: String,
 }
 
 #[cfg(test)]
