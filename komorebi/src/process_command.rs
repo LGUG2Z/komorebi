@@ -2,13 +2,14 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::WrapErr;
 use komorebi_themes::colour::Rgb;
+use komorebi_transport::CommandTarget;
+use komorebi_transport::ConnectionPolicy;
 use komorebi_transport::allowed_while_paused;
 use miow::pipe::connect;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
 use std::net::TcpListener;
@@ -18,6 +19,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
 use crate::CUSTOM_FFM;
@@ -103,45 +105,62 @@ use stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
-    std::thread::spawn(move || {
-        loop {
-            let wm = wm.clone();
+    komorebi_transport::listen_for_commands::<WindowManager, _>(wm, WindowsConnectionPolicy);
+}
 
-            let _ = std::thread::spawn(move || {
-                let listener = wm
-                    .lock()
-                    .command_listener
-                    .try_clone()
-                    .expect("could not clone unix listener");
+/// What the Windows daemon does to a connection that the others do not: a client that stalls is
+/// given up on after a second, except while the fingers of a pan gesture are down
+#[derive(Clone, Copy, Debug)]
+struct WindowsConnectionPolicy;
 
-                tracing::info!("listening on komorebi.sock");
-                for client in listener.incoming() {
-                    match client {
-                        Ok(stream) => {
-                            let wm_clone = wm.clone();
-                            std::thread::spawn(move || {
-                                match stream.set_read_timeout(Some(Duration::from_secs(1))) {
-                                    Ok(()) => {}
-                                    Err(error) => tracing::error!("{}", error),
-                                }
-                                match read_commands_uds(&wm_clone, stream) {
-                                    Ok(()) => {}
-                                    Err(error) => tracing::error!("{}", error),
-                                }
-                            });
-                        }
-                        Err(error) => {
-                            tracing::error!("{}", error);
-                            break;
-                        }
-                    }
-                }
-            })
-            .join();
-
-            tracing::error!("restarting failed thread");
+impl ConnectionPolicy<UnixStream> for WindowsConnectionPolicy {
+    fn on_accept(&self, stream: &UnixStream) {
+        match stream.set_read_timeout(Some(Duration::from_secs(1))) {
+            Ok(()) => {}
+            Err(error) => tracing::error!("{}", error),
         }
-    });
+    }
+
+    fn on_message(&self, message: &SocketMessage, stream: &UnixStream) {
+        // the fingers of a gesture can be still for longer than a command is waited for, and
+        // what they do next is told on this connection: it is closed when they have lifted
+        if matches!(
+            message,
+            SocketMessage::PanGesture(crate::core::PanGesture::Begin)
+        ) {
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
+        }
+    }
+}
+
+/// What the generic command listener needs of the window manager
+impl CommandTarget for WindowManager {
+    type Listener = UnixListener;
+    type Shared = Arc<Mutex<WindowManager>>;
+
+    fn command_listener(shared: &Self::Shared) -> std::io::Result<UnixListener> {
+        shared.lock().command_listener.try_clone()
+    }
+
+    fn try_lock_for<R>(
+        shared: &Self::Shared,
+        timeout: Duration,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> Option<R> {
+        shared.try_lock_for(timeout).map(|mut wm| f(&mut wm))
+    }
+
+    fn is_paused(&self) -> bool {
+        self.is_paused
+    }
+
+    fn process_command(
+        &mut self,
+        message: SocketMessage,
+        reply: &mut UnixStream,
+    ) -> eyre::Result<()> {
+        WindowManager::process_command(self, message, reply)
+    }
 }
 
 #[tracing::instrument]
@@ -2265,47 +2284,9 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
 
 pub fn read_commands_uds(
     wm: &Arc<Mutex<WindowManager>>,
-    mut stream: UnixStream,
+    stream: UnixStream,
 ) -> eyre::Result<()> {
-    let reader = BufReader::new(stream.try_clone()?);
-    // TODO(raggi): while this processes more than one command, if there are
-    // replies there is no clearly defined protocol for framing yet - it's
-    // perhaps whole-json objects for now, but termination is signalled by
-    // socket shutdown.
-    for line in reader.lines() {
-        let message = SocketMessage::from_str(&line?)?;
-
-        // the fingers of a gesture can be still for longer than a command is waited for, and
-        // what they do next is told on this connection: it is closed when they have lifted
-        if matches!(
-            message,
-            SocketMessage::PanGesture(crate::core::PanGesture::Begin)
-        ) {
-            let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
-        }
-
-        match wm.try_lock_for(Duration::from_secs(1)) {
-            None => {
-                tracing::warn!(
-                    "could not acquire window manager lock, not processing message: {message}"
-                );
-            }
-            Some(mut wm) => {
-                if wm.is_paused {
-                    return if allowed_while_paused(&message) {
-                        Ok(wm.process_command(message, &mut stream)?)
-                    } else {
-                        tracing::trace!("ignoring while paused");
-                        Ok(())
-                    };
-                }
-
-                wm.process_command(message.clone(), &mut stream)?;
-            }
-        }
-    }
-
-    Ok(())
+    komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &WindowsConnectionPolicy)
 }
 
 pub fn read_commands_tcp(
