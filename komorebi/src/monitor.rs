@@ -821,4 +821,65 @@ mod tests {
         m.ensure_workspace_count(3);
         assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
     }
+
+    /// The monitor object of a real `komorebic state` capture (e2e/lib/tests/fixtures/kfw-tiled.json,
+    /// workspaces emptied): the JSON a Monitor reads and writes. Pins the representation of `id` (a
+    /// plain number) and `serial_number_id` (null or a string) so that changing their Rust types
+    /// cannot change the state JSON.
+    const MONITOR_JSON: &str = r#"{
+        "id": 65537,
+        "name": "DISPLAY1",
+        "device": "Default_Monitor",
+        "device_id": "Default_Monitor-4&183790ca&0&UID0",
+        "serial_number_id": null,
+        "size": { "left": 0, "top": 0, "right": 1280, "bottom": 800 },
+        "work_area_size": { "left": 0, "top": 0, "right": 1280, "bottom": 752 },
+        "work_area_offset": null,
+        "window_based_work_area_offset": null,
+        "window_based_work_area_offset_limit": 1,
+        "workspaces": { "elements": [], "focused": 0 },
+        "workspace_names": {},
+        "container_padding": null,
+        "workspace_padding": null,
+        "wallpaper": null,
+        "floating_layer_behaviour": null
+    }"#;
+
+    #[test]
+    fn a_monitor_serializes_to_the_json_of_the_state_capture() {
+        let expected: serde_json::Value = serde_json::from_str(MONITOR_JSON).unwrap();
+        let monitor: Monitor = serde_json::from_value(expected.clone()).unwrap();
+
+        assert_eq!(serde_json::to_value(&monitor).unwrap(), expected);
+    }
+
+    #[test]
+    fn a_monitor_id_and_serial_are_plain_json_values() {
+        for id in [0, 1, 65537, isize::MAX, -1, isize::MIN] {
+            let mut value: serde_json::Value = serde_json::from_str(MONITOR_JSON).unwrap();
+            value["id"] = serde_json::json!(id);
+            value["serial_number_id"] = serde_json::json!("ABC123");
+
+            let monitor: Monitor = serde_json::from_value(value.clone()).unwrap();
+            assert_eq!(serde_json::to_value(&monitor).unwrap(), value, "id {id}");
+        }
+    }
+
+    #[test]
+    fn monitor_information_has_the_documented_fields() {
+        let monitor: Monitor = serde_json::from_str(MONITOR_JSON).unwrap();
+        let value = serde_json::to_value(MonitorInformation::from(&monitor)).unwrap();
+
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "id": 65537,
+                "name": "DISPLAY1",
+                "device": "Default_Monitor",
+                "device_id": "Default_Monitor-4&183790ca&0&UID0",
+                "serial_number_id": null,
+                "size": { "left": 0, "top": 0, "right": 1280, "bottom": 800 }
+            })
+        );
+    }
 }
