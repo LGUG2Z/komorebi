@@ -40,7 +40,7 @@ use windows_core::BOOL;
 pub use komorebi_bar_core::statics::*;
 
 #[derive(Parser)]
-#[clap(author, about, version)]
+#[clap(name = "komorebi-bar", author, about, version)]
 struct Opts {
     /// Print the JSON schema of the configuration file and exit
     #[clap(long)]
