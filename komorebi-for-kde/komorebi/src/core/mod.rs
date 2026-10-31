@@ -55,6 +55,7 @@ pub mod asc;
 pub mod config_generation;
 pub use komorebi_protocol::pathext;
 pub use komorebi_protocol::types::ApplicationIdentifier;
+pub use komorebi_protocol::types::FocusFollowsMouseImplementation;
 pub use komorebi_protocol::types::MonocleFocusBehaviour;
 pub use komorebi_protocol::types::MoveBehaviour;
 pub use komorebi_protocol::types::OperationBehaviour;
@@ -164,23 +165,6 @@ impl Placement {
             Placement::CenterAndResize => true,
         }
     }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Focus follows mouse implementation
-// KDE's compositor does the focusing: its description says so (it is part of the checked-in schema)
-#[cfg_attr(target_os = "linux", doc = "")]
-#[cfg_attr(
-    target_os = "linux",
-    doc = " The two exist on Windows. On KDE the compositor does it, so both ask KWin for its"
-)]
-#[cfg_attr(target_os = "linux", doc = " \"focus follows mouse\" focus policy.")]
-pub enum FocusFollowsMouseImplementation {
-    /// Custom FFM implementation (slightly more CPU-intensive)
-    Komorebi,
-    /// Native (legacy) Windows FFM implementation
-    Windows,
 }
 
 #[derive(
