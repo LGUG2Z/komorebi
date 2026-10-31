@@ -1,0 +1,3844 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StaticConfig",
+  "description": "The `komorebi.json` static configuration file reference for komorebi for Mac `v0.1.0`\n\n`\"$schema\": \"https://komorebi-for-mac.lgug2z.com/komorebi.0.1.0.schema.json\"`",
+  "type": "object",
+  "properties": {
+    "animation": {
+      "description": "Animations configuration options",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnimationsConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "app_specific_configuration_path": {
+      "description": "Path to applications.json from komorebi-application-specific-configurations",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AppSpecificConfigurationPath"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "border": {
+      "description": "Display window borders",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": true
+    },
+    "border_colours": {
+      "description": "Window border colours for different container types (has no effect if a theme is defined)",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BorderColours"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "border_offset": {
+      "description": "Offset of window borders",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 0
+    },
+    "border_radius": {
+      "description": "Radius of window borders",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 10
+    },
+    "border_width": {
+      "description": "Width of window borders",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 10
+    },
+    "cross_boundary_behaviour": {
+      "description": "Determine what happens when an action is called on a window at a monitor boundary",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CrossBoundaryBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Monitor"
+    },
+    "cross_monitor_move_behaviour": {
+      "description": "Determine what happens when a window is moved across a monitor boundary",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MoveBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Swap"
+    },
+    "default_container_padding": {
+      "description": "Global default container padding",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 5
+    },
+    "default_workspace_padding": {
+      "description": "Global default workspace padding",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 5
+    },
+    "display_index_preferences": {
+      "description": "Set display index preferences",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^\\d+$": {
+          "type": "string"
+        }
+      }
+    },
+    "float_override": {
+      "description": "Enable or disable float override, which makes it so every new window opens in floating mode",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": false
+    },
+    "float_override_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window with float override active",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Placement"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "float_rule_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window that matches a\n'floating_applications' rule",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Placement"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "floating_applications": {
+      "description": "Identify applications which should be managed as floating windows",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MatchingRule"
+      }
+    },
+    "floating_layer_behaviour": {
+      "description": "Determines what happens on a new window when on the `FloatingLayer`",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FloatingLayerBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Tile"
+    },
+    "floating_layer_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window on the floating layer with the\n`FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float`",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Placement"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Center"
+    },
+    "floating_window_aspect_ratio": {
+      "description": "Identify applications which are slow to send initial event notifications\nAspect ratio to resize with when toggling floating mode for a window",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AspectRatio"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "global_work_area_offset": {
+      "description": "Global work area (space used for tiling) offset",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Rect"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ignore_rules": {
+      "description": "Individual window floating rules",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MatchingRule"
+      }
+    },
+    "layout_defaults": {
+      "description": "Per-layout default options and rules, keyed by layout name.\nApplied as fallback when a workspace does not define its own layout_options or layout_options_rules.\nIf a workspace defines either setting, all global defaults for that layout are completely replaced.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/LayoutDefaultEntry"
+      }
+    },
+    "manage_rules": {
+      "description": "Individual window force-manage rules",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MatchingRule"
+      }
+    },
+    "monitors": {
+      "description": "Monitor and workspace configurations",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/MonitorConfig"
+      }
+    },
+    "monocle_focus_behaviour": {
+      "description": "Determine what happens when focusing in a direction while a monocle container is active",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MonocleFocusBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "NoOp"
+    },
+    "mouse_follows_focus": {
+      "description": "Enable or disable mouse follows focus",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": true
+    },
+    "resize_delta": {
+      "description": "Delta to resize windows by",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32",
+      "default": 50
+    },
+    "tabbed_applications": {
+      "description": "Identify applications which use native tabs for special handling",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "theme": {
+      "description": "Theme configuration options\n\nIf a theme is specified, `border_colours` will have no effect",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/KomorebiTheme"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "titleless_applications": {
+      "description": "Identify applications which should be managed despite not reporting titles to the system",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "toggle_float_placement": {
+      "description": "Determines the placement of a new window when toggling to float",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Placement"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "CenterAndResize"
+    },
+    "unmanaged_window_operation_behaviour": {
+      "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Op"
+    },
+    "window_container_behaviour": {
+      "description": "Determine what happens when a new window is opened",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WindowContainerBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "Create"
+    }
+  },
+  "$defs": {
+    "AnimationStyle": {
+      "description": "Mathematical function which describes the rate at which a value changes",
+      "oneOf": [
+        {
+          "description": "Linear",
+          "type": "string",
+          "const": "Linear"
+        },
+        {
+          "description": "Ease in sine",
+          "type": "string",
+          "const": "EaseInSine"
+        },
+        {
+          "description": "Ease out sine",
+          "type": "string",
+          "const": "EaseOutSine"
+        },
+        {
+          "description": "Ease in out sine",
+          "type": "string",
+          "const": "EaseInOutSine"
+        },
+        {
+          "description": "Ease in quad",
+          "type": "string",
+          "const": "EaseInQuad"
+        },
+        {
+          "description": "Ease out quad",
+          "type": "string",
+          "const": "EaseOutQuad"
+        },
+        {
+          "description": "Ease in out quad",
+          "type": "string",
+          "const": "EaseInOutQuad"
+        },
+        {
+          "description": "Ease in cubic",
+          "type": "string",
+          "const": "EaseInCubic"
+        },
+        {
+          "description": "Ease out cubic",
+          "type": "string",
+          "const": "EaseOutCubic"
+        },
+        {
+          "description": "Ease in out cubic",
+          "type": "string",
+          "const": "EaseInOutCubic"
+        },
+        {
+          "description": "Ease in quart",
+          "type": "string",
+          "const": "EaseInQuart"
+        },
+        {
+          "description": "Ease out quart",
+          "type": "string",
+          "const": "EaseOutQuart"
+        },
+        {
+          "description": "Ease in out quart",
+          "type": "string",
+          "const": "EaseInOutQuart"
+        },
+        {
+          "description": "Ease in quint",
+          "type": "string",
+          "const": "EaseInQuint"
+        },
+        {
+          "description": "Ease out quint",
+          "type": "string",
+          "const": "EaseOutQuint"
+        },
+        {
+          "description": "Ease in out quint",
+          "type": "string",
+          "const": "EaseInOutQuint"
+        },
+        {
+          "description": "Ease in expo",
+          "type": "string",
+          "const": "EaseInExpo"
+        },
+        {
+          "description": "Ease out expo",
+          "type": "string",
+          "const": "EaseOutExpo"
+        },
+        {
+          "description": "Ease in out expo",
+          "type": "string",
+          "const": "EaseInOutExpo"
+        },
+        {
+          "description": "Ease in circ",
+          "type": "string",
+          "const": "EaseInCirc"
+        },
+        {
+          "description": "Ease out circ",
+          "type": "string",
+          "const": "EaseOutCirc"
+        },
+        {
+          "description": "Ease in out circ",
+          "type": "string",
+          "const": "EaseInOutCirc"
+        },
+        {
+          "description": "Ease in back",
+          "type": "string",
+          "const": "EaseInBack"
+        },
+        {
+          "description": "Ease out back",
+          "type": "string",
+          "const": "EaseOutBack"
+        },
+        {
+          "description": "Ease in out back",
+          "type": "string",
+          "const": "EaseInOutBack"
+        },
+        {
+          "description": "Ease in elastic",
+          "type": "string",
+          "const": "EaseInElastic"
+        },
+        {
+          "description": "Ease out elastic",
+          "type": "string",
+          "const": "EaseOutElastic"
+        },
+        {
+          "description": "Ease in out elastic",
+          "type": "string",
+          "const": "EaseInOutElastic"
+        },
+        {
+          "description": "Ease in bounce",
+          "type": "string",
+          "const": "EaseInBounce"
+        },
+        {
+          "description": "Ease out bounce",
+          "type": "string",
+          "const": "EaseOutBounce"
+        },
+        {
+          "description": "Ease in out bounce",
+          "type": "string",
+          "const": "EaseInOutBounce"
+        },
+        {
+          "title": "CubicBezier",
+          "description": "Custom Cubic Bézier function",
+          "type": "object",
+          "properties": {
+            "CubicBezier": {
+              "type": "array",
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "CubicBezier"
+          ]
+        }
+      ]
+    },
+    "AnimationsConfig": {
+      "description": "Animation configuration",
+      "type": "object",
+      "properties": {
+        "duration": {
+          "description": "Set the animation duration in ms",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PerAnimationPrefixConfig2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 250
+        },
+        "enabled": {
+          "description": "Enable or disable animations",
+          "$ref": "#/$defs/PerAnimationPrefixConfig",
+          "default": false
+        },
+        "fps": {
+          "description": "Set the animation FPS",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        },
+        "style": {
+          "description": "Set the animation style",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PerAnimationPrefixConfig3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Linear"
+        }
+      },
+      "required": [
+        "enabled"
+      ]
+    },
+    "AppSpecificConfigurationPath": {
+      "description": "Path(s) to application-specific configuration file(s)",
+      "anyOf": [
+        {
+          "description": "A single applications.json file",
+          "$ref": "#/$defs/PathBuf"
+        },
+        {
+          "description": "Multiple applications.json files",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PathBuf"
+          }
+        }
+      ]
+    },
+    "ApplicationIdentifier": {
+      "description": "Application identifier",
+      "oneOf": [
+        {
+          "description": "Executable name",
+          "type": "string",
+          "const": "Exe"
+        },
+        {
+          "description": "Role or subrole",
+          "type": "string",
+          "const": "Class"
+        },
+        {
+          "description": "Window title",
+          "type": "string",
+          "const": "Title"
+        },
+        {
+          "description": "Executable path",
+          "type": "string",
+          "const": "Path"
+        }
+      ]
+    },
+    "AspectRatio": {
+      "description": "Aspect ratio for temporarily floating windows",
+      "anyOf": [
+        {
+          "title": "Predefined",
+          "description": "A predefined aspect ratio",
+          "$ref": "#/$defs/PredefinedAspectRatio"
+        },
+        {
+          "title": "Custom",
+          "description": "A custom W:H aspect ratio",
+          "type": "array",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer",
+              "format": "int32"
+            },
+            {
+              "type": "integer",
+              "format": "int32"
+            }
+          ]
+        }
+      ]
+    },
+    "Axis": {
+      "description": "Axis on which to perform an operation",
+      "oneOf": [
+        {
+          "description": "Horizontal axis",
+          "type": "string",
+          "const": "Horizontal"
+        },
+        {
+          "description": "Vertical axis",
+          "type": "string",
+          "const": "Vertical"
+        },
+        {
+          "description": "Both horizontal and vertical axes",
+          "type": "string",
+          "const": "HorizontalAndVertical"
+        }
+      ]
+    },
+    "Base16": {
+      "description": "Base 16 colour palette",
+      "oneOf": [
+        {
+          "description": "3024 (https://tinted-theming.github.io/tinted-gallery/#base16-3024)",
+          "type": "string",
+          "const": "3024"
+        },
+        {
+          "description": "Apathy (https://tinted-theming.github.io/tinted-gallery/#base16-apathy)",
+          "type": "string",
+          "const": "Apathy"
+        },
+        {
+          "description": "Apprentice (https://tinted-theming.github.io/tinted-gallery/#base16-apprentice)",
+          "type": "string",
+          "const": "Apprentice"
+        },
+        {
+          "description": "Ashes (https://tinted-theming.github.io/tinted-gallery/#base16-ashes)",
+          "type": "string",
+          "const": "Ashes"
+        },
+        {
+          "description": "Atelier Cave Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-cave-light)",
+          "type": "string",
+          "const": "AtelierCaveLight"
+        },
+        {
+          "description": "Atelier Cave (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-cave)",
+          "type": "string",
+          "const": "AtelierCave"
+        },
+        {
+          "description": "Atelier Dune Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-dune-light)",
+          "type": "string",
+          "const": "AtelierDuneLight"
+        },
+        {
+          "description": "Atelier Dune (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-dune)",
+          "type": "string",
+          "const": "AtelierDune"
+        },
+        {
+          "description": "Atelier Estuary Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-estuary-light)",
+          "type": "string",
+          "const": "AtelierEstuaryLight"
+        },
+        {
+          "description": "Atelier Estuary (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-estuary)",
+          "type": "string",
+          "const": "AtelierEstuary"
+        },
+        {
+          "description": "Atelier Forest Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-forest-light)",
+          "type": "string",
+          "const": "AtelierForestLight"
+        },
+        {
+          "description": "Atelier Forest (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-forest)",
+          "type": "string",
+          "const": "AtelierForest"
+        },
+        {
+          "description": "Atelier Heath Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-heath-light)",
+          "type": "string",
+          "const": "AtelierHeathLight"
+        },
+        {
+          "description": "Atelier Heath (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-heath)",
+          "type": "string",
+          "const": "AtelierHeath"
+        },
+        {
+          "description": "Atelier Lakeside Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-lakeside-light)",
+          "type": "string",
+          "const": "AtelierLakesideLight"
+        },
+        {
+          "description": "Atelier Lakeside (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-lakeside)",
+          "type": "string",
+          "const": "AtelierLakeside"
+        },
+        {
+          "description": "Atelier Plateau Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-plateau-light)",
+          "type": "string",
+          "const": "AtelierPlateauLight"
+        },
+        {
+          "description": "Atelier Plateau (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-plateau)",
+          "type": "string",
+          "const": "AtelierPlateau"
+        },
+        {
+          "description": "Atelier Savanna Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-savanna-light)",
+          "type": "string",
+          "const": "AtelierSavannaLight"
+        },
+        {
+          "description": "Atelier Savanna (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-savanna)",
+          "type": "string",
+          "const": "AtelierSavanna"
+        },
+        {
+          "description": "Atelier Seaside Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-seaside-light)",
+          "type": "string",
+          "const": "AtelierSeasideLight"
+        },
+        {
+          "description": "Atelier Seaside (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-seaside)",
+          "type": "string",
+          "const": "AtelierSeaside"
+        },
+        {
+          "description": "Atelier Sulphurpool Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-sulphurpool-light)",
+          "type": "string",
+          "const": "AtelierSulphurpoolLight"
+        },
+        {
+          "description": "Atelier Sulphurpool (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-sulphurpool)",
+          "type": "string",
+          "const": "AtelierSulphurpool"
+        },
+        {
+          "description": "Atlas (https://tinted-theming.github.io/tinted-gallery/#base16-atlas)",
+          "type": "string",
+          "const": "Atlas"
+        },
+        {
+          "description": "Ayu Dark (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-dark)",
+          "type": "string",
+          "const": "AyuDark"
+        },
+        {
+          "description": "Ayu Light (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-light)",
+          "type": "string",
+          "const": "AyuLight"
+        },
+        {
+          "description": "Ayu Mirage (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-mirage)",
+          "type": "string",
+          "const": "AyuMirage"
+        },
+        {
+          "description": "Aztec (https://tinted-theming.github.io/tinted-gallery/#base16-aztec)",
+          "type": "string",
+          "const": "Aztec"
+        },
+        {
+          "description": "Bespin (https://tinted-theming.github.io/tinted-gallery/#base16-bespin)",
+          "type": "string",
+          "const": "Bespin"
+        },
+        {
+          "description": "Black Metal Bathory (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-bathory)",
+          "type": "string",
+          "const": "BlackMetalBathory"
+        },
+        {
+          "description": "Black Metal Burzum (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-burzum)",
+          "type": "string",
+          "const": "BlackMetalBurzum"
+        },
+        {
+          "description": "Black Metal Dark Funeral (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-dark-funeral)",
+          "type": "string",
+          "const": "BlackMetalDarkFuneral"
+        },
+        {
+          "description": "Black Metal Gorgoroth (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-gorgoroth)",
+          "type": "string",
+          "const": "BlackMetalGorgoroth"
+        },
+        {
+          "description": "Black Metal Immortal (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-immortal)",
+          "type": "string",
+          "const": "BlackMetalImmortal"
+        },
+        {
+          "description": "Black Metal Khold (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-khold)",
+          "type": "string",
+          "const": "BlackMetalKhold"
+        },
+        {
+          "description": "Black Metal Marduk (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-marduk)",
+          "type": "string",
+          "const": "BlackMetalMarduk"
+        },
+        {
+          "description": "Black Metal Mayhem (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-mayhem)",
+          "type": "string",
+          "const": "BlackMetalMayhem"
+        },
+        {
+          "description": "Black Metal Nile (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-nile)",
+          "type": "string",
+          "const": "BlackMetalNile"
+        },
+        {
+          "description": "Black Metal Venom (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-venom)",
+          "type": "string",
+          "const": "BlackMetalVenom"
+        },
+        {
+          "description": "Black Metal (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal)",
+          "type": "string",
+          "const": "BlackMetal"
+        },
+        {
+          "description": "Blueforest (https://tinted-theming.github.io/tinted-gallery/#base16-blueforest)",
+          "type": "string",
+          "const": "Blueforest"
+        },
+        {
+          "description": "Blueish (https://tinted-theming.github.io/tinted-gallery/#base16-blueish)",
+          "type": "string",
+          "const": "Blueish"
+        },
+        {
+          "description": "Brewer (https://tinted-theming.github.io/tinted-gallery/#base16-brewer)",
+          "type": "string",
+          "const": "Brewer"
+        },
+        {
+          "description": "Bright (https://tinted-theming.github.io/tinted-gallery/#base16-bright)",
+          "type": "string",
+          "const": "Bright"
+        },
+        {
+          "description": "Brogrammer (https://tinted-theming.github.io/tinted-gallery/#base16-brogrammer)",
+          "type": "string",
+          "const": "Brogrammer"
+        },
+        {
+          "description": "Brushtrees Dark (https://tinted-theming.github.io/tinted-gallery/#base16-brushtrees-dark)",
+          "type": "string",
+          "const": "BrushtreesDark"
+        },
+        {
+          "description": "Brushtrees (https://tinted-theming.github.io/tinted-gallery/#base16-brushtrees)",
+          "type": "string",
+          "const": "Brushtrees"
+        },
+        {
+          "description": "Caroline (https://tinted-theming.github.io/tinted-gallery/#base16-caroline)",
+          "type": "string",
+          "const": "Caroline"
+        },
+        {
+          "description": "Catppuccin Frappe (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-frappe)",
+          "type": "string",
+          "const": "CatppuccinFrappe"
+        },
+        {
+          "description": "Catppuccin Latte (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-latte)",
+          "type": "string",
+          "const": "CatppuccinLatte"
+        },
+        {
+          "description": "Catppuccin Macchiato (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-macchiato)",
+          "type": "string",
+          "const": "CatppuccinMacchiato"
+        },
+        {
+          "description": "Catppuccin Mocha (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-mocha)",
+          "type": "string",
+          "const": "CatppuccinMocha"
+        },
+        {
+          "description": "Chalk (https://tinted-theming.github.io/tinted-gallery/#base16-chalk)",
+          "type": "string",
+          "const": "Chalk"
+        },
+        {
+          "description": "Circus (https://tinted-theming.github.io/tinted-gallery/#base16-circus)",
+          "type": "string",
+          "const": "Circus"
+        },
+        {
+          "description": "Classic Dark (https://tinted-theming.github.io/tinted-gallery/#base16-classic-dark)",
+          "type": "string",
+          "const": "ClassicDark"
+        },
+        {
+          "description": "Classic Light (https://tinted-theming.github.io/tinted-gallery/#base16-classic-light)",
+          "type": "string",
+          "const": "ClassicLight"
+        },
+        {
+          "description": "Codeschool (https://tinted-theming.github.io/tinted-gallery/#base16-codeschool)",
+          "type": "string",
+          "const": "Codeschool"
+        },
+        {
+          "description": "Colors (https://tinted-theming.github.io/tinted-gallery/#base16-colors)",
+          "type": "string",
+          "const": "Colors"
+        },
+        {
+          "description": "Cupcake (https://tinted-theming.github.io/tinted-gallery/#base16-cupcake)",
+          "type": "string",
+          "const": "Cupcake"
+        },
+        {
+          "description": "Cupertino (https://tinted-theming.github.io/tinted-gallery/#base16-cupertino)",
+          "type": "string",
+          "const": "Cupertino"
+        },
+        {
+          "description": "Da One Black (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-black)",
+          "type": "string",
+          "const": "DaOneBlack"
+        },
+        {
+          "description": "Da One Gray (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-gray)",
+          "type": "string",
+          "const": "DaOneGray"
+        },
+        {
+          "description": "Da One Ocean (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-ocean)",
+          "type": "string",
+          "const": "DaOneOcean"
+        },
+        {
+          "description": "Da One Paper (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-paper)",
+          "type": "string",
+          "const": "DaOnePaper"
+        },
+        {
+          "description": "Da One Sea (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-sea)",
+          "type": "string",
+          "const": "DaOneSea"
+        },
+        {
+          "description": "Da One White (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-white)",
+          "type": "string",
+          "const": "DaOneWhite"
+        },
+        {
+          "description": "Danqing Light (https://tinted-theming.github.io/tinted-gallery/#base16-danqing-light)",
+          "type": "string",
+          "const": "DanqingLight"
+        },
+        {
+          "description": "Danqing (https://tinted-theming.github.io/tinted-gallery/#base16-danqing)",
+          "type": "string",
+          "const": "Danqing"
+        },
+        {
+          "description": "Darcula (https://tinted-theming.github.io/tinted-gallery/#base16-darcula)",
+          "type": "string",
+          "const": "Darcula"
+        },
+        {
+          "description": "Darkmoss (https://tinted-theming.github.io/tinted-gallery/#base16-darkmoss)",
+          "type": "string",
+          "const": "Darkmoss"
+        },
+        {
+          "description": "Darktooth (https://tinted-theming.github.io/tinted-gallery/#base16-darktooth)",
+          "type": "string",
+          "const": "Darktooth"
+        },
+        {
+          "description": "Darkviolet (https://tinted-theming.github.io/tinted-gallery/#base16-darkviolet)",
+          "type": "string",
+          "const": "Darkviolet"
+        },
+        {
+          "description": "Decaf (https://tinted-theming.github.io/tinted-gallery/#base16-decaf)",
+          "type": "string",
+          "const": "Decaf"
+        },
+        {
+          "description": "Default Dark (https://tinted-theming.github.io/tinted-gallery/#base16-default-dark)",
+          "type": "string",
+          "const": "DefaultDark"
+        },
+        {
+          "description": "Default Light (https://tinted-theming.github.io/tinted-gallery/#base16-default-light)",
+          "type": "string",
+          "const": "DefaultLight"
+        },
+        {
+          "description": "Dirtysea (https://tinted-theming.github.io/tinted-gallery/#base16-dirtysea)",
+          "type": "string",
+          "const": "Dirtysea"
+        },
+        {
+          "description": "Dracula (https://tinted-theming.github.io/tinted-gallery/#base16-dracula)",
+          "type": "string",
+          "const": "Dracula"
+        },
+        {
+          "description": "Edge Dark (https://tinted-theming.github.io/tinted-gallery/#base16-edge-dark)",
+          "type": "string",
+          "const": "EdgeDark"
+        },
+        {
+          "description": "Edge Light (https://tinted-theming.github.io/tinted-gallery/#base16-edge-light)",
+          "type": "string",
+          "const": "EdgeLight"
+        },
+        {
+          "description": "Eighties (https://tinted-theming.github.io/tinted-gallery/#base16-eighties)",
+          "type": "string",
+          "const": "Eighties"
+        },
+        {
+          "description": "Embers Light (https://tinted-theming.github.io/tinted-gallery/#base16-embers-light)",
+          "type": "string",
+          "const": "EmbersLight"
+        },
+        {
+          "description": "Embers (https://tinted-theming.github.io/tinted-gallery/#base16-embers)",
+          "type": "string",
+          "const": "Embers"
+        },
+        {
+          "description": "Emil (https://tinted-theming.github.io/tinted-gallery/#base16-emil)",
+          "type": "string",
+          "const": "Emil"
+        },
+        {
+          "description": "Equilibrium Dark (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-dark)",
+          "type": "string",
+          "const": "EquilibriumDark"
+        },
+        {
+          "description": "Equilibrium Gray Dark (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-gray-dark)",
+          "type": "string",
+          "const": "EquilibriumGrayDark"
+        },
+        {
+          "description": "Equilibrium Gray Light (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-gray-light)",
+          "type": "string",
+          "const": "EquilibriumGrayLight"
+        },
+        {
+          "description": "Equilibrium Light (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-light)",
+          "type": "string",
+          "const": "EquilibriumLight"
+        },
+        {
+          "description": "Eris (https://tinted-theming.github.io/tinted-gallery/#base16-eris)",
+          "type": "string",
+          "const": "Eris"
+        },
+        {
+          "description": "Espresso (https://tinted-theming.github.io/tinted-gallery/#base16-espresso)",
+          "type": "string",
+          "const": "Espresso"
+        },
+        {
+          "description": "Eva Dim (https://tinted-theming.github.io/tinted-gallery/#base16-eva-dim)",
+          "type": "string",
+          "const": "EvaDim"
+        },
+        {
+          "description": "Eva (https://tinted-theming.github.io/tinted-gallery/#base16-eva)",
+          "type": "string",
+          "const": "Eva"
+        },
+        {
+          "description": "Evenok Dark (https://tinted-theming.github.io/tinted-gallery/#base16-evenok-dark)",
+          "type": "string",
+          "const": "EvenokDark"
+        },
+        {
+          "description": "Everforest Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-everforest-dark-hard)",
+          "type": "string",
+          "const": "EverforestDarkHard"
+        },
+        {
+          "description": "Everforest (https://tinted-theming.github.io/tinted-gallery/#base16-everforest)",
+          "type": "string",
+          "const": "Everforest"
+        },
+        {
+          "description": "Flat (https://tinted-theming.github.io/tinted-gallery/#base16-flat)",
+          "type": "string",
+          "const": "Flat"
+        },
+        {
+          "description": "Framer (https://tinted-theming.github.io/tinted-gallery/#base16-framer)",
+          "type": "string",
+          "const": "Framer"
+        },
+        {
+          "description": "Fruit Soda (https://tinted-theming.github.io/tinted-gallery/#base16-fruit-soda)",
+          "type": "string",
+          "const": "FruitSoda"
+        },
+        {
+          "description": "Gigavolt (https://tinted-theming.github.io/tinted-gallery/#base16-gigavolt)",
+          "type": "string",
+          "const": "Gigavolt"
+        },
+        {
+          "description": "Github (https://tinted-theming.github.io/tinted-gallery/#base16-github)",
+          "type": "string",
+          "const": "Github"
+        },
+        {
+          "description": "Google Dark (https://tinted-theming.github.io/tinted-gallery/#base16-google-dark)",
+          "type": "string",
+          "const": "GoogleDark"
+        },
+        {
+          "description": "Google Light (https://tinted-theming.github.io/tinted-gallery/#base16-google-light)",
+          "type": "string",
+          "const": "GoogleLight"
+        },
+        {
+          "description": "Gotham (https://tinted-theming.github.io/tinted-gallery/#base16-gotham)",
+          "type": "string",
+          "const": "Gotham"
+        },
+        {
+          "description": "Grayscale Dark (https://tinted-theming.github.io/tinted-gallery/#base16-grayscale-dark)",
+          "type": "string",
+          "const": "GrayscaleDark"
+        },
+        {
+          "description": "Grayscale Light (https://tinted-theming.github.io/tinted-gallery/#base16-grayscale-light)",
+          "type": "string",
+          "const": "GrayscaleLight"
+        },
+        {
+          "description": "Greenscreen (https://tinted-theming.github.io/tinted-gallery/#base16-greenscreen)",
+          "type": "string",
+          "const": "Greenscreen"
+        },
+        {
+          "description": "Gruber (https://tinted-theming.github.io/tinted-gallery/#base16-gruber)",
+          "type": "string",
+          "const": "Gruber"
+        },
+        {
+          "description": "Gruvbox Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-hard)",
+          "type": "string",
+          "const": "GruvboxDarkHard"
+        },
+        {
+          "description": "Gruvbox Dark Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-medium)",
+          "type": "string",
+          "const": "GruvboxDarkMedium"
+        },
+        {
+          "description": "Gruvbox Dark Pale (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-pale)",
+          "type": "string",
+          "const": "GruvboxDarkPale"
+        },
+        {
+          "description": "Gruvbox Dark Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-soft)",
+          "type": "string",
+          "const": "GruvboxDarkSoft"
+        },
+        {
+          "description": "Gruvbox Light Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-hard)",
+          "type": "string",
+          "const": "GruvboxLightHard"
+        },
+        {
+          "description": "Gruvbox Light Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-medium)",
+          "type": "string",
+          "const": "GruvboxLightMedium"
+        },
+        {
+          "description": "Gruvbox Light Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-soft)",
+          "type": "string",
+          "const": "GruvboxLightSoft"
+        },
+        {
+          "description": "Gruvbox Material Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-hard)",
+          "type": "string",
+          "const": "GruvboxMaterialDarkHard"
+        },
+        {
+          "description": "Gruvbox Material Dark Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-medium)",
+          "type": "string",
+          "const": "GruvboxMaterialDarkMedium"
+        },
+        {
+          "description": "Gruvbox Material Dark Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-soft)",
+          "type": "string",
+          "const": "GruvboxMaterialDarkSoft"
+        },
+        {
+          "description": "Gruvbox Material Light Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-hard)",
+          "type": "string",
+          "const": "GruvboxMaterialLightHard"
+        },
+        {
+          "description": "Gruvbox Material Light Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-medium)",
+          "type": "string",
+          "const": "GruvboxMaterialLightMedium"
+        },
+        {
+          "description": "Gruvbox Material Light Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-soft)",
+          "type": "string",
+          "const": "GruvboxMaterialLightSoft"
+        },
+        {
+          "description": "Hardcore (https://tinted-theming.github.io/tinted-gallery/#base16-hardcore)",
+          "type": "string",
+          "const": "Hardcore"
+        },
+        {
+          "description": "Harmonic16 Dark (https://tinted-theming.github.io/tinted-gallery/#base16-harmonic16-dark)",
+          "type": "string",
+          "const": "Harmonic16Dark"
+        },
+        {
+          "description": "Harmonic16 Light (https://tinted-theming.github.io/tinted-gallery/#base16-harmonic16-light)",
+          "type": "string",
+          "const": "Harmonic16Light"
+        },
+        {
+          "description": "Heetch Light (https://tinted-theming.github.io/tinted-gallery/#base16-heetch-light)",
+          "type": "string",
+          "const": "HeetchLight"
+        },
+        {
+          "description": "Heetch (https://tinted-theming.github.io/tinted-gallery/#base16-heetch)",
+          "type": "string",
+          "const": "Heetch"
+        },
+        {
+          "description": "Helios (https://tinted-theming.github.io/tinted-gallery/#base16-helios)",
+          "type": "string",
+          "const": "Helios"
+        },
+        {
+          "description": "Hopscotch (https://tinted-theming.github.io/tinted-gallery/#base16-hopscotch)",
+          "type": "string",
+          "const": "Hopscotch"
+        },
+        {
+          "description": "Horizon Dark (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-dark)",
+          "type": "string",
+          "const": "HorizonDark"
+        },
+        {
+          "description": "Horizon Light (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-light)",
+          "type": "string",
+          "const": "HorizonLight"
+        },
+        {
+          "description": "Horizon Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-terminal-dark)",
+          "type": "string",
+          "const": "HorizonTerminalDark"
+        },
+        {
+          "description": "Horizon Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-terminal-light)",
+          "type": "string",
+          "const": "HorizonTerminalLight"
+        },
+        {
+          "description": "Humanoid Dark (https://tinted-theming.github.io/tinted-gallery/#base16-humanoid-dark)",
+          "type": "string",
+          "const": "HumanoidDark"
+        },
+        {
+          "description": "Humanoid Light (https://tinted-theming.github.io/tinted-gallery/#base16-humanoid-light)",
+          "type": "string",
+          "const": "HumanoidLight"
+        },
+        {
+          "description": "Ia Dark (https://tinted-theming.github.io/tinted-gallery/#base16-ia-dark)",
+          "type": "string",
+          "const": "IaDark"
+        },
+        {
+          "description": "Ia Light (https://tinted-theming.github.io/tinted-gallery/#base16-ia-light)",
+          "type": "string",
+          "const": "IaLight"
+        },
+        {
+          "description": "Icy (https://tinted-theming.github.io/tinted-gallery/#base16-icy)",
+          "type": "string",
+          "const": "Icy"
+        },
+        {
+          "description": "Irblack (https://tinted-theming.github.io/tinted-gallery/#base16-irblack)",
+          "type": "string",
+          "const": "Irblack"
+        },
+        {
+          "description": "Isotope (https://tinted-theming.github.io/tinted-gallery/#base16-isotope)",
+          "type": "string",
+          "const": "Isotope"
+        },
+        {
+          "description": "Jabuti (https://tinted-theming.github.io/tinted-gallery/#base16-jabuti)",
+          "type": "string",
+          "const": "Jabuti"
+        },
+        {
+          "description": "Kanagawa (https://tinted-theming.github.io/tinted-gallery/#base16-kanagawa)",
+          "type": "string",
+          "const": "Kanagawa"
+        },
+        {
+          "description": "Katy (https://tinted-theming.github.io/tinted-gallery/#base16-katy)",
+          "type": "string",
+          "const": "Katy"
+        },
+        {
+          "description": "Kimber (https://tinted-theming.github.io/tinted-gallery/#base16-kimber)",
+          "type": "string",
+          "const": "Kimber"
+        },
+        {
+          "description": "Lime (https://tinted-theming.github.io/tinted-gallery/#base16-lime)",
+          "type": "string",
+          "const": "Lime"
+        },
+        {
+          "description": "Macintosh (https://tinted-theming.github.io/tinted-gallery/#base16-macintosh)",
+          "type": "string",
+          "const": "Macintosh"
+        },
+        {
+          "description": "Marrakesh (https://tinted-theming.github.io/tinted-gallery/#base16-marrakesh)",
+          "type": "string",
+          "const": "Marrakesh"
+        },
+        {
+          "description": "Materia (https://tinted-theming.github.io/tinted-gallery/#base16-materia)",
+          "type": "string",
+          "const": "Materia"
+        },
+        {
+          "description": "Material Darker (https://tinted-theming.github.io/tinted-gallery/#base16-material-darker)",
+          "type": "string",
+          "const": "MaterialDarker"
+        },
+        {
+          "description": "Material Lighter (https://tinted-theming.github.io/tinted-gallery/#base16-material-lighter)",
+          "type": "string",
+          "const": "MaterialLighter"
+        },
+        {
+          "description": "Material Palenight (https://tinted-theming.github.io/tinted-gallery/#base16-material-palenight)",
+          "type": "string",
+          "const": "MaterialPalenight"
+        },
+        {
+          "description": "Material Vivid (https://tinted-theming.github.io/tinted-gallery/#base16-material-vivid)",
+          "type": "string",
+          "const": "MaterialVivid"
+        },
+        {
+          "description": "Material (https://tinted-theming.github.io/tinted-gallery/#base16-material)",
+          "type": "string",
+          "const": "Material"
+        },
+        {
+          "description": "Measured Dark (https://tinted-theming.github.io/tinted-gallery/#base16-measured-dark)",
+          "type": "string",
+          "const": "MeasuredDark"
+        },
+        {
+          "description": "Measured Light (https://tinted-theming.github.io/tinted-gallery/#base16-measured-light)",
+          "type": "string",
+          "const": "MeasuredLight"
+        },
+        {
+          "description": "Mellow Purple (https://tinted-theming.github.io/tinted-gallery/#base16-mellow-purple)",
+          "type": "string",
+          "const": "MellowPurple"
+        },
+        {
+          "description": "Mexico Light (https://tinted-theming.github.io/tinted-gallery/#base16-mexico-light)",
+          "type": "string",
+          "const": "MexicoLight"
+        },
+        {
+          "description": "Mocha (https://tinted-theming.github.io/tinted-gallery/#base16-mocha)",
+          "type": "string",
+          "const": "Mocha"
+        },
+        {
+          "description": "Monokai (https://tinted-theming.github.io/tinted-gallery/#base16-monokai)",
+          "type": "string",
+          "const": "Monokai"
+        },
+        {
+          "description": "Moonlight (https://tinted-theming.github.io/tinted-gallery/#base16-moonlight)",
+          "type": "string",
+          "const": "Moonlight"
+        },
+        {
+          "description": "Mountain (https://tinted-theming.github.io/tinted-gallery/#base16-mountain)",
+          "type": "string",
+          "const": "Mountain"
+        },
+        {
+          "description": "Nebula (https://tinted-theming.github.io/tinted-gallery/#base16-nebula)",
+          "type": "string",
+          "const": "Nebula"
+        },
+        {
+          "description": "Nord Light (https://tinted-theming.github.io/tinted-gallery/#base16-nord-light)",
+          "type": "string",
+          "const": "NordLight"
+        },
+        {
+          "description": "Nord (https://tinted-theming.github.io/tinted-gallery/#base16-nord)",
+          "type": "string",
+          "const": "Nord"
+        },
+        {
+          "description": "Nova (https://tinted-theming.github.io/tinted-gallery/#base16-nova)",
+          "type": "string",
+          "const": "Nova"
+        },
+        {
+          "description": "Ocean (https://tinted-theming.github.io/tinted-gallery/#base16-ocean)",
+          "type": "string",
+          "const": "Ocean"
+        },
+        {
+          "description": "Oceanicnext (https://tinted-theming.github.io/tinted-gallery/#base16-oceanicnext)",
+          "type": "string",
+          "const": "Oceanicnext"
+        },
+        {
+          "description": "One Light (https://tinted-theming.github.io/tinted-gallery/#base16-one-light)",
+          "type": "string",
+          "const": "OneLight"
+        },
+        {
+          "description": "Onedark Dark (https://tinted-theming.github.io/tinted-gallery/#base16-onedark-dark)",
+          "type": "string",
+          "const": "OnedarkDark"
+        },
+        {
+          "description": "Onedark (https://tinted-theming.github.io/tinted-gallery/#base16-onedark)",
+          "type": "string",
+          "const": "Onedark"
+        },
+        {
+          "description": "Outrun Dark (https://tinted-theming.github.io/tinted-gallery/#base16-outrun-dark)",
+          "type": "string",
+          "const": "OutrunDark"
+        },
+        {
+          "description": "Oxocarbon Dark (https://tinted-theming.github.io/tinted-gallery/#base16-oxocarbon-dark)",
+          "type": "string",
+          "const": "OxocarbonDark"
+        },
+        {
+          "description": "Oxocarbon Light (https://tinted-theming.github.io/tinted-gallery/#base16-oxocarbon-light)",
+          "type": "string",
+          "const": "OxocarbonLight"
+        },
+        {
+          "description": "Pandora (https://tinted-theming.github.io/tinted-gallery/#base16-pandora)",
+          "type": "string",
+          "const": "Pandora"
+        },
+        {
+          "description": "Papercolor Dark (https://tinted-theming.github.io/tinted-gallery/#base16-papercolor-dark)",
+          "type": "string",
+          "const": "PapercolorDark"
+        },
+        {
+          "description": "Papercolor Light (https://tinted-theming.github.io/tinted-gallery/#base16-papercolor-light)",
+          "type": "string",
+          "const": "PapercolorLight"
+        },
+        {
+          "description": "Paraiso (https://tinted-theming.github.io/tinted-gallery/#base16-paraiso)",
+          "type": "string",
+          "const": "Paraiso"
+        },
+        {
+          "description": "Pasque (https://tinted-theming.github.io/tinted-gallery/#base16-pasque)",
+          "type": "string",
+          "const": "Pasque"
+        },
+        {
+          "description": "Phd (https://tinted-theming.github.io/tinted-gallery/#base16-phd)",
+          "type": "string",
+          "const": "Phd"
+        },
+        {
+          "description": "Pico (https://tinted-theming.github.io/tinted-gallery/#base16-pico)",
+          "type": "string",
+          "const": "Pico"
+        },
+        {
+          "description": "Pinky (https://tinted-theming.github.io/tinted-gallery/#base16-pinky)",
+          "type": "string",
+          "const": "Pinky"
+        },
+        {
+          "description": "Pop (https://tinted-theming.github.io/tinted-gallery/#base16-pop)",
+          "type": "string",
+          "const": "Pop"
+        },
+        {
+          "description": "Porple (https://tinted-theming.github.io/tinted-gallery/#base16-porple)",
+          "type": "string",
+          "const": "Porple"
+        },
+        {
+          "description": "Precious Dark Eleven (https://tinted-theming.github.io/tinted-gallery/#base16-precious-dark-eleven)",
+          "type": "string",
+          "const": "PreciousDarkEleven"
+        },
+        {
+          "description": "Precious Dark Fifteen (https://tinted-theming.github.io/tinted-gallery/#base16-precious-dark-fifteen)",
+          "type": "string",
+          "const": "PreciousDarkFifteen"
+        },
+        {
+          "description": "Precious Light Warm (https://tinted-theming.github.io/tinted-gallery/#base16-precious-light-warm)",
+          "type": "string",
+          "const": "PreciousLightWarm"
+        },
+        {
+          "description": "Precious Light White (https://tinted-theming.github.io/tinted-gallery/#base16-precious-light-white)",
+          "type": "string",
+          "const": "PreciousLightWhite"
+        },
+        {
+          "description": "Primer Dark Dimmed (https://tinted-theming.github.io/tinted-gallery/#base16-primer-dark-dimmed)",
+          "type": "string",
+          "const": "PrimerDarkDimmed"
+        },
+        {
+          "description": "Primer Dark (https://tinted-theming.github.io/tinted-gallery/#base16-primer-dark)",
+          "type": "string",
+          "const": "PrimerDark"
+        },
+        {
+          "description": "Primer Light (https://tinted-theming.github.io/tinted-gallery/#base16-primer-light)",
+          "type": "string",
+          "const": "PrimerLight"
+        },
+        {
+          "description": "Purpledream (https://tinted-theming.github.io/tinted-gallery/#base16-purpledream)",
+          "type": "string",
+          "const": "Purpledream"
+        },
+        {
+          "description": "Qualia (https://tinted-theming.github.io/tinted-gallery/#base16-qualia)",
+          "type": "string",
+          "const": "Qualia"
+        },
+        {
+          "description": "Railscasts (https://tinted-theming.github.io/tinted-gallery/#base16-railscasts)",
+          "type": "string",
+          "const": "Railscasts"
+        },
+        {
+          "description": "Rebecca (https://tinted-theming.github.io/tinted-gallery/#base16-rebecca)",
+          "type": "string",
+          "const": "Rebecca"
+        },
+        {
+          "description": "Rose Pine Dawn (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine-dawn)",
+          "type": "string",
+          "const": "RosePineDawn"
+        },
+        {
+          "description": "Rose Pine Moon (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine-moon)",
+          "type": "string",
+          "const": "RosePineMoon"
+        },
+        {
+          "description": "Rose Pine (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine)",
+          "type": "string",
+          "const": "RosePine"
+        },
+        {
+          "description": "Saga (https://tinted-theming.github.io/tinted-gallery/#base16-saga)",
+          "type": "string",
+          "const": "Saga"
+        },
+        {
+          "description": "Sagelight (https://tinted-theming.github.io/tinted-gallery/#base16-sagelight)",
+          "type": "string",
+          "const": "Sagelight"
+        },
+        {
+          "description": "Sakura (https://tinted-theming.github.io/tinted-gallery/#base16-sakura)",
+          "type": "string",
+          "const": "Sakura"
+        },
+        {
+          "description": "Sandcastle (https://tinted-theming.github.io/tinted-gallery/#base16-sandcastle)",
+          "type": "string",
+          "const": "Sandcastle"
+        },
+        {
+          "description": "Selenized Black (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-black)",
+          "type": "string",
+          "const": "SelenizedBlack"
+        },
+        {
+          "description": "Selenized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-dark)",
+          "type": "string",
+          "const": "SelenizedDark"
+        },
+        {
+          "description": "Selenized Light (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-light)",
+          "type": "string",
+          "const": "SelenizedLight"
+        },
+        {
+          "description": "Selenized White (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-white)",
+          "type": "string",
+          "const": "SelenizedWhite"
+        },
+        {
+          "description": "Seti (https://tinted-theming.github.io/tinted-gallery/#base16-seti)",
+          "type": "string",
+          "const": "Seti"
+        },
+        {
+          "description": "Shades Of Purple (https://tinted-theming.github.io/tinted-gallery/#base16-shades-of-purple)",
+          "type": "string",
+          "const": "ShadesOfPurple"
+        },
+        {
+          "description": "Shadesmear Dark (https://tinted-theming.github.io/tinted-gallery/#base16-shadesmear-dark)",
+          "type": "string",
+          "const": "ShadesmearDark"
+        },
+        {
+          "description": "Shadesmear Light (https://tinted-theming.github.io/tinted-gallery/#base16-shadesmear-light)",
+          "type": "string",
+          "const": "ShadesmearLight"
+        },
+        {
+          "description": "Shapeshifter (https://tinted-theming.github.io/tinted-gallery/#base16-shapeshifter)",
+          "type": "string",
+          "const": "Shapeshifter"
+        },
+        {
+          "description": "Silk Dark (https://tinted-theming.github.io/tinted-gallery/#base16-silk-dark)",
+          "type": "string",
+          "const": "SilkDark"
+        },
+        {
+          "description": "Silk Light (https://tinted-theming.github.io/tinted-gallery/#base16-silk-light)",
+          "type": "string",
+          "const": "SilkLight"
+        },
+        {
+          "description": "Snazzy (https://tinted-theming.github.io/tinted-gallery/#base16-snazzy)",
+          "type": "string",
+          "const": "Snazzy"
+        },
+        {
+          "description": "Solarflare Light (https://tinted-theming.github.io/tinted-gallery/#base16-solarflare-light)",
+          "type": "string",
+          "const": "SolarflareLight"
+        },
+        {
+          "description": "Solarflare (https://tinted-theming.github.io/tinted-gallery/#base16-solarflare)",
+          "type": "string",
+          "const": "Solarflare"
+        },
+        {
+          "description": "Solarized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-solarized-dark)",
+          "type": "string",
+          "const": "SolarizedDark"
+        },
+        {
+          "description": "Solarized Light (https://tinted-theming.github.io/tinted-gallery/#base16-solarized-light)",
+          "type": "string",
+          "const": "SolarizedLight"
+        },
+        {
+          "description": "Spaceduck (https://tinted-theming.github.io/tinted-gallery/#base16-spaceduck)",
+          "type": "string",
+          "const": "Spaceduck"
+        },
+        {
+          "description": "Spacemacs (https://tinted-theming.github.io/tinted-gallery/#base16-spacemacs)",
+          "type": "string",
+          "const": "Spacemacs"
+        },
+        {
+          "description": "Sparky (https://tinted-theming.github.io/tinted-gallery/#base16-sparky)",
+          "type": "string",
+          "const": "Sparky"
+        },
+        {
+          "description": "Standardized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-standardized-dark)",
+          "type": "string",
+          "const": "StandardizedDark"
+        },
+        {
+          "description": "Standardized Light (https://tinted-theming.github.io/tinted-gallery/#base16-standardized-light)",
+          "type": "string",
+          "const": "StandardizedLight"
+        },
+        {
+          "description": "Stella (https://tinted-theming.github.io/tinted-gallery/#base16-stella)",
+          "type": "string",
+          "const": "Stella"
+        },
+        {
+          "description": "Still Alive (https://tinted-theming.github.io/tinted-gallery/#base16-still-alive)",
+          "type": "string",
+          "const": "StillAlive"
+        },
+        {
+          "description": "Summercamp (https://tinted-theming.github.io/tinted-gallery/#base16-summercamp)",
+          "type": "string",
+          "const": "Summercamp"
+        },
+        {
+          "description": "Summerfruit Dark (https://tinted-theming.github.io/tinted-gallery/#base16-summerfruit-dark)",
+          "type": "string",
+          "const": "SummerfruitDark"
+        },
+        {
+          "description": "Summerfruit Light (https://tinted-theming.github.io/tinted-gallery/#base16-summerfruit-light)",
+          "type": "string",
+          "const": "SummerfruitLight"
+        },
+        {
+          "description": "Synth Midnight Dark (https://tinted-theming.github.io/tinted-gallery/#base16-synth-midnight-dark)",
+          "type": "string",
+          "const": "SynthMidnightDark"
+        },
+        {
+          "description": "Synth Midnight Light (https://tinted-theming.github.io/tinted-gallery/#base16-synth-midnight-light)",
+          "type": "string",
+          "const": "SynthMidnightLight"
+        },
+        {
+          "description": "Tango (https://tinted-theming.github.io/tinted-gallery/#base16-tango)",
+          "type": "string",
+          "const": "Tango"
+        },
+        {
+          "description": "Tarot (https://tinted-theming.github.io/tinted-gallery/#base16-tarot)",
+          "type": "string",
+          "const": "Tarot"
+        },
+        {
+          "description": "Tender (https://tinted-theming.github.io/tinted-gallery/#base16-tender)",
+          "type": "string",
+          "const": "Tender"
+        },
+        {
+          "description": "Terracotta Dark (https://tinted-theming.github.io/tinted-gallery/#base16-terracotta-dark)",
+          "type": "string",
+          "const": "TerracottaDark"
+        },
+        {
+          "description": "Terracotta (https://tinted-theming.github.io/tinted-gallery/#base16-terracotta)",
+          "type": "string",
+          "const": "Terracotta"
+        },
+        {
+          "description": "Tokyo City Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-dark)",
+          "type": "string",
+          "const": "TokyoCityDark"
+        },
+        {
+          "description": "Tokyo City Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-light)",
+          "type": "string",
+          "const": "TokyoCityLight"
+        },
+        {
+          "description": "Tokyo City Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-terminal-dark)",
+          "type": "string",
+          "const": "TokyoCityTerminalDark"
+        },
+        {
+          "description": "Tokyo City Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-terminal-light)",
+          "type": "string",
+          "const": "TokyoCityTerminalLight"
+        },
+        {
+          "description": "Tokyo Night Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-dark)",
+          "type": "string",
+          "const": "TokyoNightDark"
+        },
+        {
+          "description": "Tokyo Night Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-light)",
+          "type": "string",
+          "const": "TokyoNightLight"
+        },
+        {
+          "description": "Tokyo Night Moon (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-moon)",
+          "type": "string",
+          "const": "TokyoNightMoon"
+        },
+        {
+          "description": "Tokyo Night Storm (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-storm)",
+          "type": "string",
+          "const": "TokyoNightStorm"
+        },
+        {
+          "description": "Tokyo Night Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-dark)",
+          "type": "string",
+          "const": "TokyoNightTerminalDark"
+        },
+        {
+          "description": "Tokyo Night Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-light)",
+          "type": "string",
+          "const": "TokyoNightTerminalLight"
+        },
+        {
+          "description": "Tokyo Night Terminal Storm (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-storm)",
+          "type": "string",
+          "const": "TokyoNightTerminalStorm"
+        },
+        {
+          "description": "Tokyodark Terminal (https://tinted-theming.github.io/tinted-gallery/#base16-tokyodark-terminal)",
+          "type": "string",
+          "const": "TokyodarkTerminal"
+        },
+        {
+          "description": "Tokyodark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyodark)",
+          "type": "string",
+          "const": "Tokyodark"
+        },
+        {
+          "description": "Tomorrow Night Eighties (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow-night-eighties)",
+          "type": "string",
+          "const": "TomorrowNightEighties"
+        },
+        {
+          "description": "Tomorrow Night (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow-night)",
+          "type": "string",
+          "const": "TomorrowNight"
+        },
+        {
+          "description": "Tomorrow (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow)",
+          "type": "string",
+          "const": "Tomorrow"
+        },
+        {
+          "description": "Tube (https://tinted-theming.github.io/tinted-gallery/#base16-tube)",
+          "type": "string",
+          "const": "Tube"
+        },
+        {
+          "description": "Twilight (https://tinted-theming.github.io/tinted-gallery/#base16-twilight)",
+          "type": "string",
+          "const": "Twilight"
+        },
+        {
+          "description": "Unikitty Dark (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-dark)",
+          "type": "string",
+          "const": "UnikittyDark"
+        },
+        {
+          "description": "Unikitty Light (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-light)",
+          "type": "string",
+          "const": "UnikittyLight"
+        },
+        {
+          "description": "Unikitty Reversible (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-reversible)",
+          "type": "string",
+          "const": "UnikittyReversible"
+        },
+        {
+          "description": "Uwunicorn (https://tinted-theming.github.io/tinted-gallery/#base16-uwunicorn)",
+          "type": "string",
+          "const": "Uwunicorn"
+        },
+        {
+          "description": "Vesper (https://tinted-theming.github.io/tinted-gallery/#base16-vesper)",
+          "type": "string",
+          "const": "Vesper"
+        },
+        {
+          "description": "Vice (https://tinted-theming.github.io/tinted-gallery/#base16-vice)",
+          "type": "string",
+          "const": "Vice"
+        },
+        {
+          "description": "Vulcan (https://tinted-theming.github.io/tinted-gallery/#base16-vulcan)",
+          "type": "string",
+          "const": "Vulcan"
+        },
+        {
+          "description": "Windows 10 Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-10-light)",
+          "type": "string",
+          "const": "Windows10Light"
+        },
+        {
+          "description": "Windows 10 (https://tinted-theming.github.io/tinted-gallery/#base16-windows-10)",
+          "type": "string",
+          "const": "Windows10"
+        },
+        {
+          "description": "Windows 95 Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-95-light)",
+          "type": "string",
+          "const": "Windows95Light"
+        },
+        {
+          "description": "Windows 95 (https://tinted-theming.github.io/tinted-gallery/#base16-windows-95)",
+          "type": "string",
+          "const": "Windows95"
+        },
+        {
+          "description": "Windows Highcontrast Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-highcontrast-light)",
+          "type": "string",
+          "const": "WindowsHighcontrastLight"
+        },
+        {
+          "description": "Windows Highcontrast (https://tinted-theming.github.io/tinted-gallery/#base16-windows-highcontrast)",
+          "type": "string",
+          "const": "WindowsHighcontrast"
+        },
+        {
+          "description": "Windows Nt Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-nt-light)",
+          "type": "string",
+          "const": "WindowsNtLight"
+        },
+        {
+          "description": "Windows Nt (https://tinted-theming.github.io/tinted-gallery/#base16-windows-nt)",
+          "type": "string",
+          "const": "WindowsNt"
+        },
+        {
+          "description": "Woodland (https://tinted-theming.github.io/tinted-gallery/#base16-woodland)",
+          "type": "string",
+          "const": "Woodland"
+        },
+        {
+          "description": "Xcode Dusk (https://tinted-theming.github.io/tinted-gallery/#base16-xcode-dusk)",
+          "type": "string",
+          "const": "XcodeDusk"
+        },
+        {
+          "description": "Zenbones (https://tinted-theming.github.io/tinted-gallery/#base16-zenbones)",
+          "type": "string",
+          "const": "Zenbones"
+        },
+        {
+          "description": "Zenburn (https://tinted-theming.github.io/tinted-gallery/#base16-zenburn)",
+          "type": "string",
+          "const": "Zenburn"
+        }
+      ]
+    },
+    "Base16ColourPalette": {
+      "description": "Base16 colour palette: https://github.com/chriskempson/base16",
+      "type": "object",
+      "properties": {
+        "base_00": {
+          "description": "Base00",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_01": {
+          "description": "Base01",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_02": {
+          "description": "Base02",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_03": {
+          "description": "Base03",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_04": {
+          "description": "Base04",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_05": {
+          "description": "Base05",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_06": {
+          "description": "Base06",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_07": {
+          "description": "Base07",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_08": {
+          "description": "Base08",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_09": {
+          "description": "Base09",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_0a": {
+          "description": "Base0A",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_0b": {
+          "description": "Base0B",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_0c": {
+          "description": "Base0C",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_0d": {
+          "description": "Base0D",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_0e": {
+          "description": "Base0E",
+          "$ref": "#/$defs/Colour"
+        },
+        "base_0f": {
+          "description": "Base0F",
+          "$ref": "#/$defs/Colour"
+        }
+      },
+      "required": [
+        "base_00",
+        "base_01",
+        "base_02",
+        "base_03",
+        "base_04",
+        "base_05",
+        "base_06",
+        "base_07",
+        "base_08",
+        "base_09",
+        "base_0a",
+        "base_0b",
+        "base_0c",
+        "base_0d",
+        "base_0e",
+        "base_0f"
+      ]
+    },
+    "Base16Value": {
+      "description": "Base16 value",
+      "oneOf": [
+        {
+          "description": "Base00",
+          "type": "string",
+          "const": "Base00"
+        },
+        {
+          "description": "Base01",
+          "type": "string",
+          "const": "Base01"
+        },
+        {
+          "description": "Base02",
+          "type": "string",
+          "const": "Base02"
+        },
+        {
+          "description": "Base03",
+          "type": "string",
+          "const": "Base03"
+        },
+        {
+          "description": "Base04",
+          "type": "string",
+          "const": "Base04"
+        },
+        {
+          "description": "Base05",
+          "type": "string",
+          "const": "Base05"
+        },
+        {
+          "description": "Base06",
+          "type": "string",
+          "const": "Base06"
+        },
+        {
+          "description": "Base07",
+          "type": "string",
+          "const": "Base07"
+        },
+        {
+          "description": "Base08",
+          "type": "string",
+          "const": "Base08"
+        },
+        {
+          "description": "Base09",
+          "type": "string",
+          "const": "Base09"
+        },
+        {
+          "description": "Base0A",
+          "type": "string",
+          "const": "Base0A"
+        },
+        {
+          "description": "Base0B",
+          "type": "string",
+          "const": "Base0B"
+        },
+        {
+          "description": "Base0C",
+          "type": "string",
+          "const": "Base0C"
+        },
+        {
+          "description": "Base0D",
+          "type": "string",
+          "const": "Base0D"
+        },
+        {
+          "description": "Base0E",
+          "type": "string",
+          "const": "Base0E"
+        },
+        {
+          "description": "Base0F",
+          "type": "string",
+          "const": "Base0F"
+        }
+      ]
+    },
+    "BorderColours": {
+      "description": "Border colours for different container states\n\nThese options will have no effect if a `theme` is set",
+      "type": "object",
+      "properties": {
+        "floating": {
+          "description": "Border colour when the container is in floating mode",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Colour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "monocle": {
+          "description": "Border colour when the container is in monocle mode",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Colour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "single": {
+          "description": "Border colour when the container contains a single window",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Colour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stack": {
+          "description": "Border colour when the container contains multiple windows",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Colour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unfocused": {
+          "description": "Border colour when the container is unfocused",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Colour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unfocused_locked": {
+          "description": "Border colour when the container is unfocused and locked",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Colour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Catppuccin": {
+      "description": "Catppuccin palette",
+      "oneOf": [
+        {
+          "description": "Frappe (https://catppuccin.com/palette#flavor-frappe)",
+          "type": "string",
+          "const": "Frappe"
+        },
+        {
+          "description": "Latte (https://catppuccin.com/palette#flavor-latte)",
+          "type": "string",
+          "const": "Latte"
+        },
+        {
+          "description": "Macchiato (https://catppuccin.com/palette#flavor-macchiato)",
+          "type": "string",
+          "const": "Macchiato"
+        },
+        {
+          "description": "Mocha (https://catppuccin.com/palette#flavor-mocha)",
+          "type": "string",
+          "const": "Mocha"
+        }
+      ]
+    },
+    "CatppuccinValue": {
+      "description": "Catppuccin Value",
+      "oneOf": [
+        {
+          "description": "Rosewater",
+          "type": "string",
+          "const": "Rosewater"
+        },
+        {
+          "description": "Flamingo",
+          "type": "string",
+          "const": "Flamingo"
+        },
+        {
+          "description": "Pink",
+          "type": "string",
+          "const": "Pink"
+        },
+        {
+          "description": "Mauve",
+          "type": "string",
+          "const": "Mauve"
+        },
+        {
+          "description": "Red",
+          "type": "string",
+          "const": "Red"
+        },
+        {
+          "description": "Maroon",
+          "type": "string",
+          "const": "Maroon"
+        },
+        {
+          "description": "Peach",
+          "type": "string",
+          "const": "Peach"
+        },
+        {
+          "description": "Yellow",
+          "type": "string",
+          "const": "Yellow"
+        },
+        {
+          "description": "Green",
+          "type": "string",
+          "const": "Green"
+        },
+        {
+          "description": "Teal",
+          "type": "string",
+          "const": "Teal"
+        },
+        {
+          "description": "Sky",
+          "type": "string",
+          "const": "Sky"
+        },
+        {
+          "description": "Sapphire",
+          "type": "string",
+          "const": "Sapphire"
+        },
+        {
+          "description": "Blue",
+          "type": "string",
+          "const": "Blue"
+        },
+        {
+          "description": "Lavender",
+          "type": "string",
+          "const": "Lavender"
+        },
+        {
+          "description": "Text",
+          "type": "string",
+          "const": "Text"
+        },
+        {
+          "description": "Subtext1",
+          "type": "string",
+          "const": "Subtext1"
+        },
+        {
+          "description": "Subtext0",
+          "type": "string",
+          "const": "Subtext0"
+        },
+        {
+          "description": "Overlay2",
+          "type": "string",
+          "const": "Overlay2"
+        },
+        {
+          "description": "Overlay1",
+          "type": "string",
+          "const": "Overlay1"
+        },
+        {
+          "description": "Overlay0",
+          "type": "string",
+          "const": "Overlay0"
+        },
+        {
+          "description": "Surface2",
+          "type": "string",
+          "const": "Surface2"
+        },
+        {
+          "description": "Surface1",
+          "type": "string",
+          "const": "Surface1"
+        },
+        {
+          "description": "Surface0",
+          "type": "string",
+          "const": "Surface0"
+        },
+        {
+          "description": "Base",
+          "type": "string",
+          "const": "Base"
+        },
+        {
+          "description": "Mantle",
+          "type": "string",
+          "const": "Mantle"
+        },
+        {
+          "description": "Crust",
+          "type": "string",
+          "const": "Crust"
+        }
+      ]
+    },
+    "Colour": {
+      "description": "Colour representation",
+      "anyOf": [
+        {
+          "description": "Colour represented as RGB",
+          "$ref": "#/$defs/Rgb"
+        },
+        {
+          "description": "Colour represented as Hex",
+          "$ref": "#/$defs/Hex"
+        }
+      ]
+    },
+    "CrossBoundaryBehaviour": {
+      "description": "Behaviour when an action would cross a monitor boundary",
+      "oneOf": [
+        {
+          "description": "Attempt to perform actions across a workspace boundary",
+          "type": "string",
+          "const": "Workspace"
+        },
+        {
+          "description": "Attempt to perform actions across a monitor boundary",
+          "type": "string",
+          "const": "Monitor"
+        }
+      ]
+    },
+    "DefaultLayout": {
+      "description": "A predefined komorebi layout",
+      "oneOf": [
+        {
+          "description": "BSP Layout\n\n```text\n+-------+-----+\n|       |     |\n|       +--+--+\n|       |  |--|\n+-------+--+--+\n```",
+          "type": "string",
+          "const": "BSP"
+        },
+        {
+          "description": "Columns Layout\n\n```text\n+--+--+--+--+\n|  |  |  |  |\n|  |  |  |  |\n|  |  |  |  |\n+--+--+--+--+\n```",
+          "type": "string",
+          "const": "Columns"
+        },
+        {
+          "description": "Rows Layout\n\n```text\n+-----------+\n|-----------|\n|-----------|\n|-----------|\n+-----------+\n```",
+          "type": "string",
+          "const": "Rows"
+        },
+        {
+          "description": "Vertical Stack Layout\n\n```text\n+-------+-----+\n|       |     |\n|       +-----+\n|       |     |\n+-------+-----+\n```",
+          "type": "string",
+          "const": "VerticalStack"
+        },
+        {
+          "description": "Horizontal Stack Layout\n\n```text\n+------+------+\n|             |\n|------+------+\n|      |      |\n+------+------+\n```",
+          "type": "string",
+          "const": "HorizontalStack"
+        },
+        {
+          "description": "Ultrawide Vertical Stack Layout\n\n```text\n+-----+-----------+-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n+-----+-----------+-----+\n```",
+          "type": "string",
+          "const": "UltrawideVerticalStack"
+        },
+        {
+          "description": "Grid Layout\n\n```text\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n  4 windows       5 windows       6 windows       7 windows\n```",
+          "type": "string",
+          "const": "Grid"
+        },
+        {
+          "description": "Right Main Vertical Stack Layout\n\n```text\n+-----+-------+\n|     |       |\n+-----+       |\n|     |       |\n+-----+-------+\n```",
+          "type": "string",
+          "const": "RightMainVerticalStack"
+        },
+        {
+          "description": "Scrolling Layout\n\n```text\n+--+--+--+--+--+--+\n|     |     |     |\n|     |     |     |\n|     |     |     |\n+--+--+--+--+--+--+\n```",
+          "type": "string",
+          "const": "Scrolling"
+        }
+      ]
+    },
+    "FloatingLayerBehaviour": {
+      "description": "Floating layer behaviour when a new window is opened",
+      "oneOf": [
+        {
+          "description": "Tile new windows (unless they match a float rule or float override is active)",
+          "type": "string",
+          "const": "Tile"
+        },
+        {
+          "description": "Float new windows",
+          "type": "string",
+          "const": "Float"
+        }
+      ]
+    },
+    "GridLayoutOptions": {
+      "description": "Options for the Grid layout",
+      "type": "object",
+      "properties": {
+        "rows": {
+          "description": "Maximum number of rows per grid column",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "rows"
+      ]
+    },
+    "Hex": {
+      "description": "Colour represented as a Hex string",
+      "type": "string",
+      "format": "color-hex"
+    },
+    "IdWithIdentifier": {
+      "description": "Rule for matching applications",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Target identifier",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind of identifier to target",
+          "$ref": "#/$defs/ApplicationIdentifier"
+        },
+        "matching_strategy": {
+          "description": "Matching strategy to use",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatchingStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ]
+    },
+    "KomorebiTheme": {
+      "description": "Komorebi theme",
+      "oneOf": [
+        {
+          "title": "Catppuccin",
+          "description": "Theme from catppuccin-egui",
+          "type": "object",
+          "properties": {
+            "palette": {
+              "type": "string",
+              "const": "Catppuccin"
+            }
+          },
+          "$ref": "#/$defs/KomorebiThemeCatppuccin",
+          "required": [
+            "palette"
+          ]
+        },
+        {
+          "title": "Base16",
+          "description": "Theme from base16-egui-themes",
+          "type": "object",
+          "properties": {
+            "palette": {
+              "type": "string",
+              "const": "Base16"
+            }
+          },
+          "$ref": "#/$defs/KomorebiThemeBase16",
+          "required": [
+            "palette"
+          ]
+        },
+        {
+          "title": "Custom",
+          "description": "Custom Base16 theme",
+          "type": "object",
+          "properties": {
+            "palette": {
+              "type": "string",
+              "const": "Custom"
+            }
+          },
+          "$ref": "#/$defs/KomorebiThemeCustom",
+          "required": [
+            "palette"
+          ]
+        }
+      ]
+    },
+    "KomorebiThemeBase16": {
+      "description": "Theme from base16-egui-themes",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Bar accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "floating_border": {
+          "description": "Floating window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base09"
+        },
+        "monocle_border": {
+          "description": "Monocle window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0F"
+        },
+        "name": {
+          "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)",
+          "$ref": "#/$defs/Base16"
+        },
+        "single_border": {
+          "description": "Single window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "stack_border": {
+          "description": "Stack window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "unfocused_border": {
+          "description": "Unfocused window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "unfocused_locked_border": {
+          "description": "Unfocused locked window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base08"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "KomorebiThemeCatppuccin": {
+      "description": "Theme from catppuccin-egui",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Bar accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Blue"
+        },
+        "floating_border": {
+          "description": "Floating window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Yellow"
+        },
+        "monocle_border": {
+          "description": "Monocle window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Pink"
+        },
+        "name": {
+          "description": "Name of the Catppuccin theme (previews: https://github.com/catppuccin/catppuccin)",
+          "$ref": "#/$defs/Catppuccin"
+        },
+        "single_border": {
+          "description": "Single window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Blue"
+        },
+        "stack_border": {
+          "description": "Stack window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Green"
+        },
+        "unfocused_border": {
+          "description": "Unfocused window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base"
+        },
+        "unfocused_locked_border": {
+          "description": "Unfocused locked window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Red"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "KomorebiThemeCustom": {
+      "description": "Custom Base16 theme",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Bar accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "colours": {
+          "description": "Colours of the custom Base16 theme palette",
+          "$ref": "#/$defs/Base16ColourPalette"
+        },
+        "floating_border": {
+          "description": "Floating window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base09"
+        },
+        "monocle_border": {
+          "description": "Monocle window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0F"
+        },
+        "single_border": {
+          "description": "Single window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "stack_border": {
+          "description": "Stack window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "unfocused_border": {
+          "description": "Unfocused window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "unfocused_locked_border": {
+          "description": "Unfocused locked window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base08"
+        }
+      },
+      "required": [
+        "colours"
+      ]
+    },
+    "LayoutDefaultEntry": {
+      "description": "Per-layout default options entry for the `layout_defaults` global setting.\nContains both base layout options and threshold-based layout options rules.",
+      "type": "object",
+      "properties": {
+        "layout_options": {
+          "description": "Default layout options for this layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options_rules": {
+          "description": "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/LayoutOptions"
+            }
+          }
+        }
+      }
+    },
+    "LayoutOptions": {
+      "description": "Options for specific layouts",
+      "type": "object",
+      "properties": {
+        "column_ratios": {
+          "description": "Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Columns layout: ratios for each column width\n- Used by Grid layout: ratios for column widths\n- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio\n- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)\n- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio\n\nColumns without a ratio share remaining space equally.\nExample: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
+        },
+        "grid": {
+          "description": "Options related to the Grid layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GridLayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_ratios": {
+          "description": "Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Rows layout: ratios for each row height\n- Used by Grid layout: ratios for row heights\n\nRows without a ratio share remaining space equally.\nExample: `[0.5, 0.5]` for 50%-50% rows",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
+        },
+        "scrolling": {
+          "description": "Options related to the Scrolling layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScrollingLayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "MatchingRule": {
+      "description": "Rule for matching applications",
+      "anyOf": [
+        {
+          "description": "Simple matching rule which must evaluate to true",
+          "$ref": "#/$defs/IdWithIdentifier"
+        },
+        {
+          "description": "Composite matching rule where all conditions must evaluate to true",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IdWithIdentifier"
+          }
+        }
+      ]
+    },
+    "MatchingStrategy": {
+      "description": "Strategy for matching identifiers",
+      "oneOf": [
+        {
+          "description": "Should not be used, only kept for backward compatibility",
+          "type": "string",
+          "const": "Legacy"
+        },
+        {
+          "description": "Equals",
+          "type": "string",
+          "const": "Equals"
+        },
+        {
+          "description": "Starts With",
+          "type": "string",
+          "const": "StartsWith"
+        },
+        {
+          "description": "Ends With",
+          "type": "string",
+          "const": "EndsWith"
+        },
+        {
+          "description": "Contains",
+          "type": "string",
+          "const": "Contains"
+        },
+        {
+          "description": "Regex",
+          "type": "string",
+          "const": "Regex"
+        },
+        {
+          "description": "Does not end with",
+          "type": "string",
+          "const": "DoesNotEndWith"
+        },
+        {
+          "description": "Does not start with",
+          "type": "string",
+          "const": "DoesNotStartWith"
+        },
+        {
+          "description": "Does not equal",
+          "type": "string",
+          "const": "DoesNotEqual"
+        },
+        {
+          "description": "Does not contain",
+          "type": "string",
+          "const": "DoesNotContain"
+        }
+      ]
+    },
+    "MonitorConfig": {
+      "description": "Monitor configuration",
+      "type": "object",
+      "properties": {
+        "container_padding": {
+          "description": "Container padding",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "floating_layer_behaviour": {
+          "description": "Determine what happens to a new window when the Floating workspace layer is active",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FloatingLayerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Tile"
+        },
+        "wallpaper": {
+          "description": "Specify a wallpaper for this monitor",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wallpaper"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_based_work_area_offset": {
+          "description": "Window based work area offset",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_based_work_area_offset_limit": {
+          "description": "Open window limit after which the window based work area offset will no longer be applied",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int",
+          "default": 1
+        },
+        "window_hiding_position": {
+          "description": "Determine which position windows should be hidden at on this monitor",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowHidingPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_area_offset": {
+          "description": "Monitor-specific work area offset",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workspace_padding": {
+          "description": "Workspace padding (default: global)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "workspaces": {
+          "description": "Workspace configurations",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkspaceConfig"
+          }
+        }
+      },
+      "required": [
+        "workspaces"
+      ]
+    },
+    "MonocleFocusBehaviour": {
+      "description": "Behaviour when focusing in a direction while a monocle container is active",
+      "oneOf": [
+        {
+          "description": "Cycle the monocle container to the next/previous container in the workspace",
+          "type": "string",
+          "const": "Cycle"
+        },
+        {
+          "description": "Do nothing, allowing focus to fall through to cross-monitor logic",
+          "type": "string",
+          "const": "NoOp"
+        }
+      ]
+    },
+    "MoveBehaviour": {
+      "description": "Move behaviour when the operation works across a monitor boundary",
+      "oneOf": [
+        {
+          "description": "Swap the window container with the window container at the edge of the adjacent monitor",
+          "type": "string",
+          "const": "Swap"
+        },
+        {
+          "description": "Insert the window container into the focused workspace on the adjacent monitor",
+          "type": "string",
+          "const": "Insert"
+        },
+        {
+          "description": "Do nothing if trying to move a window container in the direction of an adjacent monitor",
+          "type": "string",
+          "const": "NoOp"
+        }
+      ]
+    },
+    "OperationBehaviour": {
+      "description": "Operation behaviour for temporarily unmanaged and floating windows",
+      "oneOf": [
+        {
+          "description": "Process commands on temporarily unmanaged/floated windows",
+          "type": "string",
+          "const": "Op"
+        },
+        {
+          "description": "Ignore commands on temporarily unmanaged/floated windows",
+          "type": "string",
+          "const": "NoOp"
+        }
+      ]
+    },
+    "PathBuf": {
+      "description": "A file system path. Environment variables like $VAR are automatically resolved.",
+      "type": "string"
+    },
+    "PerAnimationPrefixConfig": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
+      "anyOf": [
+        {
+          "description": "Animation configuration prefixed for a specific animation kind",
+          "type": "object",
+          "properties": {
+            "movement": {
+              "type": "boolean"
+            },
+            "workspace": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Animation configuration for all animation kinds",
+          "type": "boolean"
+        }
+      ]
+    },
+    "PerAnimationPrefixConfig2": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
+      "anyOf": [
+        {
+          "description": "Animation configuration prefixed for a specific animation kind",
+          "type": "object",
+          "properties": {
+            "movement": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "workspace": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Animation configuration for all animation kinds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      ]
+    },
+    "PerAnimationPrefixConfig3": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
+      "anyOf": [
+        {
+          "description": "Animation configuration prefixed for a specific animation kind",
+          "type": "object",
+          "properties": {
+            "movement": {
+              "$ref": "#/$defs/AnimationStyle"
+            },
+            "workspace": {
+              "$ref": "#/$defs/AnimationStyle"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Animation configuration for all animation kinds",
+          "$ref": "#/$defs/AnimationStyle"
+        }
+      ]
+    },
+    "Placement": {
+      "description": "Placement behaviour for floating windows",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "const": "None"
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "const": "Center"
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "const": "CenterAndResize"
+        }
+      ]
+    },
+    "PredefinedAspectRatio": {
+      "description": "Predefined aspect ratio",
+      "oneOf": [
+        {
+          "description": "21:9",
+          "type": "string",
+          "const": "Ultrawide"
+        },
+        {
+          "description": "16:9",
+          "type": "string",
+          "const": "Widescreen"
+        },
+        {
+          "description": "4:3",
+          "type": "string",
+          "const": "Standard"
+        }
+      ]
+    },
+    "Rect": {
+      "description": "Rectangle dimensions",
+      "type": "object",
+      "properties": {
+        "bottom": {
+          "description": "Height of the rectangle (from the top point)",
+          "type": "integer",
+          "format": "int32"
+        },
+        "left": {
+          "description": "Left point of the rectangle",
+          "type": "integer",
+          "format": "int32"
+        },
+        "right": {
+          "description": "Width of the recentangle (from the left point)",
+          "type": "integer",
+          "format": "int32"
+        },
+        "top": {
+          "description": "Top point of the rectangle",
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "required": [
+        "left",
+        "top",
+        "right",
+        "bottom"
+      ]
+    },
+    "Rgb": {
+      "description": "Colour represented as RGB",
+      "type": "object",
+      "properties": {
+        "b": {
+          "description": "Blue",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "g": {
+          "description": "Green",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "r": {
+          "description": "Red",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "r",
+        "g",
+        "b"
+      ]
+    },
+    "ScrollingCentering": {
+      "description": "When the Scrolling layout centres the focused column\n\nA boolean is also accepted when reading, for the layout option that used to be one: `true` is\n`Always` and `false` is `Never`.",
+      "oneOf": [
+        {
+          "description": "Scroll just far enough to bring the focused column into view, and no further",
+          "type": "string",
+          "const": "Never"
+        },
+        {
+          "description": "Keep the focused column in the middle of the screen",
+          "type": "string",
+          "const": "Always"
+        },
+        {
+          "description": "Centre the focused column when it does not fit on the screen together with the column that\nfocus came from",
+          "type": "string",
+          "const": "OnOverflow"
+        }
+      ]
+    },
+    "ScrollingLayoutOptions": {
+      "description": "Options for the Scrolling layout",
+      "type": "object",
+      "properties": {
+        "center_focused_column": {
+          "description": "When to centre the focused column: `Never` (the default), `Always`, or `OnOverflow`, which\nis when it does not fit on the screen together with the column that focus came from. A\nboolean is also accepted, where `true` is `Always` and `false` is `Never`",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/ScrollingCentering"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "columns": {
+          "description": "Desired number of visible columns (default: 3)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "columns"
+      ]
+    },
+    "ThemeOptions": {
+      "description": "Theme options",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Komorebi status bar accent",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "floating_border": {
+          "description": "Border colour when the window is floating",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base09"
+        },
+        "monocle_border": {
+          "description": "Border colour when the container is in monocle mode",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0F"
+        },
+        "single_border": {
+          "description": "Border colour when the container contains a single window",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "stack_border": {
+          "description": "Border colour when the container contains multiple windows",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "theme_variant": {
+          "description": "Specify Light or Dark variant for theme generation",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeVariant"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Dark"
+        },
+        "unfocused_border": {
+          "description": "Border colour when the container is unfocused",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "unfocused_locked_border": {
+          "description": "Border colour when the container is unfocused and locked",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base08"
+        }
+      }
+    },
+    "ThemeVariant": {
+      "description": "Theme variant",
+      "oneOf": [
+        {
+          "description": "Dark variant",
+          "type": "string",
+          "const": "Dark"
+        },
+        {
+          "description": "Light variant",
+          "type": "string",
+          "const": "Light"
+        }
+      ]
+    },
+    "Wallpaper": {
+      "description": "Wallpaper configuration",
+      "type": "object",
+      "properties": {
+        "generate_theme": {
+          "description": "Generate and apply Base16 theme for this wallpaper",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "path": {
+          "description": "Path to the wallpaper image file",
+          "$ref": "#/$defs/PathBuf"
+        },
+        "theme_options": {
+          "description": "Specify theme options",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "WindowContainerBehaviour": {
+      "description": "Window container behaviour when a new window is opened",
+      "oneOf": [
+        {
+          "description": "Create a new container for each new window",
+          "type": "string",
+          "const": "Create"
+        },
+        {
+          "description": "Append new windows to the focused window container",
+          "type": "string",
+          "const": "Append"
+        }
+      ]
+    },
+    "WindowHidingPosition": {
+      "description": "Window hiding position",
+      "oneOf": [
+        {
+          "description": "Hide windows in the bottom left corner of the screen",
+          "type": "string",
+          "const": "BottomLeft"
+        },
+        {
+          "description": "Hide windows in the bottom right corner of the screen",
+          "type": "string",
+          "const": "BottomRight"
+        }
+      ]
+    },
+    "WorkspaceConfig": {
+      "description": "Workspace configuration",
+      "type": "object",
+      "properties": {
+        "apply_window_based_work_area_offset": {
+          "description": "Apply this monitor's window-based work area offset",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "container_padding": {
+          "description": "Container padding (default: global)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "float_override": {
+          "description": "Enable or disable float override, which makes it so every new window opens in floating mode",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "floating_layer_behaviour": {
+          "description": "Determine what happens to a new window when the Floating workspace layer is active",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FloatingLayerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Tile"
+        },
+        "initial_workspace_rules": {
+          "description": "Initial workspace application rules",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/MatchingRule"
+          }
+        },
+        "layout": {
+          "description": "Layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DefaultLayout"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "BSP"
+        },
+        "layout_flip": {
+          "description": "Specify an axis on which to flip the selected layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Axis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options": {
+          "description": "Layout-specific options",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options_rules": {
+          "description": "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.\nThis follows the same threshold logic as `layout_rules`.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/LayoutOptions"
+            }
+          }
+        },
+        "layout_rules": {
+          "description": "Layout rules in the format of threshold => layout",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/DefaultLayout"
+            }
+          }
+        },
+        "name": {
+          "description": "Name",
+          "type": "string"
+        },
+        "tile": {
+          "description": "Enable or disable tiling for the workspace",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "wallpaper": {
+          "description": "Specify a wallpaper for this workspace",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wallpaper"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_container_behaviour": {
+          "description": "Determine what happens when a new window is opened",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowContainerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Create"
+        },
+        "window_container_behaviour_rules": {
+          "description": "Window container behaviour rules in the format of threshold => behaviour",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/WindowContainerBehaviour"
+            }
+          }
+        },
+        "work_area_offset": {
+          "description": "Workspace specific work area offset",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_area_offset_rules": {
+          "description": "Work area offset rules in the format of threshold => Rect (default: None)",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Rect"
+            }
+          }
+        },
+        "workspace_padding": {
+          "description": "Workspace padding (default: global)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "workspace_rules": {
+          "description": "Permanent workspace application rules",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/MatchingRule"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  }
+}

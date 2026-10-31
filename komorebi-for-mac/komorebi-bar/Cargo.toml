@@ -1,0 +1,56 @@
+[package]
+name = "komorebi-bar"
+version = "0.1.1"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+komorebi-client = { path = "../komorebi-client", default-features = false }
+komorebi-themes = { workspace = true }
+
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+clap = { workspace = true }
+color-eyre = { workspace = true }
+crossbeam-channel = { workspace = true }
+dirs = { workspace = true }
+dunce = { workspace = true }
+eframe = { workspace = true }
+egui-phosphor = { git = "https://github.com/amPerl/egui-phosphor", rev = "d13688738478ecd12b426e3e74c59d6577a85b59" }
+font-loader = "0.11"
+hotwatch = { workspace = true }
+icns = "0.4"
+image = "0.25"
+lazy_static = { workspace = true }
+netdev = "0.40"
+num = "0.4"
+num-derive = "0.4"
+num-traits = "0.2"
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+] }
+raw-window-handle = "0.6"
+parking_lot = { workspace = true }
+random_word = { version = "0.5", features = ["en"] }
+reqwest = { version = "0.12", features = ["blocking"] }
+schemars = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+starship-battery = "0.10"
+sysinfo = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[features]
+default = ["schemars"]
+schemars = [
+  "dep:schemars",
+  "komorebi-client/default",
+  "komorebi-themes/default",
+]

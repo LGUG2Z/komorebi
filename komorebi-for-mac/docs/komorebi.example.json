@@ -1,0 +1,61 @@
+{
+  "$schema": "https://komorebi-for-mac.lgug2z.com/komorebi.0.1.0.schema.json",
+  "app_specific_configuration_path": "$HOME/.config/komorebi/applications.json",
+  "cross_monitor_move_behaviour": "Insert",
+  "default_workspace_padding": 15,
+  "default_container_padding": 15,
+  "border": true,
+  "border_width": 6,
+  "border_offset": 5,
+  "floating_window_aspect_ratio": "Widescreen",
+  "floating_layer_behaviour": "Float",
+  "resize_delta": 100,
+  "ignore_rules": [],
+  "floating_applications": [],
+  "manage_rules": [],
+  "monitors": [
+    {
+      "workspaces": [
+        {
+          "name": "I",
+          "layout": "BSP",
+          "initial_workspace_rules": [
+//            {
+//              "kind": "Exe",
+//              "id": "Zen",
+//              "matching_strategy": "Equals"
+//            }
+          ]
+        },
+        {
+          "name": "II",
+          "layout": "VerticalStack"
+        },
+        {
+          "name": "III",
+          "layout": "HorizontalStack"
+        },
+        {
+          "name": "IV",
+          "layout": "UltrawideVerticalStack"
+        },
+        {
+          "name": "V",
+          "layout": "Rows"
+        },
+        {
+          "name": "VI",
+          "layout": "Grid"
+        },
+        {
+          "name": "VII",
+          "layout": "RightMainVerticalStack"
+        },
+        {
+          "name": "VIII",
+          "layout": "Scrolling"
+        }
+      ]
+    }
+  ]
+}

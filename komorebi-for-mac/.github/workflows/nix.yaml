@@ -1,0 +1,99 @@
+# Adapted from https://github.com/rust-lang/rustup/blob/master/.github/workflows/windows-builds-on-master.yaml
+
+name: nix
+
+on:
+  pull_request:
+    branches:
+      - "*"
+  push:
+    branches:
+      - master
+      - feature/*
+      - hotfix/*
+    tags:
+      - v*
+  schedule:
+    - cron: "30 0 * * 0" # Every day at 00:30 UTC
+  workflow_dispatch:
+
+jobs:
+  build:
+    if: github.repository == 'KomoCorp/komorebi-for-mac'
+    runs-on: self-hosted
+    permissions: write-all
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - run: nix flake check
+      - run: nix build
+      - uses: actions/upload-artifact@v6
+        with:
+          name: komorebi-aarch64-apple-darwin-${{ github.sha }}
+          path: |
+            result/bin/komorebi*
+          retention-days: 14
+      - if: ${{ github.ref == 'refs/heads/master' }}
+        uses: exuanbo/actions-deploy-gist@v1
+        with:
+          token: ${{ secrets.GH_USER_API_TOKEN }}
+          gist_id: 78b3dd12a7b7069f1d1c60621fe50730
+          file_path: schema.json
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        run: echo "VERSION=nightly" >> $GITHUB_ENV
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        run: |
+          zip -j komorebi-${VERSION}-aarch64-apple-darwin.zip result/bin/*
+          echo "$(sha256sum komorebi-${VERSION}-aarch64-apple-darwin.zip | cut -d' ' -f1)  komorebi-${VERSION}-aarch64-apple-darwin.zip" > checksums.txt
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        run: |
+          git tag -d nightly || true
+          git tag nightly
+          kokai release --no-emoji --add-links github:commits,issues --ref nightly >"CHANGELOG.md"
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        shell: bash
+        run: |
+          gh release delete nightly --yes || true
+          git push origin :nightly || true
+
+          gh release create nightly \
+            --target $GITHUB_SHA \
+            --prerelease \
+            --title "komorebi for Mac nightly (${GITHUB_SHA})" \
+            --notes-file CHANGELOG.md \
+            komorebi-nightly-aarch64-apple-darwin.zip \
+            checksums.txt
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        shell: bash
+        run: |
+          ASSET_ID=$(gh api repos/${{ github.repository }}/releases/tags/nightly \
+            --jq '.assets[] | select(.name=="komorebi-nightly-aarch64-apple-darwin.zip") | .id')
+
+          SHA256=$(cat checksums.txt | cut -d' ' -f1)
+
+          echo "ASSET_ID=$ASSET_ID" >> $GITHUB_ENV
+          echo "SHA256=$SHA256" >> $GITHUB_ENV
+
+          echo "Asset ID: $ASSET_ID"
+          echo "SHA256: $SHA256"
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        shell: bash
+        env:
+          GIT_AUTHOR_NAME: "JeezyBot"
+          GIT_AUTHOR_EMAIL: "lgug2z@fastmail.com"
+          GIT_COMMITTER_NAME: "JeezyBot"
+          GIT_COMMITTER_EMAIL: "lgug2z@fastmail.com"
+        run: |
+          sed "s/REPLACE_ASSET_ID/$ASSET_ID/g; s/REPLACE_SHA_256/$SHA256/g; s/REPLACE_NIGHTLY/0.1.0-nightly-$(date +%Y-%m-%d-%H:%M:%S)/g" formula.template.rb > komorebi-for-mac-nightly.rb
+          cat komorebi-for-mac-nightly.rb
+          gh release upload nightly komorebi-for-mac-nightly.rb
+
+          git clone https://x-access-token:${{ secrets.GH_USER_API_TOKEN }}@github.com/LGUG2Z/homebrew-tap
+          cd homebrew-tap
+          cp ../komorebi-for-mac-nightly.rb ./Formula
+          git add .
+          git commit -m "Update komorebi-for-mac-nightly to $ASSET_ID ($SHA256)"
+          git push

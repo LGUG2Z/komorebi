@@ -1,0 +1,97 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to release (e.g. v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    if: github.repository == 'KomoCorp/komorebi-for-mac'
+    runs-on: self-hosted
+    permissions: write-all
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify tag exists on both repos at the same commit
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_API_TOKEN }}
+        shell: bash
+        run: |
+          PRIVATE_REF=$(gh api "repos/KomoCorp/komorebi-for-mac/git/ref/tags/${{ inputs.tag }}")
+          PRIVATE_TYPE=$(echo "$PRIVATE_REF" | jq -r '.object.type')
+          PRIVATE_SHA=$(echo "$PRIVATE_REF" | jq -r '.object.sha')
+          if [ "$PRIVATE_TYPE" = "tag" ]; then
+            PRIVATE_SHA=$(gh api "repos/KomoCorp/komorebi-for-mac/git/tags/$PRIVATE_SHA" | jq -r '.object.sha')
+          fi
+
+          PUBLIC_REF=$(gh api "repos/LGUG2Z/komorebi-for-mac/git/ref/tags/${{ inputs.tag }}")
+          PUBLIC_TYPE=$(echo "$PUBLIC_REF" | jq -r '.object.type')
+          PUBLIC_SHA=$(echo "$PUBLIC_REF" | jq -r '.object.sha')
+          if [ "$PUBLIC_TYPE" = "tag" ]; then
+            PUBLIC_SHA=$(gh api "repos/LGUG2Z/komorebi-for-mac/git/tags/$PUBLIC_SHA" | jq -r '.object.sha')
+          fi
+
+          echo "Private repo (KomoCorp) commit: $PRIVATE_SHA"
+          echo "Public repo  (LGUG2Z)   commit: $PUBLIC_SHA"
+
+          if [ "$PRIVATE_SHA" != "$PUBLIC_SHA" ]; then
+            echo "ERROR: Tag ${{ inputs.tag }} points to different commits on private and public repos"
+            exit 1
+          fi
+
+          echo "TAG_COMMIT=$PRIVATE_SHA" >> $GITHUB_ENV
+          echo "Verified: both repos have ${{ inputs.tag }} at $PRIVATE_SHA"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - run: nix flake check
+      - run: nix build
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          VERSION=${{ inputs.tag }}
+          zip -j komorebi-${VERSION}-aarch64-apple-darwin.zip result/bin/*
+          echo "$(sha256sum komorebi-${VERSION}-aarch64-apple-darwin.zip | cut -d' ' -f1)  komorebi-${VERSION}-aarch64-apple-darwin.zip" > checksums.txt
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Generate changelog
+        shell: bash
+        run: |
+          kokai release --no-emoji --add-links github:commits,issues --ref ${{ inputs.tag }} > CHANGELOG.md
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: komorebi-aarch64-apple-darwin-${{ inputs.tag }}
+          path: |
+            result/bin/komorebi*
+          retention-days: 14
+
+      - name: Create release on private repo (KomoCorp)
+        shell: bash
+        run: |
+          gh release create ${{ inputs.tag }} \
+            --repo KomoCorp/komorebi-for-mac \
+            --title "komorebi for Mac ${{ inputs.tag }}" \
+            --notes-file CHANGELOG.md \
+            komorebi-${{ inputs.tag }}-aarch64-apple-darwin.zip \
+            checksums.txt
+
+      - name: Create release on public repo (LGUG2Z)
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_API_TOKEN }}
+        shell: bash
+        run: |
+          gh release create ${{ inputs.tag }} \
+            --repo LGUG2Z/komorebi-for-mac \
+            --title "komorebi for Mac ${{ inputs.tag }}" \
+            --notes-file CHANGELOG.md \
+            komorebi-${{ inputs.tag }}-aarch64-apple-darwin.zip \
+            checksums.txt

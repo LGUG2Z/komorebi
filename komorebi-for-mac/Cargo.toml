@@ -1,0 +1,48 @@
+[workspace]
+
+resolver = "2"
+members = [
+  "komorebi",
+  "komorebi-bar",
+  "komorebi-client",
+  "komorebic",
+  "version",
+]
+
+[workspace.package]
+version = "0.1.0"
+
+[workspace.dependencies]
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "e8216924cbcf1d6559c8d65f92bcb3496a304924" }
+komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "e8216924cbcf1d6559c8d65f92bcb3496a304924", features = [
+  "darwin",
+  "schemars",
+] }
+
+chrono = "0.4"
+chrono-tz = "0.10"
+clap = { version = "4", features = ["derive", "wrap_help"] }
+color-eyre = "0.6"
+crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
+dirs = "6"
+dunce = "1"
+eframe = "0.33"
+egui_extras = "0.33"
+hotwatch = "0.5"
+lazy_static = "1"
+parking_lot = "0.12"
+pastey = "0.2"
+schemars = "1.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { package = "serde_json_lenient", version = "0.2" }
+shadow-rs = "1"
+sysinfo = "0.38"
+thiserror = "2"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+which = "8"
+
+[workspace.metadata.crane]
+name = "komorebi-workspace"

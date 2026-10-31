@@ -1,0 +1,130 @@
+[package]
+name = "komorebi"
+version = "0.1.1"
+description = "A tiling window manager for macOS"
+edition = "2024"
+
+[dependencies]
+komorebi-themes = { workspace = true }
+komorebi-layouts = { workspace = true }
+quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
+version = { path = "../version" }
+
+base64 = "0.22"
+block2 = "0.6"
+clap = { workspace = true }
+chrono = { workspace = true }
+color-eyre = { workspace = true }
+crossbeam-channel = { workspace = true }
+crossbeam-utils = { workspace = true }
+ctrlc = { version = "3", features = ["termination"] }
+dirs = { workspace = true }
+dispatch2 = "0.3"
+ed25519-dalek = "2"
+hotwatch = { workspace = true }
+lazy_static = { workspace = true }
+nanoid = "0.4"
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "objc2-quartz-core",
+  "libc",
+  "NSApplication",
+  "NSWindow",
+  "NSView",
+  "NSColor",
+  "NSAlert",
+  "NSButton",
+  "NSControl",
+  "NSResponder",
+  "NSWorkspace",
+  "NSRunningApplication",
+  "NSScreen",
+  "NSEvent",
+  "NSGraphics",
+  "NSWindowRestoration",
+] }
+objc2-application-services = { version = "0.3", default-features = false, features = [
+  "std",
+  "libc",
+  "HIServices",
+  "AXUIElement",
+  "AXValue",
+  "AXError",
+  "AXActionConstants",
+  "AXAttributeConstants",
+  "AXNotificationConstants",
+  "Accessibility",
+] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "CFString",
+  "CFArray",
+  "CFDictionary",
+  "CFNumber",
+  "CFRunLoop",
+  "CFMachPort",
+  "CFCGTypes",
+  "CFData",
+] }
+objc2-core-graphics = { version = "0.3", default-features = false, features = [
+  "std",
+  "alloc",
+  "CGWindow",
+  "CGImage",
+  "CGDataProvider",
+  "CGDirectDisplay",
+  "CGDisplayConfiguration",
+  "CGEvent",
+  "CGEventSource",
+  "CGEventTypes",
+  "CGColor",
+  "CGError",
+  "CGRemoteOperation",
+  "CGGeometry",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSString",
+  "NSDictionary",
+  "NSBundle",
+  "NSURL",
+  "NSValue",
+  "NSGeometry",
+  "NSNotification",
+  "NSDistributedNotificationCenter",
+  "NSRunLoop",
+  "NSDate",
+  "NSKeyValueCoding",
+  "NSArray",
+] }
+objc2-quartz-core = { version = "0.3", default-features = false, features = [
+  "std",
+  "objc2-core-foundation",
+  "CALayer",
+  "CATransaction",
+] }
+parking_lot = { workspace = true }
+pastey = { workspace = true }
+regex = "1"
+# pinning to 0.12 until this is resolved: https://github.com/seanmonstar/reqwest/issues/2924
+reqwest = { version = "0.12", features = ["blocking"] }
+schemars = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+serde_with = { version = "3", features = ["schemars_1"] }
+shadow-rs = { workspace = true }
+strum = { version = "0.28", features = ["derive"] }
+sysinfo = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+uuid = { version = "1", features = ["v4"] }
+
+[features]
+default = ["schemars"]
+deadlock_detection = ["parking_lot/deadlock_detection"]
+schemars = ["dep:schemars"]
