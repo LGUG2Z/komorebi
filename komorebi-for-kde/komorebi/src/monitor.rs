@@ -37,29 +37,6 @@ use serde::Serialize;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
-/// A monitor's identity and bounds, as the daemon answers
-/// [`SocketMessage::MonitorInformation`](crate::core::SocketMessage::MonitorInformation) with them
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MonitorInformation {
-    pub id: u32,
-    pub device: String,
-    pub serial_number_id: String,
-    pub size: Rect,
-}
-
-impl From<&Monitor> for MonitorInformation {
-    fn from(value: &Monitor) -> Self {
-        Self {
-            id: value.id,
-            device: value.device.clone(),
-            serial_number_id: value.serial_number_id.clone(),
-            size: value.size,
-        }
-    }
-}
-
-impl_ring_elements!(Monitor, Workspace);
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Monitor {
@@ -83,6 +60,29 @@ pub struct Monitor {
     /// Whether a window that opens on a workspace on its floating layer floats, for the
     /// workspaces of this monitor that have no behaviour of their own
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+}
+
+impl_ring_elements!(Monitor, Workspace);
+
+/// A monitor's identity and bounds, as the daemon answers
+/// [`SocketMessage::MonitorInformation`](crate::core::SocketMessage::MonitorInformation) with them
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MonitorInformation {
+    pub id: u32,
+    pub device: String,
+    pub serial_number_id: String,
+    pub size: Rect,
+}
+
+impl From<&Monitor> for MonitorInformation {
+    fn from(value: &Monitor) -> Self {
+        Self {
+            id: value.id,
+            device: value.device.clone(),
+            serial_number_id: value.serial_number_id.clone(),
+            size: value.size,
+        }
+    }
 }
 
 /// Returns a monitor with one empty workspace, the way [`Monitor::new`] makes one, from owned
