@@ -46,7 +46,8 @@ fn sample(data: &CFData) -> (f64, f64) {
     let bytes = data.to_vec();
     let (mut total, mut visible, mut lit) = (0usize, 0usize, 0usize);
 
-    for pixel in bytes.chunks_exact(4).step_by(37) {
+    // a trailing partial pixel (a buffer that is not a multiple of 4) is dropped, as chunks_exact did
+    for pixel in bytes.chunks(4).filter(|pixel| pixel.len() == 4).step_by(37) {
         total += 1;
         if pixel[3] > 0 {
             visible += 1;

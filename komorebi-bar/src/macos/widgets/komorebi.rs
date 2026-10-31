@@ -561,7 +561,7 @@ impl WorkspaceLayerBar {
         if matches!(layer, WorkspaceLayer::Tiling) {
             let (response, painter) = ui.allocate_painter(size, Sense::hover());
             let color = ctx.style().visuals.selection.stroke.color;
-            let stroke = Stroke::new(1.0, color);
+            let stroke = Stroke::new(1.0_f32, color);
             let mut rect = response.rect;
             let corner = CornerRadius::same((rect.width() * 0.1) as u8);
             rect = rect.shrink(stroke.width);
@@ -584,7 +584,7 @@ impl WorkspaceLayerBar {
         } else {
             let (response, painter) = ui.allocate_painter(size, Sense::hover());
             let color = ctx.style().visuals.selection.stroke.color;
-            let stroke = Stroke::new(1.0, color);
+            let stroke = Stroke::new(1.0_f32, color);
             let mut rect = response.rect;
             let corner = CornerRadius::same((rect.width() * 0.1) as u8);
             rect = rect.shrink(stroke.width);
