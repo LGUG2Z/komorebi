@@ -118,3 +118,11 @@ fn collect_refs(value: &Value, found: &mut Vec<String>) {
         _ => {}
     }
 }
+
+/// The text `--schema` prints for the bar configuration type `T`, as `platform` checks it in.
+#[cfg(feature = "schemars")]
+#[must_use]
+pub fn generated_text<T: schemars::JsonSchema>(platform: SchemaPlatform) -> String {
+    let union = serde_json::to_value(schemars::schema_for!(T)).expect("a schema is JSON");
+    view_text(union, platform)
+}
