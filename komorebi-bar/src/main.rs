@@ -1,8 +1,8 @@
 mod bar;
 mod config;
 mod render;
-mod selected_frame;
-mod ui;
+pub use komorebi_bar_core::selected_frame;
+pub use komorebi_bar_core::ui;
 mod widgets;
 
 use crate::bar::Komobar;

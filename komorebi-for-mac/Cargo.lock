@@ -3217,6 +3217,7 @@ dependencies = [
  "hotwatch",
  "icns",
  "image 0.25.10",
+ "komorebi-bar-core",
  "komorebi-client",
  "komorebi-themes",
  "lazy_static",
@@ -3237,6 +3238,13 @@ dependencies = [
  "sysinfo",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "komorebi-bar-core"
+version = "0.1.42"
+dependencies = [
+ "eframe",
 ]
 
 [[package]]
