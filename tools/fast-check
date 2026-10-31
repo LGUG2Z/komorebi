@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# fast-check: run only the minimal checks for the current jj change.
+# Run from anywhere inside a jj workspace of the repository. Never commits, never pushes.
+# See tools/README.md.
+set -uo pipefail
+
+S="${FAST_CHECK_SCRATCH:-${XDG_CACHE_HOME:-$HOME/.cache}/komorebi-fast-check}"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+FROM=""
+LIST=0
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+
+usage() {
+  cat <<'USAGE'
+usage: fast-check [--list] [--range | --since REV] [--help]
+  --list        dry run: print the checks that would run
+  --range       diff trunk()..@ instead of just @
+  --since REV   diff REV..@ (REV is a jj revset, e.g. wip-a3b)
+Env: FAST_CHECK_SCRATCH  base dir for the persistent target dirs (default: ${XDG_CACHE_HOME:-~/.cache}/komorebi-fast-check)
+USAGE
+}
+
+# Evaluation-only nix check, attribute level: `nix flake show` (about 9 s, 0.4 GB). `nix flake check
+# --no-build` forces every check of the system (15-16 GB RSS for 5-8 minutes, measured by `flow`) and fails
+# without .git anyway (decision D9). Not caught here: an error inside a check's derivation body; the
+# pre-landing `nix build` of the check still catches that.
+nix_eval() {
+  # current system only: since the source of the merged workspace is a derivation that crane reads at evaluation,
+  # evaluating another system's checks needs a builder for that system (see docs/dev/unified-binaries.md)
+  systemd-run --user --scope -q -p MemoryMax=6G nice -n 19 nix flake show >/dev/null || return 1
+  [ -d komorebi-for-kde ] || return 0   # a nested flake: attribute level only
+  for a in checks.x86_64-linux.komorebi-workspace-clippy checks.x86_64-linux.kfde-komorebi-workspace-clippy \
+    packages.x86_64-linux.komorebic packages.x86_64-linux.kfde-komorebic; do
+    systemd-run --user --scope -q -p MemoryMax=6G nice -n 19 nix eval --raw ".#$a.drvPath" >/dev/null || return 1
+  done
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --list) LIST=1 ;;
+    --range) FROM='trunk()' ;;
+    --nix-eval) nix_eval; exit $? ;;
+    --since) shift; FROM="${1:?--since needs a revset}" ;;
+    -h | --help) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+ROOT="$(jj root 2>/dev/null)" || { echo "fast-check: not in a jj workspace" >&2; exit 2; }
+cd "$ROOT" || exit 2
+
+if [ -n "$FROM" ]; then
+  FILES="$(jj diff --name-only --from "$FROM" --to @)" || exit 2
+else
+  FILES="$(jj diff --name-only -r @)" || exit 2
+fi
+
+want_kde=0 want_mac=0 want_win=0 want_native=0 want_nix=0 want_nixkde=0 want_nixmac=0
+unclassified=()
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  case "$f" in
+    komorebi-for-kde/flake.nix | komorebi-for-kde/flake.lock | komorebi-for-kde/nix/*) want_nixkde=1 ;;
+    komorebi-for-mac/flake.nix | komorebi-for-mac/flake.lock | komorebi-for-mac/nix/*) want_nixmac=1 ;;
+    komorebi-for-kde/*.md | komorebi-for-kde/docs/* | komorebi-for-kde/LICENSE* | komorebi-for-kde/.github/*) ;;
+    komorebi-for-mac/*.md | komorebi-for-mac/docs/* | komorebi-for-mac/LICENSE* | komorebi-for-mac/.github/*) ;;
+    Cargo.toml | Cargo.lock | .cargo/*) want_win=1; want_kde=1; want_mac=1 ;;
+    komorebi-for-kde/*) want_kde=1 ;;
+    komorebi-for-mac/*) want_mac=1 ;;
+    crates/*) want_native=1; want_kde=1; want_mac=1; want_win=1 ;;
+    komorebi-layouts/* | komorebi-scrolling/*) want_native=1; want_win=1 ;;
+    flake.nix | flake.lock | *.nix) want_nix=1 ;;
+    *.md | docs/* | tools/* | LICENSE* | .github/* | *.png | *.jpg | *.gif) ;;
+    komorebi/* | komorebic/* | komorebi-bar/* | komorebi-client/* | komorebi-gui/* | komorebi-themes/* | e2e/* | rust-toolchain.toml | deny.toml)
+      want_win=1 ;;
+    *) unclassified+=("$f") ;;
+  esac
+done <<<"$FILES"
+
+NAMES=() DIRS=() CMDS=()
+add() { NAMES+=("$1"); DIRS+=("$2"); CMDS+=("$3"); }
+
+if [ "$want_native" = 1 ]; then
+  add "native: shared crates tests" "." \
+    "CARGO_TARGET_DIR=$S/target-fast-native nix shell nixpkgs#gcc -c cargo test --locked -p komorebi-layouts -p komorebi-scrolling"
+fi
+# One root workspace (after the package merge) or three (before it): detect which, since agents' trees differ.
+if [ -f komorebi-for-kde/Cargo.toml ]; then MERGED=0; else MERGED=1; fi
+if [ "$want_win" = 1 ]; then
+  # a bare cargo command builds default-members (the Windows crates) in the merged workspace
+  WS=--workspace; [ $MERGED = 1 ] && WS=
+  add "windows: clippy --all-targets -D warnings (dev shell, cross)" "." \
+    "CARGO_TARGET_DIR=$S/target-fast-win nix develop --command cargo clippy $WS --locked --all-targets -- -D warnings"
+fi
+if [ "$want_kde" = 1 ]; then
+  if [ $MERGED = 1 ]; then KD=.; else KD=komorebi-for-kde; fi
+  add "kde: cargo check + lib tests (komorebi)" "$KD" \
+    "export CARGO_TARGET_DIR=$S/kde-target COMMIT_HASH=\${COMMIT_HASH:-dev}; K=komorebi; grep -q 'name = \"komorebi-linux\"' $( [ $MERGED = 1 ] && echo komorebi-for-kde/ )komorebi/Cargo.toml && K=komorebi-linux; export K; nix shell nixpkgs#gcc -c bash -c 'cargo check --locked -p \$K && { [ -d komorebi-daemon ] && cargo check --locked -p komorebi || true; } && cargo test --locked -p \$K --lib && cargo test --locked -p \$K --test schemas -- --test-threads=1'"
+fi
+if [ "$want_mac" = 1 ]; then
+  if [ $MERGED = 1 ]; then MD=.; MP="-p komorebi -p komorebi-macos -p komorebic-macos -p komorebi-client-macos -p komorebi-bar-macos"; else MD=komorebi-for-mac; MP=--workspace; fi
+  add "macos: type-check only (fake CC, cannot link)" "$MD" \
+    "export CARGO_TARGET_DIR=$S/target-fast-mac COMMIT_HASH=\${COMMIT_HASH:-dev} CC_aarch64_apple_darwin=$HERE/cc-fake.sh AR_aarch64_apple_darwin=ar; PKG_CONFIG_PATH=\$(nix build --no-link --print-out-paths nixpkgs#openssl.dev)/lib/pkgconfig; export PKG_CONFIG_PATH; nix shell nixpkgs#gcc nixpkgs#pkg-config nixpkgs#openssl.dev -c cargo check --locked --target aarch64-apple-darwin $MP --all-targets"
+fi
+if [ "$want_nix" = 1 ] || [ "$want_nixkde" = 1 ] || [ "$want_nixmac" = 1 ]; then
+  add "nix: root flake evaluation only (flake check --no-build; flake show if dirtyRev missing)" "." "$SELF --nix-eval"
+fi
+if [ "$want_nixkde" = 1 ] && [ "$want_nix" = 0 ]; then
+  add "nix: kde flake evaluation only (flake check --no-build; flake show if dirtyRev missing)" "komorebi-for-kde" "$SELF --nix-eval"
+fi
+if [ "$want_nixmac" = 1 ] && [ "$want_nix" = 0 ]; then
+  add "nix: mac flake evaluation only (flake check --no-build; flake show if dirtyRev missing)" "komorebi-for-mac" "$SELF --nix-eval"
+fi
+
+if [ "${#unclassified[@]}" -gt 0 ]; then
+  echo "fast-check: unclassified (no check): ${unclassified[*]}"
+fi
+if [ "${#NAMES[@]}" -eq 0 ]; then
+  echo "fast-check: nothing to run for this diff"
+  exit 0
+fi
+
+fail=0
+for i in "${!NAMES[@]}"; do
+  if [ "$LIST" = 1 ]; then
+    echo "[list] ${NAMES[$i]}  (cd ${DIRS[$i]}; ${CMDS[$i]})"
+    continue
+  fi
+  echo "==> ${NAMES[$i]}"
+  start=$SECONDS
+  (cd "${DIRS[$i]}" && bash -c "${CMDS[$i]}")
+  rc=$?
+  el=$((SECONDS - start))
+  if [ $rc -eq 0 ]; then echo "<== PASS ${NAMES[$i]} (${el}s)"; else echo "<== FAIL ${NAMES[$i]} (${el}s, exit $rc)"; fail=1; fi
+done
+exit $fail
