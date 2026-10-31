@@ -7,6 +7,7 @@
 
 mod listener;
 mod pause;
+mod subscribers;
 
 pub use listener::CommandListener;
 pub use listener::CommandStream;
@@ -16,6 +17,7 @@ pub use listener::NoPolicy;
 pub use listener::listen_for_commands;
 pub use listener::read_commands;
 pub use pause::allowed_while_paused;
+pub use subscribers::notify_sockets;
 
 /// The `tracing` target of what this crate logs
 ///
