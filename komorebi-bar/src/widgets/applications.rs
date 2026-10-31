@@ -1,4 +1,5 @@
 use super::ImageIcon;
+use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
@@ -20,14 +21,11 @@ use eframe::egui::vec2;
 use komorebi_client::PathExt;
 use serde::Deserialize;
 use serde::Serialize;
-use std::borrow::Cow;
-use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use tracing;
-use which::which;
 
 /// Minimum interval between consecutive application launches to prevent accidental spamming.
 const MIN_LAUNCH_INTERVAL: Duration = Duration::from_millis(800);
@@ -273,13 +271,7 @@ impl Icon {
     /// - Returns `None` if the executable path is unavailable or icon extraction fails.
     #[inline]
     pub fn try_from_command(command: &UserCommand) -> Option<Self> {
-        let path = command.get_executable()?;
-        let image_icon = ImageIcon::try_load(path.as_ref(), || {
-            let path_str = path.to_str()?;
-            windows_icons::get_icon_by_path(path_str)
-                .or_else(|| windows_icons_fallback::get_icon_by_path(path_str))
-        })?;
-        Some(Icon::Image(image_icon))
+        platform().command_icon(&command.command).map(Icon::Image)
     }
 
     /// Renders the icon in the given [`Ui`] using the provided [`IconConfig`].
@@ -362,28 +354,6 @@ impl UserCommand {
             command: Arc::from(command.replace_env().to_str().unwrap_or_default()),
             last_launch,
         }
-    }
-
-    /// Attempts to resolve the executable path from the command string.
-    ///
-    /// Resolution logic:
-    /// - Splits the command by ".exe" and checks if the first part is an existing file.
-    /// - If not, attempts to locate the binary using [`which`] on this name.
-    /// - If still unresolved, takes the first word (separated by whitespace) and attempts
-    ///   to find it in the system `PATH` using [`which`].
-    ///
-    /// Returns `None` if no executable path can be determined.
-    #[inline]
-    pub fn get_executable(&self) -> Option<Cow<'_, Path>> {
-        if let Some(binary) = self.command.split(".exe").next().map(Path::new) {
-            if binary.is_file() {
-                return Some(Cow::Borrowed(binary));
-            } else if let Ok(binary) = which(binary) {
-                return Some(Cow::Owned(binary));
-            }
-        }
-
-        which(self.command.split(' ').next()?).ok().map(Cow::Owned)
     }
 
     /// Attempts to launch the specified command in a separate thread if enough time has passed

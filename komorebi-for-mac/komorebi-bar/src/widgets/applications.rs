@@ -1,4 +1,5 @@
 use super::ImageIcon;
+use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
@@ -269,15 +270,8 @@ impl Icon {
     /// - Returns [`Icon::Image`] if an icon is successfully extracted.
     /// - Returns `None` if the executable path is unavailable or icon extraction fails.
     #[inline]
-    pub fn try_from_command(_command: &UserCommand) -> Option<Self> {
-        // let path = command.get_executable()?;
-        // let image_icon = ImageIcon::try_load(path.as_ref(), || {
-        //     let path_str = path.to_str()?;
-        //     windows_icons::get_icon_by_path(path_str)
-        //         .or_else(|| windows_icons_fallback::get_icon_by_path(path_str))
-        // })?;
-        // Some(Icon::Image(image_icon))
-        None
+    pub fn try_from_command(command: &UserCommand) -> Option<Self> {
+        platform().command_icon(&command.command).map(Icon::Image)
     }
 
     /// Renders the icon in the given [`Ui`] using the provided [`IconConfig`].
@@ -310,7 +304,7 @@ impl Icon {
     #[inline]
     pub fn draw_fallback(ui: &mut Ui, icon_size: Vec2) {
         let (response, painter) = ui.allocate_painter(icon_size, Sense::hover());
-        let stroke = Stroke::new(1.0, ui.style().visuals.text_color());
+        let stroke = Stroke::new(1.0_f32, ui.style().visuals.text_color());
         let mut rect = response.rect;
         let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
         rect = rect.shrink(stroke.width);
@@ -361,28 +355,6 @@ impl UserCommand {
             last_launch,
         }
     }
-
-    // /// Attempts to resolve the executable path from the command string.
-    // ///
-    // /// Resolution logic:
-    // /// - Splits the command by ".exe" and checks if the first part is an existing file.
-    // /// - If not, attempts to locate the binary using [`which`] on this name.
-    // /// - If still unresolved, takes the first word (separated by whitespace) and attempts
-    // ///   to find it in the system `PATH` using [`which`].
-    // ///
-    // /// Returns `None` if no executable path can be determined.
-    // #[inline]
-    // pub fn get_executable(&self) -> Option<Cow<'_, Path>> {
-    //     if let Some(binary) = self.command.split(".exe").next().map(Path::new) {
-    //         if binary.is_file() {
-    //             return Some(Cow::Borrowed(binary));
-    //         } else if let Ok(binary) = which(binary) {
-    //             return Some(Cow::Owned(binary));
-    //         }
-    //     }
-    //
-    //     which(self.command.split(' ').next()?).ok().map(Cow::Owned)
-    // }
 
     /// Attempts to launch the specified command in a separate thread if enough time has passed
     /// since the last launch. This prevents repeated launches from rapid consecutive clicks.

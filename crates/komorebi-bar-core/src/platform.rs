@@ -3,6 +3,7 @@
 //! A shell implements [`BarPlatform`] and calls [`install`] first thing in `main`; the widgets
 //! reach it through [`platform`] when they are built or clicked.
 
+use crate::widgets::icons::ImageIcon;
 use std::io;
 use std::sync::OnceLock;
 
@@ -28,6 +29,10 @@ pub trait BarPlatform: Send + Sync {
 
     /// The GitHub API URL that says which release of this platform's komorebi is the latest.
     fn latest_release_api_url(&self) -> &'static str;
+
+    /// The icon of the program a command string would start (Windows: the executable's icon;
+    /// macOS: none).
+    fn command_icon(&self, command: &str) -> Option<ImageIcon>;
 
     /// The glyph the date widget shows as its calendar icon.
     fn calendar_icon(&self) -> &'static str;

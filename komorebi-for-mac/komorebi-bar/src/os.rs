@@ -1,3 +1,4 @@
+use crate::widgets::ImageIcon;
 use egui_phosphor::regular::CALENDAR;
 use komorebi_bar_core::platform::BarPlatform;
 use komorebi_bar_core::platform::SystemTool;
@@ -37,5 +38,9 @@ impl BarPlatform for MacBar {
 
     fn calendar_icon(&self) -> &'static str {
         CALENDAR
+    }
+
+    fn command_icon(&self, _command: &str) -> Option<ImageIcon> {
+        None
     }
 }
