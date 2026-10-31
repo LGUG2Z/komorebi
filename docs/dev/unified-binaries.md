@@ -178,27 +178,119 @@ and manifests that three open stacks edit.
 
 ## State of the migration (bookmark wip-u-pkg-mig, on wip-u-pkg-base)
 
-Done, in this order (each revision keeps the three trees building; gates in the revision messages):
-step 0 (applications.json committed, build.rs fetch gone; explicit clap names; the KDE closure list
-fixed), step 1 (KDE and macOS packages suffixed, Windows daemon `komorebi-windows`), step 2 (one root
-workspace, one lock, 901 packages, `default-members` is the Windows set), step 3 (`nix/workspace-src.nix`:
-each flake builds its platform's source plus stubs of every other member, `-p` per platform), step 4
-(`komorebic` is one package with a `cfg_select!` over three CLI modules).
+Done, in this order (each revision keeps the three trees building; gates are in the revision messages):
 
-Measured by evaluation (no build): an edit of a Windows-only crate changes the Windows derivations and
-no kfde derivation; an edit of komorebi-for-kde changes kfde and no Windows derivation; an edit of
-komorebi-for-mac changes neither. So the cache isolation of the three trees survived the merge.
+0. `applications.json` committed (build.rs fetch gone), explicit clap names, the KDE closure list fixed.
+1. KDE and macOS packages suffixed (`komorebi-linux`, `komorebic-macos`, ...); Windows daemon `komorebi-windows`.
+2. One root workspace, one lock (901 packages), `default-members` is the Windows set.
+3. `nix/workspace-src.nix`: each flake builds its platform's source plus stubs of every other member,
+   `-p` per platform.
+4. `komorebic` is one package with a `cfg_select!` over three CLI modules; the help text of each platform
+   is a literal (it used to come from the package description).
+5. The Linux and macOS CLI files moved into `komorebic/src/{linux,macos}` (pure moves, one per revision);
+   the KDE `komorebic` tests are `komorebic/tests/linux_*.rs`. The old `komorebic-linux` and
+   `komorebic-macos` packages are shims that include the moved files; they have no tests of their own.
+6. `komorebi-client`: the three socket codes made equal (Connection on all), then one package whose
+   `lib.rs` is a `cfg_select!` re-exporting `windows.rs`, `linux.rs` or `macos.rs`; old
+   `komorebi-client-linux`/`-macos` are shims; `komorebic` uses the one client.
+
+Measured by evaluation (no build): an edit of a Windows-only crate or of `komorebic/src/windows.rs` or
+`komorebi-client/src/windows.rs` changes the Windows derivations and no kfde derivation; an edit of a Linux
+file changes kfde and no Windows derivation; an edit of a macOS file changes neither. The cache isolation of
+the three trees survived the merge and the unified packages.
 
 Costs and limits found on the way:
 - The stubbed source is a derivation that crane reads at evaluation (`readDir` in `mkDummySrc`), so
-  evaluating another system's attributes needs a builder for that system. `nix flake show --all-systems`
-  and aarch64-darwin drvPaths no longer evaluate on a Linux host; tools/fast-check evaluates the current
-  system only. A Mac builds its own attributes natively.
+  evaluating another system's attributes needs a builder for that system (decision D-pkg-1).
+  `nix flake show --all-systems` and aarch64-darwin drvPaths do not evaluate on a Linux host.
 - cargo deny, cargo fmt and taplo run over the merged workspace: deny is called with
   `--workspace --exclude <the other platforms' packages>` and the tree's own deny.toml, fmt gets `-p`;
-  none of the three has been built (the local cargo-deny run is not representative: it reports the
-  workspace crates unlicensed, which the nix check did not before).
-- Step 5 (moving the Linux and macOS CLI files into `komorebic/src/{linux,macos}` and deleting the old
-  `komorebic-linux`/`-macos` packages) and step 6 (`komorebi-client`) were not done: deleting the old
-  names is the cutover, which the plan keeps for last, and the KDE `komorebic` tests, the
-  `include_str!` paths and the three `applications.json` files move with it.
+  none of them has been built.
+- cargo allows one path per dependency key: the daemon crates keep distinct keys and the modules alias them
+  (`extern crate komorebi_linux as komorebi`, `use crate::komorebi_linux as komorebi`). A dependency with
+  no `package =` is named by its lib name, not by its key: write `package = "<same name>"` when the key
+  must be the extern name.
+- Building both `komorebic` and `komorebic-linux` in one cargo command writes the same binary name twice.
+- Comments and docs that name `komorebic/src/main.rs`, `komorebic/tests/*.rs` or the KDE client paths
+  (check.rs, ARCHITECTURE.md, scripts/compare-gen.py, the VM check suite) still carry the old paths; they
+  are text in files whose change would rebuild the KDE derivations.
+
+## Step 7 for the bar, ready to execute (not executed)
+
+State: `crates/komorebi-bar-core` holds the shared code (config, widgets, `BarPlatform`, schema views); the
+two shells are `komorebi-bar` (Windows) and `komorebi-for-mac/komorebi-bar` (package `komorebi-bar-macos`),
+see `bar-unification.md` for what stays per platform. Both use `komorebi-bar-core` (one version) and
+differ in `main.rs`, `bar.rs`, `os.rs`, `widgets/{komorebi,network,widget,mod}.rs`; Windows adds
+`widgets/{keyboard,media,systray}.rs`. `crate::` occurs 111 times (Windows) and 90 (macOS).
+
+B0. Prerequisite (done, step 6): one `komorebi-client`. In `komorebi-for-mac/komorebi-bar/Cargo.toml` change
+    `komorebi-client = { package = "komorebi-client-macos", path = "../komorebi-client", ... }` to
+    `komorebi-client = { path = "../../komorebi-client", default-features = false }`; the feature
+    `schemars` already forwards to `komorebi-client/default`. Gate: macOS fake-CC check of
+    `komorebi-bar-macos`; one revision.
+
+B1. Windows bar becomes a module, in place. Create `komorebi-bar/src/windows/`; `git mv`/`jj` move
+    `bar.rs config.rs os.rs widgets/` into it and `main.rs` to `windows/mod.rs` (`mod bar; mod config; mod
+    os; mod widgets;` stay as they are, `fn main` becomes `pub fn main`). In the moved files replace
+    `crate::` by `crate::windows::` (sed, 111 sites; do not touch `komorebi_bar_core::`). New
+    `komorebi-bar/src/main.rs`: `mod windows; fn main() -> color_eyre::eyre::Result<()> { windows::main() }`.
+    Pure move plus one mechanical edit, two revisions (move, then the paths). Gate: Windows clippy
+    `-D warnings`; the bar screenshot gate (owed since the bar stack) and `e2e-needed` says NO for the bar.
+
+B2. macOS bar the same, in its own package: `komorebi-for-mac/komorebi-bar/src/macos/`,
+    `crate::` -> `crate::macos::` (90 sites), `main.rs` = `mod macos; fn main() { macos::main() }`. Gate:
+    macOS fake-CC check; the Mac hand check.
+
+B3. Merge into one package (one revision, with its flake edit):
+    - Move `komorebi-for-mac/komorebi-bar/src/macos` to `komorebi-bar/src/macos`.
+    - `komorebi-bar/src/main.rs`: `cfg_select! { target_os = "windows" => { mod windows; use windows as
+      platform; } target_os = "macos" => { mod macos; use macos as platform; } }` and `fn main() { platform::main() }`.
+    - `komorebi-bar/Cargo.toml`: common `[dependencies]` = what both manifests share (`komorebi-bar-core`,
+      `komorebi-client`, `komorebi-themes`, `chrono`, `chrono-tz`, `clap`, `color-eyre`, `crossbeam-channel`,
+      `dirs`, `dunce`, `eframe`, `egui-phosphor`, `font-loader`, `hotwatch`, `image`, `lazy_static`, `num*`,
+      `parking_lot`, `random_word`, `reqwest`, `schemars`, `serde`, `serde_json`, `sysinfo`, `tracing*`);
+      `[target.'cfg(windows)'.dependencies]`: `egui_extras`, `netdev = "0.46"`, `regex`, `systray-util`,
+      `tokio`, `which`, `windows`, `windows-core`, both `windows-icons` revisions;
+      `[target.'cfg(target_os = "macos")'.dependencies]`: `netdev = "0.40"`, `icns`, `objc2`,
+      `objc2-app-kit` (the feature list of the macOS manifest), `raw-window-handle`. The dependency versions
+      of the two manifests differ only for `netdev` (0.46 / 0.40), which cargo accepts per target.
+    - Old package `komorebi-bar-macos` stays: `komorebi-for-mac/komorebi-bar/src/main.rs` is
+      `#[path = "../../../komorebi-bar/src/macos/mod.rs"] mod macos; fn main() { macos::main() }`
+      (the moved code names `crate::macos::`, which this root provides).
+    - Flakes: the macOS flake `-p komorebi-bar` instead of `-p komorebi-bar-macos`, its source filter takes
+      `komorebi-bar/{Cargo.toml,src/main.rs,src/macos/**}` and `isReal` `komorebi-bar`; the root filter
+      leaves `komorebi-bar/src/macos` out and the KDE flake needs nothing (it never had a bar; the stub
+      is the member's manifest). The `fmt`/`deny` lists drop `komorebi-bar` from the macOS exclusions.
+    - Schemas: `schema.bar.json` and `komorebi-for-mac/schema.bar.json` stay; the oracle test in
+      `komorebi-bar-core` reads both. `cargo run -p komorebi-bar -- --schema` prints the view of the target OS.
+    Gates: Windows clippy, macOS fake-CC check of `komorebi-bar` and `komorebi-bar-macos`, the schema oracle
+    (`cargo test -p komorebi-bar-core`), nix evaluation, the isolation test of the evaluation (an edit of
+    `komorebi-bar/src/windows/` must not change a macOS derivation and the reverse). Owed: the Windows bar
+    screenshot, the Mac hand check.
+
+B4. Converge the remaining differences one revision each, each BEHAVIOUR on one platform and needing its
+    screenshot or Mac check: `widgets/komorebi.rs` frame margins, `network.rs`, then the platform seams in
+    `bar.rs`/`main.rs` behind `BarPlatform` hooks (list in `bar-unification.md`).
+
+## Owed from the coordinator (heavy gates, idle host; everything below was evaluated, none built)
+
+At bookmark `wip-u-pkg-mig`:
+
+```
+tools/gate-lock run --class heavy --label "pkg checks" --est 25 -- nix build -L --no-link \
+  .#checks.x86_64-linux.komorebi-workspace-clippy .#checks.x86_64-linux.komorebi-workspace-deny \
+  .#checks.x86_64-linux.komorebi-workspace-fmt .#checks.x86_64-linux.komorebi-workspace-toml-fmt \
+  .#checks.x86_64-linux.komorebi-workspace-nextest
+tools/gate-lock run --class heavy --label "pkg kfde checks" --est 40 -- nix build -L --no-link \
+  .#checks.x86_64-linux.kfde-komorebi-workspace-{clippy,doc,deny,fmt,toml-fmt,nextest} \
+  .#checks.x86_64-linux.kfde-schema-fresh .#packages.x86_64-linux.kfde-komorebic .#packages.x86_64-linux.kfde-komorebi
+nix build -L .#packages.x86_64-linux.komorebic .#packages.x86_64-linux.komorebi
+```
+
+then the KDE VM `fast` suites (the KDE package derivations changed), and the Windows e2e gate
+(`tools/e2e-needed` says YES: `komorebi-windows`, `komorebic` and `komorebi-client` changed); on a Mac or
+a darwin builder `nix build -L .#packages.aarch64-darwin.kfm-komorebic .#packages.aarch64-darwin.kfm-komorebi
+.#packages.aarch64-darwin.kfm-komorebi-bar` and the `kfm-` checks. By hand on a Mac: `komorebic --help`,
+`--version`, `quickstart`, `start`, `stop`, `state`, `docgen`; `komorebi-bar` still builds from the old
+package name. If deny, fmt or taplo fail in the merged workspace, the fix is in the `cargoDenyExtraArgs`,
+`cargoExtraArgs` of the three flakes, not in the code.
