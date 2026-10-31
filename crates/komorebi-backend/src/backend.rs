@@ -186,8 +186,9 @@ pub trait Backend: Send + Sync + 'static {
     /// Gives the window the focus, and, if `mouse_follows_focus`, puts the pointer in its middle.
     ///
     /// Implemented by KDE (activates, then waits for the window to be foreground before moving
-    /// the pointer), Windows and macOS (focus, then `center_cursor_in` on the window's frame when
-    /// asked; neither platform has this as one call).
+    /// the pointer), Windows (`Window::focus`, which centres the pointer on the window itself;
+    /// it defers the focus while the window is sliding in) and macOS (`Window::focus`, SkyLight
+    /// then `AXMain`).
     fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> Result<()>;
 
     /// Raises the window above the others.
