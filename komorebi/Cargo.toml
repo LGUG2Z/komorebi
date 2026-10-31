@@ -30,6 +30,7 @@ net2 = "0.2"
 os_info = "3.10"
 parking_lot = { workspace = true }
 paste = { workspace = true }
+pastey = { workspace = true }
 powershell_script = "1.0"
 regex = "1"
 reqwest = { version = "0.12", features = ["blocking"] }
