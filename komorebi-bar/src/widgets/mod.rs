@@ -19,7 +19,7 @@ mod komorebi_layout;
 pub mod media;
 pub use komorebi_bar_core::widgets::memory;
 pub mod network;
-pub mod storage;
+pub use komorebi_bar_core::widgets::storage;
 #[cfg(target_os = "windows")]
 pub mod systray;
 pub mod time;

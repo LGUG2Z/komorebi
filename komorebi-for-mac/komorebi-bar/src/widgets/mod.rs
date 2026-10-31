@@ -17,7 +17,7 @@ pub mod komorebi;
 mod komorebi_layout;
 pub use komorebi_bar_core::widgets::memory;
 pub mod network;
-pub mod storage;
+pub use komorebi_bar_core::widgets::storage;
 pub mod time;
 pub use komorebi_bar_core::widgets::update;
 pub mod widget;
