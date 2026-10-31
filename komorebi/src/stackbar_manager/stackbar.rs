@@ -343,10 +343,11 @@ impl Stackbar {
                         let gap = DEFAULT_CONTAINER_PADDING.load_consume();
 
                         let focused_window_idx = container.focused_window_idx();
-                        let focused_window_rect = WindowsApi::window_rect(
-                            container.focused_window().cloned().unwrap_or_default().hwnd,
-                        )
-                        .unwrap_or_default();
+                        let focused_window_rect = backend()
+                            .frame(WindowId::from_hwnd(
+                                container.focused_window().cloned().unwrap_or_default().hwnd,
+                            ))
+                            .unwrap_or_default();
 
                         for (index, window) in container.windows().iter().enumerate() {
                             let left = gap + (index as i32 * (width + gap));
