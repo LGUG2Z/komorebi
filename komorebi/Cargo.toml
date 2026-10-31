@@ -9,6 +9,7 @@ edition = "2024"
 
 [dependencies]
 komorebi-collections = { path = "../crates/komorebi-collections" }
+komorebi-config = { path = "../crates/komorebi-config", default-features = false }
 komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
 komorebi-scrolling = { path = "../komorebi-scrolling" }
 komorebi-themes = { path = "../komorebi-themes" }
@@ -70,6 +71,7 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 schemars = [
   "dep:schemars",
   "komorebi-collections/schemars",
+  "komorebi-config/schemars",
   "komorebi-layouts/schemars",
   "komorebi-protocol/schemars",
 ]

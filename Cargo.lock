@@ -3338,6 +3338,7 @@ dependencies = [
  "ed25519-dalek",
  "hotwatch",
  "komorebi-collections",
+ "komorebi-config",
  "komorebi-layouts",
  "komorebi-protocol",
  "komorebi-scrolling",
