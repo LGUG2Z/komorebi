@@ -289,6 +289,14 @@ impl FromStr for SocketMessage {
     }
 }
 
+/// The options of a subscriber, which `SocketMessage::AddSubscriberSocketWithOptions` sets
+///
+/// A subscriber added with `SocketMessage::AddSubscriberSocket` has the default options, and is
+/// sent a notification for every event and message the window manager handles. With
+/// `filter_state_changes`, it is sent one only when the event or the message changed the
+/// state, and always when a window is shown, when a subscriber is added (so a new subscriber
+/// receives the state as soon as it subscribes), when a theme is set (the colors of the borders
+/// are not part of the state) and when the configuration is reloaded.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SubscribeOptions {
@@ -362,7 +370,7 @@ pub enum BorderImplementation {
     Hash,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Window kind
+/// What a window is to the layout, which decides the color of its border
 pub enum WindowKind {
     /// Single window
     Single,
@@ -379,6 +387,9 @@ pub enum WindowKind {
     Floating,
 }
 
+/// A question about the window manager that `SocketMessage::Query` asks, answered with one
+/// value as text: an index, the name of a layout or of a container kind, or the version of the
+/// daemon.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum StateQuery {
@@ -401,7 +412,9 @@ pub enum ApplicationIdentifier {
     /// Executable name
     #[serde(alias = "exe")]
     Exe,
-    /// Class
+    // the description is part of the checked-in schemas, which differ per platform
+    #[cfg_attr(target_os = "windows", doc = " Class")]
+    #[cfg_attr(not(target_os = "windows"), doc = " Role or subrole")]
     #[serde(alias = "class")]
     Class,
     #[serde(alias = "title")]
