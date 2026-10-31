@@ -10,8 +10,8 @@ use std::sync::LazyLock;
 use std::sync::RwLock;
 
 pub mod applications;
-pub mod battery;
-pub mod cpu;
+pub use komorebi_bar_core::widgets::battery;
+pub use komorebi_bar_core::widgets::cpu;
 pub mod date;
 pub mod keyboard;
 pub mod komorebi;

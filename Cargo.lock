@@ -3419,7 +3419,6 @@ dependencies = [
  "schemars 1.2.3",
  "serde",
  "serde_json_lenient",
- "starship-battery",
  "sysinfo 0.39.6",
  "systray-util",
  "tokio",
@@ -3437,9 +3436,12 @@ name = "komorebi-bar-core"
 version = "0.1.42"
 dependencies = [
  "eframe",
+ "egui-phosphor",
  "schemars 1.2.3",
  "serde",
  "serde_json_lenient",
+ "starship-battery",
+ "sysinfo 0.39.6",
 ]
 
 [[package]]
