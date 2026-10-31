@@ -3448,6 +3448,7 @@ dependencies = [
  "eframe",
  "egui-phosphor",
  "image 0.25.10",
+ "komorebi-config",
  "komorebi-protocol",
  "lazy_static",
  "reqwest",

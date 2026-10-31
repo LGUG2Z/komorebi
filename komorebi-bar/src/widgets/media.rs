@@ -1,6 +1,7 @@
 use crate::MAX_LABEL_WIDTH;
 use crate::bar::Alignment;
 use crate::config::MediaDisplayFormat;
+pub use komorebi_bar_core::widgets::platform_config::MediaConfig;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
@@ -12,21 +13,9 @@ use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use eframe::egui::text::LayoutJob;
-use serde::Deserialize;
-use serde::Serialize;
 use std::sync::atomic::Ordering;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus;
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Media widget configuration
-pub struct MediaConfig {
-    /// Enable the Media widget
-    pub enable: bool,
-    /// Display format of the media widget (defaults to IconAndText)
-    pub display: Option<MediaDisplayFormat>,
-}
 
 impl From<MediaConfig> for Media {
     fn from(value: MediaConfig) -> Self {

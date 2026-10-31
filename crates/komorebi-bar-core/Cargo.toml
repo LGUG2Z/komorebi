@@ -11,6 +11,7 @@ eframe = { workspace = true }
 egui-phosphor = { git = "https://github.com/amPerl/egui-phosphor", rev = "d13688738478ecd12b426e3e74c59d6577a85b59" }
 lazy_static = { workspace = true }
 image = "0.25"
+komorebi-config = { path = "../komorebi-config", default-features = false }
 reqwest = { version = "0.12", features = ["blocking"] }
 komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
 serde = { workspace = true }
@@ -24,4 +25,4 @@ schemars = { workspace = true, optional = true }
 
 [features]
 default = ["schemars"]
-schemars = ["dep:schemars"]
+schemars = ["dep:schemars", "komorebi-config/schemars", "komorebi-protocol/schemars"]

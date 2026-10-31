@@ -4,6 +4,7 @@ pub mod cpu;
 pub mod date;
 pub mod icons;
 pub mod memory;
+pub mod platform_config;
 pub mod storage;
 pub mod time;
 pub mod update;
