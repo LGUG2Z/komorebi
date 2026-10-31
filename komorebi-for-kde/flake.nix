@@ -88,7 +88,7 @@
           fullBuild = craneLib.buildPackage (
             individualCrateArgs
             // {
-              COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev);
+              COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" (self.dirtyRev or "unknown"));
             }
           );
 

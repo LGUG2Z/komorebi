@@ -993,16 +993,18 @@ impl StaticConfig {
         transparency_manager::TRANSPARENCY_ALPHA
             .store(self.transparency_alpha.unwrap_or(200), Ordering::SeqCst);
 
+        // the order every other place takes them in (floating, transparency, ignore, manage, regex):
+        // a thread that takes two in another order can wait for one that holds what it needs
+        let mut floating_applications = FLOATING_APPLICATIONS.lock();
+        let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
         let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
-        let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
+        let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         // let mut tray_and_multi_window_identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
         // let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
         // let mut object_name_change_title_ignore_list = OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST.lock();
         // let mut layered_identifiers = LAYERED_WHITELIST.lock();
-        let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
         // let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
-        let mut floating_applications = FLOATING_APPLICATIONS.lock();
         // let mut no_titlebar_applications = NO_TITLEBAR.lock();
 
         if let Some(rules) = &mut self.ignore_rules {

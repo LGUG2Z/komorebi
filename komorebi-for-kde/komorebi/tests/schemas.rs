@@ -11,11 +11,21 @@ use komorebi::core::SocketMessage;
 use komorebi::window_manager::WindowManager;
 use serde_json::json;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+
+/// The tests of this binary run in parallel in one process, so a socket named by the pid alone is
+/// bound by two at once.
+static NEXT: AtomicUsize = AtomicUsize::new(0);
 
 fn answer(message: SocketMessage) -> serde_json::Value {
     let fake = Arc::new(FakeBackend::with_one_monitor());
     let (_sender, receiver) = crossbeam_channel::bounded(1);
-    let socket = std::path::PathBuf::from(format!("/tmp/kms-{}.sock", std::process::id()));
+    let socket = std::path::PathBuf::from(format!(
+        "/tmp/kms-{}-{}.sock",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
 
     let mut reply = Vec::new();
     with_backend(fake, || {

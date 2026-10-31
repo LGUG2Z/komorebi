@@ -39,7 +39,8 @@ source and downloads Plasma: there is no binary cache.
   --rdp-port PORT     the host's port for RDP into the guest (default: 3389)
   -h, --help          this text
 
-The repository the guest mounts at /repo is the current checkout, or KOMOREBI_REPO.
+The repository the guest mounts at /repo is the checkout this file is in (or, from the flake, the current
+checkout: the komorebi-for-kde directory of a bigger repository), or KOMOREBI_REPO.
 EOF
 }
 
@@ -550,7 +551,21 @@ fi
 
 repo=${KOMOREBI_REPO:-}
 if [ -z "$repo" ]; then
-  repo=$(git rev-parse --show-toplevel 2> /dev/null || pwd)
+  # This tree may be a subdirectory of a bigger repository, whose toplevel has a flake.nix of its own,
+  # so the toplevel is not the answer. A run of the file by hand is in scripts/ of the tree; the
+  # flake's wrapper is in the store, and falls back to the checkout the command is run from.
+  here=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2> /dev/null && pwd || true)
+  top=$(git rev-parse --show-toplevel 2> /dev/null || pwd)
+  case $here in
+    /nix/store/* | "") here= ;;
+  esac
+  if [ -n "$here" ] && [ -e "$here/flake.nix" ]; then
+    repo=$here
+  elif [ -e "$top/komorebi-for-kde/flake.nix" ]; then
+    repo=$top/komorebi-for-kde
+  else
+    repo=$top
+  fi
 fi
 if [ ! -e "$repo/flake.nix" ]; then
   echo "run-kde: $repo is not a checkout of the repository (there is no flake.nix): run it from one, or set KOMOREBI_REPO" >&2

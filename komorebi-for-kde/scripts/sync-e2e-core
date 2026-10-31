@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# Keeps a copy of the platform-neutral part of the VM library in step with this repository, while
-# that part is on its way to kfw (the plan in docs/dev/vm-tests.md, "Writing a scenario"): the
-# package komorebi_vm.core, and the unit tests that belong to it. The source is this repository until
-# the move is made, and the script goes with it.
+# Checks that the copy of the platform-neutral part of the VM library in this tree is in step with
+# the root e2e/lib of the komorebi repository (the plan in docs/dev/vm-tests.md, "Writing a
+# scenario"): the package komorebi_vm.core, and the unit tests that belong to it. The SOURCE OF TRUTH
+# IS THE ROOT e2e/lib, where the core is on its way to the Windows tree, and this tree's copy follows
+# it. The script goes away once the root flake builds the KDE VM tests from e2e/lib; until then the
+# KDE flake cannot reach ../, so the copy stays.
 #
-#   scripts/sync-e2e-core DEST          copy into DEST/komorebi_vm/core, DEST/tests and
-#                                       DEST/tests/fixtures
-#   scripts/sync-e2e-core --check DEST  say what differs, and exit 1 if anything does
+#   scripts/sync-e2e-core --check ../e2e/lib  say what differs, and exit 1 if anything does
+#   scripts/sync-e2e-core DEST                copy THIS tree's core into DEST/komorebi_vm/core,
+#                                             DEST/tests and DEST/tests/fixtures. That is the direction
+#                                             from before the move: the root is the source now, so
+#                                             do not point it at ../e2e/lib; copy the other way by hand.
 #
 # Nothing else of DEST is touched, and a file of DEST that is not here is reported and left alone.
 set -euo pipefail

@@ -30,7 +30,9 @@ leaves everything outside them (the prose) alone. --check exits 1 when a block o
 what would be generated now, and names the blocks; the block `sources` (the revisions read) is
 skipped, because it changes whenever a source tree moves. --block prints one block.
 
-Defaults: kfw ~/komorebi, kfm ~/komorebi-for-mac, kfde the checkout this script is in.
+Defaults: kfde the checkout this script is in; kfw and kfm are the repository around it and its
+komorebi-for-mac/ when it is komorebi-for-kde/ of the komorebi repository, else ~/komorebi and
+~/komorebi-for-mac.
 
 The script is read-only: it reads files, and runs `git log -1` and `git status` in the checkouts of
 kfw and kfm; it never asks for a remote.
@@ -45,6 +47,11 @@ from pathlib import Path
 
 HOME = Path.home()
 HERE = Path(__file__).resolve().parent.parent
+# in the komorebi repository this tree is komorebi-for-kde/, next to komorebi-for-mac/, and kfw is the
+# repository itself; on its own it sits beside ~/komorebi and ~/komorebi-for-mac
+MONOREPO = (HERE.parent / "komorebi-for-mac").is_dir() and (HERE.parent / "komorebi" / "Cargo.toml").is_file()
+DEFAULT_KFW = HERE.parent if MONOREPO else HOME / "komorebi"
+DEFAULT_KFM = HERE.parent / "komorebi-for-mac" if MONOREPO else HOME / "komorebi-for-mac"
 ERRORS = []
 
 
@@ -1133,8 +1140,8 @@ MARK = re.compile(r"<!-- gen:([\w-]+) -->\n(.*?)<!-- /gen:\1 -->", re.S)
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--kfw", default=str(HOME / "komorebi"))
-    ap.add_argument("--kfm", default=str(HOME / "komorebi-for-mac"))
+    ap.add_argument("--kfw", default=str(DEFAULT_KFW))
+    ap.add_argument("--kfm", default=str(DEFAULT_KFM))
     ap.add_argument("--kfde", default=str(HERE))
     ap.add_argument("--update", metavar="FILE")
     ap.add_argument("--check", metavar="FILE")
