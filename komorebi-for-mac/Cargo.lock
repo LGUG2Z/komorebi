@@ -3332,6 +3332,7 @@ dependencies = [
  "dirs 6.0.0",
  "fs-tail",
  "komorebi-client",
+ "komorebi-config",
  "lazy_static",
  "pastey 0.2.3",
  "reqwest",
