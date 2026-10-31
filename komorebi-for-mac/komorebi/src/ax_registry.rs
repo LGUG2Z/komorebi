@@ -174,3 +174,25 @@ mod drop_tests {
         forget(0x5201);
     }
 }
+
+#[cfg(test)]
+mod pid_tests {
+    use super::*;
+
+    #[test]
+    fn an_application_quitting_takes_its_windows_and_no_other() {
+        let mut quitter = Window::from(0x5301);
+        quitter.application.process_id = 6_300_001;
+        let mut stayer = Window::from(0x5302);
+        stayer.application.process_id = 6_300_002;
+        register(&quitter);
+        register(&stayer);
+
+        forget_pid(6_300_001);
+
+        assert!(get(WindowId::from_u32(0x5301)).is_err());
+        assert!(get(WindowId::from_u32(0x5302)).is_ok());
+
+        forget(0x5302);
+    }
+}

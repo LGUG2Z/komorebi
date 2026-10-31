@@ -98,6 +98,19 @@ impl WindowManager {
             window_manager_event_listener::resize_step_taken();
         }
 
+        // an application that quit takes its windows out of the registry whatever else is going on:
+        // this is ahead of the pause and the other-space returns below, which would otherwise discard
+        // the notification and leave the entries to be inherited by a process that reuses the pid
+        if let WindowManagerEvent::Destroy(
+            SystemNotification::AppKitWorkspace(
+                AppKitWorkspaceNotification::NSWorkspaceDidTerminateApplicationNotification,
+            ),
+            process_id,
+        ) = &event
+        {
+            crate::ax_registry::forget_pid(*process_id);
+        }
+
         if matches!(event, WindowManagerEvent::ScreenLock(_, _)) {
             let application = self.application(event.process_id())?;
             if application.name().unwrap_or_default() == "loginwindow" {
@@ -749,7 +762,6 @@ impl WindowManager {
                     )
                 ) {
                     enhanced_ui::forget(process_id);
-                    crate::ax_registry::forget_pid(process_id);
                 }
 
                 // some apps like Discord in all of their relentless Electron slop stupidity
