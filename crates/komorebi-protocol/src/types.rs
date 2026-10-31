@@ -1,4 +1,4 @@
-//! The payload types of `SocketMessage` that are the same on every platform.
+//! The payload types of `SocketMessage`.
 
 use clap::ValueEnum;
 use serde::Deserialize;
@@ -148,4 +148,88 @@ pub enum OperationBehaviour {
     Op,
     /// Ignore commands on temporarily unmanaged/floated windows
     NoOp,
+}
+
+// Payloads of messages that not every platform handles (see `platforms`): borders, stackbars,
+// window hiding and focus follows mouse are Windows features, the last one also exists on KDE.
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, Serialize, Deserialize, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Stackbar mode
+pub enum StackbarMode {
+    /// Always show
+    Always,
+    /// Never show
+    Never,
+    /// Show on stack
+    OnStack,
+}
+
+#[derive(Debug, Copy, Default, Clone, Eq, PartialEq, Display, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Starbar label
+pub enum StackbarLabel {
+    #[default]
+    /// Process name
+    Process,
+    /// Window title
+    Title,
+}
+
+#[derive(
+    Default, Copy, Clone, Debug, Eq, PartialEq, Display, Serialize, Deserialize, ValueEnum,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Border style
+pub enum BorderStyle {
+    #[default]
+    /// Use the system border style
+    System,
+    /// Use the Windows 11-style rounded borders
+    Rounded,
+    /// Use the Windows 10-style square borders
+    Square,
+}
+
+#[derive(
+    Default, Copy, Clone, Debug, Eq, PartialEq, Display, Serialize, Deserialize, ValueEnum,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Border style
+pub enum BorderImplementation {
+    #[default]
+    /// Use the adjustable komorebi border implementation
+    Komorebi,
+    /// Use the thin Windows accent border implementation
+    Windows,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Focus follows mouse implementation
+// KDE's compositor does the focusing: its description says so (it is part of the checked-in schema)
+#[cfg_attr(target_os = "linux", doc = "")]
+#[cfg_attr(
+    target_os = "linux",
+    doc = " The two exist on Windows. On KDE the compositor does it, so both ask KWin for its"
+)]
+#[cfg_attr(target_os = "linux", doc = " \"focus follows mouse\" focus policy.")]
+pub enum FocusFollowsMouseImplementation {
+    /// Custom FFM implementation (slightly more CPU-intensive)
+    Komorebi,
+    /// Native (legacy) Windows FFM implementation
+    Windows,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window hiding behaviour
+pub enum HidingBehaviour {
+    /// END OF LIFE FEATURE: Use the `SW_HIDE` flag to hide windows when switching workspaces (has issues with Electron apps)
+    #[deprecated(note = "End of life feature")]
+    Hide,
+    /// Use the `SW_MINIMIZE` flag to hide windows when switching workspaces (has issues with frequent workspace switching)
+    Minimize,
+    /// Use the undocumented SetCloak Win32 function to hide windows when switching workspaces
+    Cloak,
 }

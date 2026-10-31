@@ -5,6 +5,7 @@
 //! leaf modules (`animation`, `pathext`) those payloads depend on. The socket
 //! transport is not part of it.
 #![warn(clippy::all)]
+#![allow(deprecated)] // HidingBehaviour::Hide is deprecated and still part of the wire format
 #![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
 
 pub mod animation;
