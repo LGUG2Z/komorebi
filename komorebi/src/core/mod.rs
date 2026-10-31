@@ -15,7 +15,6 @@ use strum::EnumString;
 
 use crate::KomorebiTheme;
 use crate::animation::prefix::AnimationPrefix;
-use crate::state::State;
 
 // Re-export everything from komorebi-layouts
 pub use komorebi_layouts::Arrangement;
@@ -285,7 +284,7 @@ pub enum SocketMessage {
     GenerateStaticConfig,
     DebugWindow(i64),
     // low level commands
-    ApplyState(State),
+    ApplyState(komorebi_protocol::message::StateBlob),
 }
 
 impl SocketMessage {

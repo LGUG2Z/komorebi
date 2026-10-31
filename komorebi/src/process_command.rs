@@ -2224,8 +2224,9 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::Theme(ref theme) => {
                 theme_manager::send_notification(*theme.clone());
             }
-            SocketMessage::ApplyState(ref state) => {
-                self.apply_state(state.clone());
+            SocketMessage::ApplyState(ref blob) => {
+                let state: State = serde_json::from_value(blob.0.clone())?;
+                self.apply_state(state);
             }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)
