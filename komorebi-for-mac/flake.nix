@@ -111,6 +111,8 @@
                     || (builtins.match ".*/docs/.*" path != null)
                     # embedded by include_str! in komorebic
                     || (pkgs.lib.hasSuffix "/komorebic/src/macos/applications.json" path)
+                    # include_str! by the tests of the macOS daemon
+                    || (builtins.match ".*/komorebic/fixtures/.*" path != null)
                   );
               };
 
