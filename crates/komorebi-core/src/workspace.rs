@@ -654,7 +654,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// The compositor reports no focused window.
     pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
         let window_id = P::foreground_window_id().ok_or_eyre("no foreground window")?;
-        if let Some(window) = self.maximized_window
+        if let Some(window) = &self.maximized_window
             && window_id == window.id()
         {
             return Ok(true);
@@ -683,7 +683,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
             }
         }
 
-        if let Some(window) = self.maximized_window
+        if let Some(window) = &self.maximized_window
             && window_id == window.id()
         {
             return true;
@@ -716,7 +716,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
             }
         }
 
-        if let Some(window) = self.maximized_window
+        if let Some(window) = &self.maximized_window
             && let Some(window_exe) = window.exe()
             && exe == window_exe
         {
@@ -750,7 +750,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
             }
         }
 
-        if let Some(window) = self.maximized_window
+        if let Some(window) = &self.maximized_window
             && window_id == window.id()
         {
             return true;
@@ -839,7 +839,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
             container.load_focused_window();
         }
 
-        self.new_container_for_window(window);
+        self.new_container_for_window(window.clone());
 
         let mut container = Container::default();
         container.add_window(window);
@@ -1392,7 +1392,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// Takes the focused window of the workspace (the maximized one, the monocle's or the focused
     /// container's) out of its place and makes it a floating window.
     pub fn new_floating_window(&mut self) -> eyre::Result<()> {
-        let window = if let Some(maximized_window) = self.maximized_window {
+        let window = if let Some(maximized_window) = self.maximized_window.clone() {
             P::unmaximize_window(&maximized_window)?;
             self.maximized_window = None;
             self.maximized_window_restore_idx = None;
@@ -1467,7 +1467,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
             self.resize_dimensions = resize_dimensions;
         }
 
-        if let Some(window) = self.maximized_window {
+        if let Some(window) = &self.maximized_window {
             window.hide_window();
         }
 

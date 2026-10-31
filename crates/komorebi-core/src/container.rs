@@ -19,10 +19,11 @@ use std::collections::VecDeque;
 
 /// What a container needs of a platform's window.
 ///
-/// The window is a small `Copy` handle (Windows: an `HWND`; KDE: the compositor's id). Showing and
+/// The window is a handle that is cheap to clone (Windows: an `HWND`; KDE: the compositor's id; macOS: an
+/// Accessibility element). Showing and
 /// hiding it is the platform's business, so the container calls these four operations and nothing
 /// else; none of them reports a failure, because a window that cannot be hidden is left where it is.
-pub trait ContainerWindow: Copy + PartialEq + std::fmt::Debug {
+pub trait ContainerWindow: Clone + PartialEq + std::fmt::Debug {
     /// What names a window to the rest of the daemon: `isize` on Windows, `u32` on KDE.
     type Id: Copy + PartialEq;
 
