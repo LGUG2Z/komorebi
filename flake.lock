@@ -284,7 +284,7 @@
       },
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-YCSeq6arLSifLoHQi7wsJxAa3dM4suGJcxmKsOQ/tWg=",
+        "narHash": "sha256-q3ucXin2GEW4Nw7bcORvvB5nUInEqELn3OM0mqzpGBg=",
         "path": "./komorebi-for-kde",
         "type": "path"
       },
@@ -304,7 +304,7 @@
       },
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-T8MkK2hVhFhbn044YpZGkTK3mktEbFgWQ5OqSsMCva0=",
+        "narHash": "sha256-jkFT/GVbgNTKhtD+3c31FebXk0KyonSlqCPm1WbdTVE=",
         "path": "./komorebi-for-mac",
         "type": "path"
       },
