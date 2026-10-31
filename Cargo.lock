@@ -3572,6 +3572,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebic-core"
+version = "0.1.42"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "komorebic-no-console"
 version = "0.1.42"
 
