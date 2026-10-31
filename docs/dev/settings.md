@@ -332,3 +332,28 @@ all three daemons: statics removed, `apply_globals` applies them with one `Handl
 `display_index_preferences()`), each a clone from one snapshot. The only BEHAVIOUR is the single
 publish. Note the KDE integration test harness (`tests/config.rs`) now resets the paddings through
 `settings()`; it is the oracle that loads configurations over a fake desktop.
+
+## 10. S4 and S5 as landed on `wip-u-settings3`, and what writing them showed
+
+S4 (transparency enabled and alpha; KDE and Windows, macOS has none) and S5 (animation) moved the groups
+with their writers and readers, KDE first, then macOS (S5 only), then Windows. Per-revision gates are in
+the commit bodies. Differences between the daemons that the migration keeps, and that a later unification
+must decide on purpose:
+
+* **Transparency on load:** KDE resets both keys when absent (`unwrap_or(false)`, `unwrap_or(200)`);
+  Windows keeps the value. Both go through `SharedDelta::apply`; KDE builds its delta with `Some(unwrap_or(..))`.
+  (The earlier table in section 2.1 said "kept" for both: corrected here.)
+* **When is a kind of animation on?** KDE and macOS: the per-kind value wins over the global one
+  (`Animation::motion_for`). Windows: the global flag OR a per-kind true (a per-kind false does not turn off a
+  global true), for window moves and the transparency animation; its workspace-transition helpers keep the
+  per-kind-wins rule. The Windows accessors (`animation_enabled_for`, `animation_for`) encode its rule.
+* **Save-and-restore of the global animation flag:** KDE's stacking commands now hold
+  `settings::animation_off()` (`Handle::scoped` on the global flag only, as the old swap did: per-kind values
+  are not suspended), which also restores on an early error return. macOS keeps its `suspend()` counter
+  (suspends every kind). Windows has no such write in the daemon; its shutdown path is the permanent
+  `animation_off_for_good()`. Windows `WINDOW_HANDLING_BEHAVIOUR` moved to `WindowsSettings` and its one
+  save-and-restore (the border paint test) uses `scoped`.
+* The old Windows window-move code held the per-kind enabled map's lock for the rest of the function while
+  animating; it now takes one snapshot and holds nothing.
+
+S6 (borders) is next and is not started.
