@@ -127,7 +127,7 @@ pub fn main() -> eyre::Result<()> {
     );
 
     if opts.quickstart {
-        let komorebi_bar_json = include_str!("../../../docs/komorebi.bar.example.json").to_string();
+        let komorebi_bar_json = include_str!("../../../komorebi-for-mac/docs/komorebi.bar.example.json").to_string();
         std::fs::write(home_dir.join("komorebi.bar.json"), komorebi_bar_json)?;
         println!(
             "Example komorebi.bar.json file written to {}",
@@ -148,7 +148,7 @@ pub fn main() -> eyre::Result<()> {
     let mut config = match config_path {
         None => {
             let komorebi_bar_json =
-                include_str!("../../../docs/komorebi.bar.example.json").to_string();
+                include_str!("../../../komorebi-for-mac/docs/komorebi.bar.example.json").to_string();
 
             std::fs::write(&default_config_path, komorebi_bar_json)?;
             tracing::info!(

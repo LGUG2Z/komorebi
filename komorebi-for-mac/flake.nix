@@ -83,8 +83,18 @@
                         "komorebi-client/src/macos.rs"
                         "komorebi-client/tests"
                       ];
+
+                    # the unified komorebi-bar package: its manifest, main.rs and the macOS module
+                    komorebiBar =
+                      builtins.elem relative [
+                        "komorebi-bar"
+                        "komorebi-bar/Cargo.toml"
+                        "komorebi-bar/src"
+                        "komorebi-bar/src/main.rs"
+                      ]
+                      || pkgs.lib.hasPrefix "komorebi-bar/src/macos" relative;
                   in
-                  ((rootCrate || komorebic || komorebiClient) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
+                  ((rootCrate || komorebic || komorebiClient || komorebiBar) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
                   && (
                     (craneLib.filterCargoSources path type)
                     || (pkgs.lib.hasInfix "/docs/" path)
@@ -103,9 +113,10 @@
                   pkgs.lib.hasPrefix "${platformDir}/" member
                   || member == "komorebic"
                   || member == "komorebi-client"
+                  || member == "komorebi-bar"
                   || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
               };
-              packages = "-p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar-macos";
+              packages = "-p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar";
               workspaceArgs = {
                 pname = "komorebi-workspace";
                 inherit version;
@@ -253,7 +264,6 @@
                         "komorebi-windows"
                         "komorebi-gui"
                         "komorebic-no-console"
-                        "komorebi-bar"
                         "komorebi-shortcuts"
                         "komorebi-e2e-agent"
                         "komorebi-testwin"

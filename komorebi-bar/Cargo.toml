@@ -5,10 +5,12 @@ edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# What both platforms use is in [dependencies]; what only one uses, or uses in another version or with other
+# features, is in the table of its target OS, so that a build for one compiles nothing of the other.
+
 [dependencies]
 komorebi-bar-core = { path = "../crates/komorebi-bar-core", default-features = false }
 komorebi-client = { path = "../komorebi-client", default-features = false }
-komorebi-themes = { path = "../komorebi-themes", default-features = false }
 
 chrono-tz = { workspace = true }
 chrono = { workspace = true }
@@ -19,32 +21,50 @@ dirs = { workspace = true }
 dunce = { workspace = true }
 eframe = { workspace = true }
 egui-phosphor = { git = "https://github.com/amPerl/egui-phosphor", rev = "d13688738478ecd12b426e3e74c59d6577a85b59" }
-egui_extras = { workspace = true }
 font-loader = "0.11"
 hotwatch = { workspace = true }
 image = "0.25"
 lazy_static = { workspace = true }
-netdev = "0.46"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
 parking_lot = { workspace = true }
-regex = "1"
 random_word = { version = "0.5", features = ["en"] }
 reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+komorebi-themes = { path = "../komorebi-themes", default-features = false }
+egui_extras = { workspace = true }
+netdev = "0.46"
+regex = "1"
 sysinfo = { workspace = true }
 systray-util = "0.2.0"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 which = { workspace = true }
 windows = { workspace = true }
 windows-core = { workspace = true }
 windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "0c9d7ee1b807347c507d3a9862dd007b4d3f4354" }
 windows-icons-fallback = { package = "windows-icons", git = "https://github.com/LGUG2Z/windows-icons", rev = "d67cc9920aa9b4883393e411fb4fa2ddd4c498b5" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+komorebi-themes = { path = "../komorebi-themes" }
+icns = "0.4"
+netdev = "0.40"
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+] }
+raw-window-handle = "0.6"
+sysinfo = "0.38"
 
 [features]
 default = ["schemars"]
