@@ -3440,6 +3440,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-config"
+version = "0.1.42"
+dependencies = [
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "strum",
+]
+
+[[package]]
 name = "komorebi-e2e-agent"
 version = "0.1.0"
 dependencies = [

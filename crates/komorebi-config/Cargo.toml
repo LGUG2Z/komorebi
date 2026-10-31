@@ -1,0 +1,29 @@
+[package]
+name = "komorebi-config"
+version = "0.1.42"
+edition = "2024"
+description = "The komorebi.json data types (StaticConfig and the types it is made of) and the generation of its JSON Schema"
+
+[dependencies]
+komorebi-layouts = { path = "../../komorebi-layouts" }
+komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
+komorebi-themes = { path = "../../komorebi-themes" }
+
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+strum = { workspace = true }
+
+# Optional dependencies
+schemars = { workspace = true, optional = true }
+
+[dev-dependencies]
+schemars = { workspace = true }
+
+[features]
+default = ["schemars"]
+schemars = [
+  "dep:schemars",
+  "komorebi-layouts/schemars",
+  "komorebi-protocol/schemars",
+  "komorebi-themes/schemars",
+]
