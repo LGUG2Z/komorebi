@@ -3332,63 +3332,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
-name = "komorebi"
-version = "0.1.42"
-dependencies = [
- "base64 0.22.1",
- "bitflags 2.13.2",
- "chrono",
- "clap",
- "color-eyre",
- "crossbeam-channel",
- "crossbeam-utils",
- "ctrlc",
- "dirs 6.0.0",
- "ed25519-dalek",
- "hotwatch",
- "komorebi-backend",
- "komorebi-collections",
- "komorebi-config",
- "komorebi-layouts",
- "komorebi-protocol",
- "komorebi-scrolling",
- "komorebi-themes",
- "komorebi-transport",
- "lazy_static",
- "miow",
- "nanoid",
- "net2",
- "os_info",
- "parking_lot",
- "paste",
- "powershell_script",
- "regex",
- "reqwest",
- "schemars 1.2.3",
- "serde",
- "serde_json_lenient",
- "serde_with",
- "serde_yaml 0.9.34+deprecated",
- "shadow-rs",
- "strum",
- "sysinfo 0.39.6",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uds_windows",
- "uuid",
- "which",
- "win32-display-data",
- "windows 0.62.2",
- "windows-core 0.62.2",
- "windows-implement 0.60.2",
- "windows-interface 0.59.3",
- "windows-numerics 0.3.1",
- "winput",
- "winreg",
-]
-
-[[package]]
 name = "komorebi-backend"
 version = "0.1.42"
 dependencies = [
@@ -3467,7 +3410,7 @@ dependencies = [
 name = "komorebi-client"
 version = "0.1.42"
 dependencies = [
- "komorebi",
+ "komorebi-windows",
  "serde_json_lenient",
  "uds_windows",
 ]
@@ -3610,6 +3553,63 @@ dependencies = [
  "parking_lot",
  "tracing",
  "uds_windows",
+]
+
+[[package]]
+name = "komorebi-windows"
+version = "0.1.42"
+dependencies = [
+ "base64 0.22.1",
+ "bitflags 2.13.2",
+ "chrono",
+ "clap",
+ "color-eyre",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "ctrlc",
+ "dirs 6.0.0",
+ "ed25519-dalek",
+ "hotwatch",
+ "komorebi-backend",
+ "komorebi-collections",
+ "komorebi-config",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-scrolling",
+ "komorebi-themes",
+ "komorebi-transport",
+ "lazy_static",
+ "miow",
+ "nanoid",
+ "net2",
+ "os_info",
+ "parking_lot",
+ "paste",
+ "powershell_script",
+ "regex",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "serde_with",
+ "serde_yaml 0.9.34+deprecated",
+ "shadow-rs",
+ "strum",
+ "sysinfo 0.39.6",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uds_windows",
+ "uuid",
+ "which",
+ "win32-display-data",
+ "windows 0.62.2",
+ "windows-core 0.62.2",
+ "windows-implement 0.60.2",
+ "windows-interface 0.59.3",
+ "windows-numerics 0.3.1",
+ "winput",
+ "winreg",
 ]
 
 [[package]]
