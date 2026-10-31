@@ -25,6 +25,7 @@ pub mod scrolling;
 pub mod set_window_position;
 pub mod splash;
 pub mod stackbar_manager;
+pub mod settings;
 pub mod state;
 pub mod static_config;
 pub mod styles;
