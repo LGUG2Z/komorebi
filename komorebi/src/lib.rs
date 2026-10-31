@@ -86,6 +86,23 @@ use which::which;
 use winreg::RegKey;
 use winreg::enums::HKEY_CURRENT_USER;
 
+// LOCK ORDER of the rule lists. A thread that holds one of these and takes another must take them
+// in this order (a thread that takes two in another order can wait for one that holds what it
+// needs, and both wait for ever):
+//
+//   FLOATING_APPLICATIONS, SESSION_FLOATING_APPLICATIONS, TRANSPARENCY_BLACKLIST,
+//   IGNORE_IDENTIFIERS, MANAGE_IDENTIFIERS, LAYERED_WHITELIST, TRAY_AND_MULTI_WINDOW_IDENTIFIERS,
+//   OBJECT_NAME_CHANGE_ON_LAUNCH, OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST,
+//   SLOW_APPLICATION_IDENTIFIERS, NO_TITLEBAR, WORKSPACE_MATCHING_RULES, REGEX_IDENTIFIERS
+//
+// REGEX_IDENTIFIERS is last: every rule check holds the list it matches against and then the
+// compiled regexes. PERMAIGNORE_CLASSES and WSL2_UI_PROCESSES are leaves (nothing is taken while
+// they are held). Places that nest the others: window.rs (window_is_eligible), static_config.rs
+// (apply_globals),
+// state.rs (the State snapshot), process_command.rs (session float rules), process_event.rs,
+// window_manager_event.rs, transparency_manager.rs, window_manager.rs. The same rule applies to
+// any new place: lock in this order, or lock one at a time.
+
 lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
     static ref LAYERED_WHITELIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![

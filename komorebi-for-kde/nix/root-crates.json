@@ -1,0 +1,11 @@
+[
+  "crates/komorebi-backend",
+  "crates/komorebi-collections",
+  "crates/komorebi-config",
+  "crates/komorebi-protocol",
+  "crates/komorebi-transport",
+  "crates/komorebic-core",
+  "komorebi-layouts",
+  "komorebi-scrolling",
+  "komorebi-themes"
+]

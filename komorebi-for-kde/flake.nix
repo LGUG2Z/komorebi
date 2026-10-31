@@ -36,12 +36,10 @@
             crane
             rust-overlay
             ;
-          rootCrates = [
-            "crates"
-            "komorebi-layouts"
-            "komorebi-scrolling"
-            "komorebi-themes"
-          ];
+          # the crates of the root workspace that this workspace depends on, by path, directly or not.
+          # Only these are in the source, so that an edit of another crate (the bar's) changes nothing
+          # here. `tools/kde-closure-check` fails if this list and `cargo metadata` differ.
+          rootCrates = builtins.fromJSON (builtins.readFile ./nix/root-crates.json);
           mkPkgs =
             system:
             import nixpkgs {
@@ -73,8 +71,10 @@
                     rootCrate = builtins.any (
                       crate: relative == crate || pkgs.lib.hasPrefix "${crate}/" relative
                     ) rootCrates;
+                    # the directory that holds the crates of crates/, to reach the listed ones
+                    rootCrateParent = relative == "crates";
                   in
-                  (rootCrate && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || inTree)
+                  ((rootCrate || rootCrateParent) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || inTree)
                   &&
                     # the VM tests (their library, scripts and the states they keep) are not built, so
                     # editing one does not change the source the daemon is built from

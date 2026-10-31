@@ -12,8 +12,9 @@ use crate::core::Rect;
 use crate::live_resize;
 use crate::live_resize::Snapping;
 use crate::window_manager::WindowManager;
-use crate::windows_api::WindowsApi;
+use crate::windows_backend::backend;
 use color_eyre::eyre;
+use komorebi_backend::WindowId;
 use komorebi_scrolling::ScrollingSpace;
 use komorebi_scrolling::SwipeTracker;
 use parking_lot::Mutex;
@@ -97,7 +98,7 @@ impl WindowManager {
         let work_area = self.focused_monitor_work_area()?;
         let workspace = self.focused_workspace()?;
         let near: Vec<_> = origins(&workspace.scrolling_lefts(), |hwnd| {
-            WindowsApi::window_rect(hwnd).ok()
+            backend().frame(WindowId::from_hwnd(hwnd)).ok()
         })
         .into_iter()
         .filter(|(_, origin)| live_resize::is_near(origin, &work_area))

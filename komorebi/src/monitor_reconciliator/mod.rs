@@ -15,9 +15,11 @@ use crate::monitor::Monitor;
 use crate::monitor_reconciliator::hidden::Hidden;
 use crate::notify_subscribers;
 use crate::state::State;
+use crate::windows_backend::backend;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
+use komorebi_backend::WindowId;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -593,7 +595,8 @@ where
                                             // Minimize the focused window since Windows might try
                                             // to move it to another monitor if it was focused.
                                             if window.is_focused() {
-                                                window.minimize();
+                                                let _ = backend()
+                                                    .minimize(WindowId::from_hwnd(window.hwnd));
                                             }
                                         }
                                     }
@@ -604,7 +607,8 @@ where
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
                                     if maximized.is_focused() {
-                                        maximized.minimize();
+                                        let _ =
+                                            backend().minimize(WindowId::from_hwnd(maximized.hwnd));
                                     }
                                 }
 
@@ -616,7 +620,8 @@ where
                                         // Minimize the focused window since Windows might try
                                         // to move it to another monitor if it was focused.
                                         if window.is_focused() {
-                                            window.minimize();
+                                            let _ = backend()
+                                                .minimize(WindowId::from_hwnd(window.hwnd));
                                         }
                                     }
                                 }
@@ -626,7 +631,8 @@ where
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
                                     if window.is_focused() {
-                                        window.minimize();
+                                        let _ =
+                                            backend().minimize(WindowId::from_hwnd(window.hwnd));
                                     }
                                 }
                             }

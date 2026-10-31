@@ -8,6 +8,7 @@ use crate::core::BorderStyle;
 use crate::core::WindowKind;
 use crate::ring::Ring;
 use crate::windows_api;
+use crate::windows_backend::backend;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
 pub use border::Border;
@@ -16,6 +17,7 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::atomic::AtomicConsume;
+use komorebi_backend::WindowId;
 pub use komorebi_config::behaviour::ZOrder;
 use komorebi_themes::colour::Colour;
 use komorebi_themes::colour::Rgb;
@@ -678,7 +680,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 );
                                 border.window_rect
                             } else {
-                                WindowsApi::window_rect(focused_window_hwnd)?
+                                backend().frame(WindowId::from_hwnd(focused_window_hwnd))?
                             };
                             border.window_rect = rect;
 
@@ -857,7 +859,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 );
                                 border.window_rect
                             } else {
-                                match WindowsApi::window_rect(focused_window_hwnd) {
+                                match backend().frame(WindowId::from_hwnd(focused_window_hwnd)) {
                                     Ok(rect) => rect,
                                     Err(_) => {
                                         remove_border(&c.id, &mut borders, &mut windows_borders)?;
@@ -963,7 +965,7 @@ fn handle_floating_borders(
             );
             border.window_rect
         } else {
-            WindowsApi::window_rect(window.hwnd)?
+            backend().frame(WindowId::from_hwnd(window.hwnd))?
         };
         border.window_rect = rect;
 

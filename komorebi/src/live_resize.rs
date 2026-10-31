@@ -29,10 +29,12 @@ use crate::core::Rect;
 use crate::core::Sizing;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
+use crate::windows_backend::backend;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use crossbeam_channel::Sender;
 use crossbeam_channel::bounded;
+use komorebi_backend::WindowId;
 use komorebi_scrolling::ScrollingSpace;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -163,7 +165,9 @@ pub fn is_catching_up(hwnd: isize, layout: &Rect) -> bool {
         return false;
     };
 
-    let arrived = WindowsApi::window_rect(hwnd).is_ok_and(|rect| rect == target);
+    let arrived = backend()
+        .frame(WindowId::from_hwnd(hwnd))
+        .is_ok_and(|rect| rect == target);
 
     if arrived || at.elapsed() >= IN_FLIGHT {
         return false;
@@ -440,7 +444,7 @@ pub fn cover_all(windows: &[(isize, Rect)]) {
         .into_iter()
         .map(|(hwnd, origin)| {
             std::thread::spawn(move || {
-                let rect = WindowsApi::window_rect(hwnd).ok()?;
+                let rect = backend().frame(WindowId::from_hwnd(hwnd)).ok()?;
 
                 // the picture is taken before the window is touched
                 match GhostWindow::create(hwnd, origin, None) {
@@ -897,7 +901,7 @@ impl WindowManager {
             return Ok(());
         }
 
-        let now = WindowsApi::window_rect(kept.hwnd)?;
+        let now = backend().frame(WindowId::from_hwnd(kept.hwnd))?;
 
         // a window moved by its title bar changes no tile until it is let go,
         // and a drag that has gone back to where it began is a step that puts
@@ -1032,7 +1036,7 @@ impl WindowManager {
                 continue;
             }
 
-            let Ok(rect) = WindowsApi::window_rect(window.hwnd) else {
+            let Ok(rect) = backend().frame(WindowId::from_hwnd(window.hwnd)) else {
                 continue;
             };
 

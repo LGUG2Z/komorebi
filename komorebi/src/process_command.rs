@@ -93,9 +93,11 @@ use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
+use crate::windows_backend::backend;
 use crate::winevent_listener;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
+use komorebi_backend::WindowId;
 use stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use stackbar_manager::STACKBAR_LABEL;
 use stackbar_manager::STACKBAR_MODE;
@@ -283,7 +285,10 @@ impl WindowManager {
                             if let Some(window) =
                                 &mut self.focused_workspace_mut()?.maximized_window
                             {
-                                window.focus(self.mouse_follows_focus)?;
+                                backend().focus(
+                                    WindowId::from_hwnd(window.hwnd),
+                                    self.mouse_follows_focus,
+                                )?;
                             }
                         }
                         WorkspaceWindowLocation::Container(container_idx, window_idx) => {
@@ -300,7 +305,10 @@ impl WindowManager {
                                 .floating_windows_mut()
                                 .get_mut(window_idx)
                             {
-                                window.focus(self.mouse_follows_focus)?;
+                                backend().focus(
+                                    WindowId::from_hwnd(window.hwnd),
+                                    self.mouse_follows_focus,
+                                )?;
                             }
                         }
                     }
@@ -393,15 +401,16 @@ impl WindowManager {
             }
             SocketMessage::ForceFocus => {
                 let focused_window = self.focused_window()?;
-                let focused_window_rect = WindowsApi::window_rect(focused_window.hwnd)?;
+                let focused_window_rect =
+                    backend().frame(WindowId::from_hwnd(focused_window.hwnd))?;
                 WindowsApi::center_cursor_in_rect(&focused_window_rect)?;
                 WindowsApi::left_click();
             }
             SocketMessage::Close => {
-                Window::from(WindowsApi::foreground_window()?).close()?;
+                backend().close(WindowId::from_hwnd(WindowsApi::foreground_window()?))?;
             }
             SocketMessage::Minimize => {
-                Window::from(WindowsApi::foreground_window()?).minimize();
+                let _ = backend().minimize(WindowId::from_hwnd(WindowsApi::foreground_window()?));
             }
             SocketMessage::LockMonitorWorkspaceContainer(
                 monitor_idx,
@@ -1291,7 +1300,9 @@ impl WindowManager {
 
                         // Sort by window area
                         window_idx_pairs.sort_by_key(|(_, w)| {
-                            let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                            let rect = backend()
+                                .frame(WindowId::from_hwnd(w.hwnd))
+                                .unwrap_or_default();
                             rect.right * rect.bottom
                         });
                         window_idx_pairs.reverse();
@@ -1300,16 +1311,16 @@ impl WindowManager {
                             if i == focused_idx {
                                 to_focus = Some(*window);
                             } else {
-                                window.restore();
-                                window.raise()?;
+                                let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
+                                backend().raise(WindowId::from_hwnd(window.hwnd))?;
                             }
                         }
 
                         if let Some(focused_window) = &to_focus {
                             // The focused window should be the last one raised to make sure it is
                             // on top
-                            focused_window.restore();
-                            focused_window.raise()?;
+                            let _ = backend().restore(WindowId::from_hwnd(focused_window.hwnd));
+                            backend().raise(WindowId::from_hwnd(focused_window.hwnd))?;
                         }
 
                         for container in workspace.containers() {
@@ -1330,10 +1341,10 @@ impl WindowManager {
                         if let Some(monocle) = &workspace.monocle_container {
                             if let Some(window) = monocle.focused_window() {
                                 to_focus = Some(*window);
-                                window.raise()?;
+                                backend().raise(WindowId::from_hwnd(window.hwnd))?;
                             }
                             for window in workspace.floating_windows() {
-                                window.hide();
+                                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
                             }
                         } else {
                             let focused_container_idx = workspace.focused_container_idx();
@@ -1343,7 +1354,7 @@ impl WindowManager {
                                     if i == focused_container_idx {
                                         to_focus = Some(*window);
                                     }
-                                    window.raise()?;
+                                    backend().raise(WindowId::from_hwnd(window.hwnd))?;
                                 }
                             }
 
@@ -1355,7 +1366,9 @@ impl WindowManager {
 
                             // Sort by window area
                             window_idx_pairs.sort_by_key(|w| {
-                                let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                                let rect = backend()
+                                    .frame(WindowId::from_hwnd(w.hwnd))
+                                    .unwrap_or_default();
                                 rect.right * rect.bottom
                             });
 
@@ -1366,7 +1379,7 @@ impl WindowManager {
                     }
                 };
                 if let Some(window) = to_focus {
-                    window.focus(mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
                 }
             }
             SocketMessage::Stop => {
@@ -2283,10 +2296,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
     }
 }
 
-pub fn read_commands_uds(
-    wm: &Arc<Mutex<WindowManager>>,
-    stream: UnixStream,
-) -> eyre::Result<()> {
+pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> eyre::Result<()> {
     komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &WindowsConnectionPolicy)
 }
 
