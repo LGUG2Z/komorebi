@@ -578,7 +578,8 @@ impl Window {
         crate::ax_registry::AxEntry {
             element: self.element.clone(),
             observer: self.observer.clone(),
-            application: self.application.clone(),
+            // inert: dropping an entry must not ask the application anything (see `Application::inert`)
+            application: self.application.inert(),
         }
     }
 

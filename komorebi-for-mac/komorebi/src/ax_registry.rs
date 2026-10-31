@@ -112,3 +112,44 @@ pub fn identify(
 ) -> std::result::Result<u32, crate::accessibility::error::AccessibilityError> {
     crate::accessibility::AccessibilityApi::window_id(element)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn window_of(id: u32, pid: i32) -> Window {
+        let mut window = Window::from(id);
+        window.application.process_id = pid;
+        window
+    }
+
+    fn id(raw: u32) -> WindowId {
+        WindowId::from_u32(raw)
+    }
+
+    /// `Application::drop` asks the application whether it is still there (a blocking
+    /// Accessibility round trip) when `is_observable`; the table must hold copies that skip it.
+    #[test]
+    fn a_registered_entry_does_not_ask_the_app_when_it_is_dropped() {
+        let mut window = window_of(0x5101, 6_100_001);
+        window.application.is_observable = true;
+
+        assert!(!window.entry().application.is_observable);
+
+        register(&window);
+        assert!(!get(id(0x5101)).unwrap().application.is_observable);
+
+        forget(0x5101);
+    }
+
+    #[test]
+    fn a_window_made_from_an_entry_is_inert_too() {
+        let mut window = window_of(0x5102, 6_100_002);
+        window.application.is_observable = true;
+        register(&window);
+
+        assert!(!super::window(id(0x5102)).unwrap().application.is_observable);
+
+        forget(0x5102);
+    }
+}

@@ -121,6 +121,16 @@ impl Application {
         })
     }
 
+    /// A clone that does nothing when it is dropped: [`Application::drop`] asks the application
+    /// whether it is still there (a blocking Accessibility round trip) and may invalidate the
+    /// observer that every clone shares, which is for the clones a window carries and not for the
+    /// ones that a table keeps.
+    pub fn inert(&self) -> Self {
+        let mut inert = self.clone();
+        inert.is_observable = false;
+        inert
+    }
+
     /// The AX element of the application itself, as opposed to one of its windows
     pub fn element(&self) -> &AccessibilityUiElement {
         &self.element
