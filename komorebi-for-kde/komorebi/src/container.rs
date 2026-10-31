@@ -8,6 +8,7 @@
 //! ([`Container::load_focused_window`](komorebi_core::Container::load_focused_window)).
 
 use crate::window::Window;
+use color_eyre::eyre;
 use komorebi_core::ContainerWindow;
 use komorebi_core::WorkspaceWindow;
 
@@ -16,6 +17,7 @@ pub type Container = komorebi_core::Container<Window>;
 
 impl ContainerWindow for Window {
     type Id = u32;
+    type HideSpot = ();
 
     fn id(&self) -> u32 {
         self.id
@@ -25,20 +27,24 @@ impl ContainerWindow for Window {
         self.exe()
     }
 
-    fn hide_window(&self) {
+    fn hide_window(&self, _spot: ()) -> eyre::Result<()> {
         self.hide();
+        Ok(())
     }
 
-    fn restore_window(&self) {
+    fn restore_window(&self) -> eyre::Result<()> {
         self.restore();
+        Ok(())
     }
 
-    fn hide_stacked(&self) {
+    fn hide_stacked(&self, _spot: ()) -> eyre::Result<()> {
         self.hide();
+        Ok(())
     }
 
-    fn restore_stacked(&self) {
+    fn restore_stacked(&self) -> eyre::Result<()> {
         self.restore();
+        Ok(())
     }
 }
 
@@ -82,8 +88,8 @@ mod tests {
             r#"{"id":"c1","locked":true,"windows":{"elements":[],"focused":0}}"#
         );
 
-        container.add_window(Window::from(5));
-        container.add_window(Window::from(9));
+        let _ = container.add_window(Window::from(5), ());
+        let _ = container.add_window(Window::from(9), ());
         container.focus_window(0);
 
         let json = serde_json::to_string(&container).unwrap();
@@ -114,7 +120,7 @@ mod tests {
         let mut container = Container::default();
         for id in ids {
             fake.open_window(id, "foot", "foot", &format!("window {id}"));
-            container.add_window(Window::from(id));
+            let _ = container.add_window(Window::from(id), ());
         }
         container.focus_window(focus);
         container
@@ -140,7 +146,7 @@ mod tests {
         with_backend(fake.clone(), || {
             let mut container = stack_of(&fake, 704..=706, 0);
 
-            container.load_focused_window();
+            let _ = container.load_focused_window(());
 
             assert!(!fake.is_hidden(704));
             assert!(fake.is_hidden(705) && fake.is_hidden(706));
@@ -155,13 +161,13 @@ mod tests {
         with_backend(fake.clone(), || {
             let container = stack_of(&fake, 707..=709, 1);
 
-            container.hide(Some(709));
+            let _ = container.hide(Some(709), ());
             assert!(fake.is_hidden(707) && fake.is_hidden(708) && !fake.is_hidden(709));
 
-            container.hide(None);
+            let _ = container.hide(None, ());
             assert!(fake.is_hidden(709));
 
-            container.restore();
+            let _ = container.restore();
             assert!(fake.is_hidden(707) && !fake.is_hidden(708) && fake.is_hidden(709));
         });
     }

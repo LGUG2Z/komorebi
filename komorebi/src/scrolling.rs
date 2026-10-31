@@ -691,7 +691,7 @@ impl WorkspaceScrolling for Workspace {
 
         if let Some(container) = self.containers_mut().get_mut(idx) {
             for window in windows {
-                container.add_window(window);
+                let _ = container.add_window(window, ());
             }
 
             // the window that had focus is the one that is showing
@@ -702,7 +702,7 @@ impl WorkspaceScrolling for Workspace {
             }
 
             if !cfg!(test) {
-                container.load_focused_window();
+                let _ = container.load_focused_window(());
             }
         }
 
@@ -730,17 +730,17 @@ impl WorkspaceScrolling for Workspace {
 
         // the window that stays was one of the tabs, and may be the one that was out of sight, so
         // it is put where it is shown as well, or its column is left empty until focus reaches it
-        container.restore();
+        let _ = container.restore();
 
         // the strip is about to be told that there are more containers than it has columns for,
         // and so each of them is a column, until they are put in this one
         let mut count = 0;
         for (offset, window) in rest.into_iter().enumerate() {
             let mut container = Container::default();
-            container.add_window(window);
+            let _ = container.add_window(window, ());
 
             // it was one of the tabs that were out of sight, and has to be put where it is shown
-            container.restore();
+            let _ = container.restore();
 
             self.insert_container_at_idx(idx + 1 + offset, container);
             count += 1;
@@ -942,7 +942,7 @@ mod tests {
 
         for hwnd in first..first + count {
             let mut container = Container::default();
-            container.add_window(Window::from(hwnd));
+            let _ = container.add_window(Window::from(hwnd), ());
             let idx = workspace.containers().len();
             workspace.insert_container_at_idx(idx, container);
         }
@@ -965,7 +965,7 @@ mod tests {
 
         for hwnd in 2..=5 {
             let mut container = Container::default();
-            container.add_window(Window::from(hwnd));
+            let _ = container.add_window(Window::from(hwnd), ());
             let idx = workspace
                 .scrolling_insertion_idx()
                 .unwrap_or_else(|| workspace.containers().len());
@@ -1172,7 +1172,7 @@ mod tests {
             let idx = workspace.focused_container_idx();
             let container = workspace.containers_mut().get_mut(idx).unwrap();
             container.focus_window(focused);
-            container.load_focused_window();
+            let _ = container.load_focused_window(());
             assert!(HIDDEN_HWNDS.lock().contains(&hidden));
 
             assert!(workspace.toggle_scrolling_column_stack().unwrap());
@@ -1212,7 +1212,7 @@ mod tests {
             ..Workspace::default()
         };
         let mut container = Container::default();
-        container.add_window(Window::from(9101));
+        let _ = container.add_window(Window::from(9101), ());
         workspace.insert_container_at_idx(0, container);
 
         workspace.expand_scrolling_column();

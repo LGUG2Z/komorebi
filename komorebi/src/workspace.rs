@@ -431,7 +431,7 @@ impl WorkspaceExt for Workspace {
         if let Some(container) = &self.monocle_container
             && let Some(window) = container.focused_window()
         {
-            container.restore();
+            let _ = container.restore();
             window.focus(mouse_follows_focus)?;
             return self.apply_wallpaper(hmonitor, monitor_wp);
         }
@@ -446,7 +446,7 @@ impl WorkspaceExt for Workspace {
                 to_focus = Option::from(*window);
             }
 
-            container.restore();
+            let _ = container.restore();
         }
 
         if let Some(container) = self.focused_container_mut() {
@@ -454,7 +454,7 @@ impl WorkspaceExt for Workspace {
         }
 
         for window in self.floating_windows() {
-            window.restore_window();
+            let _ = window.restore_window();
         }
 
         // Do this here to make sure that an error doesn't stop the restoration of other windows
@@ -464,13 +464,13 @@ impl WorkspaceExt for Workspace {
             if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
                 window.focus(mouse_follows_focus)?;
             } else if let Some(maximized_window) = self.maximized_window {
-                maximized_window.restore_window();
+                let _ = maximized_window.restore_window();
                 maximized_window.focus(mouse_follows_focus)?;
             } else if let Some(floating_window) = self.focused_floating_window() {
                 floating_window.focus(mouse_follows_focus)?;
             }
         } else if let Some(maximized_window) = self.maximized_window {
-            maximized_window.restore_window();
+            let _ = maximized_window.restore_window();
             maximized_window.focus(mouse_follows_focus)?;
         } else if let Some(floating_window) = self.focused_floating_window() {
             floating_window.focus(mouse_follows_focus)?;
@@ -706,14 +706,14 @@ impl WorkspaceExt for Workspace {
                                 }
                                 if hidden.get(i).copied().unwrap_or_default() {
                                     // it is seen on another monitor wherever it rests here
-                                    window.hide_window();
+                                    let _ = window.hide_window(());
                                 } else {
                                     if crate::scrolling::should_restore_when_placed(
                                         window.hwnd,
                                         container.focused_window().map(|w| w.hwnd),
                                         &HIDDEN_HWNDS.lock(),
                                     ) {
-                                        window.restore_window();
+                                        let _ = window.restore_window();
                                     }
 
                                     backend().set_rect(WindowId::from_hwnd(window.hwnd), layout)?;
@@ -815,7 +815,7 @@ impl WorkspaceExt for Workspace {
             }
 
             for c in self.containers() {
-                c.restore();
+                let _ = c.restore();
             }
 
             return Ok(());
@@ -857,7 +857,7 @@ impl WorkspaceExt for Workspace {
                 self.focus_previous_container();
             }
         } else {
-            container.load_focused_window();
+            let _ = container.load_focused_window(());
             if let Some(window) = container.focused_window() {
                 window.focus(false)?;
             }
@@ -891,7 +891,7 @@ impl WorkspaceExt for Workspace {
                 self.monocle_container = None;
                 self.monocle_container_restore_idx = None;
             } else {
-                monocle_container.load_focused_window();
+                let _ = monocle_container.load_focused_window(());
             }
 
             self.maximized_window = Option::from(window);
@@ -920,7 +920,7 @@ impl WorkspaceExt for Workspace {
                 self.resize_dimensions.remove(focused_idx);
             }
         } else {
-            container.load_focused_window();
+            let _ = container.load_focused_window(());
         }
 
         self.maximized_window = Option::from(window);
@@ -961,7 +961,7 @@ impl WorkspaceExt for Workspace {
 
         self.focused_container_mut()
             .ok_or_eyre("there is no container")?
-            .load_focused_window();
+            .load_focused_window(())?;
 
         self.maximized_window = None;
         self.maximized_window_restore_idx = None;
@@ -1077,7 +1077,7 @@ mod tests {
         ws.focus_container(2);
 
         // simulate a new window being launched on this workspace
-        ws.new_container_for_window(Window::from(123));
+        let _ = ws.new_container_for_window(Window::from(123));
 
         // new length should be 5, with the focus on the new window at index 4
         assert_eq!(ws.containers().len(), 5);
@@ -1093,7 +1093,7 @@ mod tests {
 
         // when inserting a new container at index 0, index 3's container should not change
         ws.focus_container(0);
-        ws.new_container_for_window(Window::from(234));
+        let _ = ws.new_container_for_window(Window::from(234));
         assert_eq!(
             ws.containers()[3].id.to_string(),
             state.get(&3).unwrap().to_string()
@@ -1152,7 +1152,7 @@ mod tests {
         // new_container_for_floating_window which usually handles unfloating
         let window = ws.floating_windows_mut().pop_back().unwrap();
         let mut container = Container::default();
-        container.add_window(window);
+        let _ = container.add_window(window, ());
         ws.insert_container_at_idx(ws.focused_container_idx(), container);
 
         // all indexes should be at their original position
@@ -1599,7 +1599,7 @@ mod tests {
         }
 
         // Add new window to container
-        workspace.new_container_for_window(Window::from(2));
+        let _ = workspace.new_container_for_window(Window::from(2));
 
         // Container 0 should have 1 window
         let container = workspace.focused_container_mut().unwrap();

@@ -248,6 +248,7 @@ mod tests {
 
     impl ContainerWindow for W {
         type Id = u32;
+        type HideSpot = ();
 
         fn id(&self) -> u32 {
             self.0
@@ -257,13 +258,21 @@ mod tests {
             None
         }
 
-        fn hide_window(&self) {}
+        fn hide_window(&self, _spot: ()) -> color_eyre::eyre::Result<()> {
+            Ok(())
+        }
 
-        fn restore_window(&self) {}
+        fn restore_window(&self) -> color_eyre::eyre::Result<()> {
+            Ok(())
+        }
 
-        fn hide_stacked(&self) {}
+        fn hide_stacked(&self, _spot: ()) -> color_eyre::eyre::Result<()> {
+            Ok(())
+        }
 
-        fn restore_stacked(&self) {}
+        fn restore_stacked(&self) -> color_eyre::eyre::Result<()> {
+            Ok(())
+        }
     }
 
     impl WorkspaceWindow for W {

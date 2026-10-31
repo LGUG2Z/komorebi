@@ -353,7 +353,7 @@ impl WindowManager {
             if let Some(window) = maximized {
                 let id = window.id;
                 let mut container = crate::container::Container::default();
-                container.add_window(window);
+                let _ = container.add_window(window, ());
                 place(
                     self,
                     Some(window),

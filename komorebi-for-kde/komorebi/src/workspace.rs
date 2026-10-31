@@ -544,7 +544,7 @@ impl WorkspaceExt for Workspace {
             }
 
             for c in self.containers_mut() {
-                c.restore();
+                let _ = c.restore();
             }
 
             return Ok(window);
@@ -577,7 +577,7 @@ impl WorkspaceExt for Workspace {
                 self.focus_previous_container();
             }
         } else {
-            container.load_focused_window();
+            let _ = container.load_focused_window(());
             if let Some(window) = container.focused_window() {
                 window.focus(false)?;
             }
@@ -593,7 +593,7 @@ impl WorkspaceExt for Workspace {
         monitor_wp: &Option<Wallpaper>,
     ) -> eyre::Result<()> {
         if let Some(container) = &mut self.monocle_container {
-            container.restore();
+            let _ = container.restore();
 
             if let Some(window) = container.focused_window() {
                 window.focus(mouse_follows_focus)?;
@@ -614,7 +614,7 @@ impl WorkspaceExt for Workspace {
         }
 
         for container in self.containers_mut() {
-            container.restore();
+            let _ = container.restore();
         }
 
         if let Some(container) = self.focused_container_mut() {
@@ -672,7 +672,7 @@ impl WorkspaceExt for Workspace {
                 self.monocle_container = None;
                 self.monocle_container_restore_idx = None;
             } else {
-                monocle_container.load_focused_window();
+                let _ = monocle_container.load_focused_window(());
             }
 
             self.maximized_window = Option::from(window);
@@ -699,7 +699,7 @@ impl WorkspaceExt for Workspace {
                 self.resize_dimensions.remove(focused_idx);
             }
         } else {
-            container.load_focused_window();
+            let _ = container.load_focused_window(());
         }
 
         self.maximized_window = Option::from(window);
@@ -742,7 +742,7 @@ impl WorkspaceExt for Workspace {
                 self.monocle_container = None;
                 self.monocle_container_restore_idx = None;
             } else {
-                monocle_container.load_focused_window();
+                let _ = monocle_container.load_focused_window(());
             }
 
             self.maximized_window = Option::from(window);
@@ -776,7 +776,7 @@ impl WorkspaceExt for Workspace {
                 self.resize_dimensions.remove(container_idx);
             }
         } else {
-            container.load_focused_window();
+            let _ = container.load_focused_window(());
         }
 
         self.maximized_window = Option::from(window);
@@ -804,7 +804,7 @@ impl WorkspaceExt for Workspace {
         }
 
         let mut container = Container::default();
-        container.add_window(window);
+        let _ = container.add_window(window, ());
 
         // we shouldn't use insert_container_at_index here because it doesn't make sense for
         // monocle and maximized toggles which take over the whole screen before being reinserted
@@ -1217,7 +1217,7 @@ mod tests {
         ws.focus_container(2);
 
         // simulate a new window being launched on this workspace
-        ws.new_container_for_window(Window::from(123));
+        let _ = ws.new_container_for_window(Window::from(123));
 
         // new length should be 5, with the focus on the new window at index 4
         assert_eq!(ws.containers().len(), 5);
@@ -1229,7 +1229,7 @@ mod tests {
 
         // when inserting a new container at index 0, index 3's container should not change
         ws.focus_container(0);
-        ws.new_container_for_window(Window::from(234));
+        let _ = ws.new_container_for_window(Window::from(234));
         assert_eq!(
             ws.containers()[3].id.to_string(),
             state.get(&3).unwrap().to_string()
@@ -1288,7 +1288,7 @@ mod tests {
         // new_container_for_floating_window which usually handles unfloating
         let window = ws.floating_windows_mut().pop_back().unwrap();
         let mut container = Container::default();
-        container.add_window(window);
+        let _ = container.add_window(window, ());
         ws.insert_container_at_idx(ws.focused_container_idx(), container);
 
         // all indexes should be at their original position
@@ -1729,7 +1729,7 @@ mod tests {
         }
 
         // Add new window to container
-        workspace.new_container_for_window(Window::from(2));
+        let _ = workspace.new_container_for_window(Window::from(2));
 
         // Container 0 should have 1 window
         let container = workspace.focused_container_mut().unwrap();
@@ -2117,7 +2117,7 @@ mod tests {
 
         for id in ids {
             fake.open_window(*id, "foot", "foot", &format!("terminal {id}"));
-            workspace.new_container_for_window(Window::from(*id));
+            let _ = workspace.new_container_for_window(Window::from(*id));
         }
 
         (fake, workspace)
@@ -2210,10 +2210,10 @@ mod tests {
     fn hiding_a_workspace_hides_every_window_but_the_one_it_is_told_to_leave() -> eyre::Result<()> {
         let (fake, mut workspace) = workspace_with_a_stack(&[471, 472, 473]);
 
-        with_backend(fake.clone(), || workspace.hide(Some(471)));
+        let _ = with_backend(fake.clone(), || workspace.hide(Some(471)));
         assert!(!fake.is_hidden(471) && fake.is_hidden(472) && fake.is_hidden(473));
 
-        with_backend(fake.clone(), || workspace.hide(None));
+        let _ = with_backend(fake.clone(), || workspace.hide(None));
         assert!(fake.is_hidden(471));
         Ok(())
     }
@@ -2225,7 +2225,7 @@ mod tests {
         with_backend(fake.clone(), || {
             workspace.new_monocle_container().unwrap();
             for container in workspace.containers_mut() {
-                container.hide(None);
+                let _ = container.hide(None, ());
             }
         });
         (fake, workspace)
@@ -2236,7 +2236,7 @@ mod tests {
     {
         let (fake, mut workspace) = workspace_in_monocle(&[481, 482, 483]);
         assert!(fake.is_hidden(481) && fake.is_hidden(482) && !fake.is_hidden(483));
-        with_backend(fake.clone(), || workspace.hide(None));
+        let _ = with_backend(fake.clone(), || workspace.hide(None));
         assert!(
             fake.is_hidden(483),
             "leaving the workspace hides the monocle window too"
@@ -2256,7 +2256,7 @@ mod tests {
     fn hiding_a_workspace_in_monocle_hides_the_monocle_window_too() -> eyre::Result<()> {
         let (fake, mut workspace) = workspace_in_monocle(&[491, 492]);
 
-        with_backend(fake.clone(), || workspace.hide(None));
+        let _ = with_backend(fake.clone(), || workspace.hide(None));
 
         assert!(fake.is_hidden(491) && fake.is_hidden(492));
         Ok(())

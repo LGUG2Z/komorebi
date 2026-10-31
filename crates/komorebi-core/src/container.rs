@@ -13,6 +13,7 @@
 use komorebi_collections::Lockable;
 use komorebi_collections::ring::Ring;
 use nanoid::nanoid;
+use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::VecDeque;
@@ -22,10 +23,17 @@ use std::collections::VecDeque;
 /// The window is a handle that is cheap to clone (Windows: an `HWND`; KDE: the compositor's id; macOS: an
 /// Accessibility element). Showing and
 /// hiding it is the platform's business, so the container calls these four operations and nothing
-/// else; none of them reports a failure, because a window that cannot be hidden is left where it is.
+/// else. They say whether they worked (`Ok` always, on KDE and Windows, where a window that cannot
+/// be hidden is left where it is), and hiding takes the [`ContainerWindow::HideSpot`].
 pub trait ContainerWindow: Clone + PartialEq + std::fmt::Debug {
-    /// What names a window to the rest of the daemon: `isize` on Windows, `u32` on KDE.
+    /// What names a window to the rest of the daemon: `isize` on Windows, `u32` on KDE and macOS.
     type Id: Copy + PartialEq;
+
+    /// Where a window is put when it is hidden, for a platform that hides by moving the window
+    /// somewhere: on macOS the corner of the monitor and the bounds of its display. `()` where
+    /// hiding takes no argument (KDE and Windows). The workspace asks the platform for it with
+    /// [`WorkspacePlatform::hide_spot`](crate::WorkspacePlatform::hide_spot).
+    type HideSpot: Copy + Default;
 
     /// The window's id.
     fn id(&self) -> Self::Id;
@@ -34,18 +42,18 @@ pub trait ContainerWindow: Clone + PartialEq + std::fmt::Debug {
     fn exe_name(&self) -> Option<String>;
 
     /// Takes the window out of sight, as a window that is not in front of its stack is.
-    fn hide_window(&self);
+    fn hide_window(&self, spot: Self::HideSpot) -> eyre::Result<()>;
 
     /// Brings the window back into sight.
-    fn restore_window(&self);
+    fn restore_window(&self) -> eyre::Result<()>;
 
     /// Hides the window as [`Container::load_focused_window`] does, which on Windows leaves the
     /// window's border alone; elsewhere it is [`ContainerWindow::hide_window`].
-    fn hide_stacked(&self);
+    fn hide_stacked(&self, spot: Self::HideSpot) -> eyre::Result<()>;
 
     /// Restores the window as [`Container::load_focused_window`] does, which on Windows leaves the
     /// window's border alone; elsewhere it is [`ContainerWindow::restore_window`].
-    fn restore_stacked(&self);
+    fn restore_stacked(&self) -> eyre::Result<()>;
 }
 
 /// What a workspace asks of a platform window, besides what a container asks.
@@ -147,8 +155,10 @@ impl<W: ContainerWindow> Container<W> {
         self.id == "PRESELECT"
     }
 
-    /// Hides every window of the container but `omit`, or every window when it is `None`
-    pub fn hide(&self, omit: Option<W::Id>) {
+    /// Hides every window of the container but `omit`, or every window when it is `None`, at `spot`.
+    /// A window that cannot be hidden is logged and the others are still hidden: a window that has
+    /// gone away must not leave the ones after it in view.
+    pub fn hide(&self, omit: Option<W::Id>, spot: W::HideSpot) -> eyre::Result<()> {
         for window in self.windows().iter().rev() {
             let mut should_hide = omit.is_none();
 
@@ -159,33 +169,39 @@ impl<W: ContainerWindow> Container<W> {
                 should_hide = true
             }
 
-            if should_hide {
-                window.hide_window();
+            if should_hide && let Err(error) = window.hide_window(spot) {
+                tracing::warn!("failed to hide window {:?}: {error}", window);
             }
         }
+
+        Ok(())
     }
 
     /// Restores the focused window of the container, which is the one that is in front when the
     /// container is a stack
-    pub fn restore(&self) {
+    pub fn restore(&self) -> eyre::Result<()> {
         if let Some(window) = self.focused_window() {
-            window.restore_window();
+            window.restore_window()?;
         }
+
+        Ok(())
     }
 
     /// Hides the unfocused windows of the container and restores the focused one. This function
     /// is used to make sure we update the window that should be shown on a stack. If the container
     /// isn't a stack this function won't change anything.
-    pub fn load_focused_window(&mut self) {
+    pub fn load_focused_window(&mut self, spot: W::HideSpot) -> eyre::Result<()> {
         let focused_idx = self.focused_window_idx();
 
         for (i, window) in self.windows_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                window.restore_stacked();
+                window.restore_stacked()?;
             } else {
-                window.hide_stacked();
+                window.hide_stacked(spot)?;
             }
         }
+
+        Ok(())
     }
 
     /// The index of the first window of the executable `exe` in this container
@@ -238,7 +254,7 @@ impl<W: ContainerWindow> Container<W> {
 
     /// Puts a window at the back of the container and gives it the front, hiding every other
     /// window of the container ([`ContainerWindow::hide_window`])
-    pub fn add_window(&mut self, window: W) {
+    pub fn add_window(&mut self, window: W, spot: W::HideSpot) -> eyre::Result<()> {
         self.windows_mut().push_back(window);
         self.focus_window(self.windows().len().saturating_sub(1));
 
@@ -246,9 +262,11 @@ impl<W: ContainerWindow> Container<W> {
 
         for (i, window) in self.windows().iter().enumerate() {
             if i != focused_window_idx {
-                window.hide_window();
+                window.hide_window(spot)?;
             }
         }
+
+        Ok(())
     }
 
     /// Gives the front to the window at `idx`
@@ -275,8 +293,12 @@ mod tests {
         LOG.with(|log| std::mem::take(&mut *log.borrow_mut()))
     }
 
+    /// the spot that the tests ask windows to be hidden at
+    const SPOT: u8 = 7;
+
     impl ContainerWindow for Stub {
         type Id = u32;
+        type HideSpot = u8;
 
         fn id(&self) -> u32 {
             self.0
@@ -286,20 +308,24 @@ mod tests {
             Some(format!("exe{}", self.0))
         }
 
-        fn hide_window(&self) {
-            LOG.with(|log| log.borrow_mut().push(format!("hide {}", self.0)));
+        fn hide_window(&self, spot: u8) -> eyre::Result<()> {
+            LOG.with(|log| log.borrow_mut().push(format!("hide {} at {spot}", self.0)));
+            Ok(())
         }
 
-        fn restore_window(&self) {
+        fn restore_window(&self) -> eyre::Result<()> {
             LOG.with(|log| log.borrow_mut().push(format!("restore {}", self.0)));
+            Ok(())
         }
 
-        fn hide_stacked(&self) {
-            LOG.with(|log| log.borrow_mut().push(format!("hide-stacked {}", self.0)));
+        fn hide_stacked(&self, spot: u8) -> eyre::Result<()> {
+            LOG.with(|log| log.borrow_mut().push(format!("hide-stacked {} at {spot}", self.0)));
+            Ok(())
         }
 
-        fn restore_stacked(&self) {
+        fn restore_stacked(&self) -> eyre::Result<()> {
             LOG.with(|log| log.borrow_mut().push(format!("restore-stacked {}", self.0)));
+            Ok(())
         }
     }
 
@@ -334,7 +360,7 @@ mod tests {
     fn container_of(ids: &[u32]) -> Container<Stub> {
         let mut container = Container::default();
         for id in ids {
-            container.add_window(Stub(*id));
+            container.add_window(Stub(*id), SPOT).unwrap();
         }
         log();
         container
@@ -393,11 +419,11 @@ mod tests {
     #[test]
     fn a_window_added_is_in_front_and_the_others_are_hidden() {
         let mut container = Container::default();
-        container.add_window(Stub(1));
-        container.add_window(Stub(2));
+        container.add_window(Stub(1), SPOT).unwrap();
+        container.add_window(Stub(2), SPOT).unwrap();
 
         assert_eq!(container.focused_window(), Some(&Stub(2)));
-        assert_eq!(log(), ["hide 1"]);
+        assert_eq!(log(), ["hide 1 at 7"]);
     }
 
     #[test]
@@ -405,11 +431,11 @@ mod tests {
         let mut container = container_of(&[1, 2, 3]);
         container.focus_window(0);
 
-        container.load_focused_window();
+        container.load_focused_window(SPOT).unwrap();
 
         assert_eq!(
             log(),
-            ["restore-stacked 1", "hide-stacked 2", "hide-stacked 3"]
+            ["restore-stacked 1", "hide-stacked 2 at 7", "hide-stacked 3 at 7"]
         );
     }
 
@@ -418,13 +444,13 @@ mod tests {
         let mut container = container_of(&[7, 8, 9]);
         container.focus_window(1);
 
-        container.hide(Some(9));
-        assert_eq!(log(), ["hide 8", "hide 7"]);
+        container.hide(Some(9), SPOT).unwrap();
+        assert_eq!(log(), ["hide 8 at 7", "hide 7 at 7"]);
 
-        container.hide(None);
-        assert_eq!(log(), ["hide 9", "hide 8", "hide 7"]);
+        container.hide(None, SPOT).unwrap();
+        assert_eq!(log(), ["hide 9 at 7", "hide 8 at 7", "hide 7 at 7"]);
 
-        container.restore();
+        container.restore().unwrap();
         assert_eq!(log(), ["restore 8"]);
     }
 
@@ -449,8 +475,8 @@ mod tests {
             r#"{"id":"c1","locked":true,"windows":{"elements":[],"focused":0}}"#
         );
 
-        container.add_window(Stub(5));
-        container.add_window(Stub(9));
+        container.add_window(Stub(5), SPOT).unwrap();
+        container.add_window(Stub(9), SPOT).unwrap();
         container.focus_window(0);
 
         assert_eq!(

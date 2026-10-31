@@ -18,8 +18,20 @@ use objc2_core_foundation::CGRect;
 /// The windows that share one tile of a workspace's layout
 pub type Container = komorebi_core::Container<Window>;
 
+/// Where the macOS daemon hides a window: the corner of the monitor and, when it is known, the
+/// bounds of the display of the monitor (a window that hangs over the edge of a display is not
+/// always on the display that a lookup by its position finds).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct MacosHideSpot {
+    /// The corner the window is parked in
+    pub position: WindowHidingPosition,
+    /// The bounds of the display, or `None` to look the display up by the window's position
+    pub screen: Option<CGRect>,
+}
+
 impl ContainerWindow for Window {
     type Id = u32;
+    type HideSpot = MacosHideSpot;
 
     fn id(&self) -> u32 {
         self.id
@@ -29,27 +41,37 @@ impl ContainerWindow for Window {
         self.exe()
     }
 
-    /// Hides the window in the default corner. The macOS daemon does not hide through this: it
-    /// uses [`ContainerExt`], which carries the monitor's corner and display, and logs a failure
-    /// instead of ignoring it. This is the shared model's one-argument form.
-    fn hide_window(&self) {
-        if let Err(error) = self.hide(WindowHidingPosition::default()) {
-            tracing::warn!("failed to hide window {}: {error}", self.id);
+    fn hide_window(&self, spot: MacosHideSpot) -> eyre::Result<()> {
+        // hiding moves the window through Accessibility, which a unit test does not have
+        if cfg!(test) {
+            tracing::info!(
+                "not hiding window {} to {} during test execution",
+                self.id,
+                spot.position
+            );
+
+            return Ok(());
         }
+
+        Ok(self.hide_on(spot.position, spot.screen)?)
     }
 
-    fn restore_window(&self) {
-        if let Err(error) = self.restore() {
-            tracing::warn!("failed to restore window {}: {error}", self.id);
+    fn restore_window(&self) -> eyre::Result<()> {
+        if cfg!(test) {
+            tracing::info!("not restoring window {} during test execution", self.id);
+
+            return Ok(());
         }
+
+        Ok(self.restore()?)
     }
 
-    fn hide_stacked(&self) {
-        self.hide_window();
+    fn hide_stacked(&self, spot: MacosHideSpot) -> eyre::Result<()> {
+        self.hide_window(spot)
     }
 
-    fn restore_stacked(&self) {
-        self.restore_window();
+    fn restore_stacked(&self) -> eyre::Result<()> {
+        self.restore_window()
     }
 }
 

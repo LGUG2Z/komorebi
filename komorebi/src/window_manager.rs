@@ -710,7 +710,7 @@ impl WindowManager {
 
             // Hide the window we are about to remove if it is on the currently focused workspace
             if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
-                window.hide_window();
+                let _ = window.hide_window(());
                 should_update_focused_workspace = true;
             }
 
@@ -753,7 +753,7 @@ impl WindowManager {
                 //when moving to another workspace by a `workspace_rule` should honor that
                 //workspace `window_container_behaviour` in my opinion! Maybe this should be done
                 //on the `new_container_for_window` function instead.
-                target_workspace.new_container_for_window(Window::from(op.hwnd));
+                let _ = target_workspace.new_container_for_window(Window::from(op.hwnd));
             }
         }
 
@@ -957,7 +957,7 @@ impl WindowManager {
                     .ok_or_eyre("there is no workspace for this monitor")?;
                 let mut uncloack_amount = 0;
                 for container in origin_workspace.containers_mut() {
-                    container.restore();
+                    let _ = container.restore();
                     uncloack_amount += 1;
                 }
                 origin_workspace.reintegrate_monocle_container()?;
@@ -1518,7 +1518,7 @@ impl WindowManager {
                         }
 
                         if !ignore_restore {
-                            window.restore_window();
+                            let _ = window.restore_window();
                         }
                     }
                 }
@@ -1762,11 +1762,11 @@ impl WindowManager {
 
         if target_workspace.monocle_container.is_some() {
             for container in target_workspace.containers_mut() {
-                container.restore();
+                let _ = container.restore();
             }
 
             for window in target_workspace.floating_windows_mut() {
-                window.restore_window();
+                let _ = window.restore_window();
             }
 
             target_workspace.reintegrate_monocle_container()?;
@@ -2760,7 +2760,7 @@ impl WindowManager {
         let next_idx = direction.next_idx(current_idx, len);
 
         container.focus_window(next_idx);
-        container.load_focused_window();
+        let _ = container.load_focused_window(());
 
         if let Some(window) = container.focused_window() {
             window.focus(self.mouse_follows_focus)?;
@@ -2797,7 +2797,7 @@ impl WindowManager {
         container.windows_mut().swap(current_idx, next_idx);
 
         container.focus_window(next_idx);
-        container.load_focused_window();
+        let _ = container.load_focused_window(());
 
         if let Some(window) = container.focused_window() {
             window.focus(self.mouse_follows_focus)?;
@@ -2830,7 +2830,7 @@ impl WindowManager {
         }
 
         container.focus_window(idx);
-        container.load_focused_window();
+        let _ = container.load_focused_window(());
 
         if let Some(window) = container.focused_window() {
             window.focus(self.mouse_follows_focus)?;
@@ -2872,7 +2872,7 @@ impl WindowManager {
             && let Some(w_idx_to_focus) = c.idx_for_window(hwnd)
         {
             c.focus_window(w_idx_to_focus);
-            c.load_focused_window();
+            let _ = c.load_focused_window(());
         }
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
@@ -2975,7 +2975,7 @@ impl WindowManager {
             }
 
             if changed_focus && let Some(container) = workspace.focused_container_mut() {
-                container.load_focused_window();
+                let _ = container.load_focused_window(());
                 if let Some(window) = container.focused_window() {
                     window.focus(self.mouse_follows_focus)?;
                 }
@@ -3175,11 +3175,11 @@ impl WindowManager {
         workspace.new_monocle_container()?;
 
         for container in workspace.containers_mut() {
-            container.hide(None);
+            let _ = container.hide(None, ());
         }
 
         for window in workspace.floating_windows_mut() {
-            window.hide_window();
+            let _ = window.hide_window(());
         }
 
         Ok(())
@@ -3192,11 +3192,11 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
 
         for container in workspace.containers_mut() {
-            container.restore();
+            let _ = container.restore();
         }
 
         for window in workspace.floating_windows_mut() {
-            window.restore_window();
+            let _ = window.restore_window();
         }
 
         workspace.reintegrate_monocle_container()
@@ -3214,7 +3214,7 @@ impl WindowManager {
             .cycle_monocle_container(direction)?;
 
         for container in self.focused_workspace_mut()?.containers_mut() {
-            container.hide(None);
+            let _ = container.hide(None, ());
         }
 
         // borders were getting funny during cycles, can't be bothered to root cause it

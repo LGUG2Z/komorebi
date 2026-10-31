@@ -43,6 +43,9 @@ use std::num::NonZeroUsize;
 /// What names a window of the platform `P`: the id the shared code compares.
 pub type PlatformWindowId<P> = <<P as WorkspacePlatform>::Window as ContainerWindow>::Id;
 
+/// What a window of the platform `P` is hidden at.
+pub type PlatformHideSpot<P> = <<P as WorkspacePlatform>::Window as ContainerWindow>::HideSpot;
+
 /// What the shared [`Workspace`] needs of a platform.
 pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'static {
     /// The platform's window handle.
@@ -54,6 +57,21 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
     /// The container and workspace padding a new workspace starts with, in that order.
     fn default_padding() -> (Option<i32>, Option<i32>) {
         (None, None)
+    }
+
+    /// Where a window of a workspace with these globals is hidden (macOS: the monitor's corner).
+    /// Every shared function that hides or stacks a window asks for it, so the platform needs no
+    /// other way to know the monitor.
+    fn hide_spot(_globals: &WorkspaceGlobals) -> PlatformHideSpot<Self> {
+        Default::default()
+    }
+
+    /// Where the containers of a workspace that is being hidden ([`Workspace::hide`]) are hidden,
+    /// when the platform knows the display of the monitor (macOS passes its bounds, so that a window
+    /// that hangs over the edge of a display is parked on the display of its monitor). The floating
+    /// windows of the workspace are hidden at [`WorkspacePlatform::hide_spot`].
+    fn hide_spot_on_display(globals: &WorkspaceGlobals) -> PlatformHideSpot<Self> {
+        Self::hide_spot(globals)
     }
 
     /// The id of the window that has the focus, if any window does.
@@ -454,6 +472,8 @@ impl<P: WorkspacePlatform> Workspace<P> {
         &mut self,
         window_id: PlatformWindowId<P>,
     ) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
+
         let container_idx = self
             .container_idx_for_window(window_id)
             .ok_or_eyre("there is no container/window")?;
@@ -476,7 +496,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
         container.focus_window(window_idx);
 
         if should_load {
-            container.load_focused_window();
+            container.load_focused_window(spot)?;
         }
 
         self.focus_container(container_idx);
@@ -488,7 +508,8 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// preselection reserved, if there is one, and otherwise at the index the workspace's initial
     /// window placement rules give it ([`Workspace::initial_window_placement_rules`]), which is
     /// after the focused container unless they say otherwise (at the start of an empty workspace)
-    pub fn new_container_for_window(&mut self, window: P::Window) {
+    pub fn new_container_for_window(&mut self, window: P::Window) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
         let next_idx = if let Some(idx) = self.preselected_container_idx {
             let next = idx;
             self.preselected_container_idx = None;
@@ -503,9 +524,11 @@ impl<P: WorkspacePlatform> Workspace<P> {
         };
 
         let mut container = Container::default();
-        container.add_window(window);
+        container.add_window(window, spot)?;
 
         self.insert_container_at_idx(next_idx, container);
+
+        Ok(())
     }
 
     /// Resolves the container index at which a new window should be placed,
@@ -775,6 +798,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// There is no focused container or window, or no container at the target's index (counted
     /// after the container the window left has been removed, if it goes).
     pub fn move_window_to_container(&mut self, target_container_idx: usize) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
         let focused_idx = self.focused_container_idx();
 
         let container = self
@@ -795,7 +819,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
                 target_container_idx
             }
         } else {
-            container.load_focused_window();
+            container.load_focused_window(spot)?;
             target_container_idx
         };
 
@@ -804,12 +828,12 @@ impl<P: WorkspacePlatform> Workspace<P> {
             .get_mut(adjusted_target_container_index)
             .ok_or_eyre("there is no container")?;
 
-        target_container.add_window(window);
+        target_container.add_window(window, spot)?;
 
         self.focus_container(adjusted_target_container_index);
         self.focused_container_mut()
             .ok_or_eyre("there is no container")?
-            .load_focused_window();
+            .load_focused_window(spot)?;
 
         Ok(())
     }
@@ -823,6 +847,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     ///
     /// There is no focused container or window.
     pub fn new_container_for_focused_window(&mut self) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
         let focused_container_idx = self.focused_container_idx();
 
         let container = self
@@ -836,13 +861,13 @@ impl<P: WorkspacePlatform> Workspace<P> {
         if container.windows().is_empty() {
             self.remove_container_by_idx(focused_container_idx);
         } else {
-            container.load_focused_window();
+            container.load_focused_window(spot)?;
         }
 
-        self.new_container_for_window(window.clone());
+        self.new_container_for_window(window.clone())?;
 
         let mut container = Container::default();
-        container.add_window(window);
+        container.add_window(window, spot)?;
         Ok(())
     }
 
@@ -890,6 +915,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     ///
     /// The workspace has no containers.
     pub fn new_monocle_container(&mut self) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
         let focused_idx = self.focused_container_idx();
 
         // we shouldn't use remove_container_by_idx here because it doesn't make sense for
@@ -911,7 +937,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
         self.monocle_container
             .as_mut()
             .ok_or_eyre("there is no monocle container")?
-            .load_focused_window();
+            .load_focused_window(spot)?;
 
         Ok(())
     }
@@ -948,6 +974,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     ///
     /// The workspace has no monocle container.
     pub fn reintegrate_monocle_container(&mut self) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
         let restore_idx = self
             .monocle_container_restore_idx
             .ok_or_eyre("there is no monocle restore index")?;
@@ -971,7 +998,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
 
         self.focused_container_mut()
             .ok_or_eyre("there is no container")?
-            .load_focused_window();
+            .load_focused_window(spot)?;
 
         self.monocle_container = None;
         self.monocle_container_restore_idx = None;
@@ -986,13 +1013,14 @@ impl<P: WorkspacePlatform> Workspace<P> {
     ///
     /// The window the compositor has focused is not a floating window of the workspace.
     pub fn new_container_for_floating_window(&mut self) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
         let focused_idx = self.focused_container_idx();
         let window = self
             .remove_focused_floating_window()
             .ok_or_eyre("there is no floating window")?;
 
         let mut container = Container::default();
-        container.add_window(window);
+        container.add_window(window, spot)?;
 
         self.insert_container_at_idx(focused_idx, container);
 
@@ -1392,6 +1420,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
     /// Takes the focused window of the workspace (the maximized one, the monocle's or the focused
     /// container's) out of its place and makes it a floating window.
     pub fn new_floating_window(&mut self) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
         let window = if let Some(maximized_window) = self.maximized_window.clone() {
             P::unmaximize_window(&maximized_window)?;
             self.maximized_window = None;
@@ -1406,7 +1435,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
                 self.monocle_container = None;
                 self.monocle_container_restore_idx = None;
             } else {
-                monocle_container.load_focused_window();
+                monocle_container.load_focused_window(spot)?;
             }
 
             window
@@ -1428,7 +1457,7 @@ impl<P: WorkspacePlatform> Workspace<P> {
                     self.focus_container(focused_idx.saturating_sub(1));
                 }
             } else {
-                container.load_focused_window();
+                container.load_focused_window(spot)?;
             }
 
             window
@@ -1441,7 +1470,10 @@ impl<P: WorkspacePlatform> Workspace<P> {
 
     /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
     /// windows of every container, the maximized window and the monocle container.
-    pub fn hide(&mut self, omit: Option<PlatformWindowId<P>>) {
+    pub fn hide(&mut self, omit: Option<PlatformWindowId<P>>) -> eyre::Result<()> {
+        let spot = P::hide_spot(&self.globals);
+        let display_spot = P::hide_spot_on_display(&self.globals);
+
         for window in self.floating_windows_mut().iter_mut().rev() {
             let mut should_hide = omit.is_none();
 
@@ -1452,15 +1484,17 @@ impl<P: WorkspacePlatform> Workspace<P> {
                 should_hide = true
             }
 
-            if should_hide {
-                window.hide_window();
+            if should_hide && let Err(error) = window.hide_window(spot) {
+                tracing::warn!(
+                    "failed to hide floating window, but this might be because it is already hidden: {error}"
+                );
             }
         }
 
         let resize_dimensions = P::before_hide_containers(self);
 
         for container in self.containers_mut() {
-            container.hide(omit);
+            container.hide(omit, display_spot)?;
         }
 
         if let Some(resize_dimensions) = resize_dimensions {
@@ -1468,12 +1502,14 @@ impl<P: WorkspacePlatform> Workspace<P> {
         }
 
         if let Some(window) = &self.maximized_window {
-            window.hide_window();
+            window.hide_window(spot)?;
         }
 
         if let Some(container) = &mut self.monocle_container {
-            container.hide(omit);
+            container.hide(omit, display_spot)?;
         }
+
+        Ok(())
     }
 }
 
@@ -1485,15 +1521,21 @@ mod tests {
     struct W(u32);
 
     thread_local! {
-        static HIDDEN: std::cell::RefCell<Vec<u32>> = const { std::cell::RefCell::new(Vec::new()) };
+        static HIDDEN: std::cell::RefCell<Vec<(u32, u8)>> = const { std::cell::RefCell::new(Vec::new()) };
     }
 
-    fn hidden() -> Vec<u32> {
+    /// the spot that `Plat` asks windows to be hidden at, and the one for the containers of a
+    /// workspace that is being hidden
+    const SPOT: u8 = 7;
+    const DISPLAY_SPOT: u8 = 9;
+
+    fn hidden() -> Vec<(u32, u8)> {
         HIDDEN.with(|hidden| std::mem::take(&mut *hidden.borrow_mut()))
     }
 
     impl ContainerWindow for W {
         type Id = u32;
+        type HideSpot = u8;
 
         fn id(&self) -> u32 {
             self.0
@@ -1503,15 +1545,23 @@ mod tests {
             Some(format!("exe{}", self.0))
         }
 
-        fn hide_window(&self) {
-            HIDDEN.with(|hidden| hidden.borrow_mut().push(self.0));
+        fn hide_window(&self, spot: u8) -> eyre::Result<()> {
+            HIDDEN.with(|hidden| hidden.borrow_mut().push((self.0, spot)));
+            Ok(())
         }
 
-        fn restore_window(&self) {}
+        fn restore_window(&self) -> eyre::Result<()> {
+            Ok(())
+        }
 
-        fn hide_stacked(&self) {}
+        fn hide_stacked(&self, spot: u8) -> eyre::Result<()> {
+            HIDDEN.with(|hidden| hidden.borrow_mut().push((self.0, spot)));
+            Ok(())
+        }
 
-        fn restore_stacked(&self) {}
+        fn restore_stacked(&self) -> eyre::Result<()> {
+            Ok(())
+        }
     }
 
     impl WorkspaceWindow for W {
@@ -1538,6 +1588,14 @@ mod tests {
     impl WorkspacePlatform for Plat {
         type Window = W;
         type State = ();
+
+        fn hide_spot(_globals: &WorkspaceGlobals) -> u8 {
+            SPOT
+        }
+
+        fn hide_spot_on_display(_globals: &WorkspaceGlobals) -> u8 {
+            DISPLAY_SPOT
+        }
 
         fn foreground_window_id() -> Option<u32> {
             Some(2)
@@ -1584,7 +1642,7 @@ mod tests {
     fn workspace_of(ids: &[u32]) -> Workspace<Plat> {
         let mut workspace = Workspace::<Plat>::default();
         for id in ids {
-            workspace.new_container_for_window(W(*id));
+            workspace.new_container_for_window(W(*id)).unwrap();
         }
         workspace
     }
@@ -1653,11 +1711,25 @@ mod tests {
         workspace.floating_windows_mut().push_back(W(9));
         hidden();
 
-        workspace.hide(Some(2));
+        workspace.hide(Some(2)).unwrap();
 
         let mut hidden = hidden();
         hidden.sort();
-        assert_eq!(hidden, [1, 3, 9]);
+        // the floating window at the spot of a window, the containers at the one for a display
+        assert_eq!(hidden, [(1, DISPLAY_SPOT), (3, DISPLAY_SPOT), (9, SPOT)]);
+    }
+
+    #[test]
+    fn the_functions_that_stack_and_unstack_hide_at_the_spot_of_the_platform() {
+        let mut workspace = workspace_of(&[1, 2]);
+        hidden();
+
+        // stacking window 2 on container 0 hides window 1, which was in front, at the spot
+        workspace.focus_container(1);
+        workspace.move_window_to_container(0).unwrap();
+
+        // once by add_window, once by load_focused_window, both at the platform's spot
+        assert_eq!(hidden(), [(1, SPOT), (1, SPOT)]);
     }
 
     #[test]

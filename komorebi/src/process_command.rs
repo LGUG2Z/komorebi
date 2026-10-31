@@ -2326,7 +2326,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                     if i == focused_idx {
                         to_focus = Some(*window);
                     } else {
-                        window.restore_window();
+                        let _ = window.restore_window();
                         backend().raise(WindowId::from_hwnd(window.hwnd))?;
                     }
                 }
@@ -2334,7 +2334,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 if let Some(focused_window) = &to_focus {
                     // The focused window should be the last one raised to make sure it is
                     // on top
-                    focused_window.restore_window();
+                    let _ = focused_window.restore_window();
                     backend().raise(WindowId::from_hwnd(focused_window.hwnd))?;
                 }
 
@@ -2359,7 +2359,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                         backend().raise(WindowId::from_hwnd(window.hwnd))?;
                     }
                     for window in workspace.floating_windows() {
-                        window.hide_window();
+                        let _ = window.hide_window(());
                     }
                 } else {
                     let focused_container_idx = workspace.focused_container_idx();

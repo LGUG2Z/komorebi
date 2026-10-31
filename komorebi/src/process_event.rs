@@ -514,7 +514,7 @@ impl WindowManager {
                             "ignoring show event for window already associated with another workspace"
                         );
 
-                        window.hide_window();
+                        let _ = window.hide_window(());
                         proceed = false;
                     }
 
@@ -598,7 +598,7 @@ impl WindowManager {
                             } else {
                                 match behaviour.current_behaviour {
                                     WindowContainerBehaviour::Create => {
-                                        workspace.new_container_for_window(window);
+                                        let _ = workspace.new_container_for_window(window);
                                         workspace.layer = WorkspaceLayer::Tiling;
                                         self.update_focused_workspace(false, false)?;
                                     }
@@ -606,7 +606,7 @@ impl WindowManager {
                                         workspace
                                             .focused_container_mut()
                                             .ok_or_eyre("there is no focused container")?
-                                            .add_window(window);
+                                            .add_window(window, ())?;
                                         workspace.layer = WorkspaceLayer::Tiling;
                                         self.update_focused_workspace(true, false)?;
                                         stackbar_manager::send_notification();
@@ -643,7 +643,7 @@ impl WindowManager {
                             if !(monocle_window_event || workspace.layer != WorkspaceLayer::Tiling)
                                 && monocle_container.is_some()
                             {
-                                window.hide_window();
+                                let _ = window.hide_window(());
                             }
                         }
                     }
@@ -1057,10 +1057,10 @@ impl WindowManager {
                     if workspace.monocle_container.is_some() {
                         tracing::info!("disabling monocle");
                         for container in workspace.containers_mut() {
-                            container.restore();
+                            let _ = container.restore();
                         }
                         for window in workspace.floating_windows_mut() {
-                            window.restore_window();
+                            let _ = window.restore_window();
                         }
                         workspace.reintegrate_monocle_container()?;
                     }

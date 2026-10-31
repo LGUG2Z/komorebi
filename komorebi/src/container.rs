@@ -5,6 +5,7 @@
 
 use crate::window::Window;
 use crate::windows_backend::backend;
+use color_eyre::eyre;
 use komorebi_backend::WindowId;
 use komorebi_core::ContainerWindow;
 use komorebi_core::WorkspaceWindow;
@@ -14,6 +15,7 @@ pub type Container = komorebi_core::Container<Window>;
 
 impl ContainerWindow for Window {
     type Id = isize;
+    type HideSpot = ();
 
     fn id(&self) -> isize {
         self.hwnd
@@ -23,20 +25,24 @@ impl ContainerWindow for Window {
         Window::exe(*self)
     }
 
-    fn hide_window(&self) {
+    fn hide_window(&self, _spot: ()) -> eyre::Result<()> {
         let _ = backend().hide(WindowId::from_hwnd(self.hwnd));
+        Ok(())
     }
 
-    fn restore_window(&self) {
+    fn restore_window(&self) -> eyre::Result<()> {
         let _ = backend().restore(WindowId::from_hwnd(self.hwnd));
+        Ok(())
     }
 
-    fn hide_stacked(&self) {
+    fn hide_stacked(&self, _spot: ()) -> eyre::Result<()> {
         self.hide_with_border(false);
+        Ok(())
     }
 
-    fn restore_stacked(&self) {
+    fn restore_stacked(&self) -> eyre::Result<()> {
         self.restore_with_border(false);
+        Ok(())
     }
 }
 

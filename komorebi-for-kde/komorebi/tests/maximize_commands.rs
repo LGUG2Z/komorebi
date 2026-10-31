@@ -319,7 +319,7 @@ fn a_maximized_window_is_hidden_with_its_workspace_and_shown_and_focused_with_it
     send(&fake, &mut wm, SocketMessage::ToggleMaximize);
     let workspace = wm.focused_workspace_mut().unwrap();
 
-    with_backend(fake.clone(), || workspace.hide(None));
+    let _ = with_backend(fake.clone(), || workspace.hide(None));
     assert!(fake.is_hidden(36_071) && fake.is_hidden(36_072));
 
     fake.clear_commands();

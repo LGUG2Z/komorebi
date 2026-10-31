@@ -250,7 +250,7 @@ impl MonitorExt for Monitor {
             if i == focused_idx {
                 workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
             } else {
-                workspace.hide(None);
+                let _ = workspace.hide(None);
             }
         }
 
@@ -459,11 +459,11 @@ impl MonitorExt for Monitor {
 
             if target_workspace.monocle_container.is_some() {
                 for container in target_workspace.containers_mut() {
-                    container.restore();
+                    let _ = container.restore();
                 }
 
                 for window in target_workspace.floating_windows_mut() {
-                    window.restore_window();
+                    let _ = window.restore_window();
                 }
 
                 target_workspace.reintegrate_monocle_container()?;

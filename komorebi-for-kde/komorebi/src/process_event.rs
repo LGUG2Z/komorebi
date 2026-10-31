@@ -342,7 +342,7 @@ impl WindowManager {
                         }
 
                         if let Some(to) = monitor.workspaces_mut().get_mut(idx) {
-                            to.new_container_for_window(window);
+                            let _ = to.new_container_for_window(window);
                         }
 
                         // whichever of the two is showing needs its tiles redone
@@ -434,7 +434,7 @@ impl WindowManager {
                     } else {
                         match behaviour.current_behaviour {
                             WindowContainerBehaviour::Create => {
-                                workspace.new_container_for_window(window);
+                                let _ = workspace.new_container_for_window(window);
                                 workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(false, false)?;
                             }
@@ -442,7 +442,7 @@ impl WindowManager {
                                 workspace
                                     .focused_container_mut()
                                     .ok_or_eyre("there is no focused container")?
-                                    .add_window(window);
+                                    .add_window(window, ())?;
                                 workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(true, false)?;
                             }
@@ -556,7 +556,7 @@ impl WindowManager {
                 None => {}
                 Some(window) => {
                     let workspace = self.focused_workspace_mut()?;
-                    workspace.new_container_for_window(window);
+                    let _ = workspace.new_container_for_window(window);
                     self.update_focused_workspace(false, false)?;
                 }
             },

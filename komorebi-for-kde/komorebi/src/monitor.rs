@@ -391,7 +391,7 @@ impl MonitorExt for Monitor {
 
             if target_workspace.monocle_container.is_some() {
                 for container in target_workspace.containers_mut() {
-                    container.restore();
+                    let _ = container.restore();
                 }
 
                 for window in target_workspace.floating_windows_mut() {
@@ -830,7 +830,7 @@ mod tests {
             "Virtual-0",
             "Virtual-0",
         );
-        m.focused_workspace_mut()
+        let _ = m.focused_workspace_mut()
             .unwrap()
             .new_container_for_window(Window::from(id));
 
