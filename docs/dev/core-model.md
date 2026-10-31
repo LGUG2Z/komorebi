@@ -185,3 +185,55 @@ Windows (kfw) has to:
 
 All are `pub fn name(&mut self, ...) -> eyre::Result<()>` in `impl WindowManager`
 (`process_command.rs`), except `set_border_colour`, which cannot fail.
+
+## 6. First layer moved: `Container` is in `komorebi-core` (wip-u-core)
+
+Done, on a throwaway merge of `wip-u-kfde` and `wip-u-kfw` (bookmark `wip-u-core`):
+
+- `crates/komorebi-core` (root workspace member; KDE takes it by path) holds `Container<W>`, moved
+  from the KDE file and made generic, and the trait `ContainerWindow` that says what a container
+  asks of a platform window: `type Id` (`isize` on Windows, `u32` on KDE), `id`, `exe_name`,
+  `hide_window`, `restore_window`, and the pair `hide_stacked` / `restore_stacked` that
+  `load_focused_window` uses (on Windows they leave the border alone, on KDE they are the plain
+  ones). The container makes no `Backend` call itself.
+- KDE and Windows each have `type Container = komorebi_core::Container<Window>` plus the
+  `ContainerWindow` impl for their `Window`. Windows keeps `hwnd_from_exe` as the extension trait
+  `ContainerExt` (workspace.rs imports it). The macOS tree does not use the crate yet and still
+  type-checks.
+- The JSON of a container is pinned by a test in each tree and in the crate (`id`, `locked`,
+  `windows: {elements, focused}`); `locked` may be missing when read (KDE gained that from Windows);
+  the schemars schema of `Container<W>` is renamed to `Container`, with a test.
+- The Windows converge is marked BEHAVIOUR because it was only type-checked (clippy) and the
+  crate's tests run natively; the Windows e2e scenarios it needs are in that revision's body.
+
+### Where it stops: `Monitor`
+
+After kfw's convergence the Windows and KDE `monitor.rs` still differ by 657 changed code lines
+(710 vs 675 lines), and the difference is not mechanical:
+
+- **Fields**: Windows has `name`, `device_id`, `workspace_names: HashMap<usize, String>`;
+  `serial_number_id` is `Option<String>` (KDE `String`); `id` is a `MonitorId` that the Windows file
+  serialises through `hmonitor_json` as an `i64` (KDE: a plain `u32`). Making them the same changes
+  what one daemon's `komorebic state` prints, so it is a decision, not a refactor: either a
+  `Monitor<P>` with an associated `MonitorExtra` (Windows: the three fields) and `MonitorId` with a
+  serde adapter per platform, or the extra fields as `Option`s that KDE leaves `None` and skips when
+  serialising.
+- **Methods**: `MonitorInformation` has 6 fields on Windows and 4 on KDE; Windows has the two serde
+  helpers, KDE has `assign_windows_to_workspaces`. The 16 other public methods are common, but
+  `load_focused_workspace` (Windows hides and restores the workspaces itself, KDE asks the compositor
+  for the desktop) and `update_workspaces_globals` / `update_workspace_globals` (Windows pushes the
+  globals into every workspace, KDE into the focused one) differ in behaviour, and need the
+  `Platform::show_workspace` / `hide_workspace` hooks of section 3.
+- `BORDER_ENABLED` (Windows) vs `BORDER_DRAWN` (KDE) are separate statics.
+
+### What remains, in order
+
+1. `Monitor`: decide the field-set question above, add the two workspace hooks to a `Platform`
+   trait (the first thing in the crate that is a `Platform` rather than a window), converge the
+   method bodies, then move. The diff after that decision should be a few dozen lines.
+2. `Workspace`: 2314 changed code lines. Needs, besides the hooks, the Windows-only
+   `windows_on_show` / `border_kinds_on_show` and the KDE-only `reap_invalid_windows`,
+   `prune_duplicate_windows`, `adopt_maximized_window`, `focus_floating_window`,
+   `focus_previous_floating_window`, `remove_floating_window` as optional `Platform` hooks or
+   extension traits; the scrolling glue is measured before it moves.
+3. `WindowManager`, then the router and `process_event` (unchanged from section 3).
