@@ -886,9 +886,16 @@ fn window_is_eligible(
         }
     }
 
+    // Every place that holds two of the rule lists takes them in the order documented at the
+    // statics in lib.rs, so all the lists this check reads are taken up front, in that order.
+    let floating_identifiers = FLOATING_APPLICATIONS.lock();
+    let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+    let manage_identifiers = MANAGE_IDENTIFIERS.lock();
+    let layered_whitelist = LAYERED_WHITELIST.lock();
+    let slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
+    let titlebars_removed = NO_TITLEBAR.lock();
     let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-    let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
     let should_ignore = if let Some(rule) = should_act(
         title,
         exe_name,
@@ -903,7 +910,6 @@ fn window_is_eligible(
         false
     };
 
-    let manage_identifiers = MANAGE_IDENTIFIERS.lock();
     let managed_override = if let Some(rule) = should_act(
         title,
         exe_name,
@@ -918,7 +924,6 @@ fn window_is_eligible(
         false
     };
 
-    let floating_identifiers = FLOATING_APPLICATIONS.lock();
     if let Some(rule) = should_act(
         title,
         exe_name,
@@ -934,7 +939,6 @@ fn window_is_eligible(
         return false;
     }
 
-    let layered_whitelist = LAYERED_WHITELIST.lock();
     let mut allow_layered = if let Some(rule) = should_act(
         title,
         exe_name,
@@ -972,7 +976,6 @@ fn window_is_eligible(
         allow
     };
 
-    let titlebars_removed = NO_TITLEBAR.lock();
     let allow_titlebar_removed = if let Some(rule) = should_act(
         title,
         exe_name,
@@ -987,23 +990,30 @@ fn window_is_eligible(
         false
     };
 
-    {
-        let slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
-        let should_sleep = should_act(
-            title,
-            exe_name,
-            class,
-            path,
-            &slow_application_identifiers,
-            &regex_identifiers,
-        )
-        .is_some();
+    let should_sleep = should_act(
+        title,
+        exe_name,
+        class,
+        path,
+        &slow_application_identifiers,
+        &regex_identifiers,
+    )
+    .is_some();
 
-        if should_sleep {
-            std::thread::sleep(Duration::from_millis(
-                SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
-            ));
-        }
+    // Nothing below reads a rule list: release them all before sleeping, so a config load or a
+    // rule command is never kept waiting for the slow-application compensation time.
+    drop(floating_identifiers);
+    drop(ignore_identifiers);
+    drop(manage_identifiers);
+    drop(layered_whitelist);
+    drop(slow_application_identifiers);
+    drop(titlebars_removed);
+    drop(regex_identifiers);
+
+    if should_sleep {
+        std::thread::sleep(Duration::from_millis(
+            SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
+        ));
     }
 
     if (allow_wsl2_gui || allow_titlebar_removed || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))
