@@ -914,4 +914,48 @@ mod tests {
         assert_eq!(fake.rect_of(511), Some(rect(100, 0, 1820, 1050)));
         Ok(())
     }
+
+    /// The monitor object of a real `komorebic state` capture (e2e/lib/tests/fixtures/kfde-tiled.json,
+    /// workspaces emptied): the JSON a Monitor reads and writes. Pins the representation of `id` (a
+    /// plain number) and `serial_number_id` (a string) so that moving the type cannot change the
+    /// state JSON.
+    const MONITOR_JSON: &str = r#"{
+        "id": 1230296105,
+        "device": "Virtual-0",
+        "serial_number_id": "Virtual-0",
+        "workspaces": { "elements": [], "focused": 0 },
+        "size": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+        "work_area_offset": null,
+        "work_area_size": { "left": 0, "top": 0, "right": 1920, "bottom": 1050 },
+        "window_based_work_area_offset": null,
+        "window_based_work_area_offset_limit": 1,
+        "container_padding": null,
+        "workspace_padding": null,
+        "last_focused_workspace": 0,
+        "wallpaper": null,
+        "floating_layer_behaviour": null
+    }"#;
+
+    #[test]
+    fn a_monitor_serializes_to_the_json_of_the_state_capture() {
+        let expected: serde_json::Value = serde_json::from_str(MONITOR_JSON).unwrap();
+        let monitor: Monitor = serde_json::from_value(expected.clone()).unwrap();
+
+        assert_eq!(serde_json::to_value(&monitor).unwrap(), expected);
+    }
+
+    #[test]
+    fn monitor_information_has_the_four_documented_fields() {
+        let monitor: Monitor = serde_json::from_str(MONITOR_JSON).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(MonitorInformation::from(&monitor)).unwrap(),
+            serde_json::json!({
+                "id": 1230296105,
+                "device": "Virtual-0",
+                "serial_number_id": "Virtual-0",
+                "size": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 }
+            })
+        );
+    }
 }
