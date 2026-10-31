@@ -16,7 +16,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
 
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -30,6 +29,8 @@ use komorebic_core::cli::Cmd;
 use komorebic_core::cli::Meta;
 use komorebic_core::cli::command;
 use komorebic_core::docgen::DocFormat;
+use komorebic_core::launcher;
+use komorebic_core::launcher::Launcher;
 use komorebic_core::messages::Messages;
 use komorebic_core::pan;
 use komorebic_core::platform::windows::*;
@@ -137,6 +138,58 @@ fn startup_dir() -> eyre::Result<PathBuf> {
 }
 
 #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
+/// Starting `komorebi.exe` for `komorebic start`: a PowerShell script that starts the daemon with
+/// its flags, found among the processes by its name.
+struct WindowsLauncher {
+    script: String,
+    config: Option<PathBuf>,
+    system: sysinfo::System,
+}
+
+impl Launcher for WindowsLauncher {
+    fn daemon_name(&self) -> &str {
+        "komorebi.exe"
+    }
+
+    fn spawn(&mut self) -> eyre::Result<()> {
+        match powershell_script::run(&self.script) {
+            Ok(_) => {
+                println!("{}", self.script);
+            }
+            Err(error) => {
+                println!("Error: {error}");
+            }
+        }
+
+        Ok(())
+    }
+
+    fn is_running(&mut self) -> eyre::Result<bool> {
+        self.system.refresh_processes(ProcessesToUpdate::All, true);
+
+        Ok(self
+            .system
+            .processes_by_name("komorebi.exe".as_ref())
+            .next()
+            .is_some())
+    }
+
+    fn diagnose(&mut self) -> eyre::Result<()> {
+        if let Some(config) = &self.config {
+            if let Ok(output) = Command::new("komorebi.exe")
+                .arg(format!("'--config=\"{}\"'", config.display()))
+                .output()
+            {
+                println!("{}", String::from_utf8(output.stderr)?);
+            }
+        } else if let Ok(output) = Command::new("komorebi.exe").output() {
+            println!("{}", String::from_utf8(output.stderr)?);
+        }
+
+        Ok(())
+    }
+}
+
 /// What the top of the help and `--version` say.
 const META: Meta = Meta {
     name: "komorebic",
@@ -736,56 +789,13 @@ fn main() -> eyre::Result<()> {
                     )
                 };
 
-                let mut system = sysinfo::System::new_all();
-                system.refresh_processes(ProcessesToUpdate::All, true);
+                let mut launcher = WindowsLauncher {
+                    script,
+                    config: args.config.clone(),
+                    system: sysinfo::System::new_all(),
+                };
 
-                let mut attempts = 0;
-                let mut running = system
-                    .processes_by_name("komorebi.exe".as_ref())
-                    .next()
-                    .is_some();
-
-                while !running && attempts <= 2 {
-                    match powershell_script::run(&script) {
-                        Ok(_) => {
-                            println!("{script}");
-                        }
-                        Err(error) => {
-                            println!("Error: {error}");
-                        }
-                    }
-
-                    print!("Waiting for komorebi.exe to start...");
-                    std::thread::sleep(Duration::from_secs(3));
-
-                    system.refresh_processes(ProcessesToUpdate::All, true);
-
-                    if system
-                        .processes_by_name("komorebi.exe".as_ref())
-                        .next()
-                        .is_some()
-                    {
-                        println!("Started!");
-                        running = true;
-                    } else {
-                        println!("komorebi.exe did not start... Trying again");
-                        attempts += 1;
-                    }
-                }
-
-                if !running {
-                    println!("\nRunning komorebi.exe directly for detailed error output\n");
-                    if let Some(config) = args.config {
-                        if let Ok(output) = Command::new("komorebi.exe")
-                            .arg(format!("'--config=\"{}\"'", config.display()))
-                            .output()
-                        {
-                            println!("{}", String::from_utf8(output.stderr)?);
-                        }
-                    } else if let Ok(output) = Command::new("komorebi.exe").output() {
-                        println!("{}", String::from_utf8(output.stderr)?);
-                    }
-
+                if !launcher::start(&mut launcher)? {
                     return Ok(());
                 }
 
@@ -1047,11 +1057,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
                     }
                 }
 
-                if args.ignore_restore {
-                    send_message(&SocketMessage::StopIgnoreRestore)?;
-                } else {
-                    send_message(&SocketMessage::Stop)?;
-                }
+                send_message(&launcher::stop_message(args.ignore_restore))?;
                 let mut system = sysinfo::System::new_all();
                 system.refresh_processes(ProcessesToUpdate::All, true);
 
