@@ -4,6 +4,10 @@ Status: written by the `kfm` agent for the user, 2026-10-31. Nothing here has be
 
 How to use it: build the unified (or, until they exist, the per-tree) macOS `komorebi`, `komorebic` and `komorebi-bar`, run `cargo test --workspace` on the Mac first (the 399+ unit tests have never run against these changes), then walk the sections in order. For before/after capture use `komorebi-recorder` against a build of the baseline `wip-main` ancestor `ff3711dc` and the tip. A section is done when the "look for" column is true.
 
+## Status of the Mini runs (2026-10-31)
+
+The real-Mac runs so far (Mac Mini, rustc and clippy 1.93, tip a35573d8) are **compile and unit tests only**: `cargo test --workspace` in komorebi-for-mac passed (daemon 366 passed, 1 ignored; 368 total, 0 failed) and clippy `-D warnings` was clean apart from the two items fixed afterwards. Nothing was run as a daemon: no focus, tiling, borders, animations or bar rendering has been observed on the Mini. Every walk-through item below is still open.
+
 ## A. Revisions that change what the daemon does (BEHAVIOUR)
 
 | Revision | What changed | Look for on a Mac |
