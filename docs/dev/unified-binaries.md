@@ -175,3 +175,30 @@ last.
 Only this file. The spike revisions are on `wip-u-pkg-spike` and can be dropped or cherry-picked.
 Step 0 and the renames were not landed because they only pay off with step 2, which edits the locks
 and manifests that three open stacks edit.
+
+## State of the migration (bookmark wip-u-pkg-mig, on wip-u-pkg-base)
+
+Done, in this order (each revision keeps the three trees building; gates in the revision messages):
+step 0 (applications.json committed, build.rs fetch gone; explicit clap names; the KDE closure list
+fixed), step 1 (KDE and macOS packages suffixed, Windows daemon `komorebi-windows`), step 2 (one root
+workspace, one lock, 901 packages, `default-members` is the Windows set), step 3 (`nix/workspace-src.nix`:
+each flake builds its platform's source plus stubs of every other member, `-p` per platform), step 4
+(`komorebic` is one package with a `cfg_select!` over three CLI modules).
+
+Measured by evaluation (no build): an edit of a Windows-only crate changes the Windows derivations and
+no kfde derivation; an edit of komorebi-for-kde changes kfde and no Windows derivation; an edit of
+komorebi-for-mac changes neither. So the cache isolation of the three trees survived the merge.
+
+Costs and limits found on the way:
+- The stubbed source is a derivation that crane reads at evaluation (`readDir` in `mkDummySrc`), so
+  evaluating another system's attributes needs a builder for that system. `nix flake show --all-systems`
+  and aarch64-darwin drvPaths no longer evaluate on a Linux host; tools/fast-check evaluates the current
+  system only. A Mac builds its own attributes natively.
+- cargo deny, cargo fmt and taplo run over the merged workspace: deny is called with
+  `--workspace --exclude <the other platforms' packages>` and the tree's own deny.toml, fmt gets `-p`;
+  none of the three has been built (the local cargo-deny run is not representative: it reports the
+  workspace crates unlicensed, which the nix check did not before).
+- Step 5 (moving the Linux and macOS CLI files into `komorebic/src/{linux,macos}` and deleting the old
+  `komorebic-linux`/`-macos` packages) and step 6 (`komorebi-client`) were not done: deleting the old
+  names is the cutover, which the plan keeps for last, and the KDE `komorebic` tests, the
+  `include_str!` paths and the three `applications.json` files move with it.
