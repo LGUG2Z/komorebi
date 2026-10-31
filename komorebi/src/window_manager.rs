@@ -771,7 +771,7 @@ impl WindowManager {
             let focused_workspace_idx = monitor.focused_workspace_idx();
             monitor.update_workspace_globals(focused_workspace_idx, offset);
 
-            let hmonitor = monitor.id;
+            let hmonitor = monitor.id.to_hmonitor();
             let monitor_wp = monitor.wallpaper.clone();
             let workspace = monitor
                 .focused_workspace_mut()
@@ -1572,7 +1572,7 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_eyre("there is no monitor")?;
 
-        let hmonitor = monitor.id;
+        let hmonitor = monitor.id.to_hmonitor();
         let monitor_wp = monitor.wallpaper.clone();
 
         let workspace = monitor
@@ -2589,12 +2589,14 @@ impl WindowManager {
                 let a = self
                     .focused_monitor()
                     .ok_or_eyre("there is no monitor focused monitor")?
-                    .id;
+                    .id
+                    .to_hmonitor();
                 let b = self
                     .monitors_mut()
                     .get_mut(origin_monitor_idx)
                     .ok_or_eyre("there is no monitor at this index")?
-                    .id;
+                    .id
+                    .to_hmonitor();
 
                 if !WindowsApi::monitors_have_same_dpi(a, b)? {
                     self.update_focused_workspace(self.mouse_follows_focus, true)?;
@@ -3766,7 +3768,7 @@ impl WindowManager {
         let hmonitor = WindowsApi::monitor_from_window(window.hwnd);
 
         for (i, monitor) in self.monitors().iter().enumerate() {
-            if monitor.id == hmonitor {
+            if monitor.id.to_hmonitor() == hmonitor {
                 return Option::from(i);
             }
         }
@@ -3789,7 +3791,7 @@ impl WindowManager {
         let hmonitor = WindowsApi::monitor_from_point(WindowsApi::cursor_pos().ok()?);
 
         for (i, monitor) in self.monitors().iter().enumerate() {
-            if monitor.id == hmonitor {
+            if monitor.id.to_hmonitor() == hmonitor {
                 return Option::from(i);
             }
         }

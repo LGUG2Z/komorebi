@@ -741,8 +741,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         let foreground_hwnd = WindowsApi::foreground_window().unwrap_or_default();
                         let foreground_monitor_id =
                             WindowsApi::monitor_from_window(foreground_hwnd);
-                        let is_maximized =
-                            foreground_monitor_id == m.id && WindowsApi::is_zoomed(foreground_hwnd);
+                        let is_maximized = foreground_monitor_id == m.id.to_hmonitor()
+                            && WindowsApi::is_zoomed(foreground_hwnd);
 
                         if is_maximized {
                             tracing::trace!(

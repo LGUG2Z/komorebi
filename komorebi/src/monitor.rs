@@ -13,6 +13,7 @@ use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::core::Rect;
 use crate::windows_backend::backend;
+use komorebi_backend::MonitorId;
 use komorebi_backend::WindowId;
 
 use crate::DEFAULT_CONTAINER_PADDING;
@@ -29,10 +30,28 @@ use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 
+/// `Monitor::id` is a `MonitorId` in Rust and the same plain JSON number as the `isize` handle it
+/// was before: `komorebic state` and the saved state files do not change.
+mod hmonitor_json {
+    use komorebi_backend::MonitorId;
+    use serde::Deserialize;
+    use serde::Deserializer;
+    use serde::Serializer;
+
+    pub fn serialize<S: Serializer>(id: &MonitorId, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_i64(id.to_hmonitor() as i64)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<MonitorId, D::Error> {
+        Ok(MonitorId::from_hmonitor(isize::deserialize(deserializer)?))
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Monitor {
-    pub id: isize,
+    #[serde(with = "hmonitor_json")]
+    #[cfg_attr(feature = "schemars", schemars(with = "isize"))]
+    pub id: MonitorId,
     pub name: String,
     pub device: String,
     pub device_id: String,
@@ -67,7 +86,7 @@ pub struct MonitorInformation {
 impl From<&Monitor> for MonitorInformation {
     fn from(monitor: &Monitor) -> Self {
         Self {
-            id: monitor.id,
+            id: monitor.id.to_hmonitor(),
             name: monitor.name.clone(),
             device: monitor.device.clone(),
             device_id: monitor.device_id.clone(),
@@ -90,7 +109,7 @@ pub fn new(
     workspaces.elements_mut().push_back(Workspace::default());
 
     Monitor {
-        id,
+        id: MonitorId::from_hmonitor(id),
         name,
         device,
         device_id,
@@ -133,7 +152,7 @@ impl Monitor {
 
     pub fn placeholder() -> Self {
         Self {
-            id: 0,
+            id: MonitorId(0),
             name: "PLACEHOLDER".to_string(),
             device: "".to_string(),
             device_id: "".to_string(),
@@ -171,7 +190,7 @@ impl Monitor {
 
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
-        let hmonitor = self.id;
+        let hmonitor = self.id.to_hmonitor();
         let monitor_wp = self.wallpaper.clone();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {

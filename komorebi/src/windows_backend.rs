@@ -110,7 +110,7 @@ impl Backend for WindowsBackend {
             .map(|(_, hmonitor)| {
                 let monitor = WindowsApi::monitor(hmonitor).map_err(platform)?;
                 Ok(MonitorInfo {
-                    id: MonitorId::from_hmonitor(monitor.id),
+                    id: monitor.id,
                     size: monitor.size,
                     work_area: monitor.work_area_size,
                     name: Some(monitor.name),

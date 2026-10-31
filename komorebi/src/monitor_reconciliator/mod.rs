@@ -293,7 +293,7 @@ where
                     let mut should_update = false;
 
                     // Update work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id)
+                    if let Ok(reference) = WindowsApi::monitor(monitor.id.to_hmonitor())
                         && reference.work_area_size != monitor.work_area_size
                     {
                         monitor.work_area_size = Rect {
@@ -325,7 +325,7 @@ where
                     let mut should_update = false;
 
                     // Update sizes and work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id) {
+                    if let Ok(reference) = WindowsApi::monitor(monitor.id.to_hmonitor()) {
                         if reference.work_area_size != monitor.work_area_size {
                             monitor.work_area_size = Rect {
                                 left: reference.work_area_size.left,
@@ -1275,7 +1275,7 @@ mod tests {
             assert_eq!(monitors.len(), 1, "Expected one monitor");
 
             // hmonitor
-            assert_eq!(monitors[0].id, 1);
+            assert_eq!(monitors[0].id.to_hmonitor(), 1);
 
             // device name
             assert_eq!(monitors[0].name, String::from("DISPLAY1"));
