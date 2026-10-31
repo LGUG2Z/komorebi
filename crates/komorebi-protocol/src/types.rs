@@ -14,6 +14,24 @@ use strum::EnumString;
 /// state, and always when a window is shown, when a subscriber is added (so a new subscriber
 /// receives the state as soon as it subscribes), when a theme is set (the colors of the borders
 /// are not part of the state) and when the configuration is reloaded.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_protocol::types::SubscribeOptions;
+///
+/// let options = SubscribeOptions {
+///     filter_state_changes: true,
+/// };
+/// assert_eq!(
+///     serde_json::to_string(&options)?,
+///     r#"{"filter_state_changes":true}"#,
+/// );
+///
+/// assert!(!SubscribeOptions::default().filter_state_changes);
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SubscribeOptions {
