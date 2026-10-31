@@ -1,5 +1,7 @@
 # One `komorebi-bar` for Windows and macOS
 
+> **Status (wip-cand4):** B0-B3 done (one `komorebi-bar` package, a module per platform, schema views); B4 (merging the rendering code) not done and cannot be shown mechanical without a screen; macOS bar never rendered by these changes.
+
 Status at the revision that adds this file. Everything below was measured on this tree with
 `diff` (counts are lines that differ, `<`/`>` lines of `diff`, hunks in parentheses). Nothing
 here was rendered: the bars cannot run on Linux. Gates that did run are named; the ones that

@@ -1,5 +1,7 @@
 # The core model: KDE and Windows compared, and the split into `komorebi-core`
 
+> **Status (wip-cand4):** measurement plus a running log. `komorebi-core` has `Container`, `Monitor`, `Workspace` (incl. `update_shared`) over KDE, Windows and macOS; `WindowManager<P>`, the router and `process_event` are NOT shared yet (sections 17 and 18 give the blockers); sections 8 and 12 are the designs that were then implemented.
+
 Status: measurement and proposal (plan step 9 preparation, KDE side). Measured at the tip of
 `wip-u-kfde` (based on `wip-main` 633e7453); the Windows tree is `komorebi/src`, KDE is
 `komorebi-for-kde/komorebi/src`, macOS (`komorebi-for-mac/komorebi/src`) is listed only where it

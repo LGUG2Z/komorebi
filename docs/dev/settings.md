@@ -1,5 +1,7 @@
 # Settings: replacing the process-wide statics
 
+> **Status (wip-cand4):** design plus landing log. `crates/komorebi-settings` exists and the three daemons read the paddings, aspect ratio, layout defaults and display preferences through it; the remaining statics (see the section list) are still process-wide; macOS runtime is unverified.
+
 Status: design (plan step 10, phase 1). Measured on `wip-main` 633e7453 (the Windows tree
 `komorebi/src`, KDE `komorebi-for-kde/komorebi/src`, macOS `komorebi-for-mac/komorebi/src`). Nothing
 here was run: counts come from `grep` and reading, and macOS cannot run on this host. The shared type

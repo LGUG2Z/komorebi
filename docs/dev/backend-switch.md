@@ -1,5 +1,7 @@
 # Windows: which call sites go through `backend()`
 
+> **Status (wip-cand4):** in progress. The clusters in "Switched" are landed (each BEHAVIOUR, e2e-gated); the rest is deliberately left on `WindowsApi`, see the two "not switched" tables; nothing here is planned further until `WindowManager<P>` ([core-model.md](core-model.md) section 18).
+
 Step 8 of the unified-binaries plan. `komorebi::windows_backend::backend()` returns the shared
 `komorebi_backend::Backend` (a stateless `WindowsBackend` over `WindowsApi` and `Window`). The daemon
 is switched one cluster at a time; each switch is its own revision marked BEHAVIOUR.

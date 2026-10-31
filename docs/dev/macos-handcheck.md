@@ -1,5 +1,7 @@
 # macOS hand-check list
 
+> **Status (wip-cand4):** OPEN, for the user on a real Mac; only compile and unit tests have run on a Mac Mini, no macOS daemon behaviour has been observed; commands for the Mac are in [build-and-test.md](build-and-test.md).
+
 Status: written by the `kfm` agent for the user, 2026-10-31. Nothing here has been run: macOS cannot be built, linked or tested on the Linux host, only type-checked through a fake C compiler (`tools/fast-check`). Every revision below is `type-checks, not run`. Revision ids are jj change ids (stable) with the commit id they had when this was written (commit ids change when a revision is rewritten; use `jj log -r <change id>`).
 
 How to use it: build the unified (or, until they exist, the per-tree) macOS `komorebi`, `komorebic` and `komorebi-bar`, run `cargo test --workspace` on the Mac first (the 399+ unit tests have never run against these changes), then walk the sections in order. For before/after capture use `komorebi-recorder` against a build of the baseline `wip-main` ancestor `ff3711dc` and the tip. A section is done when the "look for" column is true.

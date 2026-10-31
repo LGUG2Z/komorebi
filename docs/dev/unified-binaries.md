@@ -1,5 +1,7 @@
 # One `komorebi`, one `komorebic`, one `komorebi-bar`
 
+> **Status (wip-cand4):** steps 0-8 done: one `komorebi` (`komorebi-daemon/`), `komorebic`, `komorebi-client` and `komorebi-bar` package, platform by `cfg(target_os)`; the cutover (shim packages, one flake, final directories, one version) is open. The older sections below are history: in particular the note "never write `-p komorebi`" was true before step 8 and is wrong now; see [build-and-test.md](build-and-test.md) for current commands.
+
 Goal: three packages and three binaries that build on Windows, KDE (Linux) and macOS, the platform
 chosen by `cfg(target_os)` (generics, `cfg_select!`, exhaustive `match`; no macros as a design tool).
 This file records a spike (throwaway revisions on bookmark `wip-u-pkg-spike`, titled `spike:`; nothing
