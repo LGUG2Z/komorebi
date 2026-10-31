@@ -1843,6 +1843,52 @@ impl WindowManager {
                     ANIMATION_STYLE_PER_ANIMATION.lock().clear();
                 }
             },
+            // Messages of other platforms: answered, and nothing else happens
+            SocketMessage::AddSubscriberPipe(..)
+            | SocketMessage::AltFocusHack(..)
+            | SocketMessage::ApplyState(..)
+            | SocketMessage::BorderImplementation(..)
+            | SocketMessage::BorderStyle(..)
+            | SocketMessage::ChangeLayoutCustom(..)
+            | SocketMessage::CompleteConfiguration
+            | SocketMessage::FocusFollowsMouse(..)
+            | SocketMessage::ForceFocus
+            | SocketMessage::HotkeysState
+            | SocketMessage::IdentifyBorderOverflowApplication(..)
+            | SocketMessage::IdentifyLayeredApplication(..)
+            | SocketMessage::IdentifyObjectNameChangeApplication(..)
+            | SocketMessage::IdentifyTrayApplication(..)
+            | SocketMessage::InvisibleBorders(..)
+            | SocketMessage::MonitorIndexPreference(..)
+            | SocketMessage::NamedWorkspaceLayoutCustom(..)
+            | SocketMessage::NamedWorkspaceLayoutCustomRule(..)
+            | SocketMessage::ReloadConfiguration
+            | SocketMessage::ReloadHotkeys
+            | SocketMessage::RemoveSubscriberPipe(..)
+            | SocketMessage::RemoveTitleBar(..)
+            | SocketMessage::StackbarBackgroundColour(..)
+            | SocketMessage::StackbarFocusedTextColour(..)
+            | SocketMessage::StackbarFontFamily(..)
+            | SocketMessage::StackbarFontSize(..)
+            | SocketMessage::StackbarHeight(..)
+            | SocketMessage::StackbarLabel(..)
+            | SocketMessage::StackbarMode(..)
+            | SocketMessage::StackbarTabWidth(..)
+            | SocketMessage::StackbarUnfocusedTextColour(..)
+            | SocketMessage::ToggleFocusFollowsMouse(..)
+            | SocketMessage::ToggleMaximize
+            | SocketMessage::ToggleTitleBars
+            | SocketMessage::ToggleTransparency
+            | SocketMessage::Transparency(..)
+            | SocketMessage::TransparencyAlpha(..)
+            | SocketMessage::WatchConfiguration(..)
+            | SocketMessage::WindowHidingBehaviour(..)
+            | SocketMessage::WorkspaceLayoutCustom(..)
+            | SocketMessage::WorkspaceLayoutCustomRule(..)
+ => {
+                reply.write_all(message.not_supported_reply().as_bytes())?;
+                return Ok(());
+            }
         }
 
         self.update_known_window_ids();
