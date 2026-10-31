@@ -1308,7 +1308,7 @@ impl WindowManager {
                             if i == focused_idx {
                                 to_focus = Some(*window);
                             } else {
-                                window.restore();
+                                let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
                                 window.raise()?;
                             }
                         }
@@ -1316,7 +1316,7 @@ impl WindowManager {
                         if let Some(focused_window) = &to_focus {
                             // The focused window should be the last one raised to make sure it is
                             // on top
-                            focused_window.restore();
+                            let _ = backend().restore(WindowId::from_hwnd(focused_window.hwnd));
                             focused_window.raise()?;
                         }
 
@@ -1341,7 +1341,7 @@ impl WindowManager {
                                 window.raise()?;
                             }
                             for window in workspace.floating_windows() {
-                                window.hide();
+                                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
                             }
                         } else {
                             let focused_container_idx = workspace.focused_container_idx();

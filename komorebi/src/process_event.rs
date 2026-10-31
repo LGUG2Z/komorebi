@@ -511,7 +511,7 @@ impl WindowManager {
                             "ignoring show event for window already associated with another workspace"
                         );
 
-                        window.hide();
+                        let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
                         proceed = false;
                     }
 
@@ -643,7 +643,7 @@ impl WindowManager {
                             if !(monocle_window_event || workspace.layer != WorkspaceLayer::Tiling)
                                 && monocle_container.is_some()
                             {
-                                window.hide();
+                                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
                             }
                         }
                     }
@@ -1063,7 +1063,7 @@ impl WindowManager {
                             container.restore();
                         }
                         for window in workspace.floating_windows_mut() {
-                            window.restore();
+                            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
                         }
                         workspace.reintegrate_monocle_container()?;
                     }

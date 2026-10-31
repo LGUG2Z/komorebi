@@ -702,7 +702,7 @@ impl WindowManager {
 
             // Hide the window we are about to remove if it is on the currently focused workspace
             if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
-                window.hide();
+                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
                 should_update_focused_workspace = true;
             }
 
@@ -1510,7 +1510,7 @@ impl WindowManager {
                         }
 
                         if !ignore_restore {
-                            window.restore();
+                            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
                         }
                     }
                 }
@@ -1758,7 +1758,7 @@ impl WindowManager {
             }
 
             for window in target_workspace.floating_windows_mut() {
-                window.restore();
+                let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
             }
 
             target_workspace.reintegrate_monocle_container()?;
@@ -3160,7 +3160,7 @@ impl WindowManager {
         }
 
         for window in workspace.floating_windows_mut() {
-            window.hide();
+            let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
         }
 
         Ok(())
@@ -3177,7 +3177,7 @@ impl WindowManager {
         }
 
         for window in workspace.floating_windows_mut() {
-            window.restore();
+            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
         }
 
         workspace.reintegrate_monocle_container()

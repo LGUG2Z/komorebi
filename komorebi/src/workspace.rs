@@ -408,7 +408,7 @@ impl Workspace {
             }
 
             if should_hide {
-                window.hide();
+                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
             }
         }
 
@@ -417,7 +417,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window {
-            window.hide();
+            let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
         }
 
         if let Some(container) = &self.monocle_container {
@@ -577,7 +577,7 @@ impl Workspace {
         }
 
         for window in self.floating_windows() {
-            window.restore();
+            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
         }
 
         // Do this here to make sure that an error doesn't stop the restoration of other windows
@@ -587,7 +587,7 @@ impl Workspace {
             if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
                 backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
             } else if let Some(maximized_window) = self.maximized_window {
-                maximized_window.restore();
+                let _ = backend().restore(WindowId::from_hwnd(maximized_window.hwnd));
                 backend().focus(
                     WindowId::from_hwnd(maximized_window.hwnd),
                     mouse_follows_focus,
@@ -599,7 +599,7 @@ impl Workspace {
                 )?;
             }
         } else if let Some(maximized_window) = self.maximized_window {
-            maximized_window.restore();
+            let _ = backend().restore(WindowId::from_hwnd(maximized_window.hwnd));
             backend().focus(
                 WindowId::from_hwnd(maximized_window.hwnd),
                 mouse_follows_focus,
@@ -840,14 +840,14 @@ impl Workspace {
                                 }
                                 if hidden.get(i).copied().unwrap_or_default() {
                                     // it is seen on another monitor wherever it rests here
-                                    window.hide();
+                                    let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
                                 } else {
                                     if crate::scrolling::should_restore_when_placed(
                                         window.hwnd,
                                         container.focused_window().map(|w| w.hwnd),
                                         &HIDDEN_HWNDS.lock(),
                                     ) {
-                                        window.restore();
+                                        let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
                                     }
 
                                     backend().set_rect(WindowId::from_hwnd(window.hwnd), layout)?;
