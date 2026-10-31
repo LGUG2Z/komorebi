@@ -186,7 +186,8 @@
               path: type:
               (craneLib.filterCargoSources path type)
               || (pkgs.lib.hasInfix "/docs/" path)
-              || (builtins.match ".*/docs/.*" path != null);
+              || (builtins.match ".*/docs/.*" path != null)
+              || (builtins.match ".*/komorebic/fixtures/.*" path != null);
           };
 
           commonArgs = {
