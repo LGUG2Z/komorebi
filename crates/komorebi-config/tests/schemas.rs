@@ -251,3 +251,55 @@ fn the_schema_of_each_platform_is_a_view_of_the_one_static_config() {
         );
     }
 }
+
+#[test]
+fn the_platform_table_comes_from_the_markers() {
+    use komorebi_config::platforms::reads;
+    use komorebi_config::platforms::unsupported_keys;
+    use komorebi_protocol::platforms::Platform;
+
+    let windows_only = ["stackbar", "border_style", "slow_application_identifiers"];
+    let kde_macos_only = [
+        "border_radius",
+        "titleless_applications",
+        "tabbed_applications",
+    ];
+    let windows_kde = ["transparency", "focus_follows_mouse"];
+
+    for key in windows_only {
+        assert!(reads(Platform::Windows, key));
+        assert!(
+            !reads(Platform::Kde, key) && !reads(Platform::MacOs, key),
+            "{key}"
+        );
+    }
+    for key in kde_macos_only {
+        assert!(!reads(Platform::Windows, key), "{key}");
+        assert!(reads(Platform::Kde, key) && reads(Platform::MacOs, key));
+    }
+    for key in windows_kde {
+        assert!(reads(Platform::Windows, key) && reads(Platform::Kde, key));
+        assert!(!reads(Platform::MacOs, key), "{key}");
+    }
+    assert!(reads(Platform::MacOs, "monitors") && !reads(Platform::MacOs, "no_such_key"));
+
+    // the keys each tree's schema.json holds are the keys that platform reads
+    for (tree, platform) in [
+        (&TREES[0], Platform::Windows),
+        (&TREES[1], Platform::Kde),
+        (&TREES[2], Platform::MacOs),
+    ] {
+        let schema: Value = serde_json::from_str(&checked_in(tree, "schema.json")).unwrap();
+        for key in schema["properties"].as_object().unwrap().keys() {
+            assert!(reads(platform, key), "{} reads {key}", tree.name);
+        }
+    }
+
+    let raw = r#"{ "stackbar": {}, "border": true, "a_key_nobody_knows": 1, "border_radius": 5 }"#;
+    assert_eq!(unsupported_keys(raw, Platform::Kde).unwrap(), ["stackbar"]);
+    assert_eq!(
+        unsupported_keys(raw, Platform::Windows).unwrap(),
+        ["border_radius"]
+    );
+    assert!(unsupported_keys("{ ", Platform::Kde).is_err());
+}

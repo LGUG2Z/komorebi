@@ -19,4 +19,6 @@ pub mod changes;
 pub mod defaults;
 pub mod matching;
 pub mod placement;
+#[cfg(feature = "schemars")]
+pub mod platforms;
 pub mod static_config;
