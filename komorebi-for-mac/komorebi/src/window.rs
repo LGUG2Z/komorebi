@@ -559,18 +559,13 @@ impl Window {
             Some(window_observer_callback),
         )?;
 
-        let window = Self {
+        Ok(Self {
             id: AccessibilityApi::window_id(&element)?,
             element: AccessibilityUiElement(element),
             application,
             observer: AccessibilityObserver(Some(observer)),
             details: None,
-        };
-
-        // so that the window can be found again from its id alone
-        crate::ax_registry::register(&window);
-
-        Ok(window)
+        })
     }
 
     /// The handles that act on this window, as the registry keeps them
@@ -627,7 +622,13 @@ impl Window {
             NOTIFICATIONS,
             run_loop,
             refcon,
-        )
+        )?;
+
+        // the registry holds the window whose observer is attached: a Window that was only made to
+        // ask an app about a window is never observed, so it is never registered
+        crate::ax_registry::register(self);
+
+        Ok(())
     }
 
     /// Hide the window in the corner of the display that it is on
