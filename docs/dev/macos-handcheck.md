@@ -148,3 +148,11 @@ F. In `window.rs` `AdhocWindow::hide` / `Window::hide` duplicate the restore-pos
 ## E. What is not checked at all
 
 Everything above. In particular: no macOS test (399+ unit tests incl. those in window.rs for drag state) has run against any of these revisions; the unified binaries do not exist yet; no real Accessibility call was made; `komorebi-recorder` captures need a Mac.
+
+## F. Bar clicks (system tools)
+
+Run on the Mac with the unified bar; the unit tests for the argv are `cargo test -p komorebi-bar system_tool` and `release_page`.
+
+- **M1. Battery widget click**: opens System Settings on the Battery pane (`open x-apple.systempreferences:com.apple.Battery-Settings.extension`, macOS 13 or later). If it opens System Settings elsewhere, or nothing, the pane id is wrong for that macOS version: write down the version and what opened. Before the fix the click did nothing visible (it tried `cmd.exe`).
+- **M2. CPU and memory widget click**: opens Activity Monitor (unchanged); the network widget click opens the Network pane; a storage widget click opens the folder in Finder.
+- **M3. Update widget**: with an installed version older than the latest komorebi-for-mac release the widget shows the new version; click opens `https://github.com/LGUG2Z/komorebi-for-mac/releases/tag/v<version>` in the default browser (not the Windows repository). After 12 hours (or with `data_refresh_interval` set to a small value) the widget still compares against komorebi-for-mac releases, never Windows ones (the refresh used to poll the Windows repository).
