@@ -14,7 +14,7 @@ pub struct Container {
     pub id: String,
     #[serde(default)]
     pub locked: bool,
-    windows: Ring<Window>,
+    pub windows: Ring<Window>,
 }
 
 impl_ring_elements!(Container, Window);
