@@ -3515,7 +3515,7 @@ impl WindowManager {
         let rules: &mut Vec<(usize, Layout)> = &mut workspace.layout_rules;
         rules.retain(|pair| pair.0 != at_container_count);
         rules.push((at_container_count, Layout::Default(layout)));
-        rules.sort_by(|a, b| a.0.cmp(&b.0));
+        rules.sort_by_key(|a| a.0);
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
