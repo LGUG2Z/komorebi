@@ -529,9 +529,13 @@ fn window_is_eligible(
         }
     }
 
-    let regex_identifiers = REGEX_IDENTIFIERS.lock();
-
+    // Every place that holds two of the rule lists takes them in this order: floating, transparency,
+    // ignore, manage, regex. A thread that takes two in another order can wait for one that holds
+    // what it needs, and both wait for ever.
+    let floating_identifiers = FLOATING_APPLICATIONS.lock();
     let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+    let manage_identifiers = MANAGE_IDENTIFIERS.lock();
+    let regex_identifiers = REGEX_IDENTIFIERS.lock();
     let should_ignore = if let Some(rule) = should_act(
         title,
         exe_name,
@@ -546,7 +550,6 @@ fn window_is_eligible(
         false
     };
 
-    let manage_identifiers = MANAGE_IDENTIFIERS.lock();
     let managed_override = if let Some(rule) = should_act(
         title,
         exe_name,
@@ -561,7 +564,6 @@ fn window_is_eligible(
         false
     };
 
-    let floating_identifiers = FLOATING_APPLICATIONS.lock();
     if let Some(rule) = should_act(
         title,
         exe_name,
