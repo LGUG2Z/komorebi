@@ -1233,3 +1233,72 @@ functions and the 19 drift functions (mechanical, tests/e2e per cluster); (2) th
 platform-only functions stay in each daemon's `WindowManagerExt` (the Windows custom layouts and
 watcher, the KDE desktop sync, the macOS live resize); (5) the router; (6) `process_event` with the
 thin events.
+
+## 18. Converging `window_manager.rs` and the router: what is cosmetic, what is real, and why `WindowManager<P>` waits
+
+Measured at the tip of `wip-u-core3` (core2 plus one Windows revision), the same function comparison
+as section 17. In KDE's 2621 non-test function lines (stripped) of `window_manager.rs`:
+
+| | lines | share |
+|---|---|---|
+| in functions identical with the Windows copy | 689 | 26% |
+| in functions that differ by at most 4 lines from the Windows copy | 961 | 37% |
+| in functions that are KDE-only, or differ by more | 1660 | 63% |
+
+The threshold for creating `WindowManager<P>` (more than 60% shared) is not met and cannot be met by
+converging cosmetics: of the 19 functions that differ by 1 to 4 lines, almost all differ in
+behaviour. What the converge revision took (Windows to KDE's text): `eyre::bail!` in full, the
+`Lockable` form of `toggle_lock`, two log lines (one with a typo), and the `SessionFloatRules` and
+`State` arms. The rest of the near-identical functions, one by one:
+
+| function(s) | the difference | kind |
+|---|---|---|
+| `toggle_monocle`, `stack_all`, `remove_window_from_container`, `move_container_to_workspace`, `promote_container_to_front`, `move_container_in_cycle_direction` (and 12 more of the 20-line group) | Windows calls `handle_unmanaged_window_behaviour()` at the top of 18 individual functions; KDE and macOS call it once in the router for every message | real (when it refuses: a command about an unmanaged focus is refused per function on Windows, for every message on KDE/macOS) |
+| `monocle_on`, `monocle_off` | Windows also hides / restores the floating windows | real |
+| `cycle_monocle` | Windows destroys the borders | real |
+| `set_workspace_name` | Windows records the name in the monitor's extra `workspace_names` | real (a Windows field) |
+| `cycle_layout`, `promote_focus_to_front`, `promote_container_swap`, `change_workspace_layout_default` | the Windows `Layout::Custom` arms (`promote_focus_to_front` falls back to the first column, the others fail without a primary column) | real: hook `primary_container_idx` exists, but the fallback of `promote_focus_to_front` differs |
+| `apply_wallpaper_for_monitor_workspace`, `retile_all` | the monitor id is an `isize` handle on Windows, a `u32` on KDE; `retile_all` also destroys the borders on KDE | type (`PlatformMonitorId` would remove the first) and real |
+| `add_window_handle_to_move_based_on_workspace_rule`, `stack_all` | `hwnd: isize` against `window_id: u32` | type: `PlatformWindowId` |
+| `clear_workspace_layout_rules`, `maximize_window`, `focus_monitor`, `toggle_lock` | log text, `bail!`, `Lockable` | cosmetic: done |
+| `float_window` and the `focus_*` family | KDE reads `mouse_follows_focus` into a local (borrow); same behaviour | cosmetic, left (the local is KDE's borrow fix) |
+
+Larger real differences, from section 17's list: `focus_workspace` (Windows plans a slide transition,
+KDE asks the compositor; `focus_workspace_towards`, `workspace_transition_plan`), `init`, `stop` (the
+Windows state file, animations, focus-follows-mouse), `manage_focused_window` and
+`unmanage_focused_window` (an event against a notification), `monitor_idx_from_current_pos` (Windows
+refreshes a monitor from the system), `move_container_in_direction` (a DPI check across monitors),
+`move_floating_window_in_direction` (border offsets), `focus_floating_window_in_direction` (105 lines),
+`resize_window` (58; macOS 52 against KDE 0), `restore_all_windows`, `enforce_workspace_rules`.
+
+**The router, KDE against Windows.** The 25 differing arms: two made identical (`SessionFloatRules`,
+`State`); the rest are real and stay: `Close` and `Minimize` (Windows ignores a failed backend call
+with `let _ =`, KDE propagates it), `StaticConfigSchema` and `ApplicationSpecificConfigurationSchema`
+(Windows prints `schema_for!`, KDE and macOS the platform view of `komorebi-config`; the Windows
+output would change), `VisibleWindows` (the JSON key: Windows' device id, KDE's monitor id),
+`Border*`, `Retile*`, `ReloadStaticConfiguration`, `TogglePause` (borders and `force_update_borders`),
+`StackAll`/`UnstackAll`/`StackWindow`/`UnstackWindow`/`CycleStack*`/`FocusStackWindow` (KDE switches
+animations off around them), `ResizeWindowEdge` (the live-resize guard), and `FocusWorkspaceNumber`,
+`FocusWorkspaceNumbers`, `FocusLastWorkspace` (Windows first focuses the monitor under the pointer when
+its workspace is empty; the identical arms `CycleFocusWorkspace`, `CloseWorkspace` and
+`MoveContainerToLastWorkspace` do it on KDE too, so for these three it is probably an omission on KDE:
+decision for the owner).
+
+**Blocker list for `WindowManager<P>`:**
+1. the `handle_unmanaged_window_behaviour` placement (router on KDE/macOS, per function on Windows):
+   one `before_command` hook cannot give both; either Windows moves to the router (a behaviour change in
+   which commands are refused) or the shared functions call a hook that is a no-op on KDE and macOS;
+2. borders: the Windows border calls inside shared functions (`cycle_monocle`, `retile_all`,
+   `Border*`) need a `BorderPlatform` hook with a no-op default;
+3. the workspace transition (`focus_workspace`) needs the plan/execute split as a hook;
+4. the platform fields of the struct (section 2) and `init`/`stop`/`new`;
+5. `PlatformMonitorId` next to `PlatformWindowId` (the `isize`/`u32` handles in 12 functions);
+6. the Windows custom layouts (the `primary_container_idx` hook covers most arms);
+7. macOS's 16 own functions (the live resize family, `entering_borders`, `workspace_transition`) would
+   stay in a `WindowManagerExt`, which means the text KDE and macOS share (20 functions identical
+   between them, 6 of the router's arms) is the base, not the Windows text.
+
+Recommended next step: shared text first between KDE and macOS (kfm and kfde), where 20 window manager
+functions and most router arms are already identical, then Windows converges onto it function by
+function against the blocker list above; creating `WindowManager<P>` before blockers 1 to 3 are decided
+would move less than half of the file.
