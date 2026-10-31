@@ -2501,6 +2501,7 @@ dependencies = [
  "dirs 7.0.0",
  "futures-util",
  "hotwatch",
+ "komorebi-collections",
  "komorebi-hotkeys",
  "komorebi-layouts",
  "komorebi-scrolling",
@@ -2532,6 +2533,15 @@ dependencies = [
  "komorebi-themes",
  "parking_lot 0.13.0",
  "serde_json_lenient",
+]
+
+[[package]]
+name = "komorebi-collections"
+version = "0.1.42"
+dependencies = [
+ "pastey",
+ "schemars 1.2.3",
+ "serde",
 ]
 
 [[package]]

@@ -16,6 +16,7 @@ version = "0.1.0"
 # upstream's layouts, at a revision of its `next` branch that has the fix for resizing a tile by
 # dragging its edge (LGUG2Z/komorebi#1765), the placement helpers komorebi for KDE uses and the
 # platform-free half of the rework of the Scrolling layout
+komorebi-collections = { path = "../crates/komorebi-collections" }
 komorebi-layouts = { path = "../komorebi-layouts", features = [
   "schemars",
 ] }
