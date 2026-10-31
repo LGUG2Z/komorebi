@@ -5,17 +5,39 @@ Step 8 of the unified-binaries plan. `komorebi::windows_backend::backend()` retu
 is switched one cluster at a time; each switch is its own revision marked BEHAVIOUR.
 
 What every switched call changes in the Windows daemon: `WindowsBackend` first asks `IsWindow` and
-fails with `Error::WindowGone` for a dead window, and a failure of a window that died meanwhile is
-reported as `WindowGone` (the error text changes from the Win32 one). Call sites use `?` or ignore the
-result; none inspects the error. The operations return `Result` where `Window::hide`, `restore` and
-`minimize` returned `()`: those sites ignore it (`let _ =`), as the old code could not fail.
+fails with `Error::WindowGone` for a dead window (hide, restore, minimize, maximize and the other `()`
+returning operations are then skipped: before, `Window::hide` of a dead window still ran
+`ShowWindow` on it, a no-op, and recorded its handle in `HIDDEN_HWNDS`), and a failure of a window
+that died meanwhile is reported as `WindowGone` (the error text changes from the Win32 one). Call sites
+use `?` or ignore the result; none inspects the error. `frame` is the exception: it does not ask
+`IsWindow` first, so the Win32 error is what callers get.
 
-| Cluster | Operation | Status | Sites | Left on `Window` / `WindowsApi`, and why | e2e needed |
-|---|---|---|---|---|---|
-| focus | `focus(id, mouse_follows)` | switched | process_event 4, process_command 3, workspace 7, window_manager 24, focus_manager 1, stackbar 1 | `animation/transition.rs:534` calls `Window::focus` from inside the slide-in code that `Window::focus` itself defers to | commands, focus, focus_follows_mouse, stacking, workspaces, lifecycle |
-| frame | `set_rect(id, rect)` | switched for `top = false` | workspace.rs (layout update), stackbar tab click | `set_position(.., true)` callers (window.rs `move_to_area`/`center`, workspace maximize area): the shared `set_rect` has no `top` flag | commands, resize, layouts, stacking, scrolling, workspaces |
-| frame | `window_rect(id)` | NOT switched | 0 of about 60 | the shared `window_rect` is built on `window(id)`, which asks title, class, exe and path of the window, gives `None` for a failure and the call sites rely on `Err` or `unwrap_or_default`. Needs a cheap frame query on the trait (a `frame(id) -> Result<Rect>`) or an override of the provided method with an error | |
-| hide / show | `hide`, `restore` | switched for the plain forms | container, workspace, monitor, process_command, process_event, window_manager (23) | `hide_with_border` and `restore_with_border` (no border flag in the trait); `animation/transition.rs` and `ghost_dispatcher.rs` (inside the slide-in machinery); the `Container`/`Workspace` methods stay, they call these | commands, workspaces, stacking, lifecycle_hidden |
-| hide / show | `minimize`, `close`, `raise` | switched | process_command (close 1, minimize 1, raise 4), monitor_reconciliator (minimize 4) | | commands, monitor reconciliation, lifecycle |
-| hide / show | `unminimize`, `maximize` | not switched | | `unminimize` has no daemon caller (the daemon uses `restore`); `maximize`/`unmaximize` need the `Capability::Maximize` check and keep their own bookkeeping in workspace.rs | |
-| queries | `foreground_window`, `cursor_pos`, `monitors`, `monitor_from_point`, `window` | NOT switched | 0 | `WindowsApi::foreground_window` is `Result<isize>` (null handle is an `Err` with a message the callers pass on), the trait gives `Option<WindowId>`; `cursor_pos` is `Result<POINT>` vs `Option<(i32, i32)>`; `monitors` rebuilds `MonitorInfo` (drops the `Monitor` fields the daemon needs); `monitor_from_point` is never `None` on Windows. Each switch would drop an error the caller reports or fabricate a default | |
+## Switched
+
+| Cluster | Operation | Sites | Notes | e2e needed |
+|---|---|---|---|---|
+| focus | `focus(id, mouse_follows)` | 40 (process_event, process_command, workspace, window_manager, focus_manager, stackbar) | `animation/transition.rs` calls `Window::focus` from the slide-in code `Window::focus` defers to: left | commands, focus, focus_follows_mouse, stacking, workspaces, lifecycle |
+| frame write | `set_rect(id, rect)` | 2 (workspace layout update, stackbar tab click) | `top = false` only | commands, resize, layouts, stacking, scrolling, workspaces |
+| frame read | `frame(id)` | about 55, one revision per file: stackbar_manager (2 files), animation (snapshot, ghost_dispatcher, ghost test), live_resize, pan, scrolling, process_command, process_event, window_manager, border_manager (2 files) | `frame` is a provided method added to the trait for this (WindowsBackend: `Window::window_rect`, one DWM call; error kept). `Window::window_rect`/`WindowsApi::window_rect` remain only inside `window.rs` (the implementation, and `Window::set_position`/`move_to_area`/`center`/`focus` internals) | resize, layouts, stacking, scrolling, borders, animation, commands, lifecycle |
+| hide / show | `hide`, `restore` (plain forms) | 23 | | commands, workspaces, stacking, lifecycle_hidden |
+| hide / show | `minimize`, `close`, `raise` | 1 + 1 + 4 (process_command), 4 minimize (monitor_reconciliator) | | commands, monitor reconciliation, lifecycle |
+| maximize | `maximize(id, bool)` | 5 (workspace.rs) | capability query already in the trait (`supports(Capability::Maximize)`, true here) | maximizing, commands, workspaces |
+
+## Left on purpose (platform-owned subsystems, seam.md rule 5)
+
+- `set_position(.., true)` (window.rs `move_to_area`, `center`, workspace maximize area): the raise-to-front
+  flag is a Windows detail of the layout/animation code, the shared `set_rect` has none.
+- `hide_with_border`, `restore_with_border`: borders are a platform subsystem (own windows and threads).
+- `animation/transition.rs`, `animation/ghost*.rs` (except the frame reads above): the DWM ghost and
+  slide-in machinery.
+- `set_opacity`: the adapter writes the plain alpha, `Window::transparent`/`opaque` take the alpha from the
+  transparency manager and animate.
+
+## Not switched, and what the trait would need (for step 9)
+
+| Operation | Why it stays on the platform API | What the trait would need |
+|---|---|---|
+| `foreground_window` | `WindowsApi::foreground_window() -> Result<isize>`: a null handle is an `Err` whose message callers pass on; the trait has `Option<WindowId>` | a `Result` variant (`Error::Platform` for "no foreground window"), or accept losing the message |
+| `cursor_pos` | `Result<POINT>` vs `Option<(i32, i32)>`; callers `?` it | same: a `Result` return |
+| `monitors` / `window` | `monitors()` rebuilds `MonitorInfo` and drops the `Monitor` fields the daemon needs (device id, serial, device, work-area offsets); `window()` asks title, class, exe, path | the daemon-side `Monitor` fields in `MonitorInfo` (or a platform extension), and for step 9 the monitor model moving to the core |
+| `monitor_from_point` | never `None` on Windows (`MONITOR_DEFAULTTONEAREST`), `None` outside every monitor on KDE and macOS | an explicit "nearest" flag or two methods |
