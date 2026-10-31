@@ -2,13 +2,11 @@
 #![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
 #![allow(deprecated)] // allow deprecated variants like HidingBehaviour::Hide to be used in derive macros
 
-
 use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
-
 
 // Re-export everything from komorebi-layouts
 pub use komorebi_layouts::Arrangement;

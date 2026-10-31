@@ -44,6 +44,8 @@ use crate::windows_api;
 use crate::windows_api::WindowsApi;
 use color_eyre::eyre;
 use crossbeam_utils::atomic::AtomicConsume;
+pub use komorebi_config::aspect_ratio::AspectRatio;
+pub use komorebi_config::aspect_ratio::PredefinedAspectRatio;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -58,8 +60,6 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
-use strum::Display;
-use strum::EnumString;
 use windows::Win32::Foundation::HWND;
 
 pub static MINIMUM_WIDTH: AtomicI32 = AtomicI32::new(0);
@@ -224,51 +224,6 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         }
 
         Ok(())
-    }
-}
-
-#[derive(Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-/// Aspect ratio for temporarily floating windows
-pub enum AspectRatio {
-    /// Predefined aspect ratio
-    #[cfg_attr(feature = "schemars", schemars(title = "Predefined"))]
-    Predefined(PredefinedAspectRatio),
-    /// Custom W:H aspect ratio
-    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
-    Custom(i32, i32),
-}
-
-impl Default for AspectRatio {
-    fn default() -> Self {
-        AspectRatio::Predefined(PredefinedAspectRatio::default())
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Predefined aspect ratio
-pub enum PredefinedAspectRatio {
-    /// 21:9
-    Ultrawide,
-    /// 16:9
-    Widescreen,
-    /// 4:3
-    #[default]
-    Standard,
-}
-
-impl AspectRatio {
-    pub fn width_and_height(self) -> (i32, i32) {
-        match self {
-            AspectRatio::Predefined(predefined) => match predefined {
-                PredefinedAspectRatio::Ultrawide => (21, 9),
-                PredefinedAspectRatio::Widescreen => (16, 9),
-                PredefinedAspectRatio::Standard => (4, 3),
-            },
-            AspectRatio::Custom(w, h) => (w, h),
-        }
     }
 }
 
