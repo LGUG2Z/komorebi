@@ -3531,6 +3531,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-transport"
+version = "0.1.42"
+dependencies = [
+ "komorebi-protocol",
+]
+
+[[package]]
 name = "komorebic"
 version = "0.1.42"
 dependencies = [

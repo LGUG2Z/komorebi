@@ -13,6 +13,7 @@ members = [
   "komorebi-bar",
   "komorebi-themes",
   "crates/komorebi-protocol",
+  "crates/komorebi-transport",
   "komorebi-shortcuts",
   "e2e/guest/agent",
   "e2e/guest/testwin",
