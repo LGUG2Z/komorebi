@@ -2583,9 +2583,10 @@ exit 1
         SubCommand::StaticConfigSchema => {
             #[cfg(feature = "schemars")]
             {
-                let socket_message = schemars::schema_for!(komorebi_client::StaticConfig);
-                let schema = serde_json::to_string_pretty(&socket_message)?;
-                println!("{schema}");
+                let schema = komorebi_config::schema::view::<
+                    komorebi_config::static_config::StaticConfig,
+                >(komorebi_config::schema::Platform::CURRENT);
+                print!("{schema}");
             }
         }
         SubCommand::SubscribeSocket(args) => {

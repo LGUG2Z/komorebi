@@ -1628,8 +1628,10 @@ impl WindowManager {
             SocketMessage::StaticConfigSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let static_config = schemars::schema_for!(StaticConfig);
-                    let schema = serde_json::to_string_pretty(&static_config)?;
+                    let schema = komorebi_config::schema::view::<
+                        komorebi_config::static_config::StaticConfig,
+                    >(komorebi_config::schema::Platform::CURRENT);
+                    let schema = schema.trim_end();
 
                     reply.write_all(schema.as_bytes())?;
                 }
