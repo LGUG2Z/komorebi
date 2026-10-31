@@ -860,11 +860,13 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "needs a real desktop to paint on"]
     fn a_new_border_is_painted_when_windows_are_handled_synchronously() {
         assert!(is_painted(crate::WindowHandlingBehaviour::Sync));
     }
 
     #[test]
+    #[ignore = "needs a real desktop to paint on"]
     fn a_new_border_is_painted_when_windows_are_handled_asynchronously() {
         assert!(is_painted(crate::WindowHandlingBehaviour::Async));
     }
