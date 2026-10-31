@@ -37,6 +37,7 @@
             rust-overlay
             ;
           rootCrates = [
+            "crates"
             "komorebi-layouts"
             "komorebi-scrolling"
             "komorebi-themes"
