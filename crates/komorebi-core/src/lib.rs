@@ -8,8 +8,10 @@
 #![deny(missing_docs)]
 
 mod container;
+mod globals;
 
 pub use container::Container;
 pub use container::ContainerWindow;
+pub use globals::WorkspaceGlobals;
 pub use komorebi_collections::Lockable;
 pub use komorebi_collections::ring;
