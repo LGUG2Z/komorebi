@@ -513,3 +513,45 @@ Not done: the move itself and the hook revisions; each needs `P::Window` to carr
 `class`, `path`, `focus`, `maximize`, `unmaximize`, `rect` and `set_position` on `ContainerWindow` (or a
 `WorkspaceWindow` supertrait) before the first generic function compiles, which is itself a revision
 with a stub window in the crate's tests.
+
+## 11. The Workspace move: what landed and where the sharing stops (semantic differences)
+
+Landed on `wip-u-core`: `komorebi-core` holds `Workspace<P: WorkspacePlatform>` with its 50 or so
+shared functions (container and focus operations, placement, the resize constraints, the window
+lookups, `is_scrolling`, the floating helpers), `WorkspaceGlobals`, `WorkspaceLayer`,
+`WorkspaceWindowLocation`, `WorkspaceWindow`, and the hooks `default_padding`, `foreground_window_id`,
+`cursor_position`, `should_act_window(_individual)`, the three scrolling lookups and
+`after_floating_removed`. KDE (`KdePlatform`, state `scrolling_placed`) and Windows
+(`WindowsPlatform`, no state) both use it through `type Workspace = komorebi_core::Workspace<..>`; every
+other method of the old impl is a method of `WorkspaceExt` (and `WorkspaceScrolling` for the glue of
+`scrolling.rs`), unchanged in body.
+
+The functions left in the extension traits cannot be shared by a converge that keeps behaviour. Read
+side by side they differ in what they DO, not in how they are written:
+
+| function | the difference in behaviour |
+|---|---|
+| `remove_window` | Windows deletes the window's border, removes a floating window itself (`retain`) and returns `()`; KDE has no floating branch (its callers use `remove_floating_window`) and returns the removed `Window`. They test the maximized and the monocle window in the opposite order, and Windows ignores the result of `unmaximize`. |
+| `restore` | with a monocle container that has no focused window, Windows carries on to restore the containers, the floating windows and the maximized window; KDE restores the monocle container, applies the wallpaper and returns. |
+| `hide` | KDE tiles a scrolling workspace again, without its resize adjustments, before hiding (the `after_hide` hook of section 8); Windows does not. This one is a hook and can be shared once that hook exists. |
+| `new_maximized_window` | Windows takes the floating window at the focus index of the ring, KDE the one that has the foreground (`remove_focused_floating_window`); KDE propagates a failed `maximize`, Windows ignores it. |
+| `reintegrate_maximized_window` | KDE unmaximizes the window and adds it with `add_window` (which hides the others of the container); Windows pushes it back and calls `load_focused_window`. |
+| `new_floating_window` | KDE unmaximizes the window first (a hook, `unmaximize_window`, a no-op on Windows by section 8). |
+| `apply_wallpaper` | Windows sets the wallpaper through Win32, builds the palette itself, sends the theme over the daemon's socket and passes the stackbar colours of the wallpaper's theme options; KDE asks the backend, uses `theme_manager::wallpaper_palette` (another cache) and passes `None` for the stackbar colours. |
+| `update` | the (c) list of section 7: title bars, stackbars, the animation batch, `adopt_actual_widths` and its second pass on Windows; the work-area clamp, the percentage override and `scrolling_placed` on KDE; and the placement error policy of section 9. |
+| `load_static_config`, `effective_layout_options`, `promote_container` | the Windows `Layout::Custom` arms (D-coord-6: a Windows hook). |
+
+Making any of the first five identical means choosing one platform's behaviour for the other, which
+is a decision about the daemon, not a refactor. Hooks cover `hide`, `new_floating_window` and the
+custom layouts without changing either daemon; `update` and `apply_wallpaper` need a hook for each
+platform-specific step plus an agreed shared skeleton, which is a design the owner has to confirm
+against the Windows e2e (the first is the lengthiest function in the file). Until then they stay the
+daemons' own methods.
+
+`Monitor<P>` is not started. After this move its shared half is the functions that touch only the
+core `Workspace` API (`add_container`, `remove_workspace_by_idx`, `ensure_workspace_count`,
+`remove_workspaces`, `new_workspace_idx`, `focused_workspace_layout`, `focused_workspace_name`); the
+platform half is the constructors (the Windows `name`, `device_id` and `workspace_names`),
+`load_focused_workspace`, the two globals updates (`BORDER_ENABLED` against `BORDER_DRAWN`),
+`focus_workspace` (the names), `move_container_to_workspace` (the foreground window) and the
+Windows-only custom-layout arms of `add_container_with_direction`.
