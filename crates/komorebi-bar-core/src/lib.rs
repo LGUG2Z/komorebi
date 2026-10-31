@@ -18,3 +18,5 @@ pub mod render;
 pub mod widgets;
 
 pub mod platform;
+
+pub mod schema;
