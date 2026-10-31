@@ -6,3 +6,5 @@ edition = "2024"
 
 [dependencies]
 clap = { workspace = true }
+komorebi-layouts = { path = "../../komorebi-layouts" }
+komorebi-protocol = { path = "../komorebi-protocol", default-features = false }

@@ -3576,6 +3576,8 @@ name = "komorebic-core"
 version = "0.1.42"
 dependencies = [
  "clap",
+ "komorebi-layouts",
+ "komorebi-protocol",
 ]
 
 [[package]]
