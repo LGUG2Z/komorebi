@@ -1,13 +1,7 @@
 use crate::core::animation::AnimationStyle;
 
-use parking_lot::Mutex;
 pub use prefix::AnimationPrefix;
 pub use komorebi_config::animation::PerAnimationPrefixConfig;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::LazyLock;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicU64;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -35,27 +29,6 @@ pub const DEFAULT_ANIMATION_FPS: u64 = 60;
 /// How many operations have asked for animations to be skipped for as long as they run
 static ANIMATIONS_SUSPENDED: AtomicUsize = AtomicUsize::new(0);
 
-pub static ANIMATION_STYLE_GLOBAL: LazyLock<Arc<Mutex<AnimationStyle>>> =
-    LazyLock::new(|| Arc::new(Mutex::new(DEFAULT_ANIMATION_STYLE)));
-
-pub static ANIMATION_ENABLED_GLOBAL: LazyLock<Arc<AtomicBool>> =
-    LazyLock::new(|| Arc::new(AtomicBool::new(DEFAULT_ANIMATION_ENABLED)));
-
-pub static ANIMATION_DURATION_GLOBAL: LazyLock<Arc<AtomicU64>> =
-    LazyLock::new(|| Arc::new(AtomicU64::new(DEFAULT_ANIMATION_DURATION)));
-
-pub static ANIMATION_STYLE_PER_ANIMATION: LazyLock<
-    Arc<Mutex<HashMap<AnimationPrefix, AnimationStyle>>>,
-> = LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
-
-pub static ANIMATION_ENABLED_PER_ANIMATION: LazyLock<Arc<Mutex<HashMap<AnimationPrefix, bool>>>> =
-    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
-
-pub static ANIMATION_DURATION_PER_ANIMATION: LazyLock<Arc<Mutex<HashMap<AnimationPrefix, u64>>>> =
-    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
-
-pub static ANIMATION_FPS: AtomicU64 = AtomicU64::new(DEFAULT_ANIMATION_FPS);
-
 /// Skips animations for as long as the guard is held
 ///
 /// Some operations, such as stacking windows, rearrange a workspace in a way that animating would
@@ -81,29 +54,16 @@ pub fn motion_for(prefix: AnimationPrefix) -> Option<MotionSpec> {
         return None;
     }
 
-    let enabled = ANIMATION_ENABLED_PER_ANIMATION
-        .lock()
-        .get(&prefix)
-        .copied()
-        .unwrap_or_else(|| ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst));
-
-    if !enabled {
-        return None;
-    }
+    // one snapshot: enabled, duration and style are read from the same configuration
+    let motion = crate::settings::settings()
+        .snapshot()
+        .shared
+        .animation
+        .motion_for(prefix)?;
 
     Some(MotionSpec {
-        duration: Duration::from_millis(
-            ANIMATION_DURATION_PER_ANIMATION
-                .lock()
-                .get(&prefix)
-                .copied()
-                .unwrap_or_else(|| ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
-        ),
-        style: ANIMATION_STYLE_PER_ANIMATION
-            .lock()
-            .get(&prefix)
-            .copied()
-            .unwrap_or_else(|| *ANIMATION_STYLE_GLOBAL.lock()),
+        duration: Duration::from_millis(motion.duration_ms),
+        style: motion.style,
     })
 }
 
@@ -114,7 +74,7 @@ pub fn workspace_transitions_enabled() -> bool {
 
 /// How long one frame takes, given the configured frames per second
 pub fn frame_period() -> Duration {
-    let fps = ANIMATION_FPS.load(Ordering::Relaxed).clamp(1, 240);
+    let fps = crate::settings::animation_fps().clamp(1, 240);
 
     Duration::from_secs_f64(1.0 / fps as f64)
 }

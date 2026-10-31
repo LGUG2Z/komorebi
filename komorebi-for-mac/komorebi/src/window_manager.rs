@@ -4033,18 +4033,26 @@ mod tests {
 
     impl AnimationsOn {
         fn new() -> Self {
-            animation::ANIMATION_ENABLED_PER_ANIMATION
-                .lock()
-                .insert(AnimationPrefix::Movement, true);
+            crate::settings::settings().update(|settings| {
+                settings
+                    .shared
+                    .animation
+                    .enabled_per_animation
+                    .insert(AnimationPrefix::Movement, true);
+            });
             Self
         }
     }
 
     impl Drop for AnimationsOn {
         fn drop(&mut self) {
-            animation::ANIMATION_ENABLED_PER_ANIMATION
-                .lock()
-                .remove(&AnimationPrefix::Movement);
+            crate::settings::settings().update(|settings| {
+                settings
+                    .shared
+                    .animation
+                    .enabled_per_animation
+                    .remove(&AnimationPrefix::Movement);
+            });
         }
     }
 
