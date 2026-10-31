@@ -1,0 +1,18 @@
+run-kde: what the guest needs, and what this machine has
+  ✓ this is WSL 2 (5.15.167.4-microsoft-standard-WSL2)
+  ✓ nix is installed
+  ✓ KVM: @T@/kvm can be used
+  ✓ FUSE: @T@/fuse can be opened
+  ✓ virtiofsd: starts as this user and serves a directory
+  ✓ memory: this machine has 16384 MB, and the guest gets 8192 MB
+  ✓ cores: this machine has 12, and the guest gets 6
+  ✓ disk: 100 GB are free for the Nix store (@T@)
+  ✓ a window can be shown (WAYLAND_DISPLAY=wayland-0 DISPLAY=:0)
+  ! Windows interop: mstsc.exe or cmdkey.exe cannot be run, which --rdp needs
+      on NixOS-WSL, wsl.interop.includePath = true; (and wsl.interop.register = true;)
+  ✓ GPU: @T@/dxg is there
+  ✓ GPU: the host's OpenGL renderer is D3D12 (AMD Radeon RX 7800 XT)
+  ✓ GPU: the Windows driver is in @T@/wsl-lib
+  ✓ GPU: the video driver of Mesa for it (d3d12) is in @T@/va
+  ✓ the guest will use the GPU: @T@/dxg is there and the OpenGL of the host is D3D12 (AMD Radeon RX 7800 XT)
+run-kde: 0 error(s), 1 warning(s)

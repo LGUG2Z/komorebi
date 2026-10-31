@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "komorebi-vm"
+version = "0.1.0"
+description = "Helpers for the NixOS VM tests of komorebi for KDE"
+requires-python = ">=3.12"
+dependencies = ["pillow"]
+
+[tool.setuptools]
+packages = [
+  "komorebi_vm",
+  "komorebi_vm.core",
+  "komorebi_vm.core.scenarios",
+  "komorebi_vm.platforms",
+  "komorebi_vm.platforms.kde",
+  "komorebi_vm.platforms.kde.extras",
+]
+
+[tool.setuptools.package-data]
+komorebi_vm = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# moved from the suite scripts, which were not linted to 100 columns: long lines of comments,
+# strings and calls that were not wrapped
+"komorebi_vm/platforms/kde/extras/kwin.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/kwin_events.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/kwin_contract.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/client_geometry.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/module.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/restart_survival.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/user_maximize.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/check.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/features.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/look.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/render_smoke.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/wallpaper.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/rdp.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/latency.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/run_kde.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/live_resize.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/focus_follows_mouse.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/lock_sleep.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/keys_engine.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/keys_static.py" = ["E501"]
+"komorebi_vm/platforms/kde/extras/keys_corpus.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

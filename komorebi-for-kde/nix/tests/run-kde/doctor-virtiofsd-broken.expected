@@ -1,0 +1,17 @@
+run-kde: what the guest needs, and what this machine has
+  ✓ this is Linux, not WSL 2 (6.18.0)
+  ✓ nix is installed
+  ✓ KVM: @T@/kvm can be used
+  ✓ FUSE: @T@/fuse can be opened
+  ✗ virtiofsd: does not start as this user, and the guest mounts its /nix/store through it
+      virtiofsd said: [ERROR virtiofsd] Error creating the vhost-user socket: Address in use (os error 98)
+      virtiofsd ran with the options of the guest's runner and could not serve a directory: the lines above say why.
+      A socket path is 107 bytes at most, so a long $TMPDIR is one cause: TMPDIR=/tmp run-kde
+      Say what virtiofsd printed when you ask for help: the guest cannot start without it
+  ✓ memory: this machine has 16384 MB, and the guest gets 8192 MB
+  ✓ cores: this machine has 12, and the guest gets 6
+  ✓ disk: 100 GB are free for the Nix store (@T@)
+  ! there is no window to show the guest in (neither WAYLAND_DISPLAY nor DISPLAY is set), so the guest is reached over RDP
+  ! GPU: there is no render node in @T@/dri, so the guest renders on its CPUs
+  ✓ the guest will not use the GPU: there is no window to show it in (the display is rdp)
+run-kde: 1 thing(s) to fix first

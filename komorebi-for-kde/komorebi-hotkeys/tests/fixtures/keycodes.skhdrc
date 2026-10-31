@@ -1,0 +1,7 @@
+# keys that skhd can only name by their macOS keycode, a position on a US keyboard
+alt - 0x21 : komorebic cycle-stack previous
+alt - 0x1E : komorebic cycle-stack next
+alt - 0x29 : komorebic unstack
+alt - 0x18 : komorebic resize-axis horizontal increase
+alt - 0x1B : komorebic resize-axis horizontal decrease
+alt + shift - 0x21 : komorebic cycle-focus previous

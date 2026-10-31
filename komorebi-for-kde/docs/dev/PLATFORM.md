@@ -1,0 +1,943 @@
+# Platform
+
+komorebi for KDE runs in a KDE Plasma session, as a client of KWin. Most of the details on
+this page are also written down next to the code that depends on them; this page
+centralizes them: which KWin it needs, how it finds it, what it creates in the session and
+leaves behind, every environment variable it reads, and what happens when something is
+missing.
+
+Facts that change with KWin and Plasma releases are dated. Unless a fact says otherwise, it
+was measured with KWin 6.8.1, Plasma 6.8.1 and Qt 6.12.0 from nixpkgs `d3b13ad`
+(2026-10-24), in NixOS virtual machines under QEMU on an Apple silicon Mac (HVF). The VM
+tests of this repository run against the nixpkgs that `flake.lock` pins: at time of writing
+(2026-10-28), `f05535a` (2026-10-27), with KWin 6.8.2, Plasma 6.8.2 and Qt 6.12.0.
+
+## Vocabulary
+
+- **Session**: one user's Plasma login: KWin, the Plasma shell, and a D-Bus session bus they
+  share.
+- **Session bus**: the D-Bus bus of the session. komorebi and KWin talk over it.
+- **KWin**: the compositor and window manager of Plasma, `kwin_wayland`.
+- **Script**: a JavaScript program that KWin runs inside itself, through its scripting API.
+  komorebi's is the **bridge**, [`bridge.js`](../../komorebi/src/kwin/bridge.js).
+- **Output**: KWin's name for a monitor.
+- **Desktop**: one of KWin's virtual desktops. Each output shows one; komorebi's workspace `i`
+  is desktop `i`.
+- **Parking desktop**: the desktop named `komorebi-park`, which komorebi makes to hide the back of
+  a stack, and the windows behind a monocle, on. It is not a workspace.
+- **Headless KWin**: `kwin_wayland --virtual`, a KWin with virtual outputs and no display,
+  which the VM tests run ([vm-tests.md](vm-tests.md)).
+- **The spikes**: throwaway measurements made before komorebi for KDE was written, each
+  answering one question about KWin (the event stream, the command channel, how to hide
+  windows, how clients answer a frame, the effects, the native actions, finding KWin again
+  after a restart, whether one `komorebi.json` can be shared, per-output desktops), numbered
+  from 1 to 10. They ran on KWin 6.8.1 in NixOS virtual machines under QEMU on an Apple silicon
+  Mac. Their numbers are quoted where they are used, with the date, and where a VM test repeats
+  a measurement the test is named. `spikes/config-parity/fixtures` is spike 8's.
+
+## What komorebi needs
+
+### KWin 6.8 or newer
+
+KWin 6.8 is the oldest KWin komorebi supports. komorebi's workspaces are KWin's virtual
+desktops, one shown on each output, which needs the per-output virtual desktops KWin 6.8
+introduced (`workspace.currentDesktopForScreen`, `workspace.setCurrentDesktopForScreen`, and
+the setting `[Windows] PerOutputVirtualDesktops` in `kwinrc`). At time of writing (2026-10-28)
+komorebi has been run against KWin 6.8.1 (the spikes) and 6.8.2 (every VM suite); 6.7 and older
+have not been tried.
+
+### Per-output virtual desktops
+
+What komorebi relies on KWin to do with them, on KWin 6.8.1 at time of writing (2026-10-27),
+measured in the spikes and checked by the VM test `vm-kwin-contract` on a headless KWin with two
+outputs:
+
+- With `PerOutputVirtualDesktops=true` in the `[Windows]` group of `kwinrc`, a script that
+  shows a desktop on one output (`workspace.setCurrentDesktopForScreen`) leaves the other
+  output's desktop as it was. komorebi turns the setting on when it starts, has KWin reload its
+  configuration (`org.kde.KWin.reconfigure`), and puts the user's value back when it stops.
+- KWin raises `workspace.currentDesktopChanged` when an output shows another desktop. The signal
+  does not say which output, so the bridge reads the desktop of every output after it.
+- KWin gives the focus to a window of the desktop it switched an output to, by itself.
+- Activating a window that is on another desktop of its output switches that output to the
+  window's desktop and gives the window the focus.
+- A window that a script moves so that its middle is on another output keeps its desktops;
+  `window.output` follows the middle. KWin puts a window on the new output's desktop only during
+  an interactive move.
+- Putting a window on another desktop from outside the script raises the window's
+  `desktopsChanged`.
+- Desktops are global: every output has the same desktops, with the same names, and each output
+  shows one of them. The ids of the desktops are UUIDs; the bridge names them by id.
+
+### The parking desktop
+
+Why komorebi hides windows on a desktop of its own is in
+[DESIGN.md](DESIGN.md#why-are-the-windows-behind-the-front-one-of-a-stack-moved-to-a-parking-desktop).
+What it relies on KWin for, at time of writing (2026-10-27), measured by the spikes on KWin
+6.8.1 (nixpkgs `d3b13ad`, 2026-10-24) unless it says otherwise. The VM test `vm-stacks` runs
+komorebi's use of them in a headless KWin:
+
+- A window on another desktop of its output is out of sight, and moving it there and back gives
+  its frame back exactly. Hiding six windows this way raised no `activated` event; minimizing
+  them raised two.
+- KWin saves a virtual desktop in `kwinrc` as soon as it is made. A desktop that komorebi made
+  and did not remove, because it was killed, is in every later session.
+- Activating a window that is on another desktop of its output switches that output to the
+  window's desktop (see [Per-output virtual desktops](#per-output-virtual-desktops)), which for a
+  hidden window is the parking desktop.
+- `Window.hidden` is read-only to a script, and the only thing in KWin's 6.8.1 sources that sets
+  it is a layer-shell window (an auto-hide panel). This is a reading of the sources, not a
+  measurement.
+- A window on the parking desktop is still a window of the session. Whether Plasma's task manager
+  lists it depends on the task manager's setting for showing the windows of the current desktop
+  only; the VM tests have no panel, so this is not measured.
+
+[`nix/supported-kwin.nix`](../../nix/supported-kwin.nix) records both ends: `min`, the oldest
+KWin komorebi supports (6.8), and `testedMax`, the newest KWin every VM suite has passed against
+(6.8.2, with nixpkgs-unstable `f05535a`). The NixOS module reads the file. A system whose KWin
+is older than `min` does not evaluate; one whose KWin is newer than `testedMax` builds with a
+warning, unless `services.komorebi.kwin.untestedIsError` is set, which makes it an error. Outside
+NixOS nothing checks the version.
+
+The repository follows the tip of nixpkgs-unstable, so a newer KWin reaches it with a
+`flake.lock` update or shows up first in the weekly canary job, which builds every check and runs
+every VM suite against the tip. Once every suite has passed against a newer KWin, a commit raises
+`testedMax` to it, with the date and the nixpkgs revision in the file's comment, and says in its
+message which run it was and which suites ran ([CONTRIBUTING.md](../../CONTRIBUTING.md#the-nixos-module)).
+
+### Wayland
+
+komorebi runs in a Plasma Wayland session. There is no X11 session of Plasma 6.8 to run it in.
+Programs that run on XWayland inside the Wayland session are windows like any other; KWin
+reports their X11 class (`XTerm`) where a Wayland client has its app id (`foot`,
+`org.kde.konsole`).
+
+### The session bus
+
+komorebi finds KWin on the session bus, and nowhere else. It needs to own the name
+`org.komorebi.Bridge` there, and KWin has to own `org.kde.KWin`. See
+[`DBUS_SESSION_BUS_ADDRESS`](#dbus_session_bus_address) for how the bus is found.
+
+## Environments
+
+The same questions, for each place the daemon can be started:
+
+1. How it finds KWin.
+2. What it does there.
+3. What it leaves behind.
+
+### A Plasma session
+
+#### How komorebi finds KWin
+
+Through the session bus. When the daemon is started from the session (a terminal, an
+autostart entry, a user unit of the session), the bus is already in its environment.
+
+On NixOS, the module's user unit, `komorebi.service`, is wanted by `plasma-workspace.target`
+and ordered after `plasma-core.target`, which Plasma orders after KWin's service,
+`plasma-kwin_wayland.service`: the session starts the daemon once KWin's service has started
+([installation.md](../installation.md)). The unit's `PATH` is `/run/wrappers/bin`,
+`/etc/profiles/per-user/<user>/bin` and `/run/current-system/sw/bin`.
+
+#### What komorebi does
+
+It connects to the session bus as `org.komorebi.Bridge`, writes the bridge to
+`$XDG_RUNTIME_DIR/komorebi/bridge.js`, and asks KWin to load it under the name
+`komorebi-bridge`, replacing a script of that name left by an earlier run. The script reports
+the windows and outputs it finds, and from then on every window that opens, closes, takes the
+focus, is minimized or brought back, goes fullscreen or comes back, is maximized or restored,
+moves or changes size, the start and the end of every drag of a window by the user, and every
+change of the outputs (one that changes resolution or scale, and the room a panel leaves). KWin
+has no signal for that room, so the script looks at the outputs again when a dock window opens,
+closes or moves, and once a second; it also compares KWin's active window with the one it last
+reported once a second. The daemon waits up to 10 seconds for the first report and does not
+start without it.
+
+It also watches for the machine waking up and the screen being unlocked, with two signals that
+are not KWin's ([D-Bus](#d-bus)): logind's `PrepareForSleep` on the system bus, and the lock
+screen's `ActiveChanged` on the session bus. Either one makes it look at the monitors and at
+where every window is again, after a delay (2.5 seconds after a wake, 0.6 after an unlock). Where
+there is no system bus, as in a container, it logs that it is not watching for sleep, and
+carries on.
+
+Before it loads the script, it turns on KWin's per-output virtual desktops in the user's
+`kwinrc` (`[Windows] PerOutputVirtualDesktops=true`), unless they are on, and asks KWin to
+reload its configuration. If a workspace has no desktop, it creates the missing desktops over
+`org.kde.KWin.VirtualDesktopManager`, named "Workspace 1", "Workspace 2" and so on. A desktop
+that is already there keeps its name.
+
+When komorebi hides a window for the first time (the back of a stack, or a window behind a
+monocle), it makes one more desktop, named `komorebi-park`, after the desktops of the workspaces
+(the missing workspace desktops are made by position, so that it stays last), and moves the window
+there. The desktop is not a workspace: komorebi counts the workspaces without it, and a window on
+it is on the workspace it will come back to. It checks that KWin still lists the desktop before it
+sends another window there.
+
+When borders are on, it also asks KWin to load KDE Rounded Corners, the effect that draws them,
+after writing the effect's settings into `kwinrc`, and asks it to read them again
+([KWin effects](#kwin-effects)). It does the same with Geometry Change, the effect that animates
+windows, when animation is on. An effect KWin did not find is reported once in the log. When focus
+follows mouse is turned on, it sets KWin's focus policy in `kwinrc` (`[Windows] FocusPolicy=1`,
+`DelayFocusInterval=0`) and asks KWin to reload its configuration.
+
+Every command of the window manager (move and resize, focus, raise, hide or restore, minimize,
+bring back, maximize, unmaximize or close a window, show a workspace on an output, put a window
+on a workspace) is queued for the bridge, which gets the queue as the answer to its held call and
+carries the commands out in KWin, in order. A maximize is KWin's own, `setMaximize(true, true)`:
+the window gets the work area of its output with the panels left alone, komorebi sets no frame
+for it meanwhile, and unmaximizing it gives it back the frame it had. The VM test `vm-features`
+checks that the window fills the work area and is on top. The script API cannot move the pointer,
+so when the pointer follows the focus komorebi invokes KWin's own "Move Mouse to Focus" shortcut,
+which puts the pointer in the middle of the window KWin has focused.
+
+Some of what the bridge reports is the user's doing, not the answer to a command. KWin raises
+`maximizedChanged` for komorebi's maximize and for the user's (the title bar, a double click, a
+shortcut) alike, and the bridge reports a window as maximized only when it is maximized both
+ways (`maximizeMode` 3): a window maximized in one direction is a restored window to komorebi.
+The VM test `vm-user-maximize` maximizes windows with `kdotool windowstate`, in both directions,
+and passes against KWin 6.8.2 at time of writing (2026-10-28).
+A fullscreen window is reported by `fullScreenChanged`, and komorebi asks KWin for no frame for
+it while it is fullscreen. When it leaves fullscreen KWin gives it the frame it had before,
+whatever komorebi has done to the layout since. The VM test `vm-features` takes a window
+fullscreen with `kdotool windowstate`, and checks that it covers the output, that a window that
+opens meanwhile leaves it there, and that it is in a tile when it comes back. It passes against
+KWin 6.8.2 at time of writing (2026-10-28).
+
+#### When KWin restarts
+
+KWin can go away while the session goes on: it crashed, or `kwin_wayland --replace` took its
+place. The session bus stays, and the windows go with the old KWin. komorebi keeps running. It
+watches who owns `org.kde.KWin` on the session bus, and when nobody does it takes every window
+of the old KWin out of its layout, as if each had been closed: the bridge went with KWin, so
+nothing reports them closing. When the name has an owner again, komorebi loads the bridge into
+the new KWin, trying again for up to 15 seconds while KWin is not ready for it, and the bridge
+reports the new KWin's windows and outputs as it does at start. A window that opens in the new
+KWin is tiled. kglobalaccel runs in KWin, so the keys of the engine go with the old KWin:
+komorebi watches `org.kde.kglobalaccel` the same way, and when it has an owner again, it reads
+its key binding file again and registers the keys with the new one, trying for up to 15
+seconds. The VM test `vm-restart-survival` kills the KWin of a Plasma session under the
+daemon and presses a key afterwards. In the spikes the bridge was loaded again 1.0 to 1.1 seconds after the name had
+an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a running daemon.
+
+#### What komorebi leaves behind
+
+When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it brings back
+the windows it hid, unregisters the keys of its engine, waits until the commands that do so have
+reached the bridge, removes the parking desktop, unloads the effects it loaded, puts back the
+values the keys it set in `kwinrc` had (`PerOutputVirtualDesktops`, the focus policy, and the keys
+of the effects), or removes a key the user had not set, and asks KWin to reload its configuration,
+asks KWin to unload the script, closes an empty connection to each subscriber, and removes the
+socket. The desktops it created for workspaces stay: they are the user's desktops from then on. A
+`StopIgnoreRestore` message stops it the same way, except that it does not bring the windows back:
+the parking desktop is removed all the same. The file `bridge.js` stays in the runtime
+directory, which is removed at logout. A daemon that is killed leaves the script running in
+KWin, reporting to nobody, the socket file in the runtime directory, per-output desktops
+on, and the parking desktop with the hidden windows on it, until the next start replaces the
+script and the socket, sends the windows on the parking desktop to the first workspace's desktop
+and removes the desktop, and its stop puts the setting back (the backup in the runtime
+directory keeps the user's value), or the session ends. It also leaves the keys of its engine
+grabbed: they are swallowed, and run nothing, until `komorebic hotkeys release` unregisters them, or
+the next start takes them over and unregisters those its key bindings no longer have. The NixOS
+module's unit runs `komorebic hotkeys release` after the daemon stops, however it stops.
+
+### A headless KWin
+
+`kwin_wayland --virtual` behaves like the KWin of a session for everything komorebi does but
+the lock screen, which it has none of (`vm-lock-sleep` runs in a Plasma session): the VM tests
+run the daemon against one, on a private session bus of its own. It cannot draw
+(see [Rendering](#rendering-in-virtual-machines-and-over-rdp)), so nothing that depends on
+pixels can be tested against it. Started with `--no-global-shortcuts`, as the VM tests start
+it, KWin does not own `org.kde.kglobalaccel`, and the pointer does not follow the focus; the
+daemon logs that at debug level and carries on.
+
+### No KWin
+
+Anywhere else (a session that is not Plasma, a Linux console, a Mac), the daemon exits with an
+error that names what is missing:
+
+- "could not connect to the session bus as org.komorebi.Bridge": there is no session bus at
+  the address the environment gives, or another komorebi owns the name.
+- "KWin is not on the session bus": the bus is there and KWin is not.
+- "KWin loaded the bridge script but it never reported in": KWin is there, and the script did
+  not run. KWin logs a script's errors to the journal (`journalctl --user -t kwin_wayland`).
+
+`komorebi --fake-backend` runs the window manager against an in-memory desktop instead, which
+works anywhere, for development and testing.
+
+## D-Bus
+
+What komorebi owns, on the session bus:
+
+| Name | Object | Interface | Member | Called by |
+|---|---|---|---|---|
+| `org.komorebi.Bridge` | `/org/komorebi/Bridge` | `org.komorebi.Bridge` | `Event(s)` | the bridge, for every event |
+| `org.komorebi.Bridge` | `/org/komorebi/Bridge/Poll` | `org.komorebi.Bridge.Poll` | `Poll(s) -> s` | the bridge, for commands |
+
+Both take a JSON string. `Poll` is held: the daemon answers it when it has commands for the
+bridge, or with an empty list after 10 seconds, and the bridge then calls it again.
+
+What komorebi calls:
+
+| Name | Object | Interface | Member | When |
+|---|---|---|---|---|
+| `org.kde.KWin` | `/Scripting` | `org.kde.kwin.Scripting` | `unloadScript(s)`, `loadScript(ss) -> i` | at start, and when KWin is back after a restart; `unloadScript` again at exit |
+| `org.kde.KWin` | `/Scripting/Script<id>` | `org.kde.kwin.Script` | `run()` | after `loadScript` |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin (`org.kde.KWin`, and `org.kde.kglobalaccel`, which it owns too) leave the bus and come back |
+| `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
+| `org.kde.KWin` | `/Effects` | `org.kde.kwin.Effects` | `isEffectSupported(s)`, `isEffectLoaded(s)`, `loadEffect(s)`, `unloadEffect(s)`, `reconfigureEffect(s)`, with `kwin4_effect_shapecorners` and `kwin4_effect_geometry_change` | when the look changes (the border is turned on, off or changed), and at exit |
+| `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.komorebi.BorderColours1` | `SetColours(asau)`: the UUID of each window and its color, `0xRRGGBB` | when the color of a window's border changes; the object is komorebi's build of the border effect ([The patches](#the-patches)) |
+| `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `reconfigure()` | after komorebi changed `kwinrc`, at start and at exit |
+| `org.kde.KWin` | `/VirtualDesktopManager` | `org.kde.KWin.VirtualDesktopManager` | the properties `desktops` and `count`, `createDesktop(us)`, `setDesktopName(ss)`, `removeDesktop(s)` | when a workspace has no desktop, and at start; `createDesktop` also for the parking desktop, the first time a window is hidden, and `removeDesktop` for it when komorebi stops and for one a killed run left |
+| `org.kde.plasmashell` | `/PlasmaShell` | `org.kde.PlasmaShell` | `evaluateScript(s) -> s`, `wallpaper(u) -> a{sv}`, `setWallpaper(sa{sv}u)` | when a workspace with a wallpaper comes into view ([The Plasma shell](#the-plasma-shell)) |
+| `org.kde.kglobalaccel` | `/kglobalaccel` | `org.kde.KGlobalAccel` | `allActionsForComponent(as) -> aas` | when the engine starts |
+| `org.kde.kglobalaccel` | `/kglobalaccel` | `org.kde.KGlobalAccel` | `doRegister(as)`, `setShortcutKeys(as, a(ai), u) -> a(ai)`, `setInactive(as)`, `unRegister(as)` | when the engine grabs and lets go of keys, and when it starts and stops |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for `globalShortcutPressed` and `globalShortcutReleased` of `/component/komorebi` | when the engine starts |
+
+What komorebi listens to, for the machine sleeping and the screen being locked:
+
+| Bus | Sender | Interface | Signal | Meaning |
+|---|---|---|---|---|
+| system | `org.freedesktop.login1` | `org.freedesktop.login1.Manager` | `PrepareForSleep(b)` | the machine is going to sleep (true) or has woken up (false) |
+| session | any | `org.freedesktop.ScreenSaver` | `ActiveChanged(b)` | the lock screen came up (true) or went away (false) |
+
+Only logind is believed about sleep. The lock screen's signal is taken from any sender on the
+session bus.
+
+The property `desktops` is introspected as `a(iss)`, a position, an id and a name for each
+desktop, and the value on the wire is `a(uss)`: komorebi reads it as that. It is read uncached,
+since a read right after `createDesktop` has to see the new desktop.
+
+What `komorebic check` calls, in this order, each with two seconds to answer:
+
+| Name | Object | Interface | Member | For |
+|---|---|---|---|---|
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `NameHasOwner(s) -> b` | whether `org.kde.KWin` is on the bus |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `GetConnectionUnixProcessID(s) -> u` | the process that owns `org.kde.KWin`, whose environment says where KWin looks for effects |
+| `org.kde.KWin` | `/KWin` | `org.kde.KWin` | `supportInformation() -> s` | KWin's version: the line `KWin version: X.Y.Z` of the text |
+| `org.kde.KWin` | `/Scripting` | `org.kde.kwin.Scripting` | `isScriptLoaded(s) -> b` | whether the script `komorebi-bridge` is loaded |
+| `org.kde.KWin` | `/Effects` | `org.kde.kwin.Effects` | `isEffectSupported(s) -> b` | whether the border effect (`kwin4_effect_shapecorners`) and the animation effect (`kwin4_effect_geometry_change`) are installed |
+| `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.freedesktop.DBus.Introspectable` | `Introspect() -> s` | whether komorebi's build of the border effect is loaded: its object has the interface `org.komorebi.BorderColours1` |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `NameHasOwner(s) -> b` | whether `org.kde.plasmashell` is on the bus, when there are wallpapers |
+
+At time of writing (2026-10-27), the headless KWin of the VM tests (Plasma 6.8) answers
+`supportInformation` with a text that has that line, and `vm-check` has `komorebic check` read the
+major version from it. The check does not need the answer: without the line it says that KWin is
+there and its version could not be read.
+
+## Global shortcuts
+
+KDE's global shortcut daemon runs inside KWin 6.8: `kwin_wayland` owns `org.kde.kglobalaccel`
+on the session bus, and there is no separate `kglobalacceld` process. A KWin started with
+`--no-global-shortcuts`, as the headless VM tests start it, has none.
+
+A static shortcut is a `.desktop` file in a `kglobalaccel` directory with
+`X-KDE-GlobalAccel-CommandShortcut=true` and the key in `X-KDE-Shortcuts`; KWin runs its
+`Exec` line on the key. `komorebic hotkeys compile` and `komorebic export-kde-shortcuts`
+write such files. What follows was measured at time of writing (2026-10-27) on KWin 6.8.1:
+
+- KWin reads the files when it starts: those in `$XDG_DATA_HOME/kglobalaccel` and those in
+  `share/kglobalaccel` of the data directories, the system profile of NixOS among them.
+- A file added while KWin runs is not read until something calls
+  `doRegister(["<file name>", "_launch", "", ""])` on `/kglobalaccel`, which is what `--reload`
+  does for each new file (through `busctl`); the shortcut then works at once. A file whose
+  content changed keeps the old content until the next login, and a removed file stays
+  registered until then too.
+- In `Exec`, `%` starts a field code, so a command's `%` is written `%%`.
+- A static shortcut ran its command 165 to 436 ms after the key, 233 ms at the median, over 8
+  presses, in a virtual machine under HVF with 4 cores. A key held for 1.5 s ran the command
+  once.
+- The VM test `vm-keys-static` presses the keys of shortcut files in the system profile, and of
+  one written and handed over in the middle of the session.
+
+The engine registers its keys itself, in the component `komorebi`, with one action per combo
+named after the combo (`Alt+H`); an action's id is `["komorebi", "Alt+H", "komorebi",
+"Alt+H"]`. What was measured of that interface at time of writing (2026-10-27), on KWin
+6.8.1 in a virtual machine under HVF with 4 cores:
+
+- `setShortcutKeys(as id, a(ai) keys, u flags) -> a(ai)` takes a list of key sequences, each
+  a struct of one Qt key code per key of the sequence, and returns the keys it set. Flags 6
+  (`SetPresent | NoAutoloading`) grab the key at once, whatever kglobalaccel saved for the
+  action. A key that another action has is not set: the answer is not what was asked for, and
+  komorebi logs a warning.
+- A grabbed key does not reach the focused window, a bare key (`H`, `Escape`) included, and
+  each tap is a `globalShortcutPressed` and then a `globalShortcutReleased` signal
+  (`ssx`: component, action, timestamp) on `/component/komorebi`. The signal reached a client
+  2.5 ms after the key at the median (2.2 to 3.9 ms, 20 presses), also after another window
+  had taken the focus.
+- A key held for 1.2 s sent one pressed signal, 15 `globalShortcutRepeated` and one released
+  signal, in that order.
+- After `setInactive`, the key reaches the focused window and no signal is sent;
+  `setShortcutKeys` grabs it again. Sixty such calls, sent without waiting for the answers,
+  were all answered in 2.4 ms, and the state afterwards was right.
+- A client that is killed leaves its actions and its grabs: the key stays swallowed and its
+  signal is sent to nobody until `unRegister`.
+- A sequence of two keys (`[[Meta+A, B]]`) is accepted and stored, but never fires: the
+  second key reaches the focused window.
+- `getComponent` fails until the component has an action, so the engine does not ask for the
+  object of its component: it listens at the object's path, `/component/komorebi`, which a
+  signal is matched by, and a start with no key to grab is a start all the same.
+
+## Files and directories
+
+| Path | What | Lifetime |
+|---|---|---|
+| `$KOMOREBI_CONFIG_HOME/komorebi.json` (`~/.config/komorebi/komorebi.json`) | komorebi's configuration, which komorebi never writes: read when the daemon starts, and again when it changes. `--config` names another file | the user's |
+| `$XDG_CONFIG_HOME/autostart/komorebi.desktop` (`~/.config/autostart/komorebi.desktop`) | the XDG autostart entry `komorebic enable-autostart` writes: `Exec=komorebi`, or `komorebi --config "FILE"`, and `X-KDE-autostart-after=plasma-workspace`, which a Plasma session starts komorebi from at login | the user's; `komorebic disable-autostart` removes it |
+| `$XDG_CONFIG_HOME/kwinrc` (`~/.config/kwinrc`) | KWin's configuration: komorebi sets `PerOutputVirtualDesktops=true` in `[Windows]`, changing that line or adding it and nothing else, and writes the file beside it first and renames it over it | put back as it was when the daemon stops |
+| `$XDG_CONFIG_HOME/kwinrc`, group `[Windows]`, keys `FocusPolicy` and `DelayFocusInterval` | `1` and `0` while focus follows mouse is on: KWin's "focus follows mouse" policy, which KWin takes when it is asked to reconfigure | put back, without the other keys of the group, when focus follows mouse is turned off, and with everything else when the daemon stops |
+| `$XDG_CONFIG_HOME/kwinrc`, group `[Round-Corners]` | the settings of the border effect, written when borders are on ([KWin effects](#kwin-effects)) | put back, with the rest of `kwinrc`, when borders are turned off and when the daemon stops |
+| `$XDG_CONFIG_HOME/kwinrc`, group `[Effect-kwin4_effect_geometry_change]` | the settings of the animation effect, written when animation is on | put back as above, when animation is turned off and when the daemon stops |
+| `$XDG_RUNTIME_DIR/komorebi/kwinrc-backup.json` | the value each key of `kwinrc` had before komorebi first changed it | removed when the values are put back; one a crash left behind is used by the next run |
+| `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
+| `$XDG_RUNTIME_DIR/komorebi/komorebi.sock` | the command socket | bound once the daemon is connected to KWin, after a file left there is removed; removed when the daemon stops |
+| `$XDG_RUNTIME_DIR/komorebi/NAME` | the socket of a subscriber, which the subscriber binds and names in its subscription | removed by the daemon, with the subscriber, when it cannot connect to it |
+| `$XDG_CACHE_HOME/komorebi` (`~/.cache/komorebi`) | the palettes made from wallpapers, a file for each picture and variant, `NAME-HASH.base16.VARIANT.json` | never removed by komorebi; made again when the picture's path, size or time of last change differ |
+| `$XDG_DATA_HOME/komorebi/komorebi.log.YYYY-MM-DD` | the daemon's log, with colors, which `komorebic log` follows | a file a day (the UTC date), never removed by komorebi |
+| `$XDG_DATA_HOME/komorebi/komorebi_plaintext.log.YYYY-MM-DD` | the same log without colors | as above |
+| `/run/current-system/sw/share/kglobalaccel/komorebi-*.desktop` | on NixOS, the static shortcuts of `services.komorebi.keybindings`, which the module compiles at build time into the package `komorebi-keybindings` | the system's: KWin reads them when the session starts |
+| `$XDG_DATA_HOME/kglobalaccel/komorebi-*.desktop` | the static shortcuts `komorebic hotkeys compile` and `komorebic export-kde-shortcuts` write, each with `X-Komorebi-Generated=true` | replaced at every write: the files with that key are removed, and no other |
+| `$KOMOREBI_CONFIG_HOME/{skhdrc,whkdrc,sxhkdrc}` | the key binding file `komorebic hotkeys compile` and the daemon read when they are given none (the first that exists), and the skhdrc of `export-kde-shortcuts` | the user's; the daemon reads it once, at start |
+
+Without `XDG_RUNTIME_DIR` the bridge and the socket are in `komorebi` in the local data
+directory instead, with the logs (see [`XDG_DATA_HOME`](#xdg_data_home)).
+
+## What `komorebic check` looks at
+
+The key binding file is the first of `skhdrc`, `whkdrc` and `sxhkdrc` in `$KOMOREBI_CONFIG_HOME`,
+and the shortcut files it compares with are the generated `komorebi-*.desktop` files in
+`$XDG_DATA_HOME/kglobalaccel`; neither needs a bus.
+
+Apart from the bus, it looks at the files that start komorebi at login, in this order, and says which
+it found first: `$XDG_CONFIG_HOME/autostart/komorebi.desktop` (the autostart entry),
+`$XDG_CONFIG_HOME/systemd/user/komorebi.service`, `/etc/systemd/user/komorebi.service` and
+`/run/current-system/etc/systemd/user/komorebi.service`, where the NixOS module's unit is. Whether
+the daemon is running is whether `komorebi.sock` in the runtime directory takes a connection, and
+the session is the environment of the command itself: `XDG_CURRENT_DESKTOP` has to name KDE, and
+`XDG_SESSION_TYPE` or `WAYLAND_DISPLAY` Wayland.
+
+The effects are looked for where KWin looks, which is not where the shell that runs the command
+looks: KWin is started by the session, with a `QT_PLUGIN_PATH`, an `XDG_DATA_HOME` and an
+`XDG_DATA_DIRS` of its own. `komorebic check` reads them from `/proc/PID/environ`, PID being what
+the bus says owns `org.kde.KWin`, and falls back to its own environment and to the places NixOS and
+the common distributions put plugins and data. The border effect is a plugin file,
+`kwin/effects/plugins/kwin4_effect_shapecorners.so`, in a Qt plugin directory, and the animation
+effect a script, `kwin/effects/kwin4_effect_geometry_change/contents/code/main.js`, in a data
+directory, where KWin takes the user's before the system's. A build is komorebi's by what it
+contains: the plugin file has the name of the interface `org.komorebi.BorderColours1` (or its object
+is on the bus), and the script reads a setting called `Curve`.
+
+## Environment variables
+
+### `DBUS_SESSION_BUS_ADDRESS`
+
+The address of the session bus. If it is not set, komorebi uses `$XDG_RUNTIME_DIR/bus`, where
+systemd puts the session bus, and `/run/user/<uid>/bus` when `XDG_RUNTIME_DIR` is not set
+either. An address with no bus behind it is the first error under [No KWin](#no-kwin), and the one
+`komorebic check` reports as "could not connect to the session bus".
+
+### `KOMOREBI_CONFIG_HOME`
+
+The config home, where komorebi looks for `komorebi.json`: a directory, in which `komorebic
+configuration` and the daemon look for the file. Without it the config home is
+`~/.config/komorebi`, whatever `XDG_CONFIG_HOME` is. When it is set and is not a directory, the
+daemon and `komorebic` panic when they first need the config home, and say so. Environment
+variables in it are expanded (`$HOME/komorebi`). The daemon and `komorebic hotkeys compile` look
+in it for the key binding file they are not given.
+
+### `XDG_RUNTIME_DIR`
+
+The runtime directory of the user, normally `/run/user/<uid>`: komorebi writes the bridge to
+the `komorebi` directory in it, and binds its command socket there.
+
+### `XDG_CONFIG_HOME`
+
+Where the user's `kwinrc` is: `$XDG_CONFIG_HOME/kwinrc`, or `~/.config/kwinrc` when it is not
+set. Without either, komorebi leaves per-output virtual desktops as they are and logs that it
+found no configuration directory.
+
+### `XDG_CONFIG_DIRS`
+
+Where KConfig looks for the system's `kwinrc` when the user's has no value: komorebi reads
+`PerOutputVirtualDesktops` the same way, from the user's file and then from the first of these
+directories that has it (`/etc/xdg` when the variable is not set), and changes nothing when the
+setting is on already.
+
+### `XDG_DATA_HOME`
+
+The logs are written to `$XDG_DATA_HOME/komorebi` (`~/.local/share/komorebi` if
+`XDG_DATA_HOME` is not set), which the daemon makes before anything else: a home it cannot
+write to stops it at once. When `XDG_RUNTIME_DIR` is not set, the bridge and the socket go
+there too.
+`komorebic` writes static shortcuts to `$XDG_DATA_HOME/kglobalaccel` unless it is given
+`--output`.
+
+### `KWIN_EFFECTS_FORCE_ANIMATIONS`
+
+KWin's own variable, read by KWin and not by komorebi. With software rendering, which is all a
+virtual machine has, KWin loads no effect that animates, Geometry Change included, unless it is
+`1` in KWin's environment: at time of writing (2026-10-27) a guest loaded 11 effects without it and
+29 with. The VM nodes set it ([Rendering](#rendering-in-virtual-machines-and-over-rdp)); a machine
+with a GPU needs nothing.
+
+### `RUST_LOG`
+
+Which log lines the daemon prints, in the syntax of `tracing-subscriber`'s `EnvFilter`
+(`komorebi=debug`, `komorebi::kwin=trace`). If it is not set, `--log-level` sets it to
+`komorebi=<level>`; `--log-level` defaults to `info`.
+
+### `RUST_LIB_BACKTRACE`
+
+Whether an error carries a backtrace. komorebi sets it to `1` when it is not set.
+
+### `NO_COLOR`
+
+When set to anything but the empty string, the log the daemon prints on its standard output
+has no ANSI colors, which is what standard output redirected to a file wants. The VM tests
+set it. The log files are not affected: one has colors and the other none.
+
+## The autostart entry
+
+At time of writing (2026-10-27), on a Plasma session of a NixOS machine, systemd's autostart
+generator makes a user unit of the entry `komorebic enable-autostart` writes,
+`app-komorebi@autostart.service`, when the user manager reloads (`systemctl --user
+daemon-reload`), and starting that unit starts a daemon that follows the file the entry gave it
+(`vm-module`, which does this on x86_64). The test starts the unit by hand, since the session it
+runs in has logged in already: it does not show that the next login starts it.
+
+## Watching the configuration
+
+The daemon watches `komorebi.json` with `hotwatch` 0.5, over `notify` 6.1, which on Linux is
+inotify. At time of writing (2026-10-27) a change to the file reaches the daemon about two
+seconds later, the delay of `hotwatch`'s debouncer, whether an editor wrote the file in place or
+renamed a new file over it: `the_daemon_follows_the_file_it_is_given_when_the_file_changes` does
+both, on aarch64 Linux. A file the daemon cannot read after a change is logged and leaves the
+configuration it has.
+
+## The bridge's environment
+
+What the KWin scripting API offers a script, and what it does not, at time of writing
+(2026-10-27). The bridge is written around these, and
+[`kwin-api.d.ts`](../../komorebi/src/kwin/kwin-api.d.ts) declares the part of the API it
+uses, which `tsc` checks it against with ECMAScript 2016's library and nothing else. Node and
+TypeScript are needed only for those checks: in the session the bridge needs KWin alone.
+
+- A window's `opacity` is a number from 0 to 1 that a script may set: `Window.opacity` is KWin's
+  own property, so komorebi sets the opacity of a window by setting it, and the effect that
+  draws the border has to draw the window again when it changes
+  ([The patches](#the-patches)).
+- `callDBus` sends a JavaScript number as a 32-bit integer, and a call whose arguments do not
+  match the method's signature fails without a word. The bridge sends every argument as a
+  JSON string.
+- The callback of `callDBus` is called on success only. A call that fails (the daemon has
+  exited) is never answered, so the bridge re-issues `Poll` from a one-second `QTimer` when
+  the last one is older than the hold time plus 3 seconds.
+- There is a `QTimer`, but no `setTimeout`, and no `Qt` global: a rectangle is assigned as a
+  plain `{x, y, width, height}` object.
+- KWin activates a new window before it announces it (`windowActivated` comes before
+  `windowAdded`). The bridge announces a window it has not seen when it is activated, so that
+  no event names a window before the event that announces it.
+- A script's `print()` goes to KWin's log, which shows it only when the `kwin_scripting`
+  logging category is enabled (`QT_LOGGING_RULES="kwin_scripting.debug=true"`, as the VM
+  tests do).
+- A drag of a window by the user is `interactiveMoveResizeStarted` on the window, then a
+  `frameGeometryChanged` for every frame the pointer moves it by, then
+  `interactiveMoveResizeFinished`. While it goes on, the window's `move` or `resize` is true,
+  which tells the two kinds apart. A drag injected as pointer input in a KWin 6.8 session gave
+  the start, 25 geometry changes and the finish.
+
+## How clients answer a frame
+
+KWin applies a frame komorebi asks for at once, and then the client decides what size it
+draws at; the frame KWin reports afterwards (a `geometry` event) is the one the client
+chose. Measured at time of writing (2026-10-27) in a headless KWin with eight clients, by the
+VM test `vm-client-geometry`, and by the spikes before it with more sizes and at a scale of
+1.25:
+
+| Client | Answer | In `vm-client-geometry` |
+|---|---|---|
+| Konsole, Kate, Dolphin (Qt, KDE) | exactly the frame asked for, also below the minimum size they report (spikes) | Kate asked for 948x527, has 948x527 |
+| `xterm` on XWayland | exactly the frame asked for | asked for 229x259, has 229x259 |
+| `foot` | sizes itself down to whole cells of its font | asked for 1905x2140, has 1902x2129 |
+| GTK 4 Text Editor | exactly the frame asked for, down to its minimum of 360x200 | asked for 469x528, has 469x528 |
+| GTK 4 Calculator | never below its minimum of 360x616 | asked for 469x259, has 469x616 |
+| Firefox | never below its minimum width of 500 and height of 120 | asked for 230x259, has 500x259 |
+
+Every client keeps the position it is asked for, also one partly off the screen. A fractional
+scale of 1.25 gives the same answers as 1.0: every whole logical frame comes back as it was
+asked for. komorebi does not ask again when a client keeps to a size of its own: the window
+manager reads the frame the window has from the table, and a window larger than its tile
+covers part of its neighbor's.
+
+KWin moves a window anywhere it is asked to, off the screen too, but when it *resizes* a window
+it keeps 100 pixels of it on an output, and it does that once the client has drawn at the new
+size. A window that is moved off the screen and resized at once, as the scrolling layout does
+with the columns out of view that change width, is pulled back onto the screen a moment later; so is one whose
+client rounds the size, as `foot` does. The bridge therefore remembers the position it was asked
+for, for a second, and when the window's frame changes to another position in that time, asks
+for the position again, which is a plain move. It tries three times at most, so a window that
+cannot go where it was asked is left alone. A maximize makes the bridge forget the position: the
+window's frame then changes to the work area, which is not where it was last asked to be. The VM
+test `vm-scrolling` checks that the columns out of view stay where komorebi put them.
+
+The same holds for a frame the user asks for. While the user drags an edge of a window, KWin reports
+at every step of the drag the frame the pointer asks for (`interactiveMoveResizeStepped`), and the
+window's frame follows once the client has drawn at that size. When the user lets go, the frame can
+be well short of where they took the edge: at time of writing (2026-10-27), in the spikes, the frame
+at the end of a 72-pixel drag of a terminal's edge had moved 12 or 48 pixels. KWin goes on reporting
+the client's frames after the end of the drag: in a run of `vm-drag-resize` at time of writing
+(2026-10-28), a frame of 660 pixels, which is what `foot` had drawn of the 672 asked for, came 1 ms
+after the end, and the window manager, busy with an earlier event, handled the end 17 ms after that.
+The bridge sends the frame of the last step with the end of the drag, and the end of a resize is
+that frame, which the daemon keeps apart from the frames that follow. It also passes the steps on,
+one every 16 ms at most, so that the tiles next to the edge follow it while it is dragged; the VM
+test `vm-live-resize` reads them while the button is still down. KWin's window snapping applies to
+the edge the user drags, and the tiles that follow it are close to it: at time of writing
+(2026-10-27), in `vm-drag-resize` with the default paddings (a gap of 10 pixels between two tiles)
+and KWin's default snap zone of 10 pixels, a dragged edge once ended 9 pixels past the pointer. The
+drag VM tests set KWin's snap zones to 0. The VM test `vm-drag-resize` drags edges in a Plasma
+session with a pointer device that the session node makes with uinput.
+
+## Outputs that change
+
+Measured by the VM test `vm-hotplug` at time of writing (2026-10-27), in a headless KWin 6.8.1
+with two outputs of 1920x1080:
+
+- `kscreen-doctor output.<name>.scale.1.5` gives an output the geometry 1280x720. That is what
+  the script reports and komorebi tiles in: every coordinate komorebi uses is KWin's logical
+  one. At that scale `kdotool` prints window frames in fractions of a pixel (a width of
+  695.3333), which the VM library rounds.
+- `kscreen-doctor output.<name>.disable` is how a headless KWin loses an output, and `enable`
+  how it gets it back. The script reports the outputs that are left after the first and all of
+  them after the second, and komorebi follows both. A disabled output is enabled again by the
+  name it had.
+- A window that a script moves so that the middle of its frame is on the other output is on
+  that output: `Window.output` follows the middle of the frame (found in the spikes with two
+  outputs on KWin 6.8.1). Its desktops are not changed by the move, so it stays on the desktop
+  it was on. KWin raises `outputChanged` for it, which `vm-hotplug` shows by moving windows with
+  `kdotool windowmove`, as a shortcut or the window menu would.
+
+## Sleep and lock
+
+At time of writing (2026-10-27), a real suspend and resume is not tested: the QEMU guests the VM
+tests run in have no way to wake from one. The signals are tested on private buses
+(`komorebi/tests/power.rs`), and the lock screen against a real KWin in a Plasma session
+(`vm-lock-sleep`, which locks and unlocks with `loginctl lock-session` and `unlock-session`).
+
+## How long a retile takes
+
+Measured by the VM test `vm-latency` at time of writing (2026-10-27), in a headless KWin 6.8.1
+under HVF on an Apple silicon Mac, with ten `foot` windows on a 3840x2160 output: twenty
+retiles (a window minimized and brought back, ten times over), each of which moved 5.5 windows
+on average. From the daemon's answer to `Poll` to the last frame KWin reported for the windows
+the batch moved, the client's answer included:
+
+| p50 | p95 | max |
+|---|---|---|
+| 17.3 ms | 27.7 ms | 31.4 ms |
+
+The spikes measured the channel alone, with twenty windows in each batch, at 16, 19 and 20 ms
+([DESIGN.md](DESIGN.md#why-do-commands-go-to-the-bridge-as-the-answer-to-a-held-call)).
+
+## KWin effects
+
+An effect is a plugin of KWin's compositor that changes how windows are drawn. The flake
+builds the effects komorebi drives as packages of their own, from source, with komorebi's
+patches (see [The patches](#the-patches)):
+
+| Package | Effect | Plugin id | Installed as |
+|---|---|---|---|
+| `kde-rounded-corners-komorebi` | [KDE Rounded Corners](https://github.com/matinlotfali/KDE-Rounded-Corners) 0.11.0, which draws an outline around each window | `kwin4_effect_shapecorners` | a C++ plugin, `lib/qt-6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so` |
+| `kwin-effect-geometry-change-komorebi` | [Geometry Change](https://github.com/peterfajdiga/kwin4_effect_geometry_change) 1.5 (revision `398491e`), which animates a window that a program or a script moves or resizes | `kwin4_effect_geometry_change` | a scripted effect, `share/kwin/effects/kwin4_effect_geometry_change/` |
+
+Each package is in the flake's `packages` for Linux and in `overlays.default`, which builds it
+with the `callPackage` of the nixpkgs it is applied to, so that it follows that nixpkgs' KWin.
+[`nix/tests/effects.nix`](../../nix/tests/effects.nix) has a check for each, which builds the
+package and inspects its files the way KWin finds them, without a session.
+
+At time of writing (2026-10-27):
+
+- **KWin finds effects only when it starts.** An effect installed while KWin runs cannot be
+  loaded (`isEffectSupported` is false and `loadEffect` returns false) until KWin starts
+  again, which in a session means logging out and back in.
+- **KWin loads every effect that is enabled by default when it starts**, with the settings
+  the effect has then. KDE Rounded Corners 0.11.0 is enabled by default in its
+  `metadata.json`, and at its defaults it draws a one pixel black outline inside every
+  window, over its title bar. The package builds it with `"EnabledByDefault": false`: KWin
+  starts without it (`loadedEffects` lists the built-in effects only), `isEffectSupported`
+  is true, and `loadEffect` with `kwin4_effect_shapecorners` on `org.kde.KWin`'s `/Effects`
+  loads it. The metadata is compiled into the plugin, which is where the check reads the
+  flag, with `qtplugininfo`.
+- **KDE Rounded Corners 0.10.0 draws the outline about 24 px too low on KWin 6.8**: across
+  the title bar at the top, the same distance below the frame at the bottom, and in the right
+  place at the sides. KWin 6.8 inverted the texture coordinates of the offscreen window, and
+  Breeze's shadow is deeper below a window than above it; the error is the difference of the
+  two. 0.11.0 is the release that handles it. nixpkgs `d3b13ad` (2026-10-24) has 0.10.0 and
+  `f05535a` (2026-10-27) has 0.11.0, which the package here sets as well.
+- **KDE Rounded Corners links `libkwin.so.6`**, so it is built against the KWin that loads
+  it. With the package in a NixOS system's `environment.systemPackages`, KWin finds the
+  plugin in `/run/current-system/sw/lib/qt-6/plugins/kwin/effects/plugins/`, and the plugin
+  links the libkwin of the store path the running `kwin_wayland` comes from. The check
+  asserts the same for the `kdePackages.kwin` of the flake's nixpkgs: the first directory of
+  the plugin's `RUNPATH` that has `libkwin.so.6` is that KWin's `lib`.
+- **KDE Rounded Corners draws its outer outline in the window's shadow**: its shader stops
+  where the window's texture is transparent. A window without a shadow has no outer outline,
+  and the outline is at most 20 px thick.
+- **Geometry Change ships disabled by default**: its `metadata.json` has
+  `"EnabledByDefault": false`, which the check asserts. It loads on `loadEffect`, and under
+  software rendering only with `KWIN_EFFECTS_FORCE_ANIMATIONS=1` in KWin's environment (see
+  [Rendering](#rendering-in-virtual-machines-and-over-rdp)): without it, a session in a
+  virtual machine loads 11 effects instead of 29.
+- **Geometry Change animates what a program or a script asks for**: a move and a resize made
+  through KWin's scripting API are animated, and by its source an interactive move or resize
+  is not. The stock effect always eases out exponentially (`QEasingCurve.OutExpo`), so the
+  movement is nearly over after a third of its duration. Its settings are in the
+  `[Effect-kwin4_effect_geometry_change]` group of `kwinrc` (`Duration`, `CrossFade`,
+  `ExcludedWindowClasses`, and `Curve` with komorebi's patch), and it reads them again on
+  `reconfigureEffect`: a `Duration` of 4000 written while it ran was the length of the next
+  animation.
+- **The animation moves what is painted, not the window**: the frame KWin reports for the
+  window (`frameGeometry`) is the final one from the start of the animation.
+
+### What komorebi writes for the border
+
+KDE Rounded Corners reads its settings from the group `[Round-Corners]` of `kwinrc` (the names are
+those of the effect's `options.kcfg`). komorebi sets every outline, not only the one it uses:
+
+| Key | Value |
+|---|---|
+| `OuterOutlineThickness`, `InactiveOuterOutlineThickness` | the border's width, 0 to 20 |
+| `OuterOutlineColor`, `InactiveOuterOutlineColor` | `r,g,b`: the focused window's border, and every other window's |
+| `Size`, `InactiveCornerRadius` | the corner radius |
+| `OutlineThickness`, `InactiveOutlineThickness`, `SecondOutlineThickness`, `InactiveSecondOutlineThickness` | `0`: nothing inside the window |
+| `ActiveOuterOutlineAlpha`, `InactiveOuterOutlineAlpha` | `255` |
+| `ActiveOuterOutlineUseCustom`, `InactiveOuterOutlineUseCustom` | `true`, so that the colors are komorebi's |
+| `ActiveOuterOutlineUsePalette`, `InactiveOuterOutlineUsePalette`, `OuterOutlineIsGradient`, `InactiveOuterOutlineIsGradient` | `false` |
+
+komorebi then calls `reconfigureEffect` on `/Effects`: at time of writing (2026-10-27), KWin 6.8.1
+hands an effect the copy of `kwinrc` it read when it started, so the new values reach it only
+that way, also for an effect loaded a moment before. A screenshot of a session shows the border
+in the pixels just outside the frame the window has in KWin, on all four sides, in the focused
+and unfocused colors, and not inside the frame.
+
+### The patches
+
+Each patch is a derivative work of the effect it changes, and is under the same license, the
+GNU General Public License version 3; its header states the license and describes the
+change. The check of a patched package asserts that the patch is in the build.
+
+[`komorebi-border-colours.patch`](../../nix/kde-rounded-corners/komorebi-border-colours.patch),
+for KDE Rounded Corners, makes two changes:
+
+- **A color for each window.** The stock effect has one outline color for the active window
+  and one for the others. The patched effect exports an object through KWin's name, which
+  takes a color for each window:
+
+  | Name | Object | Interface | Member |
+  |---|---|---|---|
+  | `org.kde.KWin` | `/org/komorebi/BorderColours` | `org.komorebi.BorderColours1` | `SetColours(asau)` |
+
+  `SetColours` replaces the colors of every window at once: the windows' UUIDs as KWin writes
+  them (with or without braces), and `0xRRGGBB` values in the same order. A window it does not
+  name gets the colors of the settings for the active and the other windows. The object is
+  registered when the effect is loaded, and removed with every color when it is unloaded.
+- **A window is drawn again when its opacity changes.** The effect draws a window from a
+  texture that has the window's opacity in it, and makes the texture again only when the
+  contents change or the window is resized, so a change of opacity alone would not show. The
+  patched effect redirects the window again when its opacity changes.
+
+[`curve.patch`](../../nix/kwin-effect-geometry-change/curve.patch), for Geometry Change, adds
+a `Curve` setting to the effect's group: the name of any of Qt's easing curves (`OutExpo`,
+`InOutSine`, ...), read with the effect's other settings and used for every animation. An
+unknown or missing name is the stock effect's curve, `OutExpo`. The check asserts that the
+script reads `Curve` and that the effect's settings declare it.
+
+### What komorebi writes for the animation
+
+Geometry Change reads its settings from the group `[Effect-kwin4_effect_geometry_change]` of
+`kwinrc`:
+
+| Key | Value |
+|---|---|
+| `Duration` | the animation's duration, in milliseconds |
+| `CrossFade` | `false`: a window that changes size is not cross-faded |
+| `Curve` | the name of a Qt easing curve (`Linear`, `OutExpo`, `InOutSine`, ...): komorebi's build of the effect reads it, and the stock effect ignores it |
+
+komorebi then calls `reconfigureEffect`, and at time of writing (2026-10-27) the effect uses the
+new `Duration` for the next move: a `Duration` of 4000 written while it ran was the length of the
+next animation. An animation cannot be seen in a screenshot of a short one: the screenshot takes
+seconds, and the effect eases out exponentially, nearly over after a third of its duration. A
+screenshot of a session a few seconds into a 30 s animation shows a window that has not got to its
+place, and the same move with animation off is there at once.
+
+## The Plasma shell
+
+The wallpaper of a screen is the Plasma shell's, not KWin's: the shell, `plasmashell` on the
+session bus as `org.kde.plasmashell`, keeps one wallpaper for each screen, not for each virtual
+desktop. At time of writing (2026-10-27) komorebi asks it three things over `/PlasmaShell`, in
+`org.kde.PlasmaShell`, for the output a workspace's monitor is (the name KWin gives it, `DP-1`):
+
+1. `evaluateScript("print(screenForConnector(\"DP-1\"))")`: the number the shell gives the
+   screen, which it numbers itself and names by connector; `-1` when it has none. The name goes
+   into the script as a JSON string.
+2. `wallpaper(screen)`: what the screen shows, as `a{sv}`, in which `wallpaperPlugin` is the
+   plugin (`org.kde.image` for a picture), `Image` the picture's URL and `FillMode` a Qt
+   `Image.fillMode` (2 is `PreserveAspectCrop`: the picture fills the screen and is cropped where it
+   does not fit).
+3. `setWallpaper("org.kde.image", {Image: URL, FillMode: 2}, screen)`: what
+   `plasma-apply-wallpaperimage` calls, for one screen. It is made only when the answer to 2 is
+   not already the picture, in that plugin, with that fill.
+
+The URL is `file://` and the path, with every byte but an ASCII letter or digit, `-`, `.`, `_`, `~`
+and `/` percent-encoded, so a path with a space in it works. A session with no Plasma shell (a
+headless one, or one with another shell) has no such name on the bus: every call fails, and komorebi
+tries again, then leaves wallpapers alone ([DESIGN.md](DESIGN.md#why-is-the-wallpaper-set-in-the-background-and-tried-again)).
+
+## Rendering in virtual machines and over RDP
+
+At time of writing (2026-10-27):
+
+- A headless KWin cannot render. Mesa's software rasterizer needs `CREATE_DUMB` on the
+  primary DRM node and the virtual backend offers only the render node, so KWin reports that
+  compositing is active while every frame fails, and screenshots are black. KWin does not start at all with no DRM
+  device. The VM nodes give the guest a `virtio-gpu` device for that reason.
+- In a QEMU guest everything is drawn in software (llvmpipe on the guest's CPUs): the
+  nixpkgs QEMU has only the 2D `virtio-gpu`. KWin then refuses to load animating effects
+  unless `KWIN_EFFECTS_FORCE_ANIMATIONS=1` is in its environment, which the VM nodes set.
+- KRDP 6.8.1, Plasma's RDP server, does not start without a TLS certificate and key, although
+  its `--help` says it generates one; it logs the error and keeps running with nothing
+  listening. `xrdp` is not an option, since there is no X11 session to start.
+- A guest can have OpenGL through the host's GPU. At time of writing (2026-10-28), the demo guest
+  started under KVM with `-display gtk,gl=on -device virtio-vga-gl` on an X server (Xvfb) whose
+  OpenGL is Mesa's llvmpipe, with QEMU 11.1.2 and Mesa 26.2.5 from nixpkgs: KWin drew with the
+  driver `virgl`, and the guest's renderer string was `virgl (LLVMPIPE (LLVM 21.1.8, 256 bits))`.
+  The guest names its own driver whatever the host renders with, so it cannot tell a host GPU
+  from a host software renderer. QEMU's `screendump` answers "no surface" with `virtio-vga-gl`: the picture
+  has to be read from the window. `-display egl-headless` needs a DRM render node and stops at
+  startup without one ("egl: no drm render node available", on the machine of these runs, which has
+  none). A GPU that renders is not measured here.
+
+### RDP into the session
+
+The session guests to develop in ([utm.md](utm.md)) run KRDP as a user unit of the session,
+[`nix/dev/krdp.nix`](../../nix/dev/krdp.nix): `krdpserver --plasma`, which asks KWin for the
+screen and for input through its own Wayland protocols (KRDP's desktop file lists
+`zkde_screencast_unstable_v1` and `org_kde_kwin_fake_input`), so no portal asks the user first. The
+unit makes a self-signed certificate, and logs in the session's user with a password the user
+writes to a file, or that a guest takes from the host (the demo guest); without a password file it
+does not start. At time of writing (2026-10-27), with KWin
+and KRDP 6.8.1 and FreeRDP 3.32.2:
+
+- KRDP sends the screen as H.264 only, encoded with x264 in software when there is no VAAPI device
+  (Constrained Baseline, level 6.0), and every frame is encoded on the guest's CPUs.
+- FreeRDP decodes H.264 with OpenH264 when it is built with it, as nixpkgs builds it, and OpenH264
+  decodes nothing of KRDP's video: it reports a bitstream error on the first frame
+  (`DecodeFrame2 state: 0x0004`) and no picture after it, and the client's window stays black.
+  FreeRDP built without OpenH264 decodes with FFmpeg, and shows the desktop: the guests install that
+  build.
+- The VM suite `rdp` checks, in the session node under KVM: that the unit does not start before it
+  has a password and listens on port 3389 once it has one (a listener in the guest, which `ss`
+  sees: QEMU's port forwarding accepts a connection whether or not anything listens behind it);
+  that FreeRDP's client is let in with the password and not with another (`/auth-only`); and that
+  the picture the client gets, on an X server of its own, is the display: thousands of colors,
+  within 16 of 255 on average of a screenshot taken right after it (6.7 and 6.6 in two runs, 2.9
+  seconds after the client started). The VM suite `run-kde` runs the same checks against the
+  demo guest, whose password comes from a directory of the host that the guest's user cannot
+  read: the guest copies it before the login, and KRDP starts by itself.
+- Keys over RDP are not verified end to end. KRDP injects them into KWin through
+  `org_kde_kwin_fake_input`, which, read from the sources, puts them through the input pipeline
+  of KWin that KDE's global shortcuts are part of. No test sends one: aardwolf, a client that can
+  script keys, fails NTLM against KRDP, FreeRDP's client cannot script keys, and a client inside
+  the session would send each key back to itself. Whether a key pressed in an RDP client reaches a
+  global shortcut is therefore not known; no check from a real client has been recorded.
+
+## WSL 2
+
+`run-kde` is written for NixOS in WSL 2 on Windows 11 with an AMD CPU and an x86_64 guest, and
+nothing in this section has been measured on that machine yet. The table says what the command
+expects and what is still to be recorded, as dated facts, from the probe
+(`scripts/wsl2-probe.sh`) when somebody runs it there. The facts that were measured on a Linux machine
+with KVM and no WSL, window or GPU are in [Rendering in virtual machines and over
+RDP](#rendering-in-virtual-machines-and-over-rdp).
+
+| Probe | What the command expects | Result |
+|---|---|---|
+| KVM | `/dev/kvm` is there with `nestedVirtualization=true` in `.wslconfig`, the CPU flags show `svm`, and the user is in the group `kvm` | to be recorded |
+| KVM | QEMU with `-accel kvm` boots a kernel; how fast a CPU loop runs in the guest against WSL | to be recorded |
+| Display | `WAYLAND_DISPLAY` or `DISPLAY` is set by WSLg, and QEMU's GTK window opens | to be recorded |
+| Display | the keyboard and the pointer work in the window, and Ctrl + Alt + g grabs and releases them; the frame rate of a moving window | to be recorded |
+| GPU | `/dev/dxg` is there, `wsl.useWindowsDriver = true` is in effect, and the host's OpenGL renderer string is d3d12 and not llvmpipe | to be recorded |
+| GPU | `-device virtio-vga-gl -display gtk,gl=on` starts, and the guest's renderer is virgl; the frame rate with and without it | to be recorded |
+| RDP | `localhost:3389` in Windows reaches the guest; Windows' client shows a picture of KRDP's H.264; keyboard layouts survive | to be recorded |
+| Resources | free memory and disk in WSL, the values of `.wslconfig`, the time to build the guest, the size of its closure | to be recorded |
+| virtiofs | `virtiofsd` starts as the user and serves `/nix/store` and a directory; the guest mounts both through virtio-fs devices, with its memory in a shared memfd, reads the store, and reads and writes the directory | to be recorded |
+
+### The VM suites on WSL 2
+
+Measured on 2026-10-28 on the machine `run-kde` is written for: Windows 11, a Ryzen 9 5900X (24
+threads for WSL 2), 31 GB of memory for WSL 2, NixOS-WSL with `nestedVirtualization=true` and
+`/dev/kvm` writable by the build users, so the suites ran under KVM inside Hyper-V. These are the
+wall times of `nix build .#checks.x86_64-linux.vm-NAME` from a warm store, the boot of the machine
+included. Another VM was running for some of the non-timing suites, and none was for the timing
+ones.
+
+| Suites | Wall time | Result at `scale` 1 |
+|---|---|---|
+| `kwin` | 5 min 21 s, with the guest's Mesa and QEMU built | pass |
+| `core-e2e` | about 5 min | pass |
+| `drag-resize`, `live-resize`, `lock-sleep`, `look` | 1 to 3 min each | pass |
+| `keys-engine`, `keys-skhd`, `keys-static`, `keys-sxhkd`, `keys-whkd` | 1.5 to 2 min each | pass |
+| `features` | about 4 min | pass |
+| `latency` | 2 min 53 s | fail: p95 128.9 ms, p50 46.0 ms, max 137.4 ms |
+
+The 20 other suites passed too, two at a time. `latency` is the only one that failed at `scale` 1:
+its p95 is held to 100 ms times `scale`, and nested virtualization is slower to the tail than x86-1
+was. `scale` is 1.5 for every Linux host now (`flake.nix`), and `latency` passed at it with a p95 of
+132.4 ms against 150 ms, p50 70.0 ms and max 206.5 ms. The two runs differ by more than the margin
+that is left, so a suite that fails on its p95 here may be noise, and a second run says which.
+
+What is known of virtiofs without WSL 2 (nixpkgs' runner mounts the host's `/nix/store` and the
+shared directories by virtiofs on a Linux host), at time of writing (2026-10-28): the chain that
+the probe's P6 builds, `virtiofsd` 1.14.0 started as an ordinary user with the runner's options, and
+a guest that mounts the host's `/nix/store` read-only and a directory read-write, passes on an
+`x86_64` machine with KVM, on an `aarch64` machine and under TCG. `virtiofsd` prints two warnings
+as an ordinary user (it cannot raise the limit of open files, and it cannot use file handles) and
+never opens `/dev/fuse`. A file owned by the host user shows up in the guest with the same numeric
+uid. The kernel configuration of WSL 2 (`linux-msft-wsl-6.6.y`, read, not run) has
+`CONFIG_FUSE_FS=y`, `CONFIG_MEMFD_CREATE=y`, `CONFIG_USER_NS=y` and `CONFIG_KVM_AMD=m`.
+
+One thing that the command depends on is not in the probe, and is not known either: whether
+Windows or WSLg takes any of the Alt combinations of the key bindings before the window sees them.
+
+## What was not measured
+
+At time of writing (2026-10-28) these are gaps, not findings. Nothing on this page says that
+they work or that they do not.
+
+- KWin before 6.8: only 6.8.1 and 6.8.2 were run ([KWin 6.8 or newer](#kwin-68-or-newer)).
+- Activities.
+- More outputs than a second one to the right of the first: the geometry was checked, the
+  pixels were not.
+- Whether a window of a Qt or KDE application is drawn smaller than the minimum size it reports,
+  or overflows its frame: the frames were measured, not the pixels
+  ([How clients answer a frame](#how-clients-answer-a-frame)).
+- What a window on the parking desktop does to the task manager and the overview, and whether
+  hiding and showing windows flickers. By construction a parked window stays in the task manager
+  unless the task manager shows only the current desktop.
+- The rule identity of an application in a sandbox (Flatpak), which comes from
+  `/proc/<pid>/exe`; the `class` and the `pid` were checked.
+- A real suspend and resume ([Sleep and lock](#sleep-and-lock)).
+- A key pressed in an RDP client ([RDP into the session](#rdp-into-the-session)).
+- Whether the progress of the stock Geometry Change effect follows `QEasingCurve.OutExpo` against
+  the clock in a session: one capture four seconds into a 30 s animation showed no progress, where
+  the curve gives about 60 % ([KWin effects](#kwin-effects)). The log evidence and the comparison
+  with animation off do not depend on it.
+- Graphics other than llvmpipe: every render measured was in software.
+- WSL2: KVM, a QEMU window through WSLg, the Windows GPU as OpenGL in WSL, a port that
+  Windows reaches in WSL, and `virtiofsd` serving a guest's `/nix/store`. The probe that measures
+  them ([wsl2-probe.md](wsl2-probe.md)) has not run on WSL2.
+- The scrolling layout on a monitor that has another beside it. A strip spills onto the
+  neighbor when that monitor shows the same workspace number, and a window whose middle is on a
+  monitor that shows another desktop is not drawn. This is read from KWin's sources, not
+  checked with pixels. The layout no longer leaves a window there: one that would rest or
+  overhang past an edge with another monitor next to it is hidden, or cut down to its own work
+  area ([scrolling-next.md](scrolling-next.md)), which only the fake desktop has run.

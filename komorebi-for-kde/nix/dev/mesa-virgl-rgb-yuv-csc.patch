@@ -1,0 +1,30 @@
+vl/compositor: give the graphics RGB to YUV conversion its matrix
+
+compositor_proc_process_frame() fills a matrix for each conversion: for RGB to RGB and
+YUV to RGB it fills both yuv2rgb and csc_matrix, for RGB to YUV only rgb2yuv. The compute
+compositor reads rgb2yuv, but the graphics compositor uploads csc_matrix (set_csc_matrix()
+in vl_compositor_gfx.c) to the constants of its fragment shaders, and for RGB to YUV
+csc_matrix still held what vl_compositor_init_state() put in it, the YUV to RGB matrix of
+BT.709 for NV12. Only radeonsi sets prefer_compute_for_multimedia, so every other driver
+takes the graphics path: on virgl scale_vaapi=format=nv12 of an RGB surface (what
+KPipeWire and KRDP do with every frame of a screen) gave Y = 1.164 R + 1.793 B - 0.973,
+that is 0 for a gray of 0 to 118 and a wrong picture above.
+
+Fill csc_matrix with the RGB to YUV matrix too, as the other conversions do.
+
+diff --git a/src/gallium/auxiliary/vl/vl_compositor_proc.c b/src/gallium/auxiliary/vl/vl_compositor_proc.c
+index 7de461e..d794038 100644
+--- a/src/gallium/auxiliary/vl/vl_compositor_proc.c
++++ b/src/gallium/auxiliary/vl/vl_compositor_proc.c
+@@ -93,6 +93,11 @@ compositor_proc_process_frame(struct pipe_video_codec *codec,
+       /* RGB to YUV */
+       vl_csc_get_rgbyuv_matrix(param->out_matrix_coefficients, src->buffer_format, dst->buffer_format,
+                                param->in_color_range, param->out_color_range, &proc->cstate.rgb2yuv);
++      /* The compute compositor reads rgb2yuv, but the graphics one (the only one that drivers
++       * without prefer_compute_for_multimedia, like virgl, ever use) uploads csc_matrix to its
++       * shader constants, and it still held the YUV to RGB default of vl_compositor_init_state():
++       * the RGB to YUV fragment shaders then made nonsense of the picture. */
++      memcpy(&proc->cstate.csc_matrix, &proc->cstate.rgb2yuv, sizeof(vl_csc_matrix));
+    }
+ 
+    vl_csc_get_primaries_matrix(param->in_color_primaries, param->out_color_primaries,

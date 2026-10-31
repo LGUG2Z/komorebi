@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Keeps a copy of the platform-neutral part of the VM library in step with this repository, while
+# that part is on its way to kfw (the plan in docs/dev/vm-tests.md, "Writing a scenario"): the
+# package komorebi_vm.core, and the unit tests that belong to it. The source is this repository until
+# the move is made, and the script goes with it.
+#
+#   scripts/sync-e2e-core DEST          copy into DEST/komorebi_vm/core, DEST/tests and
+#                                       DEST/tests/fixtures
+#   scripts/sync-e2e-core --check DEST  say what differs, and exit 1 if anything does
+#
+# Nothing else of DEST is touched, and a file of DEST that is not here is reported and left alone.
+set -euo pipefail
+
+check=0
+if [ "${1:-}" = --check ]; then
+  check=1
+  shift
+fi
+dest=${1:?usage: sync-e2e-core [--check] DEST}
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+lib=$repo/nix/tests/vm/lib
+
+tests=(fake_platform.py fake_strip.py fake_wallpaper.py test_checks.py test_suite.py test_pixels.py test_snapshot.py test_recorded.py test_tiling.py
+  test_focus_moving.py)
+
+status=0
+sync() {
+  local from=$1 to=$2
+  if [ "$check" = 1 ]; then
+    diff -r -x __pycache__ "$from" "$to" >/dev/null 2>&1 || { echo "differs: $to"; status=1; }
+  else
+    mkdir -p "$to"
+    rsync -a --delete --exclude __pycache__ "$from"/ "$to"/
+  fi
+}
+
+sync "$lib/komorebi_vm/core" "$dest/komorebi_vm/core"
+sync "$lib/tests/fixtures" "$dest/tests/fixtures"
+
+for t in "${tests[@]}"; do
+  if [ "$check" = 1 ]; then
+    cmp -s "$lib/tests/$t" "$dest/tests/$t" || { echo "differs: $dest/tests/$t"; status=1; }
+  else
+    mkdir -p "$dest/tests"
+    cp "$lib/tests/$t" "$dest/tests/$t"
+  fi
+done
+
+if [ "$check" = 0 ]; then
+  echo "synced komorebi_vm/core and ${#tests[@]} tests into $dest"
+else
+  [ "$status" = 0 ] && echo "in step"
+fi
+exit "$status"

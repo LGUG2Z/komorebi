@@ -1,0 +1,53 @@
+[package]
+name = "komorebi"
+version.workspace = true
+description = "A tiling window manager for KDE Plasma"
+edition = "2024"
+
+[dependencies]
+komorebi-hotkeys = { path = "../komorebi-hotkeys" }
+komorebi-themes = { workspace = true }
+komorebi-layouts = { workspace = true }
+komorebi-scrolling = { workspace = true }
+version = { path = "../version" }
+
+clap = { workspace = true }
+color-eyre = { workspace = true }
+crossbeam-channel = { workspace = true }
+crossbeam-utils = { workspace = true }
+ctrlc = { version = "3", features = ["termination"] }
+dirs = { workspace = true }
+hotwatch = { workspace = true }
+lazy_static = { workspace = true }
+nanoid = "0.5"
+parking_lot = "0.13"
+pastey = { workspace = true }
+regex = "1"
+schemars = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+serde_with = { version = "3", features = ["schemars_1"] }
+strum = { version = "0.28", features = ["derive"] }
+tokio = { version = "1", features = [
+  "macros",
+  "rt-multi-thread",
+  "sync",
+  "time",
+] }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+zbus = { version = "6", default-features = false, features = [
+  "tokio",
+  "proxy",
+  "service",
+] }
+futures-util = "0.3"
+
+[dev-dependencies]
+uuid = { version = "1", features = ["v4"] }
+
+[features]
+default = ["schemars"]
+deadlock_detection = ["parking_lot/deadlock_detection"]
+schemars = ["dep:schemars"]

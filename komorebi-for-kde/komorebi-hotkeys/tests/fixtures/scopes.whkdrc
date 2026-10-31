@@ -1,0 +1,10 @@
+# one key, a different command in each application; kitty gets the key itself
+.shell pwsh
+
+alt + n [
+    firefox : komorebic focus-workspace 1
+    kitty   : Ignore
+    Default : komorebic focus-workspace 0
+]
+
+alt + h : komorebic focus left

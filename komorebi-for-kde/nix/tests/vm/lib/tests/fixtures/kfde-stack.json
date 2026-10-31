@@ -1,0 +1,164 @@
+{
+  "monitors": {
+    "elements": [
+      {
+        "id": 1230296105,
+        "device": "Virtual-0",
+        "serial_number_id": "Virtual-0",
+        "workspaces": {
+          "elements": [
+            {
+              "name": null,
+              "containers": {
+                "elements": [
+                  {
+                    "id": "maAEzGA_0nRWS6PpcDLlI",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 4,
+                          "rect": {
+                            "left": 20,
+                            "top": 20,
+                            "right": 925,
+                            "bottom": 1040
+                          },
+                          "details": {
+                            "title": "neutral1",
+                            "exe": "foot",
+                            "class": "foot",
+                            "path": "/nix/store/0gkg75w7bmwd7klmf23qy8m697abypvc-foot-1.28.0/bin/foot"
+                          }
+                        },
+                        {
+                          "id": 6,
+                          "rect": {
+                            "left": 20,
+                            "top": 20,
+                            "right": 924,
+                            "bottom": 1037
+                          },
+                          "details": {
+                            "title": "neutral3",
+                            "exe": "foot",
+                            "class": "foot",
+                            "path": "/nix/store/0gkg75w7bmwd7klmf23qy8m697abypvc-foot-1.28.0/bin/foot"
+                          }
+                        }
+                      ],
+                      "focused": 1
+                    }
+                  },
+                  {
+                    "id": "z2cN_l7IEJBa53ymxMgvA",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 5,
+                          "rect": {
+                            "left": 975,
+                            "top": 20,
+                            "right": 924,
+                            "bottom": 1037
+                          },
+                          "details": {
+                            "title": "neutral2",
+                            "exe": "foot",
+                            "class": "foot",
+                            "path": "/nix/store/0gkg75w7bmwd7klmf23qy8m697abypvc-foot-1.28.0/bin/foot"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 0
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "BSP"
+              },
+              "layout_options": null,
+              "layout_rules": [],
+              "layout_options_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 20,
+                  "top": 20,
+                  "right": 925,
+                  "bottom": 1040
+                },
+                {
+                  "left": 975,
+                  "top": 20,
+                  "right": 925,
+                  "bottom": 1040
+                }
+              ],
+              "resize_dimensions": [
+                null,
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "work_area_offset_rules": [],
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            }
+          ],
+          "focused": 0
+        },
+        "size": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080
+        },
+        "work_area_offset": null,
+        "work_area_size": {
+          "left": 0,
+          "top": 0,
+          "right": 1920,
+          "bottom": 1080
+        },
+        "window_based_work_area_offset": null,
+        "window_based_work_area_offset_limit": 1,
+        "container_padding": null,
+        "workspace_padding": null,
+        "last_focused_workspace": 0,
+        "wallpaper": null,
+        "floating_layer_behaviour": null
+      }
+    ],
+    "focused": 0
+  },
+  "monitor_usr_idx_map": {
+    "0": 0
+  },
+  "is_paused": false,
+  "resize_delta": 50,
+  "new_window_behaviour": "Create",
+  "float_override": false,
+  "cross_monitor_move_behaviour": "Swap",
+  "monocle_focus_behaviour": "NoOp",
+  "unmanaged_window_operation_behaviour": "Op",
+  "work_area_offset": null,
+  "focus_follows_mouse": null,
+  "mouse_follows_focus": true
+}

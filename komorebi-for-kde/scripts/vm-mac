@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Runs one VM test on a Mac, where the guest is Linux and the host is not.
+#
+#   scripts/vm-mac NAME [driver arguments]
+#
+# The guest's closure is built on a Linux builder, copied back, and the test driver then runs
+# on the Mac under HVF. The driver is run directly, not through `nix build`, because the nix
+# sandbox on macOS cannot give QEMU the hypervisor. Artifacts (screenshots, logs) land in
+# `.vm/out/NAME`.
+#
+# The builder is yours: set KOMOREBI_BUILDER to its store URL (for example
+# `ssh-ng://builder@localhost`) and, if it needs them, NIX_SSHOPTS. docs/dev/vm-tests.md
+# says what a builder has to be.
+set -euo pipefail
+
+name="${1:?usage: scripts/vm-mac NAME [driver arguments]}"
+shift
+builder="${KOMOREBI_BUILDER:?set KOMOREBI_BUILDER to the store URL of a Linux builder}"
+cd "$(dirname "$0")/.."
+test="path:$PWD#legacyPackages.aarch64-darwin.vm.$name"
+[ -d .git ] && test="git+file://$PWD#legacyPackages.aarch64-darwin.vm.$name"
+
+echo "== building the guests on $builder"
+nix eval --json "$test.nodes" --apply 'nodes: builtins.mapAttrs (_: node: node.system.build.toplevel.drvPath) nodes' |
+  jq -r '.[]' |
+  while read -r drv; do
+    out=$(nix build "$drv^out" --eval-store auto --store "$builder" --no-link --print-out-paths)
+    nix copy --from "$builder" --substitute-on-destination --no-check-sigs "$out"
+  done
+
+echo "== building the driver"
+driver=$(nix build "$test.driver" --builders '' --no-link --print-out-paths)
+
+out="$PWD/.vm/out/$name"
+mkdir -p "$out"
+echo "== running $name (artifacts in $out)"
+cd "$out"
+exec "$driver/bin/nixos-test-driver" -o . "$@"

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.json",
+  "app_specific_configuration_path": "$Env:USERPROFILE/applications.json",
+  "window_hiding_behaviour": "Cloak",
+  "cross_monitor_move_behaviour": "Insert",
+  "default_workspace_padding": 20,
+  "default_container_padding": 20,
+  "border": true,
+  "border_width": 8,
+  "border_offset": -1,
+  "border_implementation": "Komorebi",
+  "border_style": "System",
+  "border_z_order": "Top",
+  "focus_follows_mouse": "Windows",
+  "mouse_follows_focus": true,
+  "transparency": true,
+  "transparency_alpha": 200,
+  "transparency_ignore_rules": [
+    { "kind": "Exe", "id": "firefox.exe", "matching_strategy": "Equals" }
+  ],
+  "minimum_window_width": 100,
+  "minimum_window_height": 100,
+  "invisible_borders": { "left": 7, "top": 0, "right": 14, "bottom": 7 },
+  "window_handling_behaviour": "Async",
+  "slow_application_compensation_time": 20,
+  "slow_application_identifiers": [
+    { "kind": "Exe", "id": "idea64.exe", "matching_strategy": "Equals" }
+  ],
+  "object_name_change_applications": [
+    { "kind": "Exe", "id": "firefox.exe", "matching_strategy": "Equals" }
+  ],
+  "object_name_change_title_ignore_list": ["^.*Chrome.*$"],
+  "layered_applications": [
+    { "kind": "Exe", "id": "steam.exe", "matching_strategy": "Equals" }
+  ],
+  "tray_and_multi_window_applications": [
+    { "kind": "Exe", "id": "Discord.exe", "matching_strategy": "Equals" }
+  ],
+  "border_overflow_applications": [
+    { "kind": "Exe", "id": "Notion.exe", "matching_strategy": "Equals" }
+  ],
+  "remove_titlebar_applications": [
+    { "kind": "Exe", "id": "Spotify.exe", "matching_strategy": "Equals" }
+  ],
+  "monitor_index_preferences": {
+    "0": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 }
+  },
+  "stackbar": { "height": 40, "label": "Process", "mode": "OnStack" },
+  "bar_configurations": ["C:/Users/me/komorebi.bar.json"],
+  "floating_applications": [
+    { "kind": "Class", "id": "Notepad", "matching_strategy": "Equals" },
+    [
+      { "kind": "Exe", "id": "chrome.exe", "matching_strategy": "Equals" },
+      { "kind": "Title", "id": "Picture in picture", "matching_strategy": "StartsWith" }
+    ]
+  ],
+  "ignore_rules": [
+    { "kind": "Path", "id": "C:/Windows/System32/*", "matching_strategy": "Legacy" }
+  ],
+  "monitors": [
+    {
+      "work_area_offset": { "left": 200, "top": 100, "right": 1520, "bottom": 880 },
+      "window_based_work_area_offset_limit": 1,
+      "workspaces": [
+        {
+          "name": "I",
+          "layout": "BSP",
+          "container_padding": 10,
+          "workspace_padding": 10,
+          "apply_window_based_work_area_offset": true,
+          "initial_workspace_rules": [
+            { "kind": "Exe", "id": "firefox.exe", "matching_strategy": "Equals" }
+          ]
+        },
+        { "name": "II", "layout": "VerticalStack" }
+      ]
+    }
+  ]
+}

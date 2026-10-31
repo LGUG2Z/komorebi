@@ -1,0 +1,121 @@
+# the komorebi sample configuration
+
+# Focus windows
+alt + h
+    komorebic focus left
+alt + j
+    komorebic focus down
+alt + k
+    komorebic focus up
+alt + l
+    komorebic focus right
+alt + shift + bracketleft
+    komorebic cycle-focus previous
+alt + shift + bracketright
+    komorebic cycle-focus next
+
+# Move windows
+alt + shift + h
+    komorebic move left
+alt + shift + j
+    komorebic move down
+alt + shift + k
+    komorebic move up
+alt + shift + l
+    komorebic move right
+alt + shift + Return
+    komorebic promote
+
+# Stack windows
+ctrl + alt + Left
+    komorebic stack left
+ctrl + alt + Down
+    komorebic stack down
+ctrl + alt + Up
+    komorebic stack up
+ctrl + alt + Right
+    komorebic stack right
+alt + semicolon
+    komorebic unstack
+alt + bracketleft
+    komorebic cycle-stack previous
+alt + bracketright
+    komorebic cycle-stack next
+
+# Workspace layer
+alt + shift + semicolon
+    komorebic toggle-workspace-layer
+
+# Resize
+alt + equal
+    komorebic resize-axis horizontal increase
+alt + minus
+    komorebic resize-axis horizontal decrease
+alt + shift + equal
+    komorebic resize-axis vertical increase
+alt + shift + minus
+    komorebic resize-axis vertical decrease
+
+# Manipulate windows
+alt + t
+    komorebic toggle-float
+alt + shift + t
+    komorebic toggle-workspace-float-override
+alt + shift + f
+    komorebic toggle-monocle
+
+# Window manager options
+alt + shift + r
+    komorebic retile
+alt + p
+    komorebic toggle-pause
+alt + 0
+    komorebic toggle-window-container-behaviour
+
+# Layouts
+alt + x
+    komorebic flip-layout horizontal
+alt + y
+    komorebic flip-layout vertical
+alt + shift + x
+    komorebic session-float-rule
+
+# Workspaces
+alt + 1
+    komorebic focus-workspace 0
+alt + 2
+    komorebic focus-workspace 1
+alt + 3
+    komorebic focus-workspace 2
+alt + 4
+    komorebic focus-workspace 3
+alt + 5
+    komorebic focus-workspace 4
+alt + 6
+    komorebic focus-workspace 5
+alt + 7
+    komorebic focus-workspace 6
+alt + 8
+    komorebic focus-workspace 7
+alt + 9
+    komorebic focus-workspace 8
+
+# Move windows across workspaces
+alt + shift + 1
+    komorebic move-to-workspace 0
+alt + shift + 2
+    komorebic move-to-workspace 1
+alt + shift + 3
+    komorebic move-to-workspace 2
+alt + shift + 4
+    komorebic move-to-workspace 3
+alt + shift + 5
+    komorebic move-to-workspace 4
+alt + shift + 6
+    komorebic move-to-workspace 5
+alt + shift + 7
+    komorebic move-to-workspace 6
+alt + shift + 8
+    komorebic move-to-workspace 7
+alt + shift + 9
+    komorebic move-to-workspace 8

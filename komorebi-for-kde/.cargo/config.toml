@@ -1,0 +1,5 @@
+[env]
+# The version crate reads the commit from git when HEAD is on a branch, and from
+# this variable otherwise (a detached HEAD, which jj leaves, or a build with no
+# .git directory). Nix sets the real commit, which takes precedence over this.
+COMMIT_HASH = "unknown"

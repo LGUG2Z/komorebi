@@ -1,0 +1,6 @@
+# alt + shift + p turns every other binding off and on again
+.shell pwsh
+.pause alt + shift + p
+.pause_hook komorebic toggle-pause
+
+alt + h : komorebic focus left

@@ -1,0 +1,9 @@
+# keys that skhd can only name by their macOS keycode, a position on a US keyboard
+.shell pwsh
+
+alt + oem_4 : komorebic cycle-stack previous
+alt + oem_6 : komorebic cycle-stack next
+alt + oem_1 : komorebic unstack
+alt + oem_plus : komorebic resize-axis horizontal increase
+alt + oem_minus : komorebic resize-axis horizontal decrease
+alt + shift + oem_4 : komorebic cycle-focus previous

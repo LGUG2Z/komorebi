@@ -1,0 +1,7 @@
+# chord chains: alt + w and then a second key; alt + r and then any number of h or l
+alt + w ; h
+    komorebic move left
+alt + w ; l
+    komorebic move right
+alt + r : {h,l}
+    komorebic resize-edge {left,right} increase

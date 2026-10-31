@@ -1,0 +1,47 @@
+[workspace]
+
+resolver = "2"
+members = [
+  "komorebi",
+  "komorebi-client",
+  "komorebi-hotkeys",
+  "komorebic",
+  "version",
+]
+
+[workspace.package]
+version = "0.1.0"
+
+[workspace.dependencies]
+# upstream's layouts, at a revision of its `next` branch that has the fix for resizing a tile by
+# dragging its edge (LGUG2Z/komorebi#1765), the placement helpers komorebi for KDE uses and the
+# platform-free half of the rework of the Scrolling layout
+komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "6d862a11471b819236000a463c575abce2ed13c3", features = [
+  "schemars",
+] }
+# the model of a strip of columns that the Scrolling layout is laid out with, from the same
+# revision, whose layouts re-export it as `komorebi_layouts::scrolling::model`
+komorebi-scrolling = { git = "https://github.com/LGUG2Z/komorebi", rev = "6d862a11471b819236000a463c575abce2ed13c3" }
+# the themes (and the palettes made from pictures), from the same upstream revision
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "6d862a11471b819236000a463c575abce2ed13c3" }
+
+chrono = "0.4"
+clap = { version = "4", features = ["derive", "wrap_help"] }
+color-eyre = "0.6"
+crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
+dirs = "7"
+hotwatch = "0.5"
+lazy_static = "1"
+pastey = "0.2"
+schemars = "1.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { package = "serde_json_lenient", version = "0.2" }
+shadow-rs = "2"
+sysinfo = "0.40"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[workspace.metadata.crane]
+name = "komorebi-workspace"

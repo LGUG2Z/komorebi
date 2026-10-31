@@ -1,0 +1,6 @@
+# the case the VM suites press: a binding KDE can run by itself, and one on the comma key, which a
+# shortcut file cannot hold, so that the engine runs it
+alt + j
+    touch /tmp/keys-corpus-alt-j
+alt + comma
+    touch /tmp/keys-corpus-alt-comma

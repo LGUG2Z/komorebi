@@ -1,0 +1,192 @@
+virglrenderer: send the SPS of an H.264 stream to encode to the host's VA-API
+
+Mesa's VA-API takes the level (and the profile) of an H.264 stream to encode only from
+the packed sequence header: vlVaHandleVAEncSequenceParameterBufferTypeH264() does not
+set seq.level_idc, and vlVaHandleVAEncPackedHeaderDataBufferTypeH264() parses it from
+the application's SPS. The video protocol carries no SPS and no level, and virglrenderer
+sends no packed header, so on a host whose encoder needs the level, the d3d12 driver of
+WSL 2, seq.level_idc is 0 and d3d12_video_encoder_convert_level_h264() reaches
+UNREACHABLE("Unsupported H264 level"), which segfaults QEMU in vaEndPicture().
+
+On an IDR frame, build a minimal SPS (profile, level, order count type, reference
+frames, size, cropping) and give it to VA-API as a packed sequence header. The level is
+the smallest of Table A-1 that holds the frame size and the macroblock rate. The d3d12
+encoder writes the SPS and PPS it encodes itself: the packed header only has to say what
+it needs to know.
+
+
+diff --git a/src/vrend/virgl_video.c b/src/vrend/virgl_video.c
+index 8b47837..8b71ebe 100644
+--- a/src/vrend/virgl_video.c
++++ b/src/vrend/virgl_video.c
+@@ -1550,6 +1550,161 @@ err:
+     return err;
+ }
+ 
++/*
++ * Mesa's VA-API takes the profile and the level of an H.264 stream to encode only from the
++ * packed sequence header (vlVaHandleVAEncPackedHeaderDataBufferTypeH264 parses the SPS of the
++ * application), and not from the sequence parameter. Nothing in the video protocol carries the
++ * SPS or the level of the guest's, and the level of the codec is not one: with no packed header
++ * seq.level_idc is 0, which the d3d12 encoder (WSL 2) does not take, and it crashes in
++ * d3d12_video_encoder_convert_level_h264(). The d3d12 encoder writes the SPS and the PPS it
++ * encodes itself, and the headers of the application only tell it to, so the SPS here only has to
++ * say what the encoder needs: the profile, the level, the order count type, the number of
++ * reference frames, the size and the cropping.
++ */
++struct h264_bits {
++    uint8_t *buf;
++    unsigned size;      /* bytes in buf */
++    unsigned pos;       /* bits written */
++};
++
++static void h264_put_bits(struct h264_bits *w, uint32_t value, unsigned nbits)
++{
++    while (nbits--) {
++        if (w->pos / 8 < w->size) {
++            if (value >> nbits & 1)
++                w->buf[w->pos / 8] |= 0x80 >> (w->pos % 8);
++            else
++                w->buf[w->pos / 8] &= ~(0x80 >> (w->pos % 8));
++        }
++        w->pos++;
++    }
++}
++
++/* Exp-Golomb ue(v) */
++static void h264_put_ue(struct h264_bits *w, uint32_t value)
++{
++    uint32_t v = value + 1;
++    unsigned nbits = 0;
++
++    while (v >> nbits)
++        nbits++;
++    h264_put_bits(w, 0, nbits - 1);
++    h264_put_bits(w, v, nbits);
++}
++
++/* the smallest level that holds the frame size and the macroblock rate (Table A-1) */
++static uint32_t h264_level_idc(uint32_t width_mbs, uint32_t height_mbs,
++                               uint32_t fps)
++{
++    static const struct { uint8_t idc; uint32_t max_mbps; uint32_t max_fs; } levels[] = {
++        { 10,    1485,     99 }, { 11,    3000,    396 }, { 12,    6000,    396 },
++        { 13,   11880,    396 }, { 20,   11880,    396 }, { 21,   19800,    792 },
++        { 22,   20250,   1620 }, { 30,   40500,   1620 }, { 31,  108000,   3600 },
++        { 32,  216000,   5120 }, { 40,  245760,   8192 }, { 41,  245760,   8192 },
++        { 42,  522240,   8704 }, { 50,  589824,  22080 }, { 51,  983040,  36864 },
++        { 52, 2073600,  36864 }, { 60, 4177920, 139264 },
++    };
++    uint32_t mbs = width_mbs * height_mbs;
++    unsigned i;
++
++    if (!fps)
++        fps = 30;
++
++    for (i = 0; i < ARRAY_SIZE(levels); i++) {
++        if (mbs <= levels[i].max_fs && (uint64_t)mbs * fps <= levels[i].max_mbps)
++            return levels[i].idc;
++    }
++
++    return levels[ARRAY_SIZE(levels) - 1].idc;
++}
++
++static void h264_encode_render_packed_sps(
++                            struct virgl_video_codec *codec,
++                            const struct virgl_h264_enc_picture_desc *desc)
++{
++    uint8_t data[64] = { 0 };
++    struct h264_bits w = { data, sizeof(data), 0 };
++    uint32_t profile_idc, fps, level_idc, width_mbs, height_mbs, poc_type;
++    const struct virgl_h264_enc_rate_control *rc = &desc->rate_ctrl[0];
++    VAEncPackedHeaderParameterBuffer hdr;
++    VABufferID bufs[2];
++    VAStatus va_stat;
++    unsigned nbytes;
++
++    switch (codec->profile) {
++    case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
++        profile_idc = 66;
++        break;
++    case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
++        profile_idc = 77;
++        break;
++    default:
++        profile_idc = 100;
++        break;
++    }
++
++    width_mbs  = (codec->width + 15) / 16;
++    height_mbs = (codec->height + 15) / 16;
++    fps = rc->frame_rate_den ? rc->frame_rate_num / rc->frame_rate_den : 0;
++    level_idc = h264_level_idc(width_mbs, height_mbs, fps);
++    /* the order count types that the SPS below can say, 0 and 2 */
++    poc_type = desc->seq.pic_order_cnt_type == 2 ? 2 : 0;
++
++    h264_put_bits(&w, 0x00000001, 32);                /* start code */
++    h264_put_bits(&w, 0x67, 8);                       /* nal_ref_idc 3, SPS */
++    h264_put_bits(&w, profile_idc, 8);
++    h264_put_bits(&w, desc->seq.enc_constraint_set_flags & 0x3f, 6);
++    h264_put_bits(&w, 0, 2);                          /* reserved_zero_2bits */
++    h264_put_bits(&w, level_idc, 8);
++    h264_put_ue(&w, 0);                               /* seq_parameter_set_id */
++    if (profile_idc == 100) {
++        h264_put_ue(&w, 1);                           /* chroma_format_idc: 4:2:0 */
++        h264_put_ue(&w, 0);                           /* bit_depth_luma_minus8 */
++        h264_put_ue(&w, 0);                           /* bit_depth_chroma_minus8 */
++        h264_put_bits(&w, 0, 1);                      /* qpprime_y_zero_transform_bypass */
++        h264_put_bits(&w, 0, 1);                      /* seq_scaling_matrix_present */
++    }
++    h264_put_ue(&w, 0);                               /* log2_max_frame_num_minus4 */
++    h264_put_ue(&w, poc_type);
++    if (poc_type == 0)
++        h264_put_ue(&w, 0);                           /* log2_max_pic_order_cnt_lsb_minus4 */
++    h264_put_ue(&w, codec->max_references);
++    h264_put_bits(&w, 0, 1);                          /* gaps_in_frame_num_value_allowed */
++    h264_put_ue(&w, width_mbs - 1);
++    h264_put_ue(&w, height_mbs - 1);
++    h264_put_bits(&w, 1, 1);                          /* frame_mbs_only_flag */
++    h264_put_bits(&w, 1, 1);                          /* direct_8x8_inference_flag */
++    h264_put_bits(&w, desc->seq.enc_frame_cropping_flag ? 1 : 0, 1);
++    if (desc->seq.enc_frame_cropping_flag) {
++        h264_put_ue(&w, desc->seq.enc_frame_crop_left_offset);
++        h264_put_ue(&w, desc->seq.enc_frame_crop_right_offset);
++        h264_put_ue(&w, desc->seq.enc_frame_crop_top_offset);
++        h264_put_ue(&w, desc->seq.enc_frame_crop_bottom_offset);
++    }
++    h264_put_bits(&w, 0, 1);                          /* vui_parameters_present_flag */
++    h264_put_bits(&w, 1, 1);                          /* rbsp_stop_one_bit */
++    nbytes = (w.pos + 7) / 8;
++    if (nbytes > sizeof(data))
++        return;
++
++    memset(&hdr, 0, sizeof(hdr));
++    hdr.type = VAEncPackedHeaderSequence;
++    hdr.bit_length = nbytes * 8;
++    hdr.has_emulation_bytes = 0;
++
++    vaCreateBuffer(va_dpy, codec->va_ctx, VAEncPackedHeaderParameterBufferType,
++                   sizeof(hdr), 1, &hdr, &bufs[0]);
++    vaCreateBuffer(va_dpy, codec->va_ctx, VAEncPackedHeaderDataBufferType,
++                   nbytes, 1, data, &bufs[1]);
++
++    va_stat = vaRenderPicture(va_dpy, codec->va_ctx, bufs, 2);
++    if (VA_STATUS_SUCCESS != va_stat)
++        virgl_error("render h264 packed sps failed, err = 0x%x\n", va_stat);
++
++    vaDestroyBuffer(va_dpy, bufs[0]);
++    vaDestroyBuffer(va_dpy, bufs[1]);
++}
++
+ static int h264_encode_render_sequence(
+                             struct virgl_video_codec *codec,
+                             struct virgl_video_buffer *source,
+@@ -1591,6 +1746,8 @@ static int h264_encode_render_sequence(
+         goto error;
+     }
+ 
++    h264_encode_render_packed_sps(codec, desc);
++
+     va_stat = vaRenderPicture(va_dpy, codec->va_ctx, &rc_param_buf, 1);
+     if (VA_STATUS_SUCCESS != va_stat) {
+         virgl_error("render h264 rate control param failed, err = 0x%x\n", va_stat);

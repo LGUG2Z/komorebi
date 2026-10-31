@@ -1,0 +1,132 @@
+[
+    {
+        "type": "snapshot", "seq": 1,
+        "windows": [
+            {
+                "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "pid": 4242,
+                "class": "org.kde.kate", "name": "kate", "desktopFile": "org.kde.kate",
+                "caption": "notes.txt — Kate", "normal": true, "minimized": false,
+                "fullscreen": false, "maximized": false,
+                "geo": {"x": 0, "y": 0, "w": 1920, "h": 1050}, "minSize": {"w": 300, "h": 200},
+                "desktops": ["desktop-1"]
+            }
+        ],
+        "screens": [
+            {
+                "name": "DP-1", "manufacturer": "ACME", "model": "M1", "serial": "S1",
+                "geo": {"x": 0, "y": 0, "w": 1920, "h": 1080}, "scale": 1,
+                "area": {"x": 0, "y": 0, "w": 1920, "h": 1050}
+            }
+        ],
+        "desktops": [
+            {"id": "desktop-1", "name": "Desktop 1"}, {"id": "desktop-2", "name": "Desktop 2"}
+        ],
+        "current_desktops": [{"output": "DP-1", "id": "desktop-1"}],
+        "active": "{0e5a1c3b-0000-4000-8000-00000000000a}", "cursor": {"x": 481, "y": 525}
+    },
+    {
+        "type": "added", "seq": 2, "id": "{7f3d9e21-0000-4000-8000-00000000000b}", "pid": 4343,
+        "class": "foot", "name": "foot", "desktopFile": "foot", "caption": "a terminal",
+        "normal": true, "minimized": false, "fullscreen": false, "maximized": false,
+        "geo": {"x": 480, "y": 270, "w": 960, "h": 540}, "minSize": {"w": 21, "h": 35},
+        "desktops": ["desktop-1"]
+    },
+    {"type": "activated", "seq": 3, "id": "{7f3d9e21-0000-4000-8000-00000000000b}"},
+    {
+        "type": "added", "seq": 4, "id": "{c4b8a2f0-0000-4000-8000-00000000000c}", "pid": 4242,
+        "class": "org.kde.kate", "name": "kate", "desktopFile": "org.kde.kate",
+        "caption": "Save As — Kate", "normal": false, "minimized": false, "fullscreen": false,
+        "maximized": false, "geo": {"x": 660, "y": 290, "w": 600, "h": 500},
+        "minSize": {"w": 0, "h": 0}, "desktops": ["desktop-1"]
+    },
+    {"type": "minimized", "seq": 5, "id": "{7f3d9e21-0000-4000-8000-00000000000b}", "v": true},
+    {"type": "minimized", "seq": 6, "id": "{7f3d9e21-0000-4000-8000-00000000000b}", "v": false},
+    {
+        "type": "geometry", "seq": 7, "id": "{7f3d9e21-0000-4000-8000-00000000000b}",
+        "geo": {"x": 480, "y": 270, "w": 956, "h": 532}
+    },
+    {"type": "cursor", "seq": 8, "token": 1, "x": 1200, "y": 701},
+    {"type": "removed", "seq": 9, "id": "{7f3d9e21-0000-4000-8000-00000000000b}"},
+    {
+        "type": "geometry", "seq": 10, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 0, "y": 0, "w": 960, "h": 1050}
+    },
+    {"type": "activated", "seq": 11, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}"},
+    {"type": "minimized", "seq": 12, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": true},
+    {"type": "minimized", "seq": 13, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": false},
+    {"type": "maximized", "seq": 14, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": true},
+    {"type": "maximized", "seq": 15, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": false},
+    {"type": "removed", "seq": 16, "id": "{c4b8a2f0-0000-4000-8000-00000000000c}"},
+    {
+        "type": "failed", "seq": 17, "batch": 2,
+        "cmds": [
+            {
+                "op": "geo", "id": "{7f3d9e21-0000-4000-8000-00000000000b}", "x": 960, "y": 0,
+                "w": 960, "h": 1050
+            }
+        ]
+    },
+    {
+        "type": "desktops", "seq": 18, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "desktops": ["desktop-2"]
+    },
+    {"type": "current_desktops", "seq": 19, "current": [{"output": "DP-1", "id": "desktop-2"}]},
+    {
+        "type": "desktop_list", "seq": 20,
+        "desktops": [
+            {"id": "desktop-1", "name": "Desktop 1"}, {"id": "desktop-2", "name": "Desktop 2"},
+            {"id": "desktop-3", "name": "mail"}
+        ]
+    },
+    {
+        "type": "desktops", "seq": 21, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "desktops": ["desktop-1"]
+    },
+    {"type": "current_desktops", "seq": 22, "current": [{"output": "DP-1", "id": "desktop-1"}]},
+    {
+        "type": "move_resize_started", "seq": 23, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "move": true, "resize": false, "geo": {"x": 0, "y": 0, "w": 960, "h": 1050}
+    },
+    {
+        "type": "geometry", "seq": 24, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 40, "y": 30, "w": 960, "h": 1050}
+    },
+    {
+        "type": "move_resize_finished", "seq": 25, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 40, "y": 30, "w": 960, "h": 1050}, "requested": null,
+        "cursor": {"x": 1500, "y": 600}
+    },
+    {
+        "type": "move_resize_started", "seq": 26, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "move": false, "resize": true, "geo": {"x": 40, "y": 30, "w": 960, "h": 1050}
+    },
+    {
+        "type": "move_resize_step", "seq": 27, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 40, "y": 30, "w": 1100, "h": 1050}
+    },
+    {
+        "type": "geometry", "seq": 28, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 40, "y": 30, "w": 1040, "h": 1050}
+    },
+    {
+        "type": "move_resize_finished", "seq": 29, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 40, "y": 30, "w": 1040, "h": 1050},
+        "requested": {"x": 40, "y": 30, "w": 1100, "h": 1050}, "cursor": {"x": 1500, "y": 600}
+    },
+    {
+        "type": "screens", "seq": 30,
+        "screens": [
+            {
+                "name": "DP-1", "manufacturer": "ACME", "model": "M1", "serial": "S1",
+                "geo": {"x": 0, "y": 0, "w": 1920, "h": 1080}, "scale": 1,
+                "area": {"x": 0, "y": 0, "w": 1920, "h": 1000}
+            }
+        ]
+    },
+    {
+        "type": "output", "seq": 31, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}",
+        "geo": {"x": 40, "y": 30, "w": 1040, "h": 1050}, "output": "DP-2"
+    },
+    {"type": "fullscreen", "seq": 32, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": true},
+    {"type": "fullscreen", "seq": 33, "id": "{0e5a1c3b-0000-4000-8000-00000000000a}", "v": false}
+]

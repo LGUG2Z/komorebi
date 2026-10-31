@@ -1,0 +1,20 @@
+run-kde: what the guest needs, and what this machine has
+  ✓ this is WSL 2 (5.15.167.4-microsoft-standard-WSL2)
+  ✓ nix is installed
+  ✗ KVM: @T@/absent does not exist, and the guest needs it
+      the CPU's virtualization flags (svm or vmx) are not visible here, so nested virtualization is off
+      in %UserProfile%\.wslconfig, under [wsl2], set: nestedVirtualization=true
+      and turn on SVM (AMD) or VT-x (Intel) in the firmware setup of the machine
+  ✓ FUSE: @T@/fuse can be opened
+  ✓ virtiofsd: starts as this user and serves a directory
+  ! memory: this machine has 6144 MB, so the guest gets 4096 MB (8192 is comfortable)
+      in %UserProfile%\.wslconfig, under [wsl2], set: memory=12GB
+  ✓ cores: this machine has 12, and the guest gets 6
+  ✓ disk: 100 GB are free for the Nix store (@T@)
+  ✓ a window can be shown (WAYLAND_DISPLAY=w)
+  ! Windows interop: mstsc.exe or cmdkey.exe cannot be run, which --rdp needs
+      on NixOS-WSL, wsl.interop.includePath = true; (and wsl.interop.register = true;)
+  ! GPU: there is no @T@/absent, so the guest renders on its CPUs
+      install the Windows GPU driver with WSL support; on NixOS-WSL, wsl.useWindowsDriver = true;
+  ✓ the guest will not use the GPU: there is no @T@/absent, so WSL has no GPU
+run-kde: 1 thing(s) to fix first

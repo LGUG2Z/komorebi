@@ -1,0 +1,368 @@
+== blacklist.skhdrc
+blacklist.skhdrc: line 7: note: every binding goes through the engine: the file has a blacklist
+0 shortcuts would be written to shortcuts (0 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== braces.skhdrc
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+1                    komorebic focus-workspace 0
+Alt+2                    komorebic focus-workspace 1
+Alt+3                    komorebic focus-workspace 2
+Alt+!                    komorebic move-to-workspace 0
+Alt+@                    komorebic move-to-workspace 1
+Alt+#                    komorebic move-to-workspace 2
+10 shortcuts would be written to shortcuts (10 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== braces.sxhkdrc
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+1                    komorebic focus-workspace 0
+Alt+2                    komorebic focus-workspace 1
+Alt+3                    komorebic focus-workspace 2
+Alt+!                    komorebic move-to-workspace 0
+Alt+@                    komorebic move-to-workspace 1
+Alt+#                    komorebic move-to-workspace 2
+10 shortcuts would be written to shortcuts (10 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== braces.whkdrc
+braces.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+1                    komorebic focus-workspace 0
+Alt+2                    komorebic focus-workspace 1
+Alt+3                    komorebic focus-workspace 2
+Alt+!                    komorebic move-to-workspace 0
+Alt+@                    komorebic move-to-workspace 1
+Alt+#                    komorebic move-to-workspace 2
+10 shortcuts would be written to shortcuts (10 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== chords.sxhkdrc
+chords.sxhkdrc: line 2: warning: in sxhkd a key that is not in the chain after `Alt+W` ends it; here only Escape and the chord timeout do
+chords.sxhkdrc: line 2: note: every binding goes through the engine: the file declares modes
+chords.sxhkdrc: line 6: warning: in sxhkd a key that is not in the chain after `Alt+R` ends it; here only Escape does
+0 shortcuts would be written to shortcuts (0 new, 0 changed, 0 removed), 6 bindings need the engine
+
+== comments.skhdrc
+Alt+H                    komorebic focus left
+Alt+X                    komorebic flip-layout horizontal
+2 shortcuts would be written to shortcuts (2 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== comments.sxhkdrc
+Alt+H                    komorebic focus left
+Alt+X                    komorebic flip-layout horizontal
+2 shortcuts would be written to shortcuts (2 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== comments.whkdrc
+comments.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+Alt+H                    komorebic focus left
+Alt+X                    komorebic flip-layout horizontal
+2 shortcuts would be written to shortcuts (2 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== define.skhdrc
+define.skhdrc: line 5: note: Alt+B goes through the engine: it does something else in each application
+Alt+H                    komorebic focus left
+Alt+L                    komorebic focus right
+2 shortcuts would be written to shortcuts (2 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== define.whkdrc
+define.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+define.whkdrc: line 4: note: Alt+B goes through the engine: it does something else in each application
+Alt+H                    komorebic focus left
+Alt+L                    komorebic focus right
+2 shortcuts would be written to shortcuts (2 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== keycodes.skhdrc
+Alt+[                    komorebic cycle-stack previous
+Alt+]                    komorebic cycle-stack next
+Alt+;                    komorebic unstack
+Alt+=                    komorebic resize-axis horizontal increase
+Alt+-                    komorebic resize-axis horizontal decrease
+Alt+{                    komorebic cycle-focus previous
+6 shortcuts would be written to shortcuts (6 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== keycodes.sxhkdrc
+Alt+[                    komorebic cycle-stack previous
+Alt+]                    komorebic cycle-stack next
+Alt+;                    komorebic unstack
+Alt+=                    komorebic resize-axis horizontal increase
+Alt+-                    komorebic resize-axis horizontal decrease
+Alt+{                    komorebic cycle-focus previous
+6 shortcuts would be written to shortcuts (6 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== keycodes.whkdrc
+keycodes.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+Alt+[                    komorebic cycle-stack previous
+Alt+]                    komorebic cycle-stack next
+Alt+;                    komorebic unstack
+Alt+=                    komorebic resize-axis horizontal increase
+Alt+-                    komorebic resize-axis horizontal decrease
+Alt+{                    komorebic cycle-focus previous
+6 shortcuts would be written to shortcuts (6 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== modes.skhdrc
+modes.skhdrc: line 2: warning: `resize` captures every key in skhd; here the keys it has no binding for reach the application
+modes.skhdrc: line 3: note: every binding goes through the engine: the file declares modes
+0 shortcuts would be written to shortcuts (0 new, 0 changed, 0 removed), 6 bindings need the engine
+
+== modifiers.skhdrc
+Meta+Return              konsole
+Ctrl+Alt+Left            komorebic stack left
+Alt+Shift+H              komorebic move left
+Ctrl+Shift+Right         komorebic resize-edge right increase
+Alt+!                    komorebic move-to-workspace 0
+Ctrl+Alt+(               komorebic move-to-workspace 8
+Meta+Ctrl+Alt+Shift+A    komorebic retile
+Ctrl+Alt+Shift+M         komorebic toggle-monocle
+8 shortcuts would be written to shortcuts (8 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== modifiers.sxhkdrc
+Meta+Return              konsole
+Ctrl+Alt+Left            komorebic stack left
+Alt+Shift+H              komorebic move left
+Ctrl+Shift+Right         komorebic resize-edge right increase
+Alt+!                    komorebic move-to-workspace 0
+Ctrl+Alt+(               komorebic move-to-workspace 8
+Meta+Ctrl+Alt+Shift+A    komorebic retile
+Ctrl+Alt+Shift+M         komorebic toggle-monocle
+8 shortcuts would be written to shortcuts (8 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== modifiers.whkdrc
+modifiers.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+Meta+Return              konsole
+Ctrl+Alt+Left            komorebic stack left
+Alt+Shift+H              komorebic move left
+Ctrl+Shift+Right         komorebic resize-edge right increase
+Alt+!                    komorebic move-to-workspace 0
+Ctrl+Alt+(               komorebic move-to-workspace 8
+Meta+Ctrl+Alt+Shift+A    komorebic retile
+Ctrl+Alt+Shift+M         komorebic toggle-monocle
+8 shortcuts would be written to shortcuts (8 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== pause.whkdrc
+pause.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+pause.whkdrc: line 6: note: every binding goes through the engine: the file has a pause binding
+0 shortcuts would be written to shortcuts (0 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== plain.skhdrc
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+Q                    komorebic close
+5 shortcuts would be written to shortcuts (5 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== plain.sxhkdrc
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+Q                    komorebic close
+5 shortcuts would be written to shortcuts (5 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== plain.whkdrc
+plain.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+Q                    komorebic close
+5 shortcuts would be written to shortcuts (5 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== release.sxhkdrc
+release.sxhkdrc: line 2: warning: a release binding fires when any key of its combo is released first
+release.sxhkdrc: line 2: note: Alt+Space goes through the engine: it fires when the key is released
+0 shortcuts would be written to shortcuts (0 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== sample.skhdrc
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+{                    komorebic cycle-focus previous
+Alt+}                    komorebic cycle-focus next
+Alt+Shift+H              komorebic move left
+Alt+Shift+J              komorebic move down
+Alt+Shift+K              komorebic move up
+Alt+Shift+L              komorebic move right
+Alt+Shift+Return         komorebic promote
+Ctrl+Alt+Left            komorebic stack left
+Ctrl+Alt+Down            komorebic stack down
+Ctrl+Alt+Up              komorebic stack up
+Ctrl+Alt+Right           komorebic stack right
+Alt+;                    komorebic unstack
+Alt+[                    komorebic cycle-stack previous
+Alt+]                    komorebic cycle-stack next
+Alt+:                    komorebic toggle-workspace-layer
+Alt+=                    komorebic resize-axis horizontal increase
+Alt+-                    komorebic resize-axis horizontal decrease
+Alt++                    komorebic resize-axis vertical increase
+Alt+_                    komorebic resize-axis vertical decrease
+Alt+T                    komorebic toggle-float
+Alt+Shift+T              komorebic toggle-workspace-float-override
+Alt+Shift+F              komorebic toggle-monocle
+Alt+Shift+R              komorebic retile
+Alt+P                    komorebic toggle-pause
+Alt+0                    komorebic toggle-window-container-behaviour
+Alt+X                    komorebic flip-layout horizontal
+Alt+Y                    komorebic flip-layout vertical
+Alt+Shift+X              komorebic session-float-rule
+Alt+1                    komorebic focus-workspace 0
+Alt+2                    komorebic focus-workspace 1
+Alt+3                    komorebic focus-workspace 2
+Alt+4                    komorebic focus-workspace 3
+Alt+5                    komorebic focus-workspace 4
+Alt+6                    komorebic focus-workspace 5
+Alt+7                    komorebic focus-workspace 6
+Alt+8                    komorebic focus-workspace 7
+Alt+9                    komorebic focus-workspace 8
+Alt+!                    komorebic move-to-workspace 0
+Alt+@                    komorebic move-to-workspace 1
+Alt+#                    komorebic move-to-workspace 2
+Alt+$                    komorebic move-to-workspace 3
+Alt+%                    komorebic move-to-workspace 4
+Alt+^                    komorebic move-to-workspace 5
+Alt+&                    komorebic move-to-workspace 6
+Alt+*                    komorebic move-to-workspace 7
+Alt+(                    komorebic move-to-workspace 8
+50 shortcuts would be written to shortcuts (50 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== sample.sxhkdrc
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+{                    komorebic cycle-focus previous
+Alt+}                    komorebic cycle-focus next
+Alt+Shift+H              komorebic move left
+Alt+Shift+J              komorebic move down
+Alt+Shift+K              komorebic move up
+Alt+Shift+L              komorebic move right
+Alt+Shift+Return         komorebic promote
+Ctrl+Alt+Left            komorebic stack left
+Ctrl+Alt+Down            komorebic stack down
+Ctrl+Alt+Up              komorebic stack up
+Ctrl+Alt+Right           komorebic stack right
+Alt+;                    komorebic unstack
+Alt+[                    komorebic cycle-stack previous
+Alt+]                    komorebic cycle-stack next
+Alt+:                    komorebic toggle-workspace-layer
+Alt+=                    komorebic resize-axis horizontal increase
+Alt+-                    komorebic resize-axis horizontal decrease
+Alt++                    komorebic resize-axis vertical increase
+Alt+_                    komorebic resize-axis vertical decrease
+Alt+T                    komorebic toggle-float
+Alt+Shift+T              komorebic toggle-workspace-float-override
+Alt+Shift+F              komorebic toggle-monocle
+Alt+Shift+R              komorebic retile
+Alt+P                    komorebic toggle-pause
+Alt+0                    komorebic toggle-window-container-behaviour
+Alt+X                    komorebic flip-layout horizontal
+Alt+Y                    komorebic flip-layout vertical
+Alt+Shift+X              komorebic session-float-rule
+Alt+1                    komorebic focus-workspace 0
+Alt+2                    komorebic focus-workspace 1
+Alt+3                    komorebic focus-workspace 2
+Alt+4                    komorebic focus-workspace 3
+Alt+5                    komorebic focus-workspace 4
+Alt+6                    komorebic focus-workspace 5
+Alt+7                    komorebic focus-workspace 6
+Alt+8                    komorebic focus-workspace 7
+Alt+9                    komorebic focus-workspace 8
+Alt+!                    komorebic move-to-workspace 0
+Alt+@                    komorebic move-to-workspace 1
+Alt+#                    komorebic move-to-workspace 2
+Alt+$                    komorebic move-to-workspace 3
+Alt+%                    komorebic move-to-workspace 4
+Alt+^                    komorebic move-to-workspace 5
+Alt+&                    komorebic move-to-workspace 6
+Alt+*                    komorebic move-to-workspace 7
+Alt+(                    komorebic move-to-workspace 8
+50 shortcuts would be written to shortcuts (50 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== sample.whkdrc
+sample.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+Alt+H                    komorebic focus left
+Alt+J                    komorebic focus down
+Alt+K                    komorebic focus up
+Alt+L                    komorebic focus right
+Alt+{                    komorebic cycle-focus previous
+Alt+}                    komorebic cycle-focus next
+Alt+Shift+H              komorebic move left
+Alt+Shift+J              komorebic move down
+Alt+Shift+K              komorebic move up
+Alt+Shift+L              komorebic move right
+Alt+Shift+Return         komorebic promote
+Ctrl+Alt+Left            komorebic stack left
+Ctrl+Alt+Down            komorebic stack down
+Ctrl+Alt+Up              komorebic stack up
+Ctrl+Alt+Right           komorebic stack right
+Alt+;                    komorebic unstack
+Alt+[                    komorebic cycle-stack previous
+Alt+]                    komorebic cycle-stack next
+Alt+:                    komorebic toggle-workspace-layer
+Alt+=                    komorebic resize-axis horizontal increase
+Alt+-                    komorebic resize-axis horizontal decrease
+Alt++                    komorebic resize-axis vertical increase
+Alt+_                    komorebic resize-axis vertical decrease
+Alt+T                    komorebic toggle-float
+Alt+Shift+T              komorebic toggle-workspace-float-override
+Alt+Shift+F              komorebic toggle-monocle
+Alt+Shift+R              komorebic retile
+Alt+P                    komorebic toggle-pause
+Alt+0                    komorebic toggle-window-container-behaviour
+Alt+X                    komorebic flip-layout horizontal
+Alt+Y                    komorebic flip-layout vertical
+Alt+Shift+X              komorebic session-float-rule
+Alt+1                    komorebic focus-workspace 0
+Alt+2                    komorebic focus-workspace 1
+Alt+3                    komorebic focus-workspace 2
+Alt+4                    komorebic focus-workspace 3
+Alt+5                    komorebic focus-workspace 4
+Alt+6                    komorebic focus-workspace 5
+Alt+7                    komorebic focus-workspace 6
+Alt+8                    komorebic focus-workspace 7
+Alt+9                    komorebic focus-workspace 8
+Alt+!                    komorebic move-to-workspace 0
+Alt+@                    komorebic move-to-workspace 1
+Alt+#                    komorebic move-to-workspace 2
+Alt+$                    komorebic move-to-workspace 3
+Alt+%                    komorebic move-to-workspace 4
+Alt+^                    komorebic move-to-workspace 5
+Alt+&                    komorebic move-to-workspace 6
+Alt+*                    komorebic move-to-workspace 7
+Alt+(                    komorebic move-to-workspace 8
+50 shortcuts would be written to shortcuts (50 new, 0 changed, 0 removed), 0 bindings need the engine
+
+== scopes.skhdrc
+scopes.skhdrc: line 2: note: Alt+N goes through the engine: it does something else in each application
+Alt+H                    komorebic focus left
+1 shortcuts would be written to shortcuts (1 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== scopes.whkdrc
+scopes.whkdrc: line 2: note: commands run through `sh -c`, not `pwsh`
+scopes.whkdrc: line 4: note: Alt+N goes through the engine: it does something else in each application
+Alt+H                    komorebic focus left
+1 shortcuts would be written to shortcuts (1 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== vm.skhdrc
+vm.skhdrc: line 4: note: Alt+, goes through the engine: a comma cannot be written in `X-KDE-Shortcuts`
+Alt+J                    touch /tmp/keys-corpus-alt-j
+1 shortcuts would be written to shortcuts (1 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== vm.sxhkdrc
+vm.sxhkdrc: line 5: note: Alt+, goes through the engine: a comma cannot be written in `X-KDE-Shortcuts`
+Alt+J                    touch /tmp/keys-corpus-alt-j
+1 shortcuts would be written to shortcuts (1 new, 0 changed, 0 removed), 1 bindings need the engine
+
+== vm.whkdrc
+vm.whkdrc: line 3: note: commands run through `sh -c`, not `pwsh`
+vm.whkdrc: line 6: note: Alt+, goes through the engine: a comma cannot be written in `X-KDE-Shortcuts`
+Alt+J                    touch /tmp/keys-corpus-alt-j
+1 shortcuts would be written to shortcuts (1 new, 0 changed, 0 removed), 1 bindings need the engine
+

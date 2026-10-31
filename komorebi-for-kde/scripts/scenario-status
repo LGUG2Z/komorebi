@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""Makes the scenario-by-port status table from the logs of runs on KDE and the result files of
+kfw (see nix/tests/vm/lib/komorebi_vm/status.py).
+
+  scripts/scenario-status --kde LOG... [--windows DIR...] [--update docs/dev/BEHAVIOUR.md]
+
+Without --update the table is printed. With it, what is between the two comment markers
+(`<!-- scenario-status:begin -->` and `<!-- scenario-status:end -->`) of the file is replaced.
+"""
+
+import argparse
+import importlib.util
+from pathlib import Path
+
+path = Path(__file__).resolve().parent.parent / "nix/tests/vm/lib/komorebi_vm/status.py"
+spec = importlib.util.spec_from_file_location("status", path)
+assert spec and spec.loader
+status = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(status)
+
+parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+parser.add_argument("--kde", nargs="*", default=[], type=Path, help="logs of runs on KDE")
+parser.add_argument("--windows", nargs="*", default=[], type=Path, help="directories of kfw results")
+parser.add_argument("--update", type=Path, help="the document to put the table in")
+args = parser.parse_args()
+
+found = status.Status()
+# oldest first, so that a scenario two logs have is counted from the newer
+for log in sorted(args.kde, key=lambda path: path.stat().st_mtime):
+    one = status.Status()
+    status.read_kde(one, log.read_text(errors="replace"))
+    status.merge(found, one)
+for directory in args.windows:
+    status.read_windows(found, directory)
+text = status.table(found)
+if args.update:
+    args.update.write_text(status.replace_region(args.update.read_text(), text))
+else:
+    print(text, end="")

@@ -1,0 +1,810 @@
+//! The vocabulary of the window manager: the enums and small structs that configuration,
+//! commands and the layout code are written in.
+//!
+//! The layout types ([`DefaultLayout`], [`Rect`], [`OperationDirection`] and the rest) are
+//! those of `komorebi-layouts`, re-exported here so that the rest of the crate has one place to
+//! import from. [`pathext`] resolves environment variables in configured paths and
+//! [`config_generation`] holds the rules that match applications by what they are called.
+//!
+//! [`SocketMessage`] is every message the daemon takes on its socket, [`StateQuery`] every
+//! question [`SocketMessage::Query`] can ask, and [`SubscribeOptions`] what a subscriber can ask
+//! of its notifications. A message that goes somewhere takes the directions of the layouts: an
+//! [`OperationDirection`] is a side of the focused tile, and a [`CycleDirection`] the next or the
+//! previous container in the order of the workspace.
+
+use crate::animation::AnimationPrefix;
+use crate::core::animation::AnimationStyle;
+use crate::core::pathext::ResolvedPathBuf;
+use clap::ValueEnum;
+use color_eyre::eyre;
+use komorebi_themes::KomorebiTheme;
+use serde::Deserialize;
+use serde::Serialize;
+use std::num::NonZeroUsize;
+use std::path::PathBuf;
+use std::str::FromStr;
+use strum::Display;
+use strum::EnumString;
+
+// Re-export types from komorebi-layouts
+pub use komorebi_layouts::Arrangement;
+pub use komorebi_layouts::Axis;
+pub use komorebi_layouts::CycleDirection;
+pub use komorebi_layouts::DEFAULT_RATIO;
+pub use komorebi_layouts::DEFAULT_SECONDARY_RATIO;
+pub use komorebi_layouts::DefaultLayout;
+pub use komorebi_layouts::Direction;
+pub use komorebi_layouts::GridLayoutOptions;
+pub use komorebi_layouts::Layout;
+pub use komorebi_layouts::LayoutDefaultEntry;
+pub use komorebi_layouts::LayoutOptions;
+pub use komorebi_layouts::MAX_RATIO;
+pub use komorebi_layouts::MAX_RATIOS;
+pub use komorebi_layouts::MIN_RATIO;
+pub use komorebi_layouts::OperationDirection;
+pub use komorebi_layouts::PanDirection;
+pub use komorebi_layouts::Rect;
+pub use komorebi_layouts::ScrollingLayoutOptions;
+pub use komorebi_layouts::Sizing;
+pub use komorebi_layouts::scrolling::ScrollingCentering;
+pub use komorebi_layouts::validate_ratios;
+
+// Keep local modules that aren't in komorebi-layouts
+pub mod animation;
+pub mod asc;
+pub mod config_generation;
+pub mod pathext;
+
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Operation behavior for temporarily unmanaged and floating windows
+pub enum OperationBehaviour {
+    /// Process commands on temporarily unmanaged/floated windows
+    #[default]
+    Op,
+    /// Ignore commands on temporarily unmanaged/floated windows
+    NoOp,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct WindowManagementBehaviour {
+    /// The current WindowContainerBehaviour to be used
+    pub current_behaviour: WindowContainerBehaviour,
+    /// Override of `current_behaviour` to open new windows as floating windows
+    /// that can be later toggled to tiled, when false it will default to
+    /// `current_behaviour` again.
+    pub float_override: bool,
+    /// Determines if a new window should be spawned floating when on the floating layer and the
+    /// floating layer behavior is set to float. This value is always calculated when checking for
+    /// the management behavior on a specific workspace.
+    pub floating_layer_override: bool,
+    /// The floating layer behavior to be used if the float override is being used
+    pub floating_layer_behaviour: FloatingLayerBehaviour,
+    /// The `Placement` to be used when toggling a window to float
+    pub toggle_float_placement: Placement,
+    /// The `Placement` to be used when spawning a window on the floating layer with the
+    /// `FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float`
+    pub floating_layer_placement: Placement,
+    /// The `Placement` to be used when spawning a window with float override active
+    pub float_override_placement: Placement,
+    /// The `Placement` to be used when spawning a window that matches a 'floating_applications' rule
+    pub float_rule_placement: Placement,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window container behavior when a new window is opened
+pub enum WindowContainerBehaviour {
+    /// Create a new container for each new window
+    #[default]
+    Create,
+    /// Append new windows to the focused window container
+    Append,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Floating layer behavior when a new window is opened
+pub enum FloatingLayerBehaviour {
+    /// Tile new windows (unless they match a float rule or float override is active)
+    #[default]
+    Tile,
+    /// Float new windows
+    Float,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window hiding position
+pub enum WindowHidingPosition {
+    /// Hide windows in the bottom left corner of the screen
+    #[default]
+    BottomLeft,
+    /// Hide windows in the bottom right corner of the screen
+    BottomRight,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Placement behavior for floating windows
+pub enum Placement {
+    /// Does not change the size or position of the window
+    #[default]
+    None,
+    /// Center the window without changing the size
+    Center,
+    /// Center the window and resize it according to the `AspectRatio`
+    CenterAndResize,
+}
+
+impl FloatingLayerBehaviour {
+    pub fn should_float(&self) -> bool {
+        match self {
+            FloatingLayerBehaviour::Tile => false,
+            FloatingLayerBehaviour::Float => true,
+        }
+    }
+}
+
+impl Placement {
+    pub fn should_center(&self) -> bool {
+        match self {
+            Placement::None => false,
+            Placement::Center | Placement::CenterAndResize => true,
+        }
+    }
+
+    pub fn should_resize(&self) -> bool {
+        match self {
+            Placement::None | Placement::Center => false,
+            Placement::CenterAndResize => true,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Focus follows mouse implementation
+///
+/// The two exist on Windows. On KDE the compositor does it, so both ask KWin for its
+/// "focus follows mouse" focus policy.
+pub enum FocusFollowsMouseImplementation {
+    /// Custom FFM implementation (slightly more CPU-intensive)
+    Komorebi,
+    /// Native (legacy) Windows FFM implementation
+    Windows,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    PartialEq,
+    Eq,
+    Hash,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Placement strategy for new windows in a workspace
+pub enum WindowPlacement {
+    /// Place the new window at the primary (largest) container position
+    Primary,
+    /// Place the new window at the secondary container position
+    Secondary,
+    /// Place the new window before the currently focused container
+    BeforeFocused,
+    /// Place the new window after the currently focused container (default behavior)
+    #[default]
+    AfterFocused,
+    /// Place the new window at the end of the container list
+    Last,
+}
+
+/// A target position for window placement, used as a key in `InitialWindowPlacementRules::Rules`.
+///
+/// Can be either a `WindowPlacement` variant name (e.g. `"Primary"`, `"Last"`)
+/// or a 1-based container index (e.g. `"1"`, `"3"`).
+///
+/// NOTE: Integer indices are 1-based in the config for user-friendliness.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum PlacementTarget {
+    /// A named placement strategy
+    Placement(WindowPlacement),
+    /// A 1-based container index
+    Index(usize),
+}
+
+impl std::fmt::Display for PlacementTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PlacementTarget::Placement(p) => write!(f, "{p}"),
+            PlacementTarget::Index(i) => write!(f, "{i}"),
+        }
+    }
+}
+
+impl std::str::FromStr for PlacementTarget {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Try parsing as a WindowPlacement variant first
+        if let Ok(placement) = <WindowPlacement as std::str::FromStr>::from_str(s) {
+            return Ok(PlacementTarget::Placement(placement));
+        }
+        // Then try parsing as a 1-based index
+        if let Ok(idx) = s.parse::<usize>() {
+            return Ok(PlacementTarget::Index(idx));
+        }
+        Err(format!(
+            "'{s}' is not a valid WindowPlacement variant or integer"
+        ))
+    }
+}
+
+impl PartialOrd for PlacementTarget {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PlacementTarget {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.to_string().cmp(&other.to_string())
+    }
+}
+
+impl Serialize for PlacementTarget {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for PlacementTarget {
+    /// A name or a number: `"Primary"`, `"3"` and `3` (the documentation of the setting shows a
+    /// number, and a JSON object's keys can only be text)
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Raw {
+            Text(String),
+            Number(usize),
+        }
+
+        match Raw::deserialize(deserializer)? {
+            Raw::Text(text) => text.parse().map_err(serde::de::Error::custom),
+            Raw::Number(index) => Ok(PlacementTarget::Index(index)),
+        }
+    }
+}
+
+/// The schema is written by hand, since the one `schemars` derives for the enum (an object with a
+/// `Placement` or an `Index` key) is not what [`Serialize`] and [`Deserialize`] read and write: a
+/// name, a number, or text that is a number.
+#[cfg(feature = "schemars")]
+impl schemars::JsonSchema for PlacementTarget {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("PlacementTarget")
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "description": "A place in the list of containers: the name of a placement strategy, or a 1-based container index, as a number or as text (`3` and `\"3\"` are the same place; the keys of a JSON object can only be text).",
+            "anyOf": [
+                generator.subschema_for::<WindowPlacement>(),
+                {
+                    "description": "A 1-based container index",
+                    "type": "integer",
+                    "format": "uint",
+                    "minimum": 0
+                },
+                {
+                    "description": "A 1-based container index, as text",
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                }
+            ]
+        })
+    }
+}
+
+/// Configuration for initial window placement rules on a workspace.
+///
+/// This can be specified in two forms in the JSON config:
+/// - A placement target (string or integer) — applies the same placement to all windows.
+///   Strings are `WindowPlacement` variant names (e.g. `"Primary"`, `"AfterFocused"`),
+///   integers are 1-based container indices.
+/// - A map of placement targets to matching rules — keys can be `WindowPlacement` variant names
+///   (e.g. `"Primary"`, `"Secondary"`) or 1-based container indices (e.g. `"1"`, `"3"`).
+///   Rules are evaluated in key order; the first matching rule determines placement.
+///
+/// NOTE: Container indices in the config are 1-based for user-friendliness.
+/// They are converted to 0-based internally during resolution.
+///
+/// NOTE: This feature currently only applies when `WindowContainerBehaviour::Create` is active.
+/// Future versions may support toggling this for `Append` mode as well.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum InitialWindowPlacementRules {
+    /// A single placement target applied to all new windows (string or integer in config)
+    Target(PlacementTarget),
+    /// A map of placement targets to matching rules.
+    /// Keys can be `WindowPlacement` variant names (e.g. `"Primary"`) or 1-based container indices (e.g. `"1"`).
+    /// Values can be:
+    /// - A single `IdWithIdentifier` object (simple rule)
+    /// - An array containing objects and/or arrays:
+    ///   - Each object in the array is an independent simple rule (OR logic between entries)
+    ///   - Each inner array is a composite rule where all conditions must match (AND logic)
+    ///   - The outer array entries are evaluated with OR logic
+    ///
+    /// Rules are evaluated in key order; the first matching rule determines placement.
+    Rules(std::collections::BTreeMap<PlacementTarget, PlacementMatchingRules>),
+}
+
+/// Matching rules for a placement target.
+///
+/// Can be specified in JSON as:
+/// - A single `IdWithIdentifier` object — one simple rule
+/// - An array of `MatchingRule`s — multiple rules with OR logic between them
+///   (each element can be a simple rule object or a composite rule array with AND logic)
+///
+/// Examples:
+/// ```json
+/// // Single rule
+/// { "kind": "Exe", "id": "chrome.exe", "matching_strategy": "Equals" }
+///
+/// // Multiple rules (OR): chrome OR teams
+/// [
+///   { "kind": "Exe", "id": "chrome.exe", "matching_strategy": "Equals" },
+///   { "kind": "Title", "id": "Microsoft Teams", "matching_strategy": "Equals" }
+/// ]
+///
+/// // Mixed: chrome OR (code.exe AND title contains "workspace")
+/// [
+///   { "kind": "Exe", "id": "chrome.exe", "matching_strategy": "Equals" },
+///   [
+///     { "kind": "Exe", "id": "code.exe", "matching_strategy": "Equals" },
+///     { "kind": "Title", "id": "workspace", "matching_strategy": "Contains" }
+///   ]
+/// ]
+/// ```
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum PlacementMatchingRules {
+    /// A single simple matching rule
+    Single(config_generation::IdWithIdentifier),
+    /// Multiple matching rules evaluated with OR logic.
+    /// Each entry is a `MatchingRule`: either a simple rule (object) or composite rule (array, AND logic).
+    Many(Vec<config_generation::MatchingRule>),
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Move behavior when the operation works across a monitor boundary
+pub enum MoveBehaviour {
+    /// Swap the window container with the window container at the edge of the adjacent monitor
+    #[default]
+    Swap,
+    /// Insert the window container into the focused workspace on the adjacent monitor
+    Insert,
+    /// Do nothing if trying to move a window container in the direction of an adjacent monitor
+    NoOp,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Behavior when an action would cross a monitor boundary
+pub enum CrossBoundaryBehaviour {
+    /// Attempt to perform actions across a workspace boundary
+    Workspace,
+    /// Attempt to perform actions across a monitor boundary
+    #[default]
+    Monitor,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Behavior when focusing in a direction while a monocle container is active
+pub enum MonocleFocusBehaviour {
+    /// Cycle the monocle container to the next/previous container in the workspace
+    Cycle,
+    /// Do nothing, allowing focus to fall through to cross-monitor logic
+    #[default]
+    NoOp,
+}
+
+#[derive(
+    Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Application identifier
+pub enum ApplicationIdentifier {
+    /// Executable name
+    #[serde(alias = "exe")]
+    Exe,
+    /// Role or subrole
+    #[serde(alias = "class")]
+    Class,
+    /// Window title
+    #[serde(alias = "title")]
+    Title,
+    /// Executable path
+    #[serde(alias = "path")]
+    Path,
+}
+
+/// What a window is to the layout, which decides the color of its border
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    PartialEq,
+    Eq,
+    Hash,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum WindowKind {
+    Single,
+    Stack,
+    Monocle,
+    #[default]
+    Unfocused,
+    UnfocusedLocked,
+    Floating,
+}
+
+/// A question about the window manager that [`SocketMessage::Query`] asks, answered with one
+/// value as text: an index, the name of a layout or of a container kind, or the version of the
+/// daemon.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum StateQuery {
+    FocusedMonitorIndex,
+    FocusedWorkspaceIndex,
+    FocusedContainerIndex,
+    FocusedWindowIndex,
+    FocusedWorkspaceName,
+    FocusedWorkspaceLayout,
+    FocusedContainerKind,
+    Version,
+}
+
+/// The options of a subscriber, which [`SocketMessage::AddSubscriberSocketWithOptions`] sets
+///
+/// A subscriber added with [`SocketMessage::AddSubscriberSocket`] has the default options, and is
+/// sent a notification for every event and message the window manager handles. With
+/// `filter_state_changes`, it is sent one only when the event or the message changed the
+/// [`State`](crate::state::State), and always when a window is shown, when a subscriber is added
+/// (so a new subscriber receives the state as soon as it subscribes), when a theme is set (the
+/// colors of the borders are not part of the state) and when the configuration is reloaded.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi::core::SocketMessage;
+/// use komorebi::core::SubscribeOptions;
+///
+/// let options = SubscribeOptions {
+///     filter_state_changes: true,
+/// };
+/// let message = SocketMessage::AddSubscriberSocketWithOptions(String::from("bar.sock"), options);
+/// assert_eq!(
+///     String::from_utf8(message.as_bytes()?)?,
+///     r#"{"type":"AddSubscriberSocketWithOptions","content":["bar.sock",{"filter_state_changes":true}]}"#,
+/// );
+///
+/// assert!(!SubscribeOptions::default().filter_state_changes);
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct SubscribeOptions {
+    /// Only emit notifications when the window manager state has changed
+    pub filter_state_changes: bool,
+}
+
+/// A message to the daemon, as it is written on its socket: JSON, with the variant's name in
+/// `type` and its arguments, if it has any, in `content`.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi::core::SocketMessage;
+/// use komorebi::core::StateQuery;
+///
+/// let query = SocketMessage::Query(StateQuery::FocusedWorkspaceIndex);
+/// assert_eq!(
+///     String::from_utf8(query.as_bytes()?)?,
+///     r#"{"type":"Query","content":"FocusedWorkspaceIndex"}"#,
+/// );
+///
+/// let stop: SocketMessage = r#"{"type":"Stop"}"#.parse()?;
+/// assert!(matches!(stop, SocketMessage::Stop));
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+// serde_as must be before derive
+#[serde_with::serde_as]
+#[derive(Clone, Debug, Serialize, Deserialize, Display)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(tag = "type", content = "content")]
+pub enum SocketMessage {
+    // Window / Container Commands
+    FocusWindow(OperationDirection),
+    MoveWindow(OperationDirection),
+    PreselectDirection(OperationDirection),
+    CancelPreselect,
+    CycleFocusWindow(CycleDirection),
+    CycleMoveWindow(CycleDirection),
+    StackWindow(OperationDirection),
+    UnstackWindow,
+    CycleStack(CycleDirection),
+    CycleStackIndex(CycleDirection),
+    FocusStackWindow(usize),
+    StackAll,
+    UnstackAll,
+    ResizeWindowEdge(OperationDirection, Sizing),
+    ResizeWindowAxis(Axis, Sizing),
+    MoveContainerToLastWorkspace,
+    SendContainerToLastWorkspace,
+    MoveContainerToMonitorNumber(usize),
+    CycleMoveContainerToMonitor(CycleDirection),
+    MoveContainerToWorkspaceNumber(usize),
+    MoveContainerToNamedWorkspace(String),
+    CycleMoveContainerToWorkspace(CycleDirection),
+    SendContainerToMonitorNumber(usize),
+    CycleSendContainerToMonitor(CycleDirection),
+    SendContainerToWorkspaceNumber(usize),
+    CycleSendContainerToWorkspace(CycleDirection),
+    SendContainerToMonitorWorkspaceNumber(usize, usize),
+    MoveContainerToMonitorWorkspaceNumber(usize, usize),
+    SendContainerToNamedWorkspace(String),
+    CycleMoveWorkspaceToMonitor(CycleDirection),
+    MoveWorkspaceToMonitorNumber(usize),
+    SwapWorkspacesToMonitorNumber(usize),
+    // ForceFocus,
+    Close,
+    Minimize,
+    Promote,
+    PromoteSwap,
+    PromoteFocus,
+    PromoteWindow(OperationDirection),
+    EagerFocus(String),
+    LockMonitorWorkspaceContainer(usize, usize, usize),
+    UnlockMonitorWorkspaceContainer(usize, usize, usize),
+    ToggleLock,
+    ToggleFloat,
+    ToggleMonocle,
+    ToggleMaximize,
+    // ToggleMaximize,
+    ToggleWindowContainerBehaviour,
+    ToggleFloatOverride,
+    ToggleCrossMonitorMoveBehaviour,
+    CrossMonitorMoveBehaviour(MoveBehaviour),
+    ToggleMonocleFocusBehaviour,
+    MonocleFocusBehaviour(MonocleFocusBehaviour),
+    UnmanagedWindowOperationBehaviour(OperationBehaviour),
+    // Current Workspace Commands
+    ManageFocusedWindow,
+    UnmanageFocusedWindow,
+    AdjustContainerPadding(Sizing, i32),
+    AdjustWorkspacePadding(Sizing, i32),
+    ChangeLayout(DefaultLayout),
+    CycleLayout(CycleDirection),
+    ScrollingLayoutColumns(NonZeroUsize),
+    ScrollingLayoutFullWidth,
+    CenterFocus,
+    Expand,
+    Consume(OperationDirection),
+    Expel,
+    ToggleColumnStack,
+    Pan(PanDirection),
+    LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
+    // ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    FlipLayout(Axis),
+    ToggleWorkspaceWindowContainerBehaviour,
+    ToggleWorkspaceFloatOverride,
+    // Monitor and Workspace Commands
+    // MonitorIndexPreference(usize, i32, i32, i32, i32),
+    DisplayIndexPreference(usize, String),
+    EnsureWorkspaces(usize, usize),
+    EnsureNamedWorkspaces(usize, Vec<String>),
+    NewWorkspace,
+    ToggleTiling,
+    Stop,
+    StopIgnoreRestore,
+    TogglePause,
+    Retile,
+    RetileWithResizeDimensions,
+    QuickSave,
+    QuickLoad,
+    Save(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    Load(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    CycleFocusMonitor(CycleDirection),
+    CycleFocusWorkspace(CycleDirection),
+    CycleFocusEmptyWorkspace(CycleDirection),
+    FocusMonitorNumber(usize),
+    FocusMonitorAtCursor,
+    FocusLastWorkspace,
+    CloseWorkspace,
+    FocusWorkspaceNumber(usize),
+    FocusWorkspaceNumbers(usize),
+    FocusMonitorWorkspaceNumber(usize, usize),
+    FocusNamedWorkspace(String),
+    ContainerPadding(usize, usize, i32),
+    NamedWorkspaceContainerPadding(String, i32),
+    FocusedWorkspaceContainerPadding(i32),
+    WorkspacePadding(usize, usize, i32),
+    NamedWorkspacePadding(String, i32),
+    FocusedWorkspacePadding(i32),
+    WorkspaceTiling(usize, usize, bool),
+    NamedWorkspaceTiling(String, bool),
+    WorkspaceName(usize, usize, String),
+    WorkspaceLayout(usize, usize, DefaultLayout),
+    NamedWorkspaceLayout(String, DefaultLayout),
+    // WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    // NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
+    NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
+    // WorkspaceLayoutCustomRule(
+    //     usize,
+    //     usize,
+    //     usize,
+    //     #[serde_as(as = "ResolvedPathBuf")] PathBuf,
+    // ),
+    // NamedWorkspaceLayoutCustomRule(String, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    ClearWorkspaceLayoutRules(usize, usize),
+    ClearNamedWorkspaceLayoutRules(String),
+    ToggleWorkspaceLayer,
+    // Configuration
+    // ReloadConfiguration,
+    ReplaceConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    // WatchConfiguration(bool),
+    // CompleteConfiguration,
+    // AltFocusHack(bool),
+    Theme(Box<KomorebiTheme>),
+    Transparency(bool),
+    ToggleTransparency,
+    TransparencyAlpha(u8),
+    Animation(bool, Option<AnimationPrefix>),
+    AnimationDuration(u64, Option<AnimationPrefix>),
+    AnimationFps(u64),
+    AnimationStyle(AnimationStyle, Option<AnimationPrefix>),
+    #[serde(alias = "ActiveWindowBorder")]
+    Border(bool),
+    #[serde(alias = "ActiveWindowBorderColour")]
+    BorderColour(WindowKind, u32, u32, u32),
+    // #[serde(alias = "ActiveWindowBorderStyle")]
+    // BorderStyle(BorderStyle),
+    BorderWidth(i32),
+    BorderOffset(i32),
+    // BorderImplementation(BorderImplementation),
+    // InvisibleBorders(Rect),
+    WorkAreaOffset(Rect),
+    MonitorWorkAreaOffset(usize, Rect),
+    WorkspaceWorkAreaOffset(usize, usize, Rect),
+    ToggleWindowBasedWorkAreaOffset,
+    ResizeDelta(i32),
+    InitialWorkspaceRule(ApplicationIdentifier, String, usize, usize),
+    InitialNamedWorkspaceRule(ApplicationIdentifier, String, String),
+    WorkspaceRule(ApplicationIdentifier, String, usize, usize),
+    NamedWorkspaceRule(ApplicationIdentifier, String, String),
+    ClearWorkspaceRules(usize, usize),
+    ClearNamedWorkspaceRules(String),
+    ClearAllWorkspaceRules,
+    EnforceWorkspaceRules,
+    SessionFloatRule,
+    SessionFloatRules,
+    ClearSessionFloatRules,
+    #[serde(alias = "FloatRule")]
+    IgnoreRule(ApplicationIdentifier, String),
+    ManageRule(ApplicationIdentifier, String),
+    // IdentifyObjectNameChangeApplication(ApplicationIdentifier, String),
+    // IdentifyTrayApplication(ApplicationIdentifier, String),
+    // IdentifyLayeredApplication(ApplicationIdentifier, String),
+    // IdentifyBorderOverflowApplication(ApplicationIdentifier, String),
+    State,
+    GlobalState,
+    VisibleWindows,
+    MonitorInformation,
+    Query(StateQuery),
+    FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
+    ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
+    // FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
+    // ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
+    MouseFollowsFocus(bool),
+    ToggleMouseFollowsFocus,
+    // RemoveTitleBar(ApplicationIdentifier, String),
+    // ToggleTitleBars,
+    AddSubscriberSocket(String),
+    AddSubscriberSocketWithOptions(String, SubscribeOptions),
+    RemoveSubscriberSocket(String),
+    // AddSubscriberPipe(String),
+    // RemoveSubscriberPipe(String),
+    ApplicationSpecificConfigurationSchema,
+    NotificationSchema,
+    SocketSchema,
+    StaticConfigSchema,
+    GenerateStaticConfig,
+    DebugWindow(u32),
+    ReloadHotkeys,
+    HotkeysState,
+}
+
+impl SocketMessage {
+    /// Returns the message as JSON, the way the daemon reads it from its socket
+    pub fn as_bytes(&self) -> eyre::Result<Vec<u8>> {
+        Ok(serde_json::to_string(self)?.as_bytes().to_vec())
+    }
+}
+
+impl FromStr for SocketMessage {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn placement_target_accepts_a_number_or_a_string() {
+        let parse = |json: &str| serde_json::from_str::<InitialWindowPlacementRules>(json);
+
+        let index = InitialWindowPlacementRules::Target(PlacementTarget::Index(2));
+        assert_eq!(parse("2").unwrap(), index);
+        assert_eq!(parse(r#""2""#).unwrap(), index);
+        assert_eq!(
+            parse(r#""Primary""#).unwrap(),
+            InitialWindowPlacementRules::Target(PlacementTarget::Placement(
+                WindowPlacement::Primary
+            ))
+        );
+
+        assert!(parse("-1").is_err());
+        assert!(parse("1.5").is_err());
+        assert!(parse("true").is_err());
+
+        // the keys of the map form are always strings
+        let Ok(InitialWindowPlacementRules::Rules(rules)) =
+            parse(r#"{"2": {"kind": "Exe", "id": "a.exe"}, "Primary": []}"#)
+        else {
+            panic!("expected the map form");
+        };
+        assert!(rules.contains_key(&PlacementTarget::Index(2)));
+        assert!(rules.contains_key(&PlacementTarget::Placement(WindowPlacement::Primary)));
+    }
+}

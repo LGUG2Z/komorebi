@@ -1,0 +1,11 @@
+# plain bindings: modifiers, a key and a command
+alt + h
+    komorebic focus left
+alt + j
+    komorebic focus down
+alt + k
+    komorebic focus up
+alt + l
+    komorebic focus right
+alt + q
+    komorebic close

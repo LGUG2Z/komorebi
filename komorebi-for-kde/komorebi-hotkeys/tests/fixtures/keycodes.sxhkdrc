@@ -1,0 +1,13 @@
+# keys that skhd can only name by their macOS keycode, a position on a US keyboard
+alt + bracketleft
+    komorebic cycle-stack previous
+alt + bracketright
+    komorebic cycle-stack next
+alt + semicolon
+    komorebic unstack
+alt + equal
+    komorebic resize-axis horizontal increase
+alt + minus
+    komorebic resize-axis horizontal decrease
+alt + shift + bracketleft
+    komorebic cycle-focus previous

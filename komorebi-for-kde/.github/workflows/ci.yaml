@@ -1,0 +1,353 @@
+# Every job is gated on the repository, so that a fork does not run them on its own runners.
+
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - "*"
+  push:
+    branches:
+      - master
+      - feature/*
+      - hotfix/*
+    tags:
+      - v*
+  schedule:
+    - cron: "30 0 * * 0" # Every Sunday at 00:30 UTC
+  workflow_dispatch:
+
+jobs:
+  cargo-deny:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  # Everything that does not need a virtual machine: the formatting, clippy, rustdoc, the tests and
+  # the VM library's own tests, as derivations. The jobs that boot KWin are separate, and `nix flake
+  # check` is not used here because on Linux it would run those suites with no KVM. Built all at
+  # once on one runner they ran it out of resources (it was shut down about six minutes in, twice),
+  # so they are split into shards: a check that matches no shard but the last is built there, and so
+  # a new check needs no edit here.
+  checks:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: rust
+            pattern: "^komorebi-workspace-"
+          - shard: guests
+            pattern: "^(run-kde|wsl2-probe|plasma-guests|nixos-module|nix-options)"
+          - shard: rest
+            pattern: ""
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/nix
+      - name: Build the ${{ matrix.shard }} checks
+        env:
+          PATTERN: ${{ matrix.pattern }}
+        run: |
+          # the last shard takes whatever the others do not, and the library's own tests
+          rust='^komorebi-workspace-'
+          guests='^(run-kde|wsl2-probe|plasma-guests|nixos-module|nix-options)'
+          nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
+            jq -r --arg p "$PATTERN" --arg rust "$rust" --arg guests "$guests" '
+              [.[] | select(startswith("vm-") | not)] + ["vm-lib"]
+              | .[] | select(if $p == "" then (test($rust) or test($guests) | not) else test($p) end)' |
+            sed 's|^|.#checks.x86_64-linux.|' |
+            xargs --no-run-if-empty nix build -L --no-link
+
+  lint:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/nix
+      - run: nix develop --command just lint
+
+  # The suites are found in the flake, so that a new directory under nix/tests/vm/suites is run
+  # without an edit here.
+  discover:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    outputs:
+      fast: ${{ steps.tiers.outputs.fast }}
+      slow: ${{ steps.tiers.outputs.slow }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+      - id: tiers
+        run: |
+          tiers=$(nix eval --json .#legacyPackages.x86_64-linux.vmTiers)
+          echo "fast=$(jq -c '.fast // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
+          echo "slow=$(jq -c '.slow // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
+
+  # The pull request gate: the suites that take minutes, each in its own machine, in a sandboxed
+  # `nix build` like any other check.
+  vm-fast:
+    needs: discover
+    if: github.repository == 'LGUG2Z/komorebi-for-kde' && needs.discover.outputs.fast != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJson(needs.discover.outputs.fast) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+      - run: nix build -L .#checks.x86_64-linux.vm-${{ matrix.suite }}
+
+  # The suites that draw and move a pointer. They run on master, every week, and on a pull
+  # request with the label `ci:vm-slow`. The driver is run by hand, outside the sandbox, so that
+  # the screenshots and the journals of a failed run can be uploaded.
+  vm-slow:
+    needs: discover
+    if: >-
+      github.repository == 'LGUG2Z/komorebi-for-kde' && needs.discover.outputs.slow != '[]' &&
+      (github.ref == 'refs/heads/master' || github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:vm-slow'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJson(needs.discover.outputs.slow) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+      - run: nix build -L .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}.driver -o driver
+      - run: mkdir -p out && cd out && ../driver/bin/nixos-test-driver -o .
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vm-${{ matrix.suite }}-${{ github.sha }}
+          path: out/
+          retention-days: 7
+
+  # The flake follows the tip of nixpkgs-unstable, so KWin and Plasma change under it whenever
+  # flake.lock moves. Every week, and on a manual run, this job moves nixpkgs to the tip in a copy
+  # of the checkout and builds every check against it, the VM suites of both tiers included, one
+  # after the other on one machine, so that komorebi and the guests are built once. When a check
+  # fails, it opens an issue, or comments on the one that is open. Nothing is pushed: the new lock
+  # exists only in the copy.
+  canary:
+    if: >-
+      github.repository == 'LGUG2Z/komorebi-for-kde' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+          cache: "false"
+      - name: Move nixpkgs to the tip in a copy of the checkout
+        run: |
+          cp -a . "$RUNNER_TEMP/canary"
+          cd "$RUNNER_TEMP/canary"
+          locked=$(nix eval --raw --inputs-from . nixpkgs#kdePackages.kwin.version)
+          nix flake update nixpkgs
+          rev=$(jq -r .nodes.nixpkgs.locked.rev flake.lock)
+          echo "NIXPKGS_REV=$rev" >>"$GITHUB_ENV"
+          tip=$(nix eval --raw --inputs-from . nixpkgs#kdePackages.kwin.version)
+          echo "KWIN=$tip (flake.lock has $locked)" >>"$GITHUB_ENV"
+      - id: build
+        name: Build every check against it
+        working-directory: ${{ runner.temp }}/canary
+        run: |
+          failed="$RUNNER_TEMP/canary-failed"
+          : >"$failed"
+          # the checks that need no virtual machine, as the checks job lists them, then the suites
+          # of both tiers, as the discover job lists them
+          checks=$(nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
+            jq -r '(.[] | select(startswith("vm-") | not)), "vm-lib"')
+          suites=$(nix eval --json .#legacyPackages.x86_64-linux.vmTiers |
+            jq -r '(.fast // []) + (.slow // []) | .[] | "vm-" + .')
+          for check in $checks $suites; do
+            echo "::group::$check"
+            nix build -L --no-link ".#checks.x86_64-linux.$check" || echo "$check" >>"$failed"
+            echo "::endgroup::"
+          done
+          test ! -s "$failed"
+      - name: Report
+        if: always()
+        env:
+          BUILD: ${{ steps.build.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          failed="$RUNNER_TEMP/canary-failed"
+          {
+            echo "- commit: $GITHUB_SHA"
+            if [ -n "${NIXPKGS_REV:-}" ]; then
+              echo "- nixpkgs-unstable:" \
+                "[\`${NIXPKGS_REV:0:12}\`](https://github.com/NixOS/nixpkgs/commit/$NIXPKGS_REV)${KWIN:+, with KWin $KWIN}"
+            else
+              echo "- nixpkgs-unstable: the update of flake.lock failed"
+            fi
+            echo
+            if [ -s "$failed" ]; then
+              echo "These failed:"
+              echo
+              while read -r check; do echo "- \`$check\`"; done <"$failed"
+            elif [ "$BUILD" = success ]; then
+              echo "Every check passed."
+            else
+              echo "The job failed before it could build the checks."
+            fi
+            echo
+            echo "The logs are in [the run]($RUN_URL)."
+          } >"$RUNNER_TEMP/canary.md"
+          cat "$RUNNER_TEMP/canary.md" >>"$GITHUB_STEP_SUMMARY"
+      - name: Open or update the canary issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Canary: a check fails against the tip of nixpkgs-unstable"
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 1000 \
+            --json number,title |
+            jq -r --arg title "$title" 'map(select(.title == $title)) | first | .number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/canary.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --body-file "$RUNNER_TEMP/canary.md"
+          fi
+
+  # komorebi and komorebic for each architecture, kept for 14 days, and what the publish job
+  # releases. nix points a binary at the dynamic loader and the libraries of its store, which only a
+  # machine with those store paths has, so each binary is pointed at the system's loader instead,
+  # at the path every glibc system has it, and run on this Ubuntu runner to show that it works.
+  # The arm64 job may fail without failing the run.
+  build:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runs-on: ubuntu-24.04
+            loader: /lib64/ld-linux-x86-64.so.2
+            optional: false
+          - target: aarch64-unknown-linux-gnu
+            runs-on: ubuntu-24.04-arm
+            loader: /lib/ld-linux-aarch64.so.1
+            optional: true
+    runs-on: ${{ matrix.runs-on }}
+    continue-on-error: ${{ matrix.optional }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+      - name: Build komorebi and komorebic
+        env:
+          LOADER: ${{ matrix.loader }}
+        run: |
+          mkdir bin
+          for name in komorebi komorebic; do
+            cp "$(nix build -L --no-link --print-out-paths ".#$name")/bin/$name" bin/
+          done
+          chmod u+w bin/*
+          nix run --inputs-from . nixpkgs#patchelf -- --set-interpreter "$LOADER" --remove-rpath bin/*
+          echo "the newest glibc symbol version they need:" \
+            "$(objdump -T bin/* | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -n 1)"
+          bin/komorebi --version
+          bin/komorebic --version
+      - uses: actions/upload-artifact@v7
+        with:
+          name: komorebi-${{ matrix.target }}-${{ github.sha }}
+          path: bin/
+          retention-days: 14
+
+  # A push of a `v*` tag makes a release of what the build job made, and a scheduled or manual run
+  # on master replaces the rolling `nightly` prerelease, once the lint and the fast VM tier have
+  # passed. The release notes are the commit messages since the previous version tag, by kokai.
+  publish:
+    needs: [lint, checks, vm-fast, build]
+    if: >-
+      github.repository == 'LGUG2Z/komorebi-for-kde' && (startsWith(github.ref, 'refs/tags/v') ||
+      (github.ref == 'refs/heads/master' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Decide what is published
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "TAG=$GITHUB_REF_NAME" >>"$GITHUB_ENV"
+            echo "VERSION=${GITHUB_REF_NAME#v}" >>"$GITHUB_ENV"
+          else
+            echo "TAG=nightly" >>"$GITHUB_ENV"
+            echo "VERSION=nightly" >>"$GITHUB_ENV"
+          fi
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: komorebi-*-${{ github.sha }}
+          path: artifacts
+      - name: Package
+        run: |
+          mkdir dist
+          for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
+            build="artifacts/komorebi-$target-$GITHUB_SHA"
+            if [ ! -d "$build" ]; then
+              echo "::warning::there is no build for $target, so it is not published"
+              continue
+            fi
+            # an artifact does not keep the executable bit
+            chmod +x "$build/komorebi" "$build/komorebic"
+            zip -j "dist/komorebi-$VERSION-$target.zip" "$build/komorebi" "$build/komorebic"
+          done
+      - name: Add the schema of komorebi.json
+        if: hashFiles('schema.json') != ''
+        run: cp schema.json dist/
+      - name: Write the checksums
+        working-directory: dist
+        run: sha256sum -- * >checksums.txt
+      - name: Write the release notes
+        run: |
+          cargo install --locked kokai@0.3.1
+          # kokai lists the commits between the tag before the one it is given and that one. The
+          # nightly tag of the last run moves to this commit, so that the range starts at the
+          # last version.
+          if [ "$TAG" = nightly ]; then git tag --force nightly; fi
+          kokai release --no-emoji --add-links github:commits,issues --ref "$TAG" \
+            >"$RUNNER_TEMP/release-notes.md"
+      - name: Publish
+        run: |
+          if [ "$TAG" = nightly ]; then
+            gh release delete nightly --cleanup-tag --yes || true
+            gh release create nightly --target "$GITHUB_SHA" --prerelease \
+              --title "komorebi for KDE nightly ($GITHUB_SHA)" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" dist/*
+          else
+            gh release create "$TAG" --verify-tag --title "komorebi for KDE $TAG" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" dist/*
+          fi

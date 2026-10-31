@@ -1,0 +1,5 @@
+# what sxhkd writes with braces, one line each
+alt + {h,j,k,l}
+    komorebic focus {left,down,up,right}
+alt + {_,shift + }{1-3}
+    komorebic {focus,move-to}-workspace {0-2}

@@ -1,0 +1,10 @@
+[package]
+name = "version"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+shadow-rs = { workspace = true }
+
+[build-dependencies]
+shadow-rs = { workspace = true }

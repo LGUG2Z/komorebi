@@ -1,0 +1,25 @@
+# komorebi tracks the tip of nixpkgs-unstable, so the lock moves every week. The pull request runs
+# the same jobs as any other, which is what says whether the new KWin still works.
+
+name: update-flake-lock
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Every Monday at 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - uses: DeterminateSystems/update-flake-lock@v29
+        with:
+          commit-msg: "chore(deps): flake.lock: Update"
+          pr-title: "chore(deps): flake.lock: Update"
+          pr-assignees: LGUG2Z

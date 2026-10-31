@@ -1,0 +1,710 @@
+#!/usr/bin/env bash
+# run-kde: start the komorebi demo guest (nix/dev/run-kde.nix) in a virtual machine, so that anyone
+# can try tiling by hand. docs/trying-it.md is the guide, docs/dev/utm.md says what the guest takes
+# from its runner; this is the program.
+#
+#   nix run .#run-kde -- [options]      or      just run-kde [options]
+#
+# The flake wraps this file with the guest's runner baked in (RUN_KDE_RUNNER_BIN, RUN_KDE_GUEST) and
+# the tools it needs on its PATH. Everything it reads from the machine it reads through a variable
+# that a test can set (RUN_KDE_*, below), so that `--dry-run` gives the same answer on a machine
+# that has none of it: the check `run-kde-dry-run` runs it in a sandbox.
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: run-kde [options]
+
+Starts a NixOS guest with a Plasma session in which komorebi tiles a few windows, and shows it in
+a window (QEMU through WSLg, where there is one) or over RDP. The first run builds komorebi from
+source and downloads Plasma: there is no binary cache.
+
+  --doctor            check every prerequisite and say how to fix what is missing; exit 1 if
+                      one is, and always when there is no KVM
+  --dry-run           print what would be started, and start nothing
+  --build-only        build the guest and stop
+  --reset             delete the state directory (the disk, the password and the key) and stop
+  --shell             no window: this terminal is the guest's console (--display none --gpu off)
+  --rdp               on WSL 2, open Windows' own RDP client (mstsc) when the guest is up
+  --display KIND      gtk, vnc, rdp or none (default: gtk where there is a window, else rdp)
+  --gpu MODE          auto, on or off (default: auto): on renders in the guest with the host's GPU
+                      (virtio-vga-gl); off renders on the guest's CPUs (virtio-vga)
+  --tcg               allow software emulation when there is no KVM (too slow to try anything)
+  --memory MB         the guest's memory (default: what this machine has, 4096 to 8192)
+  --cores N           the guest's cores (default: what this machine has, up to 6)
+  --size GB           the size of the guest's disk when it is made (default: 20, sparse)
+  --resolution WxH    the size of the guest's screen (default: 1280x800)
+  --ssh-port PORT     the host's port for ssh into the guest (default: 2223)
+  --rdp-port PORT     the host's port for RDP into the guest (default: 3389)
+  -h, --help          this text
+
+The repository the guest mounts at /repo is the current checkout, or KOMOREBI_REPO.
+EOF
+}
+
+# what the flake bakes in, and a guess for a run of the file by hand
+guest=${RUN_KDE_GUEST:-run-kde-$(uname -m)}
+runner_bin=${RUN_KDE_RUNNER_BIN:-}
+
+# what this machine says about itself: each can be set by a test
+kvm_device=${RUN_KDE_KVM_DEVICE:-/dev/kvm}
+fuse_device=${RUN_KDE_FUSE_DEVICE:-/dev/fuse}
+virtiofsd_bin=${RUN_KDE_VIRTIOFSD:-}
+dxg_device=${RUN_KDE_DXG_DEVICE:-/dev/dxg}
+dri_dir=${RUN_KDE_DRI_DIR:-/dev/dri}
+meminfo=${RUN_KDE_MEMINFO:-/proc/meminfo}
+cpuinfo=${RUN_KDE_CPUINFO:-/proc/cpuinfo}
+osrelease=${RUN_KDE_OSRELEASE:-/proc/sys/kernel/osrelease}
+sys_module_dir=${RUN_KDE_SYS_MODULE_DIR:-/sys/module}
+store_dir=${RUN_KDE_STORE_DIR:-/nix}
+wslconfig=${RUN_KDE_WSLCONFIG:-}
+wsl_lib_dir=${RUN_KDE_WSL_LIB_DIR:-/usr/lib/wsl/lib}
+va_drivers_dir=${RUN_KDE_VA_DRIVERS_DIR:-/run/opengl-driver/lib/dri}
+
+mode=run
+display=auto
+gpu=auto
+tcg=0
+rdp=0
+shell=0
+memory=
+cores=
+size=20
+resolution=1280x800
+ssh_port=2223
+rdp_port=3389
+
+while [ $# -gt 0 ]; do
+  case $1 in
+    --doctor) mode=doctor ;;
+    --dry-run) mode=dry-run ;;
+    --build-only) mode=build-only ;;
+    --reset) mode=reset ;;
+    --shell) shell=1 ;;
+    --rdp) rdp=1 ;;
+    --tcg) tcg=1 ;;
+    --display | --gpu | --memory | --cores | --size | --resolution | --ssh-port | --rdp-port)
+      [ $# -ge 2 ] || {
+        echo "run-kde: $1 needs a value" >&2
+        exit 2
+      }
+      case $1 in
+        --display) display=$2 ;;
+        --gpu) gpu=$2 ;;
+        --memory) memory=$2 ;;
+        --cores) cores=$2 ;;
+        --size) size=$2 ;;
+        --resolution) resolution=$2 ;;
+        --ssh-port) ssh_port=$2 ;;
+        --rdp-port) rdp_port=$2 ;;
+      esac
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "run-kde: unknown option $1 (see --help)" >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+case $display in auto | gtk | vnc | rdp | none) ;; *)
+  echo "run-kde: --display is gtk, vnc, rdp or none" >&2
+  exit 2
+  ;;
+esac
+case $gpu in auto | on | off) ;; *)
+  echo "run-kde: --gpu is auto, on or off" >&2
+  exit 2
+  ;;
+esac
+for number in "$size" "$ssh_port" "$rdp_port" ${memory:+"$memory"} ${cores:+"$cores"}; do
+  case $number in '' | *[!0-9]*)
+    echo "run-kde: expected a number, got $number" >&2
+    exit 2
+    ;;
+  esac
+done
+case $resolution in [0-9]*x[0-9]*) ;; *)
+  echo "run-kde: --resolution is WIDTHxHEIGHT" >&2
+  exit 2
+  ;;
+esac
+if [ "$shell" = 1 ]; then
+  display=none
+  gpu=off
+fi
+
+state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/komorebi-run-kde
+
+if [ "$mode" = reset ]; then
+  if [ -e "$state_dir" ]; then
+    rm -rf "$state_dir"
+    echo "run-kde: deleted $state_dir"
+  else
+    echo "run-kde: there is no $state_dir"
+  fi
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------------------------
+# what the machine is
+
+wsl=0
+if grep -qi microsoft "$osrelease" 2> /dev/null || [ -n "${WSL_DISTRO_NAME:-}" ]; then
+  wsl=1
+fi
+
+kvm=missing
+if [ -e "$kvm_device" ]; then
+  if [ -r "$kvm_device" ] && [ -w "$kvm_device" ]; then kvm=ok; else kvm=denied; fi
+fi
+
+virt=none
+if grep -qw svm "$cpuinfo" 2> /dev/null; then
+  virt=svm
+elif grep -qw vmx "$cpuinfo" 2> /dev/null; then
+  virt=vmx
+fi
+
+have_window=0
+if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; then have_window=1; fi
+
+mem_mb=$(awk '/^MemTotal:/ { print int($2 / 1024) }' "$meminfo" 2> /dev/null || true)
+mem_mb=${mem_mb:-0}
+cpus=${RUN_KDE_CPUS:-$(nproc 2> /dev/null || echo 1)}
+
+# a device the host's GPU shows up as: WSL has /dev/dxg, a Linux machine a render node
+gpu_device=
+if [ "$wsl" = 1 ]; then
+  if [ -e "$dxg_device" ]; then gpu_device=$dxg_device; fi
+else
+  for node in "$dri_dir"/renderD*; do
+    if [ -e "$node" ]; then
+      gpu_device=$node
+      break
+    fi
+  done
+fi
+
+host_renderer() {
+  if [ "${RUN_KDE_HOST_RENDERER+set}" = set ]; then
+    printf '%s\n' "$RUN_KDE_HOST_RENDERER"
+  elif [ -n "${DISPLAY:-}" ] && command -v glxinfo > /dev/null 2>&1; then
+    glxinfo -B 2> /dev/null | sed -n 's/^OpenGL renderer string: //p' | head -n 1 || true
+  elif [ -n "${WAYLAND_DISPLAY:-}" ] && command -v eglinfo > /dev/null 2>&1; then
+    eglinfo -B 2> /dev/null | sed -n 's/^OpenGL core profile renderer: //p' | head -n 1 || true
+  fi
+}
+
+free_gb() {
+  if [ -n "${RUN_KDE_FREE_GB:-}" ]; then
+    echo "$RUN_KDE_FREE_GB"
+  else
+    df -Pk "$1" 2> /dev/null | awk 'NR == 2 { print int($4 / 1048576) }' || echo 0
+  fi
+}
+
+# ---------------------------------------------------------------------------------------------
+# what the guest gets
+
+guest_memory=$memory
+if [ -z "$guest_memory" ]; then
+  guest_memory=$((mem_mb - 2048))
+  [ "$guest_memory" -ge 4096 ] || guest_memory=4096
+  [ "$guest_memory" -le 8192 ] || guest_memory=8192
+fi
+guest_cores=$cores
+if [ -z "$guest_cores" ]; then
+  guest_cores=$cpus
+  [ "$guest_cores" -le 6 ] || guest_cores=6
+fi
+
+if [ "$display" = auto ]; then
+  if [ "$have_window" = 1 ]; then display=gtk; else display=rdp; fi
+fi
+
+renderer=$(host_renderer)
+gpu_on=0
+case $gpu in
+  off) gpu_why="turned off with --gpu off" ;;
+  on)
+    gpu_on=1
+    gpu_why="turned on with --gpu on"
+    ;;
+  auto)
+    if [ "$display" != gtk ]; then
+      gpu_why="there is no window to show it in (the display is $display)"
+    elif [ -z "$gpu_device" ]; then
+      if [ "$wsl" = 1 ]; then
+        gpu_why="there is no $dxg_device, so WSL has no GPU"
+      else
+        gpu_why="there is no render node in $dri_dir"
+      fi
+    else
+      case $renderer in
+        *llvmpipe* | *softpipe* | *swrast*)
+          gpu_why="the host's OpenGL is software ($renderer)"
+          ;;
+        *)
+          gpu_on=1
+          gpu_why="$gpu_device is there${renderer:+ and the OpenGL of the host is $renderer}"
+          ;;
+      esac
+    fi
+    ;;
+esac
+
+# the virtiofsd that the guest's runner starts for each of its shares (the runner names it by its
+# store path), else the one on PATH
+find_virtiofsd() {
+  local named=
+  if [ -n "$virtiofsd_bin" ]; then
+    printf '%s\n' "$virtiofsd_bin"
+    return 0
+  fi
+  if [ -n "$runner_bin" ] && [ -r "$runner_bin" ]; then
+    named=$(grep -o '/nix/store/[a-z0-9]*-virtiofsd-[^/ ]*/bin/virtiofsd' "$runner_bin" 2> /dev/null | head -n 1 || true)
+  fi
+  if [ -n "$named" ] && [ -x "$named" ]; then
+    printf '%s\n' "$named"
+  else
+    command -v virtiofsd || true
+  fi
+}
+
+# What the host's GPU needs of the process that uses it, on WSL 2. Mesa has to be told to take the
+# d3d12 driver of Windows, whose libraries are in a directory of their own, and the libva that
+# virglrenderer takes the host's video encoder from has to be told which driver that is. Without
+# the first OpenGL is llvmpipe, and without the second the guest's VA-API lists no encoder, so KRDP
+# encodes H.264 on the guest's CPUs. What a person has set is left as it is.
+host_env=()
+if [ "$wsl" = 1 ] && [ "$gpu_on" = 1 ]; then
+  host_env+=("GALLIUM_DRIVER=${GALLIUM_DRIVER:-d3d12}")
+  if [ -d "$wsl_lib_dir" ]; then
+    case ":${LD_LIBRARY_PATH:-}:" in
+      *":$wsl_lib_dir:"*) ;;
+      *) host_env+=("LD_LIBRARY_PATH=$wsl_lib_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}") ;;
+    esac
+  fi
+  if [ -e "$va_drivers_dir/d3d12_drv_video.so" ]; then
+    host_env+=("LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-d3d12}")
+    host_env+=("LIBVA_DRIVERS_PATH=${LIBVA_DRIVERS_PATH:-$va_drivers_dir}")
+  fi
+fi
+
+# ---------------------------------------------------------------------------------------------
+# the checks
+
+errors=0
+warnings=0
+verbose=0
+if [ "$mode" = doctor ]; then verbose=1; fi
+
+ok() {
+  if [ "$verbose" = 1 ]; then printf '  ✓ %s\n' "$1"; fi
+}
+bad() {
+  errors=$((errors + 1))
+  printf '  ✗ %s\n' "$1"
+  shift
+  for line in "$@"; do printf '      %s\n' "$line"; done
+}
+warn() {
+  warnings=$((warnings + 1))
+  printf '  ! %s\n' "$1"
+  shift
+  for line in "$@"; do printf '      %s\n' "$line"; done
+}
+
+# The guest mounts its /nix/store and its shared directories by virtiofs: for each of them the
+# runner starts a virtiofsd as this user, and QEMU hands the guest's virtio-fs device its socket.
+# `wsl2-probe` (docs/dev/wsl2-probe.md, P6) runs the same chain with a guest; its fixes are these.
+check_virtiofs() {
+  local virtiofsd tmp pid up line lines
+  # virtiofsd does not open /dev/fuse (it speaks FUSE to the guest over its socket): a warning
+  if [ ! -e "$fuse_device" ]; then
+    fuse_fix=("on NixOS, boot.kernelModules = [ \"fuse\" ];")
+    if [ "$wsl" = 1 ]; then
+      fuse_fix+=("the kernel of WSL 2 has FUSE built in, so a kernel= line in %UserProfile%\\.wslconfig under [wsl2]"
+        "that names another kernel is the likely cause")
+    fi
+    warn "FUSE: $fuse_device does not exist; virtiofsd does not use it, so the guest can still start" "${fuse_fix[@]}"
+  elif [ -r "$fuse_device" ] && [ -w "$fuse_device" ]; then
+    ok "FUSE: $fuse_device can be opened"
+  else
+    warn "FUSE: $fuse_device is there and this user cannot open it; virtiofsd does not use it, so the guest can still start" \
+      "on NixOS, services.udev.extraRules = ''KERNEL==\"fuse\", MODE=\"0666\"'';" \
+      "for now: sudo chmod 666 $fuse_device"
+  fi
+
+  virtiofsd=$(find_virtiofsd)
+  if [ -z "$virtiofsd" ]; then
+    bad "virtiofsd: the program is not there, and the guest mounts its /nix/store through it" \
+      "start run-kde as nix run .#run-kde, which brings the virtiofsd of nixpkgs"
+    return 0
+  fi
+  # the options of nixpkgs' runner, for a directory that is empty
+  tmp=$(mktemp -d)
+  RUST_LOG=error "$virtiofsd" --socket-path="$tmp/socket" --shared-dir="$tmp" --readonly \
+    --sandbox=none --seccomp=none --cache=always --no-announce-submounts \
+    --translate-uid=host:65534:0:1 --translate-gid=host:65534:0:1 > "$tmp/log" 2>&1 < /dev/null &
+  pid=$!
+  up=0
+  for _ in $(seq 1 50); do
+    if [ -S "$tmp/socket" ]; then
+      up=1
+      break
+    fi
+    kill -0 "$pid" 2> /dev/null || break
+    sleep 0.1
+  done
+  kill "$pid" 2> /dev/null || true
+  wait "$pid" 2> /dev/null || true
+  if [ "$up" = 1 ]; then
+    ok "virtiofsd: starts as this user and serves a directory"
+  else
+    lines=()
+    while IFS= read -r line; do lines+=("virtiofsd said: $line"); done < <(head -n 6 "$tmp/log")
+    bad "virtiofsd: does not start as this user, and the guest mounts its /nix/store through it" \
+      "${lines[@]}" \
+      "virtiofsd ran with the options of the guest's runner and could not serve a directory: the lines above say why." \
+      "A socket path is 107 bytes at most, so a long \$TMPDIR is one cause: TMPDIR=/tmp run-kde" \
+      "Say what virtiofsd printed when you ask for help: the guest cannot start without it"
+  fi
+  rm -rf "$tmp"
+}
+
+check_everything() {
+  if [ "$wsl" = 1 ]; then
+    ok "this is WSL 2 ($(cat "$osrelease" 2> /dev/null || echo unknown))"
+  else
+    ok "this is Linux, not WSL 2 ($(cat "$osrelease" 2> /dev/null || echo unknown))"
+  fi
+
+  if command -v nix > /dev/null 2>&1; then
+    ok "nix is installed"
+  else
+    bad "nix is not installed" "install Nix with flakes enabled: https://nixos.org/download"
+  fi
+
+  case $kvm in
+    ok) ok "KVM: $kvm_device can be used" ;;
+    denied)
+      bad "KVM: $kvm_device is there and this user cannot open it" \
+        "put this user in the group kvm: on NixOS, users.users.<you>.extraGroups = [ \"kvm\" ];" \
+        "then open a new login (on WSL: run \`wsl --shutdown\` in PowerShell and start it again)"
+      ;;
+    missing)
+      kvm_fix=()
+      if [ "$virt" = none ]; then
+        kvm_fix+=("the CPU's virtualization flags (svm or vmx) are not visible here, so nested virtualization is off")
+        if [ "$wsl" = 1 ]; then
+          kvm_fix+=("in %UserProfile%\\.wslconfig, under [wsl2], set: nestedVirtualization=true")
+        fi
+        kvm_fix+=("and turn on SVM (AMD) or VT-x (Intel) in the firmware setup of the machine")
+      else
+        kvm_fix+=("the CPU has $virt, so the kernel has no KVM or has not loaded it")
+        if [ "$virt" = svm ] && [ ! -e "$sys_module_dir/kvm_amd" ]; then
+          kvm_fix+=("kvm_amd is not loaded: modprobe kvm_amd (on NixOS, boot.kernelModules = [ \"kvm-amd\" ];)")
+        elif [ "$virt" = vmx ] && [ ! -e "$sys_module_dir/kvm_intel" ]; then
+          kvm_fix+=("kvm_intel is not loaded: modprobe kvm_intel (on NixOS, boot.kernelModules = [ \"kvm-intel\" ];)")
+        fi
+        if [ "$wsl" = 1 ]; then
+          kvm_fix+=("in %UserProfile%\\.wslconfig, under [wsl2], set: nestedVirtualization=true, then run \`wsl --shutdown\`")
+        fi
+      fi
+      if [ "$tcg" = 1 ]; then
+        warn "KVM: $kvm_device does not exist; --tcg lets the guest start without it, and Plasma is too slow to try anything that way" "${kvm_fix[@]}"
+      else
+        bad "KVM: $kvm_device does not exist, and the guest needs it" "${kvm_fix[@]}"
+      fi
+      ;;
+  esac
+
+  check_virtiofs
+
+  if [ "$mem_mb" -lt 5120 ]; then
+    bad "memory: this machine has $mem_mb MB, and the guest needs at least 4096 MB of it" \
+      "in %UserProfile%\\.wslconfig, under [wsl2], set: memory=12GB (WSL gets half of the machine's memory by default)"
+  elif [ "$mem_mb" -lt 10240 ] && [ -z "$memory" ]; then
+    warn "memory: this machine has $mem_mb MB, so the guest gets $guest_memory MB (8192 is comfortable)" \
+      "in %UserProfile%\\.wslconfig, under [wsl2], set: memory=12GB"
+  else
+    ok "memory: this machine has $mem_mb MB, and the guest gets $guest_memory MB"
+  fi
+  ok "cores: this machine has $cpus, and the guest gets $guest_cores"
+
+  store_free=$(free_gb "$store_dir")
+  state_parent=${state_dir%/*}
+  [ -d "$state_parent" ] || state_parent=$HOME
+  state_free=$(free_gb "$state_parent")
+  if [ "$store_free" -lt 12 ]; then
+    bad "disk: $store_free GB are free for the Nix store ($store_dir), and the guest's closure is about 11 GB" \
+      "free some room (nix-collect-garbage -d), or give WSL's disk more: \`wsl --manage <distro> --resize <size>\`"
+  elif [ "$store_free" -lt 25 ]; then
+    warn "disk: $store_free GB are free for the Nix store ($store_dir): the first run needs about 16 GB" \
+      "nix-collect-garbage -d frees room"
+  else
+    ok "disk: $store_free GB are free for the Nix store ($store_dir)"
+  fi
+  if [ "$state_free" -lt "$size" ]; then
+    warn "disk: $state_free GB are free for the guest's disk in $state_dir, which can grow to $size GB"
+  fi
+
+  if [ "$have_window" = 1 ]; then
+    window=
+    if [ -n "${WAYLAND_DISPLAY:-}" ]; then window="WAYLAND_DISPLAY=$WAYLAND_DISPLAY"; fi
+    if [ -n "${DISPLAY:-}" ]; then window="${window:+$window }DISPLAY=$DISPLAY"; fi
+    ok "a window can be shown ($window)"
+  elif [ "$wsl" = 1 ]; then
+    warn "WSLg is not there (neither WAYLAND_DISPLAY nor DISPLAY is set), so the guest is reached over RDP" \
+      "WSLg comes with WSL 2 on Windows 11: run \`wsl --update\` in PowerShell, and do not set guiApplications=false in .wslconfig"
+  else
+    warn "there is no window to show the guest in (neither WAYLAND_DISPLAY nor DISPLAY is set), so the guest is reached over RDP"
+  fi
+
+  if [ "$wsl" = 1 ]; then
+    if command -v mstsc.exe > /dev/null 2>&1 && command -v cmdkey.exe > /dev/null 2>&1; then
+      ok "Windows interop: mstsc.exe and cmdkey.exe can be run, for --rdp"
+    else
+      warn "Windows interop: mstsc.exe or cmdkey.exe cannot be run, which --rdp needs" \
+        "on NixOS-WSL, wsl.interop.includePath = true; (and wsl.interop.register = true;)"
+    fi
+  fi
+
+  if [ -n "$gpu_device" ]; then
+    ok "GPU: $gpu_device is there"
+  elif [ "$wsl" = 1 ]; then
+    warn "GPU: there is no $dxg_device, so the guest renders on its CPUs" \
+      "install the Windows GPU driver with WSL support; on NixOS-WSL, wsl.useWindowsDriver = true;"
+  else
+    warn "GPU: there is no render node in $dri_dir, so the guest renders on its CPUs"
+  fi
+  if [ -n "$gpu_device" ]; then
+    case $renderer in
+      '') warn "GPU: the host's OpenGL renderer is not known (glxinfo and eglinfo say nothing)" ;;
+      *llvmpipe* | *softpipe* | *swrast*)
+        warn "GPU: the host's OpenGL is software ($renderer), so the guest renders on its CPUs" \
+          "on NixOS-WSL, wsl.useWindowsDriver = true; gives Mesa the Windows driver (d3d12)"
+        ;;
+      *) ok "GPU: the host's OpenGL renderer is $renderer" ;;
+    esac
+  fi
+  if [ "$wsl" = 1 ] && [ -n "$gpu_device" ]; then
+    if [ -d "$wsl_lib_dir" ]; then
+      ok "GPU: the Windows driver is in $wsl_lib_dir"
+    else
+      warn "GPU: there is no $wsl_lib_dir, so Mesa cannot take the Windows driver (d3d12)" \
+        "run \`wsl --update\` in PowerShell, and install the Windows GPU driver with WSL support"
+    fi
+    if [ -e "$va_drivers_dir/d3d12_drv_video.so" ]; then
+      ok "GPU: the video driver of Mesa for it (d3d12) is in $va_drivers_dir"
+    else
+      warn "GPU: there is no d3d12 video driver in $va_drivers_dir, so KRDP encodes H.264 on the guest's CPUs" \
+        "on NixOS-WSL, wsl.useWindowsDriver = true; with a Mesa that is built with video codecs"
+    fi
+  fi
+  if [ "$gpu_on" = 1 ]; then
+    ok "the guest will use the GPU: $gpu_why"
+  else
+    ok "the guest will not use the GPU: $gpu_why"
+  fi
+
+  if [ "$wsl" = 1 ]; then
+    if [ -z "$wslconfig" ] && command -v cmd.exe > /dev/null 2>&1 && command -v wslpath > /dev/null 2>&1; then
+      profile=$(cmd.exe /C 'echo %USERPROFILE%' 2> /dev/null | tr -d '\r' || true)
+      if [ -n "$profile" ]; then wslconfig=$(wslpath -u "$profile")/.wslconfig; fi
+    fi
+    if [ -n "$wslconfig" ] && [ -r "$wslconfig" ]; then
+      if grep -qi '^ *networkingMode *= *mirrored' "$wslconfig"; then
+        warn "network: .wslconfig has networkingMode=mirrored, which may not forward localhost to the guest's RDP" \
+          "ssh and the window do not depend on it; if RDP does not connect, remove that line and run \`wsl --shutdown\`"
+      else
+        ok "network: $wslconfig does not set mirrored networking"
+      fi
+    fi
+  fi
+}
+
+if [ "$mode" = doctor ] || [ "$mode" = run ] || [ "$mode" = build-only ]; then
+  if [ "$mode" = doctor ]; then echo "run-kde: what the guest needs, and what this machine has"; fi
+  check_everything
+  if [ "$errors" -gt 0 ]; then
+    echo "run-kde: $errors thing(s) to fix first" >&2
+    exit 1
+  fi
+  if [ "$mode" = doctor ]; then
+    echo "run-kde: $errors error(s), $warnings warning(s)"
+    exit 0
+  fi
+fi
+
+# ---------------------------------------------------------------------------------------------
+# the guest
+
+repo=${KOMOREBI_REPO:-}
+if [ -z "$repo" ]; then
+  repo=$(git rev-parse --show-toplevel 2> /dev/null || pwd)
+fi
+if [ ! -e "$repo/flake.nix" ]; then
+  echo "run-kde: $repo is not a checkout of the repository (there is no flake.nix): run it from one, or set KOMOREBI_REPO" >&2
+  exit 1
+fi
+
+disk=$state_dir/disk.qcow2
+
+# the arguments of the runner, and the environment it reads (docs/dev/utm.md says what each does)
+if [ "$gpu_on" = 1 ]; then gpu_device_name=virtio-vga-gl; else gpu_device_name=virtio-vga; fi
+width=${resolution%x*}
+height=${resolution#*x}
+qemu_opts=()
+if [ "$tcg" != 1 ] || [ "$kvm" = ok ]; then qemu_opts+=(-cpu host); fi
+case $display in
+  gtk)
+    if [ "$gpu_on" = 1 ]; then qemu_opts+=(-display "gtk,gl=on"); else qemu_opts+=(-display gtk); fi
+    ;;
+  vnc) qemu_opts+=(-display none -vnc 127.0.0.1:0) ;;
+  rdp | none)
+    if [ "$gpu_on" = 1 ]; then qemu_opts+=(-display egl-headless); else qemu_opts+=(-display none); fi
+    ;;
+esac
+qemu_opts+=(-vga none -device "$gpu_device_name,xres=$width,yres=$height")
+net_opts="hostfwd=tcp:127.0.0.1:$ssh_port-:22,hostfwd=tcp:127.0.0.1:$rdp_port-:3389"
+runner_args=(-m "$guest_memory" -smp "$guest_cores")
+
+if [ "$wsl" = 1 ]; then host_kind="WSL 2"; else host_kind=Linux; fi
+if [ "$kvm" = ok ]; then kvm_word=yes; else kvm_word=no; fi
+if [ "$gpu_on" = 1 ]; then
+  gpu_word=on
+  gpu_label="GPU (virgl)"
+else
+  gpu_word=off
+  gpu_label="software (llvmpipe)"
+fi
+
+if [ "$mode" = dry-run ]; then
+  echo "run-kde would start $guest:"
+  echo "  host: $host_kind, KVM $kvm_word"
+  echo "  display: $display"
+  echo "  gpu: $gpu_word, because $gpu_why"
+  echo "  environment:"
+  echo "    NIX_DISK_IMAGE=$disk"
+  echo "    KOMOREBI_REPO=$repo"
+  echo "    RUN_KDE_STATE=$state_dir"
+  echo "    RUN_KDE_MEMORY=$guest_memory"
+  echo "    QEMU_NET_OPTS=$net_opts"
+  echo "    QEMU_OPTS=${qemu_opts[*]}"
+  for var in "${host_env[@]}"; do echo "    $var"; done
+  echo "  command: ${runner_bin:-<the runner, built from $repo>} ${runner_args[*]}"
+  exit 0
+fi
+
+# the guest's runner, built when it is not there. RUN_KDE_QEMU_OPTS adds to the QEMU options.
+if [ -z "$runner_bin" ] || [ ! -x "$runner_bin" ]; then
+  echo "run-kde: building the guest ($guest). There is no binary cache for komorebi: the first run"
+  echo "run-kde: builds it from source and downloads about 4 GB of Plasma (11 GB in the Nix store), which takes a while."
+  runner=$(nix build --no-link --print-out-paths -L "$repo#nixosConfigurations.$guest.config.system.build.vm")
+  set -- "$runner"/bin/run-*-vm
+  runner_bin=$1
+  if [ ! -x "$runner_bin" ]; then
+    echo "run-kde: $runner has no runner in bin" >&2
+    exit 1
+  fi
+fi
+if [ "$mode" = build-only ]; then
+  echo "run-kde: the guest is built: $runner_bin"
+  exit 0
+fi
+
+# the state: what a run keeps, and what the guest takes from it. Nothing of it is in the Nix store.
+umask 077
+mkdir -p "$state_dir"
+chmod 700 "$state_dir"
+if [ ! -s "$state_dir/rdp-password" ]; then
+  head -c 15 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$state_dir/rdp-password"
+fi
+if [ ! -s "$state_dir/ssh_key" ]; then
+  rm -f "$state_dir/ssh_key" "$state_dir/ssh_key.pub"
+  ssh-keygen -q -t ed25519 -N '' -C run-kde -f "$state_dir/ssh_key"
+fi
+if [ ! -e "$disk" ]; then
+  echo "run-kde: making the guest's disk: $size GB, which takes room as the guest writes to it"
+  raw=$state_dir/disk.raw
+  qemu-img create -q -f raw "$raw" "${size}G"
+  mkfs.ext4 -q -L nixos "$raw"
+  qemu-img convert -f raw -O qcow2 "$raw" "$disk"
+  rm -f "$raw"
+fi
+password=$(cat "$state_dir/rdp-password")
+
+case $display in
+  gtk) sees="a window of QEMU, with the guest's screen in it" ;;
+  vnc) sees="nothing here: connect a VNC client to 127.0.0.1:5900, or RDP below" ;;
+  rdp) sees="nothing here: connect over RDP, below" ;;
+  none) sees="nothing but this terminal, which is the guest's console" ;;
+esac
+cat <<EOF
+
+run-kde: starting $guest
+  You see    $sees
+  Graphics   $gpu_label: $gpu_why
+             the guest says what KWin draws with in its cheat sheet, and here once it is up
+  RDP        127.0.0.1:$rdp_port   user komorebi   password $password
+  ssh        ssh -i $state_dir/ssh_key -p $ssh_port komorebi@127.0.0.1
+  Repository $repo is /repo in the guest
+  Quit       run \`sudo poweroff\` in the guest, or press Ctrl-a x in this terminal
+  State      $state_dir (run-kde --reset deletes it)
+  The guest takes about a minute to start. This terminal is the guest's console.
+
+EOF
+
+export NIX_DISK_IMAGE=$disk
+export KOMOREBI_REPO=$repo
+export RUN_KDE_STATE=$state_dir
+export RUN_KDE_MEMORY=$guest_memory
+export QEMU_NET_OPTS=$net_opts
+export QEMU_OPTS="${qemu_opts[*]}${RUN_KDE_QEMU_OPTS:+ $RUN_KDE_QEMU_OPTS}"
+for var in "${host_env[@]}"; do
+  # shellcheck disable=SC2163 # the variable named by what `var` holds, as NAME=value
+  export "$var"
+done
+# virtiofsd says a great deal about being run by a user and not by root, none of it a problem
+export RUST_LOG=${RUST_LOG:-error}
+
+# Windows' own RDP client, once the guest has a session: its credentials are made for this run and
+# removed again at the end
+rdp_helper=
+cleanup() {
+  if [ -n "$rdp_helper" ]; then
+    kill "$rdp_helper" 2> /dev/null || true
+    cmdkey.exe /delete:TERMSRV/localhost > /dev/null 2>&1 || true
+  fi
+}
+if [ "$rdp" = 1 ]; then
+  if [ "$wsl" = 1 ] && command -v mstsc.exe > /dev/null 2>&1 && command -v cmdkey.exe > /dev/null 2>&1; then
+    trap cleanup EXIT
+    (
+      for _ in $(seq 1 300); do
+        if ssh -i "$state_dir/ssh_key" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=3 \
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
+          -p "$ssh_port" komorebi@127.0.0.1 'systemctl --user is-active --quiet krdp' 2> /dev/null; then
+          break
+        fi
+        sleep 2
+      done
+      cmdkey.exe /generic:TERMSRV/localhost /user:komorebi "/pass:$password" > /dev/null
+      mstsc.exe "/v:localhost:$rdp_port"
+    ) &
+    rdp_helper=$!
+  else
+    echo "run-kde: --rdp needs WSL 2 with mstsc.exe and cmdkey.exe (run-kde --doctor says how); use an RDP client of your own with the address above" >&2
+  fi
+fi
+
+"$runner_bin" "${runner_args[@]}"

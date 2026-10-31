@@ -1,0 +1,54 @@
+name: nix
+description: Install nix on a hosted runner, with the store cached and, on request, KVM enabled
+
+inputs:
+  kvm:
+    description: Make /dev/kvm usable and tell nix that this machine can run NixOS tests
+    default: "false"
+  cache:
+    description: Restore the nix store from the cache, and save it when the job ends
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    # A Plasma guest is a closure of about 10 GB, and a hosted runner has little free space on /
+    # until the toolchains it ships with are gone.
+    - name: Free disk space
+      if: inputs.kvm == 'true'
+      shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        df -h /
+
+    # The udev rule is what makes /dev/kvm writable for the runner's user. KVM on hosted runners
+    # is documented for public repositories; `test -w` is what says whether this one has it.
+    - name: Enable KVM
+      if: inputs.kvm == 'true'
+      shell: bash
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+          sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+        # The host of a hosted runner is not chosen: some have no nested virtualization. The step is
+        # named so that rerun-no-kvm.yaml can tell this failure from a failed suite and run it again.
+        test -w /dev/kvm || { echo "::error::this runner has no usable /dev/kvm"; exit 1; }
+
+    # This action only installs nix. It does not use the Cachix service, and no Cachix cache, account
+    # or token is configured anywhere in this repository.
+    - uses: cachix/install-nix-action@v31
+      with:
+        extra_nix_config: |
+          system-features = nixos-test benchmark big-parallel ${{ inputs.kvm == 'true' && 'kvm' || '' }}
+
+    # The key is flake.lock, so a job that builds against another nixpkgs (the canary) turns the
+    # cache off: what it restored would be of no use to it, and what it saved would replace the
+    # store of the jobs that do use this lock. The architecture is part of the key, because the
+    # x86_64 and arm64 runners build different store paths.
+    - if: inputs.cache == 'true'
+      uses: nix-community/cache-nix-action@v7
+      with:
+        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', '**/Cargo.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+        gc-max-store-size-linux: 8G

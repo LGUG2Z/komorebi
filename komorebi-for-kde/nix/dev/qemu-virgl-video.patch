@@ -1,0 +1,49 @@
+virtio-gpu: let virglrenderer use video encode and decode
+
+virglrenderer can pass a guest's VA-API video encode and decode to the host's
+(virtio_gpu_drv_video in Mesa), but only when asked: with
+VIRGL_RENDERER_USE_VIDEO, and with a get_drm_fd callback to say which DRM node to
+open the host's video device on. QEMU passes neither, so a guest's vainfo lists
+VideoProc and no encoder. VIRGL_RENDERER_USE_VIDEO is only defined with
+VIRGL_RENDERER_UNSTABLE_APIS, which the build has to set.
+
+--- a/hw/display/virtio-gpu-virgl.c	2026-10-28 15:30:25.853615969 -0700
++++ b/hw/display/virtio-gpu-virgl.c	2026-10-28 15:30:25.853715164 -0700
+@@ -14,6 +14,7 @@
+ #include "qemu/osdep.h"
+ #include "qemu/error-report.h"
+ #include "qemu/iov.h"
++#include "qemu/drm.h"
+ #include "trace.h"
+ #include "hw/virtio/virtio.h"
+ #include "hw/virtio/virtio-gpu.h"
+@@ -1345,6 +1346,18 @@
+     return qemu_console_gl_ctx_make_current(g->parent_obj.scanout[scanout_idx].con, qctx);
+ }
+ 
++#ifdef VIRGL_RENDERER_USE_VIDEO
++/*
++ * virglrenderer opens the host's video encoder and decoder (VA-API) on a DRM
++ * node of its caller's choosing, and disables video when it has none to ask
++ * for. It owns the fd it gets and closes it.
++ */
++static int virgl_get_drm_fd(void *opaque)
++{
++    return qemu_drm_rendernode_open(NULL);
++}
++#endif
++
+ static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
+ #if VIRGL_VERSION_MAJOR >= 1
+     .version             = 3,
+@@ -1453,6 +1466,10 @@
+ #endif
+     }
+ #endif
++#ifdef VIRGL_RENDERER_USE_VIDEO
++    virtio_gpu_3d_cbs.get_drm_fd = virgl_get_drm_fd;
++    flags |= VIRGL_RENDERER_USE_VIDEO;
++#endif
+ #ifdef VIRGL_RENDERER_D3D11_SHARE_TEXTURE
+     if (qemu_egl_angle_d3d) {
+         flags |= VIRGL_RENDERER_D3D11_SHARE_TEXTURE;

@@ -1,0 +1,11 @@
+{
+  "KDE Plasma": {
+    "floating": [
+      { "kind": "Class", "id": "org.kde.kcalc", "matching_strategy": "Equals" },
+      { "kind": "Class", "id": "org.gnome.Calculator", "matching_strategy": "Equals" },
+      { "kind": "Class", "id": "org.kde.spectacle", "matching_strategy": "Equals" },
+      { "kind": "Class", "id": "org.kde.polkit-kde-authentication-agent-1", "matching_strategy": "Equals" },
+      { "kind": "Class", "id": "org.kde.systemsettings", "matching_strategy": "Equals" }
+    ]
+  }
+}

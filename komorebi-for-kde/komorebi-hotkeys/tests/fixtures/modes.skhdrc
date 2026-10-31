@@ -1,0 +1,7 @@
+# alt - r enters a resize mode, escape leaves it, alt - q works in both
+:: resize @ : notify-send resize
+alt - r ; resize
+resize < h : komorebic resize-edge left increase
+resize < l : komorebic resize-edge right increase
+resize < escape ; default
+default, resize < alt - q : komorebic close

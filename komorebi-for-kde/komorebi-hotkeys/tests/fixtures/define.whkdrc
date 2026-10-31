@@ -1,0 +1,11 @@
+# a group of applications and a command template, both from .define
+.shell pwsh
+
+alt + b [
+    firefox  : komorebic toggle-monocle
+    chromium : komorebic toggle-monocle
+    Default  : Ignore
+]
+
+alt + h : komorebic focus left
+alt + l : komorebic focus right
