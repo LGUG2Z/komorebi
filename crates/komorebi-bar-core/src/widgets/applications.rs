@@ -1,4 +1,4 @@
-use super::ImageIcon;
+use super::icons::ImageIcon;
 use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
@@ -18,7 +18,7 @@ use eframe::egui::StrokeKind;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use eframe::egui::vec2;
-use komorebi_client::PathExt;
+use komorebi_protocol::pathext::PathExt;
 use serde::Deserialize;
 use serde::Serialize;
 use std::process::Command;

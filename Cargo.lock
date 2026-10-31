@@ -3448,6 +3448,7 @@ dependencies = [
  "eframe",
  "egui-phosphor",
  "image 0.25.10",
+ "komorebi-protocol",
  "lazy_static",
  "reqwest",
  "schemars 1.2.3",
@@ -3455,6 +3456,7 @@ dependencies = [
  "serde_json_lenient",
  "starship-battery",
  "sysinfo 0.39.6",
+ "tracing",
 ]
 
 [[package]]
