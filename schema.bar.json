@@ -2355,147 +2355,6 @@
         }
       ]
     },
-    "Column": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "column": {
-              "type": "string",
-              "const": "Primary"
-            },
-            "configuration": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/ColumnWidth"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "required": [
-            "column",
-            "configuration"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "column": {
-              "type": "string",
-              "const": "Secondary"
-            },
-            "configuration": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/ColumnSplitWithCapacity"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "required": [
-            "column",
-            "configuration"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "column": {
-              "type": "string",
-              "const": "Tertiary"
-            },
-            "configuration": {
-              "$ref": "#/$defs/ColumnSplit"
-            }
-          },
-          "required": [
-            "column",
-            "configuration"
-          ]
-        }
-      ]
-    },
-    "ColumnSplit": {
-      "type": "string",
-      "enum": [
-        "Horizontal",
-        "Vertical"
-      ]
-    },
-    "ColumnSplitWithCapacity": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "Horizontal": {
-              "type": "integer",
-              "format": "uint",
-              "minimum": 0
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Horizontal"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Vertical": {
-              "type": "integer",
-              "format": "uint",
-              "minimum": 0
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Vertical"
-          ]
-        }
-      ]
-    },
-    "ColumnWidth": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "WidthPercentage": {
-              "type": "number",
-              "format": "float"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "WidthPercentage"
-          ]
-        }
-      ]
-    },
-    "Container": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "locked": {
-          "type": "boolean",
-          "default": false
-        },
-        "windows": {
-          "$ref": "#/$defs/Ring4"
-        }
-      },
-      "required": [
-        "id",
-        "windows"
-      ]
-    },
     "CpuConfig": {
       "description": "CPU widget configuration",
       "type": "object",
@@ -2539,12 +2398,6 @@
       "required": [
         "enable"
       ]
-    },
-    "CustomLayout": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/Column"
-      }
     },
     "CustomModifiers": {
       "description": "Custom format with additive modifiers for integer format specifiers",
@@ -2781,21 +2634,6 @@
         }
       ]
     },
-    "FloatingLayerBehaviour": {
-      "description": "Floating layer behaviour when a new window is opened",
-      "oneOf": [
-        {
-          "description": "Tile new windows (unless they match a float rule or float override is active)",
-          "type": "string",
-          "const": "Tile"
-        },
-        {
-          "description": "Float new windows",
-          "type": "string",
-          "const": "Float"
-        }
-      ]
-    },
     "FocusFollowsMouseImplementation": {
       "description": "Focus follows mouse implementation",
       "oneOf": [
@@ -2822,21 +2660,6 @@
       },
       "required": [
         "inner_margin"
-      ]
-    },
-    "GridLayoutOptions": {
-      "description": "Options for the Grid layout",
-      "type": "object",
-      "properties": {
-        "rows": {
-          "description": "Maximum number of rows per grid column",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "rows"
       ]
     },
     "GroupedSpacingConfig": {
@@ -3109,35 +2932,6 @@
         }
       ]
     },
-    "IdWithIdentifier": {
-      "description": "Rule for matching applications",
-      "type": "object",
-      "properties": {
-        "id": {
-          "description": "Target identifier",
-          "type": "string"
-        },
-        "kind": {
-          "description": "Kind of identifier to target",
-          "$ref": "#/$defs/ApplicationIdentifier"
-        },
-        "matching_strategy": {
-          "description": "Matching strategy to use",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/MatchingStrategy"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "kind",
-        "id"
-      ]
-    },
     "IndividualSpacingConfig": {
       "description": "Individual spacing configuration",
       "type": "object",
@@ -3168,30 +2962,6 @@
         "bottom",
         "left",
         "right"
-      ]
-    },
-    "InitialWindowPlacementRules": {
-      "description": "Configuration for initial window placement rules on a workspace.\n\nThis can be specified in two forms in the JSON config:\n- A placement target (string or integer) — applies the same placement to all windows.\n  Strings are `WindowPlacement` variant names (e.g. `\"Primary\"`, `\"AfterFocused\"`),\n  integers are 1-based container indices.\n- A map of placement targets to matching rules — keys can be `WindowPlacement` variant names\n  (e.g. `\"Primary\"`, `\"Secondary\"`) or 1-based container indices (e.g. `\"1\"`, `\"3\"`).\n  Rules are evaluated in key order; the first matching rule determines placement.\n\nNOTE: Container indices in the config are 1-based for user-friendliness.\nThey are converted to 0-based internally during resolution.\n\nNOTE: This feature currently only applies when `WindowContainerBehaviour::Create` is active.\nFuture versions may support toggling this for `Append` mode as well.",
-      "anyOf": [
-        {
-          "description": "A single placement target applied to all new windows (string or integer in config)",
-          "$ref": "#/$defs/PlacementTarget"
-        },
-        {
-          "description": "A map of placement targets to matching rules.\nKeys can be `WindowPlacement` variant names (e.g. `\"Primary\"`) or 1-based container indices (e.g. `\"1\"`).\nValues can be:\n- A single `IdWithIdentifier` object (simple rule)\n- An array containing objects and/or arrays:\n  - Each object in the array is an independent simple rule (OR logic between entries)\n  - Each inner array is a composite rule where all conditions must match (AND logic)\n  - The outer array entries are evaluated with OR logic\n\nRules are evaluated in key order; the first matching rule determines placement.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/PlacementMatchingRules"
-          },
-          "patternProperties": {
-            "^[0-9]+$": {
-              "$ref": "#/$defs/PlacementMatchingRules"
-            },
-            "^\\d+$": {
-              "$ref": "#/$defs/PlacementMatchingRules"
-            }
-          }
-        }
       ]
     },
     "InterfaceDisplayType": {
@@ -4207,112 +3977,6 @@
         }
       ]
     },
-    "Layout": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "Default": {
-              "$ref": "#/$defs/DefaultLayout"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Default"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Custom": {
-              "$ref": "#/$defs/CustomLayout"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Custom"
-          ]
-        }
-      ]
-    },
-    "LayoutOptions": {
-      "description": "Options for specific layouts",
-      "type": "object",
-      "properties": {
-        "column_ratios": {
-          "description": "Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Columns layout: ratios for each column width\n- Used by Grid layout: ratios for column widths\n- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio\n- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)\n- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio\n\nColumns without a ratio share remaining space equally.\nExample: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns",
-          "type": [
-            "array",
-            "null"
-          ],
-          "default": null,
-          "items": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "format": "float"
-          },
-          "maxItems": 5,
-          "minItems": 5
-        },
-        "grid": {
-          "description": "Options related to the Grid layout",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/GridLayoutOptions"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "row_ratios": {
-          "description": "Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Rows layout: ratios for each row height\n- Used by Grid layout: ratios for row heights\n\nRows without a ratio share remaining space equally.\nExample: `[0.5, 0.5]` for 50%-50% rows",
-          "type": [
-            "array",
-            "null"
-          ],
-          "default": null,
-          "items": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "format": "float"
-          },
-          "maxItems": 5,
-          "minItems": 5
-        },
-        "scrolling": {
-          "description": "Options related to the Scrolling layout",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ScrollingLayoutOptions"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "MatchingRule": {
-      "description": "Rule for matching applications",
-      "anyOf": [
-        {
-          "description": "Simple matching rule which must evaluate to true",
-          "$ref": "#/$defs/IdWithIdentifier"
-        },
-        {
-          "description": "Composite matching rule where all conditions must evaluate to true",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/IdWithIdentifier"
-          }
-        }
-      ]
-    },
     "MatchingStrategy": {
       "description": "Strategy for matching identifiers",
       "oneOf": [
@@ -4474,125 +4138,6 @@
       },
       "required": [
         "enable"
-      ]
-    },
-    "Monitor": {
-      "type": "object",
-      "properties": {
-        "container_padding": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        },
-        "device": {
-          "type": "string"
-        },
-        "device_id": {
-          "type": "string"
-        },
-        "floating_layer_behaviour": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/FloatingLayerBehaviour"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "id": {
-          "type": "integer",
-          "format": "int"
-        },
-        "last_focused_workspace": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "name": {
-          "type": "string"
-        },
-        "serial_number_id": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "size": {
-          "$ref": "#/$defs/Rect"
-        },
-        "wallpaper": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Wallpaper"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "window_based_work_area_offset": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Rect"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "window_based_work_area_offset_limit": {
-          "type": "integer",
-          "format": "int"
-        },
-        "work_area_offset": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Rect"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "work_area_size": {
-          "$ref": "#/$defs/Rect"
-        },
-        "workspace_names": {
-          "type": "object",
-          "additionalProperties": false,
-          "patternProperties": {
-            "^\\d+$": {
-              "type": "string"
-            }
-          }
-        },
-        "workspace_padding": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        },
-        "workspaces": {
-          "$ref": "#/$defs/Ring2"
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "device",
-        "device_id",
-        "size",
-        "work_area_size",
-        "window_based_work_area_offset_limit",
-        "workspaces",
-        "workspace_names"
       ]
     },
     "MonitorConfig": {
@@ -5034,40 +4579,6 @@
       "description": "A file system path. Environment variables like %VAR%, $Env:VAR, or $VAR are automatically resolved.",
       "type": "string"
     },
-    "PlacementMatchingRules": {
-      "description": "Matching rules for a placement target.\n\nCan be specified in JSON as:\n- A single `IdWithIdentifier` object — one simple rule\n- An array of `MatchingRule`s — multiple rules with OR logic between them\n  (each element can be a simple rule object or a composite rule array with AND logic)\n\nExamples:\n```json\n// Single rule\n{ \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" }\n\n// Multiple rules (OR): chrome OR teams\n[\n  { \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" },\n  { \"kind\": \"Title\", \"id\": \"Microsoft Teams\", \"matching_strategy\": \"Equals\" }\n]\n\n// Mixed: chrome OR (code.exe AND title contains \"workspace\")\n[\n  { \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" },\n  [\n    { \"kind\": \"Exe\", \"id\": \"code.exe\", \"matching_strategy\": \"Equals\" },\n    { \"kind\": \"Title\", \"id\": \"workspace\", \"matching_strategy\": \"Contains\" }\n  ]\n]\n```",
-      "anyOf": [
-        {
-          "description": "A single simple matching rule",
-          "$ref": "#/$defs/IdWithIdentifier"
-        },
-        {
-          "description": "Multiple matching rules evaluated with OR logic.\nEach entry is a `MatchingRule`: either a simple rule (object) or composite rule (array, AND logic).",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/MatchingRule"
-          }
-        }
-      ]
-    },
-    "PlacementTarget": {
-      "description": "A target position for window placement, used as a key in `InitialWindowPlacementRules::Rules`.\n\nCan be either a `WindowPlacement` variant name (e.g. `\"Primary\"`, `\"Last\"`)\nor a 1-based container index (e.g. `\"1\"`, `\"3\"`, or the integer `3`).\n\nNOTE: Integer indices are 1-based in the config for user-friendliness.",
-      "anyOf": [
-        {
-          "$ref": "#/$defs/WindowPlacement"
-        },
-        {
-          "description": "A 1-based container index as a string",
-          "type": "string",
-          "pattern": "^[0-9]+$"
-        },
-        {
-          "description": "A 1-based container index",
-          "type": "integer",
-          "minimum": 0
-        }
-      ]
-    },
     "Position": {
       "description": "Position",
       "type": "object",
@@ -5177,86 +4688,6 @@
         "b"
       ]
     },
-    "Ring": {
-      "type": "object",
-      "properties": {
-        "elements": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Monitor"
-          }
-        },
-        "focused": {
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "elements",
-        "focused"
-      ]
-    },
-    "Ring2": {
-      "type": "object",
-      "properties": {
-        "elements": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Workspace"
-          }
-        },
-        "focused": {
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "elements",
-        "focused"
-      ]
-    },
-    "Ring3": {
-      "type": "object",
-      "properties": {
-        "elements": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Container"
-          }
-        },
-        "focused": {
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "elements",
-        "focused"
-      ]
-    },
-    "Ring4": {
-      "type": "object",
-      "properties": {
-        "elements": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Window"
-          }
-        },
-        "focused": {
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "elements",
-        "focused"
-      ]
-    },
     "RoundingConfig": {
       "description": "Rounding configuration",
       "anyOf": [
@@ -5277,56 +4708,6 @@
         }
       ]
     },
-    "ScrollingCentering": {
-      "description": "When the Scrolling layout centres the focused column\n\nA boolean is also accepted when reading, for the layout option that used to be one: `true` is\n`Always` and `false` is `Never`.",
-      "oneOf": [
-        {
-          "description": "Scroll just far enough to bring the focused column into view, and no further",
-          "type": "string",
-          "const": "Never"
-        },
-        {
-          "description": "Keep the focused column in the middle of the screen",
-          "type": "string",
-          "const": "Always"
-        },
-        {
-          "description": "Centre the focused column when it does not fit on the screen together with the column that\nfocus came from",
-          "type": "string",
-          "const": "OnOverflow"
-        }
-      ]
-    },
-    "ScrollingLayoutOptions": {
-      "description": "Options for the Scrolling layout",
-      "type": "object",
-      "properties": {
-        "center_focused_column": {
-          "description": "When to centre the focused column: `Never` (the default), `Always`, or `OnOverflow`, which\nis when it does not fit on the screen together with the column that focus came from. A\nboolean is also accepted, where `true` is `Always` and `false` is `Never`",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/$defs/ScrollingCentering"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "columns": {
-          "description": "Desired number of visible columns (default: 3)",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "columns"
-      ]
-    },
     "Sizing": {
       "description": "Sizing",
       "oneOf": [
@@ -5343,6 +4724,7 @@
       ]
     },
     "SocketMessage": {
+      "description": "A message to a daemon, as it is written on its socket: JSON, with the variant's name in\n`type` and its arguments, if it has any, in `content`.\n\nOne enum for every platform: `SocketMessage::platforms` says which daemons handle which\nvariant. A daemon answers a variant it does not handle with an error.\n\n# Example\n\n```rust\nuse komorebi_protocol::message::SocketMessage;\nuse komorebi_protocol::types::StateQuery;\n\nlet query = SocketMessage::Query(StateQuery::FocusedWorkspaceIndex);\nassert_eq!(\n    String::from_utf8(query.as_bytes()?)?,\n    r#\"{\"type\":\"Query\",\"content\":\"FocusedWorkspaceIndex\"}\"#,\n);\n\nlet stop: SocketMessage = r#\"{\"type\":\"Stop\"}\"#.parse()?;\nassert!(matches!(stop, SocketMessage::Stop));\n\n# Ok::<(), Box<dyn std::error::Error>>(())\n```",
       "oneOf": [
         {
           "type": "object",
@@ -9014,7 +8396,7 @@
           "properties": {
             "content": {
               "type": "integer",
-              "format": "int"
+              "format": "int64"
             },
             "type": {
               "type": "string",
@@ -9040,6 +8422,30 @@
           "required": [
             "type",
             "content"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ReloadHotkeys"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "HotkeysState"
+            }
+          },
+          "required": [
+            "type"
           ]
         }
       ]
@@ -9098,98 +8504,11 @@
       ]
     },
     "State": {
-      "type": "object",
-      "properties": {
-        "cross_monitor_move_behaviour": {
-          "$ref": "#/$defs/MoveBehaviour"
-        },
-        "float_override": {
-          "type": "boolean"
-        },
-        "focus_follows_mouse": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/FocusFollowsMouseImplementation"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "has_pending_raise_op": {
-          "type": "boolean"
-        },
-        "is_paused": {
-          "type": "boolean"
-        },
-        "monitor_usr_idx_map": {
-          "type": "object",
-          "additionalProperties": false,
-          "patternProperties": {
-            "^\\d+$": {
-              "type": "integer",
-              "format": "uint",
-              "minimum": 0
-            }
-          }
-        },
-        "monitors": {
-          "$ref": "#/$defs/Ring"
-        },
-        "monocle_focus_behaviour": {
-          "$ref": "#/$defs/MonocleFocusBehaviour"
-        },
-        "mouse_follows_focus": {
-          "type": "boolean"
-        },
-        "new_window_behaviour": {
-          "$ref": "#/$defs/WindowContainerBehaviour"
-        },
-        "resize_delta": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "unmanaged_window_operation_behaviour": {
-          "$ref": "#/$defs/OperationBehaviour"
-        },
-        "virtual_desktop_id": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "integer",
-            "format": "uint8",
-            "maximum": 255,
-            "minimum": 0
-          }
-        },
-        "work_area_offset": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Rect"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "monitors",
-        "monitor_usr_idx_map",
-        "is_paused",
-        "resize_delta",
-        "new_window_behaviour",
-        "float_override",
-        "cross_monitor_move_behaviour",
-        "monocle_focus_behaviour",
-        "unmanaged_window_operation_behaviour",
-        "mouse_follows_focus",
-        "has_pending_raise_op"
-      ]
+      "description": "The state of the window manager, as `komorebic state` prints it",
+      "type": "object"
     },
     "StateQuery": {
+      "description": "A question about the window manager that `SocketMessage::Query` asks, answered with one\nvalue as text: an index, the name of a layout or of a container kind, or the version of the\ndaemon.",
       "type": "string",
       "enum": [
         "FocusedMonitorIndex",
@@ -9308,6 +8627,7 @@
       ]
     },
     "SubscribeOptions": {
+      "description": "The options of a subscriber, which `SocketMessage::AddSubscriberSocketWithOptions` sets\n\nA subscriber added with `SocketMessage::AddSubscriberSocket` has the default options, and is\nsent a notification for every event and message the window manager handles. With\n`filter_state_changes`, it is sent one only when the event or the message changed the\nstate, and always when a window is shown, when a subscriber is added (so a new subscriber\nreceives the state as soon as it subscribes), when a theme is set (the colors of the borders\nare not part of the state) and when the configuration is reloaded.\n\n# Example\n\n```rust\nuse komorebi_protocol::types::SubscribeOptions;\n\nlet options = SubscribeOptions {\n    filter_state_changes: true,\n};\nassert_eq!(\n    serde_json::to_string(&options)?,\n    r#\"{\"filter_state_changes\":true}\"#,\n);\n\nassert!(!SubscribeOptions::default().filter_state_changes);\n\n# Ok::<(), Box<dyn std::error::Error>>(())\n```",
       "type": "object",
       "properties": {
         "filter_state_changes": {
@@ -9393,159 +8713,6 @@
       },
       "required": [
         "enable"
-      ]
-    },
-    "ThemeOptions": {
-      "description": "Theme options",
-      "type": "object",
-      "properties": {
-        "bar_accent": {
-          "description": "Komorebi status bar accent",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base0D"
-        },
-        "floating_border": {
-          "description": "Border colour when the window is floating",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base09"
-        },
-        "monocle_border": {
-          "description": "Border colour when the container is in monocle mode",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base0F"
-        },
-        "single_border": {
-          "description": "Border colour when the container contains a single window",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base0D"
-        },
-        "stack_border": {
-          "description": "Border colour when the container contains multiple windows",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base0B"
-        },
-        "stackbar_background": {
-          "description": "Stackbar tab background colour",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base01"
-        },
-        "stackbar_focused_text": {
-          "description": "Stackbar focused tab text colour",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base0B"
-        },
-        "stackbar_unfocused_text": {
-          "description": "Stackbar unfocused tab text colour",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base05"
-        },
-        "theme_variant": {
-          "description": "Specify Light or Dark variant for theme generation",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ThemeVariant"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Dark"
-        },
-        "unfocused_border": {
-          "description": "Border colour when the container is unfocused",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base01"
-        },
-        "unfocused_locked_border": {
-          "description": "Border colour when the container is unfocused and locked",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Base08"
-        }
-      }
-    },
-    "ThemeVariant": {
-      "description": "Theme variant",
-      "oneOf": [
-        {
-          "description": "Dark variant",
-          "type": "string",
-          "const": "Dark"
-        },
-        {
-          "description": "Light variant",
-          "type": "string",
-          "const": "Light"
-        }
       ]
     },
     "TimeConfig": {
@@ -9672,39 +8839,6 @@
       },
       "required": [
         "enable"
-      ]
-    },
-    "Wallpaper": {
-      "description": "Wallpaper configuration",
-      "type": "object",
-      "properties": {
-        "generate_theme": {
-          "description": "Generate and apply Base16 theme for this wallpaper",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": true
-        },
-        "path": {
-          "description": "Path to the wallpaper image file",
-          "$ref": "#/$defs/PathBuf"
-        },
-        "theme_options": {
-          "description": "Specify Light or Dark variant for theme generation",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ThemeOptions"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Dark"
-        }
-      },
-      "required": [
-        "path"
       ]
     },
     "WidgetConfig": {
@@ -9894,35 +9028,8 @@
         }
       ]
     },
-    "Window": {
-      "type": "object",
-      "properties": {
-        "hwnd": {
-          "type": "integer",
-          "format": "int"
-        }
-      },
-      "required": [
-        "hwnd"
-      ]
-    },
-    "WindowContainerBehaviour": {
-      "description": "Window container behaviour when a new window is opened",
-      "oneOf": [
-        {
-          "description": "Create a new container for each new window",
-          "type": "string",
-          "const": "Create"
-        },
-        {
-          "description": "Append new windows to the focused window container",
-          "type": "string",
-          "const": "Append"
-        }
-      ]
-    },
     "WindowKind": {
-      "description": "Window kind",
+      "description": "What a window is to the layout, which decides the color of its border",
       "oneOf": [
         {
           "description": "Single window",
@@ -9954,575 +9061,6 @@
           "type": "string",
           "const": "Floating"
         }
-      ]
-    },
-    "WindowPlacement": {
-      "description": "Placement strategy for new windows in a workspace",
-      "oneOf": [
-        {
-          "description": "Place the new window at the primary (largest) container position",
-          "type": "string",
-          "const": "Primary"
-        },
-        {
-          "description": "Place the new window at the secondary container position",
-          "type": "string",
-          "const": "Secondary"
-        },
-        {
-          "description": "Place the new window before the currently focused container",
-          "type": "string",
-          "const": "BeforeFocused"
-        },
-        {
-          "description": "Place the new window after the currently focused container (default behaviour)",
-          "type": "string",
-          "const": "AfterFocused"
-        },
-        {
-          "description": "Place the new window at the end of the container list",
-          "type": "string",
-          "const": "Last"
-        }
-      ]
-    },
-    "Workspace": {
-      "type": "object",
-      "properties": {
-        "apply_window_based_work_area_offset": {
-          "type": "boolean"
-        },
-        "container_padding": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        },
-        "containers": {
-          "$ref": "#/$defs/Ring3"
-        },
-        "float_override": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "floating_layer_behaviour": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/FloatingLayerBehaviour"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "floating_windows": {
-          "$ref": "#/$defs/Ring4"
-        },
-        "initial_window_placement_rules": {
-          "description": "Initial window placement rules that determine where new tiled windows are placed",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/InitialWindowPlacementRules"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "latest_layout": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Rect"
-          }
-        },
-        "layer": {
-          "$ref": "#/$defs/WorkspaceLayer"
-        },
-        "layout": {
-          "$ref": "#/$defs/Layout"
-        },
-        "layout_flip": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Axis"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "layout_options": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LayoutOptions"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "layout_options_rules": {
-          "description": "Threshold-based layout options rules (container_count >= threshold -> use these options).\nSorted by threshold ascending at load time.",
-          "type": "array",
-          "default": [],
-          "items": {
-            "type": "array",
-            "maxItems": 2,
-            "minItems": 2,
-            "prefixItems": [
-              {
-                "type": "integer",
-                "format": "uint",
-                "minimum": 0
-              },
-              {
-                "$ref": "#/$defs/LayoutOptions"
-              }
-            ]
-          }
-        },
-        "layout_rules": {
-          "type": "array",
-          "items": {
-            "type": "array",
-            "maxItems": 2,
-            "minItems": 2,
-            "prefixItems": [
-              {
-                "type": "integer",
-                "format": "uint",
-                "minimum": 0
-              },
-              {
-                "$ref": "#/$defs/Layout"
-              }
-            ]
-          }
-        },
-        "maximized_window": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Window"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "maximized_window_restore_idx": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "monocle_container": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Container"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "monocle_container_restore_idx": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "name": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "preselected_container_idx": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "promotion_swap_container_idx": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "resize_dimensions": {
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Rect"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "tile": {
-          "type": "boolean"
-        },
-        "wallpaper": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Wallpaper"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "window_container_behaviour": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/WindowContainerBehaviour"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "window_container_behaviour_rules": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "array",
-            "maxItems": 2,
-            "minItems": 2,
-            "prefixItems": [
-              {
-                "type": "integer",
-                "format": "uint",
-                "minimum": 0
-              },
-              {
-                "$ref": "#/$defs/WindowContainerBehaviour"
-              }
-            ]
-          }
-        },
-        "work_area_offset": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Rect"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "work_area_offset_rules": {
-          "type": "array",
-          "items": {
-            "type": "array",
-            "maxItems": 2,
-            "minItems": 2,
-            "prefixItems": [
-              {
-                "type": "integer",
-                "format": "uint",
-                "minimum": 0
-              },
-              {
-                "$ref": "#/$defs/Rect"
-              }
-            ]
-          }
-        },
-        "workspace_config": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/WorkspaceConfig"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "workspace_padding": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        }
-      },
-      "required": [
-        "containers",
-        "floating_windows",
-        "layout",
-        "layout_rules",
-        "work_area_offset_rules",
-        "latest_layout",
-        "resize_dimensions",
-        "tile",
-        "apply_window_based_work_area_offset",
-        "layer"
-      ]
-    },
-    "WorkspaceConfig": {
-      "description": "Workspace configuration",
-      "type": "object",
-      "properties": {
-        "apply_window_based_work_area_offset": {
-          "description": "Apply this monitor's window-based work area offset",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": true
-        },
-        "container_padding": {
-          "description": "Container padding (default: global)",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        },
-        "custom_layout": {
-          "description": "END OF LIFE FEATURE: Custom Layout",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PathBuf"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "deprecated": true
-        },
-        "custom_layout_rules": {
-          "description": "END OF LIFE FEATURE: Custom layout rules",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": false,
-          "deprecated": true,
-          "patternProperties": {
-            "^\\d+$": {
-              "type": "string"
-            }
-          }
-        },
-        "float_override": {
-          "description": "Enable or disable float override, which makes it so every new window opens in floating mode",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": false
-        },
-        "floating_layer_behaviour": {
-          "description": "Determine what happens to a new window when the Floating workspace layer is active",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/FloatingLayerBehaviour"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Tile"
-        },
-        "initial_window_placement_rules": {
-          "description": "Initial window placement rules that determine where new tiled windows are placed\nin the container list. Can be a placement target (a `WindowPlacement` string like\n`\"Primary\"` or a 1-based container index), or a map of placement targets to matching rules.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/InitialWindowPlacementRules"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "initial_workspace_rules": {
-          "description": "Initial workspace application rules",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/MatchingRule"
-          }
-        },
-        "layout": {
-          "description": "Layout",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DefaultLayout"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "BSP"
-        },
-        "layout_flip": {
-          "description": "Specify an axis on which to flip the selected layout",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Axis"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "layout_options": {
-          "description": "Layout-specific options",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LayoutOptions"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "layout_options_rules": {
-          "description": "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.\nThis follows the same threshold logic as `layout_rules`.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": false,
-          "patternProperties": {
-            "^\\d+$": {
-              "$ref": "#/$defs/LayoutOptions"
-            }
-          }
-        },
-        "layout_rules": {
-          "description": "Layout rules in the format of threshold => layout",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": false,
-          "patternProperties": {
-            "^\\d+$": {
-              "$ref": "#/$defs/DefaultLayout"
-            }
-          }
-        },
-        "name": {
-          "description": "Name",
-          "type": "string"
-        },
-        "tile": {
-          "description": "Enable or disable tiling for the workspace",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": true
-        },
-        "wallpaper": {
-          "description": "Specify a wallpaper for this workspace",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Wallpaper"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "window_container_behaviour": {
-          "description": "Determine what happens when a new window is opened",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/WindowContainerBehaviour"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "Create"
-        },
-        "window_container_behaviour_rules": {
-          "description": "Window container behaviour rules in the format of threshold => behaviour",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": false,
-          "patternProperties": {
-            "^\\d+$": {
-              "$ref": "#/$defs/WindowContainerBehaviour"
-            }
-          }
-        },
-        "work_area_offset": {
-          "description": "Workspace specific work area offset",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Rect"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "work_area_offset_rules": {
-          "description": "Work area offset rules in the format of threshold => Rect (default: None)",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": false,
-          "patternProperties": {
-            "^\\d+$": {
-              "$ref": "#/$defs/Rect"
-            }
-          }
-        },
-        "workspace_padding": {
-          "description": "Workspace padding (default: global)",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        },
-        "workspace_rules": {
-          "description": "Permanent workspace application rules",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/MatchingRule"
-          }
-        }
-      },
-      "required": [
-        "name"
-      ]
-    },
-    "WorkspaceLayer": {
-      "type": "string",
-      "enum": [
-        "Tiling",
-        "Floating"
       ]
     },
     "WorkspacesDisplayFormat": {
