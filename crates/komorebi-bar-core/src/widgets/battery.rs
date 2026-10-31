@@ -1,4 +1,6 @@
 use crate::config::LabelPrefix;
+use crate::platform::SystemTool;
+use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
@@ -13,7 +15,6 @@ use serde::Serialize;
 use starship_battery::Manager;
 use starship_battery::State;
 use starship_battery::units::ratio::percent;
-use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -178,9 +179,7 @@ impl BarWidget for Battery {
                     if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                        && let Err(error) = Command::new("cmd.exe")
-                            .args(["/C", "start", "ms-settings:batterysaver"])
-                            .spawn()
+                        && let Err(error) = platform().open_system_tool(SystemTool::PowerSettings)
                     {
                         eprintln!("{error}")
                     }
