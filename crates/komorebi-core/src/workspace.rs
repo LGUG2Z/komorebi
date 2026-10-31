@@ -96,6 +96,26 @@ pub trait WorkspacePlatform: Sized + 'static {
     /// Called after a floating window was taken out of the workspace; KDE refocuses a floating
     /// window, Windows does nothing.
     fn after_floating_removed(_workspace: &mut Workspace<Self>) {}
+
+    /// The index at which [`Workspace::promote_container`] inserts the container: the primary
+    /// position of the layout. The default layouts have it first.
+    fn primary_container_idx(_layout: &Layout) -> eyre::Result<usize> {
+        Ok(0)
+    }
+
+    /// Gives the maximized window back to the layout, for the platforms where that is something
+    /// to tell the window (KDE asks the compositor; on Windows there is nothing to do).
+    fn unmaximize_window(_window: &Self::Window) -> eyre::Result<()> {
+        Ok(())
+    }
+
+    /// Called by [`Workspace::hide`] before it hides the containers. A platform that has to put
+    /// the workspace in order first does it here (KDE tiles a scrolling workspace again without its
+    /// resize adjustments, so that the windows are hidden where the layout has them) and returns
+    /// the adjustments to put back.
+    fn before_hide_containers(_workspace: &mut Workspace<Self>) -> Option<Vec<Option<Rect>>> {
+        None
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -1325,6 +1345,136 @@ impl<P: WorkspacePlatform> Workspace<P> {
     pub fn is_scrolling(&self) -> bool {
         matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
     }
+    /// Moves the focused container to the primary position of the layout and focuses it.
+    pub fn promote_container(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+        let container = self
+            .containers_mut()
+            .remove_respecting_locks(focused_idx)
+            .ok_or_eyre("there is no container")?;
+
+        let primary_idx = P::primary_container_idx(&self.layout)?;
+
+        let insertion_idx = self
+            .containers_mut()
+            .insert_respecting_locks(primary_idx, container);
+        self.focus_container(insertion_idx);
+
+        Ok(())
+    }
+
+    /// The layout options in force for the number of containers the workspace has: its own, or
+    /// those its layout has by default.
+    pub fn effective_layout_options(&self) -> Option<LayoutOptions> {
+        let container_count = self.containers().len();
+
+        let has_workspace_overrides =
+            self.layout_options.is_some() || !self.layout_options_rules.is_empty();
+
+        let (effective_base, effective_rules): (Option<LayoutOptions>, &[(usize, LayoutOptions)]) =
+            if has_workspace_overrides {
+                (self.layout_options, &self.layout_options_rules)
+            } else {
+                match &self.layout {
+                    Layout::Default(dl) => match self.layout_defaults_cache.get(dl) {
+                        Some(entry) => (entry.layout_options, &entry.layout_options_rules),
+                        None => (None, &[]),
+                    },
+                    // a layout that is not one of the defaults (the Windows custom layouts) has none
+                    #[allow(unreachable_patterns)]
+                    _ => (None, &[]),
+                }
+            };
+
+        resolve_threshold_match(effective_rules, container_count).or(effective_base)
+    }
+
+    /// Takes the focused window of the workspace (the maximized one, the monocle's or the focused
+    /// container's) out of its place and makes it a floating window.
+    pub fn new_floating_window(&mut self) -> eyre::Result<()> {
+        let window = if let Some(maximized_window) = self.maximized_window {
+            P::unmaximize_window(&maximized_window)?;
+            self.maximized_window = None;
+            self.maximized_window_restore_idx = None;
+            maximized_window
+        } else if let Some(monocle_container) = &mut self.monocle_container {
+            let window = monocle_container
+                .remove_focused_window()
+                .ok_or_eyre("there is no window")?;
+
+            if monocle_container.windows().is_empty() {
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
+            } else {
+                monocle_container.load_focused_window();
+            }
+
+            window
+        } else {
+            let focused_idx = self.focused_container_idx();
+
+            let container = self
+                .focused_container_mut()
+                .ok_or_eyre("there is no container")?;
+
+            let window = container
+                .remove_focused_window()
+                .ok_or_eyre("there is no window")?;
+
+            if container.windows().is_empty() {
+                self.remove_container_by_idx(focused_idx);
+
+                if focused_idx == self.containers().len() {
+                    self.focus_container(focused_idx.saturating_sub(1));
+                }
+            } else {
+                container.load_focused_window();
+            }
+
+            window
+        };
+
+        self.floating_windows_mut().push_back(window);
+
+        Ok(())
+    }
+
+    /// Hides every window of the workspace, or every one but `omit`: the floating windows and the
+    /// windows of every container, the maximized window and the monocle container.
+    pub fn hide(&mut self, omit: Option<PlatformWindowId<P>>) {
+        for window in self.floating_windows_mut().iter_mut().rev() {
+            let mut should_hide = omit.is_none();
+
+            if !should_hide
+                && let Some(omit) = omit
+                && omit != window.id()
+            {
+                should_hide = true
+            }
+
+            if should_hide {
+                window.hide_window();
+            }
+        }
+
+        let resize_dimensions = P::before_hide_containers(self);
+
+        for container in self.containers_mut() {
+            container.hide(omit);
+        }
+
+        if let Some(resize_dimensions) = resize_dimensions {
+            self.resize_dimensions = resize_dimensions;
+        }
+
+        if let Some(window) = self.maximized_window {
+            window.hide_window();
+        }
+
+        if let Some(container) = &mut self.monocle_container {
+            container.hide(omit);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1333,6 +1483,14 @@ mod tests {
 
     #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
     struct W(u32);
+
+    thread_local! {
+        static HIDDEN: std::cell::RefCell<Vec<u32>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+
+    fn hidden() -> Vec<u32> {
+        HIDDEN.with(|hidden| std::mem::take(&mut *hidden.borrow_mut()))
+    }
 
     impl ContainerWindow for W {
         type Id = u32;
@@ -1345,7 +1503,9 @@ mod tests {
             Some(format!("exe{}", self.0))
         }
 
-        fn hide_window(&self) {}
+        fn hide_window(&self) {
+            HIDDEN.with(|hidden| hidden.borrow_mut().push(self.0));
+        }
 
         fn restore_window(&self) {}
 
@@ -1463,6 +1623,40 @@ mod tests {
         assert!(!keys.contains(&"globals"));
         assert!(!keys.contains(&"state"));
         assert!(!keys.contains(&"scrolling"));
+    }
+
+    #[test]
+    fn promoting_a_container_puts_it_first_and_focuses_it() {
+        let mut workspace = workspace_of(&[1, 2, 3]);
+
+        workspace.promote_container().unwrap();
+
+        assert_eq!(workspace.focused_container_idx(), 0);
+        assert_eq!(workspace.container_idx_for_window(3), Some(0));
+    }
+
+    #[test]
+    fn a_focused_window_becomes_floating_and_its_empty_container_goes() {
+        let mut workspace = workspace_of(&[1, 2]);
+
+        workspace.new_floating_window().unwrap();
+
+        assert_eq!(workspace.containers().len(), 1);
+        assert_eq!(workspace.floating_windows().len(), 1);
+        assert!(workspace.contains_window(2));
+    }
+
+    #[test]
+    fn hiding_leaves_out_the_window_it_is_told_to() {
+        let mut workspace = workspace_of(&[1, 2, 3]);
+        workspace.floating_windows_mut().push_back(W(9));
+        hidden();
+
+        workspace.hide(Some(2));
+
+        let mut hidden = hidden();
+        hidden.sort();
+        assert_eq!(hidden, [1, 3, 9]);
     }
 
     #[test]
