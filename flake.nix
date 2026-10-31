@@ -184,10 +184,14 @@
             src = ./.;
             filter =
               path: type:
-              (craneLib.filterCargoSources path type)
-              || (pkgs.lib.hasInfix "/docs/" path)
-              || (builtins.match ".*/docs/.*" path != null)
-              || (builtins.match ".*/komorebic/fixtures/.*" path != null);
+              # the other platforms' trees have their own workspaces and are built by their own outputs
+              !(pkgs.lib.hasInfix "/komorebi-for-kde" path || pkgs.lib.hasInfix "/komorebi-for-mac" path)
+              && (
+                (craneLib.filterCargoSources path type)
+                || (pkgs.lib.hasInfix "/docs/" path)
+                || (builtins.match ".*/docs/.*" path != null)
+                || (builtins.match ".*/komorebic/fixtures/.*" path != null)
+              );
           };
 
           commonArgs = {
