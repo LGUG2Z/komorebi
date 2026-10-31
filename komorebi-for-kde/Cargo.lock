@@ -2508,6 +2508,7 @@ dependencies = [
  "komorebi-layouts",
  "komorebi-protocol",
  "komorebi-scrolling",
+ "komorebi-settings",
  "komorebi-themes",
  "komorebi-transport",
  "lazy_static",
@@ -2611,6 +2612,17 @@ dependencies = [
 [[package]]
 name = "komorebi-scrolling"
 version = "0.1.42"
+
+[[package]]
+name = "komorebi-settings"
+version = "0.1.42"
+dependencies = [
+ "komorebi-config",
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "komorebi-themes",
+ "parking_lot 0.12.5",
+]
 
 [[package]]
 name = "komorebi-themes"

@@ -208,16 +208,18 @@ lazy_static! {
 
 /// The padding, in pixels, between the edge of a monitor's work area and the tiles of its
 /// workspaces, for a monitor that sets none of its own. The default for this is 5.
-pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
+pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 =
+    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::KDE.workspace_padding);
 /// The padding, in pixels, around each tile, for a monitor that sets none of its own. The default
 /// for this is 5.
-pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(5);
+pub static DEFAULT_CONTAINER_PADDING: AtomicI32 =
+    AtomicI32::new(komorebi_settings::shared::PlatformDefaults::KDE.container_padding);
 /// How many pixels `ResizeWindowEdge` and `ResizeWindowAxis` resize by, when `komorebi.json` does
 /// not say
-pub static DEFAULT_RESIZE_DELTA: i32 = 50;
+pub static DEFAULT_RESIZE_DELTA: i32 = komorebi_settings::shared::DEFAULT_RESIZE_DELTA;
 /// Whether the pointer goes to the window that is given the focus, when `komorebi.json` does not
 /// say
-pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = true;
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 
 /// The event, the message or the change of the monitors a [`Notification`] is about
 ///
