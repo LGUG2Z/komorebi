@@ -22,7 +22,20 @@ def run(platform: Platform, checks: Checks, clients: list[Client]) -> None:
 
     They take a window out of the daemon's hands, so a sweep of commands does not run them. The
     window is tiled again at the end.
+
+    There have to be two containers or more on the focused workspace. A window that is alone there
+    stays on the tile it was put on, and an emptied workspace keeps its last layout (the daemon has
+    nothing to calculate), so "not on a tile of the layout" could never hold: the scenario says so
+    and stops, rather than fail on a precondition that was never met.
     """
+    tiled = len(platform.state().workspace().containers)
+    if not checks.check(
+        "the focused workspace has two tiled containers or more, for a window to be let go of"
+        f" (it has {tiled})",
+        tiled >= 2,
+    ):
+        print(describe(platform, clients))
+        return
     title = platform.state().focused_title()
     target = Client(title)
     before = platform.state().managed()

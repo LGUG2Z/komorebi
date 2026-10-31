@@ -60,7 +60,7 @@ def test_a_daemon_that_lets_go_and_takes_up_again_passes_handover() -> None:
     base = checks.passed
     handover.run(platform, checks, clients)
     assert checks.failed == 0, checks.failures
-    assert checks.passed - base == 5
+    assert checks.passed - base == 6
 
 
 def test_a_daemon_that_keeps_an_unmanaged_window_fails_handover() -> None:
@@ -332,3 +332,14 @@ def test_a_crash_that_leaves_a_window_hidden_fails() -> None:
     clients = opened(platform, checks)
     lifecycle_hidden.crash(platform, checks, clients)
     assert any("none is left out of sight" in f for f in checks.failures), checks.failures
+
+
+def test_a_window_that_is_alone_on_its_workspace_fails_handover_on_the_precondition() -> None:
+    platform = FakePlatform()
+    checks = Checks()
+    clients = opened(platform, checks)
+    platform.komorebic("send-to-workspace", "1")
+    platform.komorebic("send-to-workspace", "1")
+    handover.run(platform, checks, clients)
+    assert any("two tiled containers" in f for f in checks.failures)
+    assert not any("unmanage" in f for f in checks.failures)
