@@ -18,7 +18,9 @@ use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBARS_CONTAINERS;
 use crate::windows_api;
+use crate::windows_backend::backend;
 use crossbeam_utils::atomic::AtomicConsume;
+use komorebi_backend::WindowId;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
@@ -341,10 +343,11 @@ impl Stackbar {
                         let gap = DEFAULT_CONTAINER_PADDING.load_consume();
 
                         let focused_window_idx = container.focused_window_idx();
-                        let focused_window_rect = WindowsApi::window_rect(
-                            container.focused_window().cloned().unwrap_or_default().hwnd,
-                        )
-                        .unwrap_or_default();
+                        let focused_window_rect = backend()
+                            .frame(WindowId::from_hwnd(
+                                container.focused_window().cloned().unwrap_or_default().hwnd,
+                            ))
+                            .unwrap_or_default();
 
                         for (index, window) in container.windows().iter().enumerate() {
                             let left = gap + (index as i32 * (width + gap));
@@ -358,8 +361,10 @@ impl Stackbar {
                                 // on top of other tiles before eventually ending up in the correct
                                 // tile
                                 if index != focused_window_idx
-                                    && let Err(err) =
-                                        window.set_position(&focused_window_rect, false)
+                                    && let Err(err) = backend().set_rect(
+                                        WindowId::from_hwnd(window.hwnd),
+                                        &focused_window_rect,
+                                    )
                                 {
                                     tracing::error!(
                                         "stackbar WM_LBUTTONDOWN repositioning error: hwnd {} ({})",
@@ -370,7 +375,9 @@ impl Stackbar {
 
                                 // Restore the window corresponding to the tab we have clicked
                                 window.restore_with_border(false);
-                                if let Err(err) = window.focus(false) {
+                                if let Err(err) =
+                                    backend().focus(WindowId::from_hwnd(window.hwnd), false)
+                                {
                                     tracing::error!(
                                         "stackbar WMLBUTTONDOWN focus error: hwnd {} ({})",
                                         *window,

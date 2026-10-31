@@ -208,6 +208,7 @@ fn window_agrees_with_windows<H: Harness>() {
     assert!(info.alive);
     assert!(h.backend().is_window(id));
     assert_eq!(h.backend().window_rect(id), Some(info.rect));
+    assert_eq!(h.backend().frame(id).ok(), Some(info.rect));
     assert!(h.backend().windows().iter().any(|w| w.id == id));
 }
 
@@ -219,6 +220,11 @@ fn an_unknown_window_is_not_a_window<H: Harness>() {
     assert!(h.backend().window(unknown).is_none());
     assert!(!h.backend().is_window(unknown));
     assert!(h.backend().window_rect(unknown).is_none());
+    assert!(
+        h.backend()
+            .frame(unknown)
+            .is_err_and(|e| e.is_window_gone())
+    );
 }
 
 fn commands_on_an_unknown_window<H: Harness>() {

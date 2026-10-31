@@ -1057,6 +1057,17 @@ mod tests {
     }
 
     #[test]
+    fn frame_is_the_requested_rect_and_an_unknown_window_is_gone() -> Result<()> {
+        let fake = fake_with(&[1]);
+
+        fake.set_rect(ONE, &tile(10, 500))?;
+
+        assert_eq!(fake.frame(ONE)?, tile(10, 500));
+        assert!(fake.frame(WindowId(99)).is_err_and(|e| e.is_window_gone()));
+        Ok(())
+    }
+
+    #[test]
     fn a_window_keeps_to_its_minimum_size() -> Result<()> {
         let fake = fake_with(&[1]);
         fake.set_min_size(ONE, 600, 400);

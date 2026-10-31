@@ -15,9 +15,11 @@ use crate::monitor::Monitor;
 use crate::monitor_reconciliator::hidden::Hidden;
 use crate::notify_subscribers;
 use crate::state::State;
+use crate::windows_backend::backend;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
+use komorebi_backend::WindowId;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -291,7 +293,7 @@ where
                     let mut should_update = false;
 
                     // Update work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id)
+                    if let Ok(reference) = WindowsApi::monitor(monitor.id.to_hmonitor())
                         && reference.work_area_size != monitor.work_area_size
                     {
                         monitor.work_area_size = Rect {
@@ -323,7 +325,7 @@ where
                     let mut should_update = false;
 
                     // Update sizes and work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id) {
+                    if let Ok(reference) = WindowsApi::monitor(monitor.id.to_hmonitor()) {
                         if reference.work_area_size != monitor.work_area_size {
                             monitor.work_area_size = Rect {
                                 left: reference.work_area_size.left,
@@ -593,7 +595,8 @@ where
                                             // Minimize the focused window since Windows might try
                                             // to move it to another monitor if it was focused.
                                             if window.is_focused() {
-                                                window.minimize();
+                                                let _ = backend()
+                                                    .minimize(WindowId::from_hwnd(window.hwnd));
                                             }
                                         }
                                     }
@@ -604,7 +607,8 @@ where
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
                                     if maximized.is_focused() {
-                                        maximized.minimize();
+                                        let _ =
+                                            backend().minimize(WindowId::from_hwnd(maximized.hwnd));
                                     }
                                 }
 
@@ -616,7 +620,8 @@ where
                                         // Minimize the focused window since Windows might try
                                         // to move it to another monitor if it was focused.
                                         if window.is_focused() {
-                                            window.minimize();
+                                            let _ = backend()
+                                                .minimize(WindowId::from_hwnd(window.hwnd));
                                         }
                                     }
                                 }
@@ -626,7 +631,8 @@ where
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
                                     if window.is_focused() {
-                                        window.minimize();
+                                        let _ =
+                                            backend().minimize(WindowId::from_hwnd(window.hwnd));
                                     }
                                 }
                             }
@@ -1269,7 +1275,7 @@ mod tests {
             assert_eq!(monitors.len(), 1, "Expected one monitor");
 
             // hmonitor
-            assert_eq!(monitors[0].id, 1);
+            assert_eq!(monitors[0].id.to_hmonitor(), 1);
 
             // device name
             assert_eq!(monitors[0].name, String::from("DISPLAY1"));

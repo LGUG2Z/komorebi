@@ -26,7 +26,9 @@ use crate::stackbar_manager;
 use crate::transparency_manager;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
+use crate::windows_backend::backend;
 use color_eyre::eyre;
+use komorebi_backend::WindowId;
 use parking_lot::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -320,8 +322,9 @@ impl GhostDispatcher {
     /// render target. Those that do have to be laid out are not until they are
     /// shown.
     fn lay_out_entering_window(&self) {
-        let is_there =
-            WindowsApi::window_rect(self.hwnd).is_ok_and(|rect| rect == self.target_rect);
+        let is_there = backend()
+            .frame(WindowId::from_hwnd(self.hwnd))
+            .is_ok_and(|rect| rect == self.target_rect);
 
         if is_there {
             return;
@@ -491,8 +494,9 @@ impl GhostDispatcher {
     /// swap chain is shown before it is laid out, and not after: laying one out
     /// while it is hidden is what leaves it blank or drawn off its place.
     fn show_entered_at_once(&self) {
-        let is_there =
-            WindowsApi::window_rect(self.hwnd).is_ok_and(|rect| rect == self.target_rect);
+        let is_there = backend()
+            .frame(WindowId::from_hwnd(self.hwnd))
+            .is_ok_and(|rect| rect == self.target_rect);
 
         if is_there {
             self.show();

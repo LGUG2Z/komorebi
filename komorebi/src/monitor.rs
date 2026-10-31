@@ -12,6 +12,9 @@ use crate::border_manager::BORDER_ENABLED;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::core::Rect;
+use crate::windows_backend::backend;
+use komorebi_backend::MonitorId;
+use komorebi_backend::WindowId;
 
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -27,10 +30,28 @@ use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 
+/// `Monitor::id` is a `MonitorId` in Rust and the same plain JSON number as the `isize` handle it
+/// was before: `komorebic state` and the saved state files do not change.
+mod hmonitor_json {
+    use komorebi_backend::MonitorId;
+    use serde::Deserialize;
+    use serde::Deserializer;
+    use serde::Serializer;
+
+    pub fn serialize<S: Serializer>(id: &MonitorId, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_i64(id.to_hmonitor() as i64)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<MonitorId, D::Error> {
+        Ok(MonitorId::from_hmonitor(isize::deserialize(deserializer)?))
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Monitor {
-    pub id: isize,
+    #[serde(with = "hmonitor_json")]
+    #[cfg_attr(feature = "schemars", schemars(with = "isize"))]
+    pub id: MonitorId,
     pub name: String,
     pub device: String,
     pub device_id: String,
@@ -65,7 +86,7 @@ pub struct MonitorInformation {
 impl From<&Monitor> for MonitorInformation {
     fn from(monitor: &Monitor) -> Self {
         Self {
-            id: monitor.id,
+            id: monitor.id.to_hmonitor(),
             name: monitor.name.clone(),
             device: monitor.device.clone(),
             device_id: monitor.device_id.clone(),
@@ -88,7 +109,7 @@ pub fn new(
     workspaces.elements_mut().push_back(Workspace::default());
 
     Monitor {
-        id,
+        id: MonitorId::from_hmonitor(id),
         name,
         device,
         device_id,
@@ -131,7 +152,7 @@ impl Monitor {
 
     pub fn placeholder() -> Self {
         Self {
-            id: 0,
+            id: MonitorId(0),
             name: "PLACEHOLDER".to_string(),
             device: "".to_string(),
             device_id: "".to_string(),
@@ -169,7 +190,7 @@ impl Monitor {
 
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
-        let hmonitor = self.id;
+        let hmonitor = self.id.to_hmonitor();
         let monitor_wp = self.wallpaper.clone();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
@@ -438,7 +459,7 @@ impl Monitor {
                 }
 
                 for window in target_workspace.floating_windows_mut() {
-                    window.restore();
+                    let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
                 }
 
                 target_workspace.reintegrate_monocle_container()?;
@@ -818,5 +839,66 @@ mod tests {
         // Try to call the ensure workspace count again to ensure it doesn't change
         m.ensure_workspace_count(3);
         assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
+    }
+
+    /// The monitor object of a real `komorebic state` capture (e2e/lib/tests/fixtures/kfw-tiled.json,
+    /// workspaces emptied): the JSON a Monitor reads and writes. Pins the representation of `id` (a
+    /// plain number) and `serial_number_id` (null or a string) so that changing their Rust types
+    /// cannot change the state JSON.
+    const MONITOR_JSON: &str = r#"{
+        "id": 65537,
+        "name": "DISPLAY1",
+        "device": "Default_Monitor",
+        "device_id": "Default_Monitor-4&183790ca&0&UID0",
+        "serial_number_id": null,
+        "size": { "left": 0, "top": 0, "right": 1280, "bottom": 800 },
+        "work_area_size": { "left": 0, "top": 0, "right": 1280, "bottom": 752 },
+        "work_area_offset": null,
+        "window_based_work_area_offset": null,
+        "window_based_work_area_offset_limit": 1,
+        "workspaces": { "elements": [], "focused": 0 },
+        "workspace_names": {},
+        "container_padding": null,
+        "workspace_padding": null,
+        "wallpaper": null,
+        "floating_layer_behaviour": null
+    }"#;
+
+    #[test]
+    fn a_monitor_serializes_to_the_json_of_the_state_capture() {
+        let expected: serde_json::Value = serde_json::from_str(MONITOR_JSON).unwrap();
+        let monitor: Monitor = serde_json::from_value(expected.clone()).unwrap();
+
+        assert_eq!(serde_json::to_value(&monitor).unwrap(), expected);
+    }
+
+    #[test]
+    fn a_monitor_id_and_serial_are_plain_json_values() {
+        for id in [0, 1, 65537, isize::MAX, -1, isize::MIN] {
+            let mut value: serde_json::Value = serde_json::from_str(MONITOR_JSON).unwrap();
+            value["id"] = serde_json::json!(id);
+            value["serial_number_id"] = serde_json::json!("ABC123");
+
+            let monitor: Monitor = serde_json::from_value(value.clone()).unwrap();
+            assert_eq!(serde_json::to_value(&monitor).unwrap(), value, "id {id}");
+        }
+    }
+
+    #[test]
+    fn monitor_information_has_the_documented_fields() {
+        let monitor: Monitor = serde_json::from_str(MONITOR_JSON).unwrap();
+        let value = serde_json::to_value(MonitorInformation::from(&monitor)).unwrap();
+
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "id": 65537,
+                "name": "DISPLAY1",
+                "device": "Default_Monitor",
+                "device_id": "Default_Monitor-4&183790ca&0&UID0",
+                "serial_number_id": null,
+                "size": { "left": 0, "top": 0, "right": 1280, "bottom": 800 }
+            })
+        );
     }
 }

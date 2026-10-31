@@ -5,6 +5,8 @@ use serde::Serialize;
 use crate::Lockable;
 use crate::ring::Ring;
 use crate::window::Window;
+use crate::windows_backend::backend;
+use komorebi_backend::WindowId;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -12,7 +14,7 @@ pub struct Container {
     pub id: String,
     #[serde(default)]
     pub locked: bool,
-    windows: Ring<Window>,
+    pub windows: Ring<Window>,
 }
 
 impl_ring_elements!(Container, Window);
@@ -63,14 +65,14 @@ impl Container {
             }
 
             if should_hide {
-                window.hide();
+                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
             }
         }
     }
 
     pub fn restore(&self) {
         if let Some(window) = self.focused_window() {
-            window.restore();
+            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
         }
     }
 
@@ -151,7 +153,7 @@ impl Container {
 
         for (i, window) in self.windows().iter().enumerate() {
             if i != focused_window_idx {
-                window.hide();
+                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
             }
         }
     }

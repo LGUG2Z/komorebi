@@ -7,10 +7,12 @@ use crate::container::Container;
 use crate::core::StackbarLabel;
 use crate::core::StackbarMode;
 use crate::stackbar_manager::stackbar::Stackbar;
+use crate::windows_backend::backend;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::atomic::AtomicConsume;
+use komorebi_backend::WindowId;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -206,9 +208,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                     stackbars_monitors.insert(container.id.clone(), monitor_idx);
 
-                    let rect = WindowsApi::window_rect(
+                    let rect = backend().frame(WindowId::from_hwnd(
                         container.focused_window().copied().unwrap_or_default().hwnd,
-                    )?;
+                    ))?;
 
                     stackbar.update(container_padding, container, &rect)?;
                 }

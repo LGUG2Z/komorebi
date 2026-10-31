@@ -54,7 +54,7 @@ fn platform(report: eyre::Report) -> Error {
 impl WindowsBackend {
     fn info(window: Window) -> Option<WindowInfo> {
         let hwnd = window.hwnd;
-        if !WindowsApi::is_window(hwnd) {
+        if !window.alive() {
             return None;
         }
 
@@ -63,7 +63,7 @@ impl WindowsBackend {
             pid: i32::try_from(window.process_id()).unwrap_or_default(),
             // Windows reports the visible bounds (without the shadow); an error leaves the
             // default, which a caller cannot tell from a window at the origin: see seam.md 9
-            rect: WindowsApi::window_rect(hwnd).unwrap_or_default(),
+            rect: window.window_rect().unwrap_or_default(),
             minimized: window.is_miminized(),
             alive: true,
             title: window.title().ok(),
@@ -110,7 +110,7 @@ impl Backend for WindowsBackend {
             .map(|(_, hmonitor)| {
                 let monitor = WindowsApi::monitor(hmonitor).map_err(platform)?;
                 Ok(MonitorInfo {
-                    id: MonitorId::from_hmonitor(monitor.id),
+                    id: monitor.id,
                     size: monitor.size,
                     work_area: monitor.work_area_size,
                     name: Some(monitor.name),
@@ -126,6 +126,15 @@ impl Backend for WindowsBackend {
         Ok(monitors)
     }
 
+    fn frame(&self, id: WindowId) -> Result<Rect> {
+        // one `DwmGetWindowAttribute` (fallback `GetWindowRect`), no title, class or exe lookups,
+        // and no `IsWindow` first: the Win32 error is the answer, as for every `window_rect`
+        // caller; `failed` says whether the window died
+        Window::from(id.to_hwnd())
+            .window_rect()
+            .map_err(|e| failed(id, e))
+    }
+
     fn cursor_pos(&self) -> Option<(i32, i32)> {
         WindowsApi::cursor_pos().ok().map(|p| (p.x, p.y))
     }
@@ -136,7 +145,7 @@ impl Backend for WindowsBackend {
         // contract does not have: it is false here and a caller raises with `raise`.
         // `Window::set_position` also keeps its animation, slide-in and live-resize guards
         // and skips the write when the frame is already right: see seam.md 9.
-        window.set_position(rect, false).map_err(|e| failed(id, e))
+        window.set_rect(rect).map_err(|e| failed(id, e))
     }
 
     fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> Result<()> {
@@ -172,7 +181,7 @@ impl Backend for WindowsBackend {
         // for the `Hide` and `Minimize` hiding behaviours, and without the HIDDEN_HWNDS and
         // border bookkeeping of `Window::restore`
         live(id)?;
-        WindowsApi::restore_window(id.to_hwnd());
+        Window::from(id.to_hwnd()).unminimize();
         Ok(())
     }
 
@@ -231,4 +240,13 @@ impl Backend for WindowsBackend {
             POINT { x, y },
         )))
     }
+}
+
+static BACKEND: WindowsBackend = WindowsBackend;
+
+/// The backend the daemon calls, like `backend()` on KDE. Stateless, so one static serves every
+/// thread. Call sites are being switched to it one cluster at a time: see
+/// `docs/dev/backend-switch.md` for which are.
+pub fn backend() -> &'static dyn Backend {
+    &BACKEND
 }

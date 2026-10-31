@@ -18,9 +18,10 @@ use crate::core::Rect;
 use crate::core::ScrollingLayoutOptions;
 use crate::core::Sizing;
 use crate::core::WindowHandlingBehaviour;
-use crate::windows_api::WindowsApi;
+use crate::windows_backend::backend;
 use crate::workspace::Workspace;
 use color_eyre::eyre;
+use komorebi_backend::WindowId;
 use komorebi_layouts::scrolling;
 use komorebi_layouts::scrolling::ScrollingPlacement;
 use komorebi_scrolling::ColumnWidth;
@@ -201,7 +202,7 @@ impl Workspace {
                 .iter()
                 // a window that is hidden has not been where it was told to be
                 .filter(|window| !crate::HIDDEN_HWNDS.lock().contains(&window.hwnd))
-                .filter_map(|window| WindowsApi::window_rect(window.hwnd).ok())
+                .filter_map(|window| backend().frame(WindowId::from_hwnd(window.hwnd)).ok())
                 .map(|actual| actual.right - placed.right)
                 .max()
                 .unwrap_or_default();

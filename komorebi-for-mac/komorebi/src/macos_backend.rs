@@ -187,6 +187,15 @@ impl Backend for MacosBackend {
         Ok(monitors)
     }
 
+    fn frame(&self, id: WindowId) -> Result<Rect> {
+        // the Accessibility position and size only, without the title, executable and path
+        // lookups of `window`
+        let window = self.lookup(id)?;
+        MacosApi::window_rect(&window.element)
+            .map(Rect::from)
+            .map_err(|e| Self::failed(id, &window, e))
+    }
+
     fn cursor_pos(&self) -> Option<(i32, i32)> {
         let point = MacosApi::cursor_pos();
         #[allow(clippy::cast_possible_truncation)]

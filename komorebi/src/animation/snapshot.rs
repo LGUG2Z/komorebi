@@ -60,6 +60,8 @@ use windows::core::w;
 
 use crate::WindowsApi;
 use crate::border_manager::BorderLook;
+use crate::windows_backend::backend;
+use komorebi_backend::WindowId;
 
 /// Ask for what the window looks like to the compositor, which is the only
 /// way to capture a window that is drawn with DirectComposition
@@ -279,7 +281,7 @@ fn render(hwnd: isize) -> eyre::Result<Rendered> {
     let window_height = window.bottom - window.top;
 
     // what is on screen is the extended frame, inside the invisible borders
-    let frame = WindowsApi::window_rect(hwnd)?;
+    let frame = backend().frame(WindowId::from_hwnd(hwnd))?;
     let x = (frame.left - window.left).clamp(0, window_width);
     let y = (frame.top - window.top).clamp(0, window_height);
     let width = frame.right.min(window_width - x);

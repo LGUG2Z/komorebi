@@ -325,6 +325,22 @@ pub trait Backend: Send + Sync + 'static {
         self.window(id).map(|w| w.rect)
     }
 
+    /// Returns the window's frame, or why there is none: [`Error::WindowGone`] when the backend
+    /// does not know the window, [`Error::Platform`] when the platform could not say. A **cheap
+    /// live frame query**: unlike [`Backend::window`] it never asks for the title, class,
+    /// executable or path, and unlike [`Backend::window_rect`] it keeps the reason for a failure.
+    ///
+    /// The frame is the same value as the `rect` of [`Backend::window`]: Windows the visible
+    /// bounds (`DWMWA_EXTENDED_FRAME_BOUNDS`, fallback `GetWindowRect`), macOS the Accessibility
+    /// position and size (two round trips), KDE the daemon's table (the requested rect until an
+    /// event corrects it, see "Reads after writes").
+    ///
+    /// The default goes through [`Backend::window`], which is a table lookup on KDE and the fake;
+    /// Windows and macOS override it.
+    fn frame(&self, id: WindowId) -> Result<Rect> {
+        self.window(id).map(|w| w.rect).ok_or(Error::WindowGone(id))
+    }
+
     /// Returns the id of the monitor whose bounds contain the point. A point outside every
     /// monitor gives `None` on KDE and macOS, and the **nearest** monitor on Windows
     /// (`MONITOR_DEFAULTTONEAREST`), so callers must not use `None` to detect "off screen".

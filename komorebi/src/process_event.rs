@@ -8,6 +8,8 @@ use parking_lot::Mutex;
 
 use crate::core::Rect;
 use crate::core::WindowContainerBehaviour;
+use crate::windows_backend::backend;
+use komorebi_backend::WindowId;
 
 use crate::CURRENT_VIRTUAL_DESKTOP;
 use crate::DefaultLayout;
@@ -301,7 +303,7 @@ impl WindowManager {
 
         match event {
             WindowManagerEvent::Raise(window) => {
-                window.focus(false)?;
+                backend().focus(WindowId::from_hwnd(window.hwnd), false)?;
                 self.has_pending_raise_op = false;
             }
             WindowManagerEvent::Destroy(_, window) | WindowManagerEvent::Unmanage(window) => {
@@ -435,7 +437,7 @@ impl WindowManager {
 
                         if let Some(monocle) = &workspace.monocle_container {
                             if let Some(window) = monocle.focused_window() {
-                                window.focus(false)?;
+                                backend().focus(WindowId::from_hwnd(window.hwnd), false)?;
                             }
                         } else {
                             workspace.focus_container_by_window(window.hwnd)?;
@@ -509,7 +511,7 @@ impl WindowManager {
                             "ignoring show event for window already associated with another workspace"
                         );
 
-                        window.hide();
+                        let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
                         proceed = false;
                     }
 
@@ -621,7 +623,10 @@ impl WindowManager {
                                 // first send the `FocusChange` event and only the `Show` event after
                                 // and we will be focusing the desktop on the `FocusChange` event since
                                 // it is still empty.
-                                window.focus(self.mouse_follows_focus)?;
+                                backend().focus(
+                                    WindowId::from_hwnd(window.hwnd),
+                                    self.mouse_follows_focus,
+                                )?;
                             }
                         }
 
@@ -638,7 +643,7 @@ impl WindowManager {
                             if !(monocle_window_event || workspace.layer != WorkspaceLayer::Tiling)
                                 && monocle_container.is_some()
                             {
-                                window.hide();
+                                let _ = backend().hide(WindowId::from_hwnd(window.hwnd));
                             }
                         }
                     }
@@ -653,7 +658,7 @@ impl WindowManager {
 
                 WindowsApi::bring_window_to_top(window.hwnd)?;
 
-                let started_from = WindowsApi::window_rect(window.hwnd)?;
+                let started_from = backend().frame(WindowId::from_hwnd(window.hwnd))?;
 
                 let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
                 *pending_move_op =
@@ -696,7 +701,7 @@ impl WindowManager {
 
                 let workspace = self.focused_workspace_mut()?;
                 let focused_container_idx = workspace.focused_container_idx();
-                let new_position = WindowsApi::window_rect(window.hwnd)?;
+                let new_position = backend().frame(WindowId::from_hwnd(window.hwnd))?;
                 // Measure against the rect the window had when the drag started, which is what
                 // the user had under the pointer; a window is not always exactly on its tile
                 // (cell grids, minimum sizes, border insets)
@@ -812,7 +817,10 @@ impl WindowManager {
                                 self.update_focused_workspace(false, false)?;
 
                                 // Make sure to give focus to the moved window again
-                                window.focus(self.mouse_follows_focus)?;
+                                backend().focus(
+                                    WindowId::from_hwnd(window.hwnd),
+                                    self.mouse_follows_focus,
+                                )?;
                             }
                         } else if window_management_behaviour.float_override {
                             workspace.floating_windows_mut().push_back(window);
@@ -1055,7 +1063,7 @@ impl WindowManager {
                             container.restore();
                         }
                         for window in workspace.floating_windows_mut() {
-                            window.restore();
+                            let _ = backend().restore(WindowId::from_hwnd(window.hwnd));
                         }
                         workspace.reintegrate_monocle_container()?;
                     }
