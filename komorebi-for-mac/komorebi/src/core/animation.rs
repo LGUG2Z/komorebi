@@ -1,3 +1,5 @@
+//! The easing curves an animation can have (`komorebic animation-style`).
+
 use clap::ValueEnum;
 
 use serde::Deserialize;
@@ -74,7 +76,7 @@ pub enum AnimationStyle {
     EaseInOutBounce,
     #[cfg_attr(feature = "schemars", schemars(title = "CubicBezier"))]
     #[value(skip)]
-    /// Custom Cubic Bézier function
+    /// Custom Cubic Bezier function
     CubicBezier(f64, f64, f64, f64),
 }
 
@@ -150,5 +152,44 @@ impl Serialize for AnimationStyle {
             // Serialize all other variants as strings
             _ => serializer.serialize_str(&self.to_string()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_style_is_written_as_its_name_and_a_bezier_as_four_numbers() {
+        assert_eq!(
+            serde_json::to_string(&AnimationStyle::EaseInOutSine).unwrap(),
+            r#""EaseInOutSine""#
+        );
+        assert_eq!(
+            serde_json::to_string(&AnimationStyle::CubicBezier(0.32, 0.72, 0.0, 1.0)).unwrap(),
+            "[0.32,0.72,0.0,1.0]"
+        );
+    }
+
+    #[test]
+    fn a_style_is_read_back_from_what_it_is_written_as() {
+        for style in [
+            AnimationStyle::Linear,
+            AnimationStyle::EaseOutBounce,
+            AnimationStyle::CubicBezier(0.1, 0.2, 0.3, 0.4),
+        ] {
+            let json = serde_json::to_string(&style).unwrap();
+            assert_eq!(
+                serde_json::from_str::<AnimationStyle>(&json).unwrap(),
+                style
+            );
+        }
+    }
+
+    #[test]
+    fn a_name_that_is_no_style_and_a_bezier_that_is_not_four_numbers_are_refused() {
+        assert!(serde_json::from_str::<AnimationStyle>(r#""EaseInPlace""#).is_err());
+        assert!(serde_json::from_str::<AnimationStyle>("[0.1, 0.2, 0.3]").is_err());
+        assert!(serde_json::from_str::<AnimationStyle>("[0.1, 0.2, 0.3, 0.4, 0.5]").is_err());
     }
 }

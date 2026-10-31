@@ -511,7 +511,7 @@
         },
         {
           "title": "CubicBezier",
-          "description": "Custom Cubic Bézier function",
+          "description": "Custom Cubic Bezier function",
           "type": "object",
           "properties": {
             "CubicBezier": {
