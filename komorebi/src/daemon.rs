@@ -20,10 +20,10 @@ use clap::ValueEnum;
 use color_eyre::eyre;
 use color_eyre::eyre::bail;
 use crossbeam_utils::Backoff;
-use komorebi::animation::ANIMATION_ENABLED_GLOBAL;
-use komorebi::animation::ANIMATION_ENABLED_PER_ANIMATION;
-use komorebi::animation::AnimationEngine;
-use komorebi::replace_env_in_path;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::AnimationEngine;
+use crate::replace_env_in_path;
 use parking_lot::Mutex;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
@@ -35,29 +35,29 @@ use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use uds_windows::UnixStream;
 
-use komorebi::CUSTOM_FFM;
-use komorebi::DATA_DIR;
-use komorebi::HOME_DIR;
-use komorebi::INITIAL_CONFIGURATION_LOADED;
-use komorebi::SESSION_ID;
-use komorebi::border_manager;
-use komorebi::focus_manager;
-use komorebi::load_configuration;
-use komorebi::monitor_reconciliator;
-use komorebi::process_command::listen_for_commands;
-use komorebi::process_command::listen_for_commands_tcp;
-use komorebi::process_event::listen_for_events;
-use komorebi::process_movement::listen_for_movements;
-use komorebi::reaper;
-use komorebi::stackbar_manager;
-use komorebi::state::State;
-use komorebi::static_config::StaticConfig;
-use komorebi::static_config::StaticConfigExt;
-use komorebi::theme_manager;
-use komorebi::transparency_manager;
-use komorebi::window_manager::WindowManager;
-use komorebi::windows_api::WindowsApi;
-use komorebi::winevent_listener;
+use crate::CUSTOM_FFM;
+use crate::DATA_DIR;
+use crate::HOME_DIR;
+use crate::INITIAL_CONFIGURATION_LOADED;
+use crate::SESSION_ID;
+use crate::border_manager;
+use crate::focus_manager;
+use crate::load_configuration;
+use crate::monitor_reconciliator;
+use crate::process_command::listen_for_commands;
+use crate::process_command::listen_for_commands_tcp;
+use crate::process_event::listen_for_events;
+use crate::process_movement::listen_for_movements;
+use crate::reaper;
+use crate::stackbar_manager;
+use crate::state::State;
+use crate::static_config::StaticConfig;
+use crate::static_config::StaticConfigExt;
+use crate::theme_manager;
+use crate::transparency_manager;
+use crate::window_manager::WindowManager;
+use crate::windows_api::WindowsApi;
+use crate::winevent_listener;
 
 fn setup(log_level: LogLevel) -> eyre::Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
@@ -172,7 +172,7 @@ enum LogLevel {
 }
 
 #[derive(Parser)]
-#[clap(name = "komorebi", author, about, version = komorebi::build::CLAP_LONG_VERSION)]
+#[clap(name = "komorebi", author, about, version = crate::build::CLAP_LONG_VERSION)]
 struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(short, long = "ffm")]
@@ -197,7 +197,7 @@ struct Opts {
 
 #[tracing::instrument]
 #[allow(clippy::cognitive_complexity)]
-fn main() -> eyre::Result<()> {
+pub fn run() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
     CUSTOM_FFM.store(opts.focus_follows_mouse, Ordering::SeqCst);
 
@@ -342,7 +342,7 @@ fn main() -> eyre::Result<()> {
     }
 
     listen_for_events(wm.clone());
-    komorebi::live_resize::listen_for_steps(wm.clone());
+    crate::live_resize::listen_for_steps(wm.clone());
 
     if CUSTOM_FFM.load(Ordering::SeqCst) {
         listen_for_movements(wm.clone());
@@ -373,7 +373,7 @@ fn main() -> eyre::Result<()> {
         WindowsApi::disable_focus_follows_mouse()?;
     }
 
-    let sockets = komorebi::SUBSCRIPTION_SOCKETS.lock();
+    let sockets = crate::SUBSCRIPTION_SOCKETS.lock();
     for path in (*sockets).values() {
         if let Ok(stream) = UnixStream::connect(path) {
             stream.shutdown(Shutdown::Both)?;

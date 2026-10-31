@@ -3,15 +3,15 @@
 //! The daemon owns the layout of every window and asks the compositor, through a backend, to
 //! put each one where the layout says.
 //!
-//! The backend is KWin's ([`komorebi::kwin`]): the daemon connects to the session bus, loads its
+//! The backend is KWin's ([`crate::kwin`]): the daemon connects to the session bus, loads its
 //! script into KWin and waits for the script to report the desktop. `--fake-backend` replaces it
 //! with an in-memory desktop with one monitor and no windows, for development and testing.
 //!
 //! The daemon starts from `komorebi.json`: the file `--config` names, or else the one in
-//! [`struct@HOME_DIR`] when there is one ([`komorebi::static_config`]), which it reloads whenever
+//! [`struct@HOME_DIR`] when there is one ([`crate::static_config`]), which it reloads whenever
 //! it changes. Without a file it runs on its defaults. It loads the monitors and the windows
 //! that are open, gives each monitor the configuration the file has for it, asks for the borders
-//! it draws ([`komorebi::border_manager`]), tiles the windows, listens for messages on
+//! it draws ([`crate::border_manager`]), tiles the windows, listens for messages on
 //! `komorebi.sock` in [`struct@DATA_DIR`], handles the events the backend reports and the changes
 //! of the monitors on threads of their own, and runs until it is stopped, with `SIGINT`,
 //! `SIGTERM` or a `Stop` message.
@@ -19,7 +19,7 @@
 //! With a key binding file (`--keybindings`, or the first of `skhdrc`, `whkdrc` and `sxhkdrc` in
 //! [`struct@HOME_DIR`]), the daemon also runs the engine of [`komorebi_hotkeys`]: it registers the
 //! keys of the bindings that are not static shortcuts with KWin's global shortcut daemon and runs
-//! their commands ([`komorebi::kwin::hotkeys::load`]). A file that cannot be read is logged, and
+//! their commands ([`crate::kwin::hotkeys::load`]). A file that cannot be read is logged, and
 //! the window manager runs without keys. The bindings it takes are the engine's part of the file's
 //! plan in `--keybindings-mode`, the mode `komorebic hotkeys compile --mode` wrote the static
 //! shortcuts in. `--chord-timeout` is how long the next key of a chord chain is waited for, and
@@ -36,21 +36,21 @@
 use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
-use komorebi::DATA_DIR;
-use komorebi::HOME_DIR;
-use komorebi::LOG_DIR;
-use komorebi::backend;
-use komorebi::backend::fake::FakeBackend;
-use komorebi::border_manager;
-use komorebi::core::pathext::replace_env_in_path;
-use komorebi::kwin::hotkeys::Keybindings;
-use komorebi::monitor_reconciliator;
-use komorebi::process_command::listen_for_commands;
-use komorebi::process_event::listen_for_events;
-use komorebi::static_config::StaticConfig;
-use komorebi::static_config::StaticConfigExt;
-use komorebi::window_manager::WindowManager;
-use komorebi::window_manager_event_listener;
+use crate::DATA_DIR;
+use crate::HOME_DIR;
+use crate::LOG_DIR;
+use crate::backend;
+use crate::backend::fake::FakeBackend;
+use crate::border_manager;
+use crate::core::pathext::replace_env_in_path;
+use crate::kwin::hotkeys::Keybindings;
+use crate::monitor_reconciliator;
+use crate::process_command::listen_for_commands;
+use crate::process_event::listen_for_events;
+use crate::static_config::StaticConfig;
+use crate::static_config::StaticConfigExt;
+use crate::window_manager::WindowManager;
+use crate::window_manager_event_listener;
 use komorebi_hotkeys::Format;
 use komorebi_hotkeys::engine::EngineOptions;
 use komorebi_hotkeys::plan::PlanMode;
@@ -269,7 +269,7 @@ fn app_alias(value: &str) -> Result<(String, Vec<String>), String> {
     Ok((name.trim().to_string(), aliases))
 }
 
-fn main() -> eyre::Result<()> {
+pub fn run() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
     let (_guard, _color_guard) = setup(opts.log_level.clone())?;
 
@@ -282,7 +282,7 @@ fn main() -> eyre::Result<()> {
         backend::set_backend(Arc::new(FakeBackend::with_one_monitor()));
     } else {
         tracing::info!("connecting to KWin");
-        backend::set_backend(komorebi::kwin::connect()?);
+        backend::set_backend(crate::kwin::connect()?);
     }
 
     #[cfg(feature = "deadlock_detection")]
@@ -339,7 +339,7 @@ fn main() -> eyre::Result<()> {
     {
         let mut wm = wm.lock();
         border_manager::update_colours(&wm);
-        komorebi::transparency_manager::apply(&mut wm);
+        crate::transparency_manager::apply(&mut wm);
     }
 
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
@@ -365,7 +365,7 @@ fn main() -> eyre::Result<()> {
                 app_aliases,
             },
         };
-        if let Err(error) = komorebi::kwin::hotkeys::load(keybindings) {
+        if let Err(error) = crate::kwin::hotkeys::load(keybindings) {
             tracing::error!("the key bindings are not active: {error}");
         }
     }
@@ -383,11 +383,11 @@ fn main() -> eyre::Result<()> {
     {
         let mut wm = wm.lock();
         wm.restore_all_windows(false)?;
-        komorebi::transparency_manager::restore(&mut wm);
+        crate::transparency_manager::restore(&mut wm);
     }
     backend::backend().shutdown();
 
-    let sockets = komorebi::SUBSCRIPTION_SOCKETS.lock();
+    let sockets = crate::SUBSCRIPTION_SOCKETS.lock();
     for path in (*sockets).values() {
         if let Ok(stream) = UnixStream::connect(path) {
             stream.shutdown(Shutdown::Both)?;

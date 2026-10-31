@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 //! The daemon and its `komorebi.json`: `komorebi --fake-backend` finds the file in the config home
 //! or is given it with `--config`, is configured by it, and applies it again when the file changes.
 //!

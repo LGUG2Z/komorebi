@@ -4,26 +4,26 @@ use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
-use komorebi::CoreFoundationRunLoop;
-use komorebi::DATA_DIR;
-use komorebi::HOME_DIR;
-use komorebi::border_manager;
-use komorebi::core::pathext::replace_env_in_path;
-use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
-use komorebi::input_event_listener;
-use komorebi::input_event_listener::InputEventListener;
-use komorebi::monitor_reconciliator;
-use komorebi::notification_center_listener::NotificationCenterListener;
-use komorebi::process_command::listen_for_commands;
-use komorebi::process_event::listen_for_events;
-use komorebi::reaper;
-use komorebi::settle;
-use komorebi::static_config::StaticConfig;
-use komorebi::static_config::StaticConfigExt;
-use komorebi::theme_manager;
-use komorebi::window_manager::WindowManager;
-use komorebi::window_manager_event_listener;
-use komorebi::workspace_reconciliator;
+use crate::CoreFoundationRunLoop;
+use crate::DATA_DIR;
+use crate::HOME_DIR;
+use crate::border_manager;
+use crate::core::pathext::replace_env_in_path;
+use crate::display_reconfiguration_listener::DisplayReconfigurationListener;
+use crate::input_event_listener;
+use crate::input_event_listener::InputEventListener;
+use crate::monitor_reconciliator;
+use crate::notification_center_listener::NotificationCenterListener;
+use crate::process_command::listen_for_commands;
+use crate::process_event::listen_for_events;
+use crate::reaper;
+use crate::settle;
+use crate::static_config::StaticConfig;
+use crate::static_config::StaticConfigExt;
+use crate::theme_manager;
+use crate::window_manager::WindowManager;
+use crate::window_manager_event_listener;
+use crate::workspace_reconciliator;
 use objc2::MainThreadMarker;
 use objc2::rc::autoreleasepool;
 use objc2_app_kit::NSApplication;
@@ -200,7 +200,7 @@ struct Opts {
     log_level: LogLevel,
 }
 
-fn main() -> eyre::Result<()> {
+pub fn run() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
     let (_guard, _color_guard) = setup(opts.log_level)?;
 
@@ -350,11 +350,11 @@ fn main() -> eyre::Result<()> {
     }
 
     // nothing may move a window once they have all been put back where they were found
-    komorebi::animation::animator::shutdown();
+    crate::animation::animator::shutdown();
 
     wm.lock().restore_all_windows(false)?;
 
-    let sockets = komorebi::SUBSCRIPTION_SOCKETS.lock();
+    let sockets = crate::SUBSCRIPTION_SOCKETS.lock();
     for path in (*sockets).values() {
         if let Ok(stream) = UnixStream::connect(path) {
             stream.shutdown(Shutdown::Both)?;

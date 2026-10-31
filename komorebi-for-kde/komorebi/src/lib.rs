@@ -64,6 +64,7 @@ extern crate komorebi_collections;
 
 pub use komorebi_collections::ring;
 
+pub mod daemon;
 pub mod animation;
 pub mod backend;
 pub mod border_manager;

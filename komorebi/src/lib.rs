@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate komorebi_collections;
 
+pub mod daemon;
 pub mod animation;
 pub mod border_manager;
 pub mod cloaked;

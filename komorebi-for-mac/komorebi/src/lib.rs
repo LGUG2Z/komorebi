@@ -43,6 +43,7 @@ extern crate komorebi_collections;
 
 pub use komorebi_collections::ring;
 
+pub mod daemon;
 pub mod accessibility;
 pub mod animation;
 pub mod app_kit_notification_constants;

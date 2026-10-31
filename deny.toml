@@ -43,6 +43,11 @@ allow = [
 confidence-threshold = 0.8
 
 [[licenses.clarify]]
+crate = "komorebi"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
 crate = "komorebi-windows"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []

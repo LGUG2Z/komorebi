@@ -1,0 +1,32 @@
+[package]
+name = "komorebi"
+version = "0.1.42"
+description = "A tiling window manager for Windows, KDE Plasma and macOS"
+repository = "https://github.com/LGUG2Z/komorebi"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# The daemon of each platform is a library (`komorebi-windows`, `komorebi-linux`, `komorebi-macos`) with a
+# `daemon::run` that is the old main; this package is the one `komorebi` binary and calls the one of the
+# target OS. A dependency key has one path, so each library has a key of its own.
+
+[dependencies]
+color-eyre = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+komorebi-windows = { package = "komorebi-windows", path = "../komorebi", default-features = false }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+komorebi-linux = { package = "komorebi-linux", path = "../komorebi-for-kde/komorebi", default-features = false }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+komorebi-macos = { package = "komorebi-macos", path = "../komorebi-for-mac/komorebi", default-features = false }
+
+[features]
+default = ["schemars"]
+deadlock_detection = ["komorebi-windows/deadlock_detection", "komorebi-linux/deadlock_detection", "komorebi-macos/deadlock_detection"]
+schemars = ["komorebi-windows/schemars", "komorebi-linux/schemars", "komorebi-macos/schemars"]
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+serde_json = { workspace = true }

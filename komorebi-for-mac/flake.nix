@@ -93,8 +93,18 @@
                         "komorebi-bar/src/main.rs"
                       ]
                       || pkgs.lib.hasPrefix "komorebi-bar/src/macos" relative;
+
+                    # the one komorebi binary package: its manifest, main.rs and tests
+                    komorebiDaemon =
+                      builtins.elem relative [
+                        "komorebi-daemon"
+                        "komorebi-daemon/Cargo.toml"
+                        "komorebi-daemon/src"
+                        "komorebi-daemon/src/main.rs"
+                        "komorebi-daemon/tests"
+                      ];
                   in
-                  ((rootCrate || komorebic || komorebiClient || komorebiBar) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
+                  ((rootCrate || komorebic || komorebiClient || komorebiBar || komorebiDaemon) && !(pkgs.lib.hasSuffix "/Cargo.lock" path) || relative == "Cargo.toml" || relative == "Cargo.lock" || inTree)
                   && (
                     (craneLib.filterCargoSources path type)
                     || (pkgs.lib.hasInfix "/docs/" path)
@@ -113,10 +123,11 @@
                   pkgs.lib.hasPrefix "${platformDir}/" member
                   || member == "komorebic"
                   || member == "komorebi-client"
+                  || member == "komorebi-daemon"
                   || member == "komorebi-bar"
                   || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
               };
-              packages = "-p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar";
+              packages = "-p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar";
               workspaceArgs = {
                 pname = "komorebi-workspace";
                 inherit version;
