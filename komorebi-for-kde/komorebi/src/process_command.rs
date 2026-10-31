@@ -248,6 +248,7 @@ use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::core::Sizing;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
@@ -375,6 +376,77 @@ fn is_layout_command(message: &SocketMessage) -> bool {
 }
 
 impl WindowManager {
+    /// Resizes the focused window along one axis
+    pub fn resize_window_axis(&mut self, axis: Axis, sizing: Sizing) -> eyre::Result<()> {
+        match axis {
+            Axis::Horizontal => {
+                self.resize_window(OperationDirection::Left, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Right, sizing, self.resize_delta, false)?;
+            }
+            Axis::Vertical => {
+                self.resize_window(OperationDirection::Up, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Down, sizing, self.resize_delta, false)?;
+            }
+            Axis::HorizontalAndVertical => {
+                self.resize_window(OperationDirection::Left, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Right, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Up, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Down, sizing, self.resize_delta, false)?;
+            }
+        }
+
+        self.update_focused_workspace(false, false)?;
+        Ok(())
+    }
+
+    /// Sets the column and row ratios of the focused workspace's layout
+    pub fn set_layout_ratios(
+        &mut self,
+        columns: &Option<Vec<f32>>,
+        rows: &Option<Vec<f32>>,
+    ) -> eyre::Result<()> {
+        use crate::core::validate_ratios;
+
+        let focused_workspace = self.focused_workspace_mut()?;
+
+        let mut options = focused_workspace.layout_options.unwrap_or(LayoutOptions {
+            scrolling: None,
+            grid: None,
+            column_ratios: None,
+            row_ratios: None,
+        });
+
+        if let Some(cols) = columns {
+            options.column_ratios = Some(validate_ratios(cols));
+        }
+
+        if let Some(rws) = rows {
+            options.row_ratios = Some(validate_ratios(rws));
+        }
+
+        focused_workspace.layout_options = Some(options);
+        self.update_focused_workspace(false, false)?;
+        Ok(())
+    }
+
+    /// Switches the focused workspace between creating a container for a new window and adding it to the focused one
+    pub fn toggle_workspace_window_container_behaviour(&mut self) -> eyre::Result<()> {
+        let current_global_behaviour = self.window_management_behaviour.current_behaviour;
+        if let Some(behaviour) = &mut self.focused_workspace_mut()?.window_container_behaviour {
+            match behaviour {
+                WindowContainerBehaviour::Create => *behaviour = WindowContainerBehaviour::Append,
+                WindowContainerBehaviour::Append => *behaviour = WindowContainerBehaviour::Create,
+            }
+        } else {
+            self.focused_workspace_mut()?.window_container_behaviour =
+                Some(match current_global_behaviour {
+                    WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
+                    WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
+                });
+        };
+        Ok(())
+    }
+
     /// Looks for a window of the executable `exe` on every monitor and workspace, and focuses it
     pub fn eager_focus(&mut self, exe: &str) -> eyre::Result<()> {
         let focused_monitor_idx = self.focused_monitor_idx();
@@ -1194,64 +1266,7 @@ impl WindowManager {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
-                match axis {
-                    Axis::Horizontal => {
-                        self.resize_window(
-                            OperationDirection::Left,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Right,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                    }
-                    Axis::Vertical => {
-                        self.resize_window(
-                            OperationDirection::Up,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Down,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                    }
-                    Axis::HorizontalAndVertical => {
-                        self.resize_window(
-                            OperationDirection::Left,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Right,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Up,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Down,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                    }
-                }
-
-                self.update_focused_workspace(false, false)?;
+                self.resize_window_axis(axis, sizing)?
             }
             SocketMessage::Minimize => {
                 let foreground_window = backend()
@@ -1324,25 +1339,7 @@ impl WindowManager {
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
             SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
-                let current_global_behaviour = self.window_management_behaviour.current_behaviour;
-                if let Some(behaviour) =
-                    &mut self.focused_workspace_mut()?.window_container_behaviour
-                {
-                    match behaviour {
-                        WindowContainerBehaviour::Create => {
-                            *behaviour = WindowContainerBehaviour::Append
-                        }
-                        WindowContainerBehaviour::Append => {
-                            *behaviour = WindowContainerBehaviour::Create
-                        }
-                    }
-                } else {
-                    self.focused_workspace_mut()?.window_container_behaviour =
-                        Some(match current_global_behaviour {
-                            WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
-                            WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
-                        });
-                };
+                self.toggle_workspace_window_container_behaviour()?
             }
             SocketMessage::ToggleWorkspaceFloatOverride => {
                 let current_global_override = self.window_management_behaviour.float_override;
@@ -1793,27 +1790,7 @@ impl WindowManager {
             }
             SocketMessage::Pan(direction) => self.pan(direction)?,
             SocketMessage::LayoutRatios(ref columns, ref rows) => {
-                use crate::core::validate_ratios;
-
-                let focused_workspace = self.focused_workspace_mut()?;
-
-                let mut options = focused_workspace.layout_options.unwrap_or(LayoutOptions {
-                    scrolling: None,
-                    grid: None,
-                    column_ratios: None,
-                    row_ratios: None,
-                });
-
-                if let Some(cols) = columns {
-                    options.column_ratios = Some(validate_ratios(cols));
-                }
-
-                if let Some(rws) = rows {
-                    options.row_ratios = Some(validate_ratios(rws));
-                }
-
-                focused_workspace.layout_options = Some(options);
-                self.update_focused_workspace(false, false)?;
+                self.set_layout_ratios(columns, rows)?
             }
             SocketMessage::NamedWorkspaceLayoutRule(ref workspace, at_container_count, layout) => {
                 if let Some((monitor_idx, workspace_idx)) =
