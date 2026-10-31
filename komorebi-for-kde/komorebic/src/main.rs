@@ -141,6 +141,8 @@ use komorebic_core::cli::Cmd;
 use komorebic_core::cli::Meta;
 use komorebic_core::cli::command;
 use komorebic_core::docgen::DocFormat;
+use komorebic_core::launcher;
+use komorebic_core::launcher::Launcher;
 use komorebic_core::messages::Messages;
 use lazy_static::lazy_static;
 use std::fs::File;
@@ -152,7 +154,6 @@ use std::process::Command;
 use std::process::Stdio;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
 use sysinfo::ProcessesToUpdate;
 
 mod hotkeys;
@@ -500,6 +501,60 @@ fn print_query(message: &SocketMessage) {
     }
 }
 
+/// Starting `komorebi` for `komorebic start`: a `Command` for the daemon, found among the
+/// processes by its exact name.
+struct KdeLauncher<'a> {
+    args: &'a Start,
+    system: sysinfo::System,
+}
+
+impl Launcher for KdeLauncher<'_> {
+    fn daemon_name(&self) -> &str {
+        "komorebi"
+    }
+
+    fn spawn(&mut self) -> eyre::Result<()> {
+        let mut command = Command::new("komorebi");
+
+        if let Some(config) = &self.args.config {
+            command.args(["--config", &config.display().to_string()]);
+        }
+
+        command
+            .args(&self.args.komorebi_args)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .stdin(Stdio::null())
+            .spawn()?;
+
+        Ok(())
+    }
+
+    fn is_running(&mut self) -> eyre::Result<bool> {
+        self.system.refresh_processes(ProcessesToUpdate::All, true);
+
+        Ok(self
+            .system
+            .processes_by_exact_name("komorebi".as_ref())
+            .next()
+            .is_some())
+    }
+
+    fn diagnose(&mut self) -> eyre::Result<()> {
+        let mut command = Command::new("komorebi");
+
+        if let Some(config) = &self.args.config {
+            command.args(["--config", &config.display().to_string()]);
+        }
+
+        if let Ok(output) = command.args(&self.args.komorebi_args).output() {
+            println!("{}", String::from_utf8(output.stderr)?);
+        }
+
+        Ok(())
+    }
+}
+
 /// What the top of the help and `--version` say.
 const META: Meta = Meta {
     name: "komorebic",
@@ -679,68 +734,13 @@ fn main() -> eyre::Result<()> {
                 }
             }
             KdeCommands::Start(args) => {
-                let mut command = &mut Command::new("komorebi");
-
-                if let Some(config) = &args.config {
-                    command = command.args(["--config", &config.display().to_string()])
-                };
-
-                command = command
-                    .args(&args.komorebi_args)
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .stdin(Stdio::null());
-
-                let mut system = sysinfo::System::new_all()?;
-                system.refresh_processes(ProcessesToUpdate::All, true);
-
-                let mut attempts = 0;
-                let mut running = system
-                    .processes_by_exact_name("komorebi".as_ref())
-                    .next()
-                    .is_some();
-
-                while !running && attempts <= 2 {
-                    command.spawn()?;
-
-                    print!("Waiting for komorebi to start... ");
-                    std::io::stdout().flush()?;
-                    std::thread::sleep(Duration::from_secs(3));
-
-                    system.refresh_processes(ProcessesToUpdate::All, true);
-
-                    if system
-                        .processes_by_exact_name("komorebi".as_ref())
-                        .next()
-                        .is_some()
-                    {
-                        println!("Started!");
-                        running = true;
-                    } else {
-                        println!("komorebi did not start... Trying again");
-                        attempts += 1;
-                    }
-                }
-
-                if !running {
-                    println!("\nRunning komorebi directly for detailed error output\n");
-                    let mut command = Command::new("komorebi");
-
-                    if let Some(config) = &args.config {
-                        command.args(["--config", &config.display().to_string()]);
-                    }
-
-                    if let Ok(output) = command.args(&args.komorebi_args).output() {
-                        println!("{}", String::from_utf8(output.stderr)?);
-                    }
-                }
+                launcher::start(&mut KdeLauncher {
+                    args: &args,
+                    system: sysinfo::System::new_all()?,
+                })?;
             }
             KdeCommands::Stop(args) => {
-                if args.ignore_restore {
-                    send_message(&SocketMessage::StopIgnoreRestore)?;
-                } else {
-                    send_message(&SocketMessage::Stop)?;
-                }
+                send_message(&launcher::stop_message(args.ignore_restore))?;
             }
             KdeCommands::Configuration => {
                 let static_config = HOME_DIR.join("komorebi.json");
