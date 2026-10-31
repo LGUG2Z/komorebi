@@ -20,6 +20,7 @@ use std::net::TcpStream;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::sync::atomic::AtomicI8;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use uds_windows::UnixListener;
@@ -141,7 +142,34 @@ impl ConnectionPolicy<UnixStream> for WindowsConnectionPolicy {
         ) {
             let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
         }
+
+        // looked for here, before the window manager is locked for the message: a process scan
+        // under the lock held every other thread for seconds (see `replace_configuration`)
+        if matches!(message, SocketMessage::ReplaceConfiguration(_)) {
+            BAR_RUNNING.store(i8::from(komorebi_bar_is_running()), Ordering::SeqCst);
+        }
     }
+}
+
+/// Whether komorebi-bar.exe was running when a `ReplaceConfiguration` was read, for the handler
+/// of that message to take: -1 when it was not looked for
+static BAR_RUNNING: AtomicI8 = AtomicI8::new(-1);
+
+/// Whether a komorebi-bar.exe process is running. Only the names of the processes are read:
+/// `System::new_all` also opens the performance counters and reads the command line, the
+/// environment and the owner of every process, which is the slow part.
+fn komorebi_bar_is_running() -> bool {
+    let mut system = sysinfo::System::new();
+    system.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::All,
+        true,
+        sysinfo::ProcessRefreshKind::nothing(),
+    );
+
+    system
+        .processes_by_name("komorebi-bar.exe".as_ref())
+        .next()
+        .is_some()
 }
 
 /// What the generic command listener needs of the window manager
@@ -1629,13 +1657,10 @@ impl WindowManager {
             lap("swap");
 
             // check if there are any bars
-            let mut system = sysinfo::System::new_all();
-            system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-
-            let has_bar = system
-                .processes_by_name("komorebi-bar.exe".as_ref())
-                .next()
-                .is_some();
+            let has_bar = match BAR_RUNNING.swap(-1, Ordering::SeqCst) {
+                -1 => komorebi_bar_is_running(),
+                running => running == 1,
+            };
             lap("process scan for komorebi-bar");
 
             // stop bar(s)
