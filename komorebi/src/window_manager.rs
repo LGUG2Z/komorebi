@@ -48,6 +48,8 @@ use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
 use crate::core::config_generation::MatchingRule;
+use crate::windows_backend::backend;
+use komorebi_backend::WindowId;
 
 use crate::CrossBoundaryBehaviour;
 use crate::DATA_DIR;
@@ -1129,17 +1131,17 @@ impl WindowManager {
         if follow_focus {
             if let Some(window) = self.focused_workspace()?.maximized_window {
                 if trigger_focus {
-                    window.focus(self.mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
                 }
             } else if let Some(container) = &self.focused_workspace()?.monocle_container {
                 if let Some(window) = container.focused_window()
                     && trigger_focus
                 {
-                    window.focus(self.mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
                 }
             } else if let Ok(window) = self.focused_window_mut() {
                 if trigger_focus {
-                    window.focus(self.mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
                 }
             } else {
                 let desktop_window = Window::from(WindowsApi::desktop_window()?);
@@ -1179,7 +1181,7 @@ impl WindowManager {
                     && let Ok(window) = self.focused_window_mut()
                         && trigger_focus
                 {
-                    window.focus(self.mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
                 }
             }
         }
@@ -1995,7 +1997,7 @@ impl WindowManager {
         if let Some(idx) = target_idx {
             focused_workspace.floating_windows.focus(idx);
             if let Some(window) = focused_workspace.floating_windows().get(idx) {
-                window.focus(mouse_follows_focus)?;
+                backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
             }
             return Ok(());
         }
@@ -2055,11 +2057,11 @@ impl WindowManager {
 
         if let Ok(focused_workspace) = self.focused_workspace_mut() {
             if let Some(window) = focused_workspace.maximized_window {
-                window.focus(mouse_follows_focus)?;
+                backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
                 cross_monitor_monocle_or_max = true;
             } else if let Some(monocle) = &focused_workspace.monocle_container {
                 if let Some(window) = monocle.focused_window() {
-                    window.focus(mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
                     cross_monitor_monocle_or_max = true;
                 }
             } else if focused_workspace.layer == WorkspaceLayer::Tiling {
@@ -2111,12 +2113,15 @@ impl WindowManager {
                 }
             } else if ws.layer == WorkspaceLayer::Floating && !ws.floating_windows().is_empty() {
                 if let Some(window) = ws.focused_floating_window() {
-                    window.focus(self.mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
                 }
             } else {
                 ws.layer = WorkspaceLayer::Tiling;
                 if let Ok(focused_window) = self.focused_window() {
-                    focused_window.focus(self.mouse_follows_focus)?;
+                    backend().focus(
+                        WindowId::from_hwnd(focused_window.hwnd),
+                        self.mouse_follows_focus,
+                    )?;
                 }
             }
         }
@@ -2258,11 +2263,12 @@ impl WindowManager {
 
                 if let Ok(focused_workspace) = self.focused_workspace_mut() {
                     if let Some(window) = focused_workspace.maximized_window {
-                        window.focus(mouse_follows_focus)?;
+                        backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
                         cross_monitor_monocle_or_max = true;
                     } else if let Some(monocle) = &focused_workspace.monocle_container {
                         if let Some(window) = monocle.focused_window() {
-                            window.focus(mouse_follows_focus)?;
+                            backend()
+                                .focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
                             cross_monitor_monocle_or_max = true;
                         }
                     } else if focused_workspace.layer == WorkspaceLayer::Tiling {
@@ -2320,12 +2326,15 @@ impl WindowManager {
                 }
             } else if ws.layer == WorkspaceLayer::Floating && !ws.floating_windows().is_empty() {
                 if let Some(window) = ws.focused_floating_window() {
-                    window.focus(self.mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
                 }
             } else {
                 ws.layer = WorkspaceLayer::Tiling;
                 if let Ok(focused_window) = self.focused_window() {
-                    focused_window.focus(self.mouse_follows_focus)?;
+                    backend().focus(
+                        WindowId::from_hwnd(focused_window.hwnd),
+                        self.mouse_follows_focus,
+                    )?;
                 }
             }
         }
@@ -2634,7 +2643,7 @@ impl WindowManager {
         if let Some(idx) = target_idx
             && let Some(window) = focused_workspace.floating_windows().get(idx)
         {
-            window.focus(mouse_follows_focus)?;
+            backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
         }
 
         Ok(())
@@ -2674,7 +2683,8 @@ impl WindowManager {
         } else if monocle_next {
             self.toggle_monocle()?;
         } else {
-            self.focused_window_mut()?.focus(self.mouse_follows_focus)?;
+            let hwnd = self.focused_window_mut()?.hwnd;
+            backend().focus(WindowId::from_hwnd(hwnd), self.mouse_follows_focus)?;
         }
 
         Ok(())
@@ -2734,7 +2744,7 @@ impl WindowManager {
         container.load_focused_window();
 
         if let Some(window) = container.focused_window() {
-            window.focus(self.mouse_follows_focus)?;
+            backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
         }
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
@@ -2771,7 +2781,7 @@ impl WindowManager {
         container.load_focused_window();
 
         if let Some(window) = container.focused_window() {
-            window.focus(self.mouse_follows_focus)?;
+            backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
         }
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
@@ -2804,7 +2814,7 @@ impl WindowManager {
         container.load_focused_window();
 
         if let Some(window) = container.focused_window() {
-            window.focus(self.mouse_follows_focus)?;
+            backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
         }
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
@@ -2948,7 +2958,7 @@ impl WindowManager {
             if changed_focus && let Some(container) = workspace.focused_container_mut() {
                 container.load_focused_window();
                 if let Some(window) = container.focused_window() {
-                    window.focus(self.mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
                 }
             }
 
@@ -3110,7 +3120,7 @@ impl WindowManager {
         if toggle_float_placement.should_center() {
             window.center(&work_area, toggle_float_placement.should_resize())?;
         }
-        window.focus(self.mouse_follows_focus)?;
+        backend().focus(WindowId::from_hwnd(window.hwnd), self.mouse_follows_focus)?;
 
         Ok(())
     }

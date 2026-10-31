@@ -46,8 +46,10 @@ use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
+use crate::windows_backend::backend;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_backend::WindowId;
 use komorebi_scrolling::ScrollingSpace;
 use komorebi_themes::Base16ColourPalette;
 use komorebi_themes::KomorebiThemeCustom as Custom;
@@ -553,7 +555,7 @@ impl Workspace {
             && let Some(window) = container.focused_window()
         {
             container.restore();
-            window.focus(mouse_follows_focus)?;
+            backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
             return self.apply_wallpaper(hmonitor, monitor_wp);
         }
 
@@ -583,18 +585,30 @@ impl Workspace {
         // when switching to a workspace
         if let Some(window) = to_focus {
             if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
-                window.focus(mouse_follows_focus)?;
+                backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
             } else if let Some(maximized_window) = self.maximized_window {
                 maximized_window.restore();
-                maximized_window.focus(mouse_follows_focus)?;
+                backend().focus(
+                    WindowId::from_hwnd(maximized_window.hwnd),
+                    mouse_follows_focus,
+                )?;
             } else if let Some(floating_window) = self.focused_floating_window() {
-                floating_window.focus(mouse_follows_focus)?;
+                backend().focus(
+                    WindowId::from_hwnd(floating_window.hwnd),
+                    mouse_follows_focus,
+                )?;
             }
         } else if let Some(maximized_window) = self.maximized_window {
             maximized_window.restore();
-            maximized_window.focus(mouse_follows_focus)?;
+            backend().focus(
+                WindowId::from_hwnd(maximized_window.hwnd),
+                mouse_follows_focus,
+            )?;
         } else if let Some(floating_window) = self.focused_floating_window() {
-            floating_window.focus(mouse_follows_focus)?;
+            backend().focus(
+                WindowId::from_hwnd(floating_window.hwnd),
+                mouse_follows_focus,
+            )?;
         }
 
         self.apply_wallpaper(hmonitor, monitor_wp)
@@ -1219,7 +1233,7 @@ impl Workspace {
         } else {
             container.load_focused_window();
             if let Some(window) = container.focused_window() {
-                window.focus(false)?;
+                backend().focus(WindowId::from_hwnd(window.hwnd), false)?;
             }
         }
 

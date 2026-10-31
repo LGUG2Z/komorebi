@@ -18,7 +18,9 @@ use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBARS_CONTAINERS;
 use crate::windows_api;
+use crate::windows_backend::backend;
 use crossbeam_utils::atomic::AtomicConsume;
+use komorebi_backend::WindowId;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
@@ -370,7 +372,9 @@ impl Stackbar {
 
                                 // Restore the window corresponding to the tab we have clicked
                                 window.restore_with_border(false);
-                                if let Err(err) = window.focus(false) {
+                                if let Err(err) =
+                                    backend().focus(WindowId::from_hwnd(window.hwnd), false)
+                                {
                                     tracing::error!(
                                         "stackbar WMLBUTTONDOWN focus error: hwnd {} ({})",
                                         *window,

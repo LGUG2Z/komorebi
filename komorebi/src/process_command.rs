@@ -93,9 +93,11 @@ use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
+use crate::windows_backend::backend;
 use crate::winevent_listener;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
+use komorebi_backend::WindowId;
 use stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use stackbar_manager::STACKBAR_LABEL;
 use stackbar_manager::STACKBAR_MODE;
@@ -283,7 +285,10 @@ impl WindowManager {
                             if let Some(window) =
                                 &mut self.focused_workspace_mut()?.maximized_window
                             {
-                                window.focus(self.mouse_follows_focus)?;
+                                backend().focus(
+                                    WindowId::from_hwnd(window.hwnd),
+                                    self.mouse_follows_focus,
+                                )?;
                             }
                         }
                         WorkspaceWindowLocation::Container(container_idx, window_idx) => {
@@ -300,7 +305,10 @@ impl WindowManager {
                                 .floating_windows_mut()
                                 .get_mut(window_idx)
                             {
-                                window.focus(self.mouse_follows_focus)?;
+                                backend().focus(
+                                    WindowId::from_hwnd(window.hwnd),
+                                    self.mouse_follows_focus,
+                                )?;
                             }
                         }
                     }
@@ -1366,7 +1374,7 @@ impl WindowManager {
                     }
                 };
                 if let Some(window) = to_focus {
-                    window.focus(mouse_follows_focus)?;
+                    backend().focus(WindowId::from_hwnd(window.hwnd), mouse_follows_focus)?;
                 }
             }
             SocketMessage::Stop => {
@@ -2283,10 +2291,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
     }
 }
 
-pub fn read_commands_uds(
-    wm: &Arc<Mutex<WindowManager>>,
-    stream: UnixStream,
-) -> eyre::Result<()> {
+pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> eyre::Result<()> {
     komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &WindowsConnectionPolicy)
 }
 
