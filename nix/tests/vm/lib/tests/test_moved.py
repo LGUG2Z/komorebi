@@ -303,7 +303,7 @@ def test_a_daemon_that_takes_up_a_maximize_passes_user_maximize() -> None:
     base = checks.passed
     maximizing.user(platform, checks, clients)
     assert checks.failed == 0, checks.failures
-    assert checks.passed - base == 10
+    assert checks.passed - base == 12
 
 
 def test_a_daemon_that_obeys_commands_when_maximized_fails_user_maximize() -> None:
