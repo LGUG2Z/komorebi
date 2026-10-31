@@ -121,3 +121,28 @@ mod views {
         assert!(once == again);
     }
 }
+
+mod generated {
+    use komorebi_bar_core::config::KomobarConfig;
+    use komorebi_bar_core::schema::SchemaPlatform;
+    use komorebi_bar_core::schema::generated_text;
+
+    /// The schema the core generates from its own types, through the macOS view, is the macOS
+    /// file. (Not tested for Windows: three descriptions in komorebi-protocol and the themes
+    /// crate read differently when compiled for Windows, which a Linux test host cannot do; the
+    /// out-of-tree harness covers it.)
+    #[test]
+    fn the_generated_macos_view_is_the_macos_file() {
+        let file =
+            String::from_utf8(super::read("komorebi-for-mac/schema.bar.json")).expect("utf-8");
+        let text = generated_text::<KomobarConfig>(SchemaPlatform::MacOs);
+        if text != file {
+            let first = text.lines().zip(file.lines()).position(|(a, b)| a != b);
+            panic!(
+                "differs, first at line {first:?} ({} lines, file {})",
+                text.lines().count(),
+                file.lines().count()
+            );
+        }
+    }
+}

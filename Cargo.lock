@@ -3452,6 +3452,7 @@ dependencies = [
  "komorebi-config",
  "komorebi-layouts",
  "komorebi-protocol",
+ "komorebi-themes",
  "lazy_static",
  "reqwest",
  "schemars 1.2.3",
