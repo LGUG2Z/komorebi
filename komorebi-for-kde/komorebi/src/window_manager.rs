@@ -84,6 +84,7 @@ use crate::static_config::StaticConfig;
 use crate::static_config::StaticConfigExt;
 use crate::window::Window;
 use crate::window::foreground_window_id;
+use crate::window::monitor_id_at_cursor;
 use crate::window::should_act_individual;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
@@ -2355,8 +2356,7 @@ impl WindowManager {
     }
 
     pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
-        let (x, y) = backend().cursor_pos()?;
-        let monitor_id = backend().monitor_from_point(x, y)?.to_u32()?;
+        let monitor_id = monitor_id_at_cursor()?;
 
         for (i, monitor) in self.monitors().iter().enumerate() {
             if monitor.id == monitor_id {

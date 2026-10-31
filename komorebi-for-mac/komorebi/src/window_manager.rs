@@ -55,6 +55,7 @@ use crate::window::dragged_window;
 use crate::window::foreground_window_id;
 use crate::window::live_resize_begins;
 use crate::window::live_resize_ends;
+use crate::window::monitor_id_at_cursor;
 use crate::window::should_act_individual;
 use crate::window_manager_event::ManualNotification;
 use crate::window_manager_event::SystemNotification;
@@ -2467,7 +2468,7 @@ impl WindowManager {
     }
 
     pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
-        let monitor_id = MacosApi::monitor_from_point(MacosApi::cursor_pos())?;
+        let monitor_id = monitor_id_at_cursor()?;
 
         for (i, monitor) in self.monitors().iter().enumerate() {
             if monitor.id == monitor_id {

@@ -556,6 +556,11 @@ pub fn foreground_window_id() -> Option<u32> {
     MacosApi::foreground_window_id()
 }
 
+/// The id of the monitor the pointer is on
+pub fn monitor_id_at_cursor() -> Option<u32> {
+    MacosApi::monitor_from_point(MacosApi::cursor_pos())
+}
+
 impl Window {
     pub fn new(
         element: CFRetained<AXUIElement>,
