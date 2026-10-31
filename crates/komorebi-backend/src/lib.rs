@@ -31,6 +31,7 @@ mod error;
 pub mod fake;
 mod id;
 mod info;
+mod registry;
 
 pub use backend::Backend;
 pub use backend::Batch;
@@ -41,4 +42,5 @@ pub use id::MonitorId;
 pub use id::WindowId;
 pub use info::MonitorInfo;
 pub use info::WindowInfo;
+pub use registry::Registry;
 pub use komorebi_layouts::Rect;
