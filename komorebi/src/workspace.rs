@@ -895,16 +895,16 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn container_for_window(&self, hwnd: isize) -> Option<&Container> {
-        self.containers().get(self.container_idx_for_window(hwnd)?)
+    pub fn container_for_window(&self, window_id: isize) -> Option<&Container> {
+        self.containers().get(self.container_idx_for_window(window_id)?)
     }
 
-    /// If there is a container which holds the window with `hwnd` it will focus that container.
+    /// If there is a container which holds the window with `window_id` it will focus that container.
     /// This function will only emit a focus on the window if it isn't the focused window of that
     /// container already.
-    pub fn focus_container_by_window(&mut self, hwnd: isize) -> eyre::Result<()> {
+    pub fn focus_container_by_window(&mut self, window_id: isize) -> eyre::Result<()> {
         let container_idx = self
-            .container_idx_for_window(hwnd)
+            .container_idx_for_window(window_id)
             .ok_or_eyre("there is no container/window")?;
 
         let container = self
@@ -913,7 +913,7 @@ impl Workspace {
             .ok_or_eyre("there is no container")?;
 
         let window_idx = container
-            .idx_for_window(hwnd)
+            .idx_for_window(window_id)
             .ok_or_eyre("there is no window")?;
 
         let mut should_load = false;
@@ -951,8 +951,8 @@ impl Workspace {
 
     pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
         for container in self.containers() {
-            if let Some(hwnd) = container.hwnd_from_exe(exe) {
-                return Option::from(hwnd);
+            if let Some(window_id) = container.hwnd_from_exe(exe) {
+                return Option::from(window_id);
             }
         }
 
@@ -964,9 +964,9 @@ impl Workspace {
         }
 
         if let Some(container) = &self.monocle_container
-            && let Some(hwnd) = container.hwnd_from_exe(exe)
+            && let Some(window_id) = container.hwnd_from_exe(exe)
         {
-            return Option::from(hwnd);
+            return Option::from(window_id);
         }
 
         for window in self.floating_windows() {
@@ -1014,21 +1014,21 @@ impl Workspace {
         None
     }
 
-    pub fn contains_managed_window(&self, hwnd: isize) -> bool {
+    pub fn contains_managed_window(&self, window_id: isize) -> bool {
         for container in self.containers() {
-            if container.contains_window(hwnd) {
+            if container.contains_window(window_id) {
                 return true;
             }
         }
 
         if let Some(window) = self.maximized_window
-            && hwnd == window.hwnd
+            && window_id == window.hwnd
         {
             return true;
         }
 
         if let Some(container) = &self.monocle_container
-            && container.contains_window(hwnd)
+            && container.contains_window(window_id)
         {
             return true;
         }
@@ -1037,15 +1037,15 @@ impl Workspace {
     }
 
     pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
-        let hwnd = WindowsApi::foreground_window()?;
+        let window_id = WindowsApi::foreground_window()?;
         if let Some(window) = self.maximized_window
-            && hwnd == window.hwnd
+            && window_id == window.hwnd
         {
             return Ok(true);
         }
 
         if let Some(container) = &self.monocle_container
-            && container.contains_window(hwnd)
+            && container.contains_window(window_id)
         {
             return Ok(true);
         }
@@ -1060,27 +1060,27 @@ impl Workspace {
             && self.floating_windows().is_empty()
     }
 
-    pub fn contains_window(&self, hwnd: isize) -> bool {
+    pub fn contains_window(&self, window_id: isize) -> bool {
         for container in self.containers() {
-            if container.contains_window(hwnd) {
+            if container.contains_window(window_id) {
                 return true;
             }
         }
 
         if let Some(window) = self.maximized_window
-            && hwnd == window.hwnd
+            && window_id == window.hwnd
         {
             return true;
         }
 
         if let Some(container) = &self.monocle_container
-            && container.contains_window(hwnd)
+            && container.contains_window(window_id)
         {
             return true;
         }
 
         for window in self.floating_windows() {
-            if hwnd == window.hwnd {
+            if window_id == window.hwnd {
                 return true;
             }
         }
@@ -1155,10 +1155,10 @@ impl Workspace {
         container
     }
 
-    pub fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
+    pub fn container_idx_for_window(&self, window_id: isize) -> Option<usize> {
         let mut idx = None;
         for (i, x) in self.containers().iter().enumerate() {
-            if x.contains_window(hwnd) {
+            if x.contains_window(window_id) {
                 idx = Option::from(i);
             }
         }
@@ -1166,11 +1166,11 @@ impl Workspace {
         idx
     }
 
-    pub fn remove_window(&mut self, hwnd: isize) -> eyre::Result<()> {
-        border_manager::delete_border(hwnd);
+    pub fn remove_window(&mut self, window_id: isize) -> eyre::Result<()> {
+        border_manager::delete_border(window_id);
 
-        if self.floating_windows().iter().any(|w| w.hwnd == hwnd) {
-            self.floating_windows_mut().retain(|w| w.hwnd != hwnd);
+        if self.floating_windows().iter().any(|w| w.hwnd == window_id) {
+            self.floating_windows_mut().retain(|w| w.hwnd != window_id);
             return Ok(());
         }
 
@@ -1178,7 +1178,7 @@ impl Workspace {
             && let Some(window_idx) = container
                 .windows()
                 .iter()
-                .position(|window| window.hwnd == hwnd)
+                .position(|window| window.hwnd == window_id)
         {
             container
                 .remove_window_by_idx(window_idx)
@@ -1197,7 +1197,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window
-            && window.hwnd == hwnd
+            && window.hwnd == window_id
         {
             let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), false);
             self.maximized_window = None;
@@ -1206,7 +1206,7 @@ impl Workspace {
         }
 
         let container_idx = self
-            .container_idx_for_window(hwnd)
+            .container_idx_for_window(window_id)
             .ok_or_eyre("there is no window")?;
 
         let container = self
@@ -1217,7 +1217,7 @@ impl Workspace {
         let window_idx = container
             .windows()
             .iter()
-            .position(|window| window.hwnd == hwnd)
+            .position(|window| window.hwnd == window_id)
             .ok_or_eyre("there is no window")?;
 
         container
@@ -1998,11 +1998,11 @@ impl Workspace {
     }
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
-        let hwnd = WindowsApi::foreground_window().ok()?;
+        let window_id = WindowsApi::foreground_window().ok()?;
 
         let mut idx = None;
         for (i, window) in self.floating_windows().iter().enumerate() {
-            if hwnd == window.hwnd {
+            if window_id == window.hwnd {
                 idx = Option::from(i);
             }
         }
@@ -2827,7 +2827,7 @@ mod tests {
         // Should be focused on workspace 0
         assert_eq!(workspace.focused_container_idx(), 0);
 
-        // Should be focused on window 1 and hwnd should be 1
+        // Should be focused on window 1 and window_id should be 1
         let focused_container = workspace.focused_container_mut().unwrap();
         assert_eq!(
             focused_container.focused_window(),
@@ -2891,7 +2891,7 @@ mod tests {
         let container = workspace.focused_container_mut().unwrap();
         assert_eq!(container.windows().len(), 2);
 
-        // Should contain hwnd 0 since this is the first window in the container
+        // Should contain window_id 0 since this is the first window in the container
         let floating_windows = workspace.floating_windows_mut();
         assert!(floating_windows.contains(&Window { hwnd: 0 }));
     }
