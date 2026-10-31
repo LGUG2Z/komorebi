@@ -476,6 +476,9 @@ impl Drop for Window {
             // for now - hopefully it doesn't break anything else
             reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
 
+            // and the id no longer names anything
+            crate::ax_registry::forget(self.id);
+
             // make sure the observer gets removed from any run loops
             AccessibilityApi::invalidate_observer(&self.observer);
         }
@@ -560,13 +563,18 @@ impl Window {
             Some(window_observer_callback),
         )?;
 
-        Ok(Self {
+        let window = Self {
             id: AccessibilityApi::window_id(&element)?,
             element: AccessibilityUiElement(element),
             application,
             observer: AccessibilityObserver(Some(observer)),
             details: None,
-        })
+        };
+
+        // so that the window can be found again from its id alone
+        crate::ax_registry::register(&window);
+
+        Ok(window)
     }
 
     /// The handles that act on this window, as the registry keeps them

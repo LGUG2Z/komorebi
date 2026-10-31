@@ -745,6 +745,7 @@ impl WindowManager {
                     )
                 ) {
                     enhanced_ui::forget(process_id);
+                    crate::ax_registry::forget_pid(process_id);
                 }
 
                 // some apps like Discord in all of their relentless Electron slop stupidity
