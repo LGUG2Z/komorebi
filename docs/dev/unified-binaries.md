@@ -215,7 +215,7 @@ Costs and limits found on the way:
   (check.rs, ARCHITECTURE.md, scripts/compare-gen.py, the VM check suite) still carry the old paths; they
   are text in files whose change would rebuild the KDE derivations.
 
-## Step 7 for the bar, ready to execute (not executed)
+## Step 7 for the bar (B0-B3 executed, B4 not)
 
 State: `crates/komorebi-bar-core` holds the shared code (config, widgets, `BarPlatform`, schema views); the
 two shells are `komorebi-bar` (Windows) and `komorebi-for-mac/komorebi-bar` (package `komorebi-bar-macos`),
@@ -294,3 +294,32 @@ a darwin builder `nix build -L .#packages.aarch64-darwin.kfm-komorebic .#package
 `--version`, `quickstart`, `start`, `stop`, `state`, `docgen`; `komorebi-bar` still builds from the old
 package name. If deny, fmt or taplo fail in the merged workspace, the fix is in the `cargoDenyExtraArgs`,
 `cargoExtraArgs` of the three flakes, not in the code.
+
+### Bar: what was done and what was left
+
+B0-B3 are done as revisions of `wip-u-pkg-mig` (client edge, Windows module, macOS module, merge). Edits
+were mechanical: `crate::` to `crate::windows::` / `crate::macos::`, one more `../` in the `include_str!`
+paths, the unused root re-export of `komorebi_bar_core::platform` dropped. `komorebi-bar-macos` remains as
+a shim. The schema gate is `S/bar2/regen.sh` (now reads `src/windows` and `src/macos`): both bars' schema
+files regenerate byte-identical on Linux. B4 was not done: the remaining differences are rendering
+(frame margins in `widgets/komorebi.rs`), `network.rs` behaviour and the window seams in `bar.rs`/`main.rs`,
+none of which can be shown to be mechanical without a screen.
+
+## For the Mac Mini (aarch64-darwin, native)
+
+Run on the revisions of `wip-u-pkg-mig` at or after the stated one, from the repository root:
+
+```
+cargo build --locked -p komorebic -p komorebi -p komorebi-bar            # after "one komorebi-bar package"
+cargo build --locked -p komorebic-macos -p komorebi-bar-macos -p komorebi-client-macos   # the shims still build
+cargo clippy --locked -p komorebic -p komorebi-client -p komorebi-bar -p komorebi-bar-core -p komorebi-macos --all-targets -- -D warnings
+cargo test --locked -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar-core -p komorebi-bar
+target/debug/komorebic --help; target/debug/komorebic --version; target/debug/komorebic docgen --output /tmp/docs-mac
+target/debug/komorebi-bar --schema | cmp - komorebi-for-mac/schema.bar.json
+```
+
+Note: the package `komorebi` (daemon) is still `komorebi-macos` on this platform, with binary name
+`komorebi`; there is no unified `komorebi` package yet (step 8). The macOS checks that matter by revision:
+`refactor(komorebic): move the macOS CLI ...` (komorebic, quickstart, start, stop), `refactor(client): one
+komorebi-client ...` (the client tests in `komorebi-client/src/macos.rs`), and `refactor(bar): one
+komorebi-bar package ...` (the bar opens, `--schema`). Everything in `docs/dev/macos-handcheck.md` still applies.
