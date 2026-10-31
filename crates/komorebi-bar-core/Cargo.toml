@@ -10,6 +10,7 @@ chrono-tz = { workspace = true }
 eframe = { workspace = true }
 egui-phosphor = { git = "https://github.com/amPerl/egui-phosphor", rev = "d13688738478ecd12b426e3e74c59d6577a85b59" }
 lazy_static = { workspace = true }
+image = "0.25"
 reqwest = { version = "0.12", features = ["blocking"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

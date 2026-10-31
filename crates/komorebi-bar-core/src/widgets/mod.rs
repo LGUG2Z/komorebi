@@ -1,6 +1,7 @@
 pub mod battery;
 pub mod cpu;
 pub mod date;
+pub mod icons;
 pub mod memory;
 pub mod storage;
 pub mod time;

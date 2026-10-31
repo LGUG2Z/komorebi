@@ -3255,6 +3255,7 @@ dependencies = [
  "chrono-tz",
  "eframe",
  "egui-phosphor",
+ "image 0.25.10",
  "lazy_static",
  "reqwest",
  "schemars 1.2.3",
