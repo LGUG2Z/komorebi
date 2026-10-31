@@ -1,11 +1,11 @@
-use crate::MAX_LABEL_WIDTH;
-use crate::bar::Alignment;
-use crate::config::MediaDisplayFormat;
+use crate::windows::MAX_LABEL_WIDTH;
+use crate::windows::bar::Alignment;
+use crate::windows::config::MediaDisplayFormat;
 pub use komorebi_bar_core::widgets::platform_config::MediaConfig;
-use crate::render::RenderConfig;
-use crate::selected_frame::SelectableFrame;
-use crate::ui::CustomUi;
-use crate::widgets::widget::BarWidget;
+use crate::windows::render::RenderConfig;
+use crate::windows::selected_frame::SelectableFrame;
+use crate::windows::ui::CustomUi;
+use crate::windows::widgets::widget::BarWidget;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;

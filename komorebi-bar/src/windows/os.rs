@@ -1,4 +1,4 @@
-use crate::widgets::ImageIcon;
+use crate::windows::widgets::ImageIcon;
 use egui_phosphor::regular::CALENDAR_DOTS;
 use komorebi_bar_core::platform::BarPlatform;
 use komorebi_bar_core::platform::SystemTool;
@@ -40,7 +40,7 @@ impl BarPlatform for WindowsBar {
     }
 
     fn exec_shell_command(&self, command: &str) -> color_eyre::Result<()> {
-        crate::bar::exec_powershell(command)
+        crate::windows::bar::exec_powershell(command)
     }
 
     fn send_komorebi_message(&self, message: &SocketMessage) -> io::Result<()> {

@@ -1,29 +1,29 @@
-use crate::AUTO_SELECT_FILL_COLOUR;
-use crate::AUTO_SELECT_TEXT_COLOUR;
-use crate::BAR_HEIGHT;
-use crate::DEFAULT_PADDING;
-use crate::KomorebiEvent;
-use crate::MAX_LABEL_WIDTH;
-use crate::MONITOR_LEFT;
-use crate::MONITOR_RIGHT;
-use crate::MONITOR_TOP;
-use crate::config::KomobarConfig;
-use crate::config::KomobarTheme;
-use crate::config::MonitorConfigOrIndex;
-use crate::config::Position;
-use crate::config::PositionConfig;
-use crate::config::get_individual_spacing;
-use crate::process_hwnd;
-use crate::render::Color32Ext;
-use crate::render::Grouping;
-use crate::render::RenderConfig;
-use crate::render::RenderExt;
-use crate::take_widget_clicked;
-use crate::widgets::komorebi::Komorebi;
-use crate::widgets::komorebi::MonitorInfo;
-use crate::widgets::widget::BarWidget;
-use crate::widgets::widget::WidgetConfig;
-use crate::widgets::widget::WidgetConfigExt;
+use crate::windows::AUTO_SELECT_FILL_COLOUR;
+use crate::windows::AUTO_SELECT_TEXT_COLOUR;
+use crate::windows::BAR_HEIGHT;
+use crate::windows::DEFAULT_PADDING;
+use crate::windows::KomorebiEvent;
+use crate::windows::MAX_LABEL_WIDTH;
+use crate::windows::MONITOR_LEFT;
+use crate::windows::MONITOR_RIGHT;
+use crate::windows::MONITOR_TOP;
+use crate::windows::config::KomobarConfig;
+use crate::windows::config::KomobarTheme;
+use crate::windows::config::MonitorConfigOrIndex;
+use crate::windows::config::Position;
+use crate::windows::config::PositionConfig;
+use crate::windows::config::get_individual_spacing;
+use crate::windows::process_hwnd;
+use crate::windows::render::Color32Ext;
+use crate::windows::render::Grouping;
+use crate::windows::render::RenderConfig;
+use crate::windows::render::RenderExt;
+use crate::windows::take_widget_clicked;
+use crate::windows::widgets::komorebi::Komorebi;
+use crate::windows::widgets::komorebi::MonitorInfo;
+use crate::windows::widgets::widget::BarWidget;
+use crate::windows::widgets::widget::WidgetConfig;
+use crate::windows::widgets::widget::WidgetConfigExt;
 use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::TryRecvError;
@@ -1086,7 +1086,7 @@ impl eframe::App for Komobar {
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Variable to store command to execute after widgets are rendered
             // This allows widgets to mark clicks as consumed before bar processes them
-            let mut pending_command: Option<crate::config::MouseMessage> = None;
+            let mut pending_command: Option<crate::windows::config::MouseMessage> = None;
 
             if let Some(mouse_config) = &self.config.mouse {
                 let command = if ui

@@ -1,12 +1,12 @@
-use crate::bar::Alignment;
+use crate::windows::bar::Alignment;
 pub use komorebi_bar_core::widgets::network_config::DefaultInterfaceConfig;
 pub use komorebi_bar_core::widgets::network_config::InterfaceDisplayType;
 pub use komorebi_bar_core::widgets::network_config::NetworkConfig;
 pub use komorebi_bar_core::widgets::network_config::NetworkSelectConfig;
-use crate::config::LabelPrefix;
-use crate::render::RenderConfig;
-use crate::selected_frame::SelectableFrame;
-use crate::widgets::widget::BarWidget;
+use crate::windows::config::LabelPrefix;
+use crate::windows::render::RenderConfig;
+use crate::windows::selected_frame::SelectableFrame;
+use crate::windows::widgets::widget::BarWidget;
 use eframe::egui::Align;
 use eframe::egui::Color32;
 use eframe::egui::Context;
