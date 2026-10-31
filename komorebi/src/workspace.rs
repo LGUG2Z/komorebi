@@ -729,7 +729,7 @@ impl Workspace {
                     window.set_position(&adjusted_work_area, true)?;
                 };
             } else if let Some(window) = &mut self.maximized_window {
-                window.maximize();
+                let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), true);
             } else if !self.containers().is_empty() {
                 // windows that were not what they were told to be since the last layout, which
                 // is something that animations only show once they are done
@@ -1198,7 +1198,7 @@ impl Workspace {
         if let Some(window) = self.maximized_window
             && window.hwnd == hwnd
         {
-            window.unmaximize();
+            let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), false);
             self.maximized_window = None;
             self.maximized_window_restore_idx = None;
             return Ok(());
@@ -1888,7 +1888,7 @@ impl Workspace {
             self.maximized_window = floating_window;
             self.maximized_window_restore_idx = Option::from(focused_idx);
             if let Some(window) = self.maximized_window {
-                window.maximize();
+                let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), true);
             }
 
             return Ok(());
@@ -1910,7 +1910,7 @@ impl Workspace {
             self.maximized_window = Option::from(window);
             self.maximized_window_restore_idx = monocle_restore_idx;
             if let Some(window) = self.maximized_window {
-                window.maximize();
+                let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), true);
             }
 
             return Ok(());
@@ -1940,7 +1940,7 @@ impl Workspace {
         self.maximized_window_restore_idx = Option::from(focused_idx);
 
         if let Some(window) = self.maximized_window {
-            window.maximize();
+            let _ = backend().maximize(WindowId::from_hwnd(window.hwnd), true);
         }
 
         self.focus_previous_container();
