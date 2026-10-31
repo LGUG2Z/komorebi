@@ -44,8 +44,11 @@ use crate::should_act_individual;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::static_config::WorkspaceConfig;
+use crate::window::PlatformWindowId;
 use crate::window::Window;
 use crate::window::WindowDetails;
+use crate::window::cursor_position;
+use crate::window::foreground_window_id;
 use crate::windows_api::WindowsApi;
 use crate::windows_backend::backend;
 use color_eyre::eyre;
@@ -871,7 +874,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn container_for_window(&self, window_id: isize) -> Option<&Container> {
+    pub fn container_for_window(&self, window_id: PlatformWindowId) -> Option<&Container> {
         self.containers()
             .get(self.container_idx_for_window(window_id)?)
     }
@@ -879,7 +882,7 @@ impl Workspace {
     /// If there is a container which holds the window with `window_id` it will focus that container.
     /// This function will only emit a focus on the window if it isn't the focused window of that
     /// container already.
-    pub fn focus_container_by_window(&mut self, window_id: isize) -> eyre::Result<()> {
+    pub fn focus_container_by_window(&mut self, window_id: PlatformWindowId) -> eyre::Result<()> {
         let container_idx = self
             .container_idx_for_window(window_id)
             .ok_or_eyre("there is no container/window")?;
@@ -913,11 +916,11 @@ impl Workspace {
     pub fn container_idx_from_current_point(&self) -> Option<usize> {
         let mut idx = None;
 
-        let point = WindowsApi::cursor_pos().ok()?;
+        let point = cursor_position()?;
 
         for (i, _container) in self.containers().iter().enumerate() {
             if let Some(rect) = self.latest_layout.get(i)
-                && rect.contains_point((point.x, point.y))
+                && rect.contains_point(point)
             {
                 idx = Option::from(i);
             }
@@ -991,7 +994,7 @@ impl Workspace {
         None
     }
 
-    pub fn contains_managed_window(&self, window_id: isize) -> bool {
+    pub fn contains_managed_window(&self, window_id: PlatformWindowId) -> bool {
         for container in self.containers() {
             if container.contains_window(window_id) {
                 return true;
@@ -999,7 +1002,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window
-            && window_id == window.hwnd
+            && window_id == window.id()
         {
             return true;
         }
@@ -1014,9 +1017,9 @@ impl Workspace {
     }
 
     pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
-        let window_id = WindowsApi::foreground_window()?;
+        let window_id = foreground_window_id().ok_or_eyre("no foreground window")?;
         if let Some(window) = self.maximized_window
-            && window_id == window.hwnd
+            && window_id == window.id()
         {
             return Ok(true);
         }
@@ -1037,7 +1040,7 @@ impl Workspace {
             && self.floating_windows().is_empty()
     }
 
-    pub fn contains_window(&self, window_id: isize) -> bool {
+    pub fn contains_window(&self, window_id: PlatformWindowId) -> bool {
         for container in self.containers() {
             if container.contains_window(window_id) {
                 return true;
@@ -1045,7 +1048,7 @@ impl Workspace {
         }
 
         if let Some(window) = self.maximized_window
-            && window_id == window.hwnd
+            && window_id == window.id()
         {
             return true;
         }
@@ -1057,7 +1060,7 @@ impl Workspace {
         }
 
         for window in self.floating_windows() {
-            if window_id == window.hwnd {
+            if window_id == window.id() {
                 return true;
             }
         }
@@ -1132,7 +1135,7 @@ impl Workspace {
         container
     }
 
-    pub fn container_idx_for_window(&self, window_id: isize) -> Option<usize> {
+    pub fn container_idx_for_window(&self, window_id: PlatformWindowId) -> Option<usize> {
         let mut idx = None;
         for (i, x) in self.containers().iter().enumerate() {
             if x.contains_window(window_id) {
@@ -1973,14 +1976,14 @@ impl Workspace {
     }
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
-        let window_id = WindowsApi::foreground_window().ok()?;
+        let window_id = foreground_window_id()?;
         self.remove_floating_window(window_id)
     }
 
-    pub fn remove_floating_window(&mut self, window_id: isize) -> Option<Window> {
+    pub fn remove_floating_window(&mut self, window_id: PlatformWindowId) -> Option<Window> {
         let mut idx = None;
         for (i, window) in self.floating_windows().iter().enumerate() {
-            if window_id == window.hwnd {
+            if window_id == window.id() {
                 idx = Option::from(i);
             }
         }
