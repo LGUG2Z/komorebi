@@ -235,7 +235,9 @@
             # komorebic/build.rs downloads applications.json if it is missing, which
             # is not possible in the sandbox, so provide the pinned copy instead
             preBuild = "mkdir -p komorebic && cp ${inputs.asc}/applications.json komorebic/applications.json";
-            COMMIT_HASH = commit;
+            # a constant, so that the dependencies and every check are the same
+            # derivations for every commit; only fullBuild stamps the real one
+            COMMIT_HASH = "nix-check";
 
             # build inputs for cross-compilation
             nativeBuildInputs = [
@@ -278,6 +280,7 @@
             individualCrateArgs
             // {
               pname = "komorebi-workspace";
+              COMMIT_HASH = commit;
             }
           );
 
