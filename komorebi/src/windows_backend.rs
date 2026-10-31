@@ -241,3 +241,12 @@ impl Backend for WindowsBackend {
         )))
     }
 }
+
+static BACKEND: WindowsBackend = WindowsBackend;
+
+/// The backend the daemon calls, like `backend()` on KDE. Stateless, so one static serves every
+/// thread. Call sites are being switched to it one cluster at a time: see
+/// `docs/dev/backend-switch.md` for which are.
+pub fn backend() -> &'static dyn Backend {
+    &BACKEND
+}
