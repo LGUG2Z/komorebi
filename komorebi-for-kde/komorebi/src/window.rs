@@ -311,7 +311,7 @@ impl Window {
         backend().unminimize(self.window_id())
     }
 
-    /// Takes the window out of sight ([`Backend::hide`](crate::backend::Backend::hide)): the back
+    /// Takes the window out of sight ([`Backend::hide`](komorebi_backend::Backend::hide)): the back
     /// of a stack, which on KDE goes to a virtual desktop nobody looks at
     ///
     /// The id is recorded in [`struct@HIDDEN_WINDOWS`] first, so that what the compositor reports

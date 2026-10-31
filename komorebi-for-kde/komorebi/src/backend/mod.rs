@@ -24,16 +24,16 @@
 //! # Workspaces
 //!
 //! komorebi's workspaces are the compositor's virtual desktops, per monitor: the window manager
-//! asks for workspace `i` to be shown on a monitor ([`Backend::switch_workspace`]) and for a window
-//! to be put on workspace `i` ([`Backend::set_window_workspace`]), and the compositor does the
+//! asks for workspace `i` to be shown on a monitor ([`komorebi_backend::Backend::switch_workspace`]) and for a window
+//! to be put on workspace `i` ([`komorebi_backend::Backend::set_window_workspace`]), and the compositor does the
 //! showing, the hiding and the focusing. When something else changes what a monitor shows, the
 //! backend raises an event and the window manager follows it.
 //!
 //! # Hiding
 //!
 //! The one thing the window manager hides itself is the back of a stack: a container tiles one
-//! window, so the others in it are taken out of sight ([`Backend::hide`]) and brought back
-//! ([`Backend::restore`]) when they are given the tile. A hidden window stays alive, stays on its
+//! window, so the others in it are taken out of sight ([`komorebi_backend::Backend::hide`]) and brought back
+//! ([`komorebi_backend::Backend::restore`]) when they are given the tile. A hidden window stays alive, stays on its
 //! workspace and is not minimized, so what the compositor reports about it is not taken for the
 //! user's doing (the window manager keeps a table of the windows it has hidden).
 //!
@@ -59,7 +59,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub mod fake;
-pub mod shared;
 
 /// What the compositor currently knows about one window.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -84,7 +83,7 @@ pub struct WindowInfo {
     /// manager leaves it where it is.
     pub fullscreen: bool,
     /// Whether the window is maximized, whether by the user (the title bar, a double click, a
-    /// shortcut) or because komorebi asked ([`Backend::maximize`]).
+    /// shortcut) or because komorebi asked ([`komorebi_backend::Backend::maximize`]).
     pub maximized: bool,
     /// Whether the compositor considers this a normal application window, as opposed to a dialog,
     /// a splash screen, a utility window, a dock and so on.
@@ -243,17 +242,17 @@ pub struct BorderLook {
 ///
 /// # Contract
 ///
-/// - Queries never block on the compositor and never fail, except [`Backend::monitors`], which may
+/// - Queries never block on the compositor and never fail, except [`komorebi_backend::Backend::monitors`], which may
 ///   fail when the compositor cannot say.
 /// - A command about a window that does not exist, or is no longer alive, returns an error. It does
 ///   not panic.
 /// - A backend is `Send + Sync`: the window manager calls it from several threads.
 /// - Workspace `i` is the compositor's virtual desktop `i` on every monitor, and each monitor shows
-///   one of them at a time ([`Backend::switch_workspace`]). The compositor shows the windows of the
+///   one of them at a time ([`komorebi_backend::Backend::switch_workspace`]). The compositor shows the windows of the
 ///   workspace in front and hides the others; the window manager never hides a window to leave a
 ///   workspace.
-/// - A hidden window ([`Backend::hide`]) is still alive and still on its workspace: it is out of
-///   sight until [`Backend::restore`], and [`Backend::window_workspace`] names the workspace it
+/// - A hidden window ([`komorebi_backend::Backend::hide`]) is still alive and still on its workspace: it is out of
+///   sight until [`komorebi_backend::Backend::restore`], and [`komorebi_backend::Backend::window_workspace`] names the workspace it
 ///   comes back to.
 /// - A backend asked to show a workspace, or to put a window on one, that has no desktop yet makes
 ///   the desktops up to it first.
@@ -275,55 +274,16 @@ pub struct BorderLook {
 ///
 /// ```rust,compile_fail,E0277
 /// # use std::rc::Rc;
-/// # use color_eyre::eyre;
 /// # use komorebi::backend::Backend;
 /// # use komorebi::core::Rect;
 /// # use komorebi_backend::{MonitorId, WindowId};
 /// struct NotShareable(Rc<u8>);
 ///
-/// # impl Backend for NotShareable {
-/// #     fn windows(&self) -> Vec<komorebi_backend::WindowInfo> { vec![] }
-/// #     fn window(&self, _: WindowId) -> Option<komorebi_backend::WindowInfo> { None }
-/// #     fn foreground_window(&self) -> Option<WindowId> { None }
-/// #     fn monitors(&self) -> komorebi_backend::Result<Vec<komorebi_backend::MonitorInfo>> { Ok(vec![]) }
-/// #     fn cursor_pos(&self) -> Option<(i32, i32)> { None }
-/// #     fn set_rect(&self, _: WindowId, _: &Rect) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn focus(&self, _: WindowId, _: bool) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn raise(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn hide(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn restore(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn minimize(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn unminimize(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn close(&self, _: WindowId) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn center_cursor_in(&self, _: &Rect) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn ensure_workspaces(&self, _: &[String]) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn switch_workspace(&self, _: MonitorId, _: usize) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn set_window_workspace(&self, _: WindowId, _: usize) -> komorebi_backend::Result<()> { Ok(()) }
-/// #     fn window_workspace(&self, _: WindowId) -> komorebi_backend::Result<Option<usize>> { Ok(None) }
-/// #     fn current_workspaces(&self) -> komorebi_backend::Result<Vec<(MonitorId, usize)>> { Ok(vec![]) }
-/// # }
+/// # impl komorebi_backend::Backend for NotShareable {}
+/// impl Backend for NotShareable {}
 /// ```
-pub trait Backend: Send + Sync + 'static {
-    // ---- queries -------------------------------------------------------------------------------
-
-    /// Returns every window on the desktop that is a candidate for management, ordered by id.
-    fn windows(&self) -> Vec<komorebi_backend::WindowInfo>;
-
-    /// Returns what is known about the window, or `None` if the compositor has never heard of it.
-    fn window(&self, id: WindowId) -> Option<komorebi_backend::WindowInfo>;
-
-    /// Returns the id of the window that has the focus, if any window does.
-    fn foreground_window(&self) -> Option<WindowId>;
-
-    /// Returns every connected monitor.
-    ///
-    /// # Errors
-    ///
-    /// When the compositor cannot report its outputs.
-    fn monitors(&self) -> komorebi_backend::Result<Vec<komorebi_backend::MonitorInfo>>;
-
-    /// Returns where the pointer is, if the compositor says.
-    fn cursor_pos(&self) -> Option<(i32, i32)>;
+pub trait Backend: komorebi_backend::Backend + 'static {
+    // ---- drag frames: KWin remembers them, and the shared trait has no place for them ----------
 
     /// Returns the frame the window had when the user last began to drag it, if the backend has
     /// kept it.
@@ -380,82 +340,6 @@ pub trait Backend: Send + Sync + 'static {
         None
     }
 
-    // ---- commands ------------------------------------------------------------------------------
-
-    /// Moves and resizes the window to `rect`, a position and a size.
-    ///
-    /// A client may refuse the size (a minimum size, for one), so the frame the window ends up with
-    /// is [`Backend::window_rect`], not `rect`.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    fn set_rect(&self, id: WindowId, rect: &Rect) -> komorebi_backend::Result<()>;
-
-    /// Gives the window the focus, and, if `mouse_follows_focus`, puts the pointer in its middle.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    fn focus(&self, id: WindowId, mouse_follows_focus: bool) -> komorebi_backend::Result<()>;
-
-    /// Raises the window above the others.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    fn raise(&self, id: WindowId) -> komorebi_backend::Result<()>;
-
-    /// Takes the window out of sight without closing or minimizing it, which is how the window
-    /// manager keeps the back of a stack out of the way. On KWin it goes to a virtual desktop that
-    /// nobody looks at.
-    ///
-    /// The window stays on its workspace ([`Backend::window_workspace`]), and
-    /// [`Backend::set_window_workspace`] changes the workspace it comes back to, not where it is
-    /// hidden. A window that is hidden already is left as it is.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive, or the compositor cannot make the
-    /// place the window is hidden in.
-    fn hide(&self, id: WindowId) -> komorebi_backend::Result<()>;
-
-    /// Brings a hidden window back, to the workspace it is on. A window that is not hidden is left
-    /// as it is.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    fn restore(&self, id: WindowId) -> komorebi_backend::Result<()>;
-
-    /// Minimizes the window.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    fn minimize(&self, id: WindowId) -> komorebi_backend::Result<()>;
-
-    /// Brings a minimized window back.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    fn unminimize(&self, id: WindowId) -> komorebi_backend::Result<()>;
-
-    /// Asks the window to close.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    fn close(&self, id: WindowId) -> komorebi_backend::Result<()>;
-
-    /// Puts the pointer in the middle of `rect`.
-    ///
-    /// # Errors
-    ///
-    /// When the compositor refuses to move the pointer.
-    fn center_cursor_in(&self, rect: &Rect) -> komorebi_backend::Result<()>;
-
     // ---- workspaces ----------------------------------------------------------------------------
     //
     // komorebi's workspaces are the compositor's own virtual desktops: workspace `i` is desktop `i`
@@ -463,41 +347,6 @@ pub trait Backend: Send + Sync + 'static {
     // windows of a workspace is then the compositor's business; komorebi tiles what is in front and
     // follows the compositor when something else (a pager, a shortcut, an app raising a window)
     // changes what a monitor shows.
-
-    /// Makes sure there are at least as many desktops as `names`, creating the missing ones with
-    /// those names.
-    ///
-    /// A desktop that is already there keeps its name, unless nobody chose it (the compositor's
-    /// own "Desktop 2"), in which case it may take the name it is given.
-    ///
-    /// # Errors
-    ///
-    /// When the compositor refuses to create or rename a desktop.
-    fn ensure_workspaces(&self, names: &[String]) -> komorebi_backend::Result<()>;
-
-    /// Shows workspace `idx` on the monitor `monitor_id`, leaving the other monitors as they are.
-    ///
-    /// The compositor shows the windows on that workspace, hides the rest, and gives the focus to a
-    /// window of that workspace by itself.
-    ///
-    /// # Errors
-    ///
-    /// When there is no desktop for `idx` and one cannot be made.
-    fn switch_workspace(&self, monitor_id: MonitorId, idx: usize) -> komorebi_backend::Result<()>;
-
-    /// Puts a window on workspace `idx`. It is visible at once to [`Backend::window_workspace`].
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist, or there is no desktop for `idx` and one cannot be made.
-    fn set_window_workspace(&self, id: WindowId, idx: usize) -> komorebi_backend::Result<()>;
-
-    /// Returns the workspace a window is on, or `None` for a window the compositor does not know or
-    /// that is on every workspace.
-    fn window_workspace(&self, id: WindowId) -> komorebi_backend::Result<Option<usize>>;
-
-    /// Returns the workspace each monitor shows, as `(monitor id, workspace index)`.
-    fn current_workspaces(&self) -> komorebi_backend::Result<Vec<(MonitorId, usize)>>;
 
     // ---- look, which a backend that draws nothing need not say anything about --------------------
 
@@ -573,55 +422,6 @@ pub trait Backend: Send + Sync + 'static {
         Ok(false)
     }
 
-    /// Asks the compositor to draw the window with this opacity: 255 is not see-through at all.
-    /// The default does nothing.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use komorebi::backend::Backend;
-    /// use komorebi::backend::fake::FakeBackend;
-    ///
-    /// let fake = FakeBackend::with_one_monitor();
-    /// fake.open_window(7, "foot", "foot", "a terminal");
-    /// assert_eq!(fake.opacity_of(7), 255);
-    ///
-    /// fake.set_opacity(7.into(), 150)?;
-    /// assert_eq!(fake.opacity_of(7), 150);
-    /// # Ok::<(), color_eyre::eyre::Report>(())
-    /// ```
-    fn set_opacity(&self, _id: WindowId, _alpha: u8) -> komorebi_backend::Result<()> {
-        Ok(())
-    }
-
-    /// Asks the compositor to give the focus to the window under the pointer, as the pointer moves
-    /// (`true`), or to stop doing that and go back to the focus policy the user had (`false`). The
-    /// default does nothing.
-    ///
-    /// # Errors
-    ///
-    /// When the compositor's configuration cannot be changed.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use komorebi::backend::Backend;
-    /// use komorebi::backend::fake::Command;
-    /// use komorebi::backend::fake::FakeBackend;
-    ///
-    /// let fake = FakeBackend::with_one_monitor();
-    /// fake.set_focus_follows_mouse(true)?;
-    /// assert_eq!(fake.commands(), [Command::FocusFollowsMouse(true)]);
-    /// # Ok::<(), color_eyre::eyre::Report>(())
-    /// ```
-    fn set_focus_follows_mouse(&self, _enable: bool) -> komorebi_backend::Result<()> {
-        Ok(())
-    }
-
     /// Shows this picture as the wallpaper of a monitor, filling the screen. The window manager
     /// asks for it every time a workspace of the monitor comes into view, since the user may have
     /// changed the wallpaper by hand since, so a backend does nothing when the monitor already
@@ -663,37 +463,6 @@ pub trait Backend: Send + Sync + 'static {
     /// The default does nothing. Implementors should not need to override it unless they created
     /// something in the compositor.
     fn shutdown(&self) {}
-
-    /// Has the compositor maximize the window to the work area of its monitor, panels left alone,
-    /// or, with `maximize` false, give it back the frame it had before.
-    ///
-    /// The default does nothing, for a compositor that has no maximize of its own.
-    ///
-    /// # Errors
-    ///
-    /// When the window does not exist or is no longer alive.
-    fn maximize(&self, _id: WindowId, _maximize: bool) -> komorebi_backend::Result<()> {
-        Ok(())
-    }
-
-    /// Returns true if and only if the compositor has a live window with this id.
-    fn is_window(&self, id: WindowId) -> bool {
-        self.window(id).is_some_and(|w| w.alive)
-    }
-
-    /// Returns the window's frame, if the compositor knows the window.
-    fn window_rect(&self, id: WindowId) -> Option<Rect> {
-        self.window(id).map(|w| w.rect)
-    }
-
-    /// Returns the id of the monitor whose bounds contain the point.
-    fn monitor_from_point(&self, x: i32, y: i32) -> Option<MonitorId> {
-        self.monitors().ok()?.into_iter().find_map(|m| {
-            let (l, t) = (m.size.left, m.size.top);
-            let (r, b) = (l + m.size.right, t + m.size.bottom);
-            (x >= l && x < r && y >= t && y < b).then_some(m.id)
-        })
-    }
 }
 
 static BACKEND: RwLock<Option<Arc<dyn Backend>>> = RwLock::new(None);
@@ -778,6 +547,7 @@ pub fn with_backend<R>(backend: Arc<dyn Backend>, f: impl FnOnce() -> R) -> R {
 mod tests {
     use super::*;
     use fake::FakeBackend;
+    use komorebi_backend::Backend as _;
 
     #[test]
     fn a_thread_that_installs_nothing_gets_a_permissive_fake_in_unit_tests() {

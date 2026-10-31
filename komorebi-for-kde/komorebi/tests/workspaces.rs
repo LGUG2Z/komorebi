@@ -263,7 +263,7 @@ fn a_window_open_on_a_desktop_at_startup_starts_on_that_workspace() {
     // the user had put one on the second desktop, and was looking at the first
     fake.show_workspace_by_user(MONITOR, 0);
     {
-        use komorebi::backend::Backend;
+        use komorebi_backend::Backend;
         fake.set_window_workspace(10_112.into(), 1).unwrap();
         fake.clear_commands();
     }

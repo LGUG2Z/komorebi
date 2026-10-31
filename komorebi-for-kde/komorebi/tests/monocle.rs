@@ -5,7 +5,6 @@
 //!
 //! Window ids are in the 35_000s.
 
-use komorebi::backend::Backend;
 use komorebi::backend::fake::Command;
 use komorebi::backend::fake::FakeBackend;
 use komorebi::backend::with_backend;
@@ -20,6 +19,7 @@ use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event::KWinNotification;
 use komorebi::window_manager_event::SystemNotification;
 use komorebi::window_manager_event::WindowManagerEvent;
+use komorebi_backend::Backend as _;
 use std::sync::Arc;
 
 fn added(id: u32) -> WindowManagerEvent {

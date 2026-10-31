@@ -9,7 +9,7 @@
 //! # Example
 //!
 //! ```rust
-//! use komorebi::backend::Backend;
+//! use komorebi_backend::Backend;
 //! use komorebi::backend::fake::Command;
 //! use komorebi::backend::fake::FakeBackend;
 //! use komorebi::core::Rect;
@@ -45,7 +45,6 @@ use komorebi_backend::MonitorId;
 use komorebi_backend::WindowId;
 use komorebi_backend::fake::Command as SharedCommand;
 use parking_lot::Mutex;
-use shared::Backend as SharedBackend;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -53,40 +52,40 @@ use std::path::PathBuf;
 /// A command the window manager sent to the backend.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
-    /// [`Backend::set_rect`]: the window and the rectangle it was asked to take.
+    /// [`komorebi_backend::Backend::set_rect`]: the window and the rectangle it was asked to take.
     SetRect(u32, Rect),
-    /// [`Backend::focus`]: the window, and whether the pointer was to follow.
+    /// [`komorebi_backend::Backend::focus`]: the window, and whether the pointer was to follow.
     Focus(u32, bool),
-    /// [`Backend::raise`].
+    /// [`komorebi_backend::Backend::raise`].
     Raise(u32),
-    /// [`Backend::hide`].
+    /// [`komorebi_backend::Backend::hide`].
     Hide(u32),
-    /// [`Backend::restore`].
+    /// [`komorebi_backend::Backend::restore`].
     Restore(u32),
-    /// [`Backend::minimize`].
+    /// [`komorebi_backend::Backend::minimize`].
     Minimize(u32),
-    /// [`Backend::unminimize`].
+    /// [`komorebi_backend::Backend::unminimize`].
     Unminimize(u32),
-    /// [`Backend::close`].
+    /// [`komorebi_backend::Backend::close`].
     Close(u32),
-    /// [`Backend::center_cursor_in`].
+    /// [`komorebi_backend::Backend::center_cursor_in`].
     CenterCursor(Rect),
-    /// [`Backend::ensure_workspaces`]: how many workspaces were asked for.
+    /// [`komorebi_backend::Backend::ensure_workspaces`]: how many workspaces were asked for.
     EnsureWorkspaces(usize),
-    /// [`Backend::maximize`]: the window, and whether it was to be maximized or restored.
+    /// [`komorebi_backend::Backend::maximize`]: the window, and whether it was to be maximized or restored.
     Maximize(u32, bool),
-    /// [`Backend::switch_workspace`]: the monitor, and the workspace it was asked to show.
+    /// [`komorebi_backend::Backend::switch_workspace`]: the monitor, and the workspace it was asked to show.
     SwitchWorkspace(u32, usize),
-    /// [`Backend::set_window_workspace`]: the window, and the workspace it was put on.
+    /// [`komorebi_backend::Backend::set_window_workspace`]: the window, and the workspace it was put on.
     SetWindowWorkspace(u32, usize),
     /// [`Backend::apply_look`]: the look, when it is not the one applied before.
     ApplyLook(Look),
     /// [`Backend::set_border_colours`]: the colors of each window's border, when they are not the
     /// ones given before.
     BorderColours(Vec<(u32, u32)>),
-    /// [`Backend::set_opacity`]: the window, and how opaque it was asked to be.
+    /// [`komorebi_backend::Backend::set_opacity`]: the window, and how opaque it was asked to be.
     SetOpacity(u32, u8),
-    /// [`Backend::set_focus_follows_mouse`]: whether it was turned on or off.
+    /// [`komorebi_backend::Backend::set_focus_follows_mouse`]: whether it was turned on or off.
     FocusFollowsMouse(bool),
     /// [`Backend::set_wallpaper`]: the monitor, and the picture it was asked to show.
     SetWallpaper(u32, PathBuf),
@@ -252,7 +251,7 @@ impl FakeBackend {
         self.kde.lock().drag_ends.insert(id, rect);
     }
 
-    /// Gives a window a minimum size. A [`Backend::set_rect`] for something smaller leaves it at
+    /// Gives a window a minimum size. A [`komorebi_backend::Backend::set_rect`] for something smaller leaves it at
     /// the minimum, which is how a GTK4 client answers.
     pub fn set_min_size(&self, id: u32, width: i32, height: i32) {
         self.inner.set_min_size(wid(id), width, height);
@@ -299,7 +298,7 @@ impl FakeBackend {
         self.inner.rect_of(wid(id))
     }
 
-    /// Returns true if and only if the window is hidden ([`Backend::hide`]), as opposed to being
+    /// Returns true if and only if the window is hidden ([`komorebi_backend::Backend::hide`]), as opposed to being
     /// on a workspace that is not showing.
     pub fn is_hidden(&self, id: u32) -> bool {
         self.inner.is_hidden(wid(id))
@@ -382,7 +381,7 @@ impl FakeBackend {
     }
 }
 
-impl Backend for FakeBackend {
+impl komorebi_backend::Backend for FakeBackend {
     fn windows(&self) -> Vec<komorebi_backend::WindowInfo> {
         self.inner.windows()
     }
@@ -401,10 +400,6 @@ impl Backend for FakeBackend {
 
     fn cursor_pos(&self) -> Option<(i32, i32)> {
         self.inner.cursor_pos()
-    }
-
-    fn drag_end(&self, id: WindowId) -> Option<Rect> {
-        self.kde.lock().drag_ends.get(&raw(id)).copied()
     }
 
     fn set_rect(&self, id: WindowId, rect: &Rect) -> shared::Result<()> {
@@ -467,6 +462,24 @@ impl Backend for FakeBackend {
         self.inner.maximize(id, maximize)
     }
 
+    fn set_focus_follows_mouse(&self, enable: bool) -> shared::Result<()> {
+        self.inner.set_focus_follows_mouse(enable)
+    }
+
+    fn set_opacity(&self, id: WindowId, alpha: u8) -> shared::Result<()> {
+        self.inner.set_opacity(id, alpha)
+    }
+
+    fn supports(&self, _capability: komorebi_backend::Capability) -> bool {
+        true
+    }
+}
+
+impl Backend for FakeBackend {
+    fn drag_end(&self, id: WindowId) -> Option<Rect> {
+        self.kde.lock().drag_ends.get(&raw(id)).copied()
+    }
+
     fn apply_look(&self, look: &Look) -> eyre::Result<bool> {
         let mut kde = self.kde.lock();
         // like a real backend, remember what was applied and say nothing twice
@@ -475,10 +488,6 @@ impl Backend for FakeBackend {
             kde.last_look = Some(look.clone());
         }
         Ok(kde.borders_drawn && look.border.is_some())
-    }
-
-    fn set_focus_follows_mouse(&self, enable: bool) -> shared::Result<()> {
-        self.inner.set_focus_follows_mouse(enable)
     }
 
     fn set_wallpaper(&self, monitor_id: MonitorId, path: &Path) -> eyre::Result<()> {
@@ -491,10 +500,6 @@ impl Backend for FakeBackend {
             path.to_path_buf(),
         ));
         Ok(())
-    }
-
-    fn set_opacity(&self, id: WindowId, alpha: u8) -> shared::Result<()> {
-        self.inner.set_opacity(id, alpha)
     }
 
     fn set_border_colours(&self, colours: &[(u32, u32)]) -> eyre::Result<bool> {
@@ -513,6 +518,7 @@ impl Backend for FakeBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use komorebi_backend::Backend as _;
 
     fn tile(left: i32, width: i32) -> Rect {
         Rect {
@@ -960,5 +966,84 @@ mod tests {
         assert_eq!(fake.cursor_pos(), Some((200, 525)));
         assert_eq!(fake.commands(), [Command::CenterCursor(tile(0, 400))]);
         Ok(())
+    }
+}
+
+/// The KDE fake is a [`komorebi_backend::Backend`] itself, and passes what every backend has to.
+#[cfg(test)]
+mod shared_contract {
+    use super::*;
+    use komorebi_backend::Backend as _;
+    use komorebi_backend::Capability;
+    use komorebi_backend::Error;
+    use komorebi_backend::contract::Harness;
+    use komorebi_backend::contract::check_all;
+
+    struct KdeFake(FakeBackend);
+
+    impl Harness for KdeFake {
+        type B = FakeBackend;
+
+        fn new() -> Self {
+            Self(FakeBackend::with_one_monitor())
+        }
+
+        fn backend(&self) -> &Self::B {
+            &self.0
+        }
+
+        fn open_window(&self, seed: u32) -> WindowId {
+            self.0.open_window(seed, "foot", "foot", "a terminal");
+            WindowId::from_u32(seed)
+        }
+
+        fn destroy_window(&self, id: WindowId) {
+            self.0.close_window_now(id.to_u32().expect("a KDE id"));
+        }
+    }
+
+    #[test]
+    fn the_kde_fake_passes_the_shared_contract() {
+        check_all::<KdeFake>();
+    }
+
+    #[test]
+    fn kde_is_the_first_implementation_and_supports_every_capability() {
+        let kde = KdeFake::new();
+
+        for capability in Capability::ALL {
+            assert!(kde.backend().supports(capability));
+        }
+    }
+
+    #[test]
+    fn a_command_about_a_window_that_is_gone_is_window_gone_and_other_failures_are_not() {
+        let kde = KdeFake::new();
+        let id = kde.open_window(4);
+
+        let gone = kde.backend().focus(WindowId::from_u32(9), false);
+
+        assert!(matches!(gone, Err(Error::WindowGone(WindowId(9)))));
+        assert_eq!(gone.unwrap_err().to_string(), "no such window: 9");
+        assert!(kde.backend().focus(id, false).is_ok());
+    }
+
+    #[test]
+    fn every_field_kde_knows_comes_through() {
+        let kde = KdeFake::new();
+        let id = kde.open_window(4);
+
+        let info = kde.backend().window(id).expect("window 4 was opened");
+
+        assert_eq!(info.id, id);
+        assert_eq!(info.class.as_deref(), Some("foot"));
+        assert_eq!(info.normal, Some(true));
+        assert_eq!(info.fullscreen, Some(false));
+        assert_eq!(
+            kde.backend().monitors().expect("one monitor")[0]
+                .name
+                .as_deref(),
+            Some("Virtual-0")
+        );
     }
 }

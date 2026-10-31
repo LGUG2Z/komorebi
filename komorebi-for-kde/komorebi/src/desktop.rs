@@ -61,7 +61,7 @@ fn contains_point(area: &Rect, x: i32, y: i32) -> bool {
 /// # Errors
 ///
 /// When the backend cannot report its monitors
-/// ([`Backend::monitors`](crate::backend::Backend::monitors)).
+/// ([`Backend::monitors`](komorebi_backend::Backend::monitors)).
 ///
 /// # Example
 ///
@@ -103,7 +103,7 @@ pub fn latest_monitor_information() -> eyre::Result<Vec<Monitor>> {
 /// # Errors
 ///
 /// When the backend cannot report its monitors
-/// ([`Backend::monitors`](crate::backend::Backend::monitors)).
+/// ([`Backend::monitors`](komorebi_backend::Backend::monitors)).
 ///
 /// # Example
 ///
@@ -227,7 +227,7 @@ pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
 /// # Errors
 ///
 /// - The backend cannot report its monitors
-///   ([`Backend::monitors`](crate::backend::Backend::monitors)).
+///   ([`Backend::monitors`](komorebi_backend::Backend::monitors)).
 /// - There is no focused monitor or workspace, or the windows of the focused workspace cannot be
 ///   put in their tiles.
 ///

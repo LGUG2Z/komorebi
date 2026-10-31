@@ -99,6 +99,7 @@ use crate::window_manager_event_listener;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use futures_util::StreamExt;
+use komorebi_backend::Backend as _;
 use komorebi_backend::MonitorId;
 use komorebi_backend::WindowId;
 use parking_lot::Condvar;
@@ -822,7 +823,7 @@ impl KWinBackend {
     }
 }
 
-impl Backend for KWinBackend {
+impl komorebi_backend::Backend for KWinBackend {
     fn windows(&self) -> Vec<komorebi_backend::WindowInfo> {
         self.shared
             .table
@@ -844,16 +845,6 @@ impl Backend for KWinBackend {
             .lock()
             .foreground()
             .map(WindowId::from_u32)
-    }
-
-    fn drag_origin(&self, id: WindowId) -> Option<Rect> {
-        let id = id.to_u32()?;
-        self.shared.table.lock().drag_origin(id)
-    }
-
-    fn drag_end(&self, id: WindowId) -> Option<Rect> {
-        let id = id.to_u32()?;
-        self.shared.table.lock().drag_end(id)
     }
 
     fn monitors(&self) -> komorebi_backend::Result<Vec<komorebi_backend::MonitorInfo>> {
@@ -1049,20 +1040,6 @@ impl Backend for KWinBackend {
         Ok(())
     }
 
-    fn apply_look(&self, look: &Look) -> eyre::Result<bool> {
-        let shared = self.shared.clone();
-        let look = look.clone();
-
-        self.shared.block_on(async move {
-            let Some(kwinrc) = &shared.kwinrc else {
-                return Ok(false);
-            };
-            let connection = shared.connection().await?;
-            let mut effects = shared.effects.lock().await;
-            effects.apply(&connection, kwinrc, &look).await
-        })?
-    }
-
     fn set_opacity(&self, id: WindowId, alpha: u8) -> komorebi_backend::Result<()> {
         let id = raw(id)?;
         self.command(
@@ -1098,6 +1075,36 @@ impl Backend for KWinBackend {
             })
             .map_err(platform)?
             .map_err(platform)
+    }
+
+    fn supports(&self, _capability: komorebi_backend::Capability) -> bool {
+        true
+    }
+}
+
+impl Backend for KWinBackend {
+    fn drag_origin(&self, id: WindowId) -> Option<Rect> {
+        let id = id.to_u32()?;
+        self.shared.table.lock().drag_origin(id)
+    }
+
+    fn drag_end(&self, id: WindowId) -> Option<Rect> {
+        let id = id.to_u32()?;
+        self.shared.table.lock().drag_end(id)
+    }
+
+    fn apply_look(&self, look: &Look) -> eyre::Result<bool> {
+        let shared = self.shared.clone();
+        let look = look.clone();
+
+        self.shared.block_on(async move {
+            let Some(kwinrc) = &shared.kwinrc else {
+                return Ok(false);
+            };
+            let connection = shared.connection().await?;
+            let mut effects = shared.effects.lock().await;
+            effects.apply(&connection, kwinrc, &look).await
+        })?
     }
 
     fn set_wallpaper(&self, monitor_id: MonitorId, path: &std::path::Path) -> eyre::Result<()> {

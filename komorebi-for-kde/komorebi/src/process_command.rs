@@ -192,7 +192,7 @@
 //! - **FocusFollowsMouse** and **ToggleFocusFollowsMouse** set whether the compositor gives the
 //!   focus to the window under the pointer, as the pointer moves: KWin's own focus policy, whichever
 //!   of the two implementations is named, put back when it is turned off and when komorebi exits
-//!   ([`Backend::set_focus_follows_mouse`](crate::backend::Backend::set_focus_follows_mouse)).
+//!   ([`Backend::set_focus_follows_mouse`](komorebi_backend::Backend::set_focus_follows_mouse)).
 //! - **Border** sets whether the compositor draws a border around each window, and **BorderWidth**
 //!   and **BorderOffset** the room the layout leaves for it: each asks the backend for the look
 //!   again ([`border_manager::send_notification`]), as does every message once it has been
@@ -2105,8 +2105,7 @@ impl WindowManager {
             | SocketMessage::WatchConfiguration(..)
             | SocketMessage::WindowHidingBehaviour(..)
             | SocketMessage::WorkspaceLayoutCustom(..)
-            | SocketMessage::WorkspaceLayoutCustomRule(..)
- => {
+            | SocketMessage::WorkspaceLayoutCustomRule(..) => {
                 reply.write_all(message.not_supported_reply().as_bytes())?;
                 return Ok(());
             }
@@ -2149,10 +2148,7 @@ impl WindowManager {
 /// - The connection cannot be read, or cloned to be read and written at once.
 /// - A line is not a [`SocketMessage`]: the lines after it are not read.
 /// - [`WindowManager::process_command`] fails: the lines after it are not read.
-pub fn read_commands_uds(
-    wm: &Arc<Mutex<WindowManager>>,
-    stream: UnixStream,
-) -> eyre::Result<()> {
+pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> eyre::Result<()> {
     komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &NoPolicy)
 }
 
