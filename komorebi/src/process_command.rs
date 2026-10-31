@@ -998,56 +998,7 @@ impl WindowManager {
                 reply.write_all(monitors_state.as_bytes())?;
             }
             SocketMessage::Query(query) => {
-                let response = match query {
-                    StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
-                    StateQuery::FocusedWorkspaceIndex => self
-                        .focused_monitor()
-                        .ok_or_eyre("there is no monitor")?
-                        .focused_workspace_idx()
-                        .to_string(),
-                    StateQuery::FocusedContainerIndex => self
-                        .focused_workspace()?
-                        .focused_container_idx()
-                        .to_string(),
-                    StateQuery::FocusedWindowIndex => {
-                        self.focused_container()?.focused_window_idx().to_string()
-                    }
-                    StateQuery::FocusedWorkspaceName => {
-                        let focused_monitor =
-                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
-
-                        focused_monitor
-                            .focused_workspace_name()
-                            .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
-                    }
-                    StateQuery::Version => build::RUST_VERSION.to_string(),
-                    StateQuery::FocusedWorkspaceLayout => {
-                        let focused_monitor =
-                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
-
-                        focused_monitor.focused_workspace_layout().map_or_else(
-                            || "None".to_string(),
-                            |layout| match layout {
-                                Layout::Default(default_layout) => default_layout.to_string(),
-                                Layout::Custom(_) => "Custom".to_string(),
-                            },
-                        )
-                    }
-                    StateQuery::FocusedContainerKind => {
-                        match self.focused_workspace()?.focused_container() {
-                            None => "None".to_string(),
-                            Some(container) => {
-                                if container.windows().len() > 1 {
-                                    "Stack".to_string()
-                                } else {
-                                    "Single".to_string()
-                                }
-                            }
-                        }
-                    }
-                };
-
-                reply.write_all(response.as_bytes())?;
+                self.answer_query(query, &mut reply)?;
             }
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
                 let _in_place = live_resize::InPlace::new();
@@ -1067,94 +1018,7 @@ impl WindowManager {
                 force_update_borders = true;
             }
             SocketMessage::ReplaceConfiguration(ref config) => {
-                // Check that this is a valid static config file first
-                if StaticConfig::read(config).is_ok() {
-                    // Clear workspace rules; these will need to be replaced
-                    WORKSPACE_MATCHING_RULES.lock().clear();
-                    // Pause so that restored windows come to the foreground from all workspaces
-                    self.is_paused = true;
-                    // Bring all windows to the foreground
-                    self.restore_all_windows(false)?;
-
-                    // Create a new wm from the config path
-                    let mut wm = StaticConfig::preload(
-                        config,
-                        winevent_listener::event_rx(),
-                        self.command_listener.try_clone().ok(),
-                    )?;
-
-                    // Initialize the new wm
-                    wm.init()?;
-
-                    wm.restore_all_windows(true)?;
-
-                    // This is equivalent to StaticConfig::postload for this use case
-                    StaticConfig::reload(config, &mut wm)?;
-
-                    // Set self to the new wm instance
-                    *self = wm;
-
-                    // check if there are any bars
-                    let mut system = sysinfo::System::new_all();
-                    system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-
-                    let has_bar = system
-                        .processes_by_name("komorebi-bar.exe".as_ref())
-                        .next()
-                        .is_some();
-
-                    // stop bar(s)
-                    if has_bar {
-                        let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-                ";
-                        match powershell_script::run(script) {
-                            Ok(_) => {
-                                println!("{script}");
-
-                                // start new bar(s)
-                                let mut config = StaticConfig::read(config)?;
-                                if let Some(display_bar_configurations) =
-                                    &mut config.bar_configurations
-                                {
-                                    for config_file_path in &mut *display_bar_configurations {
-                                        let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
-
-                                        match powershell_script::run(&script) {
-                                            Ok(_) => {
-                                                println!("{script}");
-                                            }
-                                            Err(error) => {
-                                                println!("Error: {error}");
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
-{
-  Start-Process komorebi-bar -WindowStyle hidden
-}
-                ";
-                                    match powershell_script::run(script) {
-                                        Ok(_) => {
-                                            println!("{script}");
-                                        }
-                                        Err(error) => {
-                                            println!("Error: {error}");
-                                        }
-                                    }
-                                }
-                            }
-                            Err(error) => {
-                                println!("Error: {error}");
-                            }
-                        }
-                    }
-
-                    force_update_borders = true;
-                }
+                force_update_borders = self.replace_configuration(config)?;
             }
             SocketMessage::ReloadStaticConfiguration(ref pathbuf) => {
                 self.reload_static_configuration(pathbuf)?;
@@ -1416,27 +1280,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 }
             }
             SocketMessage::BorderColour(kind, r, g, b) => {
-                match kind {
-                    WindowKind::Single => {
-                        border_manager::FOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
-                    WindowKind::Stack => {
-                        border_manager::STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
-                    WindowKind::Monocle => {
-                        border_manager::MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
-                    WindowKind::Unfocused => {
-                        border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
-                    WindowKind::UnfocusedLocked => {
-                        border_manager::UNFOCUSED_LOCKED
-                            .store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
-                    WindowKind::Floating => {
-                        border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
-                }
+                self.set_border_colour(kind, r, g, b);
                 force_update_borders = true;
             }
             SocketMessage::BorderStyle(style) => {
@@ -1696,6 +1540,175 @@ fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, 
 
 // extracted-arms-impl
 impl WindowManager {
+    pub fn set_border_colour(&mut self, kind: WindowKind, r: u32, g: u32, b: u32) {
+        match kind {
+            WindowKind::Single => {
+                border_manager::FOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::Stack => {
+                border_manager::STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::Monocle => {
+                border_manager::MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::Unfocused => {
+                border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::UnfocusedLocked => {
+                border_manager::UNFOCUSED_LOCKED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+            WindowKind::Floating => {
+                border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+            }
+        }
+    }
+
+    pub fn replace_configuration(&mut self, config: &std::path::PathBuf) -> eyre::Result<bool> {
+        let mut force_update_borders = false;
+        // Check that this is a valid static config file first
+        if StaticConfig::read(config).is_ok() {
+            // Clear workspace rules; these will need to be replaced
+            WORKSPACE_MATCHING_RULES.lock().clear();
+            // Pause so that restored windows come to the foreground from all workspaces
+            self.is_paused = true;
+            // Bring all windows to the foreground
+            self.restore_all_windows(false)?;
+
+            // Create a new wm from the config path
+            let mut wm = StaticConfig::preload(
+                config,
+                winevent_listener::event_rx(),
+                self.command_listener.try_clone().ok(),
+            )?;
+
+            // Initialize the new wm
+            wm.init()?;
+
+            wm.restore_all_windows(true)?;
+
+            // This is equivalent to StaticConfig::postload for this use case
+            StaticConfig::reload(config, &mut wm)?;
+
+            // Set self to the new wm instance
+            *self = wm;
+
+            // check if there are any bars
+            let mut system = sysinfo::System::new_all();
+            system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+            let has_bar = system
+                .processes_by_name("komorebi-bar.exe".as_ref())
+                .next()
+                .is_some();
+
+            // stop bar(s)
+            if has_bar {
+                let script = r"
+Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
+            ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+
+                        // start new bar(s)
+                        let mut config = StaticConfig::read(config)?;
+                        if let Some(display_bar_configurations) = &mut config.bar_configurations {
+                            for config_file_path in &mut *display_bar_configurations {
+                                let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
+                                        .replace("CONFIGFILE", &config_file_path.to_string_lossy());
+
+                                match powershell_script::run(&script) {
+                                    Ok(_) => {
+                                        println!("{script}");
+                                    }
+                                    Err(error) => {
+                                        println!("Error: {error}");
+                                    }
+                                }
+                            }
+                        } else {
+                            let script = r"
+if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebi-bar -WindowStyle hidden
+}
+            ";
+                            match powershell_script::run(script) {
+                                Ok(_) => {
+                                    println!("{script}");
+                                }
+                                Err(error) => {
+                                    println!("Error: {error}");
+                                }
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            force_update_borders = true;
+        }
+        Ok(force_update_borders)
+    }
+
+    pub fn answer_query(
+        &mut self,
+        query: StateQuery,
+        mut reply: impl std::io::Write,
+    ) -> eyre::Result<()> {
+        let response = match query {
+            StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
+            StateQuery::FocusedWorkspaceIndex => self
+                .focused_monitor()
+                .ok_or_eyre("there is no monitor")?
+                .focused_workspace_idx()
+                .to_string(),
+            StateQuery::FocusedContainerIndex => self
+                .focused_workspace()?
+                .focused_container_idx()
+                .to_string(),
+            StateQuery::FocusedWindowIndex => {
+                self.focused_container()?.focused_window_idx().to_string()
+            }
+            StateQuery::FocusedWorkspaceName => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                focused_monitor
+                    .focused_workspace_name()
+                    .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
+            }
+            StateQuery::Version => build::RUST_VERSION.to_string(),
+            StateQuery::FocusedWorkspaceLayout => {
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                focused_monitor.focused_workspace_layout().map_or_else(
+                    || "None".to_string(),
+                    |layout| match layout {
+                        Layout::Default(default_layout) => default_layout.to_string(),
+                        Layout::Custom(_) => "Custom".to_string(),
+                    },
+                )
+            }
+            StateQuery::FocusedContainerKind => {
+                match self.focused_workspace()?.focused_container() {
+                    None => "None".to_string(),
+                    Some(container) => {
+                        if container.windows().len() > 1 {
+                            "Stack".to_string()
+                        } else {
+                            "Single".to_string()
+                        }
+                    }
+                }
+            }
+        };
+
+        reply.write_all(response.as_bytes())?;
+        Ok(())
+    }
     pub fn focus_follows_mouse(
         &mut self,
         mut implementation: FocusFollowsMouseImplementation,
