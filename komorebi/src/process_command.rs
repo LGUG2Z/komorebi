@@ -2228,6 +2228,11 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 let state: State = serde_json::from_value(blob.0.clone())?;
                 self.apply_state(state);
             }
+            // Messages of other platforms: answered, and nothing else happens
+            SocketMessage::ReloadHotkeys | SocketMessage::HotkeysState => {
+                reply.write_all(message.not_supported_reply().as_bytes())?;
+                return Ok(());
+            }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)
             | SocketMessage::IdentifyBorderOverflowApplication(_, _) => {}

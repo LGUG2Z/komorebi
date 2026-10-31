@@ -2,19 +2,13 @@
 #![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
 #![allow(deprecated)] // allow deprecated variants like HidingBehaviour::Hide to be used in derive macros
 
-use std::num::NonZeroUsize;
-use std::path::PathBuf;
-use std::str::FromStr;
 
 use clap::ValueEnum;
-use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use crate::KomorebiTheme;
-use crate::animation::prefix::AnimationPrefix;
 
 // Re-export everything from komorebi-layouts
 pub use komorebi_layouts::Arrangement;
@@ -70,236 +64,7 @@ pub mod asc;
 pub mod config_generation;
 pub use komorebi_protocol::pathext;
 
-// serde_as must be before derive
-#[serde_with::serde_as]
-#[derive(Clone, Debug, Serialize, Deserialize, Display)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[serde(tag = "type", content = "content")]
-pub enum SocketMessage {
-    // Window / Container Commands
-    FocusWindow(OperationDirection),
-    MoveWindow(OperationDirection),
-    PreselectDirection(OperationDirection),
-    CancelPreselect,
-    CycleFocusWindow(CycleDirection),
-    CycleMoveWindow(CycleDirection),
-    StackWindow(OperationDirection),
-    UnstackWindow,
-    CycleStack(CycleDirection),
-    CycleStackIndex(CycleDirection),
-    FocusStackWindow(usize),
-    StackAll,
-    UnstackAll,
-    ResizeWindowEdge(OperationDirection, Sizing),
-    ResizeWindowAxis(Axis, Sizing),
-    MoveContainerToLastWorkspace,
-    SendContainerToLastWorkspace,
-    MoveContainerToMonitorNumber(usize),
-    CycleMoveContainerToMonitor(CycleDirection),
-    MoveContainerToWorkspaceNumber(usize),
-    MoveContainerToNamedWorkspace(String),
-    CycleMoveContainerToWorkspace(CycleDirection),
-    SendContainerToMonitorNumber(usize),
-    CycleSendContainerToMonitor(CycleDirection),
-    SendContainerToWorkspaceNumber(usize),
-    CycleSendContainerToWorkspace(CycleDirection),
-    SendContainerToMonitorWorkspaceNumber(usize, usize),
-    MoveContainerToMonitorWorkspaceNumber(usize, usize),
-    SendContainerToNamedWorkspace(String),
-    CycleMoveWorkspaceToMonitor(CycleDirection),
-    MoveWorkspaceToMonitorNumber(usize),
-    SwapWorkspacesToMonitorNumber(usize),
-    ForceFocus,
-    Close,
-    Minimize,
-    Promote,
-    PromoteSwap,
-    PromoteFocus,
-    PromoteWindow(OperationDirection),
-    EagerFocus(String),
-    LockMonitorWorkspaceContainer(usize, usize, usize),
-    UnlockMonitorWorkspaceContainer(usize, usize, usize),
-    ToggleLock,
-    ToggleFloat,
-    ToggleMonocle,
-    ToggleMaximize,
-    ToggleWindowContainerBehaviour,
-    ToggleFloatOverride,
-    WindowHidingBehaviour(HidingBehaviour),
-    ToggleCrossMonitorMoveBehaviour,
-    CrossMonitorMoveBehaviour(MoveBehaviour),
-    ToggleMonocleFocusBehaviour,
-    MonocleFocusBehaviour(MonocleFocusBehaviour),
-    UnmanagedWindowOperationBehaviour(OperationBehaviour),
-    // Current Workspace Commands
-    ManageFocusedWindow,
-    UnmanageFocusedWindow,
-    AdjustContainerPadding(Sizing, i32),
-    AdjustWorkspacePadding(Sizing, i32),
-    ChangeLayout(DefaultLayout),
-    CycleLayout(CycleDirection),
-    LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
-    ScrollingLayoutColumns(NonZeroUsize),
-    ScrollingLayoutFullWidth,
-    CenterFocus,
-    Expand,
-    Consume(OperationDirection),
-    Expel,
-    ToggleColumnStack,
-    Pan(PanDirection),
-    PanGesture(PanGesture),
-    ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    FlipLayout(Axis),
-    ToggleWorkspaceWindowContainerBehaviour,
-    ToggleWorkspaceFloatOverride,
-    // Monitor and Workspace Commands
-    MonitorIndexPreference(usize, i32, i32, i32, i32),
-    DisplayIndexPreference(usize, String),
-    EnsureWorkspaces(usize, usize),
-    EnsureNamedWorkspaces(usize, Vec<String>),
-    NewWorkspace,
-    ToggleTiling,
-    Stop,
-    StopIgnoreRestore,
-    TogglePause,
-    Retile,
-    RetileWithResizeDimensions,
-    QuickSave,
-    QuickLoad,
-    Save(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    Load(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    CycleFocusMonitor(CycleDirection),
-    CycleFocusWorkspace(CycleDirection),
-    CycleFocusEmptyWorkspace(CycleDirection),
-    FocusMonitorNumber(usize),
-    FocusMonitorAtCursor,
-    FocusLastWorkspace,
-    CloseWorkspace,
-    FocusWorkspaceNumber(usize),
-    FocusWorkspaceNumbers(usize),
-    FocusMonitorWorkspaceNumber(usize, usize),
-    FocusNamedWorkspace(String),
-    ContainerPadding(usize, usize, i32),
-    NamedWorkspaceContainerPadding(String, i32),
-    FocusedWorkspaceContainerPadding(i32),
-    WorkspacePadding(usize, usize, i32),
-    NamedWorkspacePadding(String, i32),
-    FocusedWorkspacePadding(i32),
-    WorkspaceTiling(usize, usize, bool),
-    NamedWorkspaceTiling(String, bool),
-    WorkspaceName(usize, usize, String),
-    WorkspaceLayout(usize, usize, DefaultLayout),
-    NamedWorkspaceLayout(String, DefaultLayout),
-    WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
-    NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
-    WorkspaceLayoutCustomRule(
-        usize,
-        usize,
-        usize,
-        #[serde_as(as = "ResolvedPathBuf")] PathBuf,
-    ),
-    NamedWorkspaceLayoutCustomRule(String, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    ClearWorkspaceLayoutRules(usize, usize),
-    ClearNamedWorkspaceLayoutRules(String),
-    ToggleWorkspaceLayer,
-    // Configuration
-    ReloadConfiguration,
-    ReplaceConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    WatchConfiguration(bool),
-    CompleteConfiguration,
-    AltFocusHack(bool),
-    Theme(Box<KomorebiTheme>),
-    Animation(bool, Option<AnimationPrefix>),
-    AnimationDuration(u64, Option<AnimationPrefix>),
-    AnimationFps(u64),
-    AnimationStyle(AnimationStyle, Option<AnimationPrefix>),
-    #[serde(alias = "ActiveWindowBorder")]
-    Border(bool),
-    #[serde(alias = "ActiveWindowBorderColour")]
-    BorderColour(WindowKind, u32, u32, u32),
-    #[serde(alias = "ActiveWindowBorderStyle")]
-    BorderStyle(BorderStyle),
-    BorderWidth(i32),
-    BorderOffset(i32),
-    BorderImplementation(BorderImplementation),
-    Transparency(bool),
-    ToggleTransparency,
-    TransparencyAlpha(u8),
-    InvisibleBorders(Rect),
-    StackbarMode(StackbarMode),
-    StackbarLabel(StackbarLabel),
-    StackbarFocusedTextColour(u32, u32, u32),
-    StackbarUnfocusedTextColour(u32, u32, u32),
-    StackbarBackgroundColour(u32, u32, u32),
-    StackbarHeight(i32),
-    StackbarTabWidth(i32),
-    StackbarFontSize(i32),
-    StackbarFontFamily(Option<String>),
-    WorkAreaOffset(Rect),
-    MonitorWorkAreaOffset(usize, Rect),
-    WorkspaceWorkAreaOffset(usize, usize, Rect),
-    ToggleWindowBasedWorkAreaOffset,
-    ResizeDelta(i32),
-    InitialWorkspaceRule(ApplicationIdentifier, String, usize, usize),
-    InitialNamedWorkspaceRule(ApplicationIdentifier, String, String),
-    WorkspaceRule(ApplicationIdentifier, String, usize, usize),
-    NamedWorkspaceRule(ApplicationIdentifier, String, String),
-    ClearWorkspaceRules(usize, usize),
-    ClearNamedWorkspaceRules(String),
-    ClearAllWorkspaceRules,
-    EnforceWorkspaceRules,
-    SessionFloatRule,
-    SessionFloatRules,
-    ClearSessionFloatRules,
-    #[serde(alias = "FloatRule")]
-    IgnoreRule(ApplicationIdentifier, String),
-    ManageRule(ApplicationIdentifier, String),
-    IdentifyObjectNameChangeApplication(ApplicationIdentifier, String),
-    IdentifyTrayApplication(ApplicationIdentifier, String),
-    IdentifyLayeredApplication(ApplicationIdentifier, String),
-    IdentifyBorderOverflowApplication(ApplicationIdentifier, String),
-    State,
-    GlobalState,
-    VisibleWindows,
-    MonitorInformation,
-    Query(StateQuery),
-    FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
-    ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
-    MouseFollowsFocus(bool),
-    ToggleMouseFollowsFocus,
-    RemoveTitleBar(ApplicationIdentifier, String),
-    ToggleTitleBars,
-    AddSubscriberSocket(String),
-    AddSubscriberSocketWithOptions(String, SubscribeOptions),
-    RemoveSubscriberSocket(String),
-    AddSubscriberPipe(String),
-    RemoveSubscriberPipe(String),
-    ApplicationSpecificConfigurationSchema,
-    NotificationSchema,
-    SocketSchema,
-    StaticConfigSchema,
-    GenerateStaticConfig,
-    DebugWindow(i64),
-    // low level commands
-    ApplyState(komorebi_protocol::message::StateBlob),
-}
-
-impl SocketMessage {
-    pub fn as_bytes(&self) -> eyre::Result<Vec<u8>> {
-        Ok(serde_json::to_string(self)?.as_bytes().to_vec())
-    }
-}
-
-impl FromStr for SocketMessage {
-    type Err = serde_json::Error;
-
-    fn from_str(s: &str) -> eyre::Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
+pub use komorebi_protocol::message::SocketMessage;
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -649,6 +414,7 @@ pub enum WindowHandlingBehaviour {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn deserializes() {

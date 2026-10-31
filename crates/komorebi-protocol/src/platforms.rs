@@ -253,3 +253,11 @@ impl SocketMessage {
         }
     }
 }
+
+impl SocketMessage {
+    /// What a daemon answers to a message of a platform it does not run on
+    #[must_use]
+    pub fn not_supported_reply(&self) -> String {
+        format!("{self} is not supported on this platform")
+    }
+}
