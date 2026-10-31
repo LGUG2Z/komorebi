@@ -574,6 +574,12 @@ impl Window {
         MacosApi::window_rect(&self.element)
     }
 
+    /// How long an Accessibility call to this window's app may block, in seconds (0 restores the
+    /// system default). Not an operation of the shared `Backend`; it bounds the frame query.
+    pub fn set_messaging_timeout(&self, seconds: f32) -> Result<(), AccessibilityError> {
+        AccessibilityApi::set_messaging_timeout(&self.element, seconds)
+    }
+
     pub fn alive(&self) -> bool {
         AccessibilityApi::copy_attribute_names(&self.element).is_some()
     }
@@ -959,7 +965,7 @@ impl Window {
         }
 
         // the window manager is waiting for this, and so is every window after this one
-        let _ = AccessibilityApi::set_messaging_timeout(&self.element, ARRIVAL_TIMEOUT);
+        let _ = self.set_messaging_timeout(ARRIVAL_TIMEOUT);
 
         match self.frame() {
             Ok(actual) => arrival::report(self.id, *target, Rect::from(actual)),
