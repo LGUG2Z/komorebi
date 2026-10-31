@@ -1722,7 +1722,7 @@ impl WindowManager {
                         if let Some(elements) = application.window_elements() {
                             for element in elements {
                                 if let Ok(wid) = AccessibilityApi::window_id(&element)
-                                    && wid == window_id
+                                    && i64::from(wid) == window_id
                                     && let Ok(window) = Window::new(element, application.clone())
                                 {
                                     let mut rule_debug = RuleDebug::default();
