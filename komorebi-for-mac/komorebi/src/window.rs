@@ -802,6 +802,12 @@ impl Window {
         Ok(())
     }
 
+    /// Whether the window is minimized (the `WindowInfo::minimized` field of the shared `Backend`).
+    pub fn minimized(&self) -> bool {
+        AccessibilityApi::copy_attribute_value::<CFBoolean>(&self.element, kAXMinimizedAttribute)
+            .is_some_and(|b| b.as_bool())
+    }
+
     pub fn minimize(&mut self) -> Result<(), AccessibilityError> {
         let cf_boolean = CFBoolean::new(true);
         let value = &**cf_boolean;

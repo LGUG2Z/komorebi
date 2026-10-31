@@ -1,5 +1,6 @@
-//! `MacosBackend`: the shared [`komorebi_backend::Backend`] over the existing [`MacosApi`],
-//! [`Window`] and [`AdhocWindow`] functions.
+//! `MacosBackend`: the shared [`komorebi_backend::Backend`] over the existing [`MacosApi`] and
+//! [`Window`] methods (set_rect, focus, raise, hide, restore, minimize, unminimize, close, alive,
+//! frame and minimized): it holds no Accessibility call of its own.
 //!
 //! **Nothing uses it yet.** The daemon still holds `Window` values (element, application and
 //! observer) and calls them directly; this adapter exists so that the trait is known to be
@@ -19,13 +20,10 @@
 //! callback refreshes on main with [`MacosBackend::refresh_monitors`].
 
 use crate::LibraryError;
-use crate::accessibility::AccessibilityApi;
-use crate::accessibility::attribute_constants::kAXMinimizedAttribute;
 use crate::core::Rect;
 use crate::core::WindowHidingPosition;
 use crate::macos_api::MacosApi;
 use crate::skylight::BatchedUpdates;
-use crate::window::AdhocWindow;
 use crate::window::Window;
 use komorebi_backend::Backend;
 use komorebi_backend::Error;
@@ -35,7 +33,6 @@ use komorebi_backend::Result;
 use komorebi_backend::WindowId;
 use komorebi_backend::WindowInfo;
 use objc2::MainThreadMarker;
-use objc2_core_foundation::CFBoolean;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 
@@ -130,12 +127,6 @@ impl MacosBackend {
             return None;
         }
 
-        let minimized = AccessibilityApi::copy_attribute_value::<CFBoolean>(
-            &window.element,
-            kAXMinimizedAttribute,
-        )
-        .is_some_and(|b| b.as_bool());
-
         Some(WindowInfo {
             id: WindowId::from_u32(window.id),
             pid: window.application.process_id,
@@ -143,7 +134,7 @@ impl MacosBackend {
             rect: window.frame()
                 .map(Rect::from)
                 .unwrap_or_default(),
-            minimized,
+            minimized: window.minimized(),
             alive: true,
             title: window.title(),
             // macOS has no window class: a bundle identifier, role and subrole instead
@@ -243,7 +234,7 @@ impl Backend for MacosBackend {
     fn close(&self, id: WindowId) -> Result<()> {
         // presses the close button; `Ok` when the window has none
         let window = self.lookup(id)?;
-        AdhocWindow::close(&window.element.0).map_err(|e| Self::failed(id, &window, e))
+        window.close().map_err(|e| Self::failed(id, &window, e))
     }
 
     fn center_cursor_in(&self, rect: &Rect) -> Result<()> {
