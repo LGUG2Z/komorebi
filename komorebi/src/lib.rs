@@ -3,11 +3,11 @@
 #[macro_use]
 extern crate komorebi_collections;
 
-pub mod daemon;
 pub mod animation;
 pub mod border_manager;
 pub mod cloaked;
 pub mod com;
+pub mod daemon;
 pub use komorebi_collections::ring;
 pub mod container;
 pub mod core;
@@ -15,13 +15,13 @@ pub mod focus_manager;
 pub mod live_resize;
 pub use komorebi_collections::Lockable;
 pub use komorebi_collections::lockable_sequence;
+pub mod lock_holder;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod pan;
 pub mod process_command;
 pub mod process_event;
 pub mod process_movement;
-pub mod lock_holder;
 pub mod reaper;
 pub mod scrolling;
 pub mod set_window_position;
@@ -268,6 +268,10 @@ pub static DEFAULT_RESIZE_DELTA: i32 = komorebi_settings::shared::DEFAULT_RESIZE
 
 pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool =
     komorebi_settings::shared::DEFAULT_MOUSE_FOLLOWS_FOCUS;
+/// Counts the commands the window manager has processed. An answer computed from the rule lists
+/// outside the lock (see `process_event::ManageCheck`) is only used if no command, which is what
+/// changes those lists, has run since.
+pub static COMMAND_GENERATION: AtomicU64 = AtomicU64::new(0);
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);

@@ -122,10 +122,14 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
         tracing::info!("listening");
         loop {
             if let Ok(event) = receiver.recv() {
+                // Win32 calls on the event's window and rule matching need no window manager state, so
+                // they are not done with the lock held (they took seconds for a window that had
+                // just been created)
+                let check = ManageCheck::compute(event);
                 let waiting = std::time::Instant::now();
                 let mut guard = crate::lock_holder::lock(&wm, "process_event");
                 let handling = std::time::Instant::now();
-                let result = guard.process_event(event);
+                let result = guard.process_event_checked(event, check);
                 let (waited, handled) = (handling.duration_since(waiting), handling.elapsed());
                 if waited.max(handled) >= crate::lock_holder::SLOW {
                     tracing::info!(
@@ -157,23 +161,74 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
     });
 }
 
+/// Whether an event's window is to be managed, found before the window manager is locked
+pub struct ManageCheck {
+    should_manage: eyre::Result<bool>,
+    rule_debug: RuleDebug,
+    started: std::time::Instant,
+    generation: u64,
+}
+
+impl ManageCheck {
+    /// Asks `Window::should_manage` for the window of the event. It reads the window, the rule
+    /// lists (in their documented lock order) and settings, never the window manager.
+    pub fn compute(event: WindowManagerEvent) -> Self {
+        let generation = crate::COMMAND_GENERATION.load(std::sync::atomic::Ordering::SeqCst);
+        let started = std::time::Instant::now();
+        let mut rule_debug = RuleDebug::default();
+        let should_manage = event.window().should_manage(Some(event), &mut rule_debug);
+        tracing::debug!(
+            "process_event: should_manage took {} ms",
+            started.elapsed().as_millis()
+        );
+
+        Self {
+            should_manage,
+            rule_debug,
+            started,
+            generation,
+        }
+    }
+
+    /// Whether the answer can still be used: no command (which is what changes the rule lists)
+    /// has been processed since it was computed
+    fn is_current(&self) -> bool {
+        self.generation == crate::COMMAND_GENERATION.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
 impl WindowManager {
-    #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
-    #[tracing::instrument(skip(self, event), fields(event = event.title(), winevent = event.winevent(), hwnd = event.hwnd()))]
     pub fn process_event(&mut self, event: WindowManagerEvent) -> eyre::Result<()> {
+        self.process_event_checked(event, ManageCheck::compute(event))
+    }
+
+    #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
+    #[tracing::instrument(skip(self, event, check), fields(event = event.title(), winevent = event.winevent(), hwnd = event.hwnd()))]
+    pub fn process_event_checked(
+        &mut self,
+        event: WindowManagerEvent,
+        check: ManageCheck,
+    ) -> eyre::Result<()> {
         if self.is_paused {
             tracing::trace!("ignoring while paused");
             return Ok(());
         }
 
-        let mut rule_debug = RuleDebug::default();
-
-        let should_manage_started = std::time::Instant::now();
-        let should_manage = event.window().should_manage(Some(event), &mut rule_debug)?;
-        tracing::debug!(
-            "process_event: should_manage took {} ms",
-            should_manage_started.elapsed().as_millis()
-        );
+        // A command may have changed the rule lists while this event waited for the lock: the
+        // answer is then asked again, here, as it used to be. The window itself may have changed
+        // in the wait too; the handlers below already cope with a window that is gone or changed,
+        // as they did for an event that sat in the queue before the lock was taken.
+        let check = if check.is_current() {
+            tracing::debug!(
+                "process_event: should_manage answered {} ms before the lock was held",
+                check.started.elapsed().as_millis()
+            );
+            check
+        } else {
+            ManageCheck::compute(event)
+        };
+        let rule_debug = check.rule_debug;
+        let should_manage = check.should_manage?;
 
         // All event handlers below this point should only be processed if the event is
         // related to a window that should be managed by the WindowManager.

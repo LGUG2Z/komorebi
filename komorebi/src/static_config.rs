@@ -311,12 +311,8 @@ impl From<&WindowManager> for StaticConfig {
             border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
             border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
             border_colours,
-            transparency: Option::from(
-                crate::settings::transparency_enabled(),
-            ),
-            transparency_alpha: Option::from(
-                crate::settings::transparency_alpha(),
-            ),
+            transparency: Option::from(crate::settings::transparency_enabled()),
+            transparency_alpha: Option::from(crate::settings::transparency_alpha()),
             transparency_ignore_rules: None,
             border_style: Option::from(STYLE.load()),
             #[allow(deprecated)]

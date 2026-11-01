@@ -313,6 +313,15 @@ impl WindowManager {
     ) -> eyre::Result<()> {
         let _held = crate::lock_holder::held(format!("command {message}"));
         let command_started = std::time::Instant::now();
+        // when this command is over, an event answer computed before it is not used (see
+        // `COMMAND_GENERATION`); the bump comes after the command has changed what it changes
+        struct BumpGeneration;
+        impl Drop for BumpGeneration {
+            fn drop(&mut self) {
+                crate::COMMAND_GENERATION.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        let _bump_generation = BumpGeneration;
         if let Some(virtual_desktop_id) = &self.virtual_desktop_id
             && let Some(id) = current_virtual_desktop()
             && id != *virtual_desktop_id
@@ -1443,10 +1452,12 @@ impl WindowManager {
                 });
             }
             SocketMessage::Transparency(enable) => {
-                crate::settings::settings().update(|settings| settings.shared.transparency.enabled = enable);
+                crate::settings::settings()
+                    .update(|settings| settings.shared.transparency.enabled = enable);
             }
             SocketMessage::TransparencyAlpha(alpha) => {
-                crate::settings::settings().update(|settings| settings.shared.transparency.alpha = alpha);
+                crate::settings::settings()
+                    .update(|settings| settings.shared.transparency.alpha = alpha);
             }
             SocketMessage::StackbarMode(mode) => {
                 STACKBAR_MODE.store(mode);

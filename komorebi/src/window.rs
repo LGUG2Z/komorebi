@@ -404,7 +404,6 @@ impl Window {
 
         // enabled, duration and style from one snapshot
         if let Some((duration, style)) = crate::settings::animation_for(GhostDispatcher::PREFIX) {
-
             let render_dispatcher =
                 GhostDispatcher::new(self.hwnd, window_rect, *layout, top, style);
 
@@ -585,8 +584,9 @@ impl Window {
 
     pub fn transparent(self) -> eyre::Result<()> {
         // enabled, duration and style from one snapshot
-        if let Some((duration, style)) = crate::settings::animation_for(TransparencyRenderDispatcher::PREFIX) {
-
+        if let Some((duration, style)) =
+            crate::settings::animation_for(TransparencyRenderDispatcher::PREFIX)
+        {
             let render_dispatcher = TransparencyRenderDispatcher::new(
                 self.hwnd,
                 false,
@@ -600,17 +600,15 @@ impl Window {
             let mut ex_style = self.ex_style()?;
             ex_style.insert(ExtendedWindowStyle::LAYERED);
             self.update_ex_style(&ex_style)?;
-            WindowsApi::set_transparent(
-                self.hwnd,
-                crate::settings::transparency_alpha(),
-            )
+            WindowsApi::set_transparent(self.hwnd, crate::settings::transparency_alpha())
         }
     }
 
     pub fn opaque(self) -> eyre::Result<()> {
         // enabled, duration and style from one snapshot
-        if let Some((duration, style)) = crate::settings::animation_for(TransparencyRenderDispatcher::PREFIX) {
-
+        if let Some((duration, style)) =
+            crate::settings::animation_for(TransparencyRenderDispatcher::PREFIX)
+        {
             let render_dispatcher = TransparencyRenderDispatcher::new(
                 self.hwnd,
                 true,
