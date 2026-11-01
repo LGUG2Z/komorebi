@@ -1,5 +1,7 @@
 # From e2e to unit: what the shared crates made testable natively
 
+> **Paths (cutover stack):** this document was written before the directories were renamed and keeps the paths of its time. Now: `komorebi/` is `komorebi-windows/`, `komorebi-for-kde/komorebi/` is `komorebi-linux/`, `komorebi-for-mac/komorebi/` is `komorebi-macos/`, `komorebi-for-kde/komorebi-hotkeys/` is `komorebi-hotkeys/`, `komorebi-for-kde/nix/` and `komorebi-for-mac/nix/` are `nix/linux/` and `nix/macos/`, `komorebi-for-kde/docs/` and `komorebi-for-mac/docs/` are `docs/linux/` and `docs/macos/`, `schema*.json` are in `schemas/{windows,linux,macos}/`, and every package is at version 0.2.0 (the 0.1.x numbers below are history).
+
 Base: `wip-cand5` plus the revisions that add the tests named here. Written 2026-10-31.
 
 Before the shared crates, the Windows daemon could only be tested through a Windows guest (its crate
@@ -43,7 +45,7 @@ times (Windows `komorebi/src/window.rs:1178`, KDE `window.rs:661`, macOS `window
 | maximizing (29) | toggle-maximize, unmaximize on float, monocle wins | A: `workspace_layers.rs` `floating_the_maximized_window_*`, `update_shared.rs` `the_monocle_container_wins_over_a_maximized_window`; user-maximize event C | - | - | med |
 | promoting (4), moving (4), focus (7) | promote first tile, swap/cycle-move, focus order | A: `workspace_containers.rs` `promoting_*`, `swapping_containers_*`, `cycling_wraps_*`, `directions_follow_the_layout_and_the_flip`; focus OS agreement C | - | - | low |
 | workspaces (8), workspace_moves (8) | send/move/focus workspace, last-workspace | A: `monitor_workspaces.rs` (focus, last focused, ensure, remove); the OS hide/show is C | - | - | med |
-| commands (265, 7.6 min) | every komorebic command leaves the daemon alive, answers state, manages every window | A now for command line (`crates/komorebic-core/tests/e2e_sweep.rs`: every SWEEP/PRINTED line is a Windows command; macOS lacks exactly 8) and for the KDE model (`komorebi-for-kde/komorebi/tests/command_sweep.rs`, about 185 messages, 0.2 s); B: same sweep for the Windows and macOS daemons (needs seam, below); C: stall-family (daemon busy 8 s), socket answering | S done / L for Win+mac | highest: biggest, flakiest scenario |
+| commands (265, 7.6 min) | every komorebic command leaves the daemon alive, answers state, manages every window | A now for command line (`crates/komorebic-core/tests/e2e_sweep.rs`: every SWEEP/PRINTED line is a Windows command; macOS lacks exactly 8) and for the KDE model (`komorebi-linux/tests/command_sweep.rs`, about 185 messages, 0.2 s); B: same sweep for the Windows and macOS daemons (needs seam, below); C: stall-family (daemon busy 8 s), socket answering | S done / L for Win+mac | highest: biggest, flakiest scenario |
 | unknown_monitor (12) | a window sent to a monitor that does not exist stays managed | B: shared `Monitor`/`Workspace::add_container` errors are covered (`monitor_workspaces.rs` `adding_a_container_to_a_workspace_that_is_not_there_is_an_error`); the daemon handler is per platform: needs seam | M | med (known flaky marker) |
 | rules (12), rules_class (5), rules_exe (5), manage_rules (4), title_rule (5), startup_rules (5) | which window a rule catches (kind, strategy, composite, last wins, manage over ignore); the workspace it goes to | A now for matching, once for all three daemons: `crates/komorebi-config/tests/rule_matching.rs` (16 tests, KDE/macOS and Windows input shapes; the matching moved to `komorebi_config::rules`, see `docs/dev/rule-matching.md`); KDE keeps the manage-rule rescue test. Workspace of a rule: A in core: `workspace_containers.rs` `initial_placement_rules_choose_where_a_new_window_goes`. When-evaluated (open vs rename), hide/show: C | M to move the function into `komorebi-config` and test once for three daemons (recommended seam) | high |
 | state_fidelity (5) | state names title/exe/class/path as opened | A: `state_roundtrip.rs` (kfw/kfde fixtures, `the_fixtures_are_the_ones_the_e2e_library_has`, `a_windows_tiled_state_is_written_as_it_was_read`); what the OS reports C | - | - | low |
@@ -70,7 +72,7 @@ dependent and meant for the Mini: the hide-spot corner per monitor (`hide_spot` 
 ## KDE VM suites (33 suites with a test.py)
 
 All of them need a headless or Plasma KWin: C. The model parts of them are already native through
-the KDE tests (`komorebi-for-kde/komorebi/tests`, about 880): `core-e2e` and `hotplug`, `placement`,
+the KDE tests (`komorebi-linux/tests`, formerly `komorebi-for-kde/komorebi/tests`, about 880): `core-e2e` and `hotplug`, `placement`,
 `workspace-rules`, `scrolling`, `stacks`, `user-maximize`, `commands`, `core-lock`,
 `focus-follows-mouse`, `wallpaper` have a native model twin; `kwin*`, `check`, `module`, `keys-*`,
 `look`, `features`, `rdp`, `render-smoke`, `latency`, `client-geometry`, `drag-resize`,
@@ -134,8 +136,8 @@ Not saved: boot and golden image (3 s from a state), the C scenarios.
 |---|---|---|
 | `komorebi-layouts/tests/layouts_everywhere.rs` | 8 | layouts, flipping, layout_flip, padding, tiling, closing |
 | `crates/komorebi-core/tests/e2e_layouts.rs` | 6 | layouts, flipping, layout_flip, padding, closing, minimizing, floating, stacks, tiling, tiling_off |
-| `komorebi-for-kde/komorebi/tests/rule_matching.rs` | 13 | rules, rules_class, rules_exe, manage_rules, title_rule |
-| `komorebi-for-kde/komorebi/tests/command_sweep.rs` | 1 (185 messages) | commands |
+| `komorebi-linux/tests/rule_matching.rs` | 13 | rules, rules_class, rules_exe, manage_rules, title_rule |
+| `komorebi-linux/tests/command_sweep.rs` | 1 (185 messages) | commands |
 | `crates/komorebic-core/tests/e2e_sweep.rs` | 3 | commands |
 
 Each test says what stays e2e: the OS frame equals the tile, borders, event timing, the daemon's own

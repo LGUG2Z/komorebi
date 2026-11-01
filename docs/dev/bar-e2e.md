@@ -11,7 +11,7 @@ E2E_GOLDEN=golden KOMOREBI_E2E_SCALE=1.5 nix run .#e2e-windows -- OUT bar
 # another commit: build-ref.sh REF bins; KOMOREBI_E2E_BINS=bins ... (bins must have komorebi-bar.exe)
 ```
 
-It checks: the `--schema` output equals `schema.bar.json`; the configuration (storage, time,
+It checks: the `--schema` output equals `schemas/windows/schema.bar.json`; the configuration (storage, time,
 applications, komorebi workspaces and layout, Keyboard, Systray, a `mouse` block with a message and
 a command) is accepted and the bar starts; its window appears; it keeps running 15 s; the daemon
 keeps answering and does not tile the bar; the bar survives the daemon stopping and starting again

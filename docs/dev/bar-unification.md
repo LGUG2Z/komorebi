@@ -2,6 +2,8 @@
 
 > **Status (wip-cand4):** B0-B3 done (one `komorebi-bar` package, a module per platform, schema views); B4 (merging the rendering code) not done and cannot be shown mechanical without a screen; macOS bar never rendered by these changes.
 
+> **Paths (cutover stack):** this document was written before the directories were renamed and keeps the paths of its time. Now: `komorebi/` is `komorebi-windows/`, `komorebi-for-kde/komorebi/` is `komorebi-linux/`, `komorebi-for-mac/komorebi/` is `komorebi-macos/`, `komorebi-for-kde/komorebi-hotkeys/` is `komorebi-hotkeys/`, `komorebi-for-kde/nix/` and `komorebi-for-mac/nix/` are `nix/linux/` and `nix/macos/`, `komorebi-for-kde/docs/` and `komorebi-for-mac/docs/` are `docs/linux/` and `docs/macos/`, `schema*.json` are in `schemas/{windows,linux,macos}/`, and every package is at version 0.2.0 (the 0.1.x numbers below are history).
+
 Status at the revision that adds this file. Everything below was measured on this tree with
 `diff` (counts are lines that differ, `<`/`>` lines of `diff`, hunks in parentheses). Nothing
 here was rendered: the bars cannot run on Linux. Gates that did run are named; the ones that

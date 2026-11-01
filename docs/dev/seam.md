@@ -2,6 +2,8 @@
 
 > **Status (wip-cand4):** the evidence for `crates/komorebi-backend`, which has landed (trait, `FakeBackend`, contract tests); the Windows daemon goes through it for the clusters in [backend-switch.md](backend-switch.md); read section 8 as the list of what was never verified.
 
+> **Paths (cutover stack):** this document was written before the directories were renamed and keeps the paths of its time. Now: `komorebi/` is `komorebi-windows/`, `komorebi-for-kde/komorebi/` is `komorebi-linux/`, `komorebi-for-mac/komorebi/` is `komorebi-macos/`, `komorebi-for-kde/komorebi-hotkeys/` is `komorebi-hotkeys/`, `komorebi-for-kde/nix/` and `komorebi-for-mac/nix/` are `nix/linux/` and `nix/macos/`, `komorebi-for-kde/docs/` and `komorebi-for-mac/docs/` are `docs/linux/` and `docs/macos/`, `schema*.json` are in `schemas/{windows,linux,macos}/`, and every package is at version 0.2.0 (the 0.1.x numbers below are history).
+
 Status: evidence document (step 7a of the consolidation). No `Backend` trait is proposed here as code, and none may be written before this document has been reviewed. Every statement about the code carries a citation; where I could not confirm something it says "not verified" and the item is collected in section 8.
 
 ## 1. Purpose and how to read it
@@ -16,9 +18,9 @@ Tips read: integration line `wip-main` at `aa52fdc4d9e5` (`build(nix): relock th
 
 | Tree | Prefix used below | Path |
 |---|---|---|
-| Windows (repo root) | `W/` | `komorebi/src/` |
-| KDE | `K/` | `komorebi-for-kde/komorebi/src/` |
-| macOS | `M/` | `komorebi-for-mac/komorebi/src/` |
+| Windows (repo root) | `W/` | `komorebi/src/` (now `komorebi-windows/src/`) |
+| KDE | `K/` | `komorebi-for-kde/komorebi/src/` (now `komorebi-linux/src/`) |
+| macOS | `M/` | `komorebi-for-mac/komorebi/src/` (now `komorebi-macos/src/`) |
 
 Shared crates are cited with their full path (`komorebi-layouts/src/rect.rs`). Only reading and `grep` were used; nothing was compiled or run, and no macOS or Windows runtime behaviour was observed.
 

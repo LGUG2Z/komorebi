@@ -2,6 +2,8 @@
 
 > **Status (wip-cand4):** design plus landing log. `crates/komorebi-settings` exists and the three daemons read the paddings, aspect ratio, layout defaults and display preferences through it; the remaining statics (see the section list) are still process-wide; macOS runtime is unverified.
 
+> **Paths (cutover stack):** this document was written before the directories were renamed and keeps the paths of its time. Now: `komorebi/` is `komorebi-windows/`, `komorebi-for-kde/komorebi/` is `komorebi-linux/`, `komorebi-for-mac/komorebi/` is `komorebi-macos/`, `komorebi-for-kde/komorebi-hotkeys/` is `komorebi-hotkeys/`, `komorebi-for-kde/nix/` and `komorebi-for-mac/nix/` are `nix/linux/` and `nix/macos/`, `komorebi-for-kde/docs/` and `komorebi-for-mac/docs/` are `docs/linux/` and `docs/macos/`, `schema*.json` are in `schemas/{windows,linux,macos}/`, and every package is at version 0.2.0 (the 0.1.x numbers below are history).
+
 Status: design (plan step 10, phase 1). Measured on `wip-main` 633e7453 (the Windows tree
 `komorebi/src`, KDE `komorebi-for-kde/komorebi/src`, macOS `komorebi-for-mac/komorebi/src`). Nothing
 here was run: counts come from `grep` and reading, and macOS cannot run on this host. The shared type

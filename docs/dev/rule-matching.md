@@ -1,5 +1,7 @@
 # Window-rule matching: the three copies and the shared one
 
+> **Paths (cutover stack):** this document was written before the directories were renamed and keeps the paths of its time. Now: `komorebi/` is `komorebi-windows/`, `komorebi-for-kde/komorebi/` is `komorebi-linux/`, `komorebi-for-mac/komorebi/` is `komorebi-macos/`, `komorebi-for-kde/komorebi-hotkeys/` is `komorebi-hotkeys/`, `komorebi-for-kde/nix/` and `komorebi-for-mac/nix/` are `nix/linux/` and `nix/macos/`, `komorebi-for-kde/docs/` and `komorebi-for-mac/docs/` are `docs/linux/` and `docs/macos/`, `schema*.json` are in `schemas/{windows,linux,macos}/`, and every package is at version 0.2.0 (the 0.1.x numbers below are history).
+
 `should_act` (the last rule of a list that matches a window, a composite rule needing all its
 conditions) and `should_act_individual` (one condition, by its matching strategy) existed three
 times: `komorebi/src/window.rs` (Windows), `komorebi-for-kde/komorebi/src/window.rs` and

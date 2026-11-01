@@ -2,6 +2,8 @@
 
 > **Status (wip-cand4):** measurement plus a running log. `komorebi-core` has `Container`, `Monitor`, `Workspace` (incl. `update_shared`) over KDE, Windows and macOS; `WindowManager<P>`, the router and `process_event` are NOT shared yet (sections 17 and 18 give the blockers); sections 8 and 12 are the designs that were then implemented.
 
+> **Paths (cutover stack):** this document was written before the directories were renamed and keeps the paths of its time. Now: `komorebi/` is `komorebi-windows/`, `komorebi-for-kde/komorebi/` is `komorebi-linux/`, `komorebi-for-mac/komorebi/` is `komorebi-macos/`, `komorebi-for-kde/komorebi-hotkeys/` is `komorebi-hotkeys/`, `komorebi-for-kde/nix/` and `komorebi-for-mac/nix/` are `nix/linux/` and `nix/macos/`, `komorebi-for-kde/docs/` and `komorebi-for-mac/docs/` are `docs/linux/` and `docs/macos/`, `schema*.json` are in `schemas/{windows,linux,macos}/`, and every package is at version 0.2.0 (the 0.1.x numbers below are history).
+
 Status: measurement and proposal (plan step 9 preparation, KDE side). Measured at the tip of
 `wip-u-kfde` (based on `wip-main` 633e7453); the Windows tree is `komorebi/src`, KDE is
 `komorebi-for-kde/komorebi/src`, macOS (`komorebi-for-mac/komorebi/src`) is listed only where it
