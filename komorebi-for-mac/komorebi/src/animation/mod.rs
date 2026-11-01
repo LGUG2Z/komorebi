@@ -1,7 +1,7 @@
 use crate::core::animation::AnimationStyle;
 
-pub use prefix::AnimationPrefix;
 pub use komorebi_config::animation::PerAnimationPrefixConfig;
+pub use prefix::AnimationPrefix;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -19,7 +19,6 @@ pub mod throttle;
 pub mod tracks;
 pub mod transition;
 pub mod workspace_transition;
-
 
 pub const DEFAULT_ANIMATION_ENABLED: bool = false;
 pub const DEFAULT_ANIMATION_STYLE: AnimationStyle = AnimationStyle::Linear;
