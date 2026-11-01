@@ -5,6 +5,12 @@ site_description: The Tiling Window Manager for Windows
 repo_url: https://github.com/LGUG2Z/komorebi
 repo_name: LGUG2Z/komorebi
 docs_dir: docs
+# docs/ also holds the documentation of the Linux and macOS ports and the developer notes of the
+# consolidation; they are read in the repository, not published on the Windows site
+exclude_docs: |
+  /linux/
+  /macos/
+  /dev/
 theme:
   name: material
   palette:
