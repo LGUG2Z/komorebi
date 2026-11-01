@@ -7,6 +7,11 @@ run on a Mac as a daemon.** What did run, on a Mac Mini: `cargo build`, `clippy 
 passed, 0 failed, 1 ignored at candidate 8) and the nix builds of `komorebi`, `komorebic`, `komorebi-bar` and the
 darwin checks. No window has been tiled, hidden, focused or bordered by these builds.
 
+Cutover stack (`wip-cutover`): the commands and paths below name the consolidated layout (the shim packages
+are gone, `komorebi-for-mac/` is `komorebi-macos/`, `docs/macos/` and `schemas/macos/`) and the version is
+0.2.0. The text was changed, not run: no command of this runbook was executed on a Mac after the rename.
+The nix commands, if a step has any, still name the old flake attributes until the one flake lands.
+
 How to read an item: **Steps**, **Expect**, **Stop / roll back**, **Introduced by** (jj bookmark or change id;
 `jj log -r <id>` in the repository, commit ids move when a revision is rewritten). Items marked `[2 displays]`,
 `[trackpad]`, `[physical]` need a second screen, a trackpad gesture, or someone to plug cables; `[2nd person]` is
@@ -49,16 +54,17 @@ auto-started daemon unless you disabled autostart yourself first.
 **0.1 Build and test.** From the repository root, with a `.git` checkout (or `COMMIT_HASH=dev`):
 
 ```sh
-cargo build --locked -p komorebi -p komorebic -p komorebi-bar
+cargo build --locked -p komorebi -p komorebic -p komorebi-bar -p komorebi-client -p komorebi-macos
 cargo test  --locked -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar-core -p komorebi-bar -p komorebi-core -p komorebi-config -p komorebi-protocol
 cargo clippy --locked -p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar -p komorebi-bar-core --all-targets -- -D warnings
 ```
 
-Never name `-p komorebic-macos` together with `-p komorebic` (same binary name). Expect: 0 failures (the Mini
+`-p komorebi` is the package in `komorebi-daemon/` (the binary), `-p komorebi-macos` its macOS library; the
+shims `komorebic-macos`, `komorebi-client-macos` and `komorebi-bar-macos` no longer exist. Expect: 0 failures (the Mini
 saw 665 passed, 0 failed, 1 ignored). Roll back: nothing to do; if a test fails, stop and report its name.
 
 **0.2 A clean config and data directory.** Make an empty directory for the run, put a minimal
-`komorebi.json` in it (copy `komorebi-for-mac/docs/komorebi.example.json`), and set `KOMOREBI_CONFIG_HOME` to it.
+`komorebi.json` in it (copy `docs/macos/komorebi.example.json`), and set `KOMOREBI_CONFIG_HOME` to it.
 The data directory (socket, logs) is the user's `~/Library/Application Support/komorebi`, which this variable does
 not change; use another Mac or a throwaway macOS user if you cannot guarantee the live daemon is not running.
 Expect: `pgrep -l komorebi` prints nothing before you start.
@@ -77,8 +83,8 @@ The riskiest changes: the daemon now starts from a shared `daemon::run`, the com
 subscriber push and event channel are the shared transport, and `SocketMessage` is the shared enum.
 
 **1.1 Start and stop.** Steps: start the daemon (0.3); in another terminal `target/debug/komorebic state | head`,
-`komorebic global-state | head`, `komorebic --version`, `target/debug/komorebi --version` (expect `komorebi 0.1.0`
-with the macOS version crate). Then Ctrl-C the daemon. Expect: state is JSON; the daemon logs the restore of all
+`komorebic global-state | head`, `komorebic --version`, `target/debug/komorebi --version` (expect `komorebi 0.2.0`,
+from `crates/komorebi-version`). Then Ctrl-C the daemon. Expect: state is JSON; the daemon logs the restore of all
 windows and exits (code 130), all windows are back where they were, `komorebi.sock` is gone. Stop: Ctrl-C; if the
 daemon does not exit, `kill` the pid you started (not `pkill`). Introduced by: `wip-u-pkg2` (one `komorebi`
 package, `1326f041`) and the shared transport revisions `nvwvptpv`, `ywwwwpwm`, `kzynysto`.
@@ -202,7 +208,7 @@ after it. Introduced by: `mquxryqt` (settings S5).
 
 **5.3 Schema and config loading (H-rows).** A real `komorebi.json` of yours loads with no new warning and every key
 works (borders, padding, animations, scrolling, rules, workspaces); `komorebic static-config-schema` equals
-`komorebi-for-mac/schema.json`. Introduced by: `kvtvnouo`, `stxmqnop` (StaticConfig from `komorebi-config`).
+`schemas/macos/schema.json`. Introduced by: `kvtvnouo`, `stxmqnop` (StaticConfig from `komorebi-config`).
 
 ## Block 6. The rest of the daemon walk-through (about 60 min)
 
@@ -230,7 +236,7 @@ The bar is now the `komorebi-bar` package (module `macos`) over `komorebi-bar-co
 `starship-battery` 0.11.
 
 **7.1 Renders.** `target/debug/komorebi-bar` against the running test daemon: workspaces, layout, CPU %, memory,
-battery % and charging, date and the calendar icon, all sane. `komorebi-bar --schema | cmp - komorebi-for-mac/schema.bar.json`
+battery % and charging, date and the calendar icon, all sane. `komorebi-bar --schema | cmp - schemas/macos/schema.bar.json`
 is silent. Introduced by: `wip-u-pkg-mig` bar revisions (`7d4ea893`, `bdd811f2`), `nottqpms` and the bar-core hooks.
 
 **7.2 Old state and the bar (H10).** `komorebic state > old.json` on the ORIGINAL build; start the new bar against
