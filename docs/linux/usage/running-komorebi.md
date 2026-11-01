@@ -165,5 +165,5 @@ komorebic completions bash > ~/.local/share/bash-completion/completions/komorebi
 
 ## Every command
 
-[`docs/cli`](../cli/start.md) has a page for every `komorebic` command, generated from its
+[`docs/linux/cli/start.md`](../cli/start.md) has a page for every `komorebic` command, generated from its
 help with `just docgen`.

@@ -12,7 +12,7 @@ On NixOS, the flake's module, `services.komorebi`, installs `komorebi` and
 `komorebic` and starts komorebi with every Plasma session: one flake input,
 one module line and `services.komorebi.enable = true`. Elsewhere, both are
 built from source, or taken from a release of this repository
-([Binaries](#binaries)). [`docs/installation.md`](docs/installation.md) has the
+([Binaries](#binaries)). [`docs/linux/installation.md`](installation.md) has the
 module and the build from source. The Komorebi license does not allow anyone
 else to redistribute binaries.
 
@@ -29,8 +29,8 @@ Inside a Plasma Wayland session, `komorebi` loads a script into KWin, reads the
 monitors and the windows that are open, tiles them, and tiles the windows again
 whenever one opens, closes, takes the focus, is minimized or comes back, until
 it is stopped with Ctrl-C. It needs KWin 6.8 or newer, which the NixOS module
-checks against [`nix/supported-kwin.nix`](nix/supported-kwin.nix);
-[`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md) has what it expects of the
+checks against [`nix/linux/supported-kwin.nix`](../../nix/linux/supported-kwin.nix);
+[`docs/linux/dev/PLATFORM.md`](dev/PLATFORM.md) has what it expects of the
 session. Outside a Plasma session it exits with an error that says what is
 missing. `--fake-backend` runs the window manager against an in-memory desktop
 with one monitor and no windows instead.
@@ -41,7 +41,7 @@ directory): a message can ask for the state of the window manager, ask which
 monitor, workspace or container has the focus, give the focus to another
 window, move the focused window to another tile, change the layout, resize a
 tile, float a window, give one window the whole work area or have KWin maximize it, retile every
-monitor, or stop the daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
+monitor, or stop the daemon. [`komorebi-client`](../../komorebi-client) writes them, and `komorebic`,
 the command line, is how a person sends them. `komorebic start` runs the
 `komorebi` on the `PATH`, and passes it what follows a `--`. In a Plasma
 session:
@@ -57,9 +57,9 @@ komorebic stop
 `komorebic start -- --fake-backend` tries the daemon and `komorebic` without a
 compositor, against the in-memory desktop.
 
-`nix develop` provides the Rust toolchain that [`rust-toolchain.toml`](rust-toolchain.toml)
+`nix develop` provides the Rust toolchain that [`rust-toolchain.toml`](../../rust-toolchain.toml)
 selects, a nightly `rustfmt`, and the tools `just check` and the flake's checks
-use. With [direnv](https://direnv.net), the [`.envrc`](.envrc) does it on
+use. With [direnv](https://direnv.net), the [`.envrc`](../../.envrc) does it on
 `cd`. On Linux, `nix run .#komorebi -- --version` builds and runs the daemon
 without a checkout of the toolchain.
 
@@ -73,7 +73,7 @@ nix run .#run-kde
 ```
 
 `run-kde --doctor` checks the machine and says how to fix what is missing.
-[`docs/trying-it.md`](docs/trying-it.md) says what you need, what you see, the key bindings to try
+[`docs/linux/trying-it.md`](trying-it.md) says what you need, what you see, the key bindings to try
 and what to do when it does not start.
 
 ## Binaries
@@ -88,14 +88,15 @@ the system they run on, which has to be 2.39 or newer at time of writing
 [nix-ld](https://github.com/nix-community/nix-ld); on NixOS, build komorebi
 from this flake instead.
 
-The [Komorebi License](LICENSE.md) allows anyone to distribute the source code,
+The [Komorebi License](../../LICENSE.md) allows anyone to distribute the source code,
 but not binaries built from it. The releases of this repository are the only
 binaries, and there is no public binary cache for the flake: nix builds
 komorebi from source.
 
 ## Crates
 
-- [`komorebi`](komorebi): the daemon, and the library behind it. The library has
+- [`komorebi-linux`](../../komorebi-linux): the library behind the daemon (the `komorebi` binary is the
+  package [`komorebi-daemon`](../../komorebi-daemon), which calls its `daemon::run` on Linux). The library has
   the vocabulary the window manager is written in (`core`), the `Backend` trait
   through which it reaches a compositor and the in-memory desktop the tests use
   (`backend`), the backend that reaches KWin through a script it runs and edits
@@ -122,24 +123,24 @@ komorebi from source.
   key binding file, and the desktop it runs on, for mistakes without the daemon
   (`check`). With a key binding file, it registers keys with KWin's global
   shortcut daemon and runs their commands (`kwin::hotkeys`).
-- [`komorebi-client`](komorebi-client): a library that sends messages to the
+- [`komorebi-client`](../../komorebi-client): a library (shared with Windows and macOS, with a `linux` module) that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
-- [`komorebi-hotkeys`](komorebi-hotkeys): reads the key binding files of skhd,
+- [`komorebi-hotkeys`](../../komorebi-hotkeys): reads the key binding files of skhd,
   whkd and sxhkd into one model, with the keys as KDE stores them, plans each
   binding as a KDE shortcut file or as a key komorebi registers itself, and has
   the engine that decides, with no I/O of its own, which keys komorebi holds
   and what each press does. It does not depend on the daemon. Its tests read the files in
-  [`komorebi-hotkeys/tests/fixtures`](komorebi-hotkeys/tests/fixtures), where
+  [`komorebi-hotkeys/tests/fixtures`](../../komorebi-hotkeys/tests/fixtures), where
   each case is written in every format that can express it.
-- [`komorebic`](komorebic): the command line. A subcommand that asks something
+- [`komorebic`](../../komorebic): the command line (one package for the three platforms, with a `linux` module). A subcommand that asks something
   of the daemon is one message on its socket, and the others work without the daemon:
   `start` and the autostart commands start it, `check` looks at the files and the
   desktop, `quickstart` writes files, `export-kde-shortcuts` and `hotkeys compile`
   write the bindings of a key binding file that KDE can run by itself as shortcut
   files, and `configuration`, `log`, `data-directory`, `completions`, the schema
   printers and the hidden `docgen` print.
-- [`version`](version): the version string every binary reports.
+- [`komorebi-version`](../../crates/komorebi-version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
 for each, are `komorebi-layouts` from [komorebi](https://github.com/LGUG2Z/komorebi),
@@ -151,20 +152,20 @@ The flake also builds the KWin effects komorebi drives, which are not part of
 KWin:
 
 - `kde-rounded-corners-komorebi`
-  ([`nix/kde-rounded-corners.nix`](nix/kde-rounded-corners.nix)): KDE Rounded
+  ([`nix/linux/kde-rounded-corners.nix`](../../nix/linux/kde-rounded-corners.nix)): KDE Rounded
   Corners 0.11.0, which draws an outline around each window, built so that KWin
   does not load it until it is asked to, and with a patch that lets komorebi
   give each window a color of its own.
 - `kwin-effect-geometry-change-komorebi`
-  ([`nix/kwin-effect-geometry-change.nix`](nix/kwin-effect-geometry-change.nix)):
+  ([`nix/linux/kwin-effect-geometry-change.nix`](../../nix/linux/kwin-effect-geometry-change.nix)):
   Geometry Change 1.5, a scripted effect that animates a window that a program
   or a script moves or resizes, with a patch that makes its easing curve a
   setting.
 
 Each one is a package for Linux and an attribute of `overlays.default`, built
 with the KWin of the nixpkgs the overlay is applied to.
-[`nix/tests/effects.nix`](nix/tests/effects.nix) checks the files each package
-installs. [`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md#kwin-effects) has what
+[`nix/linux/tests/effects.nix`](../../nix/linux/tests/effects.nix) checks the files each package
+installs. [`docs/linux/dev/PLATFORM.md`](dev/PLATFORM.md#kwin-effects) has what
 they need from KWin.
 
 ## Checks
@@ -179,7 +180,7 @@ TOML and Nix formatting, the tests under `cargo nextest`, and
 `nixos-module-eval`, which evaluates the NixOS module in real NixOS systems,
 `keybindings-fixtures`, which runs every key binding file of the fixture corpus
 through `komorebic hotkeys compile` and compares what it prints with
-`nix/tests/keybindings.expected`, `schema-fresh`, which compares the schemas and
+`nix/linux/tests/keybindings.expected`, `schema-fresh`, which compares the schemas and
 the options made from them with the Rust types, and `nix-options-validation`,
 which checks the example configuration, in Nix and in JSON, against the schema,
 all on Linux and on an Apple silicon Mac. On Linux it also builds the KWin effects and checks
@@ -188,7 +189,7 @@ desktop, since KWin only exists on Linux. `nix fmt` formats every file the check
 
 The VM tests boot NixOS with Plasma and run a real KWin, on machines configured
 with the NixOS module, so every one of them runs komorebi as the module installs
-it. `just vm NAME` runs one; [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) has
+it. `just vm NAME` runs one; [`docs/linux/dev/vm-tests.md`](dev/vm-tests.md) has
 the details, including how to run them on a Mac.
 
 To try komorebi by hand in a real Plasma session, the flake has Plasma guests
@@ -199,7 +200,7 @@ for `x86_64` and for `aarch64`, and a demo guest of the session guest, which
 shows komorebi tiling a few windows in the first minute. On Linux,
 `nix run .#run-kde` (or `just run-kde`) starts the demo in a window, and
 `run-kde --doctor` says what the machine lacks.
-[`docs/dev/utm.md`](docs/dev/utm.md) says how to build and run them;
+[`docs/linux/dev/utm.md`](dev/utm.md) says how to build and run them;
 `plasma-guests-eval` evaluates them on every system, and `run-kde-dry-run` and
 `run-kde-doctor` run the command against machines that a test makes up.
 
@@ -208,7 +209,7 @@ shows komorebi tiling a few windows in the first minute. On Linux,
 The daemon decides where every window goes and asks the compositor to put it
 there. Everything it needs from the compositor is behind one trait, `Backend`,
 so the window manager logic runs against a real compositor and against an
-in-memory fake desktop alike. [`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md)
+in-memory fake desktop alike. [`docs/linux/dev/ARCHITECTURE.md`](dev/ARCHITECTURE.md)
 describes the trait and where each of its rules is enforced.
 
 On KDE Plasma the backend is in two parts. A script that komorebi loads into
@@ -332,8 +333,8 @@ workspace change layout with the number of windows it has, as the file's
 has as a `komorebi.json`, and `replace-configuration` makes the daemon start over from
 another file. `quickstart` writes an example configuration and sample key bindings, and
 `enable-autostart` an autostart entry that has Plasma start komorebi at login. The Rust types that read the file describe it as a JSON Schema
-(`schema.json`, written by `just jsonschema` and printed by `static-config-schema`), and the
-module's `config` option is typed from that schema (`nix/komorebi-options.nix`, written by
+(`schemas/linux/schema.json`, written by `just jsonschema` and printed by `static-config-schema`), and the
+module's `config` option is typed from that schema (`nix/linux/komorebi-options.nix`, written by
 `just nixgen`), so a configuration written in Nix is checked when it is evaluated.
 `check` reads the file the way the daemon does and says in words what is wrong with it: JSON that
 does not parse, with the line, a value komorebi does not read, a key that is not a setting (with
@@ -349,7 +350,7 @@ listens on a socket of its own, and after each event, each message and each
 change of the monitors, the daemon connects to it and writes it with the state
 of the window manager.
 
-On NixOS, the module [`nix/nixos-module.nix`](nix/nixos-module.nix) runs the
+On NixOS, the module [`nix/linux/nixos-module.nix`](../../nix/linux/nixos-module.nix) runs the
 daemon as a systemd user unit that the Plasma session starts, and systemd
 starts it again if it fails.
 
@@ -381,34 +382,34 @@ and the unit starts the daemon with the file.
 
 ## Documentation
 
-The user guide starts at [`docs/index.md`](docs/index.md),
-[`docs/trying-it.md`](docs/trying-it.md) starts a guest in which komorebi tiles a few windows,
-[`docs/installation.md`](docs/installation.md) says how to install komorebi,
-[`docs/usage/configuration.md`](docs/usage/configuration.md) explains `komorebi.json`,
-[`docs/example-configurations.md`](docs/example-configurations.md) has an example of it,
-[`docs/usage/keybindings.md`](docs/usage/keybindings.md) how to give komorebi key bindings,
-and [`docs/cli`](docs/cli) has a page for every `komorebic` subcommand, which
+The user guide starts at [`docs/linux/index.md`](index.md),
+[`docs/linux/trying-it.md`](trying-it.md) starts a guest in which komorebi tiles a few windows,
+[`docs/linux/installation.md`](installation.md) says how to install komorebi,
+[`docs/linux/usage/configuration.md`](usage/configuration.md) explains `komorebi.json`,
+[`docs/linux/example-configurations.md`](example-configurations.md) has an example of it,
+[`docs/linux/usage/keybindings.md`](usage/keybindings.md) how to give komorebi key bindings,
+and [`docs/linux/cli`](cli) has a page for every `komorebic` subcommand, which
 `just docgen` writes from the subcommands' help.
 `cargo doc --workspace --no-deps --open` builds the API documentation.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) says how to work on the code.
-[`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md) describes the model,
-[`docs/dev/DESIGN.md`](docs/dev/DESIGN.md) says why it is built that way,
-[`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md) what it needs from KDE Plasma,
-[`docs/dev/COMPARE.md`](docs/dev/COMPARE.md) what is the same and what is different in
+[`docs/linux/dev/ARCHITECTURE.md`](dev/ARCHITECTURE.md) describes the model,
+[`docs/linux/dev/DESIGN.md`](dev/DESIGN.md) says why it is built that way,
+[`docs/linux/dev/PLATFORM.md`](dev/PLATFORM.md) what it needs from KDE Plasma,
+[`docs/linux/dev/COMPARE.md`](dev/COMPARE.md) what is the same and what is different in
 komorebi for Windows and komorebi for Mac,
-[`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work, and
-[`docs/dev/utm.md`](docs/dev/utm.md) how to develop in a Plasma guest, and
-[`docs/dev/wsl2-probe.md`](docs/dev/wsl2-probe.md) how to find out whether a
+[`docs/linux/dev/vm-tests.md`](dev/vm-tests.md) how the VM tests work, and
+[`docs/linux/dev/utm.md`](dev/utm.md) how to develop in a Plasma guest, and
+[`docs/linux/dev/wsl2-probe.md`](dev/wsl2-probe.md) how to find out whether a
 NixOS-WSL2 machine can run one (`nix run .#wsl2-probe`).
 
 ## License
 
-komorebi for KDE is under the [Komorebi License](LICENSE.md). Contributions
+komorebi for KDE is under the [Komorebi License](../../LICENSE.md). Contributions
 are accepted under the terms in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 The license lets others distribute the source code but not binaries, so there
 is no public binary cache for what the flake builds: komorebi and the KWin
 effects are built on each machine that installs them, with their dependencies
-from nixpkgs. The patches to the effects in [`nix`](nix) are derivative works
+from nixpkgs. The patches to the effects in [`nix`](../../nix/linux) are derivative works
 of the effects, which are under the GNU General Public License version 3, and
 are under the same license, as the header of each one states.

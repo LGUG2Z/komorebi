@@ -2,7 +2,7 @@
 
 komorebi is a tiling window manager. It decides where every window goes and asks a
 compositor to put it there. Everything it needs from the compositor is behind one trait,
-[`Backend`](../../komorebi/src/backend/mod.rs), so the window manager is written, and
+[`Backend`](../../../komorebi-linux/src/backend/mod.rs), so the window manager is written, and
 tested, without one.
 
 This page describes that trait, who implements and calls it, where each of its rules is
@@ -93,9 +93,9 @@ same and what is different in komorebi for Windows and komorebi for Mac.
   is the effect that draws the border, and Geometry Change the one that animates windows.
 - **Compositor**: the program that owns the screen and the windows. On KDE Plasma it is
   KWin.
-- **Backend**: the implementation of the [`Backend`](../../komorebi/src/backend/mod.rs)
+- **Backend**: the implementation of the [`Backend`](../../../komorebi-linux/src/backend/mod.rs)
   trait that talks to a compositor.
-- **Fake**: [`FakeBackend`](../../komorebi/src/backend/fake.rs), the in-memory backend
+- **Fake**: [`FakeBackend`](../../../komorebi-linux/src/backend/fake.rs), the in-memory backend
   the tests use.
 - **Bridge**: the script komorebi loads into KWin ([`bridge.js`]). It reports what KWin
   tells it and carries out what the daemon asks.
@@ -635,7 +635,7 @@ monocle that is maximized leaves the monocle. While a window is maximized, the m
 about the tiles are dropped before they are handled: `MoveWindow`, `CycleMoveWindow`, the stack
 messages, the resize, promote and preselect messages, `ToggleLock`, `ToggleFloat`,
 `ToggleMonocle`, and the messages that send a container to another monitor or workspace
-(`is_layout_command` in [`process_command`](../../komorebi/src/process_command.rs)). A window that
+(`is_layout_command` in [`process_command`](../../../komorebi-linux/src/process_command.rs)). A window that
 closes while it is maximized leaves the workspace like any other. `FocusWindow` finds no
 container on any side of the maximized window, so the focus goes to the monitor on that side and
 fails where there is none, and a maximized window, or a monocle, on the workspace it reaches is
@@ -957,9 +957,9 @@ that of an applications file, and `notification-schema` and `socket-schema` thos
 [`Notification`] and of a [`SocketMessage`]; the daemon answers the same four questions on its
 socket (the fourth is the schema of a list of applications files, where `komorebic` prints the
 schema of one).
-The schemas of the first two are committed (`schema.json`, `schema.asc.json`, written by `just
+The schemas of the first two are committed (`schemas/linux/schema.json`, `schemas/linux/schema.asc.json`, written by `just
 jsonschema`), and so are the options the module's `config` is typed with
-(`nix/komorebi-options.nix`, which `schemars-nixgen` makes from `schema.json` and `just nixgen`
+(`nix/linux/komorebi-options.nix`, which `schemars-nixgen` makes from `schemas/linux/schema.json` and `just nixgen`
 gives the hash of the schema as its first line). The check `schema-fresh` compares the schemas with
 what the Rust types print and the hash with the schema, so a change to a key that leaves one of
 them behind fails.
@@ -1027,8 +1027,8 @@ asks for what it cannot do.
 | `--configuration-only` leaves the desktop out | framework path: the section is pushed only without it | `configuration_only_leaves_the_desktop_out` | none |
 | `komorebic check` exits with status 1 if and only if a finding is an error | framework path: `komorebic` exits through [`Report::has_errors`] | `a_good_configuration_passes`, `a_typo_is_a_warning_with_the_word_that_was_meant_and_does_not_fail`, `a_file_that_is_not_json_fails_and_shows_the_line` | none |
 | The rules of an applications file and of the configuration add up | framework path: both are appended to the process-wide lists | `the_rules_of_the_configuration_and_of_the_file_add_up`, `every_file_of_a_list_is_read` | none |
-| `schema.json` and `schema.asc.json` are what the Rust types print | Nix check `schema-fresh`, and a test that compares them with `komorebic`'s output | `schema-fresh`, `the_schema_files_of_the_repository_are_what_the_subcommands_print` | `just jsonschema` |
-| The options the module is typed with are made from the committed schema | the hash of `schema.json` in the first line of `nix/komorebi-options.nix`, compared by `schema-fresh` | `schema-fresh` | `just nixgen` |
+| `schemas/linux/schema.json` and `schemas/linux/schema.asc.json` are what the Rust types print | Nix check `schema-fresh`, and a test that compares them with `komorebic`'s output | `schema-fresh`, `the_schema_files_of_the_repository_are_what_the_subcommands_print` | `just jsonschema` |
+| The options the module is typed with are made from the committed schema | the hash of `schemas/linux/schema.json` in the first line of `nix/linux/komorebi-options.nix`, compared by `schema-fresh` | `schema-fresh` | `just nixgen` |
 | The example, in Nix and in JSON, follows the schema, and says the same in both | Nix check `nix-options-validation`: the options evaluated against the Nix example, both examples checked with `check-jsonschema`, and one contained in the other | `nix-options-validation` | none |
 | A window a workspace rule names ends on its workspace, and on that workspace's desktop once the workspace is shown | framework path: [`WindowManager::enforce_workspace_rules`] moves it in the model, and has the target monitor put it on the desktop | `a_rule_sends_the_window_of_an_application_to_its_workspace`, `a_window_a_rule_moves_between_workspaces_that_are_out_of_view_is_put_on_the_new_desktop`, `vm-workspace-rules` | none |
 | A window a workspace rule takes off the workspace in front is out of sight until its workspace is shown | framework path: [`WindowManager::enforce_workspace_rules`] hides it, and showing the workspace restores it | `a_rule_sends_the_window_of_an_application_to_its_workspace`, `vm-workspace-rules` | none |
@@ -1046,7 +1046,7 @@ asks for what it cannot do.
 | The highest of the rules a count of containers reaches decides the layout, the offset and the container behavior | framework path: [`Workspace::update`] reads the rules, kept in the order of their thresholds | `layout_rules_change_the_layout_with_the_number_of_windows`, `work_area_offset_rules_change_the_offset_with_the_number_of_windows`, `window_container_behaviour_rules_change_the_behaviour_with_the_number_of_containers` | none |
 | A workspace's own container behavior and float override come before the one for every workspace, and its floating layer behavior before its monitor's, which comes before the one for every workspace | framework path: [`WindowManager::window_management_behaviour`] reads the workspace, then (for the floating layer) the monitor, then the window manager | `the_behaviour_of_a_workspace_comes_before_the_one_for_every_workspace`, `the_float_override_of_a_workspace_comes_before_the_one_for_every_workspace`, `the_floating_layer_behaviour_of_a_workspace_comes_before_a_monitors_and_that_before_the_default` | none |
 | A workspace places the windows that open by the `initial_window_placement_rules` of its entry in `komorebi.json` | framework path: [`Workspace::load_static_config`] sets [`Workspace::initial_window_placement_rules`] from the entry, and [`Workspace::new_container_for_window`] reads it | `a_workspace_in_komorebi_json_has_them`, `the_rules_come_from_the_configuration_of_the_workspace`, `vm-placement` | none |
-| The schema, and the module's typed `config`, take a place in each form the daemon reads: a name, a number, or text that is a number | test: the schema of [`PlacementTarget`] is written by hand, to say what its `Serialize` and `Deserialize` do, and a file with a place of each form is checked against `schema.json` | `a_place_is_described_as_a_name_a_number_or_text_that_is_a_number`, `nix-options-validation`, `nixos-module-eval` ("the place a workspace gives the windows that open is a typed option in each form it is read") | none |
+| The schema, and the module's typed `config`, take a place in each form the daemon reads: a name, a number, or text that is a number | test: the schema of [`PlacementTarget`] is written by hand, to say what its `Serialize` and `Deserialize` do, and a file with a place of each form is checked against `schemas/linux/schema.json` | `a_place_is_described_as_a_name_a_number_or_text_that_is_a_number`, `nix-options-validation`, `nixos-module-eval` ("the place a workspace gives the windows that open is a typed option in each form it is read") | none |
 | The configuration the daemon generates loads and says the same | test | `a_configuration_comes_out_again_as_the_settings_of_the_window_manager` | none |
 | The daemon reads the file it is given or the one in the config home, not both | startup order: `main.rs` takes `--config` before the config home | `the_daemon_follows_the_file_it_is_given_when_the_file_changes`, `the_daemon_reads_komorebi_json_from_the_config_home` | none |
 
@@ -1091,7 +1091,7 @@ Without a border, because they are off or the compositor has no effect to draw o
 given back the next time the workspace is tiled.
 
 The KWin backend draws the border with the effect KDE Rounded Corners
-([`kwin::effects`](../../komorebi/src/kwin/effects.rs)). `apply_look` writes the effect's settings
+([`kwin::effects`](../../../komorebi-linux/src/kwin/effects.rs)). `apply_look` writes the effect's settings
 into the user's `kwinrc`, group `[Round-Corners]`, through [`Kwinrc`]; loads the effect with
 `loadEffect` unless it is loaded; and always asks it to read its settings again
 (`reconfigureEffect`), since KWin hands an effect the copy of `kwinrc` it read when it started. A
@@ -1199,9 +1199,9 @@ The flake exports one module under two names, `nixosModules.default` and
 read-only: the module sets it to `bin/komorebi` of the package with `--log-level`, `--config` with a
 `komorebi.json` when `configFile` or `config` is set, and `--keybindings` and the options of the
 engine when there are key bindings. `config` is typed from
-`nix/komorebi-options.nix`, the options `schemars-nixgen` makes from the schema of `komorebi.json`;
+`nix/linux/komorebi-options.nix`, the options `schemars-nixgen` makes from the schema of `komorebi.json`;
 the module writes it as JSON, with no null in it, and `configFile` and the written file both go
-through `check-jsonschema` against `schema.json` when the system is built (comment lines taken out
+through `check-jsonschema` against `schemas/linux/schema.json` when the system is built (comment lines taken out
 first, since the checker reads plain JSON). `applicationSpecificConfiguration.sources` are files
 fetched from GitHub that become `app_specific_configuration_path`; the module has none by default.
 `internal.configAttrs` is the configuration as the attribute set the options make, for the tests.
@@ -1259,23 +1259,23 @@ too.
 | The static shortcuts the module installs and the bindings its daemon runs are one plan of one file | framework path: the build and `execStart` get the same store file, format and mode, and `plan` is deterministic | `nixos-module-eval` (the key binding scenarios), `vm-keys-skhd`, `vm-keys-whkd`, `vm-keys-sxhkd` | none |
 | Key bindings have one source, a format, and no skhd `.load` | evaluation error: assertions of the module | `nixos-module-eval` ("text and file together", "without a format", "skhd's .load") | none |
 | `strict` fails the build on a warning or an error | `komorebic hotkeys compile --strict` exits non-zero before it writes anything, and the module's build of the key bindings passes `--strict` only when `strict` is set and fails when `komorebic` does | `strict_refuses_a_file_with_a_warning_and_writes_nothing`, `nixos-module-eval` ("with strict, the build of the key bindings runs komorebic hotkeys compile --strict", "without strict ... no --strict") | none |
-| What `hotkeys compile` prints for every file of the corpus is what was reviewed | test: a diff against `nix/tests/keybindings.expected` | `keybindings-fixtures` | writing the file again |
+| What `hotkeys compile` prints for every file of the corpus is what was reviewed | test: a diff against `nix/linux/tests/keybindings.expected` | `keybindings-fixtures` | writing the file again |
 | The VM suites run komorebi as the module installs it | framework path: the test nodes import the module, and `komorebi@NAME` runs its `execStart` | every VM suite | a suite's `node` can set `services.komorebi.enable = false` (`vm-render-smoke` does) |
 
 ## The parts
 
-- [`backend`](../../komorebi/src/backend/mod.rs): the trait, the two data types, and the
+- [`backend`](../../../komorebi-linux/src/backend/mod.rs): the trait, the two data types, and the
   process-wide handle ([`set_backend`], [`backend`], [`with_backend`]).
-- [`backend::fake`](../../komorebi/src/backend/fake.rs): the fake.
+- [`backend::fake`](../../../komorebi-linux/src/backend/fake.rs): the fake.
 - [`ring`](../../../crates/komorebi-collections/src/ring.rs): the [`Ring`], and the macro that gives every type
   holding one the same accessors (`containers()`, `focused_container_mut()`, ...).
-- [`monitor`](../../komorebi/src/monitor.rs), [`workspace`](../../komorebi/src/workspace.rs),
-  [`container`](../../komorebi/src/container.rs), [`window`](../../komorebi/src/window.rs):
+- [`monitor`](../../../komorebi-linux/src/monitor.rs), [`workspace`](../../../komorebi-linux/src/workspace.rs),
+  [`container`](../../../komorebi-linux/src/container.rs), [`window`](../../../komorebi-linux/src/window.rs):
   the four levels of the tree; `window` also has the rule engine ([`should_act`]).
 - [`lockable_sequence`](../../../crates/komorebi-collections/src/lockable_sequence.rs): inserting, removing and
   swapping in a list where some elements are locked in place, which is how a workspace
   changes its containers.
-- [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
+- [`window_manager`](../../../komorebi-linux/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
   promote the focused container, float a window, switch the layer, put a container in
@@ -1285,59 +1285,59 @@ too.
   something else, name a workspace and find it by its name, set the layout of a workspace
   that is not in front, focus another monitor, and move containers and workspaces between
   monitors).
-- [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
+- [`desktop`](../../../komorebi-linux/src/desktop.rs): loads the monitors and the open windows from
   the backend, and reads the sizes of the monitors again.
-- [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
-  [`process_event`](../../komorebi/src/process_event.rs): the events, and what the window
+- [`window_manager_event`](../../../komorebi-linux/src/window_manager_event.rs) and
+  [`process_event`](../../../komorebi-linux/src/process_event.rs): the events, and what the window
   manager does with each.
-- [`window_manager_event_listener`](../../komorebi/src/window_manager_event_listener.rs): the
+- [`window_manager_event_listener`](../../../komorebi-linux/src/window_manager_event_listener.rs): the
   channel that carries events from the backend to the window manager, and
   [`listen_for_events`], the thread that takes them off it.
-- [`monitor_reconciliator`](../../komorebi/src/monitor_reconciliator.rs): the channel the KWin
+- [`monitor_reconciliator`](../../../komorebi-linux/src/monitor_reconciliator.rs): the channel the KWin
   backend sends [`MonitorNotification`]s on, [`listen_for_notifications`], the thread that
   takes them, and [`reconcile_display_change`], which brings the window manager's monitors in
   line with the outputs, and [`wake_up`], which puts the desktop in order after a wake;
-  [`reconcile`](../../komorebi/src/reconcile.rs): moves what was on a monitor that went to the
+  [`reconcile`](../../../komorebi-linux/src/reconcile.rs): moves what was on a monitor that went to the
   monitors that are left, and every container whose window is on another monitor to that
   monitor.
-- [`kwin`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
-  call; [`kwin::state`](../../komorebi/src/kwin/state.rs), the table;
-  [`kwin::power`](../../komorebi/src/kwin/power.rs), the watchers of logind's sleep signal and the
+- [`kwin`](../../../komorebi-linux/src/kwin/mod.rs): the KWin backend, its D-Bus service and the held
+  call; [`kwin::state`](../../../komorebi-linux/src/kwin/state.rs), the table;
+  [`kwin::power`](../../../komorebi-linux/src/kwin/power.rs), the watchers of logind's sleep signal and the
   lock screen's;
-  [`kwin::kwinrc`](../../komorebi/src/kwin/kwinrc.rs), the editor of the user's `kwinrc`, which
+  [`kwin::kwinrc`](../../../komorebi-linux/src/kwin/kwinrc.rs), the editor of the user's `kwinrc`, which
   keeps the values it changes and puts them back; the parking desktop is made, swept and removed
   in `kwin` and tracked in `kwin::state`; and
-  [`bridge.js`](../../komorebi/src/kwin/bridge.js), the bridge.
-- [`static_config`](../../komorebi/src/static_config.rs): `komorebi.json`, [`StaticConfig`], and
+  [`bridge.js`](../../../komorebi-linux/src/kwin/bridge.js), the bridge.
+- [`static_config`](../../../komorebi-linux/src/static_config.rs): `komorebi.json`, [`StaticConfig`], and
   how it is loaded, reloaded and generated.
-- [`border_manager`](../../komorebi/src/border_manager/mod.rs): the border settings, and the
+- [`border_manager`](../../../komorebi-linux/src/border_manager/mod.rs): the border settings, and the
   [`Look`] they make, which it asks the backend for.
-- [`animation`](../../komorebi/src/animation/mod.rs): the animation settings, which the look has.
-- [`theme_manager`](../../komorebi/src/theme_manager.rs): a theme's colors for the borders, and the
+- [`animation`](../../../komorebi-linux/src/animation/mod.rs): the animation settings, which the look has.
+- [`theme_manager`](../../../komorebi-linux/src/theme_manager.rs): a theme's colors for the borders, and the
   palettes made from pictures.
-- [`kwin::wallpaper`](../../komorebi/src/kwin/wallpaper.rs): the Plasma shell's side of a
+- [`kwin::wallpaper`](../../../komorebi-linux/src/kwin/wallpaper.rs): the Plasma shell's side of a
   wallpaper: the screen of an output, what it shows, and the picture set.
-- [`transparency_manager`](../../komorebi/src/transparency_manager.rs): which windows are
+- [`transparency_manager`](../../../komorebi-linux/src/transparency_manager.rs): which windows are
   see-through, and the opacity they are given.
-- [`kwin::effects`](../../komorebi/src/kwin/effects.rs): the KWin effect that draws the border,
+- [`kwin::effects`](../../../komorebi-linux/src/kwin/effects.rs): the KWin effect that draws the border,
   its settings and the state komorebi keeps of it.
-- [`check`](../../komorebi/src/check.rs): the checks behind `komorebic check` (the configuration,
+- [`check`](../../../komorebi-linux/src/check.rs): the checks behind `komorebic check` (the configuration,
   and the desktop it runs on), the [`Finding`]s they return and the [`Report`] `komorebic` gathers
   them in.
-- [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
+- [`process_command`](../../../komorebi-linux/src/process_command.rs): the thread that listens on the
   socket, and what the window manager does with each message.
-- [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with,
+- [`state`](../../../komorebi-linux/src/state.rs): the [`State`] a `State` message is answered with,
   and whether an event or a message changed it.
-- [`lib.rs`](../../komorebi/src/lib.rs): the subscribers, the [`Notification`], and
+- [`lib.rs`](../../../komorebi-linux/src/lib.rs): the subscribers, the [`Notification`], and
   [`notify_subscribers`].
-- [`komorebi-client`](../../komorebi-client/src/lib.rs): a library that writes messages on
+- [`komorebi-client`](../../../komorebi-client/src/lib.rs): a library that writes messages on
   the socket and reads the answers, and subscribes to notifications, for programs that talk
   to the daemon.
 - [`komorebic`](../../../komorebic/src/linux/mod.rs): the command line. A subcommand that asks
   something of the daemon is one message, sent with `komorebi-client`; `start` runs the
   daemon, `log` follows its log file in [`LOG_DIR`], and the hidden `docgen` writes
-  `docs/cli`.
-- [`daemon.rs`](../../komorebi/src/daemon.rs): the daemon. It connects to KWin, or installs the
+  `docs/linux/cli`.
+- [`daemon.rs`](../../../komorebi-linux/src/daemon.rs): the daemon. It connects to KWin, or installs the
   fake with `--fake-backend`, makes the window manager from `komorebi.json` when there is one,
   which binds the socket, loads the desktop, gives the monitors their configuration, asks for the
   borders and tiles, starts the threads that listen on the socket, handle events and take the
@@ -1509,14 +1509,14 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A subscriber that wants only changes of the state is sent every change of the monitors | framework path: [`notify_subscribers`] treats a monitor notification as an override of the filter | `a_change_of_the_monitors_is_sent_to_a_subscriber_that_filters_state_changes_too` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
-| The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
+| The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi-linux/src/kwin/state.rs` | none |
 | What the bridge sends is what the table reads | type checker: the JSDoc types of the messages in [`bridge.js`]; tests: the events of [`fixtures`] are what the bridge's tests check it sends and what the table's tests feed it | `what the bridge sends for a session is what the daemon's tests read`, `the_bridges_events_for_a_session_are_the_window_events_komorebi_expects` | none |
 | What the backend sends is what the bridge carries out | tests: the commands of [`fixtures`] are what the backend's tests check it sends and what the bridge's tests answer it with, checking what KWin is asked to do for each | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a command for a window KWin no longer has is given back, and the rest are carried out` | none |
 | Everything the bridge sends over D-Bus is one string | type checker: [`kwin-api.d.ts`] gives `callDBus` one string argument | `tsc`, `every call goes to the daemon's names, with one JSON string` | none |
 | The bridge uses nothing a KWin script does not have | type checker: the library is ECMAScript 2016 alone, and KWin's API is what [`kwin-api.d.ts`] declares | `tsc` | a declaration KWin does not match: the VM tests run the bridge in KWin |
 | A border takes room around the windows only while the compositor draws it | framework path: [`border_manager::send_notification`] keeps the backend's answer in [`BORDER_DRAWN`], which [`Monitor::update_workspace_globals`] reads | `a_border_the_compositor_draws_takes_room_around_each_window_and_none_is_taken_without_one`, `a_look_is_a_command_once_and_says_whether_borders_are_drawn` | none |
 | The compositor is asked for the look after every event, every message and every retile, and only a changed look reaches it | framework path: [`WindowManager::process_event`], [`WindowManager::process_command`] and [`WindowManager::retile_all`] call [`border_manager::send_notification`], and a backend compares with the look it applied last | `the_border_messages_set_the_border_and_the_compositor_is_asked_for_it`, `a_look_is_a_command_once_and_says_whether_borders_are_drawn` | the same look applied twice by the KWin backend is not tested |
-| No outline is drawn inside a window, and a border is never thicker than the effect can draw | framework path: [`kwin::effects`](../../komorebi/src/kwin/effects.rs) sets every inner outline to 0 and clamps the width to 20 | `the_border_is_the_outer_outline_and_nothing_is_drawn_inside_the_window`, `a_border_thicker_than_the_effect_can_draw_is_the_thickest_it_can`, `vm-look` | none |
+| No outline is drawn inside a window, and a border is never thicker than the effect can draw | framework path: [`kwin::effects`](../../../komorebi-linux/src/kwin/effects.rs) sets every inner outline to 0 and clamps the width to 20 | `the_border_is_the_outer_outline_and_nothing_is_drawn_inside_the_window`, `a_border_thicker_than_the_effect_can_draw_is_the_thickest_it_can`, `vm-look` | none |
 | Every window has the border color of what it is to the layout, and a window whose kind changes has the new one at once | framework path: [`border_manager::update_colours`] is called after every event and every message, from [`border_manager::window_kinds`], and the backend sends the colors it did not send last time | `the_focused_window_has_the_focus_colour_and_the_others_do_not`, `a_locked_container_that_is_not_focused_is_marked`, `a_stack_has_its_own_colour_when_it_has_the_focus`, `a_monocled_window_has_the_monocle_colour`, `a_floating_window_has_the_floating_colour_while_it_has_the_focus`, `border_colours_are_a_command_only_when_they_change`, `vm-features` (section C) | the stock effect: two colors for every window |
 | With borders off no window has a color | framework path: [`border_manager::update_colours`] tells the backend an empty list when `BORDER_ENABLED` is false | `with_borders_off_no_window_has_a_colour` | none |
 | The settings of one kind of animation win over the global ones, and a global setting clears them | framework path: the arms of [`WindowManager::process_command`] for `Animation`, `AnimationDuration` and `AnimationStyle`, and [`animation::movement_animation`] and [`animation::movement_style`], which read the kind's setting before the global one | `the_animation_messages_set_the_animation_and_the_compositor_is_asked_for_it` | none |
@@ -1608,7 +1608,7 @@ A window is shown, and ends up on a tile:
 
 ## Key bindings
 
-[`komorebi-hotkeys`](../../komorebi-hotkeys/src/lib.rs) is a crate of its own, which does not
+[`komorebi-hotkeys`](../../../komorebi-hotkeys/src/lib.rs) is a crate of its own, which does not
 depend on the daemon. Its model is the content of a key binding file of any of three hotkey
 daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 
@@ -1641,38 +1641,38 @@ daemons: skhd (macOS), whkd (Windows) and sxhkd (X11).
 
 ### The parts of the key bindings
 
-- [`qt`](../../komorebi-hotkeys/src/qt.rs): key names to Qt key codes, in the vocabulary of each
+- [`qt`](../../../komorebi-hotkeys/src/qt.rs): key names to Qt key codes, in the vocabulary of each
   format (skhd's literals and macOS keycodes, whkd's virtual key names, sxhkd's X keysyms), and
   `Combo`, which applies the shifted symbol rule: KWin matches the character a key press
   produced, so Alt+Shift+1 is registered as Alt+!.
-- [`ir`](../../komorebi-hotkeys/src/ir.rs): the model.
-- [`skhd`](../../komorebi-hotkeys/src/skhd.rs): reads an skhdrc. A mode may be used before it
+- [`ir`](../../../komorebi-hotkeys/src/ir.rs): the model.
+- [`skhd`](../../../komorebi-hotkeys/src/skhd.rs): reads an skhdrc. A mode may be used before it
   is declared, so each binding waits for the end of the file to be put in its modes. skhd.zig's
   `.define` templates and application groups are expanded where they are used.
-- [`whkd`](../../komorebi-hotkeys/src/whkd.rs): reads a whkdrc, in any order of its sections,
+- [`whkd`](../../../komorebi-hotkeys/src/whkd.rs): reads a whkdrc, in any order of its sections,
   where whkd requires one. `tests/whkd_parser.rs` compares it with whkd's own parser,
   `whkd-parser` (a dev-dependency), on every whkdrc of the corpus.
-- [`sxhkd`](../../komorebi-hotkeys/src/sxhkd.rs): reads an sxhkdrc. Braces are expanded first,
+- [`sxhkd`](../../../komorebi-hotkeys/src/sxhkd.rs): reads an sxhkdrc. Braces are expanded first,
   into one binding per alternative. A chord chain (`a ; b`) is one binding with several combos;
   a chain that stays open (`a : b`) is a mode named after its prefix, entered by the prefix and
   left by Escape.
-- [`parse`](../../komorebi-hotkeys/src/lib.rs) picks the reader by format.
-- [`plan`](../../komorebi-hotkeys/src/plan.rs): sorts a keymap into static shortcuts and the
+- [`parse`](../../../komorebi-hotkeys/src/lib.rs) picks the reader by format.
+- [`plan`](../../../komorebi-hotkeys/src/plan.rs): sorts a keymap into static shortcuts and the
   engine's keymap, by mode: `Auto` (static where it can be), `Engine` (the default: everything
   through the engine) or `Static` (no engine; what needs it is left out with a warning).
-- [`engine`](../../komorebi-hotkeys/src/engine.rs): the engine, a state machine with no I/O and
+- [`engine`](../../../komorebi-hotkeys/src/engine.rs): the engine, a state machine with no I/O and
   no clock. Its inputs are a press or a release of an active combo, a change of focus, and the
   time; after each it computes the active set it wants from the mode, the chord chain being
   typed, the focused application and whether it is paused, and returns the commands to run and
   the difference with the active set as effects. The daemon carries them out with kglobalacceld
   (`setShortcutKeys`, `setInactive`) and feeds it kglobalacceld's signals.
-- [`kde`](../../komorebi-hotkeys/src/kde.rs): writes static shortcuts as `.desktop` files for
+- [`kde`](../../../komorebi-hotkeys/src/kde.rs): writes static shortcuts as `.desktop` files for
   kglobalacceld (`X-KDE-Shortcuts`, `X-KDE-GlobalAccel-CommandShortcut`, an `Exec` line quoted as
   the desktop entry specification requires), and replaces the files it wrote before, and no
   other.
-- [`text`](../../komorebi-hotkeys/src/text.rs): what the readers share: line numbers, comments,
+- [`text`](../../../komorebi-hotkeys/src/text.rs): what the readers share: line numbers, comments,
   continued lines and the diagnostics' wording.
-- [`tests/fixtures`](../../komorebi-hotkeys/tests/fixtures): the corpus, `<case>.skhdrc`,
+- [`tests/fixtures`](../../../komorebi-hotkeys/tests/fixtures): the corpus, `<case>.skhdrc`,
   `<case>.whkdrc` and `<case>.sxhkdrc`, each case in every format that can express it.
 
 ### The front end
@@ -1698,7 +1698,7 @@ the ones `kde::diff` says that plan would write. It reads no file the desktop ha
 
 ### The engine in the daemon
 
-[`komorebi/src/kwin/hotkeys.rs`](../../komorebi/src/kwin/hotkeys.rs) runs the engine against
+[`komorebi-linux/src/kwin/hotkeys.rs`](../../../komorebi-linux/src/kwin/hotkeys.rs) runs the engine against
 kglobalaccel, on a session bus connection and a thread of its own. The daemon reads the file
 it is given with `--keybindings` (or the first it finds in the config directory), plans it in
 `--keybindings-mode`, and hands the plan's engine keymap to `kwin::hotkeys::start`, unless the
@@ -1785,213 +1785,213 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 
 ## Where to look in the code
 
-- [`komorebi/src/backend/mod.rs`](../../komorebi/src/backend/mod.rs): the trait.
-- [`komorebi/src/backend/fake.rs`](../../komorebi/src/backend/fake.rs): the fake and its
+- [`komorebi-linux/src/backend/mod.rs`](../../../komorebi-linux/src/backend/mod.rs): the trait.
+- [`komorebi-linux/src/backend/fake.rs`](../../../komorebi-linux/src/backend/fake.rs): the fake and its
   tests.
-- [`komorebi/src/core`](../../komorebi/src/core/mod.rs): the vocabulary the rest is written
+- [`komorebi-linux/src/core/mod.rs`](../../../komorebi-linux/src/core/mod.rs): the vocabulary the rest is written
   in.
-- [`komorebi/src/workspace.rs`](../../komorebi/src/workspace.rs): tiling, in
+- [`komorebi-linux/src/workspace.rs`](../../../komorebi-linux/src/workspace.rs): tiling, in
   `Workspace::update`.
-- [`komorebi/src/monitor.rs`](../../komorebi/src/monitor.rs): the work area, padding and
+- [`komorebi-linux/src/monitor.rs`](../../../komorebi-linux/src/monitor.rs): the work area, padding and
   offset a monitor gives the workspace it shows.
-- [`komorebi/src/static_config.rs`](../../komorebi/src/static_config.rs): `komorebi.json`.
-  [`komorebi/tests/config.rs`](../../komorebi/tests/config.rs) loads files over the fake
-  desktop, [`komorebi/tests/config_displays.rs`](../../komorebi/tests/config_displays.rs) one
+- [`komorebi-linux/src/static_config.rs`](../../../komorebi-linux/src/static_config.rs): `komorebi.json`.
+  [`komorebi-linux/tests/config.rs`](../../../komorebi-linux/tests/config.rs) loads files over the fake
+  desktop, [`komorebi-linux/tests/config_displays.rs`](../../../komorebi-linux/tests/config_displays.rs) one
   with several monitors, [`komorebi-daemon/tests/linux_hot_reload.rs`](../../../komorebi-daemon/tests/linux_hot_reload.rs) the
   daemon following a file, and
-  [`komorebi/tests/config_parity.rs`](../../komorebi/tests/config_parity.rs) the files of other
+  [`komorebi-linux/tests/config_parity.rs`](../../../komorebi-linux/tests/config_parity.rs) the files of other
   platforms and the example, which load;
-  [`komorebi/tests/replace_configuration.rs`](../../komorebi/tests/replace_configuration.rs)
+  [`komorebi-linux/tests/replace_configuration.rs`](../../../komorebi-linux/tests/replace_configuration.rs)
   the `ReplaceConfiguration` message;
-  [`komorebi/tests/workspace_rules.rs`](../../komorebi/tests/workspace_rules.rs) the workspace
-  rules; [`komorebi/tests/schemas.rs`](../../komorebi/tests/schemas.rs) the schemas the daemon answers
-  with; [`schema.json`](../../schema.json), [`schema.asc.json`](../../schema.asc.json) and
-  [`nix/komorebi-options.nix`](../../nix/komorebi-options.nix), which are generated;
-  [`nix/tests/default.nix`](../../nix/tests/default.nix) and
-  [`nix/tests/komorebi-example.nix`](../../nix/tests/komorebi-example.nix), the check of the options
-  and the example it evaluates them against; [`komorebi/tests/asc.rs`](../../komorebi/tests/asc.rs)
-  the applications files; [`komorebi/src/core/asc.rs`](../../komorebi/src/core/asc.rs) their
+  [`komorebi-linux/tests/workspace_rules.rs`](../../../komorebi-linux/tests/workspace_rules.rs) the workspace
+  rules; [`komorebi-linux/tests/schemas.rs`](../../../komorebi-linux/tests/schemas.rs) the schemas the daemon answers
+  with; [`schemas/linux/schema.json`](../../../schemas/linux/schema.json), [`schemas/linux/schema.asc.json`](../../../schemas/linux/schema.asc.json) and
+  [`nix/linux/komorebi-options.nix`](../../../nix/linux/komorebi-options.nix), which are generated;
+  [`nix/linux/tests/default.nix`](../../../nix/linux/tests/default.nix) and
+  [`nix/linux/tests/komorebi-example.nix`](../../../nix/linux/tests/komorebi-example.nix), the check of the options
+  and the example it evaluates them against; [`komorebi-linux/tests/asc.rs`](../../../komorebi-linux/tests/asc.rs)
+  the applications files; [`komorebi-linux/src/core/asc.rs`](../../../komorebi-linux/src/core/asc.rs) their
   format.
-- [`komorebi/src/check.rs`](../../komorebi/src/check.rs): the checks of `komorebic check`, with
+- [`komorebi-linux/src/check.rs`](../../../komorebi-linux/src/check.rs): the checks of `komorebic check`, with
   their tests; [`komorebic/tests/linux_check.rs`](../../../komorebic/tests/linux_check.rs) runs the command on
   configurations, on key binding files and on buses that are not there, and reads what it prints
   and its exit status;
-  [`nix/tests/vm/suites/check`](../../nix/tests/vm/suites/check/test.py), the desktop check against
+  [`nix/linux/tests/vm/suites/check/test.py`](../../../nix/linux/tests/vm/suites/check/test.py), the desktop check against
   a real KWin, with the daemon running, with its script gone, with no daemon and with no KWin.
-- [`komorebi/src/process_event.rs`](../../komorebi/src/process_event.rs): what each event
+- [`komorebi-linux/src/process_event.rs`](../../../komorebi-linux/src/process_event.rs): what each event
   does, and the thread that handles them.
-- [`komorebi/src/process_command.rs`](../../komorebi/src/process_command.rs): the socket, what
+- [`komorebi-linux/src/process_command.rs`](../../../komorebi-linux/src/process_command.rs): the socket, what
   each message does, and the tests that send messages through a real socket.
-- [`komorebi-client/src/lib.rs`](../../komorebi-client/src/lib.rs): the client side of the
+- [`komorebi-client/src/lib.rs`](../../../komorebi-client/src/lib.rs): the client side of the
   socket.
 - [`komorebi-client/tests/linux_subscribe.rs`](../../../komorebi-client/tests/linux_subscribe.rs):
   subscribers and the notifications they are sent, through real sockets.
 - [`komorebic/src/linux/mod.rs`](../../../komorebic/src/linux/mod.rs): the subcommands, and
   [`komorebic/tests/linux_cli.rs`](../../../komorebic/tests/linux_cli.rs), what each writes on the socket.
-- [`komorebi/src/kwin/mod.rs`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus
+- [`komorebi-linux/src/kwin/mod.rs`](../../../komorebi-linux/src/kwin/mod.rs): the KWin backend, its D-Bus
   service and the held call.
-- [`komorebi/src/kwin/state.rs`](../../komorebi/src/kwin/state.rs): the table, with the
+- [`komorebi-linux/src/kwin/state.rs`](../../../komorebi-linux/src/kwin/state.rs): the table, with the
   shapes of the bridge's events, and its tests.
-- [`komorebi/src/kwin/bridge.js`](../../komorebi/src/kwin/bridge.js): the bridge, with the
+- [`komorebi-linux/src/kwin/bridge.js`](../../../komorebi-linux/src/kwin/bridge.js): the bridge, with the
   types of its messages; [`kwin-api.d.ts`] and
-  [`tsconfig.json`](../../komorebi/src/kwin/tsconfig.json), what `tsc` checks it against;
+  [`tsconfig.json`](../../../komorebi-linux/src/kwin/tsconfig.json), what `tsc` checks it against;
   [`bridge.test.js`], its tests; [`fixtures`], the messages both sides' tests read.
-- [`nix/tests/vm/suites/kwin-events`](../../nix/tests/vm/suites/kwin-events/test.py): the
+- [`nix/linux/tests/vm/suites/kwin-events/test.py`](../../../nix/linux/tests/vm/suites/kwin-events/test.py): the
   events of a real KWin, through the daemon.
-- [`nix/tests/vm/suites/core-e2e`](../../nix/tests/vm/suites/core-e2e/test.py): the daemon
+- [`nix/linux/tests/vm/suites/core-e2e/test.py`](../../../nix/linux/tests/vm/suites/core-e2e/test.py): the daemon
   tiling a real KWin, checked against what KWin has, with a window in monocle, and read and
   stopped with `komorebic`.
-- [`nix/tests/vm/suites/kwin-restart`](../../nix/tests/vm/suites/kwin-restart/test.py): KWin
+- [`nix/linux/tests/vm/suites/kwin-restart/test.py`](../../../nix/linux/tests/vm/suites/kwin-restart/test.py): KWin
   restarting under the daemon.
-- [`nix/kde-rounded-corners.nix`](../../nix/kde-rounded-corners.nix): the build of the KWin
+- [`nix/linux/kde-rounded-corners.nix`](../../../nix/linux/kde-rounded-corners.nix): the build of the KWin
   effect that draws an outline around each window, with
-  [`komorebi-border-colours.patch`](../../nix/kde-rounded-corners/komorebi-border-colours.patch),
+  [`komorebi-border-colours.patch`](../../../nix/linux/kde-rounded-corners/komorebi-border-colours.patch),
   which lets komorebi give each window a color;
-  [`nix/kwin-effect-geometry-change.nix`](../../nix/kwin-effect-geometry-change.nix), the
+  [`nix/linux/kwin-effect-geometry-change.nix`](../../../nix/linux/kwin-effect-geometry-change.nix), the
   effect that animates a window going to its place, with
-  [`curve.patch`](../../nix/kwin-effect-geometry-change/curve.patch), which makes its easing
+  [`curve.patch`](../../../nix/linux/kwin-effect-geometry-change/curve.patch), which makes its easing
   curve a setting; and
-  [`nix/tests/effects.nix`](../../nix/tests/effects.nix), the checks of the files each effect
+  [`nix/linux/tests/effects.nix`](../../../nix/linux/tests/effects.nix), the checks of the files each effect
   package installs.
-- [`komorebi/tests/borders.rs`](../../komorebi/tests/borders.rs) and
-  [`komorebi/tests/border_commands.rs`](../../komorebi/tests/border_commands.rs): the room a drawn
+- [`komorebi-linux/tests/borders.rs`](../../../komorebi-linux/tests/borders.rs) and
+  [`komorebi-linux/tests/border_commands.rs`](../../../komorebi-linux/tests/border_commands.rs): the room a drawn
   border takes, and the messages that set the border, against the fake;
-  [`komorebi/tests/animation.rs`](../../komorebi/tests/animation.rs), the messages that set the
-  animation, [`komorebi/tests/animation_config.rs`](../../komorebi/tests/animation_config.rs), its
-  key of the file, and [`komorebi/tests/animation_stack.rs`](../../komorebi/tests/animation_stack.rs),
-  the stack commands that turn it off; [`komorebi/tests/themes.rs`](../../komorebi/tests/themes.rs),
-  a named theme and [`komorebi/tests/theme_config.rs`](../../komorebi/tests/theme_config.rs), the
-  colors and the theme of the file; [`komorebi/tests/focus_follows_mouse.rs`](../../komorebi/tests/focus_follows_mouse.rs),
-  focus follows mouse; [`komorebi/tests/transparency.rs`](../../komorebi/tests/transparency.rs)
-  and [`komorebi/tests/transparency_config.rs`](../../komorebi/tests/transparency_config.rs),
-  transparency and its keys of the file; [`komorebi/tests/border_colours.rs`](../../komorebi/tests/border_colours.rs) and
-  [`komorebi/tests/borders_off.rs`](../../komorebi/tests/borders_off.rs), the color of each
+  [`komorebi-linux/tests/animation.rs`](../../../komorebi-linux/tests/animation.rs), the messages that set the
+  animation, [`komorebi-linux/tests/animation_config.rs`](../../../komorebi-linux/tests/animation_config.rs), its
+  key of the file, and [`komorebi-linux/tests/animation_stack.rs`](../../../komorebi-linux/tests/animation_stack.rs),
+  the stack commands that turn it off; [`komorebi-linux/tests/themes.rs`](../../../komorebi-linux/tests/themes.rs),
+  a named theme and [`komorebi-linux/tests/theme_config.rs`](../../../komorebi-linux/tests/theme_config.rs), the
+  colors and the theme of the file; [`komorebi-linux/tests/focus_follows_mouse.rs`](../../../komorebi-linux/tests/focus_follows_mouse.rs),
+  focus follows mouse; [`komorebi-linux/tests/transparency.rs`](../../../komorebi-linux/tests/transparency.rs)
+  and [`komorebi-linux/tests/transparency_config.rs`](../../../komorebi-linux/tests/transparency_config.rs),
+  transparency and its keys of the file; [`komorebi-linux/tests/border_colours.rs`](../../../komorebi-linux/tests/border_colours.rs) and
+  [`komorebi-linux/tests/borders_off.rs`](../../../komorebi-linux/tests/borders_off.rs), the color of each
   window's border, and none with borders off;
-  [`nix/tests/vm/suites/look`](../../nix/tests/vm/suites/look/test.py), the border in a real
+  [`nix/linux/tests/vm/suites/look/test.py`](../../../nix/linux/tests/vm/suites/look/test.py), the border in a real
   Plasma session, read from the pixels of a screenshot, and
-  [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py), the colors of the
-  kinds of window; [`nix/tests/vm/suites/focus-follows-mouse`](../../nix/tests/vm/suites/focus-follows-mouse/test.py),
-  focus follows mouse with a real pointer, which [`Pointer`](../../nix/tests/vm/lib/komorebi_vm/pointer.py)
-  moves from inside the guest; [`komorebi/tests/wallpaper.rs`](../../komorebi/tests/wallpaper.rs), the
+  [`nix/linux/tests/vm/suites/features/test.py`](../../../nix/linux/tests/vm/suites/features/test.py), the colors of the
+  kinds of window; [`nix/linux/tests/vm/suites/focus-follows-mouse/test.py`](../../../nix/linux/tests/vm/suites/focus-follows-mouse/test.py),
+  focus follows mouse with a real pointer, which [`Pointer`](../../../nix/linux/tests/vm/lib/komorebi_vm/pointer.py)
+  moves from inside the guest; [`komorebi-linux/tests/wallpaper.rs`](../../../komorebi-linux/tests/wallpaper.rs), the
   wallpapers and the colors made of them, against the fake; and
-  [`nix/tests/vm/suites/wallpaper`](../../nix/tests/vm/suites/wallpaper/test.py), against the
+  [`nix/linux/tests/vm/suites/wallpaper/test.py`](../../../nix/linux/tests/vm/suites/wallpaper/test.py), against the
   real Plasma shell.
-- [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
+- [`komorebi-linux/tests/wm_events.rs`](../../../komorebi-linux/tests/wm_events.rs): the window manager
   driven end to end against the fake.
 - [`komorebi-daemon/tests/linux_socket.rs`](../../../komorebi-daemon/tests/linux_socket.rs): the daemon over its socket,
   from its start to a `Stop`.
-- [`komorebi/tests/focus.rs`](../../komorebi/tests/focus.rs),
-  [`komorebi/tests/moving.rs`](../../komorebi/tests/moving.rs) and
-  [`komorebi/tests/layouts.rs`](../../komorebi/tests/layouts.rs): the focus, move and layout
+- [`komorebi-linux/tests/focus.rs`](../../../komorebi-linux/tests/focus.rs),
+  [`komorebi-linux/tests/moving.rs`](../../../komorebi-linux/tests/moving.rs) and
+  [`komorebi-linux/tests/layouts.rs`](../../../komorebi-linux/tests/layouts.rs): the focus, move and layout
   commands against the fake;
-  [`komorebi/tests/layout_options.rs`](../../komorebi/tests/layout_options.rs) and
-  [`komorebi/tests/scrolling.rs`](../../komorebi/tests/scrolling.rs), the layout options and the
-  scrolling layout; [`komorebi/tests/resize.rs`](../../komorebi/tests/resize.rs), resizing;
-  [`komorebi/tests/promote.rs`](../../komorebi/tests/promote.rs), promoting;
-  [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating;
-  [`komorebi/tests/lock.rs`](../../komorebi/tests/lock.rs), locking;
-  [`komorebi/tests/floating_layer.rs`](../../komorebi/tests/floating_layer.rs), the layers;
-  [`komorebi/tests/monocle.rs`](../../komorebi/tests/monocle.rs), the monocle;
-  [`komorebi/tests/maximize.rs`](../../komorebi/tests/maximize.rs) and
-  [`komorebi/tests/maximize_commands.rs`](../../komorebi/tests/maximize_commands.rs), maximizing;
-  [`komorebi/tests/user_maximize.rs`](../../komorebi/tests/user_maximize.rs) and
-  [`komorebi/tests/user_maximize_cases.rs`](../../komorebi/tests/user_maximize_cases.rs), a window
+  [`komorebi-linux/tests/layout_options.rs`](../../../komorebi-linux/tests/layout_options.rs) and
+  [`komorebi-linux/tests/scrolling.rs`](../../../komorebi-linux/tests/scrolling.rs), the layout options and the
+  scrolling layout; [`komorebi-linux/tests/resize.rs`](../../../komorebi-linux/tests/resize.rs), resizing;
+  [`komorebi-linux/tests/promote.rs`](../../../komorebi-linux/tests/promote.rs), promoting;
+  [`komorebi-linux/tests/float.rs`](../../../komorebi-linux/tests/float.rs), floating;
+  [`komorebi-linux/tests/lock.rs`](../../../komorebi-linux/tests/lock.rs), locking;
+  [`komorebi-linux/tests/floating_layer.rs`](../../../komorebi-linux/tests/floating_layer.rs), the layers;
+  [`komorebi-linux/tests/monocle.rs`](../../../komorebi-linux/tests/monocle.rs), the monocle;
+  [`komorebi-linux/tests/maximize.rs`](../../../komorebi-linux/tests/maximize.rs) and
+  [`komorebi-linux/tests/maximize_commands.rs`](../../../komorebi-linux/tests/maximize_commands.rs), maximizing;
+  [`komorebi-linux/tests/user_maximize.rs`](../../../komorebi-linux/tests/user_maximize.rs) and
+  [`komorebi-linux/tests/user_maximize_cases.rs`](../../../komorebi-linux/tests/user_maximize_cases.rs), a window
   the user maximizes;
-  [`komorebi/tests/fullscreen.rs`](../../komorebi/tests/fullscreen.rs), a window that goes
+  [`komorebi-linux/tests/fullscreen.rs`](../../../komorebi-linux/tests/fullscreen.rs), a window that goes
   fullscreen and comes back;
-  [`komorebi/tests/placement.rs`](../../komorebi/tests/placement.rs) and
-  [`komorebi/tests/placement_cases.rs`](../../komorebi/tests/placement_cases.rs), the placement
+  [`komorebi-linux/tests/placement.rs`](../../../komorebi-linux/tests/placement.rs) and
+  [`komorebi-linux/tests/placement_cases.rs`](../../../komorebi-linux/tests/placement_cases.rs), the placement
   rules;
-  [`komorebi/tests/manage.rs`](../../komorebi/tests/manage.rs), minimizing, closing,
+  [`komorebi-linux/tests/manage.rs`](../../../komorebi-linux/tests/manage.rs), minimizing, closing,
   unmanaging and managing the focused window, and pausing;
-  [`komorebi/tests/padding.rs`](../../komorebi/tests/padding.rs), the paddings and the work area
-  offsets; [`komorebi/tests/rules.rs`](../../komorebi/tests/rules.rs) and
-  [`komorebi/tests/rule_commands.rs`](../../komorebi/tests/rule_commands.rs), the rules and the
+  [`komorebi-linux/tests/padding.rs`](../../../komorebi-linux/tests/padding.rs), the paddings and the work area
+  offsets; [`komorebi-linux/tests/rules.rs`](../../../komorebi-linux/tests/rules.rs) and
+  [`komorebi-linux/tests/rule_commands.rs`](../../../komorebi-linux/tests/rule_commands.rs), the rules and the
   messages that add and show them;
-  [`komorebi/tests/drag_swap.rs`](../../komorebi/tests/drag_swap.rs), dragging a window onto
+  [`komorebi-linux/tests/drag_swap.rs`](../../../komorebi-linux/tests/drag_swap.rs), dragging a window onto
   another tile and onto another monitor;
-  [`komorebi/tests/drag_resize.rs`](../../komorebi/tests/drag_resize.rs), dragging an edge;
-  [`komorebi/tests/live_resize.rs`](../../komorebi/tests/live_resize.rs), the neighbors following
+  [`komorebi-linux/tests/drag_resize.rs`](../../../komorebi-linux/tests/drag_resize.rs), dragging an edge;
+  [`komorebi-linux/tests/live_resize.rs`](../../../komorebi-linux/tests/live_resize.rs), the neighbors following
   it.
-- [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
+- [`nix/linux/tests/vm/suites/scrolling/test.py`](../../../nix/linux/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
-- [`nix/tests/vm/suites/features`](../../nix/tests/vm/suites/features/test.py): what is on the
+- [`nix/linux/tests/vm/suites/features/test.py`](../../../nix/linux/tests/vm/suites/features/test.py): what is on the
   screen of a real compositing session, read from screenshots.
-- [`nix/tests/vm/suites/user-maximize`](../../nix/tests/vm/suites/user-maximize/test.py): a window
+- [`nix/linux/tests/vm/suites/user-maximize/test.py`](../../../nix/linux/tests/vm/suites/user-maximize/test.py): a window
   the user maximizes, in a real KWin.
-- [`nix/tests/vm/suites/placement`](../../nix/tests/vm/suites/placement/test.py): where the
+- [`nix/linux/tests/vm/suites/placement/test.py`](../../../nix/linux/tests/vm/suites/placement/test.py): where the
   windows of a real KWin go in the layout, by the placement rules of a `komorebi.json`.
-- [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
+- [`nix/linux/tests/vm/suites/commands/test.py`](../../../nix/linux/tests/vm/suites/commands/test.py): every layout,
   and every `komorebic` command, against a real KWin with two outputs.
-- [`nix/tests/vm/suites/drag-resize`](../../nix/tests/vm/suites/drag-resize/test.py): edges and
+- [`nix/linux/tests/vm/suites/drag-resize/test.py`](../../../nix/linux/tests/vm/suites/drag-resize/test.py): edges and
   corners dragged with a pointer in a Plasma session;
-  [`nix/tests/vm/suites/live-resize`](../../nix/tests/vm/suites/live-resize/test.py), the
+  [`nix/linux/tests/vm/suites/live-resize/test.py`](../../../nix/linux/tests/vm/suites/live-resize/test.py), the
   neighbors read while the edge is held.
-- [`komorebi/tests/monitor_resize.rs`](../../komorebi/tests/monitor_resize.rs),
-  [`komorebi/tests/hotplug.rs`](../../komorebi/tests/hotplug.rs) and
-  [`komorebi/tests/follow_output.rs`](../../komorebi/tests/follow_output.rs): a monitor that
+- [`komorebi-linux/tests/monitor_resize.rs`](../../../komorebi-linux/tests/monitor_resize.rs),
+  [`komorebi-linux/tests/hotplug.rs`](../../../komorebi-linux/tests/hotplug.rs) and
+  [`komorebi-linux/tests/follow_output.rs`](../../../komorebi-linux/tests/follow_output.rs): a monitor that
   changes size, monitors that are unplugged and plugged in, and windows that move to another
   output, against the fake;
-  [`nix/tests/vm/suites/hotplug`](../../nix/tests/vm/suites/hotplug/test.py), both against a real
+  [`nix/linux/tests/vm/suites/hotplug/test.py`](../../../nix/linux/tests/vm/suites/hotplug/test.py), both against a real
   KWin with two outputs.
-- [`komorebi/tests/wake.rs`](../../komorebi/tests/wake.rs): the desktop after a wake, against the
-  fake; [`komorebi/tests/power.rs`](../../komorebi/tests/power.rs), the signals of logind and
+- [`komorebi-linux/tests/wake.rs`](../../../komorebi-linux/tests/wake.rs): the desktop after a wake, against the
+  fake; [`komorebi-linux/tests/power.rs`](../../../komorebi-linux/tests/power.rs), the signals of logind and
   of the lock screen, on private buses;
-  [`nix/tests/vm/suites/lock-sleep`](../../nix/tests/vm/suites/lock-sleep/test.py), the lock
+  [`nix/linux/tests/vm/suites/lock-sleep/test.py`](../../../nix/linux/tests/vm/suites/lock-sleep/test.py), the lock
   screen of a real Plasma session.
-- [`komorebi/tests/workspaces.rs`](../../komorebi/tests/workspaces.rs): workspaces as the
+- [`komorebi-linux/tests/workspaces.rs`](../../../komorebi-linux/tests/workspaces.rs): workspaces as the
   fake's desktops;
-  [`komorebi/tests/workspace_commands.rs`](../../komorebi/tests/workspace_commands.rs), naming,
+  [`komorebi-linux/tests/workspace_commands.rs`](../../../komorebi-linux/tests/workspace_commands.rs), naming,
   cycling and the other workspace commands;
-  [`komorebi/tests/monitors.rs`](../../komorebi/tests/monitors.rs), two monitors: crossing from
-  one to the other, the monitor commands and `EagerFocus`; [`komorebi/src/kwin/kwinrc.rs`](../../komorebi/src/kwin/kwinrc.rs), the
+  [`komorebi-linux/tests/monitors.rs`](../../../komorebi-linux/tests/monitors.rs), two monitors: crossing from
+  one to the other, the monitor commands and `EagerFocus`; [`komorebi-linux/src/kwin/kwinrc.rs`](../../../komorebi-linux/src/kwin/kwinrc.rs), the
   `kwinrc` editor and its tests.
-- [`komorebi/tests/stacks.rs`](../../komorebi/tests/stacks.rs): stacking, unstacking and the windows
+- [`komorebi-linux/tests/stacks.rs`](../../../komorebi-linux/tests/stacks.rs): stacking, unstacking and the windows
   a stack hides, the behavior of new windows and the float override, against the fake;
-  [`nix/tests/vm/suites/stacks`](../../nix/tests/vm/suites/stacks/test.py), the same in a real
+  [`nix/linux/tests/vm/suites/stacks/test.py`](../../../nix/linux/tests/vm/suites/stacks/test.py), the same in a real
   KWin, with the parking desktop, a crash and a stop.
-- [`nix/tests/vm/suites/workspace-rules`](../../nix/tests/vm/suites/workspace-rules/test.py):
+- [`nix/linux/tests/vm/suites/workspace-rules/test.py`](../../../nix/linux/tests/vm/suites/workspace-rules/test.py):
   workspace rules sending windows to other workspaces of a real KWin, out of sight on the parking
   desktop until the workspace is shown.
-- [`nix/tests/vm/suites/workspace-switch`](../../nix/tests/vm/suites/workspace-switch/test.py):
+- [`nix/linux/tests/vm/suites/workspace-switch/test.py`](../../../nix/linux/tests/vm/suites/workspace-switch/test.py):
   workspaces as a real KWin's desktops, switched by `komorebic` and by KWin;
-  [`nix/tests/vm/suites/kwin-contract`](../../nix/tests/vm/suites/kwin-contract/test.py), the
+  [`nix/linux/tests/vm/suites/kwin-contract/test.py`](../../../nix/linux/tests/vm/suites/kwin-contract/test.py), the
   behavior of KWin's per-output virtual desktops komorebi relies on, with two outputs and no
   komorebi.
-- [`komorebi-hotkeys/src/lib.rs`](../../komorebi-hotkeys/src/lib.rs): the key binding model,
-  [`komorebi-hotkeys/src/qt.rs`](../../komorebi-hotkeys/src/qt.rs) the keys, and one module per
-  format, [`skhd.rs`](../../komorebi-hotkeys/src/skhd.rs),
-  [`whkd.rs`](../../komorebi-hotkeys/src/whkd.rs) and
-  [`sxhkd.rs`](../../komorebi-hotkeys/src/sxhkd.rs);
-  [`plan.rs`](../../komorebi-hotkeys/src/plan.rs) and [`kde.rs`](../../komorebi-hotkeys/src/kde.rs)
-  for the shortcuts, [`engine.rs`](../../komorebi-hotkeys/src/engine.rs) for the engine.
+- [`komorebi-hotkeys/src/lib.rs`](../../../komorebi-hotkeys/src/lib.rs): the key binding model,
+  [`komorebi-hotkeys/src/qt.rs`](../../../komorebi-hotkeys/src/qt.rs) the keys, and one module per
+  format, [`skhd.rs`](../../../komorebi-hotkeys/src/skhd.rs),
+  [`whkd.rs`](../../../komorebi-hotkeys/src/whkd.rs) and
+  [`sxhkd.rs`](../../../komorebi-hotkeys/src/sxhkd.rs);
+  [`plan.rs`](../../../komorebi-hotkeys/src/plan.rs) and [`kde.rs`](../../../komorebi-hotkeys/src/kde.rs)
+  for the shortcuts, [`engine.rs`](../../../komorebi-hotkeys/src/engine.rs) for the engine.
 - [`komorebic/src/linux/hotkeys.rs`](../../../komorebic/src/linux/hotkeys.rs): `export-kde-shortcuts` and
   `hotkeys compile`, and the key bindings section of `komorebic check`;
   [`komorebic/tests/linux_hotkeys.rs`](../../../komorebic/tests/linux_hotkeys.rs), what they write.
-- [`nix/tests/vm/suites/keys-static`](../../nix/tests/vm/suites/keys-static/test.py): static
+- [`nix/linux/tests/vm/suites/keys-static/test.py`](../../../nix/linux/tests/vm/suites/keys-static/test.py): static
   shortcuts run by a real KWin.
-- [`komorebi/src/kwin/hotkeys.rs`](../../komorebi/src/kwin/hotkeys.rs): the engine against
+- [`komorebi-linux/src/kwin/hotkeys.rs`](../../../komorebi-linux/src/kwin/hotkeys.rs): the engine against
   kglobalaccel, and
-  [`nix/tests/vm/suites/keys-engine`](../../nix/tests/vm/suites/keys-engine/test.py), keys
+  [`nix/linux/tests/vm/suites/keys-engine/test.py`](../../../nix/linux/tests/vm/suites/keys-engine/test.py), keys
   pressed in a real KWin with the daemon running;
-  [`nix/tests/vm/suites/restart-survival`](../../nix/tests/vm/suites/restart-survival/test.py),
+  [`nix/linux/tests/vm/suites/restart-survival/test.py`](../../../nix/linux/tests/vm/suites/restart-survival/test.py),
   the keys when the daemon and KWin go away.
-- [`komorebi-hotkeys/tests`](../../komorebi-hotkeys/tests): the corpus test and the comparison
+- [`komorebi-hotkeys/tests`](../../../komorebi-hotkeys/tests): the corpus test and the comparison
   with `whkd-parser`.
-- [`nix/tests/keybindings.nix`](../../nix/tests/keybindings.nix): `keybindings-fixtures`, and
-  [`nix/tests/vm/keys-corpus.py`](../../nix/tests/vm/keys-corpus.py), the corpus case `vm`
+- [`nix/linux/tests/keybindings.nix`](../../../nix/linux/tests/keybindings.nix): `keybindings-fixtures`, and
+  [`nix/linux/tests/vm/keys-corpus.py`](../../../nix/linux/tests/vm/keys-corpus.py), the corpus case `vm`
   pressed in the three formats on a machine the module configured.
-- [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
-  [`nix/supported-kwin.nix`](../../nix/supported-kwin.nix), the KWin versions it checks;
-  [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
-  real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),
+- [`nix/linux/nixos-module.nix`](../../../nix/linux/nixos-module.nix): the NixOS module;
+  [`nix/linux/supported-kwin.nix`](../../../nix/linux/supported-kwin.nix), the KWin versions it checks;
+  [`nix/linux/tests/nixos-module.nix`](../../../nix/linux/tests/nixos-module.nix), its scenarios, evaluated in
+  real NixOS systems; and [`nix/linux/tests/vm/suites/module/test.py`](../../../nix/linux/tests/vm/suites/module/test.py),
   a Plasma session in which the module's unit runs the daemon.
-- [`scripts/compare-gen.py`](../../scripts/compare-gen.py): writes the tables of
+- [`scripts/linux/compare-gen.py`](../../../scripts/linux/compare-gen.py): writes the tables of
   [COMPARE.md](COMPARE.md) from this checkout and from checkouts of komorebi for Windows and
   komorebi for Mac, and checks them. Continuous integration has neither checkout and does not run
   it.
-- [`scripts/wsl2-probe.sh`](../../scripts/wsl2-probe.sh), wrapped by
-  [`nix/dev/wsl2-probe.nix`](../../nix/dev/wsl2-probe.nix): probes a NixOS-WSL2 machine for KVM,
+- [`scripts/linux/wsl2-probe.sh`](../../../scripts/linux/wsl2-probe.sh), wrapped by
+  [`nix/linux/dev/wsl2-probe.nix`](../../../nix/linux/dev/wsl2-probe.nix): probes a NixOS-WSL2 machine for KVM,
   WSLg, a GPU and RDP ([wsl2-probe.md](wsl2-probe.md)). The flake checks `wsl2-probe` (ShellCheck
   over the script and over the guest's init) and `wsl2-probe-dry-run` (the script's `--dry-run` in
   the build sandbox) keep it building.

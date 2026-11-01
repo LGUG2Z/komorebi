@@ -1,6 +1,6 @@
 # The contract of a Platform
 
-A shared scenario (`nix/tests/vm/lib/komorebi_vm/core/scenarios`) runs on KDE here and on
+A shared scenario (`nix/linux/tests/vm/lib/komorebi_vm/core/scenarios`) runs on KDE here and on
 Windows in kfw's guests, through the `Platform` protocol (`core/platform.py`). A check
 that one port answers by how its implementation happens to work, and the other by what
 the system says, passes on one port for the wrong reason. This file lists what each member

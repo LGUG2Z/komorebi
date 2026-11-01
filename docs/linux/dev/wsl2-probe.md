@@ -237,12 +237,12 @@ when `nixos-rebuild` rejects one, its options page has the current name.
 
 ## How the script is checked
 
-The script is `scripts/wsl2-probe.sh` and the flake wraps it
-([`nix/dev/wsl2-probe.nix`](../../nix/dev/wsl2-probe.nix)): `packages.<system>.wsl2-probe`
+The script is `scripts/linux/wsl2-probe.sh` and the flake wraps it
+([`nix/linux/dev/wsl2-probe.nix`](../../../nix/linux/dev/wsl2-probe.nix)): `packages.<system>.wsl2-probe`
 and the app of the same name, and `wsl2-probe-guest`, the kernel and the initrd
 (with the modules of virtio's PCI transport and of virtiofs).
-The initrd's init and the loop are `nix/dev/wsl2-probe-init.sh` and
-`nix/dev/wsl2-probe-loop.sh`; the same loop file is what the script times on the
+The initrd's init and the loop are `nix/linux/dev/wsl2-probe-init.sh` and
+`nix/linux/dev/wsl2-probe-loop.sh`; the same loop file is what the script times on the
 machine.
 
 Two checks of the flake keep the script from rotting between the times someone

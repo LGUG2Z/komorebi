@@ -18,10 +18,10 @@ The guests of a Mac are `aarch64-linux`. A guest of a Linux host that has no KVM
 the runner refuses, because Plasma under software emulation is too slow to try anything.
 
 They are `nixosConfigurations` of the flake, made from
-[`nix/dev/plasma-vm.nix`](../../nix/dev/plasma-vm.nix),
-[`nix/dev/plasma-utm.nix`](../../nix/dev/plasma-utm.nix) and
-[`nix/dev/krdp.nix`](../../nix/dev/krdp.nix), by `mkPlasmaGuest` in
-[`flake.nix`](../../flake.nix), which takes the system of the guest and the packages of the machine
+[`nix/linux/dev/plasma-vm.nix`](../../../nix/linux/dev/plasma-vm.nix),
+[`nix/linux/dev/plasma-utm.nix`](../../../nix/linux/dev/plasma-utm.nix) and
+[`nix/linux/dev/krdp.nix`](../../../nix/linux/dev/krdp.nix), by `mkPlasmaGuest` in
+[`flake.nix`](../../../flake.nix), which takes the system of the guest and the packages of the machine
 that runs QEMU. Each one installs komorebi with the flake's NixOS
 module, `services.komorebi`, so the komorebi in a guest is the one of the commit the guest was
 built from, and in the session guests the module's unit starts it at login. They carry no key,
@@ -46,7 +46,7 @@ and the builder needs room for it and for its build: the defaults of `darwin.lin
 core, 3 GB of memory, a 20 GB disk) are too small. Six cores and 10 GB of memory worked, at time
 of writing (2026-10-27).
 
-The examples below use the same variables as `scripts/vm-mac`:
+The examples below use the same variables as `scripts/linux/vm-mac`:
 
 ```sh
 export KOMOREBI_BUILDER=ssh-ng://builder@localhost   # the store URL of your builder
@@ -115,7 +115,7 @@ session guest shows nothing on the host, as on a Mac: it is reached over RDP ([b
 ## The demo guest
 
 `run-kde-x86_64` and `run-kde-aarch64` are the session guest with a demo on it, made by
-[`nix/dev/run-kde.nix`](../../nix/dev/run-kde.nix) on top of `plasma-vm.nix`. komorebi is
+[`nix/linux/dev/run-kde.nix`](../../../nix/linux/dev/run-kde.nix) on top of `plasma-vm.nix`. komorebi is
 configured by the module's typed `config` (eight workspaces with a layout each, borders and
 animation) and by the sample key bindings, `docs/skhdrc.sample`, in the module's default mode. At
 login the guest opens two Konsole windows, Kate and Dolphin, which komorebi tiles, and a cheat sheet
@@ -171,7 +171,7 @@ the closure is built:
 ## The command
 
 `run-kde` starts the demo guest on a Linux machine, from a checkout: `nix run .#run-kde -- [options]`,
-or `just run-kde [options]`. It is [`scripts/run-kde`](../../scripts/run-kde), which the flake wraps
+or `just run-kde [options]`. It is [`scripts/linux/run-kde`](../../../scripts/linux/run-kde), which the flake wraps
 with the runner of the machine's guest (`run-kde-x86_64` or `run-kde-aarch64`) written into it, as
 `packages.<system>.run-kde` and `apps.<system>.run-kde`. The package names the runner and does not
 depend on it, so `nix run` does not fetch 4 GB before the command can say what the machine lacks.
@@ -233,11 +233,11 @@ script reads the machine through variables, so that a test can make up a machine
 `RUN_KDE_WSLCONFIG`, besides `WAYLAND_DISPLAY` and `DISPLAY`; and `RUN_KDE_GUEST` and
 `RUN_KDE_RUNNER_BIN`, which the package sets, and `RUN_KDE_QEMU_OPTS`, which adds to the options of
 QEMU. The checks `run-kde-dry-run` and `run-kde-doctor`
-([`nix/tests/run-kde.nix`](../../nix/tests/run-kde.nix)) run it against a WSL 2 with WSLg and a GPU,
+([`nix/linux/tests/run-kde.nix`](../../../nix/linux/tests/run-kde.nix)) run it against a WSL 2 with WSLg and a GPU,
 one with WSLg and a software OpenGL, one with WSLg and no GPU device, a Linux machine with no
 window, `--tcg` with no KVM, and machines that cannot run the guest (no KVM, a KVM the user cannot
 open, a `virtiofsd` that exits), a `/dev/fuse` that is missing or closed, and compare the output
-with the texts in [`nix/tests/run-kde`](../../nix/tests/run-kde). The check `run-kde` builds the package, which
+with the texts in [`nix/linux/tests/run-kde`](../../../nix/linux/tests/run-kde). The check `run-kde` builds the package, which
 shellchecks the script.
 
 ## The UTM disk

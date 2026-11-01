@@ -2,7 +2,7 @@
 
 [COMPARE.md](COMPARE.md) compares komorebi for KDE Plasma (kfde) with komorebi for Windows (kfw)
 from their sources. This document compares them from running them: the scenarios in
-`nix/tests/vm/lib/komorebi_vm/core/scenarios` are written once, against the `Platform` of
+`nix/linux/tests/vm/lib/komorebi_vm/core/scenarios` are written once, against the `Platform` of
 [vm-tests.md](vm-tests.md), and run on a real KWin and on a real Windows 11 desktop. A scenario that
 passes on both says the two ports behave the same in that respect, as far as the scenario looks. A
 scenario that fails on one says where they differ, and is a finding to look into, not an assertion
@@ -16,7 +16,7 @@ runs, and goes stale when the code changes.
 - **kfde**: the suites of this repository, run on 2026-10-29 on a Windows 11 machine's WSL 2 (a
   Ryzen 9 5900X, nested KVM), at `scale` 1.5.
 - **kfw**: a Windows 11 guest under QEMU on the same machine, running kfw's daemon, driven from
-  kfw's tree with a copy of `core/` that `scripts/sync-e2e-core` keeps in step. These results were
+  kfw's tree with a copy of `core/` that `scripts/linux/sync-e2e-core` keeps in step. These results were
   reported by the session that ran them, and are not repeated here. The guest is a Windows 11
   evaluation image. Its display driver was the basic one for the scenarios that have run; a second
   display, added and removed while it runs, has since worked with a QXL device and Red Hat's signed
@@ -73,13 +73,13 @@ and the cause is not known.
 ## What the last runs said
 
 The table above says what each scenario checks. This one is made from the runs themselves, by
-`scripts/scenario-status`, from the logs of the suites on KDE and the result files of kfw
+`scripts/linux/scenario-status`, from the logs of the suites on KDE and the result files of kfw
 (`result.json` for each scenario), so it says what happened and not what somebody wrote. A scenario
 a run did not include shows as `-`; kfw's counts are of the checks labelled `shared`. Regenerate
 it after a run:
 
 ```sh
-scripts/scenario-status --kde LOG... --windows DIR --update docs/dev/BEHAVIOUR.md
+scripts/linux/scenario-status --kde LOG... --windows DIR --update docs/linux/dev/BEHAVIOUR.md
 ```
 
 <!-- scenario-status:begin -->
@@ -173,7 +173,7 @@ from the enum rather than the hand-written deserializer, describes the type as o
 description of the case and the reason, and records the case that way, whether the daemon does not
 start or puts the windows elsewhere. The other four cases give the same order on both ports.
 Fixed upstream in kfw (`3b424dd7`: accept an integer as well as a string, and a schema written by hand);
-kfde already had the same fix, and its unit test is in `komorebi/src/core/mod.rs`. A Windows run
+kfde already had the same fix, and its unit test is in `komorebi-linux/src/core/mod.rs`. A Windows run
 of kfw's `next` passes all 5 cases.
 
 **`hotplug` on kfw (fixed upstream).** After a display is unplugged, Windows reports one display within a second,
@@ -244,7 +244,7 @@ window it did not have again as a `Show` on a title change, so that a rule on th
 decided (windows are often announced before their title is set), and a window that renamed itself
 away from an ignore rule was tiled. The `title_rule` scenario found the difference (kfw's first
 Windows run: the window was never managed). The decision is that the ports match, and kfde changed:
-`WindowManagerEvent::TitleUpdate` does nothing, the unit tests in `komorebi/tests/rule_commands.rs`
+`WindowManagerEvent::TitleUpdate` does nothing, the unit tests in `komorebi-linux/tests/rule_commands.rs`
 say so, and `title_rule` asserts it on both ports. Passes on a real KWin (5 checks). The price on
 KDE: a window that opens with no title and gets one later is decided by the rules on the empty
 title only.
@@ -314,7 +314,7 @@ set of five had one run lose its agent for over a minute, mid-sweep, which nothi
 
 ## Does a broken daemon turn them red
 
-On kfde, with a real KWin: `komorebi/src/workspace.rs` was changed, for one run and never
+On kfde, with a real KWin: `komorebi-linux/src/workspace.rs` was changed, for one run and never
 committed, to make every tile 200 pixels too wide after the layout is calculated, so that tiles
 overlap. `core-e2e` failed 7 checks and passed 139: the overlap checks of the suite's own first
 tiling and of the `tiling` scenario (two each), the one in the suite that says two windows share

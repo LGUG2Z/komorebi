@@ -7,8 +7,8 @@ It is for a Linux machine with KVM, and the steps below are for NixOS in WSL 2 o
 is the machine it was written for. Nothing on this page has been run on WSL 2 yet: what was run, and
 what was not, is [at the end](#what-is-known).
 
-The virtual machine is the demo guest of [`nix/dev/run-kde.nix`](../nix/dev/run-kde.nix), and the
-command that starts it is [`scripts/run-kde`](../scripts/run-kde). [Plasma guests to develop
+The virtual machine is the demo guest of [`nix/linux/dev/run-kde.nix`](../../nix/linux/dev/run-kde.nix), and the
+command that starts it is [`scripts/linux/run-kde`](../../scripts/linux/run-kde). [Plasma guests to develop
 in](dev/utm.md) says how they are made.
 
 ## What you need
@@ -154,7 +154,7 @@ between runs, in the state directory.
 
 ### The key bindings
 
-komorebi reads the bindings of [`docs/skhdrc.sample`](skhdrc.sample), in the module's default mode,
+komorebi reads the bindings of [`docs/linux/skhdrc.sample`](skhdrc.sample), in the module's default mode,
 where the daemon handles every binding. Alt is either Alt key. The ones to start with:
 
 | Keys | What they do |

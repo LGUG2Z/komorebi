@@ -6,7 +6,7 @@ newer ([PLATFORM.md](dev/PLATFORM.md) has what it needs from the session).
 
 On NixOS, the repository's flake has a module that installs both programs and starts komorebi
 with every Plasma session. On any other distribution, build them from source, or take the
-binaries of a release ([Binaries](../README.md#binaries) says which and what they need).
+binaries of a release ([Binaries](README.md#binaries) says which and what they need).
 
 There is no binary cache: the Komorebi license does not allow third parties to redistribute
 binaries, so the flake builds komorebi from source on each machine that installs it. On NixOS,
@@ -75,7 +75,7 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
 - Without `services.desktopManager.plasma6.enable`, the configuration does not evaluate: an
   assertion of the module fails, and its message names the option to set.
 - It checks the KWin of your nixpkgs (`pkgs.kdePackages.kwin`) against the versions in the
-  repository's [`nix/supported-kwin.nix`](../nix/supported-kwin.nix). A KWin older than 6.8 is an
+  repository's [`nix/linux/supported-kwin.nix`](../../nix/linux/supported-kwin.nix). A KWin older than 6.8 is an
   error. A KWin newer than the newest one komorebi has been tested with is a warning when you build
   the system, or an error with `services.komorebi.kwin.untestedIsError`.
 
@@ -180,7 +180,7 @@ version string builds libgit2, and zlib when the system has none. Then:
 ```sh
 git clone https://github.com/LGUG2Z/komorebi-for-kde
 cd komorebi-for-kde
-cargo install --locked --path komorebi
+cargo install --locked --path komorebi-daemon
 cargo install --locked --path komorebic
 ```
 

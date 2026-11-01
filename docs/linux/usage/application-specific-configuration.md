@@ -67,7 +67,7 @@ extension `.json` is read.
 
 ## The file komorebi ships
 
-[`komorebic/applications.json`](../../komorebic/applications.json) in the repository has an
+[`komorebic/applications.json`](../../../komorebic/applications.json) in the repository has an
 entry for KDE Plasma, which floats the calculators of KDE and GNOME, the screenshot tool, the
 authentication dialog of Plasma and System Settings. A test loads it, and opens the windows it
 names.

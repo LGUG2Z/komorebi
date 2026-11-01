@@ -2,7 +2,7 @@
 
 `komorebi`, and tiling window managers in general, are very complex pieces of software. To make
 starting out easier, the repository has an example configuration,
-[`docs/komorebi.example.json`](komorebi.example.json), which is kept working: a test loads it with
+[`docs/linux/komorebi.example.json`](komorebi.example.json), which is kept working: a test loads it with
 every change.
 
 Besides `komorebi.json`, komorebi for KDE is configured by the NixOS module, which installs it and
@@ -89,7 +89,7 @@ each workspace, are there too.
 
 `app_specific_configuration_path` names a file of rules for the applications that need them, which
 the repository has a start of in
-[`komorebic/applications.json`](../komorebic/applications.json). `komorebic quickstart` puts a copy
+[`komorebic/applications.json`](../../komorebic/applications.json). `komorebic quickstart` puts a copy
 where the example says, `~/.config/komorebi/applications.json`; a path with no file behind it is
 skipped.
 [Application specific configuration](usage/application-specific-configuration.md) explains the

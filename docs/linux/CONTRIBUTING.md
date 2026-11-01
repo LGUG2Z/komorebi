@@ -31,9 +31,9 @@ the 0-BSD license.
 
 ## Working on the code
 
-`nix develop` (or [direnv](https://direnv.net), through the [`.envrc`](.envrc))
+`nix develop` (or [direnv](https://direnv.net), through the [`.envrc`](../../.envrc))
 provides the Rust toolchain, a nightly `rustfmt` and the tools the checks use.
-[`rustfmt.toml`](rustfmt.toml) uses an unstable option, which is why the
+[`rustfmt.toml`](../../rustfmt.toml) uses an unstable option, which is why the
 formatter is a nightly one.
 
 `just check` runs everything a change has to pass before it is pushed: the
@@ -46,25 +46,25 @@ KVM.
 
 ## The bridge
 
-[`bridge.js`](komorebi/src/kwin/bridge.js), the script komorebi loads into
+[`bridge.js`](../../komorebi-linux/src/kwin/bridge.js), the script komorebi loads into
 KWin, is JavaScript that KWin runs as it is: there is no package.json and no
 build step. Its types are JSDoc comments, which `tsc` checks against
-[`kwin-api.d.ts`](komorebi/src/kwin/kwin-api.d.ts), the part of KWin's
+[`kwin-api.d.ts`](../../komorebi-linux/src/kwin/kwin-api.d.ts), the part of KWin's
 scripting API the bridge uses; something the bridge starts to use is declared
-there first. Its tests, [`bridge.test.js`](komorebi/src/kwin/bridge.test.js),
+there first. Its tests, [`bridge.test.js`](../../komorebi-linux/src/kwin/bridge.test.js),
 run under `node --test` against a fake KWin. `just check-js` runs both, with the
 `tsc` and `node` of the dev shell.
 
 The messages between the bridge and the daemon are in
-[`komorebi/src/kwin/fixtures`](komorebi/src/kwin/fixtures), which the tests of
+[`komorebi-linux/src/kwin/fixtures`](../../komorebi-linux/src/kwin/fixtures), which the tests of
 both sides read. A change to a message changes the fixture, the bridge and the
 daemon in the same commit.
 
 ## The NixOS module
 
-[`nix/nixos-module.nix`](nix/nixos-module.nix) is `services.komorebi`, which the
+[`nix/linux/nixos-module.nix`](../../nix/linux/nixos-module.nix) is `services.komorebi`, which the
 flake exports as `nixosModules.default` with its overlay. A change to it comes
-with a scenario in [`nix/tests/nixos-module.nix`](nix/tests/nixos-module.nix),
+with a scenario in [`nix/linux/tests/nixos-module.nix`](../../nix/linux/tests/nixos-module.nix),
 the `nixos-module-eval` check: each scenario is a real NixOS system that is
 evaluated and never built, and its checks read the assertions, the unit and
 the options it evaluates to. It runs on a Mac too, with `nix build
@@ -73,8 +73,8 @@ session also changes the VM suite `module`, which logs in to Plasma on a machine
 with the module and checks the daemon the unit runs. Every other VM suite runs
 on machines built with the module too.
 
-Three files are generated from the Rust types and committed: `schema.json` and
-`schema.asc.json` (`just jsonschema`), and `nix/komorebi-options.nix`, which types the
+Three files are generated from the Rust types and committed: `schemas/linux/schema.json` and
+`schemas/linux/schema.asc.json` (`just jsonschema`), and `nix/linux/komorebi-options.nix`, which types the
 module's `config` (`just nixgen`, which needs `schemars-nixgen`, `cargo install
 schemars-nixgen`). A change to what `komorebi.json` or an `applications.json` can
 say regenerates them in the same commit, and the check `schema-fresh` fails when
@@ -83,33 +83,35 @@ made from, which is how the check tells without running `schemars-nixgen`.
 
 A change to what `komorebic hotkeys compile` prints for a key binding file shows
 in `keybindings-fixtures`, which compares its output for every file of the
-fixture corpus with `nix/tests/keybindings.expected`: write the file again with
-the loop in `nix/tests/keybindings.nix`, and read the difference before
+fixture corpus with `nix/linux/tests/keybindings.expected`: write the file again with
+the loop in `nix/linux/tests/keybindings.nix`, and read the difference before
 committing it.
 
-[`nix/supported-kwin.nix`](nix/supported-kwin.nix) has the oldest KWin komorebi
+[`nix/linux/supported-kwin.nix`](../../nix/linux/supported-kwin.nix) has the oldest KWin komorebi
 supports, `min`, and the newest one every VM suite has passed against,
 `testedMax`, which the module checks a system's KWin against. `testedMax` is
 raised by hand, once every suite has passed against a newer KWin: in the weekly
 canary job, or on a branch whose `flake.lock` has it. The commit changes
 `testedMax` and the dated comment above it (the date, the nixpkgs revision and
 the KWin), and its message says which run that was and which suites ran.
-`nix eval --raw --file nix/supported-kwin.nix testedMax` reads it without the
+`nix eval --raw --file nix/linux/supported-kwin.nix testedMax` reads it without the
 flake. `min` changes with the code, in the commit that starts to use something an
 older KWin does not have.
 
 ## The comparison
 
-[`docs/dev/COMPARE.md`](docs/dev/COMPARE.md) compares komorebi for KDE with komorebi
+[`docs/linux/dev/COMPARE.md`](dev/COMPARE.md) compares komorebi for KDE with komorebi
 for Windows and komorebi for Mac, and its tables are generated by
-[`scripts/compare-gen.py`](scripts/compare-gen.py) (Python 3 and nothing else) from
-this checkout and from checkouts of the other two: the komorebi repository around it and its
-`komorebi-for-mac/` when this is `komorebi-for-kde/` of that repository, else `~/komorebi` and
-`~/komorebi-for-mac`, unless `--kfw` and `--kfm` say otherwise. Continuous
-integration has neither checkout, so it does not run the script. A change to a
+[`scripts/linux/compare-gen.py`](../../scripts/linux/compare-gen.py) (Python 3 and nothing else) from
+this checkout and from checkouts of the other two. The script is stale: it was written when
+komorebi for KDE lived in `komorebi-for-kde/` of a repository next to `komorebi-for-mac/`, and
+it looks for the other two trees there (or in `~/komorebi` and `~/komorebi-for-mac`). Since the
+consolidation they are `komorebi-windows/` and `komorebi-macos/` of this repository, and the
+script and `COMPARE.md` have not been made again. Continuous
+integration has no checkouts, so it does not run the script. A change to a
 `komorebic` command, a `SocketMessage`, a key of `komorebi.json`, a
 `WindowManagerEvent`, a method of `Backend` or a list of keys in `check.rs` is
-followed by `python3 -I scripts/compare-gen.py --check docs/dev/COMPARE.md`, and
+followed by `python3 -I scripts/linux/compare-gen.py --check docs/linux/dev/COMPARE.md`, and
 by `--update` when it reports a stale block, in the same commit. The script stops
 and says what when a command, key, event or method has no note about why it
 differs, and when a sentence of the document stops being true; the text around an
@@ -119,19 +121,19 @@ updated block is read again each time.
 
 A change that needs a real KWin to be checked comes with a VM test, next to
 the Rust test that covers the same behavior against the fake desktop.
-[`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) says how they are laid out, how
+[`docs/linux/dev/vm-tests.md`](dev/vm-tests.md) says how they are laid out, how
 to run one (`just vm NAME`) and how to add one.
 
 ## The KWin effects
 
-The patches in [`nix`](nix) change the KWin effects komorebi drives. Each one
+The patches in [`nix`](../../nix/linux) change the KWin effects komorebi drives. Each one
 is a derivative work of its effect, which is under the GNU General Public
 License version 3, and is under the same license. A patch starts with a header
 that describes the change and carries the license notice; `patch` skips the
 text before the first `diff` line. To change a patch, make the change in the
 effect's source at the version the package pins, and write the whole diff again
 with `diff -ruN a b` below the header. The check of each package, named after
-it (in [`nix/tests/effects.nix`](nix/tests/effects.nix)), builds the package
+it (in [`nix/linux/tests/effects.nix`](../../nix/linux/tests/effects.nix)), builds the package
 and checks the files it installs, and for a patched package that the patch is
 in them:
 
@@ -142,32 +144,32 @@ nix build .#checks.x86_64-linux.kwin-effect-geometry-change-komorebi-install
 
 ## Plasma guests to develop in
 
-[`nix/dev`](nix/dev) has NixOS guests with Plasma for trying a change by hand,
+[`nix/linux/dev`](../../nix/linux/dev) has NixOS guests with Plasma for trying a change by hand,
 on an Apple silicon Mac (two that QEMU runs and a disk image for UTM) and on a
 Linux machine with KVM (the same two QEMU guests, for `x86_64` and for
-`aarch64`, and a demo guest, [`nix/dev/run-kde.nix`](nix/dev/run-kde.nix)).
-[`docs/dev/utm.md`](docs/dev/utm.md) says how to build and run them,
+`aarch64`, and a demo guest, [`nix/linux/dev/run-kde.nix`](../../nix/linux/dev/run-kde.nix)).
+[`docs/linux/dev/utm.md`](dev/utm.md) says how to build and run them,
 and what a builder has to be for a Mac. They install komorebi with the NixOS
 module, and carry nothing of the person who uses them: a key, a password or a
 configuration of yours goes into the guest when it runs, never into these files.
 The `plasma-guests-eval` check evaluates them, the VM suite `rdp` runs their
-RDP server, [`nix/dev/krdp.nix`](nix/dev/krdp.nix), and the VM suite `run-kde`
+RDP server, [`nix/linux/dev/krdp.nix`](../../nix/linux/dev/krdp.nix), and the VM suite `run-kde`
 boots the demo guest. The demo guest has no
 password and no key in its closure: the host shares a directory with them, and
-`run-kde` ([`scripts/run-kde`](scripts/run-kde)) starts it. The script is
+`run-kde` ([`scripts/linux/run-kde`](../../scripts/linux/run-kde)) starts it. The script is
 shellchecked when the package is built, and `run-kde-dry-run` and
 `run-kde-doctor` compare what it prints for made-up machines with the texts in
-[`nix/tests/run-kde`](nix/tests/run-kde): change one with the other.
+[`nix/linux/tests/run-kde`](../../nix/linux/tests/run-kde): change one with the other.
 
 ## Continuous integration
 
-[`ci.yaml`](.github/workflows/ci.yaml) runs on every pull request and on every
+[`ci.yaml`](../dev/old-ci/linux/workflows/ci.yaml) runs on every pull request and on every
 push to `master`, `feature/*` and `hotfix/*`, in this repository only. The
 `lint` job builds every check that needs no virtual machine and runs
 `just lint`, `cargo-deny` checks licenses and advisories, and
 the VM tests run on KVM in two jobs: `vm-fast` on every pull request and
 `vm-slow` on `master`, every week, and on pull requests labeled `ci:vm-slow`. A weekly
-[workflow](.github/workflows/update-flake-lock.yaml) opens a pull request that
+[workflow](../dev/old-ci/linux/workflows/update-flake-lock.yaml) opens a pull request that
 moves `flake.lock`, and the same jobs run on it.
 
 The flake follows the tip of nixpkgs-unstable, so KWin and Plasma change
@@ -185,7 +187,7 @@ nixpkgs is not pinned back.
 ## Releases
 
 A release is a tag. Set `version` in
-[`komorebi/Cargo.toml`](komorebi/Cargo.toml) (which the flake reads) to the new version, commit it, and push the tag
+[`komorebi-linux/Cargo.toml`](../../komorebi-linux/Cargo.toml) (which the flake reads) to the new version, commit it, and push the tag
 `vVERSION` on that commit. For every run, the `build` job of `ci.yaml` builds
 `komorebi` and `komorebic` with nix on an x86_64 and an arm64 runner, and keeps
 them as an artifact of the run for 14 days. On a tag, once `lint`, `vm-fast` and
@@ -195,7 +197,7 @@ with:
 - `komorebi-VERSION-x86_64-unknown-linux-gnu.zip` and
   `komorebi-VERSION-aarch64-unknown-linux-gnu.zip`, each with the two binaries;
 - `checksums.txt`, the SHA-256 sum of every other file of the release;
-- `schema.json`, the schema of `komorebi.json`, when the repository has one;
+- `schemas/linux/schema.json`, the schema of `komorebi.json`, when the repository has one;
 - release notes that [kokai](https://github.com/Joxit/kokai) writes from the
   commit messages since the previous version tag.
 
@@ -222,7 +224,7 @@ included, is at most 80 columns, and the body says why the change is made.
 
 Documentation lands in the commit that changes the behavior it describes, not
 in a later one. A change to a `komorebic` subcommand regenerates its page in
-[`docs/cli`](docs/cli) with `just docgen`.
+[`docs/linux/cli`](cli) with `just docgen`.
 
 ## Zero-Clause BSD
 

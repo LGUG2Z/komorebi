@@ -12,12 +12,12 @@ they are laid out, how to run them, and how to add one.
 | CI, `x86_64-linux` | `nix build -L .#checks.x86_64-linux.vm-NAME` | KVM |
 | CI, `x86_64-linux`, the weekly canary | the same, with nixpkgs moved to the tip of nixpkgs-unstable | KVM |
 | A Linux machine with KVM | `just vm NAME` | KVM |
-| A Mac | `just vm NAME`, which runs `scripts/vm-mac` | HVF |
+| A Mac | `just vm NAME`, which runs `scripts/linux/vm-mac` | HVF |
 | A Linux machine with no KVM | `nix build -L .#legacyPackages.SYSTEM.vmTcg.NAME` | TCG |
 
 CI runs the `fast` tier on every pull request and the `slow` tier on `master`,
 every week, and on pull requests labeled `ci:vm-slow`
-([`ci.yaml`](../../.github/workflows/ci.yaml)). The slow jobs run the driver
+([`ci.yaml`](../../dev/old-ci/linux/workflows/ci.yaml)). The slow jobs run the driver
 by hand instead of building the check, so that the screenshots and journals of a
 failed run can be uploaded as an artifact. KVM on GitHub-hosted runners is
 documented for public repositories; the first step of each VM job checks that
@@ -27,7 +27,7 @@ The `canary` job runs both tiers once more every week, against the tip of
 nixpkgs-unstable instead of the nixpkgs `flake.lock` pins: it runs
 `nix flake update nixpkgs` in a copy of the checkout, builds every check there,
 the suites one after the other on one machine, and opens an issue when one
-fails ([`CONTRIBUTING.md`](../../CONTRIBUTING.md#continuous-integration)). It is
+fails ([`CONTRIBUTING.md`](../CONTRIBUTING.md#continuous-integration)). It is
 how a new KWin or Plasma that breaks a suite is found before the lock moves to
 it.
 
@@ -39,15 +39,15 @@ depends on settings of Windows. `nix run .#wsl2-probe` boots a tiny guest with
 and without KVM and times both ([wsl2-probe.md](wsl2-probe.md)).
 
 The suites are what `testedMax` in
-[`nix/supported-kwin.nix`](../../nix/supported-kwin.nix) means: the newest KWin
+[`nix/linux/supported-kwin.nix`](../../../nix/linux/supported-kwin.nix) means: the newest KWin
 every suite has passed against. When the weekly canary job, which runs every
 suite against the tip of nixpkgs-unstable, passes with a newer KWin, a commit
 raises `testedMax` to it and says which suites ran
-([CONTRIBUTING.md](../../CONTRIBUTING.md#the-nixos-module)).
+([CONTRIBUTING.md](../CONTRIBUTING.md#the-nixos-module)).
 
 Each suite is a directory under
-[`nix/tests/vm/suites`](../../nix/tests/vm/suites). The generator in
-[`nix/tests/vm/default.nix`](../../nix/tests/vm/default.nix) lists that
+[`nix/linux/tests/vm/suites`](../../../nix/linux/tests/vm/suites). The generator in
+[`nix/linux/tests/vm/default.nix`](../../../nix/linux/tests/vm/default.nix) lists that
 directory, so a new suite is a new directory and nothing else: it appears as
 `checks.<system>.vm-NAME` on Linux and as `legacyPackages.<system>.vm.NAME`
 everywhere. `legacyPackages.<system>.vmTiers` lists the names of each tier as
@@ -69,7 +69,7 @@ A suite has two files:
 ## Nodes
 
 `kind` picks a file under
-[`nix/tests/vm/nodes`](../../nix/tests/vm/nodes).
+[`nix/linux/tests/vm/nodes`](../../../nix/linux/tests/vm/nodes).
 
 Both nodes are built with the NixOS module, as a user's machine is: they import
 `nixosModules.default`, which the generator passes to them, and enable
@@ -78,7 +78,7 @@ commit under test. `services.komorebi.logLevel` is `"debug"`, because the tests
 read the daemon's debug log. A suite can change either option in its `node`:
 `latency`, which times the daemon, runs it at `"info"`.
 The checks of the module that need no machine are `nixos-module-eval`
-([`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix)), and the
+([`nix/linux/tests/nixos-module.nix`](../../../nix/linux/tests/nixos-module.nix)), and the
 suite `module` checks its unit in a Plasma session.
 
 `headless` is a machine with Plasma installed and no login. Each KWin a test
@@ -104,7 +104,7 @@ in the session from the start, as on a user's machine; `render-smoke`, which
 checks that the session draws, turns it off. It is the node for anything that
 needs pixels: `features` reads what komorebi does from screenshots of it. The
 choice of login manager is made in
-[`nodes/session.nix`](../../nix/tests/vm/nodes/session.nix) and nowhere else;
+[`nodes/session.nix`](../../../nix/linux/tests/vm/nodes/session.nix) and nowhere else;
 the file says how to switch to sddm, the other one that has been seen to work.
 Its display is 1280x800, because screenshots are taken of the machine's one
 display device: the `virtio-gpu-pci` that the test driver adds to every aarch64
@@ -119,9 +119,9 @@ On aarch64 under HVF, at time of writing (2026-10-27), the session has the
 Wayland socket after 11 to 19 seconds and a painted desktop after 35 seconds.
 
 A suite's `node` can import a module of the repository: `rdp` imports
-[`nix/dev/krdp.nix`](../../nix/dev/krdp.nix), the RDP server of the Plasma
+[`nix/linux/dev/krdp.nix`](../../../nix/linux/dev/krdp.nix), the RDP server of the Plasma
 guests to develop in, so that the suite checks the unit those guests run, and
-`run-kde` imports [`nix/dev/run-kde.nix`](../../nix/dev/run-kde.nix), the demo
+`run-kde` imports [`nix/linux/dev/run-kde.nix`](../../../nix/linux/dev/run-kde.nix), the demo
 guest that the command `run-kde` starts, so that what CI boots is what the
 command starts. The node of `run-kde` also makes the directory that the host
 shares with that guest (`/run/run-kde`), owned by a user the guest does not
@@ -132,7 +132,7 @@ mounted it. The guests themselves, which stay up for a person to use, are in
 ## The library
 
 Suites import from `komorebi_vm`, in
-[`nix/tests/vm/lib`](../../nix/tests/vm/lib). It does not depend on the test
+[`nix/linux/tests/vm/lib`](../../../nix/linux/tests/vm/lib). It does not depend on the test
 driver. It depends on the small `Machine` protocol, and its unit tests pass a
 fake machine, so the `vm-lib` check tests it without booting anything. The
 check also runs `ruff` and `ty` over it. The driver type checks every
@@ -173,7 +173,7 @@ the run.
   The scenarios run on two platforms. KDE runs them in `core-e2e`, except `resize` and
   `focus_follows_mouse`, which need a pointer and run at the end of `drag-resize`. A
   Windows 11 guest under QEMU, which kfw drives from its own tree with this `core/` copied
-  unchanged (`scripts/sync-e2e-core` keeps the copy in step until `core/` moves there),
+  unchanged (`scripts/linux/sync-e2e-core` keeps the copy in step until `core/` moves there),
   runs all of them against kfw's daemon. [BEHAVIOUR.md](BEHAVIOUR.md) says what each
   scenario found on each port, and what turned red when the daemon was deliberately broken.
 - `Checks` counts checks and fails once, at the end, so that one failure does
@@ -255,7 +255,7 @@ the run.
   guest, milliseconds apart: moves that each wait for the test are seconds
   apart, and KWin was seen to lose the horizontal part of such a drag. The
   pointer lands within a pixel of where it is asked. The program itself is
-  [`komorebi_vm/uinput.py`](../../nix/tests/vm/lib/komorebi_vm/uinput.py),
+  [`nix/linux/tests/vm/lib/komorebi_vm/uinput.py`](../../../nix/linux/tests/vm/lib/komorebi_vm/uinput.py),
   whose arithmetic the `vm-lib` check tests.
 - `RdpClient(machine, kde)` is FreeRDP's client on an X server of its own, for a
   node that runs KRDP: `listening()` asks the guest whether the server has its
@@ -314,7 +314,7 @@ Two traps are worth knowing about before writing a screenshot test:
 
 QEMU has to run on the Mac to use HVF, and the guest is Linux, so the guest's
 closure is built on a Linux builder and the driver runs on the Mac. The nix
-sandbox on macOS cannot give QEMU the hypervisor, so `scripts/vm-mac` runs the
+sandbox on macOS cannot give QEMU the hypervisor, so `scripts/linux/vm-mac` runs the
 driver directly instead of building the check.
 
 ```sh
@@ -335,9 +335,9 @@ The script prints where the artifacts (screenshots, logs) are, under
 
 ## Writing a test
 
-1. Create `nix/tests/vm/suites/NAME/default.nix` and `test.py`. Start from
-   [`suites/kwin`](../../nix/tests/vm/suites/kwin), or from
-   [`suites/kwin-events`](../../nix/tests/vm/suites/kwin-events) for a test that
+1. Create `nix/linux/tests/vm/suites/NAME/default.nix` and `test.py`. Start from
+   [`suites/kwin`](../../../nix/linux/tests/vm/suites/kwin), or from
+   [`suites/kwin-events`](../../../nix/linux/tests/vm/suites/kwin-events) for a test that
    runs the daemon.
 2. Pick the tier. `fast` suites are the pull request gate and should take
    minutes. `slow` suites run on `master` and every week.
@@ -351,7 +351,7 @@ Add `git add -N` for new files first: a flake only sees files git knows about.
 ## Writing a scenario
 
 A scenario is a function `run(platform, checks, ...)` in
-`nix/tests/vm/lib/komorebi_vm/core/scenarios/`. It is what runs on every
+`nix/linux/tests/vm/lib/komorebi_vm/core/scenarios/`. It is what runs on every
 platform, so it follows four rules:
 
 - It reaches the desktop only through the `Platform`, and the daemon only through
@@ -383,7 +383,7 @@ the fake and fails on KDE has found a bug in the fake, the library or the daemon
 - **The daemon is built once, not once per commit.** The VM tests install the daemon built with the
   constant commit `nix-check` (`nixosModules.forVmTests`), as the checks do, so a new commit does not
   build it again. The version a VM test sees is therefore not the commit. The source of the build
-  leaves out `nix/tests/vm/`, so editing a test, the library or a fixture does not rebuild it either.
+  leaves out `nix/linux/tests/vm/`, so editing a test, the library or a fixture does not rebuild it either.
   `nix build .#komorebi-full`, and what a user installs, still has the real commit.
 - **Each step says how long it took.** `run_suite` prints `[scope] module.function: 12.3 s` after
   every step, so a log shows which scenario the time went to.
@@ -417,7 +417,7 @@ with the run's other artifacts. A run without the variable records nothing.
 ## Looking inside a failed run
 
 `nix build -L` prints the guest's console, and a session test keeps its screenshots. Run the driver by hand, as
-`scripts/vm-mac` does, to keep the screenshots. For an interactive session
+`scripts/linux/vm-mac` does, to keep the screenshots. For an interactive session
 build `driverInteractive` instead of `driver`, run it, and call `start_all()`
 and `machine.shell_interact()` at its prompt. In the guest, KWin's own log is
 `journalctl --user -u kwin-virtual@NAME` as the test user, and a KWin script's

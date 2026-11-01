@@ -244,8 +244,8 @@ rule of the workspace away and leave it with the layout it has.
 ## The schema
 
 The Rust types that read `komorebi.json` also describe it as a JSON Schema, which an editor can
-check the file against, and which the NixOS module is typed from. [`schema.json`](../../schema.json)
-in the repository is the schema of `komorebi.json`, [`schema.asc.json`](../../schema.asc.json) the
+check the file against, and which the NixOS module is typed from. [`schemas/linux/schema.json`](../../../schemas/linux/schema.json)
+in the repository is the schema of `komorebi.json`, [`schemas/linux/schema.asc.json`](../../../schemas/linux/schema.asc.json) the
 schema of an [`applications.json`](application-specific-configuration.md), and the commands print
 them (and two more), without a daemon:
 

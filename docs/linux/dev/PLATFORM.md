@@ -19,7 +19,7 @@ tests of this repository run against the nixpkgs that `flake.lock` pins: at time
 - **Session bus**: the D-Bus bus of the session. komorebi and KWin talk over it.
 - **KWin**: the compositor and window manager of Plasma, `kwin_wayland`.
 - **Script**: a JavaScript program that KWin runs inside itself, through its scripting API.
-  komorebi's is the **bridge**, [`bridge.js`](../../komorebi/src/kwin/bridge.js).
+  komorebi's is the **bridge**, [`bridge.js`](../../../komorebi-linux/src/kwin/bridge.js).
 - **Output**: KWin's name for a monitor.
 - **Desktop**: one of KWin's virtual desktops. Each output shows one; komorebi's workspace `i`
   is desktop `i`.
@@ -92,7 +92,7 @@ komorebi's use of them in a headless KWin:
   lists it depends on the task manager's setting for showing the windows of the current desktop
   only; the VM tests have no panel, so this is not measured.
 
-[`nix/supported-kwin.nix`](../../nix/supported-kwin.nix) records both ends: `min`, the oldest
+[`nix/linux/supported-kwin.nix`](../../../nix/linux/supported-kwin.nix) records both ends: `min`, the oldest
 KWin komorebi supports (6.8), and `testedMax`, the newest KWin every VM suite has passed against
 (6.8.2, with nixpkgs-unstable `f05535a`). The NixOS module reads the file. A system whose KWin
 is older than `min` does not evaluate; one whose KWin is newer than `testedMax` builds with a
@@ -103,7 +103,7 @@ The repository follows the tip of nixpkgs-unstable, so a newer KWin reaches it w
 `flake.lock` update or shows up first in the weekly canary job, which builds every check and runs
 every VM suite against the tip. Once every suite has passed against a newer KWin, a commit raises
 `testedMax` to it, with the date and the nixpkgs revision in the file's comment, and says in its
-message which run it was and which suites ran ([CONTRIBUTING.md](../../CONTRIBUTING.md#the-nixos-module)).
+message which run it was and which suites ran ([CONTRIBUTING.md](../CONTRIBUTING.md#the-nixos-module)).
 
 ### Wayland
 
@@ -517,7 +517,7 @@ configuration it has.
 
 What the KWin scripting API offers a script, and what it does not, at time of writing
 (2026-10-27). The bridge is written around these, and
-[`kwin-api.d.ts`](../../komorebi/src/kwin/kwin-api.d.ts) declares the part of the API it
+[`kwin-api.d.ts`](../../../komorebi-linux/src/kwin/kwin-api.d.ts) declares the part of the API it
 uses, which `tsc` checks it against with ECMAScript 2016's library and nothing else. Node and
 TypeScript are needed only for those checks: in the session the bridge needs KWin alone.
 
@@ -620,7 +620,7 @@ with two outputs of 1920x1080:
 
 At time of writing (2026-10-27), a real suspend and resume is not tested: the QEMU guests the VM
 tests run in have no way to wake from one. The signals are tested on private buses
-(`komorebi/tests/power.rs`), and the lock screen against a real KWin in a Plasma session
+(`komorebi-linux/tests/power.rs`), and the lock screen against a real KWin in a Plasma session
 (`vm-lock-sleep`, which locks and unlocks with `loginctl lock-session` and `unlock-session`).
 
 ## How long a retile takes
@@ -651,7 +651,7 @@ patches (see [The patches](#the-patches)):
 
 Each package is in the flake's `packages` for Linux and in `overlays.default`, which builds it
 with the `callPackage` of the nixpkgs it is applied to, so that it follows that nixpkgs' KWin.
-[`nix/tests/effects.nix`](../../nix/tests/effects.nix) has a check for each, which builds the
+[`nix/linux/tests/effects.nix`](../../../nix/linux/tests/effects.nix) has a check for each, which builds the
 package and inspects its files the way KWin finds them, without a session.
 
 At time of writing (2026-10-27):
@@ -725,7 +725,7 @@ Each patch is a derivative work of the effect it changes, and is under the same 
 GNU General Public License version 3; its header states the license and describes the
 change. The check of a patched package asserts that the patch is in the build.
 
-[`komorebi-border-colours.patch`](../../nix/kde-rounded-corners/komorebi-border-colours.patch),
+[`komorebi-border-colours.patch`](../../../nix/linux/kde-rounded-corners/komorebi-border-colours.patch),
 for KDE Rounded Corners, makes two changes:
 
 - **A color for each window.** The stock effect has one outline color for the active window
@@ -745,7 +745,7 @@ for KDE Rounded Corners, makes two changes:
   contents change or the window is resized, so a change of opacity alone would not show. The
   patched effect redirects the window again when its opacity changes.
 
-[`curve.patch`](../../nix/kwin-effect-geometry-change/curve.patch), for Geometry Change, adds
+[`curve.patch`](../../../nix/linux/kwin-effect-geometry-change/curve.patch), for Geometry Change, adds
 a `Curve` setting to the effect's group: the name of any of Qt's easing curves (`OutExpo`,
 `InOutSine`, ...), read with the effect's other settings and used for every animation. An
 unknown or missing name is the stock effect's curve, `OutExpo`. The check asserts that the
@@ -819,7 +819,7 @@ At time of writing (2026-10-27):
 ### RDP into the session
 
 The session guests to develop in ([utm.md](utm.md)) run KRDP as a user unit of the session,
-[`nix/dev/krdp.nix`](../../nix/dev/krdp.nix): `krdpserver --plasma`, which asks KWin for the
+[`nix/linux/dev/krdp.nix`](../../../nix/linux/dev/krdp.nix): `krdpserver --plasma`, which asks KWin for the
 screen and for input through its own Wayland protocols (KRDP's desktop file lists
 `zkde_screencast_unstable_v1` and `org_kde_kwin_fake_input`), so no portal asks the user first. The
 unit makes a self-signed certificate, and logs in the session's user with a password the user
@@ -855,7 +855,7 @@ and KRDP 6.8.1 and FreeRDP 3.32.2:
 `run-kde` is written for NixOS in WSL 2 on Windows 11 with an AMD CPU and an x86_64 guest, and
 nothing in this section has been measured on that machine yet. The table says what the command
 expects and what is still to be recorded, as dated facts, from the probe
-(`scripts/wsl2-probe.sh`) when somebody runs it there. The facts that were measured on a Linux machine
+(`scripts/linux/wsl2-probe.sh`) when somebody runs it there. The facts that were measured on a Linux machine
 with KVM and no WSL, window or GPU are in [Rendering in virtual machines and over
 RDP](#rendering-in-virtual-machines-and-over-rdp).
 

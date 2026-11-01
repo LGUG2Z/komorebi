@@ -5,12 +5,12 @@
 [`komorebic quickstart`](../cli/quickstart.md) writes three example files into the config home
 (`~/.config/komorebi`, or `$KOMOREBI_CONFIG_HOME`), which it makes if it has to:
 
-- `komorebi.json`, which is [`docs/komorebi.example.json`](../example-configurations.md):
+- `komorebi.json`, which is [`docs/linux/example-configurations.md`](../example-configurations.md):
   eight workspaces on the first monitor, each with another layout, and some padding;
 - `applications.json`, which is
-  [`komorebic/applications.json`](application-specific-configuration.md#the-file-komorebi-ships),
+  [`docs/linux/usage/application-specific-configuration.md`](application-specific-configuration.md#the-file-komorebi-ships),
   the rules `komorebi.json` names for the applications that need them;
-- `skhdrc`, which is [`docs/skhdrc.sample`](../skhdrc.sample): the [key bindings](keybindings.md)
+- `skhdrc`, which is [`docs/linux/skhdrc.sample`](../skhdrc.sample): the [key bindings](keybindings.md)
   of the sample, in the format of skhd, which the daemon and `komorebic hotkeys compile` read from
   there.
 
