@@ -5,7 +5,9 @@ description = "The command-line interface for Komorebi, a tiling window manager 
 edition = "2024"
 
 [dependencies]
-komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = ["schemars"] }
+komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = [
+  "schemars",
+] }
 komorebi = { package = "komorebi-linux", path = "../komorebi", default-features = false }
 komorebi-client = { package = "komorebi-client-linux", path = "../komorebi-client", default-features = false }
 komorebi-hotkeys = { path = "../komorebi-hotkeys" }
