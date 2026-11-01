@@ -15,10 +15,13 @@
 #            shared crates belong to the kde and mac trees
 #   mac      komorebi-for-mac/**/*.rs and the macos modules of the shared crates, with
 #            komorebi-for-mac/rustfmt.toml
-#   kde      `cargo fmt -p <the kde packages>`, as komorebi-for-kde/flake.nix does
-# The nightly rustfmt is $RUSTFMT if set, else `rustfmt` if that is a nightly, else the one of the
-# dev shell of the root flake (`nix develop`), which is the one the nix checks use (a nightly of the
-# pinned rust-overlay; another nightly may format a little differently).
+#   kde      komorebi-for-kde/**/*.rs and the linux modules of the shared crates, with
+#            komorebi-for-kde/rustfmt.toml (the same file-by-file invocation as the mac one; the nix
+#            check runs this script with the rustfmt of the flake's own nightly, fmtToolchain)
+# The nightly rustfmt is $RUSTFMT if set, else the one of the dev shell of the root flake (`nix develop`),
+# which is the nightly of the pinned rust-overlay that the nix checks use (the flake of each tree pins the
+# same revision; another nightly may format differently and may not follow cfg_select), else a nightly
+# `rustfmt` on PATH.
 set -uo pipefail
 
 orig_args=("$@")
@@ -39,10 +42,12 @@ done
 root=$(cd "$root" && pwd)
 
 if [ -z "${RUSTFMT:-}" ]; then
-  if rustfmt --version 2>/dev/null | grep -q nightly; then
+  if [ -n "${FORMAT_ALL_IN_SHELL:-}" ]; then
     RUSTFMT=rustfmt
-  elif [ -z "${FORMAT_ALL_IN_SHELL:-}" ] && command -v nix >/dev/null; then
+  elif command -v nix >/dev/null; then
     FORMAT_ALL_IN_SHELL=1 exec nix develop "$root" --command "$0" "${orig_args[@]}" --root "$root"
+  elif rustfmt --version 2>/dev/null | grep -q nightly; then
+    RUSTFMT=rustfmt
   else
     echo "format-all: no nightly rustfmt (set RUSTFMT)" >&2; exit 2
   fi
@@ -77,6 +82,7 @@ if [ "$tree" = mac ] || [ "$tree" = all ]; then
 fi
 if [ "$tree" = kde ] || [ "$tree" = all ]; then
   echo "format-all: kde"
-  cargo fmt -p komorebi -p komorebi-linux -p komorebic -p komorebi-client -p komorebi-hotkeys -- $flag || status=1
+  { rs_files | grep '^komorebi-for-kde/'; rs_files | grep -E "^(komorebic/src/linux|komorebic/tests/linux_|komorebi-client/src/linux\.rs|komorebi-client/tests/linux_)"; } \
+    | run_rustfmt komorebi-for-kde/rustfmt.toml || status=1
 fi
 exit $status
