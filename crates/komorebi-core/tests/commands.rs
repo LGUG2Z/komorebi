@@ -274,7 +274,10 @@ fn only_windows_lets_the_pointer_pick_the_monitor_for_the_empty_and_close_comman
     other.pointer_on = Some(1);
     komorebi_core::close_workspace(&mut other).unwrap();
     assert!(
-        !other.calls.iter().any(|call| call.starts_with("focus_monitor")),
+        !other
+            .calls
+            .iter()
+            .any(|call| call.starts_with("focus_monitor")),
         "KDE and macOS do not look at the pointer here"
     );
 
@@ -286,4 +289,128 @@ fn only_windows_lets_the_pointer_pick_the_monitor_for_the_empty_and_close_comman
     });
     komorebi_core::close_workspace(&mut host).unwrap();
     assert_eq!(host.0.calls[0], "focus_monitor 1");
+}
+
+impl komorebi_core::MonitorCommandHost for Host {
+    fn mouse_follows_focus(&self) -> bool {
+        true
+    }
+
+    fn update_focused_workspace(
+        &mut self,
+        follow_focus: bool,
+        trigger_focus: bool,
+    ) -> eyre::Result<()> {
+        self.calls.push(format!(
+            "update_focused_workspace {follow_focus} {trigger_focus}"
+        ));
+        Ok(())
+    }
+
+    fn direction_from_monitor_idx(&self, idx: usize) -> Option<OperationDirection> {
+        (idx != self.focused).then_some(OperationDirection::Right)
+    }
+
+    fn move_container_to_monitor(
+        &mut self,
+        idx: usize,
+        workspace_idx: Option<usize>,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()> {
+        self.calls.push(format!(
+            "move_to_monitor {idx} {workspace_idx:?} {follow} {}",
+            direction.is_some()
+        ));
+        Ok(())
+    }
+
+    fn focused_workspace_idx(&self) -> eyre::Result<usize> {
+        Ok(self.shown())
+    }
+}
+
+fn two_monitors() -> Host {
+    let mut host = Host::new(3);
+    host.monitors.push_back(monitor(3));
+    host
+}
+
+#[test]
+fn cycle_move_to_workspace_moves_and_send_to_workspace_does_not_follow() {
+    // commands.py: "cycle-move-to-workspace previous" and "cycle-send-to-workspace next"
+    let mut host = Host::new(3);
+
+    komorebi_core::cycle_move_container_to_workspace(&mut host, CycleDirection::Previous, true)
+        .unwrap();
+    komorebi_core::cycle_move_container_to_workspace(&mut host, CycleDirection::Next, false)
+        .unwrap();
+
+    assert_eq!(
+        host.calls,
+        ["move_container 2 true", "move_container 1 false"]
+    );
+}
+
+#[test]
+fn cycle_monitor_focuses_the_next_monitor_and_lays_it_out() {
+    // commands.py: "cycle-monitor next"
+    let mut host = two_monitors();
+
+    komorebi_core::cycle_focus_monitor(&mut host, CycleDirection::Next).unwrap();
+
+    assert_eq!(host.focused, 1);
+    assert_eq!(
+        host.calls,
+        ["focus_monitor 1", "update_focused_workspace true true"]
+    );
+
+    komorebi_core::cycle_focus_monitor(&mut host, CycleDirection::Next).unwrap();
+    assert_eq!(host.focused, 0, "it wraps");
+}
+
+#[test]
+fn cycle_move_and_send_to_monitor_go_in_the_direction_of_the_target() {
+    // commands.py: "cycle-move-to-monitor next" and "cycle-send-to-monitor next"
+    let mut host = two_monitors();
+
+    komorebi_core::cycle_move_container_to_monitor(&mut host, CycleDirection::Next, true).unwrap();
+    komorebi_core::cycle_move_container_to_monitor(&mut host, CycleDirection::Next, false).unwrap();
+
+    assert_eq!(
+        host.calls,
+        [
+            "move_to_monitor 1 None true true",
+            "move_to_monitor 1 None false true"
+        ]
+    );
+}
+
+#[test]
+fn focus_monitor_workspace_does_nothing_when_that_is_already_in_front() {
+    // commands.py: "focus-monitor-workspace 0 1"
+    let mut host = two_monitors();
+
+    komorebi_core::focus_monitor_workspace_number(&mut host, 0, 0).unwrap();
+    assert!(host.calls.is_empty());
+
+    komorebi_core::focus_monitor_workspace_number(&mut host, 1, 2).unwrap();
+    assert_eq!(host.calls, ["focus_monitor 1", "focus_workspace 2"]);
+}
+
+#[test]
+fn move_and_send_to_monitor_workspace_name_the_workspace() {
+    // commands.py: "move-to-monitor-workspace 0 1" and "send-to-monitor-workspace 0 1"
+    let mut host = two_monitors();
+
+    komorebi_core::move_container_to_monitor_workspace_number(&mut host, 1, 2, true).unwrap();
+    komorebi_core::move_container_to_monitor_workspace_number(&mut host, 1, 2, false).unwrap();
+
+    assert_eq!(
+        host.calls,
+        [
+            "move_to_monitor 1 Some(2) true true",
+            "move_to_monitor 1 Some(2) false true"
+        ]
+    );
 }

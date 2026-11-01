@@ -218,3 +218,118 @@ pub fn move_container_to_last_workspace<H: CommandHost>(
         .last_focused_workspace = Option::from(idx);
     Ok(())
 }
+
+/// What the commands that move across monitors need besides [`CommandHost`].
+pub trait MonitorCommandHost: CommandHost {
+    /// Whether the pointer follows the focus.
+    fn mouse_follows_focus(&self) -> bool;
+
+    /// Lays the focused workspace out again and, with `trigger_focus`, focuses its window.
+    fn update_focused_workspace(
+        &mut self,
+        follow_focus: bool,
+        trigger_focus: bool,
+    ) -> eyre::Result<()>;
+
+    /// The direction in which one goes from the focused monitor to the one at `idx`, if they are
+    /// next to each other.
+    fn direction_from_monitor_idx(&self, idx: usize) -> Option<OperationDirection>;
+
+    /// Moves the focused container to the monitor at `idx` (to workspace `workspace_idx` of it, or
+    /// the one it shows), and follows it when `follow` is set.
+    fn move_container_to_monitor(
+        &mut self,
+        idx: usize,
+        workspace_idx: Option<usize>,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()>;
+
+    /// The index of the workspace shown on the focused monitor.
+    fn focused_workspace_idx(&self) -> eyre::Result<usize>;
+}
+
+/// Moves the focused container to the next or previous workspace of the focused monitor, and follows
+/// it when `follow` is set
+pub fn cycle_move_container_to_workspace<H: CommandHost>(
+    host: &mut H,
+    direction: CycleDirection,
+    follow: bool,
+) -> eyre::Result<()> {
+    let focused_monitor = host.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+    let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+    let workspaces = focused_monitor.workspaces().len();
+
+    let workspace_idx = direction.next_idx(
+        focused_workspace_idx,
+        NonZeroUsize::new(workspaces).ok_or_eyre("there must be at least one workspace")?,
+    );
+
+    host.move_container_to_workspace(workspace_idx, follow, None)?;
+    Ok(())
+}
+
+/// Focuses the next or previous monitor
+pub fn cycle_focus_monitor<H: MonitorCommandHost>(
+    host: &mut H,
+    direction: CycleDirection,
+) -> eyre::Result<()> {
+    let monitor_idx = direction.next_idx(
+        host.focused_monitor_idx(),
+        NonZeroUsize::new(host.monitors().len())
+            .ok_or_eyre("there must be at least one monitor")?,
+    );
+
+    host.focus_monitor(monitor_idx)?;
+    let mouse_follows_focus = host.mouse_follows_focus();
+    host.update_focused_workspace(mouse_follows_focus, true)?;
+    Ok(())
+}
+
+/// Moves the focused container to the next or previous monitor, and follows it when `follow` is set
+pub fn cycle_move_container_to_monitor<H: MonitorCommandHost>(
+    host: &mut H,
+    direction: CycleDirection,
+    follow: bool,
+) -> eyre::Result<()> {
+    let monitor_idx = direction.next_idx(
+        host.focused_monitor_idx(),
+        NonZeroUsize::new(host.monitors().len())
+            .ok_or_eyre("there must be at least one monitor")?,
+    );
+
+    let direction = host.direction_from_monitor_idx(monitor_idx);
+    host.move_container_to_monitor(monitor_idx, None, follow, direction)?;
+    Ok(())
+}
+
+/// Shows workspace `workspace_idx` of monitor `monitor_idx`, unless that is what is in front
+pub fn focus_monitor_workspace_number<H: MonitorCommandHost>(
+    host: &mut H,
+    monitor_idx: usize,
+    workspace_idx: usize,
+) -> eyre::Result<()> {
+    let focused_monitor_idx = host.focused_monitor_idx();
+    let focused_workspace_idx = host.focused_workspace_idx().unwrap_or_default();
+    let focused_pair = (focused_monitor_idx, focused_workspace_idx);
+
+    if focused_pair != (monitor_idx, workspace_idx) {
+        host.focus_monitor(monitor_idx)?;
+        host.focus_workspace(workspace_idx)?;
+    }
+    Ok(())
+}
+
+/// Moves the focused container to workspace `workspace_idx` of monitor `monitor_idx`, and follows it
+/// when `follow` is set
+pub fn move_container_to_monitor_workspace_number<H: MonitorCommandHost>(
+    host: &mut H,
+    monitor_idx: usize,
+    workspace_idx: usize,
+    follow: bool,
+) -> eyre::Result<()> {
+    let direction = host.direction_from_monitor_idx(monitor_idx);
+    host.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), follow, direction)?;
+    Ok(())
+}
