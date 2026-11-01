@@ -1409,3 +1409,41 @@ or field, so moving them means moving `WindowManager`, the blockers of section 1
   `WorkAreaOffset`, ...): thin calls of `WindowManager` methods that edit a workspace and re-layout, the
   same coupling;
 - queries, configuration, borders, animations, transparency, schema: statics and the platform.
+
+## 23. Design note: thin events, a common vocabulary for `process_event` (not implemented)
+
+Status: design only (D-coord-13 (c)). Nothing here is built; the event enums and handlers are unchanged. The variant lists below were read from the three `window_manager_event.rs` files; how each handler arm behaves was read at section 17 and not re-measured here.
+
+**Today.** Each daemon has its own `WindowManagerEvent`, built from the platform notification:
+- Windows: `Destroy, FocusChange, Hide, Cloak, Minimize, Show, Uncloak, MoveResizeStart, MoveResizeEnd, MouseCapture, Maximize, Unmaximize, Manage, Unmanage, Raise, TitleUpdate`, most carrying `(WinEvent, Window)`.
+- KDE: `FocusChange, Show, Destroy, Minimize, Restore, TitleUpdate, FullscreenChange(bool), OutputChange, MaximizeChange(bool), Manage, Unmanage, MoveStart, MoveEnd, ResizeStart, ResizeEnd, ResizeStep, WorkspaceChange(desktop, idx), WorkspaceMove`, carrying `(SystemNotification, Window)`.
+- macOS: `FocusChange, Show, Destroy, Minimize, Restore, Manage, Unmanage, MoveStart, MoveEnd, ResizeStart, ResizeStep, ResizeEnd, SpaceChange, ScreenLock, ScreenUnlock`, carrying a process id and a window id instead of a `Window`.
+
+Only `Destroy`, `Show` and `Minimize` exist under the same name on all three; `FocusChange`, `Manage`, `Unmanage`, `TitleUpdate` exist on Windows and KDE (macOS has the first three). The payloads differ: the platform notification, a `Window` or raw ids. So a shared `process_event` cannot match on today's enums.
+
+**Proposal.** A small enum in `komorebi-core`, generic over the platform's window id and window type, that the platform adapter produces from its notification and that describes what happened, not how the OS said it:
+
+```rust
+pub enum CoreEvent<W> {
+    Appeared(W),            // Show, Manage, Uncloak, WindowAdded
+    Gone(W),                // Destroy, Unmanage, Hide of a managed window
+    Minimized(W),           // Minimize, Cloak on Windows
+    Restored(W),            // Restore, Unminimize, Uncloak
+    FocusMoved(W),          // FocusChange
+    MoveOrResize(Phase, W), // Start, Step, End for Windows MoveResize*, KDE and macOS Move/Resize
+    FullscreenOrMaximize(W, bool),
+    Retitled(W),
+    OutputChanged(W),
+    WorkspaceChanged(..),   // KDE virtual desktop, macOS space: the platform tells which workspace
+}
+```
+
+The Windows events that have no other-platform meaning (`MouseCapture`, `Raise`, `Cloak`/`Uncloak` distinctions) stay platform events: the adapter turns them into `CoreEvent` where they mean the same thing and handles the rest itself before or after. A handler for a `CoreEvent` is a `WindowManager` method with a platform hook for each decision the arms make today: `should_manage` (rules, already in `komorebi-rules` or in the daemon), whether the window is on this monitor, the border and transparency refresh after the layout, and the unmanaged-window check at the top (section 18 blocker; the router form is the target).
+
+**What a shared handler looks like.** For `Gone(w)`: find the container holding `w`, `Workspace::remove_window` (shared), prune empty containers, `update`, then the border hook. For `Appeared(w)`: ask the `should_manage` hook, find the target monitor and workspace through the (shared) rules, `Workspace::new_container_for_window`, `update`, focus hook. For `Minimized(w)`: shared `Workspace` already hides and updates. These three account for the arms the three process_event files share most (sections 17 and 18).
+
+**Prerequisites** (in order): the unmanaged-window-check converged to the router form on Windows (kfw); `WindowManager<P>` or at least a shared `WindowManagerState<P>` in core so the shared handler has a `self` (section 18 says the 60% threshold is not met yet); a `PlatformMonitorId`; the border calls behind hooks. Without the first two the shared handlers have nothing to run on.
+
+**Risks.** The ordering of side effects inside each arm is part of today's behaviour, for instance Windows doing the border update before the focus event is forwarded, and KDE debouncing `ResizeStep`; a shared handler must keep the order per platform through hooks, or the change is a BEHAVIOUR change needing the Windows e2e, the KDE VM suites and the macOS hand check. `FocusChange` on macOS carries an optional window id and there is no `Window` yet at that point, so the `CoreEvent<W>` payload cannot always be a window.
+
+**Decision wanted from the owner.** Whether to pursue this after `WindowManager<P>` lands; the gain is the event-handling arms (about a third of `process_event.rs` by line count at section 17) running natively on a stub for all three platforms.
