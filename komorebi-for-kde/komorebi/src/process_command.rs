@@ -268,6 +268,7 @@ use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
+use komorebi_config::matching::push_simple_rule;
 use komorebi_themes::colour::Rgb;
 use komorebi_transport::CommandTarget;
 use komorebi_transport::NoPolicy;
@@ -1247,18 +1248,8 @@ impl WindowManager {
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
                 self.resize_window_axis(axis, sizing)?
             }
-            SocketMessage::Minimize => {
-                let foreground_window = backend()
-                    .foreground_window()
-                    .ok_or_eyre("there is no foreground window")?;
-                Window::from(foreground_window).minimize()?;
-            }
-            SocketMessage::Close => {
-                let foreground_window = backend()
-                    .foreground_window()
-                    .ok_or_eyre("there is no foreground window")?;
-                Window::from(foreground_window).close()?;
-            }
+            SocketMessage::Minimize => self.minimize_foreground_window()?,
+            SocketMessage::Close => self.close_foreground_window()?,
             SocketMessage::ManageFocusedWindow => {
                 self.manage_focused_window()?;
             }
@@ -1724,19 +1715,7 @@ impl WindowManager {
                 workspace.resize_dimensions = resize;
                 self.update_focused_workspace(false, false)?;
             }
-            SocketMessage::DebugWindow(window_id) => {
-                // an id that is not a u32 is not a window
-                let window = u32::try_from(window_id).map(Window::from);
-                if let Ok(window) = window
-                    && window.is_valid()
-                {
-                    let mut rule_debug = RuleDebug::default();
-                    let _ = window.should_manage(None, &mut rule_debug);
-                    let schema = serde_json::to_string_pretty(&rule_debug)?;
-
-                    reply.write_all(schema.as_bytes())?;
-                }
-            }
+            SocketMessage::DebugWindow(window_id) => self.debug_window(window_id, &mut reply)?,
             SocketMessage::Border(enable) => {
                 border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
                 if !enable {
@@ -1899,19 +1878,43 @@ pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> 
     komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &NoPolicy)
 }
 
-/// Add a simple socket-created rule unless one with the same kind and id is already present;
-/// a rule of another kind with the same id is a different rule
-fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, id: &str) {
-    let exists = rules
-        .iter()
-        .any(|r| matches!(r, MatchingRule::Simple(r) if r.kind == kind && r.id.eq(id)));
+impl WindowManager {
+    /// Minimizes the window that has the focus
+    pub fn minimize_foreground_window(&mut self) -> eyre::Result<()> {
+        let foreground_window = backend()
+            .foreground_window()
+            .ok_or_eyre("there is no foreground window")?;
+        Window::from(foreground_window).minimize()?;
+        Ok(())
+    }
 
-    if !exists {
-        rules.push(MatchingRule::Simple(IdWithIdentifier {
-            kind,
-            id: id.to_string(),
-            matching_strategy: Option::from(MatchingStrategy::Legacy),
-        }));
+    /// Closes the window that has the focus
+    pub fn close_foreground_window(&mut self) -> eyre::Result<()> {
+        let foreground_window = backend()
+            .foreground_window()
+            .ok_or_eyre("there is no foreground window")?;
+        Window::from(foreground_window).close()?;
+        Ok(())
+    }
+
+    /// Answers with why the window of this id is, or is not, managed
+    pub fn debug_window(
+        &self,
+        window_id: i64,
+        reply: &mut impl std::io::Write,
+    ) -> eyre::Result<()> {
+        // an id that is not a u32 is not a window
+        let window = u32::try_from(window_id).map(Window::from);
+        if let Ok(window) = window
+            && window.is_valid()
+        {
+            let mut rule_debug = RuleDebug::default();
+            let _ = window.should_manage(None, &mut rule_debug);
+            let schema = serde_json::to_string_pretty(&rule_debug)?;
+
+            reply.write_all(schema.as_bytes())?;
+        }
+        Ok(())
     }
 }
 
@@ -2396,27 +2399,5 @@ mod tests {
         assert_eq!(wm.focused_workspace_idx().unwrap(), 5);
 
         std::fs::remove_file(socket_path).unwrap();
-    }
-
-    #[test]
-    fn push_simple_rule_keeps_rules_of_another_kind_with_the_same_id() {
-        let mut rules = vec![];
-
-        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
-        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
-        assert_eq!(rules.len(), 2);
-
-        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
-        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
-        assert_eq!(rules.len(), 2);
-
-        rules.clear();
-        rules.push(MatchingRule::Composite(vec![IdWithIdentifier {
-            kind: ApplicationIdentifier::Exe,
-            id: "foo".to_string(),
-            matching_strategy: None,
-        }]));
-        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
-        assert_eq!(rules.len(), 2);
     }
 }

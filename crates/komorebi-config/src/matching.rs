@@ -94,6 +94,23 @@ impl From<IdWithIdentifierAndComment> for IdWithIdentifier {
     }
 }
 
+/// Adds a simple rule that matches `id` as a `kind` (with the legacy matching strategy), unless a
+/// simple rule of that kind and id is there already. A rule of another kind with the same id, or a
+/// composite rule, does not stop it.
+pub fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, id: &str) {
+    let exists = rules
+        .iter()
+        .any(|r| matches!(r, MatchingRule::Simple(r) if r.kind == kind && r.id.eq(id)));
+
+    if !exists {
+        rules.push(MatchingRule::Simple(IdWithIdentifier {
+            kind,
+            id: id.to_string(),
+            matching_strategy: Option::from(MatchingStrategy::Legacy),
+        }));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,5 +174,27 @@ mod tests {
         assert_eq!(plain.kind, ApplicationIdentifier::Path);
         assert_eq!(plain.id, "/usr/bin/kcalc");
         assert_eq!(plain.matching_strategy, None);
+    }
+
+    #[test]
+    fn push_simple_rule_keeps_rules_of_another_kind_with_the_same_id() {
+        let mut rules = vec![];
+
+        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        assert_eq!(rules.len(), 2);
+
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
+        assert_eq!(rules.len(), 2);
+
+        rules.clear();
+        rules.push(MatchingRule::Composite(vec![IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: "foo".to_string(),
+            matching_strategy: None,
+        }]));
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        assert_eq!(rules.len(), 2);
     }
 }

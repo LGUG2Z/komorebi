@@ -31,6 +31,7 @@ use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::monitor::MonitorExt;
 use crate::scrolling::WorkspaceScrolling;
 use crate::workspace::WorkspaceExt;
+use komorebi_config::matching::push_simple_rule;
 
 use crate::core_graphics::CoreGraphicsApi;
 use crate::current_space_id;
@@ -474,16 +475,8 @@ impl WindowManager {
                 let _suspended_animations = animation::suspend();
                 self.focus_container_window(idx)?;
             }
-            SocketMessage::Minimize => {
-                let foreground_window =
-                    MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
-                AdhocWindow::minimize(&foreground_window)?;
-            }
-            SocketMessage::Close => {
-                let foreground_window =
-                    MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
-                AdhocWindow::close(&foreground_window)?;
-            }
+            SocketMessage::Minimize => self.minimize_foreground_window()?,
+            SocketMessage::Close => self.close_foreground_window()?,
             SocketMessage::ManageFocusedWindow => {
                 self.manage_focused_window()?;
             }
@@ -815,22 +808,7 @@ impl WindowManager {
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
 
-                let mut should_push = true;
-                for m in &*manage_identifiers {
-                    if let MatchingRule::Simple(m) = m
-                        && m.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    manage_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut manage_identifiers, identifier, id);
             }
             SocketMessage::NewWorkspace => {
                 self.new_workspace()?;
@@ -1137,28 +1115,7 @@ impl WindowManager {
                 workspace.resize_dimensions = resize;
                 self.update_focused_workspace(false, false)?;
             }
-            SocketMessage::DebugWindow(window_id) => {
-                if let Some(window_list_info) = CoreGraphicsApi::window_list_info() {
-                    for raw_window_info in cf_array_as::<CFDictionary>(&window_list_info) {
-                        let raw_info = WindowInfo::new(raw_window_info);
-                        let application = Application::new(raw_info.owner_pid)?;
-                        if let Some(elements) = application.window_elements() {
-                            for element in elements {
-                                if let Ok(wid) = crate::ax_registry::identify(&element)
-                                    && i64::from(wid) == window_id
-                                    && let Ok(window) = Window::new(element, application.clone())
-                                {
-                                    let mut rule_debug = RuleDebug::default();
-                                    let _ = window.should_manage(None, &mut rule_debug);
-                                    let schema = serde_json::to_string_pretty(&rule_debug)?;
-
-                                    reply.write_all(schema.as_bytes())?;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            SocketMessage::DebugWindow(window_id) => self.debug_window(window_id, &mut reply)?,
             SocketMessage::DisplayIndexPreference(index_preference, ref display) => {
                 crate::settings::settings().update(|settings| {
                     settings
@@ -1491,22 +1448,7 @@ impl WindowManager {
     ) -> eyre::Result<()> {
         let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
 
-        let mut should_push = true;
-        for i in &*ignore_identifiers {
-            if let MatchingRule::Simple(i) = i
-                && i.id == id
-            {
-                should_push = false;
-            }
-        }
-
-        if should_push {
-            ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                kind: identifier,
-                id: id.to_string(),
-                matching_strategy: Option::from(MatchingStrategy::Legacy),
-            }));
-        }
+        push_simple_rule(&mut ignore_identifiers, identifier, id);
 
         let offset = self.work_area_offset;
 
@@ -1593,6 +1535,53 @@ impl WindowManager {
 
             // Set self to the new wm instance
             *self = wm;
+        }
+        Ok(())
+    }
+}
+
+impl WindowManager {
+    /// Minimizes the window that has the focus
+    pub fn minimize_foreground_window(&mut self) -> eyre::Result<()> {
+        let foreground_window =
+            MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
+        AdhocWindow::minimize(&foreground_window)?;
+        Ok(())
+    }
+
+    /// Closes the window that has the focus
+    pub fn close_foreground_window(&mut self) -> eyre::Result<()> {
+        let foreground_window =
+            MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
+        AdhocWindow::close(&foreground_window)?;
+        Ok(())
+    }
+
+    /// Answers with why the window of this id is, or is not, managed
+    pub fn debug_window(
+        &self,
+        window_id: i64,
+        reply: &mut impl std::io::Write,
+    ) -> eyre::Result<()> {
+        if let Some(window_list_info) = CoreGraphicsApi::window_list_info() {
+            for raw_window_info in cf_array_as::<CFDictionary>(&window_list_info) {
+                let raw_info = WindowInfo::new(raw_window_info);
+                let application = Application::new(raw_info.owner_pid)?;
+                if let Some(elements) = application.window_elements() {
+                    for element in elements {
+                        if let Ok(wid) = crate::ax_registry::identify(&element)
+                            && i64::from(wid) == window_id
+                            && let Ok(window) = Window::new(element, application.clone())
+                        {
+                            let mut rule_debug = RuleDebug::default();
+                            let _ = window.should_manage(None, &mut rule_debug);
+                            let schema = serde_json::to_string_pretty(&rule_debug)?;
+
+                            reply.write_all(schema.as_bytes())?;
+                        }
+                    }
+                }
+            }
         }
         Ok(())
     }
