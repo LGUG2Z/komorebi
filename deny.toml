@@ -3,6 +3,9 @@ targets = [
   "x86_64-pc-windows-msvc",
   "i686-pc-windows-msvc",
   "aarch64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "aarch64-apple-darwin",
 ]
 all-features = false
 no-default-features = false
@@ -18,6 +21,13 @@ ignore = [
   { id = "RUSTSEC-2025-0056", reason = "only used for colour palette generation" },
   { id = "RUSTSEC-2026-0192", reason = "will address this when upgrading egui" },
   { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml is only pulled in via serde_yaml, and there is no safe upgrade available" },
+  { id = "RUSTSEC-2026-0370", reason = "zvariant is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
+  { id = "RUSTSEC-2026-0183", reason = "git2 is only used by shadow-rs at build time to read version info from our own repository" },
+  { id = "RUSTSEC-2026-0184", reason = "git2 is only used by shadow-rs at build time to read version info from our own repository" },
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml is only used to parse local, trusted XML (config conversion and plist files), not untrusted input" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml is only used to parse local, trusted XML (config conversion and plist files), not untrusted input" },
 ]
 
 [licenses]
@@ -49,6 +59,26 @@ license-files = []
 
 [[licenses.clarify]]
 crate = "komorebi-windows"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-linux"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-macos"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-hotkeys"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-version"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
@@ -184,6 +214,7 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = [
+  "https://github.com/LGUG2Z/quickxml_to_serde",
   "https://github.com/LGUG2Z/base16-egui-themes",
   "https://github.com/LGUG2Z/windows-icons",
   "https://github.com/LGUG2Z/win32-display-data",
