@@ -2041,9 +2041,6 @@ impl komorebi_core::CommandHost for WindowManager {
         WindowManager::focus_workspace(self, idx)
     }
 
-    // the pointer picks the monitor, as on Windows (docs/dev/known-issues.md item 1)
-    const POINTER_PICKS_THE_MONITOR_FOR_ALL: bool = true;
-
     fn show_workspace_on(&mut self, monitor_idx: usize, workspace_idx: usize) -> eyre::Result<()> {
         let monitor = self
             .monitors_mut()

@@ -2257,9 +2257,6 @@ impl WindowManager {
 impl komorebi_core::CommandHost for WindowManager {
     type P = crate::workspace::WindowsPlatform;
 
-    // Windows lets the pointer pick the monitor first for these commands too
-    const POINTER_PICKS_THE_MONITOR_FOR_ALL: bool = true;
-
     fn monitors(&self) -> &std::collections::VecDeque<crate::monitor::Monitor> {
         WindowManager::monitors(self)
     }

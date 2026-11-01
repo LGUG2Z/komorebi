@@ -385,108 +385,26 @@ fn locking_a_container_that_is_not_there_is_ignored_but_a_missing_monitor_or_wor
     assert!(komorebi_core::set_container_locked(&mut host, 0, 9, 0, true).is_err());
 }
 
-/// A host that says whether the pointer picks the monitor first, and does what `Host` does
-struct Pointer<const ALL: bool>(Host);
-
-impl<const ALL: bool> CommandHost for Pointer<ALL> {
-    type P = StubPlatform;
-    const POINTER_PICKS_THE_MONITOR_FOR_ALL: bool = ALL;
-
-    fn monitors(&self) -> &VecDeque<Monitor<StubPlatform>> {
-        self.0.monitors()
-    }
-    fn focused_monitor(&self) -> Option<&Monitor<StubPlatform>> {
-        self.0.focused_monitor()
-    }
-    fn focused_monitor_mut(&mut self) -> Option<&mut Monitor<StubPlatform>> {
-        self.0.focused_monitor_mut()
-    }
-    fn focused_monitor_idx(&self) -> usize {
-        self.0.focused_monitor_idx()
-    }
-    fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
-        self.0.monitor_idx_from_current_pos()
-    }
-    fn focus_monitor(&mut self, idx: usize) -> eyre::Result<()> {
-        self.0.focus_monitor(idx)
-    }
-    fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
-        self.0.focus_workspace(idx)
-    }
-    fn show_workspace_on(&mut self, monitor_idx: usize, workspace_idx: usize) -> eyre::Result<()> {
-        self.0.show_workspace_on(monitor_idx, workspace_idx)
-    }
-    fn move_container_to_workspace(
-        &mut self,
-        idx: usize,
-        follow: bool,
-        direction: Option<OperationDirection>,
-    ) -> eyre::Result<()> {
-        self.0.move_container_to_workspace(idx, follow, direction)
-    }
-}
-
-impl<const ALL: bool> komorebi_core::MonitorCommandHost for Pointer<ALL> {
-    fn mouse_follows_focus(&self) -> bool {
-        self.0.mouse_follows_focus()
-    }
-    fn update_focused_workspace(&mut self, a: bool, b: bool) -> eyre::Result<()> {
-        self.0.update_focused_workspace(a, b)
-    }
-    fn direction_from_monitor_idx(&self, idx: usize) -> Option<OperationDirection> {
-        self.0.direction_from_monitor_idx(idx)
-    }
-    fn move_container_to_monitor(
-        &mut self,
-        idx: usize,
-        workspace_idx: Option<usize>,
-        follow: bool,
-        direction: Option<OperationDirection>,
-    ) -> eyre::Result<()> {
-        self.0
-            .move_container_to_monitor(idx, workspace_idx, follow, direction)
-    }
-    fn focused_workspace_idx(&self) -> eyre::Result<usize> {
-        self.0.focused_workspace_idx()
-    }
-}
-
 fn pointer_on_the_second_monitor() -> Host {
     let mut host = two_monitors();
     host.pointer_on = Some(1);
     host
 }
 
-fn focused_monitor_calls(host: &Host) -> usize {
-    host.calls
-        .iter()
-        .filter(|call| call.starts_with("focus_monitor"))
-        .count()
-}
-
 #[test]
-fn the_pointer_switch_gives_the_empty_close_last_and_number_commands_the_preamble() {
+fn the_pointer_picks_the_monitor_for_the_empty_close_last_cycle_and_number_commands_on_all_platforms() {
     // commands.py: close-workspace, cycle-empty-workspace, focus-last-workspace, focus-workspace,
-    // focus-workspaces; with the switch off nothing looks at the pointer, with it on the monitor
-    // under the pointer is focused first when its workspace is empty
-    let mut off = Pointer::<false>(pointer_on_the_second_monitor());
-    komorebi_core::close_workspace(&mut off).unwrap();
-    komorebi_core::focus_last_workspace(&mut off).unwrap();
-    komorebi_core::cycle_focus_empty_workspace(&mut off, CycleDirection::Next).unwrap();
-    komorebi_core::focus_workspace_number(&mut off, 1).unwrap();
-    komorebi_core::focus_workspace_numbers(&mut off, 1).unwrap();
-    assert_eq!(focused_monitor_calls(&off.0), 0);
-
+    // focus-workspaces; the monitor under the pointer is focused first when its workspace is empty
     for command in 0..5 {
-        let mut on = Pointer::<true>(pointer_on_the_second_monitor());
+        let mut host = pointer_on_the_second_monitor();
         match command {
-            0 => komorebi_core::close_workspace(&mut on).unwrap(),
-            1 => komorebi_core::focus_last_workspace(&mut on).unwrap(),
-            2 => komorebi_core::cycle_focus_empty_workspace(&mut on, CycleDirection::Next).unwrap(),
-            3 => komorebi_core::focus_workspace_number(&mut on, 1).unwrap(),
-            _ => komorebi_core::focus_workspace_numbers(&mut on, 1).unwrap(),
+            0 => komorebi_core::close_workspace(&mut host).unwrap(),
+            1 => komorebi_core::focus_last_workspace(&mut host).unwrap(),
+            2 => komorebi_core::cycle_focus_empty_workspace(&mut host, CycleDirection::Next).unwrap(),
+            3 => komorebi_core::focus_workspace_number(&mut host, 1).unwrap(),
+            _ => komorebi_core::focus_workspace_numbers(&mut host, 1).unwrap(),
         }
-        assert_eq!(on.0.calls[0], "focus_monitor 1", "command {command}");
+        assert_eq!(host.calls[0], "focus_monitor 1", "command {command}");
     }
 }
 

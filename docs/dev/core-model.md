@@ -1390,8 +1390,8 @@ monitors (`CycleMoveContainerToWorkspace`, `CycleSendContainerToWorkspace`, `Cyc
 `CycleMoveContainerToMonitor`, `CycleSendContainerToMonitor`, `FocusMonitorWorkspaceNumber`,
 `MoveContainerToMonitorWorkspaceNumber`, `SendContainerToMonitorWorkspaceNumber`) and the lock and
 unlock of a container by index. The one platform difference found, that Windows lets the pointer pick the
-monitor first for the empty, close and last-workspace commands (a probable omission on KDE and macOS,
-section 18), is the const `CommandHost::POINTER_PICKS_THE_MONITOR_FOR_ALL`, true only for Windows.
+monitor first for the empty, close, last-workspace and workspace-number commands (an omission on KDE and macOS,
+section 18), is gone: all three do it now (wip-u-ptr), so the const that held the difference was removed.
 
 **What stays, and why** (identical across the three unless noted; each needs a `WindowManager` method
 or field, so moving them means moving `WindowManager`, the blockers of section 18):
