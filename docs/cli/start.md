@@ -10,7 +10,7 @@ Options:
           Path to a static configuration JSON file
 
   -a, --await-configuration
-          Wait for 'komorebic complete-configuration' to be sent before processing events
+          Wait for `komorebic complete-configuration` to be sent before processing events
 
   -t, --tcp-port <TCP_PORT>
           Start a TCP server on the given port to allow the direct sending of SocketMessages

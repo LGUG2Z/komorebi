@@ -834,8 +834,9 @@ mod tests {
         .expect("a window to put a border around");
 
         let tracked_hwnd = tracked.0 as isize;
-        let previous = crate::WINDOW_HANDLING_BEHAVIOUR.load();
-        crate::WINDOW_HANDLING_BEHAVIOUR.store(handling);
+        // put back when the guard is dropped, unless something else changed it meanwhile
+        let handling_override = crate::settings::settings()
+            .scoped(|settings| &mut settings.platform.window_handling_behaviour, handling);
 
         let mut border =
             Border::create("komorebi-border-test", tracked_hwnd, 0).expect("a border to paint");
@@ -854,7 +855,7 @@ mod tests {
         let painted =
             unsafe { std::ptr::read_volatile(&raw const border.rounded_rect.rect.right) } > 0.0;
 
-        crate::WINDOW_HANDLING_BEHAVIOUR.store(previous);
+        drop(handling_override);
 
         let border = Box::into_raw(border);
         unsafe {

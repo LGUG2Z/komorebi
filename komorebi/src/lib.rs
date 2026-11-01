@@ -75,7 +75,6 @@ use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use color_eyre::eyre;
-use crossbeam_utils::atomic::AtomicCell;
 use os_info::Version;
 use parking_lot::Mutex;
 use parking_lot::RwLock;
@@ -276,9 +275,6 @@ pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 
 pub static SLOW_APPLICATION_COMPENSATION_TIME: AtomicU64 = AtomicU64::new(20);
-
-pub static WINDOW_HANDLING_BEHAVIOUR: AtomicCell<WindowHandlingBehaviour> =
-    AtomicCell::new(WindowHandlingBehaviour::Sync);
 
 shadow_rs::shadow!(build);
 

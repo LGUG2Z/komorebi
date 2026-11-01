@@ -5,7 +5,6 @@
 //! This file has one test because it changes the process-wide animation settings, which every
 //! other test that asks for the look would see.
 
-use komorebi::animation::ANIMATION_ENABLED_GLOBAL;
 use komorebi::backend::AnimationLook;
 use komorebi::backend::fake::Command;
 use komorebi::backend::fake::FakeBackend;
@@ -19,7 +18,6 @@ use komorebi::window_manager_event::KWinNotification;
 use komorebi::window_manager_event::SystemNotification;
 use komorebi::window_manager_event::WindowManagerEvent;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 #[test]
 fn the_animation_is_on_again_after_a_command_that_changes_a_stack() {
@@ -94,7 +92,7 @@ fn the_animation_is_on_again_after_a_command_that_changes_a_stack() {
         fake.clear_commands();
         send(&mut wm, message.clone());
         assert!(
-            ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst),
+            komorebi::settings::animation_enabled(),
             "the animation is on again after {message:?}"
         );
         assert_eq!(

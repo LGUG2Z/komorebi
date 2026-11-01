@@ -101,10 +101,8 @@ pub struct GlobalState {
 impl Default for GlobalState {
     fn default() -> Self {
         Self {
-            transparency_enabled: crate::transparency_manager::TRANSPARENCY_ENABLED
-                .load(std::sync::atomic::Ordering::SeqCst),
-            transparency_alpha: crate::transparency_manager::TRANSPARENCY_ALPHA
-                .load(std::sync::atomic::Ordering::SeqCst),
+            transparency_enabled: crate::settings::transparency_enabled(),
+            transparency_alpha: crate::settings::transparency_alpha(),
             transparency_blacklist: TRANSPARENCY_BLACKLIST.lock().clone(),
             ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),

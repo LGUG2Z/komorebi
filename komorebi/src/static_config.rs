@@ -18,20 +18,10 @@ use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
 use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
-use crate::WINDOW_HANDLING_BEHAVIOUR;
 use crate::WINDOWS_11;
 use crate::WORKSPACE_MATCHING_RULES;
-use crate::animation::ANIMATION_DURATION_GLOBAL;
-use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
-use crate::animation::ANIMATION_FPS;
-use crate::animation::ANIMATION_STYLE_GLOBAL;
-use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
-use crate::animation::DEFAULT_ANIMATION_FPS;
 use crate::animation::DEFAULT_GHOST_MOVEMENT;
 use crate::animation::GHOST_MOVEMENT_ENABLED;
-use crate::animation::PerAnimationPrefixConfig;
 use crate::asc::ApplicationSpecificConfiguration;
 use crate::asc::AscApplicationRulesOrSchema;
 use crate::border_manager;
@@ -68,7 +58,6 @@ use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::theme_manager;
-use crate::transparency_manager;
 use crate::window;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
@@ -79,6 +68,7 @@ use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_settings::shared::AnimationDelta;
 use komorebi_settings::shared::SharedDelta;
 use komorebi_themes::colour::Colour;
 use parking_lot::Mutex;
@@ -322,10 +312,10 @@ impl From<&WindowManager> for StaticConfig {
             border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
             border_colours,
             transparency: Option::from(
-                transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst),
+                crate::settings::transparency_enabled(),
             ),
             transparency_alpha: Option::from(
-                transparency_manager::TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
+                crate::settings::transparency_alpha(),
             ),
             transparency_ignore_rules: None,
             border_style: Option::from(STYLE.load()),
@@ -376,7 +366,7 @@ impl From<&WindowManager> for StaticConfig {
             floating_window_aspect_ratio: Option::from(
                 crate::settings::floating_window_aspect_ratio(),
             ),
-            window_handling_behaviour: Option::from(WINDOW_HANDLING_BEHAVIOUR.load()),
+            window_handling_behaviour: Option::from(crate::settings::window_handling_behaviour()),
             ..Default::default()
         }
     }
@@ -426,43 +416,20 @@ impl ApplyGlobals for StaticConfig {
         }
 
         if let Some(animations) = &self.animation {
-            match &animations.enabled {
-                PerAnimationPrefixConfig::Prefix(enabled) => {
-                    ANIMATION_ENABLED_PER_ANIMATION.lock().clone_from(enabled);
+            // enabled, style, duration and fps as one update: a global value clears its per-animation
+            // map, a map replaces the map, a block without `fps` has the default (`SharedDelta::apply`)
+            crate::settings::settings().update(|settings| {
+                SharedDelta {
+                    animation: Some(AnimationDelta {
+                        enabled: animations.enabled.clone(),
+                        style: animations.style.clone(),
+                        duration: animations.duration.clone(),
+                        fps: animations.fps,
+                    }),
+                    ..SharedDelta::default()
                 }
-                PerAnimationPrefixConfig::Global(enabled) => {
-                    ANIMATION_ENABLED_GLOBAL.store(*enabled, Ordering::SeqCst);
-                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
-                }
-            }
-
-            match &animations.style {
-                Some(PerAnimationPrefixConfig::Prefix(style)) => {
-                    ANIMATION_STYLE_PER_ANIMATION.lock().clone_from(style);
-                }
-                Some(PerAnimationPrefixConfig::Global(style)) => {
-                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
-                    *animation_style = *style;
-                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
-                }
-                None => {}
-            }
-
-            match &animations.duration {
-                Some(PerAnimationPrefixConfig::Prefix(duration)) => {
-                    ANIMATION_DURATION_PER_ANIMATION.lock().clone_from(duration);
-                }
-                Some(PerAnimationPrefixConfig::Global(duration)) => {
-                    ANIMATION_DURATION_GLOBAL.store(*duration, Ordering::SeqCst);
-                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
-                }
-                None => {}
-            }
-
-            ANIMATION_FPS.store(
-                animations.fps.unwrap_or(DEFAULT_ANIMATION_FPS),
-                Ordering::SeqCst,
-            );
+                .apply(&mut settings.shared);
+            });
 
             let ghost_movement_enabled =
                 animations.ghost_movement.unwrap_or(DEFAULT_GHOST_MOVEMENT);
@@ -540,14 +507,15 @@ impl ApplyGlobals for StaticConfig {
             border_manager::send_notification(None);
         }
 
-        if let Some(transparency_enabled) = self.transparency {
-            transparency_manager::TRANSPARENCY_ENABLED
-                .store(transparency_enabled, Ordering::SeqCst);
-        }
-
-        if let Some(transparency_alpha) = self.transparency_alpha {
-            transparency_manager::TRANSPARENCY_ALPHA.store(transparency_alpha, Ordering::SeqCst);
-        }
+        // Windows keeps the value when the key is absent (unlike KDE, which resets it)
+        crate::settings::settings().update(|settings| {
+            SharedDelta {
+                transparency: self.transparency,
+                transparency_alpha: self.transparency_alpha,
+                ..SharedDelta::default()
+            }
+            .apply(&mut settings.shared);
+        });
 
         // the order documented at the statics in lib.rs
         let mut floating_applications = FLOATING_APPLICATIONS.lock();
@@ -695,7 +663,9 @@ impl ApplyGlobals for StaticConfig {
         }
 
         if let Some(behaviour) = self.window_handling_behaviour {
-            WINDOW_HANDLING_BEHAVIOUR.store(behaviour);
+            crate::settings::settings().update(|settings| {
+                settings.platform.window_handling_behaviour = behaviour;
+            });
         }
 
         Ok(())

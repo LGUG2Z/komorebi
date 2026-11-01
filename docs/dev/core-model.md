@@ -1317,3 +1317,57 @@ would move less than half of the file.
   wrongly called this an improvement). `WorkspacePlatform::begin_pass` is called once per pass after the
   layout is computed and its answer reaches the hooks as `Placement::pass`; Windows takes the snapshot
   there and `place_container` reads it, as the original did.
+
+## 20. KDE and macOS: the converge of `window_manager.rs` and the router, and why `WindowManager<P>` still waits
+
+Measured at the tip of `wip-u-wm` (cand5 plus the revisions below; no Windows file changed).
+
+**Done (refactors, no behaviour change):** both daemons ask `window::foreground_window_id()` and
+`window::monitor_id_at_cursor()` instead of calling the backend or `MacosApi` inline (the macOS
+`window.rs` gets the two one-line wrappers); twelve macOS `process_command` arms (eleven methods) that were the
+same code inline as KDE's named methods now call methods with those names and bodies
+(`cycle_focus_workspace`, `cycle_focus_empty_workspace`, `close_workspace`,
+`move_container_to_last_workspace` for both the move and the send arm, `eager_focus`,
+`set_border_colour`, `set_layout_ratios`, `answer_query`, `add_named_workspace_rule`,
+`add_initial_named_workspace_rule`, `toggle_workspace_window_container_behaviour`).
+
+**Where it stands:**
+
+| | KDE against macOS |
+|---|---|
+| router arms present in both | 155 |
+| of them byte-identical | 137 |
+| of them different | 18: `Close`, `Minimize` (macOS window API), `DebugWindow`, `ManageRule`, `IgnoreRule`, `SessionFloatRule` (macOS identifies an application by role where KDE uses the class), `ReplaceConfiguration` (the run loop; no warning on macOS), `AddSubscriberPipe`, `ToggleWorkspaceLayer` (88 lines inline on macOS), `ResizeWindowAxis` (59 inline), the stack and unstack arms and `CycleStack*`, `FocusStackWindow` (KDE switches animations off around them), `ResizeWindowEdge` (1 line) |
+| `window_manager.rs` function lines identical with macOS | 1156 of KDE's 2595 (45%); 105 functions on macOS, 97 on KDE |
+
+The 45% is below the 60% bar, and what separates the rest is not text:
+- **the hiding spot and the container API.** macOS calls `container.hide_on(spot, omit, screen)`,
+  `load_focused_window_at(spot)?` and `restore_focused_window()?`, its own `ContainerExt`, where KDE and
+  the shared crate have `Container::hide(omit, spot)`, `load_focused_window(spot)` and `restore()`; nine
+  window manager functions (`add_window_to_container`, `cycle_container_window_*`, `focus_container_window`,
+  `stack_all`, `monocle_on/off`, `cycle_monocle`, `transfer_window`) differ in exactly these calls;
+- **the error policy:** KDE writes `let _ = container.load_focused_window(())` (its window operations
+  cannot fail), macOS writes `...?` (AX calls can); the shared form is `?`, which is equivalent on KDE
+  because its operations always answer `Ok`;
+- **platform entry points:** `init`, `stop`, `new`, `focus_workspace`, `manage_focused_window`,
+  `unmanage_focused_window`, `restore_all_windows`, `enforce_workspace_rules`, `resize_window` (52
+  lines), `move_container_to_monitor`, `focus_floating_window_in_direction` (29);
+- **one-sided functions:** macOS 16 (the live-resize family, `entering_borders`, `workspace_transition`,
+  `drag_origin`), KDE 4 (`adopt_maximize_change`, `adopt_workspace_change`, `sync_workspace_desktops`,
+  `reap_invalid_windows`).
+
+**Blockers for a `WindowManager<P>` over KDE and macOS (Windows keeps its own):**
+1. macOS's `ContainerExt` (`hide_on`, `load_focused_window_at`, `restore_focused_window`) against the
+   shared `Container` with a `HideSpot`: kfm converges the container first (its semantics: AX errors,
+   `cfg!(test)` guards) so that the nine functions become identical;
+2. the `?` against `let _` policy, then a mechanical KDE edit;
+3. the eleven platform entry points above as `WindowManagerPlatform` hooks (`init`, `stop`, `new`,
+   `focus_workspace`, `restore_all_windows`, ...), which is as many hooks as functions moved, so the
+   shared text would be about half of the file with a dozen hooks: not worth it yet;
+4. the 18 differing router arms, of which the stack family (animation guard) and the application
+   identity (role against class) are hooks and the rest are macOS's own bodies.
+
+Recommended next step: kfm unifies the container API (blocker 1) and the `?` policy (2) on both
+daemons; after that the nine functions are identical and the shared share passes 60% without new
+hooks, and `WindowManager<P>` can be created over KDE and macOS with the entry points of blocker 3 left
+in each daemon's extension trait.

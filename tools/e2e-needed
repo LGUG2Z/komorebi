@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# e2e-needed: does a diff touch anything the Windows e2e binaries are built from?
+#   e2e-needed [--range | --since REV] [--to REV] [--closure]        (run in a jj workspace root)
+# The Windows e2e runs komorebi.exe, komorebic.exe and komorebi-testwin.exe (flake e2eBuild). Their
+# inputs are (a) the source directories of the workspace crates they depend on, from `cargo tree
+# --target x86_64-pc-windows-msvc -e normal,build` (dev-dependencies are not in the binaries),
+# (b) files pulled in with include_str!/include_bytes!/include! from those crates, (c) fixed
+# inputs: Cargo.lock, the root Cargo.toml, rust-toolchain.toml, flake.nix, flake.lock, build
+# scripts, and the e2e harness itself (e2e/). Anything else cannot change those binaries.
+# Verdict NO means: every touched file is outside all of that, so a passing e2e of the previous
+# binaries carries over unchanged. Verdict YES prints which files decided it. Files that are not
+# understood count as YES. Uses `cargo tree --offline` (about 1-2 s, no build). Never writes.
+# NOT covered by this verdict: the other gates (nextest, clippy, the bar screenshot, KDE VM, schema oracles).
+# shellcheck disable=SC2001  # the sed one-liners indent multi-line output
+set -uo pipefail
+FROM=""; TO="@"; SHOWCL=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --range) FROM='trunk()' ;;
+    --since) shift; FROM="${1:?--since needs a revset}" ;;
+    --to) shift; TO="${1:?--to needs a revset}" ;;
+    --closure) SHOWCL=1 ;;
+    -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "usage: e2e-needed [--range | --since REV] [--to REV] [--closure]" >&2; exit 2 ;;
+  esac
+  shift
+done
+ROOT="$(jj root 2>/dev/null)" || { echo "e2e-needed: not in a jj workspace" >&2; exit 2; }
+cd "$ROOT" || exit 2
+if [ -n "$FROM" ]; then FILES="$(jj diff --name-only --from "$FROM" --to "$TO")"; else FILES="$(jj diff --name-only -r "$TO")"; fi
+[ -n "$FILES" ] || { echo "NO (nothing changed in @; use --since REV)"; exit 0; }
+
+# (a) closure: workspace crate directories (relative to root)
+CL=""
+for p in komorebi komorebi-windows komorebic komorebi-testwin; do
+  CL+="$(CARGO_BUILD_JOBS=1 nice -n 19 cargo tree --offline --locked -p "$p" --target x86_64-pc-windows-msvc \
+        --prefix none -e normal,build 2>/dev/null | grep -o "(${ROOT}[^)]*)" | tr -d '()' | sed "s#^${ROOT}/\{0,1\}##")"$'\n'
+done
+CL="$(echo "$CL" | sed '/^$/d' | sort -u)"
+[ -n "$CL" ] || { echo "YES (could not compute the dependency closure: cargo tree failed; treating as needed)"; exit 0; }
+[ $SHOWCL = 1 ] && { echo "closure directories:"; echo "$CL" | sed 's/^/  /'; }
+
+# (b) include!-ed files, resolved against the including file
+INC=""
+while IFS= read -r d; do
+  [ -d "$d" ] || continue
+  while IFS=: read -r f _ rest; do
+    rel="$(grep -o 'include[a-z_]*!("[^"]*")' <<<"$rest" | sed 's/.*("\(.*\)")/\1/')"
+    for r in $rel; do
+      case "$r" in /*) continue ;; esac
+      INC+="$(realpath -m --relative-to="$ROOT" "$(dirname "$f")/$r")"$'\n'
+    done
+  done < <(grep -rn 'include[a-z_]*!(' "$d" --include='*.rs' 2>/dev/null)
+done <<<"$CL"
+INC="$(echo "$INC" | sed '/^$/d' | sort -u)"
+[ $SHOWCL = 1 ] && { echo "include-d files:"; echo "$INC" | sed 's/^/  /'; }
+
+yes=();
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  reason=""
+  case "$f" in
+    Cargo.lock|Cargo.toml|rust-toolchain.toml|flake.nix|flake.lock) reason="fixed input" ;;
+    e2e/*) reason="e2e harness / guest" ;;
+    */build.rs) reason="build script" ;;
+    komorebi-for-kde/*|komorebi-for-mac/*) ;;                       # separate trees, not in the Windows closure
+    *.md|docs/*|tools/*|.github/*) ;;                              # docs and dev tools (include!-ed docs are caught below)
+  esac
+  if [ -z "$reason" ]; then
+    while IFS= read -r d; do
+      case "$f" in "$d"/*) reason="in closure crate $d"; break ;; esac
+    done <<<"$CL"
+  fi
+  if [ -z "$reason" ]; then
+    while IFS= read -r i; do
+      [ -n "$i" ] || continue
+      case "$f" in "$i"|"$i"/*) reason="include-d by a closure crate"; break ;; esac
+    done <<<"$INC"
+  fi
+  if [ -z "$reason" ]; then
+    case "$f" in
+      komorebi-for-kde/*|komorebi-for-mac/*|*.md|docs/*|tools/*|.github/*) ;;
+      komorebi-bar/*|komorebi-gui/*|komorebi-shortcuts/*|komorebic-no-console/*|crates/komorebi-bar-core/*|schema*.json|komorebic.lib.ahk|wix/*|justfile|mkdocs.yml|deny.toml|rustfmt.toml|*.json)
+        # known Windows-tree paths outside the closure (crates not in the closure were checked above)
+        case "$f" in */*.json|*.json) [ "$f" = dependencies.json ] || [ "${f#schema}" != "$f" ] || reason="json file outside known oracle files: treated as needed" ;; esac ;;
+      *) reason="not understood: treated as needed" ;;
+    esac
+  fi
+  [ -n "$reason" ] && yes+=("$f  ($reason)")
+done <<<"$FILES"
+if [ ${#yes[@]} -eq 0 ]; then
+  echo "NO: none of $(echo "$FILES" | wc -l) touched files is an input of komorebi.exe, komorebic.exe or komorebi-testwin.exe"
+else
+  echo "YES: ${#yes[@]} touched file(s) are inputs of the e2e binaries or the harness:"
+  printf '  %s\n' "${yes[@]}" | head -15
+  [ ${#yes[@]} -gt 15 ] && echo "  ... and $(( ${#yes[@]} - 15 )) more"
+fi

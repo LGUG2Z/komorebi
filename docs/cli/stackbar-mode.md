@@ -8,11 +8,14 @@ Usage: komorebic.exe stackbar-mode <MODE>
 Arguments:
   <MODE>
           Desired stackbar mode
-          
-          [possible values: always, never, on-stack]
+
+          Possible values:
+          - always:   Always show
+          - never:    Never show
+          - on-stack: Show on stack
 
 Options:
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 
 ```

@@ -7,8 +7,13 @@
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
+use std::time::Duration;
+
+use crate::animation::prefix::AnimationPrefix;
+use crate::core::animation::AnimationStyle;
 
 use komorebi_config::aspect_ratio::AspectRatio;
+use komorebi_config::behaviour::WindowHandlingBehaviour;
 use komorebi_layouts::DefaultLayout;
 use komorebi_layouts::LayoutDefaultEntry;
 
@@ -16,9 +21,21 @@ use komorebi_settings::Handle;
 use komorebi_settings::Shared;
 use komorebi_settings::shared::PlatformDefaults;
 
-/// The part of the settings that only Windows has. Empty for now; the stackbar, hiding and handling behaviour and border style join it later.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct WindowsSettings {}
+/// The part of the settings that only Windows has. The stackbar, hiding behaviour and border style
+/// join it later.
+#[derive(Clone, Debug, PartialEq)]
+pub struct WindowsSettings {
+    /// `window_handling_behaviour`: whether windows are moved synchronously or asynchronously.
+    pub window_handling_behaviour: WindowHandlingBehaviour,
+}
+
+impl Default for WindowsSettings {
+    fn default() -> Self {
+        Self {
+            window_handling_behaviour: WindowHandlingBehaviour::Sync,
+        }
+    }
+}
 
 pub type Settings = komorebi_settings::Settings<WindowsSettings>;
 
@@ -65,6 +82,84 @@ pub fn display_index_preferences() -> HashMap<usize, String> {
         .shared
         .display_index_preferences
         .clone()
+}
+
+/// `transparency`: whether windows that are not focused are made see-through.
+pub fn transparency_enabled() -> bool {
+    settings().snapshot().shared.transparency.enabled
+}
+
+/// `transparency_alpha`: the opacity, 0 to 255, of a see-through window.
+pub fn transparency_alpha() -> u8 {
+    settings().snapshot().shared.transparency.alpha
+}
+
+// The animation settings. Windows decides whether a kind of animation is on as: the global flag, or
+// a per-kind value of true (a per-kind false does NOT turn off a global true, unlike KDE and macOS).
+
+/// Whether `prefix` is animated: the global flag, or a per-kind true.
+pub fn animation_enabled_for(prefix: AnimationPrefix) -> bool {
+    let snapshot = settings().snapshot();
+    let animation = &snapshot.shared.animation;
+
+    animation.enabled
+        || animation
+            .enabled_per_animation
+            .get(&prefix)
+            .is_some_and(|enabled| *enabled)
+}
+
+/// How `prefix` is animated, from one snapshot, or `None` if it is not (see [`animation_enabled_for`]).
+pub fn animation_for(prefix: AnimationPrefix) -> Option<(Duration, AnimationStyle)> {
+    let snapshot = settings().snapshot();
+    let animation = &snapshot.shared.animation;
+
+    let enabled = animation.enabled
+        || animation
+            .enabled_per_animation
+            .get(&prefix)
+            .is_some_and(|enabled| *enabled);
+
+    enabled.then(|| {
+        (
+            Duration::from_millis(
+                animation
+                    .duration_per_animation
+                    .get(&prefix)
+                    .copied()
+                    .unwrap_or(animation.duration),
+            ),
+            animation
+                .style_per_animation
+                .get(&prefix)
+                .copied()
+                .unwrap_or(animation.style),
+        )
+    })
+}
+
+/// `animation.fps`.
+pub fn animation_fps() -> u64 {
+    settings().snapshot().shared.animation.fps
+}
+
+/// The global `animation.duration`, in milliseconds.
+pub fn animation_duration_global() -> u64 {
+    settings().snapshot().shared.animation.duration
+}
+
+/// Turns every animation off for good (the global flag and the per-kind values): what shutdown does
+/// before it puts the windows back.
+pub fn animation_off_for_good() {
+    settings().update(|settings| {
+        settings.shared.animation.enabled_per_animation.clear();
+        settings.shared.animation.enabled = false;
+    });
+}
+
+/// `window_handling_behaviour`, read once per window move.
+pub fn window_handling_behaviour() -> WindowHandlingBehaviour {
+    settings().snapshot().platform.window_handling_behaviour
 }
 
 #[cfg(test)]

@@ -1,9 +1,5 @@
 #![warn(clippy::all)]
 
-use clap::Parser;
-use clap::ValueEnum;
-use color_eyre::eyre;
-use color_eyre::eyre::OptionExt;
 use crate::CoreFoundationRunLoop;
 use crate::DATA_DIR;
 use crate::HOME_DIR;
@@ -24,6 +20,10 @@ use crate::theme_manager;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event_listener;
 use crate::workspace_reconciliator;
+use clap::Parser;
+use clap::ValueEnum;
+use color_eyre::eyre;
+use color_eyre::eyre::OptionExt;
 use objc2::MainThreadMarker;
 use objc2::rc::autoreleasepool;
 use objc2_app_kit::NSApplication;

@@ -278,9 +278,11 @@ pub fn main() -> eyre::Result<()> {
                 std::fs::create_dir_all(data_dir)?;
 
                 let mut komorebi_json =
-                    include_str!("../../../komorebi-for-mac/docs/komorebi.example.json").to_string();
+                    include_str!("../../../komorebi-for-mac/docs/komorebi.example.json")
+                        .to_string();
                 let komorebi_bar_json =
-                    include_str!("../../../komorebi-for-mac/docs/komorebi.bar.example.json").to_string();
+                    include_str!("../../../komorebi-for-mac/docs/komorebi.bar.example.json")
+                        .to_string();
 
                 if std::env::var("KOMOREBI_CONFIG_HOME").is_ok() {
                     komorebi_json =

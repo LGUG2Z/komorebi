@@ -67,6 +67,11 @@ pub fn display_index_preferences() -> HashMap<usize, String> {
         .clone()
 }
 
+/// `animation.fps`.
+pub fn animation_fps() -> u64 {
+    settings().snapshot().shared.animation.fps
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::Ordering;

@@ -92,6 +92,12 @@ pub fn foreground_window_id() -> Option<PlatformWindowId> {
     backend().foreground_window().and_then(WindowId::to_u32)
 }
 
+/// The id of the monitor the pointer is on, if the compositor says where it is
+pub fn monitor_id_at_cursor() -> Option<u32> {
+    let (x, y) = backend().cursor_pos()?;
+    backend().monitor_from_point(x, y)?.to_u32()
+}
+
 /// Where the pointer is, if the compositor says
 pub fn cursor_position() -> Option<(i32, i32)> {
     backend().cursor_pos()

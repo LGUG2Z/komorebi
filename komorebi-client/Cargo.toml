@@ -28,4 +28,8 @@ parking_lot = "0.13"
 
 [features]
 default = ["schemars"]
-schemars = ["komorebi/default", "komorebi-linux/default", "komorebi-macos/default"]
+schemars = [
+  "komorebi/default",
+  "komorebi-linux/default",
+  "komorebi-macos/default",
+]

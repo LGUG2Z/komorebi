@@ -14,7 +14,6 @@
 //! it began puts the neighbours back.
 
 use crate::WindowsApi;
-use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::GHOST_MOVEMENT_ENABLED;
 use crate::animation::ghost::GhostWindow;
 use crate::animation::ghost::is_swap_chain_window;
@@ -368,7 +367,7 @@ fn glide_frame(from: &Rect, to: &Rect, progress: f64) -> Rect {
 /// long as an animation takes, and nothing else is done until they are there. For the windows
 /// of a strip that is let go of, which then does not jump to where it comes to rest.
 pub fn glide() {
-    let duration = Duration::from_millis(ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst));
+    let duration = Duration::from_millis(crate::settings::animation_duration_global());
 
     let mut covers = COVERS.lock();
     let Some(covers) = covers.as_mut() else {

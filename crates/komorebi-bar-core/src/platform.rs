@@ -31,6 +31,9 @@ pub trait BarPlatform: Send + Sync {
     /// The GitHub API URL that says which release of this platform's komorebi is the latest.
     fn latest_release_api_url(&self) -> &'static str;
 
+    /// The page of this platform's release `version` that the update widget opens when clicked.
+    fn release_page_url(&self, version: &str) -> String;
+
     /// The icon of the program a command string would start (Windows: the executable's icon;
     /// macOS: none).
     fn command_icon(&self, command: &str) -> Option<ImageIcon>;

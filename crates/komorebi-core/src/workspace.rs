@@ -1378,13 +1378,13 @@ impl<P: WorkspacePlatform> Workspace<P> {
             0 | 1 => self.enforce_no_resize(),
             _ => {
                 // Zero is actually on the right
-                if let Some(left) = resize_dimensions[1].as_mut() {
-                    left.top = 0;
-                    left.bottom = 0;
-                    left.right = 0;
+                if let Some(right) = resize_dimensions[0].as_mut() {
+                    right.top = 0;
+                    right.bottom = 0;
+                    right.right = 0;
                 }
 
-                // Handle stack on the right
+                // Handle stack on the left
                 let stack_size = resize_dimensions[1..].len();
                 for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
                     if let Some(rect) = rect {

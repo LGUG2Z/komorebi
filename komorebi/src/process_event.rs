@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
-use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
 
 use crate::core::Rect;
@@ -158,7 +157,7 @@ impl WindowManager {
         if !should_manage {
             let mut transparency_override = false;
 
-            if transparency_manager::TRANSPARENCY_ENABLED.load_consume() {
+            if crate::settings::transparency_enabled() {
                 for m in self.monitors() {
                     for w in m.workspaces() {
                         let event_hwnd = event.window().hwnd;

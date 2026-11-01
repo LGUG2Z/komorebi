@@ -33,15 +33,6 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
 use crate::TRANSPARENCY_BLACKLIST;
 use crate::WORKSPACE_MATCHING_RULES;
-use crate::animation::ANIMATION_DURATION_GLOBAL;
-use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
-use crate::animation::ANIMATION_FPS;
-use crate::animation::ANIMATION_STYLE_GLOBAL;
-use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
-use crate::animation::DEFAULT_ANIMATION_FPS;
-use crate::animation::PerAnimationPrefixConfig;
 use crate::backend::backend;
 use crate::border_manager;
 use crate::core::CrossBoundaryBehaviour;
@@ -64,7 +55,6 @@ use crate::monitor::MonitorExt;
 use crate::monitor_reconciliator;
 use crate::ring::Ring;
 use crate::theme_manager;
-use crate::transparency_manager;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::Workspace;
@@ -73,6 +63,7 @@ use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_settings::shared::AnimationDelta;
 use komorebi_settings::shared::SharedDelta;
 use komorebi_themes::colour::Colour;
 use parking_lot::Mutex;
@@ -351,10 +342,10 @@ impl From<&WindowManager> for StaticConfig {
             border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
             border_colours,
             transparency: Option::from(
-                transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst),
+                crate::settings::transparency_enabled(),
             ),
             transparency_alpha: Option::from(
-                transparency_manager::TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
+                crate::settings::transparency_alpha(),
             ),
             transparency_ignore_rules: None,
             // border_style: Option::from(STYLE.load()),
@@ -447,44 +438,21 @@ impl ApplyGlobals for StaticConfig {
         //     window::MINIMUM_WIDTH.store(width, Ordering::SeqCst);
         // }
 
+        // the animation block, as one update: a global value clears its per-animation map, a map
+        // replaces the map, and a block without `fps` has the default (`SharedDelta::apply`)
         if let Some(animations) = &self.animation {
-            match &animations.enabled {
-                PerAnimationPrefixConfig::Prefix(enabled) => {
-                    ANIMATION_ENABLED_PER_ANIMATION.lock().clone_from(enabled);
+            crate::settings::settings().update(|settings| {
+                SharedDelta {
+                    animation: Some(AnimationDelta {
+                        enabled: animations.enabled.clone(),
+                        style: animations.style.clone(),
+                        duration: animations.duration.clone(),
+                        fps: animations.fps,
+                    }),
+                    ..SharedDelta::default()
                 }
-                PerAnimationPrefixConfig::Global(enabled) => {
-                    ANIMATION_ENABLED_GLOBAL.store(*enabled, Ordering::SeqCst);
-                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
-                }
-            }
-
-            match &animations.style {
-                Some(PerAnimationPrefixConfig::Prefix(style)) => {
-                    ANIMATION_STYLE_PER_ANIMATION.lock().clone_from(style);
-                }
-                Some(PerAnimationPrefixConfig::Global(style)) => {
-                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
-                    *animation_style = *style;
-                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
-                }
-                None => {}
-            }
-
-            match &animations.duration {
-                Some(PerAnimationPrefixConfig::Prefix(duration)) => {
-                    ANIMATION_DURATION_PER_ANIMATION.lock().clone_from(duration);
-                }
-                Some(PerAnimationPrefixConfig::Global(duration)) => {
-                    ANIMATION_DURATION_GLOBAL.store(*duration, Ordering::SeqCst);
-                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
-                }
-                None => {}
-            }
-
-            ANIMATION_FPS.store(
-                animations.fps.unwrap_or(DEFAULT_ANIMATION_FPS),
-                Ordering::SeqCst,
-            );
+                .apply(&mut settings.shared);
+            });
         }
 
         if let Some(border_width) = self.border_width {
@@ -555,10 +523,15 @@ impl ApplyGlobals for StaticConfig {
         //     border_manager::send_notification(None);
         // }
         //
-        transparency_manager::TRANSPARENCY_ENABLED
-            .store(self.transparency.unwrap_or(false), Ordering::SeqCst);
-        transparency_manager::TRANSPARENCY_ALPHA
-            .store(self.transparency_alpha.unwrap_or(200), Ordering::SeqCst);
+        // KDE resets both when the key is absent (unlike Windows, which keeps the value)
+        crate::settings::settings().update(|settings| {
+            SharedDelta {
+                transparency: Some(self.transparency.unwrap_or(false)),
+                transparency_alpha: Some(self.transparency_alpha.unwrap_or(200)),
+                ..SharedDelta::default()
+            }
+            .apply(&mut settings.shared);
+        });
 
         // the order every other place takes them in (floating, transparency, ignore, manage, regex):
         // a thread that takes two in another order can wait for one that holds what it needs

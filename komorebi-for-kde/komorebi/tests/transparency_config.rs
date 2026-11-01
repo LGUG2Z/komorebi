@@ -12,7 +12,6 @@ use komorebi::backend::with_backend;
 use komorebi::core::SocketMessage;
 use komorebi::static_config::StaticConfig;
 use komorebi::static_config::StaticConfigExt;
-use komorebi::transparency_manager;
 use komorebi::window::Window;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event::KWinNotification;
@@ -22,7 +21,6 @@ use parking_lot::Mutex;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 fn write_config(name: &str, json: &str) -> PathBuf {
     let path = PathBuf::from(format!(
@@ -61,9 +59,9 @@ fn the_transparency_keys_of_the_file_are_the_transparency_settings() {
     with_backend(fake.clone(), || StaticConfig::postload(&path, &wm)).unwrap();
     let _ = std::fs::remove_file(&socket);
 
-    assert!(transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst));
+    assert!(komorebi::settings::transparency_enabled());
     assert_eq!(
-        transparency_manager::TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
+        komorebi::settings::transparency_alpha(),
         120
     );
 
@@ -98,9 +96,9 @@ fn the_transparency_keys_of_the_file_are_the_transparency_settings() {
             )
             .unwrap();
     });
-    assert!(!transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst));
+    assert!(!komorebi::settings::transparency_enabled());
     assert_eq!(
-        transparency_manager::TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
+        komorebi::settings::transparency_alpha(),
         200
     );
     assert_eq!(fake.opacity_of(46_002), 255, "opaque again");

@@ -1,7 +1,7 @@
 ```
 Move the view of the Scrolling layout a column to the left or the right, or with the fingers on a touchpad, which does nothing in any other layout
 
-Usage: pan [OPTIONS] [DIRECTION]
+Usage: komorebic.exe pan [OPTIONS] [DIRECTION]
 
 Arguments:
   [DIRECTION]

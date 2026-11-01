@@ -35,6 +35,10 @@ impl BarPlatform for WindowsBar {
         "https://api.github.com/repos/LGUG2Z/komorebi/releases/latest"
     }
 
+    fn release_page_url(&self, version: &str) -> String {
+        format!("https://github.com/LGUG2Z/komorebi/releases/v{version}")
+    }
+
     fn calendar_icon(&self) -> &'static str {
         CALENDAR_DOTS
     }

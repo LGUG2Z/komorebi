@@ -163,7 +163,6 @@ use crate::core::Rect;
 
 use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::MONITOR_INDEX_PREFERENCES;
-use crate::WINDOW_HANDLING_BEHAVIOUR;
 use crate::Window;
 use crate::WindowHandlingBehaviour;
 use crate::WindowManager;
@@ -529,7 +528,7 @@ impl WindowsApi {
         // blocking our thread in case the target window is not responding.
         if with_async_window_pos
             && matches!(
-                WINDOW_HANDLING_BEHAVIOUR.load(),
+                crate::settings::window_handling_behaviour(),
                 WindowHandlingBehaviour::Async
             )
         {
@@ -576,7 +575,7 @@ impl WindowsApi {
             | SetWindowPosition::SHOW_WINDOW;
 
         if matches!(
-            WINDOW_HANDLING_BEHAVIOUR.load(),
+            crate::settings::window_handling_behaviour(),
             WindowHandlingBehaviour::Async
         ) {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
@@ -600,7 +599,7 @@ impl WindowsApi {
             | SetWindowPosition::SHOW_WINDOW;
 
         if matches!(
-            WINDOW_HANDLING_BEHAVIOUR.load(),
+            crate::settings::window_handling_behaviour(),
             WindowHandlingBehaviour::Async
         ) {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
@@ -630,7 +629,7 @@ impl WindowsApi {
         }
 
         if matches!(
-            WINDOW_HANDLING_BEHAVIOUR.load(),
+            crate::settings::window_handling_behaviour(),
             WindowHandlingBehaviour::Async
         ) {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
@@ -679,7 +678,7 @@ impl WindowsApi {
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         // TODO: error handling
         if matches!(
-            WINDOW_HANDLING_BEHAVIOUR.load(),
+            crate::settings::window_handling_behaviour(),
             WindowHandlingBehaviour::Async
         ) {
             unsafe {

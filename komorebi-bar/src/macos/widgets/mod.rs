@@ -1,4 +1,3 @@
-
 pub use komorebi_bar_core::widgets::applications;
 pub use komorebi_bar_core::widgets::battery;
 pub use komorebi_bar_core::widgets::cpu;

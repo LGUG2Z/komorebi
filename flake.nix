@@ -41,7 +41,7 @@
     kfm-flake-parts.url = "github:hercules-ci/flake-parts/a34fae9c08a15ad73f295041fec82323541400a9";
     kfm-flake-parts.inputs.nixpkgs-lib.follows = "kfm-nixpkgs-lib";
     kfm-crane.url = "github:ipetkov/crane/7d59256814085fd9666a2ae3e774dc5ee216b630";
-    kfm-rust-overlay.url = "github:oxalica/rust-overlay/1d3f83babdd21e16bf5cfe0f1efcb4f49ee1bc2c";
+    kfm-rust-overlay.url = "github:oxalica/rust-overlay/19ecdd08213836b36c4296a3a4f4af5a3d5308db";
     kfm-rust-overlay.inputs.nixpkgs.follows = "kfm-nixpkgs";
     kfm-treefmt-nix.url = "github:numtide/treefmt-nix/d56486eb9493ad9c4777c65932618e9c2d0468fc";
     kfm-treefmt-nix.inputs.nixpkgs.follows = "kfm-nixpkgs";

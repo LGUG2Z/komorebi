@@ -128,32 +128,19 @@ fn the_ultrawide_stack_has_its_main_column_in_the_middle() {
 }
 
 #[test]
-fn the_right_main_vertical_stack_constrains_index_one_and_leaves_index_zero_free() {
-    // characterization of what the code does: it follows the comment "Zero is actually on the
-    // right" but indexes the second container, so the first (the main one) is never constrained
-    // and the second may not be resized at all; the ignored test below says what the comment asks
+fn the_right_main_vertical_stack_constrains_its_main_container_at_index_zero() {
+    // the main container is index 0 and is drawn on the right (komorebi-layouts arrangement.rs:
+    // primary_left = area.right - primary_width): it may only be resized to the left. The stack
+    // is on the left: nothing in it goes left, the first not up, the last not down.
     check(
         DefaultLayout::RightMainVerticalStack,
         &[
             &[""],
-            &["ltrb", ""],
-            &["ltrb", "", "tr"],
-            &["ltrb", "", "trb", "tr"],
+            &["l", "rb"],
+            &["l", "rb", "tr"],
+            &["l", "rb", "trb", "tr"],
         ],
     );
-}
-
-#[test]
-#[ignore = "bug: enforce_resize_for_right_vertical_stack indexes resize_dimensions[1] where its \
-            comment says zero is on the right; inherited unchanged from the Windows tree"]
-fn the_right_main_vertical_stack_constrains_its_main_container_at_index_zero() {
-    fresh();
-    let mut workspace = workspace_with(DefaultLayout::RightMainVerticalStack, 3);
-
-    workspace.enforce_resize_constraints();
-
-    // the main container is on the right: it cannot go up, down or right
-    assert_eq!(sides(&workspace)[0], "l");
 }
 
 #[test]

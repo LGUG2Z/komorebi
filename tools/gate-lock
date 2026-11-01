@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+# gate-lock: a host-wide queue for heavy gates (nix build checks, KDE VM suites,
+# Windows e2e, long clippy), with a declared load class. Light checks never block.
+# See tools/README.md. Never commits, never pushes, touches nothing but $GATE_LOCK_DIR.
+#
+#   gate-lock run [opts] -- CMD...   take the lock (FIFO), run CMD, release
+#   gate-lock adopt [opts] PID       hold the lock until an already running PID exits
+#   gate-lock status [--short]       who holds it, who waits, host load
+#   gate-lock wait [--max SEC]       return when nobody holds it (takes nothing)
+#   gate-lock history [N]            last N finished gates (default 20)
+#
+# Classes (--class):
+#   light   never waits, never
+#           holds. If a timing gate is active the command runs as `nice -n 19` with
+#           CARGO_BUILD_JOBS=${GATE_LIGHT_JOBS:-3} (and `taskset -c $GATE_LIGHT_CPUS`
+#           if set), so that compile checks stay out of the way of a timing-sensitive run.
+#   heavy   exclusive among heavy/timing gates: nix build of checks, KDE VM suite,
+#           cold or long clippy, anything that can push 1-min load above ~10.
+#   timing  like heavy, and declares "this run is timing-sensitive": light work is
+#           throttled while it holds (Windows e2e, `commands`, core-e2e VM suites).
+#
+# Options for run/adopt: --class C  --label TEXT  --est MIN  --front (jump the queue)
+#   --wait-max SEC (give up with exit 75)  --idle-load N (after getting the lock, wait
+#   for the 1-min load to fall below N, at most --idle-max SEC, default 600)
+# Env: GATE_LOCK_DIR (default ${XDG_STATE_HOME:-$HOME/.local/state}/komorebi-gate), GATE_OWNER (default: the
+#   workspace directory name, e.g. ws-u-kfw), GATE_LIGHT_JOBS, GATE_LIGHT_CPUS.
+# shellcheck disable=SC2012,SC2016  # ls of queue tickets (plain names) and a bash -c script that expands $1 itself
+set -uo pipefail
+
+DIR="${GATE_LOCK_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/komorebi-gate}"
+LOCK="$DIR/heavy.lock"
+HOLDER="$DIR/holder"
+HIST="$DIR/history.log"
+QUEUE="$DIR/queue"
+mkdir -p "$QUEUE"
+
+owner() {
+  if [ -n "${GATE_OWNER:-}" ]; then echo "$GATE_OWNER"; return; fi
+  local d="$PWD"
+  while [ "$d" != "/" ]; do
+    case "$(basename "$d")" in ws-*) basename "$d"; return ;; esac
+    d="$(dirname "$d")"
+  done
+  echo "${USER:-unknown}"
+}
+
+now() { date +%s; }
+stamp() { date '+%F %T'; }
+load1() { cut -d' ' -f1 /proc/loadavg; }
+ago() { # seconds -> 12m / 1h05m
+  local s=$1
+  if [ "$s" -lt 120 ]; then echo "${s}s"
+  elif [ "$s" -lt 7200 ]; then echo "$((s / 60))m"
+  else printf '%dh%02dm' $((s / 3600)) $(((s % 3600) / 60)); fi
+}
+
+# Is the lock held right now? A shared-mode probe conflicts only with the exclusive
+# holder, so probes never block each other (an acquirer may miss once and retries).
+held() { ! ( exec 8>>"$LOCK"; flock -n -s 8 ) 2>/dev/null; }
+
+field() { sed -n "s/^$1=//p" "$HOLDER" 2>/dev/null | head -1; }
+
+timing_active() { held && [ "$(field class)" = timing ]; }
+
+prune_queue() {
+  local t pid
+  for t in "$QUEUE"/*; do
+    [ -e "$t" ] || continue
+    pid="$(sed -n 's/^pid=//p' "$t")"
+    if [ -z "$pid" ] || [ ! -d "/proc/$pid" ]; then rm -f "$t"; fi
+  done
+}
+
+cmd_status() {
+  local short=0
+  [ "${1:-}" = --short ] && short=1
+  if held; then
+    local since age
+    since="$(field since)"; age=$(( $(now) - ${since:-$(now)} ))
+    if [ $short = 1 ]; then
+      echo "$(field class):$(field owner):$(field label):$(ago "$age")"
+      return 0
+    fi
+    echo "HELD   class=$(field class) owner=$(field owner) pid=$(field pid) for $(ago "$age") est=$(field est)min"
+    echo "       label: $(field label)"
+    echo "       cmd:   $(field cmd)"
+  else
+    [ $short = 1 ] && { echo FREE; return 0; }
+    echo "FREE   (nobody holds the heavy-gate lock)"
+  fi
+  prune_queue
+  local n=0 t
+  for t in $(ls "$QUEUE" 2>/dev/null | sort); do
+    n=$((n + 1))
+    echo "QUEUE  $n. class=$(sed -n 's/^class=//p' "$QUEUE/$t") owner=$(sed -n 's/^owner=//p' "$QUEUE/$t") waiting $(ago $(( $(now) - $(sed -n 's/^queued=//p' "$QUEUE/$t") ))) label: $(sed -n 's/^label=//p' "$QUEUE/$t")"
+  done
+  [ $n = 0 ] && echo "QUEUE  empty"
+  echo "HOST   load1=$(load1) cpus=$(nproc) $(awk '/MemAvailable/{printf "mem_avail=%.0fG", $2/1048576}' /proc/meminfo)"
+  if timing_active; then
+    echo "LIGHT  throttled: nice 19, CARGO_BUILD_JOBS=${GATE_LIGHT_JOBS:-3}${GATE_LIGHT_CPUS:+, cpus $GATE_LIGHT_CPUS} (run light work through: gate-lock run --class light -- CMD)"
+  else
+    echo "LIGHT  free (no timing gate active)"
+  fi
+}
+
+cmd_history() { tail -n "${1:-20}" "$HIST" 2>/dev/null || echo "(no history)"; }
+
+cmd_wait() {
+  local max=0 start
+  [ "${1:-}" = --max ] && max="$2"
+  start=$(now)
+  while held; do
+    [ "$max" -gt 0 ] && [ $(( $(now) - start )) -ge "$max" ] && { echo "gate-lock: still held after ${max}s" >&2; return 75; }
+    sleep 2
+  done
+}
+
+run_light() {
+  local label="$1"; shift
+  if timing_active; then
+    echo "gate-lock: timing gate active ($(field owner): $(field label)); running light work throttled" >&2
+    export CARGO_BUILD_JOBS="${GATE_LIGHT_JOBS:-3}"
+    local pre=(nice -n 19)
+    [ -n "${GATE_LIGHT_CPUS:-}" ] && pre=(taskset -c "$GATE_LIGHT_CPUS" nice -n 19)
+    "${pre[@]}" "$@"
+  else
+    "$@"
+  fi
+  return $?
+}
+
+# acquire_and_run CLASS LABEL EST FRONT WAITMAX IDLELOAD IDLEMAX -- CMD...
+acquire_and_run() {
+  local class="$1" label="$2" est="$3" front="$4" waitmax="$5" idleload="$6" idlemax="$7"
+  shift 8
+  local me ticket queued rc child
+  me="$(owner)"
+  queued=$(now)
+  ticket="$QUEUE/$([ "$front" = 1 ] && echo 0 || echo 1)-$(date +%s%N)-$$"
+  printf 'pid=%s\nowner=%s\nclass=%s\nlabel=%s\nqueued=%s\n' "$$" "$me" "$class" "$label" "$queued" > "$ticket"
+  exec 9>>"$LOCK"
+  trap 'rm -f "$ticket"; exit 130' INT TERM HUP
+  local told=0
+  while :; do
+    prune_queue
+    if [ "$(ls "$QUEUE" | sort | head -1)" = "$(basename "$ticket")" ]; then
+      flock -w 2 9 && break
+    else
+      sleep 1
+    fi
+    if [ $told = 0 ]; then
+      echo "gate-lock: waiting for $class gate '$label' ($me); holder: $(cmd_status --short)" >&2; told=1
+    fi
+    if [ "$waitmax" -gt 0 ] && [ $(( $(now) - queued )) -ge "$waitmax" ]; then
+      rm -f "$ticket"; echo "gate-lock: gave up after ${waitmax}s" >&2; return 75
+    fi
+  done
+  rm -f "$ticket"
+  trap - INT TERM HUP
+  local waited=$(( $(now) - queued )) started
+  started=$(now)
+  printf 'pid=%s\nowner=%s\nclass=%s\nlabel=%s\nest=%s\nsince=%s\ncmd=%s\n' \
+    "$$" "$me" "$class" "$label" "$est" "$started" "$*" > "$HOLDER.$$" && mv -f "$HOLDER.$$" "$HOLDER"
+  echo "gate-lock: acquired $class gate '$label' after $(ago "$waited")" >&2
+  if [ -n "$idleload" ]; then
+    local t0; t0=$(now)
+    while awk -v l="$(load1)" -v m="$idleload" 'BEGIN{exit !(l>=m)}'; do
+      [ $(( $(now) - t0 )) -ge "$idlemax" ] && { echo "gate-lock: load still $(load1) >= $idleload after ${idlemax}s; going ahead (recorded)" >&2; break; }
+      sleep 5
+    done
+    started=$(now)
+  fi
+  local load_start; load_start="$(load1)"
+  "$@" &
+  child=$!
+  trap 'kill -TERM "$child" 2>/dev/null' INT TERM HUP
+  wait "$child"; rc=$?
+  while kill -0 "$child" 2>/dev/null; do wait "$child"; rc=$?; done
+  trap - INT TERM HUP
+  printf '%s owner=%s class=%s label="%s" waited=%ss ran=%ss rc=%s load1_start=%s load1_end=%s\n' \
+    "$(stamp)" "$me" "$class" "$label" "$waited" "$(( $(now) - started ))" "$rc" "$load_start" "$(load1)" >> "$HIST"
+  [ "$(field pid)" = "$$" ] && rm -f "$HOLDER"
+  return $rc
+}
+
+sub="${1:-}"; [ $# -gt 0 ] && shift
+case "$sub" in
+  status) cmd_status "$@" ;;
+  history) cmd_history "$@" ;;
+  wait) cmd_wait "$@" ;;
+  run|adopt)
+    class=""; label=""; est="?"; front=0; waitmax=0; idleload=""; idlemax=600
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --class) class="$2"; shift 2 ;;
+        --label) label="$2"; shift 2 ;;
+        --est) est="$2"; shift 2 ;;
+        --front) front=1; shift ;;
+        --wait-max) waitmax="$2"; shift 2 ;;
+        --idle-load) idleload="$2"; shift 2 ;;
+        --idle-max) idlemax="$2"; shift 2 ;;
+        --) shift; break ;;
+        *) break ;;
+      esac
+    done
+    if [ "$sub" = adopt ]; then
+      pid="${1:?usage: gate-lock adopt [opts] PID}"
+      [ -d "/proc/$pid" ] || { echo "gate-lock: no process $pid" >&2; exit 2; }
+      class="${class:-timing}"; label="${label:-adopted pid $pid ($(tr '\0' ' ' < "/proc/$pid/cmdline" | cut -c1-60))}"
+      set -- bash -c 'while kill -0 "$1" 2>/dev/null; do sleep 5; done' _ "$pid"
+    fi
+    [ $# -gt 0 ] || { echo "gate-lock: no command (use: run --class C -- CMD...)" >&2; exit 2; }
+    [ -n "$class" ] || { echo "gate-lock: --class light|heavy|timing is required" >&2; exit 2; }
+    label="${label:-$*}"
+    case "$class" in
+      light) run_light "$label" "$@"; exit $? ;;
+      heavy|timing) acquire_and_run "$class" "$label" "$est" "$front" "$waitmax" "$idleload" "$idlemax" -- "$@"; exit $? ;;
+      *) echo "gate-lock: unknown class '$class'" >&2; exit 2 ;;
+    esac ;;
+  -h|--help|help|"") sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -n "$sub" ] || exit 2 ;;
+  *) echo "gate-lock: unknown subcommand '$sub' (see --help)" >&2; exit 2 ;;
+esac
