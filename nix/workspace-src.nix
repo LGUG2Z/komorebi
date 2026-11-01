@@ -1,22 +1,168 @@
-# The source of a build from the one Cargo workspace of this repository.
+# The source of a build of one platform, cut from the one Cargo workspace of this repository.
 #
-# Cargo has to load every member of the workspace, but a build of one platform needs the sources of
-# that platform's crates only. `real` is the filtered source (the platform's crates, the crates of the
-# root workspace they depend on, the root manifest and lock); every other member (`isReal` is false)
-# is added as its own manifest with an empty library and a `main` that does nothing. An edit of a
-# crate of another platform then changes nothing here, and an edit of another platform's manifest
-# changes only the stub copy of it.
+#   import ./workspace-src.nix { pkgs; craneLib; repoRoot; platform = "windows" | "linux" | "macos"; }
 #
-#   workspaceSrc { pkgs; repoRoot; real; isReal = member: bool; }
+# Cargo has to load every member of the workspace (the root manifest lists the members of all three
+# platforms), but a build of one platform needs the sources of that platform's crates only. The result:
+#
+#   real      the filtered source: the members of the platform, the root manifest and lock, the
+#             platform's files of the crates the platforms share, and the data files they read
+#   src       `real` plus, for every other member, its own manifest with an empty library and a `main`
+#             that does nothing (a stub: cargo refuses a workspace with a member that is not there, and
+#             a lock file that has packages the workspace does not have fails under --locked)
+#   members   the members of the platform; stubbed the others; stubbedPackages their package names (for
+#             `cargo deny --exclude`)
+#
+# An edit under one platform therefore changes nothing in the derivations of the others, except where
+# the edit is in a crate they share or in the root manifest, lock or toolchain files.
 {
   pkgs,
+  craneLib,
   repoRoot,
-  real,
-  isReal,
+  platform,
 }:
 let
   inherit (pkgs) lib;
-  members = (builtins.fromTOML (builtins.readFile "${real}/Cargo.toml")).workspace.members;
+  root = toString repoRoot;
+
+  allMembers = (builtins.fromTOML (builtins.readFile (repoRoot + "/Cargo.toml"))).workspace.members;
+
+  # the crates of the root workspace that the KDE packages depend on, by path (nix/linux/root-crates.json,
+  # kept equal to `cargo tree` by tools/kde-closure-check); komorebi-bar and komorebi-bar-core (the egui
+  # bar) are not in it, so an edit of the bar does not rebuild the KDE packages
+  linuxShared = builtins.fromJSON (builtins.readFile ./linux/root-crates.json) ++ [
+    "komorebi-daemon"
+  ];
+
+  linuxOnly = [
+    "komorebi-linux"
+    "komorebi-hotkeys"
+  ];
+  macosOnly = [ "komorebi-macos" ];
+
+  membersOf = {
+    # everything but the other two platforms' daemons
+    windows = builtins.filter (m: !(builtins.elem m (linuxOnly ++ macosOnly))) allMembers;
+    linux = linuxOnly ++ linuxShared;
+    macos =
+      macosOnly
+      ++ [
+        "komorebic"
+        "komorebi-client"
+        "komorebi-bar"
+        "komorebi-daemon"
+        "komorebi-layouts"
+        "komorebi-scrolling"
+        "komorebi-themes"
+      ]
+      ++ builtins.filter (m: lib.hasPrefix "crates/" m) allMembers;
+  };
+
+  members = builtins.filter (m: builtins.elem m membersOf.${platform}) allMembers;
+  stubbed = builtins.filter (m: !(builtins.elem m members)) allMembers;
+  stubbedPackages = map (
+    m: (builtins.fromTOML (builtins.readFile (repoRoot + "/${m}/Cargo.toml"))).package.name
+  ) stubbed;
+
+  # the crates one entry point serves for every platform: each keeps its own platform's modules and
+  # tests (named by prefix) and drops the other platforms'
+  sharedCrates = [
+    "komorebic"
+    "komorebi-client"
+    "komorebi-bar"
+    "komorebi-daemon"
+  ];
+  markers = {
+    windows = "(src/windows(\\.rs|/.*)|tests/windows_.*)";
+    linux = "(src/linux(\\.rs|/.*)|tests/linux_.*)";
+    macos = "(src/macos(\\.rs|/.*)|tests/macos_.*)";
+  };
+  otherMarkers = builtins.attrValues (removeAttrs markers [ platform ]);
+  ofOtherPlatform =
+    rel:
+    builtins.any (
+      crate:
+      lib.hasPrefix "${crate}/" rel
+      && builtins.any (
+        marker: builtins.match marker (lib.removePrefix "${crate}/" rel) != null
+      ) otherMarkers
+    ) sharedCrates;
+
+  # the directories of the source (a file is kept only under one of them)
+  roots =
+    members
+    ++ [
+      "docs"
+      "schemas"
+      ".cargo"
+    ]
+    # the configurations that the config_parity test of komorebi-linux loads
+    ++ lib.optional (platform == "linux") "spikes/config-parity";
+  underRoot = rel: builtins.any (r: rel == r || lib.hasPrefix "${r}/" rel) roots;
+  # a directory above a root (`crates` for `crates/komorebi-core`)
+  aboveRoot = rel: builtins.any (r: lib.hasPrefix "${rel}/" r) roots;
+
+  # data files that the Rust sources and tests read, outside the Cargo sources
+  extra =
+    rel:
+    # the test inputs of every crate
+    (builtins.match ".*/(tests|fixtures|golden)/.*" rel != null)
+    || {
+      windows =
+        # the whole of docs/ (they are embedded in komorebic and the bar) except the other platforms' and
+        # the developer notes; the macOS CLI pages are read by a test of komorebic-core
+        (
+          lib.hasPrefix "docs/" rel
+          && !(builtins.any (p: lib.hasPrefix p rel) [
+            "docs/linux/"
+            "docs/macos/"
+            "docs/dev/"
+          ])
+        )
+        || lib.hasPrefix "docs/macos/cli/" rel
+        || lib.hasPrefix "schemas/" rel
+        || lib.hasPrefix "komorebic/fixtures/" rel;
+      linux =
+        # the script komorebi loads into KWin and the JSON the tests and the daemon read
+        (lib.hasSuffix ".js" rel || lib.hasSuffix ".json" rel)
+        && !(lib.hasPrefix "docs/" rel || lib.hasPrefix "schemas/" rel)
+        || lib.hasPrefix "schemas/linux/" rel
+        || lib.hasPrefix "spikes/config-parity/" rel
+        || builtins.elem rel [
+          # the example configuration and the sample key bindings that `komorebic quickstart` includes
+          "docs/linux/komorebi.example.json"
+          "docs/linux/skhdrc.sample"
+          # the page that shows the example configuration, which a test compares with the file
+          "docs/linux/example-configurations.md"
+          # the example a test loads, to see that the docs show one that works
+          "docs/linux/usage/wallpapers.md"
+        ];
+      macos =
+        lib.hasSuffix ".json" rel && !(lib.hasPrefix "docs/" rel || lib.hasPrefix "schemas/" rel)
+        || lib.hasPrefix "docs/macos/" rel
+        || lib.hasPrefix "schemas/macos/" rel
+        || lib.hasPrefix "komorebic/fixtures/" rel;
+    }
+    .${platform};
+
+  real = lib.cleanSourceWith {
+    src = repoRoot;
+    filter =
+      path: type:
+      let
+        rel = lib.removePrefix "${root}/" path;
+        isRootFile = !(lib.hasInfix "/" rel);
+      in
+      if type == "directory" then
+        rel == root || aboveRoot rel || (underRoot rel && !(ofOtherPlatform rel))
+      else
+        # the files at the top: Cargo.toml, Cargo.lock, rust-toolchain.toml, rustfmt.toml, deny.toml
+        (isRootFile && craneLib.filterCargoSources path type)
+        || (
+          underRoot rel && !(ofOtherPlatform rel) && ((craneLib.filterCargoSources path type) || extra rel)
+        );
+  };
+
   stub = member: ''
     mkdir -p $out/${member}/src
     cp ${
@@ -28,9 +174,19 @@ let
     : > $out/${member}/src/lib.rs
     echo 'fn main() {}' > $out/${member}/src/main.rs
   '';
+
+  src = pkgs.runCommand "komorebi-${platform}-src" { } ''
+    cp -r ${real} $out
+    chmod -R u+w $out
+    ${lib.concatMapStrings stub stubbed}
+  '';
 in
-pkgs.runCommand "komorebi-workspace-src" { } ''
-  cp -r ${real} $out
-  chmod -R u+w $out
-  ${lib.concatMapStrings stub (builtins.filter (m: !(isReal m)) members)}
-''
+{
+  inherit
+    real
+    src
+    members
+    stubbed
+    stubbedPackages
+    ;
+}
