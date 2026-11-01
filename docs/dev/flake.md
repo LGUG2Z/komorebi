@@ -55,7 +55,7 @@ prefixes `kfde-` and `kfm-`) and of the nested flakes themselves.
 
 | Old | New |
 |---|---|
-| `komorebi-workspace-clippy`, `-fmt`, `-toml-fmt`, `-deny`, `-nextest` (Windows) | `windows-clippy`, `windows-fmt`, `windows-toml-fmt`, `windows-deny`, `windows-nextest` |
+| `komorebi-workspace-clippy`, `-fmt`, `-toml-fmt`, `-deny`, `-nextest` (Windows) | `windows-clippy`, `windows-fmt`, `windows-toml-fmt`, `windows-deny` (`-nextest` ran no test and is gone, see flake-checks.md) |
 | `e2e-tests` | `windows-e2e-tests` |
 | `kfde-komorebi-workspace-clippy`, `-doc`, `-fmt`, `-toml-fmt`, `-deny`, `-nextest` | `linux-clippy`, `linux-doc`, `linux-fmt`, `linux-toml-fmt`, `linux-deny`, `linux-nextest` |
 | `kfde-komorebi-bridge-js` | `linux-bridge-js` |
@@ -126,7 +126,7 @@ Every platform's checks run on its own source, so a change in one platform's dir
 others' derivations. A change in a crate under `crates/` (or in `komorebic`, `komorebi-client`,
 `komorebi-daemon`), in `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` or `deny.toml` rebuilds those that read it.
 
-- `windows-clippy`, `windows-nextest`, `windows-fmt`, `windows-toml-fmt`, `windows-deny`, `windows-e2e-tests`
+- `windows-clippy`, `windows-fmt`, `windows-toml-fmt`, `windows-deny`, `windows-e2e-tests`
 - `linux-clippy`, `linux-doc`, `linux-nextest`, `linux-fmt`, `linux-toml-fmt`, `linux-deny`, `linux-bridge-js`,
   `linux-schema-fresh`, `linux-nix-options-validation`, `linux-keybindings-fixtures`, `linux-nixos-module-eval`,
   `linux-plasma-guests-eval`, `linux-wsl2-probe`, `linux-wsl2-probe-dry-run`, `linux-run-kde*`,
@@ -155,7 +155,7 @@ commands on the Linux or macOS packages use `nix develop .#native` (the same too
 ## Updating the flake: what to run
 
 - the evaluation: `nix flake check --no-build --all-systems`
-- the Windows group: `windows-clippy`, `windows-nextest`, `windows-fmt`, `windows-toml-fmt`, `windows-deny`,
+- the Windows group: `windows-clippy`, `windows-fmt`, `windows-toml-fmt`, `windows-deny`,
   `windows-e2e-tests`, the `windows-*` packages
 - the Linux group: the `linux-*` checks and packages, one VM suite (`vm-lib`, then a cheap suite)
 - on a Mac: `nix build -L .#checks.aarch64-darwin.macos-{clippy,nextest,fmt,toml-fmt,deny,nix-options-validation,darwin-module-validation}`

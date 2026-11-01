@@ -112,7 +112,10 @@ in
           }
         );
 
-        windows-nextest = build.craneLib.cargoNextest build.individualCrateArgs;
+        # There is no `windows-nextest`: it ran no test. The tests of the Windows crates are Windows
+        # programs, which a Linux builder cannot run, and `individualCrateArgs` has `doCheck = false`, so
+        # crane's nextest derivation only ran `cargo nextest --version`. `windows-clippy` (--all-targets)
+        # compiles them; `cargo test` of the Windows CI runs them (docs/dev/flake-checks.md).
       }
       // {
         # the Python of the Windows e2e guest that needs no guest: the

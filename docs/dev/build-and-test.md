@@ -58,7 +58,7 @@ shared by all of them):
 
 ```sh
 nix build -L --no-link .#checks.x86_64-linux.windows-clippy
-nix build -L --no-link .#checks.x86_64-linux.windows-nextest
+# (there is no windows-nextest: the Windows crates' tests run on Windows, `cargo test` of .github/workflows/windows.yaml)
 nix build -L --no-link .#checks.x86_64-linux.windows-fmt .#checks.x86_64-linux.windows-toml-fmt .#checks.x86_64-linux.windows-deny
 nix build -L --no-link .#checks.x86_64-linux.windows-e2e-tests # the Python of the e2e (pytest), no guest needed
 ```
