@@ -479,3 +479,175 @@ fn a_rule_by_title_follows_the_title_it_is_asked_about() {
     assert!(ask("a secret window").is_some());
     assert!(ask("a renamed window").is_none());
 }
+
+// The Windows input shape: one class, and an executable that carries its `.exe`
+// (`RuleQuirks::WINDOWS`: a rule id is compared as written).
+
+const WIN_EXE: &str = "e2e-exe-sent.exe";
+
+fn windows_matches(rule: &IdWithIdentifier, regex: &HashMap<String, Regex>) -> bool {
+    komorebi_config::rules::should_act_individual(
+        &RuleSubject {
+            title: TITLE,
+            exe_name: WIN_EXE,
+            classes: &[CLASS],
+            path: PATH,
+        },
+        RuleQuirks::WINDOWS,
+        rule,
+        regex,
+    )
+}
+
+// mirrors: rules_exe / a window an exe rule matches goes to the workspace the rule names
+// mirrors: rules_exe / a window of another program stays on the first workspace
+// (on Windows the rule id is `platform.exe_id(program)`, which is `e2e-exe-sent.exe`)
+#[test]
+fn on_windows_an_exe_rule_names_the_program_with_its_extension() {
+    for strategy in [None, Some(MatchingStrategy::Equals)] {
+        assert!(windows_matches(
+            &id(ApplicationIdentifier::Exe, WIN_EXE, strategy.clone()),
+            &no_regex()
+        ));
+        // not stripped: the id without the extension is another program
+        assert!(!windows_matches(
+            &id(ApplicationIdentifier::Exe, "e2e-exe-sent", strategy.clone()),
+            &no_regex()
+        ));
+        assert!(!windows_matches(
+            &id(ApplicationIdentifier::Exe, "e2e-exe-other.exe", strategy),
+            &no_regex()
+        ));
+    }
+    // the same ids on the KDE/macOS shape: the suffix of the id is ignored, so both name the
+    // program `e2e-exe-sent`
+    for written in ["e2e-exe-sent", "e2e-exe-sent.exe"] {
+        assert!(should_act_individual(
+            TITLE,
+            "e2e-exe-sent",
+            &[CLASS],
+            PATH,
+            &id(
+                ApplicationIdentifier::Exe,
+                written,
+                Some(MatchingStrategy::Equals)
+            ),
+            &no_regex()
+        ));
+    }
+}
+
+#[test]
+fn a_regex_id_is_looked_up_as_written_on_windows_and_without_exe_elsewhere() {
+    let written = "^e2e-exe-.*\\.exe$";
+    let rule = id(
+        ApplicationIdentifier::Exe,
+        written,
+        Some(MatchingStrategy::Regex),
+    );
+    let mut compiled = HashMap::new();
+    compiled.insert(written.to_string(), Regex::new(written).unwrap());
+    assert!(windows_matches(&rule, &compiled));
+    // KDE/macOS look the cache up with `.exe` removed from the id (`^e2e-exe-.*\$`), which is
+    // not a key there: no match, whatever the executable is
+    assert!(!should_act_individual(
+        TITLE,
+        WIN_EXE,
+        &[CLASS],
+        PATH,
+        &rule,
+        &compiled
+    ));
+}
+
+// mirrors: rules_class / a window a class rule matches goes to the workspace the rule names
+// mirrors: rules_class / a window of another class stays on the first workspace
+#[test]
+fn a_window_with_one_class_is_decided_the_same_way_on_every_platform() {
+    // With ids that hold no `.exe` the two input shapes are the same function: the whole grid of
+    // kinds and strategies agrees, for ids that match and ids that do not.
+    let no_regex = no_regex();
+    for kind in kinds() {
+        let text = text_of(kind);
+        let probes = [
+            text.to_string(),
+            text[..4].to_string(),
+            text[text.len() - 4..].to_string(),
+            "zzzz-not-there".to_string(),
+        ];
+        for strategy in [
+            None,
+            Some(MatchingStrategy::Legacy),
+            Some(MatchingStrategy::Equals),
+            Some(MatchingStrategy::DoesNotEqual),
+            Some(MatchingStrategy::StartsWith),
+            Some(MatchingStrategy::DoesNotStartWith),
+            Some(MatchingStrategy::EndsWith),
+            Some(MatchingStrategy::DoesNotEndWith),
+            Some(MatchingStrategy::Contains),
+            Some(MatchingStrategy::DoesNotContain),
+        ] {
+            for probe in &probes {
+                let rule = id(kind, probe, strategy.clone());
+                let subject = RuleSubject {
+                    title: TITLE,
+                    exe_name: EXE,
+                    classes: &[CLASS],
+                    path: PATH,
+                };
+                assert_eq!(
+                    komorebi_config::rules::should_act_individual(
+                        &subject,
+                        RuleQuirks::WINDOWS,
+                        &rule,
+                        &no_regex
+                    ),
+                    komorebi_config::rules::should_act_individual(
+                        &subject,
+                        RuleQuirks::UNIX,
+                        &rule,
+                        &no_regex
+                    ),
+                    "{kind:?} {strategy:?} {probe:?}"
+                );
+            }
+        }
+    }
+}
+
+// mirrors: rules_class / a window of another class stays on the first workspace
+#[test]
+fn a_negated_class_rule_holds_for_a_window_of_another_class_and_for_none_without_a_class() {
+    let rule = id(
+        ApplicationIdentifier::Class,
+        CLASS,
+        Some(MatchingStrategy::DoesNotEqual),
+    );
+    // one class that is not the id: holds
+    assert!(should_act_individual(
+        TITLE,
+        EXE,
+        &["another"],
+        PATH,
+        &rule,
+        &no_regex()
+    ));
+    // the class the id names: does not
+    assert!(!should_act_individual(
+        TITLE,
+        EXE,
+        &[CLASS],
+        PATH,
+        &rule,
+        &no_regex()
+    ));
+    // a window with no class has none to hold for (KDE/macOS only; Windows always has one)
+    assert!(!should_act_individual(
+        TITLE,
+        EXE,
+        &[],
+        PATH,
+        &rule,
+        &no_regex()
+    ));
+}
