@@ -589,14 +589,7 @@ impl WindowManager {
                 self.is_paused = !self.is_paused;
             }
             SocketMessage::CycleFocusMonitor(direction) => {
-                let monitor_idx = direction.next_idx(
-                    self.focused_monitor_idx(),
-                    NonZeroUsize::new(self.monitors().len())
-                        .ok_or_eyre("there must be at least one monitor")?,
-                );
-
-                self.focus_monitor(monitor_idx)?;
-                self.update_focused_workspace(self.mouse_follows_focus, true)?;
+                komorebi_core::cycle_focus_monitor(self, direction)?
             }
             SocketMessage::CycleFocusWorkspace(direction) => {
                 self.cycle_focus_workspace(direction)?
@@ -648,15 +641,7 @@ impl WindowManager {
                 self.focus_workspace(workspace_idx)?;
             }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
-                let focused_monitor_idx = self.focused_monitor_idx();
-                let focused_workspace_idx = self.focused_workspace_idx().unwrap_or_default();
-
-                let focused_pair = (focused_monitor_idx, focused_workspace_idx);
-
-                if focused_pair != (monitor_idx, workspace_idx) {
-                    self.focus_monitor(monitor_idx)?;
-                    self.focus_workspace(workspace_idx)?;
-                }
+                komorebi_core::focus_monitor_workspace_number(self, monitor_idx, workspace_idx)?
             }
             SocketMessage::FocusNamedWorkspace(ref name) => {
                 if let Some((monitor_idx, workspace_idx)) =
@@ -912,18 +897,7 @@ impl WindowManager {
                 self.move_container_to_last_workspace(false)?;
             }
             SocketMessage::CycleMoveContainerToWorkspace(direction) => {
-                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
-
-                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
-                let workspaces = focused_monitor.workspaces().len();
-
-                let workspace_idx = direction.next_idx(
-                    focused_workspace_idx,
-                    NonZeroUsize::new(workspaces)
-                        .ok_or_eyre("there must be at least one workspace")?,
-                );
-
-                self.move_container_to_workspace(workspace_idx, true, None)?;
+                komorebi_core::cycle_move_container_to_workspace(self, direction, true)?
             }
             SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
                 let direction = self.direction_from_monitor_idx(monitor_idx);
@@ -933,60 +907,33 @@ impl WindowManager {
                 self.swap_focused_monitor(monitor_idx)?;
             }
             SocketMessage::CycleMoveContainerToMonitor(direction) => {
-                let monitor_idx = direction.next_idx(
-                    self.focused_monitor_idx(),
-                    NonZeroUsize::new(self.monitors().len())
-                        .ok_or_eyre("there must be at least one monitor")?,
-                );
-
-                let direction = self.direction_from_monitor_idx(monitor_idx);
-                self.move_container_to_monitor(monitor_idx, None, true, direction)?;
+                komorebi_core::cycle_move_container_to_monitor(self, direction, true)?
             }
             SocketMessage::CycleSendContainerToWorkspace(direction) => {
-                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
-
-                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
-                let workspaces = focused_monitor.workspaces().len();
-
-                let workspace_idx = direction.next_idx(
-                    focused_workspace_idx,
-                    NonZeroUsize::new(workspaces)
-                        .ok_or_eyre("there must be at least one workspace")?,
-                );
-
-                self.move_container_to_workspace(workspace_idx, false, None)?;
+                komorebi_core::cycle_move_container_to_workspace(self, direction, false)?
             }
             SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {
                 let direction = self.direction_from_monitor_idx(monitor_idx);
                 self.move_container_to_monitor(monitor_idx, None, false, direction)?;
             }
             SocketMessage::CycleSendContainerToMonitor(direction) => {
-                let monitor_idx = direction.next_idx(
-                    self.focused_monitor_idx(),
-                    NonZeroUsize::new(self.monitors().len())
-                        .ok_or_eyre("there must be at least one monitor")?,
-                );
-
-                let direction = self.direction_from_monitor_idx(monitor_idx);
-                self.move_container_to_monitor(monitor_idx, None, false, direction)?;
+                komorebi_core::cycle_move_container_to_monitor(self, direction, false)?
             }
             SocketMessage::SendContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
-                let direction = self.direction_from_monitor_idx(monitor_idx);
-                self.move_container_to_monitor(
+                komorebi_core::move_container_to_monitor_workspace_number(
+                    self,
                     monitor_idx,
-                    Option::from(workspace_idx),
+                    workspace_idx,
                     false,
-                    direction,
-                )?;
+                )?
             }
             SocketMessage::MoveContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
-                let direction = self.direction_from_monitor_idx(monitor_idx);
-                self.move_container_to_monitor(
+                komorebi_core::move_container_to_monitor_workspace_number(
+                    self,
                     monitor_idx,
-                    Option::from(workspace_idx),
+                    workspace_idx,
                     true,
-                    direction,
-                )?;
+                )?
             }
             SocketMessage::SendContainerToNamedWorkspace(ref workspace) => {
                 if let Some((monitor_idx, workspace_idx)) =
@@ -1835,6 +1782,38 @@ impl komorebi_core::CommandHost for WindowManager {
         direction: Option<OperationDirection>,
     ) -> eyre::Result<()> {
         WindowManager::move_container_to_workspace(self, idx, follow, direction)
+    }
+}
+
+impl komorebi_core::MonitorCommandHost for WindowManager {
+    fn mouse_follows_focus(&self) -> bool {
+        self.mouse_follows_focus
+    }
+
+    fn update_focused_workspace(
+        &mut self,
+        follow_focus: bool,
+        trigger_focus: bool,
+    ) -> eyre::Result<()> {
+        WindowManager::update_focused_workspace(self, follow_focus, trigger_focus)
+    }
+
+    fn direction_from_monitor_idx(&self, idx: usize) -> Option<OperationDirection> {
+        WindowManager::direction_from_monitor_idx(self, idx)
+    }
+
+    fn move_container_to_monitor(
+        &mut self,
+        idx: usize,
+        workspace_idx: Option<usize>,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()> {
+        WindowManager::move_container_to_monitor(self, idx, workspace_idx, follow, direction)
+    }
+
+    fn focused_workspace_idx(&self) -> eyre::Result<usize> {
+        WindowManager::focused_workspace_idx(self)
     }
 }
 
