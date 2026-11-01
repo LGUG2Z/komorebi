@@ -1,0 +1,220 @@
+//! The commands that only move the focus and the containers around the shared model.
+//!
+//! A daemon's `process_command` is a router over its `WindowManager`, which is per platform. What a
+//! command does to the monitors, workspaces and containers does not depend on the platform, so the
+//! commands whose work is only that are functions here, generic over a [`CommandHost`]: the few
+//! operations of the window manager they build on (focus a monitor, show a workspace, move a
+//! container). Each daemon implements the host with its own window manager, and the arm of its router
+//! calls the function; a test implements it with a recording stub and checks the calls, which is how a
+//! command's logic is tested without a Windows or macOS machine.
+
+use crate::Monitor;
+use crate::MonitorPlatform;
+use color_eyre::eyre;
+use color_eyre::eyre::OptionExt;
+use komorebi_layouts::CycleDirection;
+use komorebi_layouts::OperationDirection;
+use std::collections::VecDeque;
+use std::num::NonZeroUsize;
+
+/// The window manager as the shared commands see it.
+pub trait CommandHost {
+    /// The platform whose monitors the host has.
+    type P: MonitorPlatform;
+
+    /// Whether the commands that act on the focused monitor first focus the monitor the pointer is
+    /// on when the workspace shown there is empty, for `cycle_focus_empty_workspace`,
+    /// `close_workspace` and `focus_last_workspace` (the other commands always do). Windows does it
+    /// for all of them; KDE and macOS do not.
+    const POINTER_PICKS_THE_MONITOR_FOR_ALL: bool = false;
+
+    /// The monitors.
+    fn monitors(&self) -> &VecDeque<Monitor<Self::P>>;
+
+    /// The monitor that has the focus, if there is one.
+    fn focused_monitor(&self) -> Option<&Monitor<Self::P>>;
+
+    /// The monitor that has the focus, mutably.
+    fn focused_monitor_mut(&mut self) -> Option<&mut Monitor<Self::P>>;
+
+    /// The index of the monitor that has the focus.
+    fn focused_monitor_idx(&self) -> usize;
+
+    /// The index of the monitor the pointer is on, if the platform says where it is.
+    fn monitor_idx_from_current_pos(&mut self) -> Option<usize>;
+
+    /// Gives the focus to the monitor at `idx`.
+    fn focus_monitor(&mut self, idx: usize) -> eyre::Result<()>;
+
+    /// Shows workspace `idx` on the focused monitor and focuses it.
+    fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()>;
+
+    /// Moves the focused container to workspace `idx` of the focused monitor.
+    fn move_container_to_workspace(
+        &mut self,
+        idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()>;
+}
+
+/// This is to ensure that even on an empty workspace on a secondary monitor, the secondary monitor
+/// where the cursor is focused will be used as the target for the workspace switch op
+fn focus_the_monitor_under_the_pointer<H: CommandHost>(host: &mut H) -> eyre::Result<()> {
+    if let Some(monitor_idx) = host.monitor_idx_from_current_pos()
+        && monitor_idx != host.focused_monitor_idx()
+        && let Some(monitor) = host.monitors().get(monitor_idx)
+        && let Some(workspace) = monitor.focused_workspace()
+        && workspace.is_empty()
+    {
+        host.focus_monitor(monitor_idx)?;
+    }
+
+    Ok(())
+}
+
+/// Focuses the next or previous workspace of the monitor that is focused, or of the monitor the
+/// pointer is on when its workspace is empty
+pub fn cycle_focus_workspace<H: CommandHost>(
+    host: &mut H,
+    direction: CycleDirection,
+) -> eyre::Result<()> {
+    focus_the_monitor_under_the_pointer(host)?;
+
+    let focused_monitor = host.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+    let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+    let workspaces = focused_monitor.workspaces().len();
+
+    let workspace_idx = direction.next_idx(
+        focused_workspace_idx,
+        NonZeroUsize::new(workspaces).ok_or_eyre("there must be at least one workspace")?,
+    );
+
+    host.focus_workspace(workspace_idx)?;
+    Ok(())
+}
+
+/// Focuses the next or previous empty workspace of the focused monitor, if it has one
+pub fn cycle_focus_empty_workspace<H: CommandHost>(
+    host: &mut H,
+    direction: CycleDirection,
+) -> eyre::Result<()> {
+    if H::POINTER_PICKS_THE_MONITOR_FOR_ALL {
+        focus_the_monitor_under_the_pointer(host)?;
+    }
+
+    let focused_monitor = host.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+    let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+    let workspaces = focused_monitor.workspaces().len();
+
+    let mut empty_workspaces = vec![];
+
+    for (idx, w) in focused_monitor.workspaces().iter().enumerate() {
+        if w.is_empty() {
+            empty_workspaces.push(idx);
+        }
+    }
+
+    if !empty_workspaces.is_empty() {
+        let mut workspace_idx = direction.next_idx(
+            focused_workspace_idx,
+            NonZeroUsize::new(workspaces).ok_or_eyre("there must be at least one workspace")?,
+        );
+
+        while !empty_workspaces.contains(&workspace_idx) {
+            workspace_idx = direction.next_idx(
+                workspace_idx,
+                NonZeroUsize::new(workspaces).ok_or_eyre("there must be at least one workspace")?,
+            );
+        }
+
+        host.focus_workspace(workspace_idx)?;
+    }
+    Ok(())
+}
+
+/// Removes the focused workspace when it is empty, unnamed and not the monitor's only one, and
+/// focuses the one before it
+pub fn close_workspace<H: CommandHost>(host: &mut H) -> eyre::Result<()> {
+    if H::POINTER_PICKS_THE_MONITOR_FOR_ALL {
+        focus_the_monitor_under_the_pointer(host)?;
+    }
+
+    let mut can_close = false;
+
+    if let Some(monitor) = host.focused_monitor_mut() {
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+        let next_focused_workspace_idx = focused_workspace_idx.saturating_sub(1);
+
+        if let Some(workspace) = monitor.focused_workspace()
+            && monitor.workspaces().len() > 1
+            && workspace.containers().is_empty()
+            && workspace.floating_windows().is_empty()
+            && workspace.monocle_container.is_none()
+            && workspace.maximized_window.is_none()
+            && workspace.name.is_none()
+        {
+            can_close = true;
+        }
+
+        if can_close
+            && monitor
+                .workspaces_mut()
+                .remove(focused_workspace_idx)
+                .is_some()
+        {
+            host.focus_workspace(next_focused_workspace_idx)?;
+        }
+    }
+    Ok(())
+}
+
+/// Focuses the workspace that was focused before this one
+pub fn focus_last_workspace<H: CommandHost>(host: &mut H) -> eyre::Result<()> {
+    if H::POINTER_PICKS_THE_MONITOR_FOR_ALL {
+        focus_the_monitor_under_the_pointer(host)?;
+    }
+
+    let idx = host
+        .focused_monitor()
+        .ok_or_eyre("there is no monitor")?
+        .focused_workspace_idx();
+
+    if let Some(monitor) = host.focused_monitor_mut()
+        && let Some(last_focused_workspace) = monitor.last_focused_workspace
+    {
+        host.focus_workspace(last_focused_workspace)?;
+    }
+
+    host.focused_monitor_mut()
+        .ok_or_eyre("there is no monitor")?
+        .last_focused_workspace = Option::from(idx);
+    Ok(())
+}
+
+/// Moves the focused container to the workspace that was focused before this one, and follows it
+/// when `follow` is set
+pub fn move_container_to_last_workspace<H: CommandHost>(
+    host: &mut H,
+    follow: bool,
+) -> eyre::Result<()> {
+    focus_the_monitor_under_the_pointer(host)?;
+
+    let idx = host
+        .focused_monitor()
+        .ok_or_eyre("there is no monitor")?
+        .focused_workspace_idx();
+
+    if let Some(monitor) = host.focused_monitor_mut()
+        && let Some(last_focused_workspace) = monitor.last_focused_workspace
+    {
+        host.move_container_to_workspace(last_focused_workspace, follow, None)?;
+    }
+
+    host.focused_monitor_mut()
+        .ok_or_eyre("there is no monitor")?
+        .last_focused_workspace = Option::from(idx);
+    Ok(())
+}
