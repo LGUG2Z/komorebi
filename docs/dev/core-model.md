@@ -1597,3 +1597,38 @@ because of a borrow, and Windows has no such need: they stay as they are).
 4. The plan/execute split of `focus_workspace`, then `init`/`stop`/`new`/`restore_all_windows` as hooks.
 Gates for each: Windows `commands`, `workspaces`, `focus`, `stacking`, `monocle` (maximizing), `borders`,
 `layouts` scenarios; KDE fast tier and VM for the router change.
+
+## 23. The macOS side of the shared router and `WindowManagerPlatform` (kfm, wip-u-mac-wm2)
+
+Written while kfde's `gate_message` hook and `WindowManagerPlatform` trait (branch `wip-u-wm2`) did
+not exist yet, so nothing here implements them; it records what macOS needs and what was done meanwhile.
+
+**The gate (22.1).** macOS calls `handle_unmanaged_window_behaviour()` once, in `process_command`, after
+`State::from` and before the `match`, for every message: the same call at the same place as KDE (KDE has
+`is_layout_command` and maximized check before it, which macOS does not need, and macOS has a space-id
+return before it, which KDE does not have). The body is the same text. So the default `gate_message`
+(call it for every message) is what macOS does today, and macOS needs no override.
+
+**Entry points as hooks** (the table of 22.2 for macOS; none takes the window manager lock from a main
+queue closure, none dispatches to main itself; the ones that already block main under the lock keep the
+hazard of `seam.md` 3.3 and do not add one):
+
+| function | what it is on macOS | hook shape | seam note |
+|---|---|---|---|
+| `new(run_loop, incoming, custom_socket_path)` (50 lines) | takes the main run loop; builds monitors from nothing; a thin forward as `P::new(..)` needs the run loop as a platform argument | `fn new(&PlatformArgs) -> WindowManager<Self>` with the run loop in the platform's args | no lock |
+| `init` (5 lines) | `MacosApi::load_monitor_information` then `load_workspace_information` (AX and CoreGraphics, on the calling thread) | `fn init(&mut WindowManager<Self>)` | runs before the daemon's threads start (main.rs), no lock contention |
+| `stop(ignore_restore)` (26 lines) | restores windows, writes the state, closes subscriber sockets (takes `SUBSCRIPTION_SOCKETS`), exits | `fn stop(..)` | takes only the registry-like statics, not the WM lock again |
+| `restore_all_windows(ignore_restore)` (17 lines) | AX restore per window | the shared part is the loop; the restore is `Container::restore` with the spot | AX under the WM lock, as before |
+| `focus_workspace` (38) | calls `border_manager::hide_borders_on`, an `exec_sync` to main **under the WM lock** (the pre-existing hazard of 3.3) | hook `workspace_transition` | unchanged hazard; the hook must not make it worse (no second dispatch) |
+| `resize_window` (240), `move_container_to_monitor` (130), `focus_floating_window_in_direction` (245), `enforce_workspace_rules` (202), `manage_focused_window` and `unmanage_focused_window` (19, 15) | the live-resize and AX identity code | stay macOS's; not hooks | |
+
+`ReplaceConfiguration` is `replace_configuration`, taking the run loop from `self` (section 22 of this
+document says it is a method since the deep dedup); the hook, if any, is `P::preload`.
+
+**Done meanwhile.** `Minimize`, `Close` and `DebugWindow` are methods on both daemons (the arms are the same
+text, the bodies the platform's); the ignore and manage rules use the shared `push_simple_rule`
+(kind and id; macOS used to compare only the id, a small fix).
+
+**`update` stays macOS's** (D-coord-15): section 22 gives the two blockers (the scrolling early return and
+the width of the SkyLight batch), and the shared `WindowManager<P>` does not need `update`: it calls
+`update_focused_workspace`, which is the daemon's.
