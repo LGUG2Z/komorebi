@@ -1,6 +1,6 @@
 [package]
 name = "komorebic-linux"
-version = "0.1.0"
+version.workspace = true
 description = "The command-line interface for Komorebi, a tiling window manager for KDE Plasma"
 edition = "2024"
 

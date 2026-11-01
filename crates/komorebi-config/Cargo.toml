@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-config"
-version = "0.1.42"
+version.workspace = true
 edition = "2024"
 description = "The komorebi.json data types (StaticConfig and the types it is made of) and the generation of its JSON Schema"
 

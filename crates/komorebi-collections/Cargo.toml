@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-collections"
-version = "0.1.42"
+version.workspace = true
 description = "The ring and the lockable sequence that every komorebi keeps its windows, containers, workspaces and monitors in"
 edition = "2024"
 

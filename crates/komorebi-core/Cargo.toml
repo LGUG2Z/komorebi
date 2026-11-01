@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-core"
-version = "0.1.42"
+version.workspace = true
 description = "The model every komorebi daemon shares, generic over the platform's window: containers first, then monitors, workspaces and the window manager"
 edition = "2024"
 

@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-macos"
-version = "0.1.1"
+version.workspace = true
 description = "A tiling window manager for macOS"
 edition = "2024"
 

@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-transport"
-version = "0.1.42"
+version.workspace = true
 description = "The command transport shared by every komorebi daemon: the pause filter, the command listener and the subscriber registry"
 edition = "2024"
 

@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-protocol"
-version = "0.1.42"
+version.workspace = true
 edition = "2024"
 description = "The wire types shared by every komorebi daemon and client: SocketMessage and its payloads"
 

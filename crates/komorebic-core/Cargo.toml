@@ -1,6 +1,6 @@
 [package]
 name = "komorebic-core"
-version = "0.1.42"
+version.workspace = true
 description = "The command line definitions that the komorebic of every platform shares"
 edition = "2024"
 

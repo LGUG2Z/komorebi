@@ -63,6 +63,9 @@ default-members = [
   "e2e/guest/testwin",
 ]
 
+[workspace.package]
+version = "0.2.0"
+
 [workspace.dependencies]
 clap = { version = "4", features = ["derive", "wrap_help"] }
 chrono-tz = "0.10"

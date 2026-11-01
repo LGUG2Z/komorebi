@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-client-macos"
-version = "0.1.1"
+version.workspace = true
 edition = "2024"
 
 [dependencies]
