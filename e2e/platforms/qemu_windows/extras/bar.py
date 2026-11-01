@@ -55,7 +55,8 @@ CONFIG = {
     # bar's PowerShell session
     "mouse": {
         "on_extra2_click": {"message": {"type": "Retile"}},
-        "on_middle_click": {"Command": "echo komorebi-bar-e2e"},
+        # `MouseMessage::Command(String)` is untagged: a plain string, not {"Command": ...}
+        "on_middle_click": "echo komorebi-bar-e2e",
     },
 }
 
