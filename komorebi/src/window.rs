@@ -22,12 +22,10 @@ use crate::animation::transition;
 use crate::border_manager;
 use crate::cloaked;
 use crate::com::SetCloak;
-use crate::core::ApplicationIdentifier;
 use crate::core::HidingBehaviour;
 use crate::core::Rect;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
-use crate::core::config_generation::MatchingStrategy;
 use crate::live_resize;
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
@@ -40,6 +38,9 @@ use color_eyre::eyre;
 use komorebi_backend::WindowId;
 pub use komorebi_config::aspect_ratio::AspectRatio;
 pub use komorebi_config::aspect_ratio::PredefinedAspectRatio;
+use komorebi_config::rules;
+use komorebi_config::rules::RuleQuirks;
+use komorebi_config::rules::RuleSubject;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -1074,6 +1075,9 @@ pub fn should_act_window_individual(
     should_act_individual(title, exe_name, class, path, identifier, regex_identifiers)
 }
 
+/// Returns the last of `identifiers` that matches a window with this title, executable, class
+/// and path, if one does (the shared evaluation, [`komorebi_config::rules::should_act`], with a
+/// rule id compared as written)
 pub fn should_act(
     title: &str,
     exe_name: &str,
@@ -1082,44 +1086,22 @@ pub fn should_act(
     identifiers: &[MatchingRule],
     regex_identifiers: &HashMap<String, Regex>,
 ) -> Option<MatchingRule> {
-    let mut matching_rule = None;
-    for rule in identifiers {
-        match rule {
-            MatchingRule::Simple(identifier) => {
-                if should_act_individual(
-                    title,
-                    exe_name,
-                    class,
-                    path,
-                    identifier,
-                    regex_identifiers,
-                ) {
-                    matching_rule = Some(rule.clone());
-                };
-            }
-            MatchingRule::Composite(identifiers) => {
-                let mut composite_results = vec![];
-                for identifier in identifiers {
-                    composite_results.push(should_act_individual(
-                        title,
-                        exe_name,
-                        class,
-                        path,
-                        identifier,
-                        regex_identifiers,
-                    ));
-                }
-
-                if composite_results.iter().all(|&x| x) {
-                    matching_rule = Some(rule.clone());
-                }
-            }
-        }
-    }
-
-    matching_rule
+    rules::should_act(
+        &RuleSubject {
+            title,
+            exe_name,
+            classes: &[class],
+            path,
+        },
+        RuleQuirks::WINDOWS,
+        identifiers,
+        regex_identifiers,
+    )
 }
 
+/// Returns true if and only if the condition `identifier` holds for a window with this title,
+/// executable, class and path (the shared evaluation,
+/// [`komorebi_config::rules::should_act_individual`], with the id compared as written)
 pub fn should_act_individual(
     title: &str,
     exe_name: &str,
@@ -1128,238 +1110,15 @@ pub fn should_act_individual(
     identifier: &IdWithIdentifier,
     regex_identifiers: &HashMap<String, Regex>,
 ) -> bool {
-    let mut should_act = false;
-
-    match identifier.matching_strategy {
-        None | Some(MatchingStrategy::Legacy) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if title.starts_with(&identifier.id) || title.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if class.starts_with(&identifier.id) || class.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if exe_name.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if path.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
+    rules::should_act_individual(
+        &RuleSubject {
+            title,
+            exe_name,
+            classes: &[class],
+            path,
         },
-        Some(MatchingStrategy::Equals) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if title.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if class.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if exe_name.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if path.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-        },
-        Some(MatchingStrategy::DoesNotEqual) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if !title.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if !class.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if !exe_name.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if !path.eq(&identifier.id) {
-                    should_act = true;
-                }
-            }
-        },
-        Some(MatchingStrategy::StartsWith) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if title.starts_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if class.starts_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if exe_name.starts_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if path.starts_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-        },
-        Some(MatchingStrategy::DoesNotStartWith) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if !title.starts_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if !class.starts_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if !exe_name.starts_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if !path.starts_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-        },
-        Some(MatchingStrategy::EndsWith) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if title.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if class.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if exe_name.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if path.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-        },
-        Some(MatchingStrategy::DoesNotEndWith) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if !title.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if !class.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if !exe_name.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if !path.ends_with(&identifier.id) {
-                    should_act = true;
-                }
-            }
-        },
-        Some(MatchingStrategy::Contains) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if title.contains(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if class.contains(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if exe_name.contains(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if path.contains(&identifier.id) {
-                    should_act = true;
-                }
-            }
-        },
-        Some(MatchingStrategy::DoesNotContain) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if !title.contains(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if !class.contains(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if !exe_name.contains(&identifier.id) {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if !path.contains(&identifier.id) {
-                    should_act = true;
-                }
-            }
-        },
-        Some(MatchingStrategy::Regex) => match identifier.kind {
-            ApplicationIdentifier::Title => {
-                if let Some(re) = regex_identifiers.get(&identifier.id)
-                    && re.is_match(title)
-                {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Class => {
-                if let Some(re) = regex_identifiers.get(&identifier.id)
-                    && re.is_match(class)
-                {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Exe => {
-                if let Some(re) = regex_identifiers.get(&identifier.id)
-                    && re.is_match(exe_name)
-                {
-                    should_act = true;
-                }
-            }
-            ApplicationIdentifier::Path => {
-                if let Some(re) = regex_identifiers.get(&identifier.id)
-                    && re.is_match(path)
-                {
-                    should_act = true;
-                }
-            }
-        },
-    }
-
-    should_act
+        RuleQuirks::WINDOWS,
+        identifier,
+        regex_identifiers,
+    )
 }
