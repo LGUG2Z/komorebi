@@ -33,6 +33,7 @@ use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::monitor::MonitorExt;
 use crate::scrolling::WorkspaceScrolling;
 use crate::workspace::WorkspaceExt;
+use komorebi_config::matching::push_simple_rule;
 
 use crate::core_graphics::CoreGraphicsApi;
 use crate::current_space_id;
@@ -906,22 +907,7 @@ impl WindowManager {
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
 
-                let mut should_push = true;
-                for m in &*manage_identifiers {
-                    if let MatchingRule::Simple(m) = m
-                        && m.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    manage_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut manage_identifiers, identifier, id);
             }
             SocketMessage::NewWorkspace => {
                 self.new_workspace()?;
@@ -1585,22 +1571,7 @@ impl WindowManager {
     ) -> eyre::Result<()> {
         let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
 
-        let mut should_push = true;
-        for i in &*ignore_identifiers {
-            if let MatchingRule::Simple(i) = i
-                && i.id == id
-            {
-                should_push = false;
-            }
-        }
-
-        if should_push {
-            ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                kind: identifier,
-                id: id.to_string(),
-                matching_strategy: Option::from(MatchingStrategy::Legacy),
-            }));
-        }
+        push_simple_rule(&mut ignore_identifiers, identifier, id);
 
         let offset = self.work_area_offset;
 
