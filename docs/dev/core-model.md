@@ -1409,3 +1409,49 @@ or field, so moving them means moving `WindowManager`, the blockers of section 1
   `WorkAreaOffset`, ...): thin calls of `WindowManager` methods that edit a workspace and re-layout, the
   same coupling;
 - queries, configuration, borders, animations, transparency, schema: statics and the platform.
+
+## 22. After the macOS deep dedup (kfm, D-coord-13): the container API, the arms, and `update`
+
+**Done.** (1) macOS `ContainerExt` is gone: every container call in the macOS daemon is the shared
+`Container::{add_window, load_focused_window, hide, restore}` with `workspace.hide_spot()`, a method of
+`Workspace` that is `P::hide_spot(self)` (`()` on KDE, `MacosHideSpot` on macOS). (2) the nine window
+manager functions that differed only in these calls (`add_window_to_container`,
+`cycle_container_window_in_direction`, `cycle_container_window_index_in_direction`,
+`focus_container_window`, `stack_all`, `monocle_on`, `monocle_off`, `cycle_monocle`, `transfer_window`)
+are now byte-identical in `komorebi-for-kde` and `komorebi-for-mac`; the `?` form replaced KDE's
+`let _ =` (equivalent, its operations always answer `Ok`). Measured with the function splitter: 76 of the
+92 function names that the two `window_manager.rs` share have the same text, and 1521 of KDE's 2713
+stripped lines are identical with macOS (56%, from 45% in section 20; the 60% bar needs the platform
+entry points of blocker 3). (3) `ToggleWorkspaceLayer`, `ResizeWindowAxis`, `SessionFloatRule`,
+`IgnoreRule` and `ReplaceConfiguration` are methods of the KDE names on macOS and the router arms are the
+KDE text; `Close`, `Minimize`, `DebugWindow` and `ManageRule` stay macOS's own arms (the foreground
+element and the role instead of the class; there is no KDE method to match).
+
+**`update` is not adopted, and why (exact differences from `update_shared`).** Each is a reason, and
+the first two alone would make it unprovable:
+
+1. **A scrolling workspace returns early.** macOS's `update` does `return self.arrange_scrolling(..)`
+   inside the tile branch, so for a scrolling workspace it never reaches the closing
+   `self.resize_dimensions.resize(container_count, None)` that `update_shared` always runs, and it places
+   the windows itself (drag-step layout, `adopt_actual_sizes`, `hide_scrolling` at the display edge,
+   the animator), not through one `place_container` per container. Folding it into `scrolling_layouts` plus
+   `place_container` would change both the placement order and whether the resize dimensions are
+   truncated for a scrolling workspace.
+2. **The SkyLight batch is wider.** macOS disables screen updates around the whole tile branch
+   (monocle, scrolling and the container loop) and re-enables on every exit; a `begin_update` guard would
+   start before `prune_duplicate_windows` and the container retain and end after the resize-dimensions
+   fix-up, and would be taken when `tile` is false as well. Probably harmless, not provable.
+3. **Own `calculate_layouts`**: the same arrangement call as `update_shared`'s inline one (checked line by
+   line), so this one alone would fold.
+4. **Unconditional clamp**: `clamp_to_work_area` runs for every non-scrolling layout; the shared
+   `adjust_layout` hook can do that (as KDE's does).
+5. **No maximized branch**: the macOS workspace never has a `maximized_window` (no writer), so the shared
+   branch is unreachable; `maximize_in_layout` is not needed.
+6. **Placement errors are logged and the next window is placed** (`tracing::warn!`): a `place_container`
+   hook can swallow them as KDE's does.
+7. **No second pass and no stackbar**: `end_update` answers `Pass::Done`.
+
+Items 3 to 7 would fold with hooks; 1 and 2 are the blockers, and 1 is the owner's decision: either the
+macOS scrolling placement becomes the `scrolling_layouts` and `place_container` hooks (and the
+truncation of the resize dimensions is accepted for a scrolling workspace, which is a behaviour change),
+or `update` stays macOS's.
