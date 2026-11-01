@@ -77,8 +77,7 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
 
     for notification in receiver {
         let orphan_hwnds = notification.0;
-        let mut wm = wm.lock();
-        let _held = crate::lock_holder::held("reaper");
+        let mut wm = crate::lock_holder::lock(&wm, "reaper");
 
         let mut update_borders = false;
 

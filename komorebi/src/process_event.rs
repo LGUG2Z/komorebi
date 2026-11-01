@@ -122,8 +122,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
         tracing::info!("listening");
         loop {
             if let Ok(event) = receiver.recv() {
-                let mut guard = wm.lock();
-                let _held = crate::lock_holder::held("process_event");
+                let mut guard = crate::lock_holder::lock(&wm, "process_event");
                 match guard.process_event(event) {
                     Ok(()) => {}
                     Err(error) => {

@@ -276,8 +276,7 @@ where
 
         // Keep reference to Arc for potential re-locking
         let wm_arc = Arc::clone(&wm);
-        let mut wm = wm.lock();
-        let _held = crate::lock_holder::held("monitor reconciliator");
+        let mut wm = crate::lock_holder::lock(&wm, "monitor reconciliator");
 
         let initial_state = State::from(wm.as_ref());
 
@@ -452,7 +451,7 @@ where
                         );
 
                         // Re-acquire locks for state restoration
-                        wm = wm_arc.lock();
+                        wm = crate::lock_holder::lock(&wm_arc, "monitor reconciliator");
 
                         // Update Win32 data for all monitors
                         for monitor in wm.monitors_mut() {
@@ -535,7 +534,7 @@ where
                     );
 
                     // Re-acquire locks for removal processing
-                    wm = wm_arc.lock();
+                    wm = crate::lock_holder::lock(&wm_arc, "monitor reconciliator");
                     monitor_cache = MONITOR_CACHE
                         .get_or_init(|| Mutex::new(HashMap::new()))
                         .lock();

@@ -421,8 +421,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         // however this pass ends, `continue` included, the thread is waiting for the next
         let _waiting = Waiting;
         // Check the wm state every time we receive a notification
-        let state = wm.lock();
-        let _held = crate::lock_holder::held("border manager");
+        let state = crate::lock_holder::lock(&wm, "border manager");
         let is_paused = state.is_paused;
         let focused_monitor_idx = state.focused_monitor_idx();
         let focused_workspace_idx =
