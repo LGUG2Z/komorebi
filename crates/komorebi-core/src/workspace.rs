@@ -473,6 +473,18 @@ pub fn resolve_threshold_match(
 }
 
 impl<P: WorkspacePlatform> Workspace<P> {
+    /// Where the windows of this workspace are hidden ([`WorkspacePlatform::hide_spot`]), for the
+    /// calls that hide or stack a window
+    pub fn hide_spot(&self) -> PlatformHideSpot<P> {
+        P::hide_spot(self)
+    }
+
+    /// Where the containers of this workspace are hidden when the whole workspace is
+    /// ([`WorkspacePlatform::hide_spot_on_display`])
+    pub fn hide_spot_on_display(&self) -> PlatformHideSpot<P> {
+        P::hide_spot_on_display(self)
+    }
+
     /// The containers of the workspace.
     pub const fn containers(&self) -> &std::collections::VecDeque<Container<P::Window>> {
         self.containers.elements()
