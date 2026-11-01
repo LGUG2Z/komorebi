@@ -22,14 +22,14 @@ const PINS: [Pin; 2] = [
     Pin {
         file: "schema.bar.json",
         lines: 9_091,
-        bytes: 248_540,
-        fnv1a: 0x83d6_6fd4_9ae8_3766,
+        bytes: 248_539,
+        fnv1a: 0xaaa0_fabf_b459_67b7,
     },
     Pin {
         file: "komorebi-for-mac/schema.bar.json",
         lines: 3_774,
         bytes: 116_925,
-        fnv1a: 0xc99e_0294_9424_e5d7,
+        fnv1a: 0xa042_f6ac_063a_0cfd,
     },
 ];
 

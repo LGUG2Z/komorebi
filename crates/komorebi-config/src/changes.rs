@@ -245,7 +245,7 @@ const MACOS: &[(&str, Change)] = &[
     (
         "/description",
         Change::Set(
-            r####""The `komorebi.json` static configuration file reference for komorebi for Mac `v0.1.0`\n\n`\"$schema\": \"https://komorebi-for-mac.lgug2z.com/komorebi.0.1.0.schema.json\"`""####,
+            r####""The `komorebi.json` static configuration file reference for komorebi for Mac `v0.2.0`\n\n`\"$schema\": \"https://komorebi-for-mac.lgug2z.com/komorebi.0.2.0.schema.json\"`""####,
         ),
     ),
     (

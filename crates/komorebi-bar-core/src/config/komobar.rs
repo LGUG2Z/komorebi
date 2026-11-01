@@ -26,7 +26,7 @@ use std::sync::atomic::Ordering;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.bar.json` configuration file reference for `v0.1.42`
+/// The `komorebi.bar.json` configuration file reference for `v0.2.0`
 pub struct KomobarConfig {
     /// Bar height
     #[cfg_attr(feature = "schemars", schemars(extend("default" = 50)))]

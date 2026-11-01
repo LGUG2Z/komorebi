@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "KomobarConfig",
-  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.42`",
+  "description": "The `komorebi.bar.json` configuration file reference for `v0.2.0`",
   "type": "object",
   "properties": {
     "center_widgets": {

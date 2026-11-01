@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.42`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.2.0`",
   "type": "object",
   "properties": {
     "animation": {

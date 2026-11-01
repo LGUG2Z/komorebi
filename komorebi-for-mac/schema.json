@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for komorebi for Mac `v0.1.0`\n\n`\"$schema\": \"https://komorebi-for-mac.lgug2z.com/komorebi.0.1.0.schema.json\"`",
+  "description": "The `komorebi.json` static configuration file reference for komorebi for Mac `v0.2.0`\n\n`\"$schema\": \"https://komorebi-for-mac.lgug2z.com/komorebi.0.2.0.schema.json\"`",
   "type": "object",
   "properties": {
     "animation": {
