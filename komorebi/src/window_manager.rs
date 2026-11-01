@@ -48,8 +48,10 @@ use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
 use crate::core::config_generation::MatchingRule;
 use crate::windows_backend::backend;
+use crate::workspace::WindowsPlatform;
 use komorebi_backend::WindowId;
 use komorebi_core::ContainerWindow;
+use komorebi_core::WorkspacePlatform;
 
 use crate::CrossBoundaryBehaviour;
 use crate::DATA_DIR;
@@ -3048,10 +3050,7 @@ impl WindowManager {
 
         tracing::info!("promoting focus");
 
-        let target_idx = match &workspace.layout {
-            Layout::Default(_) => 0,
-            Layout::Custom(custom) => custom.first_container_idx(custom.primary_idx().unwrap_or(0)),
-        };
+        let target_idx = WindowsPlatform::promote_focus_container_idx(&workspace.layout);
 
         workspace.focus_container(target_idx);
         self.update_focused_workspace(self.mouse_follows_focus, true)
