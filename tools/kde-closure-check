@@ -1,26 +1,19 @@
 #!/usr/bin/env bash
-# Fails if the crates outside komorebi-for-kde that the KDE packages depend on differ from the list the KDE
-# source filter uses (komorebi-for-kde/nix/root-crates.json).
+# Fails if the crates outside the Linux-only crates that the KDE packages depend on differ from the list the
+# Linux source filter uses (nix/linux/root-crates.json, read by nix/workspace-src.nix).
 # Usage: tools/kde-closure-check [REPO_ROOT]   (default: the repository this script is in)
-# Works for the merged workspace (one root Cargo.toml) and for the old KDE workspace.
 set -euo pipefail
 root=$(cd "${1:-$(dirname "$0")/..}" && pwd)
-[ -d "$root/komorebi-for-kde" ] || root=$(cd "$root/.." && pwd)
-want=$(jq -r '.[]' "$root/komorebi-for-kde/nix/root-crates.json" | sort)
-if [ -f "$root/komorebi-for-kde/Cargo.toml" ]; then
-  have=$(cd "$root/komorebi-for-kde" && nice -n 19 cargo metadata --offline --format-version 1 \
-    | jq -r --arg r "$root/" '.packages[] | select(.source == null) | .manifest_path
-        | select(startswith($r) and (startswith($r + "komorebi-for-kde/") | not))
-        | ltrimstr($r) | sub("/Cargo.toml$"; "")' | sort)
-else
-  # merged workspace: the closure of the KDE packages on a Linux target
-  have=$(cd "$root" && for p in komorebi-linux komorebic komorebi-client komorebi-hotkeys; do
-      nice -n 19 cargo tree --offline --locked -p "$p" --target x86_64-unknown-linux-gnu --prefix none -e normal,build,dev 2>/dev/null
-    done | grep -o "($root/[^)]*)" | tr -d '()' | sed "s#^$root/##" | grep -v '^komorebi-for-kde' | sort -u)
-fi
+# the list holds the crates the Linux source needs besides komorebi-linux, komorebi-hotkeys and komorebi-daemon
+want=$(jq -r '.[]' "$root/nix/linux/root-crates.json" | sort)
+# the closure of the Linux packages on a Linux target
+have=$(cd "$root" && for p in komorebi-linux komorebic komorebi-client komorebi-hotkeys komorebi; do
+    nice -n 19 cargo tree --offline --locked -p "$p" --target x86_64-unknown-linux-gnu --prefix none -e normal,build,dev 2>/dev/null
+  done | grep -o "($root/[^)]*)" | tr -d '()' | sed "s#^$root/##" \
+  | grep -vx -e komorebi-linux -e komorebi-hotkeys -e komorebi-daemon | sort -u)
 if [ "$want" != "$have" ]; then
-  echo "KDE source filter and cargo closure differ" >&2
+  echo "Linux source filter and cargo closure differ" >&2
   diff <(echo "$want") <(echo "$have") | sed 's/^</  only in root-crates.json:/; s/^>/  only in cargo closure:     /' >&2
   exit 1
 fi
-echo "ok: $(echo "$want" | wc -l) root crates match the KDE cargo closure"
+echo "ok: $(echo "$want" | wc -l) root crates match the Linux cargo closure"

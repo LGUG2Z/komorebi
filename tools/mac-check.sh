@@ -8,13 +8,8 @@ S="${FAST_CHECK_SCRATCH:-${XDG_CACHE_HOME:-$HOME/.cache}/komorebi-fast-check}"
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 ROOT="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
 cd "$ROOT"
-# merged root workspace (one Cargo.toml for the three platforms) or the old separate komorebi-for-mac workspace
-if [ -f komorebi-for-kde/Cargo.toml ]; then
-  cd komorebi-for-mac
-  PKGS=(--workspace)
-else
-  PKGS=(-p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar)
-fi
+# the macOS packages of the one workspace of the repository
+PKGS=(-p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar)
 export CARGO_TARGET_DIR="$S/target-fast-mac" COMMIT_HASH="${COMMIT_HASH:-dev}"
 export CC_aarch64_apple_darwin="$HERE/cc-fake.sh" AR_aarch64_apple_darwin=ar
 PKG_CONFIG_PATH="$(nix build --no-link --print-out-paths nixpkgs#openssl.dev)/lib/pkgconfig"

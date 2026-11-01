@@ -13,7 +13,7 @@ the xwin cross toolchain), so it needs no Windows host. `shellcheck` and `bash -
 | `fast-check` | runs only the checks the touched paths need (tiers below) |
 | `mac-check.sh` | the macOS type-check on Linux, unconditionally (the macOS step of `fast-check`) |
 | `cc-fake.sh` | the fake C compiler `mac-check.sh` and `fast-check` use for `aarch64-apple-darwin` |
-| `kde-closure-check` | fails when `komorebi-for-kde/nix/root-crates.json` and the KDE cargo closure differ |
+| `kde-closure-check` | fails when `nix/linux/root-crates.json` (the Linux source filter) and the Linux cargo closure differ |
 | `e2e-needed` | says whether a diff touches anything the Windows e2e binaries are built from |
 | `trim-target` | deletes stale test executables from the persistent target directories |
 | `gate-lock` | a host-wide FIFO lock for heavy gates (optional) |
@@ -31,12 +31,12 @@ this tool.
 
 | touched | check (tier) |
 |---|---|
-| `komorebi-for-kde/**` | `cargo check`, `cargo test --lib` and `--test schemas -- --test-threads=1` of the KDE daemon package (1) |
-| `komorebi-for-mac/**` | `cargo check --target aarch64-apple-darwin --all-targets` with the fake CC; type-check only, cannot link or test (2) |
-| root Windows tree (`komorebi*/`, `e2e/`, `Cargo.*`) | `nix develop --command cargo clippy --locked --all-targets -- -D warnings` (2) |
+| `komorebi-linux/**`, `komorebi-hotkeys/**`, `scripts/linux/**`, the Linux files of `komorebic`/`komorebi-client`/`komorebi-daemon` | `cargo check`, `cargo test --lib` and `--test schemas -- --test-threads=1` of the Linux daemon package (1) |
+| `komorebi-macos/**`, the macOS files of `komorebic`/`komorebi-client`/`komorebi-bar` | `cargo check --target aarch64-apple-darwin --all-targets` with the fake CC; type-check only, cannot link or test (2) |
+| the Windows crates (`komorebi-windows/`, `komorebi-gui/`, ..., `e2e/`), `Cargo.*` | `nix develop --command cargo clippy --locked --all-targets -- -D warnings` (2) |
 | `komorebi-layouts/`, `komorebi-scrolling/` | native `cargo test` of both plus the Windows check |
 | `crates/**` | native tests, plus the KDE, macOS and Windows checks |
-| `*.nix`, `flake.lock` | evaluation only: `nix flake show` and `nix eval ...drvPath` of the named checks (no `nix flake check`) |
+| `flake.nix`, `flake.lock`, `nix/**` | evaluation only: `nix flake show` and `nix eval ...drvPath` of one check and one package per platform (no `nix flake check`) |
 | `*.md`, `docs/`, `tools/`, images, `.github` | nothing |
 
 Persistent target directories live under `$FAST_CHECK_SCRATCH` (default `${XDG_CACHE_HOME:-~/.cache}/komorebi-fast-check`):
@@ -49,13 +49,13 @@ Measured warm times (2026-10-31, jj revision c89651fa, WSL2 host): Windows clipp
 
 Caveats
 
-- Windows clippy here is NOT the pre-landing gate: still run `nix build .#checks.x86_64-linux.komorebi-workspace-clippy`
+- Windows clippy here is NOT the pre-landing gate: still run `nix build .#checks.x86_64-linux.windows-clippy`
   (about 3.5 min) before landing; it uses crane's filtered source and catches filter bugs.
 - macOS needs `COMMIT_HASH` (the tools set `dev`) when there is no `.git`.
 - In a jj workspace without `.git`, `nix flake check --no-build` fails with `attribute 'dirtyRev' missing`, and it
   evaluates every check (15-16 GB). `fast-check` therefore evaluates attributes with `nix flake show` and `nix eval`.
 - KDE `tests/schemas.rs` shares a pid-only socket path; keep `--test-threads=1`.
-- Single KDE test file: `CARGO_TARGET_DIR=$FAST_CHECK_SCRATCH/kde-target nix shell nixpkgs#gcc -c cargo test -p komorebi-linux --test <name>`.
+- Single Linux test file: `CARGO_TARGET_DIR=$FAST_CHECK_SCRATCH/kde-target nix shell nixpkgs#gcc -c cargo test -p komorebi-linux --test <name>`.
 
 ## macOS type-check (mac-check.sh, cc-fake.sh)
 
@@ -68,8 +68,8 @@ code type-checks, nothing about behaviour. `fast-check` uses the same script whe
 
 ## kde-closure-check
 
-`tools/kde-closure-check [repo]` (2 s) compares `komorebi-for-kde/nix/root-crates.json` (the root crates the KDE
-flake's source filter takes) with `cargo metadata` / `cargo tree` of the KDE packages. Run it after any
+`tools/kde-closure-check [repo]` (15 s) compares `nix/linux/root-crates.json` (the crates besides the Linux-only
+ones that the Linux source filter of `nix/workspace-src.nix` takes) with `cargo tree` of the Linux packages. Run it after any
 `Cargo.toml` dependency change in the KDE tree or in the crates it uses; it exits 1 and prints the differences
 when the list is stale (a stale list breaks the KDE nix build or rebuilds the VM suites needlessly).
 
@@ -96,7 +96,7 @@ e2e, KDE `commands`/`core-e2e`) is not disturbed. Bash plus `flock`; state in `$
 (`GATE_LOCK_DIR` overrides).
 
 ```
-tools/gate-lock run --class heavy  --label "clippy" --est 5 -- nix build -L --no-link .#checks.x86_64-linux.komorebi-workspace-clippy
+tools/gate-lock run --class heavy  --label "clippy" --est 5 -- nix build -L --no-link .#checks.x86_64-linux.windows-clippy
 tools/gate-lock run --class timing --label "win e2e" --est 60 --idle-load 3 -- nix run .#e2e-windows -- ...
 tools/gate-lock run --class light  -- cargo check -p komorebi     # never waits; throttled while a timing gate is held
 tools/gate-lock status [--short] | wait [--max SEC] | history [N] | adopt PID

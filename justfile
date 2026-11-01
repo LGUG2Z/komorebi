@@ -145,7 +145,7 @@ docgen starlight:
 nixgen-linux:
     schemars-nixgen schemas/linux/schema.json -o nix/linux/komorebi-options.nix --name komorebi --description "komorebi for KDE Plasma configuration"
     nix fmt nix/linux/komorebi-options.nix
-    nix build -L --no-link ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).nix-options-validation"
+    nix build -L --no-link ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).linux-nix-options-validation"
 
 nixgen-macos:
     schemars-nixgen schemas/macos/schema.json -o nix/macos/komorebi-options.nix --name komorebi --description "komorebi for Mac configuration"
@@ -199,7 +199,7 @@ vm name:
     if [ "$(uname)" = Darwin ]; then
         scripts/linux/vm-mac {{ name }}
     else
-        nix build -L .#checks.{{ arch() }}-linux.vm-{{ name }}
+        nix build -L .#legacyPackages.{{ arch() }}-linux.vm.{{ name }}
     fi
 
 # every KDE VM test, in the order of the flake
