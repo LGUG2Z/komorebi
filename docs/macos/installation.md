@@ -16,6 +16,7 @@ using keyboard shortcuts.
 
 ## Installation
 
+<!-- OWNER: does the `komorebi-for-mac-nightly` Homebrew package and "nightly builds" survive the consolidation (and from which repository)? Left unchanged. -->
 Nightly builds are available to install
 via [Homebrew](https://github.com/LGUG2Z/homebrew-tap), and you may also build
 from source if you would prefer.
@@ -58,6 +59,8 @@ brew install skhd
 ```
 
 ## Nix Flake
+
+<!-- OWNER: this section tells users to add the private KomoCorp/komorebi-for-mac repository as a flake input with a GitHub token; that repository is retired. What is the public flake input for macOS (the root flake output names are not final)? Left unchanged until decided. -->
 
 Ensure that your system Flake is configured to use your GitHub token so that you can add a private repository as an input
 

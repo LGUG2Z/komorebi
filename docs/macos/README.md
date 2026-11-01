@@ -40,13 +40,6 @@ standard macOS desktop environment.
 _komorebi for Mac_ aims to make _as few modifications as possible_ to the
 operating system and desktop environment by default.
 
-[LGUG2Z/komorebi-for-mac](https://github.com/LGUG2Z/komorebi-for-mac) is the
-public repository where versioned releases will be published.
-
-[KomoCorp/komorebi-for-mac](https://github.com/KomoCorp/komorebi-for-mac) is the
-private repository available to certain GitHub Sponsors tiers where ongoing
-development work happens and nightly releases are made available.
-
 You can try the latest public release with `brew install
 lgug2z/tap/komorebi-for-mac` or [build from
 source](https://komorebi-starlight.lgug2z.workers.dev/guides/installation/#building-from-source),
@@ -105,6 +98,13 @@ Sponsors can claim custom roles on the Discord server, get shout outs at the end
 of _komorebi_-related videos on YouTube, gain the ability to submit feature
 requests on the issue tracker, and receive releases of komorebi with "easter
 eggs" on physical media.
+
+Feature requests for all platforms (Windows, Linux and macOS) are accepted from
+current [GitHub sponsors](https://github.com/sponsors/LGUG2Z) on the $5/month tier
+and above, people with a valid [individual commercial use
+license](https://lgug2z.com/software/komorebi), and approved contributors. Issues
+titled `[FEAT]: ` opened by anyone else are closed automatically. Bug reports are
+open to everyone.
 
 If you would like to tip or sponsor the project but are unable to use GitHub
 Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z), or
