@@ -33,3 +33,10 @@ Findings of the consolidation reviews and tests that are NOT fixed because wheth
 - **Why it may be a bug**: a daemon must not hang on a client. **Why not fixed**: the Windows review showed that a write timeout can truncate a notification mid-message, so the naive fix is worse.
 - **Platforms**: macOS (and the same shape on KDE, not verified).
 - **Proposed fix**: write the notification from a per-subscriber thread or channel with a drop-the-subscriber policy; needs a design decision.
+
+## 5. Windows e2e `fullscreen` fails two checks on every commit (pre-existing)
+
+- **Evidence**: the `fullscreen` scenario fails the same two checks on the original Windows baseline, on every candidate of the consolidation and on the cutover candidate: 'does not take the window out of fullscreen' and 'not on any other window' (14 passed, 2 failed on the final gate's rerun, see the gate reports under the scratchpad: `e2e-win/gate-final.md`, `gate-cand8.md`).
+- **Why it may be a bug**: the scenario checks that an unmanaged fullscreen window is left alone and that toggling fullscreen restores the layout; both checks fail the same way before and after the consolidation, so the behaviour is inherited from the Windows daemon, not introduced by the shared code.
+- **Platforms**: Windows only (the scenario is a Windows e2e scenario).
+- **Proposed fix**: not investigated. First decide whether the two checks describe wanted behaviour (the scenario predates some Windows fullscreen handling) or a daemon bug; keep the checks listed as known failures until then.
