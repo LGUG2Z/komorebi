@@ -21,4 +21,5 @@ pub mod matching;
 pub mod placement;
 #[cfg(feature = "schemars")]
 pub mod platforms;
+pub mod rules;
 pub mod static_config;
