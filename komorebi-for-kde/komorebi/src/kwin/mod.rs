@@ -1312,9 +1312,9 @@ mod tests {
                 // the editor goes to the second workspace before the monitor is switched to it
                 let monitor = backend.monitors().unwrap()[0].id;
                 backend.set_window_workspace(1.into(), 1).unwrap();
-                backend.switch_workspace(monitor.into(), 1).unwrap();
+                backend.switch_workspace(monitor, 1).unwrap();
                 assert_eq!(backend.window_workspace(1.into()).unwrap(), Some(1));
-                assert_eq!(backend.current_workspaces().unwrap(), [(monitor.into(), 1)]);
+                assert_eq!(backend.current_workspaces().unwrap(), [(monitor, 1)]);
             },
             |backend| {
                 // 51 of 255 is a fifth
@@ -1509,8 +1509,7 @@ mod tests {
             .handle(&events[0], Instant::now());
         let monitor = backend.monitors().unwrap()[0].id;
 
-        let missing =
-            backend.set_wallpaper(monitor.into(), std::path::Path::new("/nonexistent/a.png"));
+        let missing = backend.set_wallpaper(monitor, std::path::Path::new("/nonexistent/a.png"));
         assert!(missing.unwrap_err().to_string().contains("is not a file"));
         assert!(backend.shared.wallpapers.lock().is_empty());
     }
