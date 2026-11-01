@@ -453,7 +453,7 @@ impl WindowManager {
     }
 
     /// Replaces the running configuration with the one in the file
-    pub fn replace_configuration(&mut self, config: &std::path::PathBuf) -> eyre::Result<()> {
+    pub fn replace_configuration(&mut self, config: &std::path::Path) -> eyre::Result<()> {
         // Check that this is a valid static config file first
         if StaticConfig::read(config).is_ok() {
             // Clear workspace rules; these will need to be replaced
