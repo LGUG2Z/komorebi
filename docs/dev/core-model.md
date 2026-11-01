@@ -1597,3 +1597,48 @@ because of a borrow, and Windows has no such need: they stay as they are).
 4. The plan/execute split of `focus_workspace`, then `init`/`stop`/`new`/`restore_all_windows` as hooks.
 Gates for each: Windows `commands`, `workspaces`, `focus`, `stacking`, `monocle` (maximizing), `borders`,
 `layouts` scenarios; KDE fast tier and VM for the router change.
+
+## 25. Why `WindowManager<P>` still does not move, measured on `wip-cand8` (kfde, wip-u-wm2)
+
+The function comparison of sections 17, 18 and 20 repeated on the three `window_manager.rs` files at
+`wip-cand8` (stripped function bodies, test module excluded; Windows 4464 lines, KDE 3766, macOS 4543):
+
+| | functions | lines | share of Windows | share of KDE | share of macOS |
+|---|---|---|---|---|---|
+| identical on all three | 43 | 696 | 15.6% | 18.5% | 15.3% |
+| differ by at most 4 lines pairwise on all three | 81 | 1719 (KDE count) | about 39% | 46% | about 38% |
+| identical on KDE and macOS (Windows may differ) | 102 | 2427 (KDE count) | - | 64% | 53% |
+
+The threshold of "more than 60% shared by all three" is not met, and the table shows it cannot be met by
+moving what is already the same text: even adding the near-identical functions (which would each need a
+converge revision first) gives 46% at best. Only KDE and macOS together pass 60% (64% of KDE's lines are
+identical to macOS's), which is not the goal set for `WindowManager<P>` (all three).
+
+**The struct.** The common fields (`monitors`, `monitor_usr_idx_map`, `command_listener`, `is_paused`,
+`resize_delta`, `hotwatch`, `work_area_offset`, the six behaviour settings, `mouse_follows_focus`,
+`focus_follows_mouse` on Windows and KDE) are about 15 of 21 to 24 fields per daemon, so a
+`WindowManager<P>` with `P::State` for the rest is possible in principle. What makes the move too
+invasive for one batch is what the fields' types and the identical functions depend on:
+- `incoming_events: Receiver<WindowManagerEvent>` names the daemon's event enum, which has a different
+  vocabulary on each platform (section 23); the struct would need `P::Event`.
+- the platform fields differ in type, not only in name: `pending_move_op` is `(usize, usize, isize, Rect)`
+  on Windows and `(usize, usize, u32)` on KDE and macOS, `known_hwnds: HashMap<isize, ..>` against
+  `known_window_ids: HashMap<u32, ..>`, `already_moved_window_handles` of `isize` against `u32`; all of
+  that belongs in `P::State`, and each of the 43 functions that touches one of them stops being identical
+  text.
+- the 43 identical functions call `Window`, `Rect` and `WindowManagerEvent` methods of the daemon's own
+  types and daemon-only methods of the window manager itself (the other ~60 functions of section 17 that
+  stay); in a generic impl each needs a trait bound or a hook, and the daemon-only methods become an
+  extension trait as for `Workspace`. That is hundreds of call sites per daemon (every `wm.field` access
+  in `process_command.rs`, `process_event.rs`, the border and stackbar threads on Windows) for the 16% of
+  Windows text that would actually become shared.
+- the gain is therefore small and the risk high: the native-test benefit comes from the logic that lives
+  in `Workspace<P>`, `Monitor<P>` and `komorebi_core::command`, which already run on a stub.
+
+**What was done instead (D-coord-13 follow-up):** the one structural prerequisite that does not need the
+struct, `CommandHost::gate_message` (section 22.1), is in. A shared router needs the struct and waits for it.
+
+**Largest honest next subset, if the owner wants it:** a `WindowManager<P>` for KDE and macOS only
+(64% identical), with Windows following when kfw's hooks (section 24) exist; every daemon still needs the
+`P::Event` and `P::State` split above first. This is a decision for the owner, not a step to take
+unattended: it changes the shape of every `wm.` access in two daemons.
