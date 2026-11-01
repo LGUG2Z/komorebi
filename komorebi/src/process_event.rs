@@ -122,8 +122,27 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
         tracing::info!("listening");
         loop {
             if let Ok(event) = receiver.recv() {
+                let waiting = std::time::Instant::now();
                 let mut guard = crate::lock_holder::lock(&wm, "process_event");
-                match guard.process_event(event) {
+                let handling = std::time::Instant::now();
+                let result = guard.process_event(event);
+                let (waited, handled) = (handling.duration_since(waiting), handling.elapsed());
+                if waited.max(handled) >= crate::lock_holder::SLOW {
+                    tracing::info!(
+                        "process_event {}: waited for the lock {} ms, handled in {} ms",
+                        event.title(),
+                        waited.as_millis(),
+                        handled.as_millis()
+                    );
+                } else {
+                    tracing::debug!(
+                        "process_event {}: waited for the lock {} ms, handled in {} ms",
+                        event.title(),
+                        waited.as_millis(),
+                        handled.as_millis()
+                    );
+                }
+                match result {
                     Ok(()) => {}
                     Err(error) => {
                         if cfg!(debug_assertions) {
@@ -149,7 +168,12 @@ impl WindowManager {
 
         let mut rule_debug = RuleDebug::default();
 
+        let should_manage_started = std::time::Instant::now();
         let should_manage = event.window().should_manage(Some(event), &mut rule_debug)?;
+        tracing::debug!(
+            "process_event: should_manage took {} ms",
+            should_manage_started.elapsed().as_millis()
+        );
 
         // All event handlers below this point should only be processed if the event is
         // related to a window that should be managed by the WindowManager.
