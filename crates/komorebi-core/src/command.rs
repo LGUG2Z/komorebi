@@ -333,3 +333,37 @@ pub fn move_container_to_monitor_workspace_number<H: MonitorCommandHost>(
     host.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), follow, direction)?;
     Ok(())
 }
+
+/// What the commands that reach into a monitor's workspaces by index need besides [`CommandHost`].
+pub trait ContainerCommandHost: CommandHost {
+    /// The monitors, mutably.
+    fn monitors_mut(&mut self) -> &mut VecDeque<Monitor<Self::P>>;
+}
+
+/// Locks or unlocks container `container_idx` of workspace `workspace_idx` of monitor
+/// `monitor_idx`, so that it keeps its index (or not) while others are inserted, removed or swapped.
+/// A container index that is not there is ignored; a monitor or workspace that is not there is an
+/// error.
+pub fn set_container_locked<H: ContainerCommandHost>(
+    host: &mut H,
+    monitor_idx: usize,
+    workspace_idx: usize,
+    container_idx: usize,
+    locked: bool,
+) -> eyre::Result<()> {
+    let monitor = host
+        .monitors_mut()
+        .get_mut(monitor_idx)
+        .ok_or_eyre("no monitor at the given index")?;
+
+    let workspace = monitor
+        .workspaces_mut()
+        .get_mut(workspace_idx)
+        .ok_or_eyre("no workspace at the given index")?;
+
+    if let Some(container) = workspace.containers_mut().get_mut(container_idx) {
+        container.locked = locked;
+    }
+
+    Ok(())
+}

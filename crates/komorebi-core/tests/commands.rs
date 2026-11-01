@@ -414,3 +414,31 @@ fn move_and_send_to_monitor_workspace_name_the_workspace() {
         ]
     );
 }
+
+impl komorebi_core::ContainerCommandHost for Host {
+    fn monitors_mut(&mut self) -> &mut VecDeque<Monitor<StubPlatform>> {
+        &mut self.monitors
+    }
+}
+
+#[test]
+fn lock_and_unlock_a_container_by_index() {
+    // commands.py has toggle-lock; the by-index forms (lock/unlock-monitor-workspace-container) are in the KDE command_sweep
+    let mut host = Host::new(2);
+    host.occupy(0, 1);
+
+    komorebi_core::set_container_locked(&mut host, 0, 0, 0, true).unwrap();
+    assert!(host.monitors[0].workspaces()[0].containers()[0].locked);
+
+    komorebi_core::set_container_locked(&mut host, 0, 0, 0, false).unwrap();
+    assert!(!host.monitors[0].workspaces()[0].containers()[0].locked);
+}
+
+#[test]
+fn locking_a_container_that_is_not_there_is_ignored_but_a_missing_monitor_or_workspace_is_not() {
+    let mut host = Host::new(1);
+
+    assert!(komorebi_core::set_container_locked(&mut host, 0, 0, 5, true).is_ok());
+    assert!(komorebi_core::set_container_locked(&mut host, 3, 0, 0, true).is_err());
+    assert!(komorebi_core::set_container_locked(&mut host, 0, 9, 0, true).is_err());
+}
