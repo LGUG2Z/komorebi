@@ -1642,3 +1642,23 @@ struct, `CommandHost::gate_message` (section 22.1), is in. A shared router needs
 (64% identical), with Windows following when kfw's hooks (section 24) exist; every daemon still needs the
 `P::Event` and `P::State` split above first. This is a decision for the owner, not a step to take
 unattended: it changes the shape of every `wm.` access in two daemons.
+
+## 26. The command seam after D-coord-17 (wip-u-cmd2): 28 arms, what is left
+
+With the struct move dropped (section 25), the shared logic grows through `komorebi_core::command`
+(free functions over thin host traits; each daemon's `WindowManager` forwards). Twelve more arms moved
+on all three daemons, 28 in total: `MoveWindow`, `FocusWindow`, `CycleFocusWindow` (the layer dispatch),
+`PreselectDirection`, `CancelPreselect`, `PromoteWindow`, the three named-workspace commands
+(`FocusNamedWorkspace`, `MoveContainerToNamedWorkspace`, `SendContainerToNamedWorkspace`, over the shared
+`monitor_workspace_index_by_name`) and the three toggles (`ToggleWindowContainerBehaviour`,
+`ToggleCrossMonitorMoveBehaviour`, `ToggleMonocleFocusBehaviour`). Host traits added: `WindowCommandHost`
+(nine thin forwards) and `BehaviourCommandHost` (three settings, get and set).
+
+Still per daemon although the text is identical on all three (found by comparing the arms of the three
+routers at `wip-cand8`): the rule and padding commands (`WorkspaceRule`, `InitialWorkspaceRule`,
+`*LayoutRule`, `*Padding`, `NamedWorkspace*`; 6 to 16 lines each, they only call `Workspace` and `Monitor`
+methods and would move with a host that hands out `&mut Monitor`), the animation commands (14 lines each,
+settings), the lock, save and load commands, `Toggle*Override` and the work-area offsets (they call
+`retile_all`, which has border calls on Windows), and the query commands (`State`, `GlobalState`,
+`MonitorInformation`, schemas). These are the next clusters; `Promote`, `PromoteSwap` and `PromoteFocus`
+are one-call arms with no logic to move. One-call arms were not counted as moved.
