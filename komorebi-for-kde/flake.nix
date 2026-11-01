@@ -374,6 +374,7 @@
                     cargoDenyExtraArgs =
                       "--workspace "
                       + lib.concatMapStringsSep " " (p: "--exclude ${p}") [
+                        "komorebi-bar-core"
                         "komorebi-windows"
                         "komorebi-gui"
                         "komorebic-no-console"

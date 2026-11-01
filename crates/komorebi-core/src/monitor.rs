@@ -23,6 +23,9 @@ use serde::de::DeserializeOwned;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 
+/// What names a monitor of platform `P`, as [`PlatformWindowId`] does for a window
+pub type PlatformMonitorId<P> = <P as MonitorPlatform>::Id;
+
 /// What the shared [`Monitor`] needs of a platform, besides what its workspaces need.
 pub trait MonitorPlatform: WorkspacePlatform {
     /// What names a monitor: `isize` on Windows (a monitor handle), `u32` on KDE.

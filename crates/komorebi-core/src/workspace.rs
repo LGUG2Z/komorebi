@@ -164,6 +164,14 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
         Ok(0)
     }
 
+    /// The index of the container that `promote-focus` focuses: the primary position of the layout,
+    /// and the first container when the layout has none (a custom layout without a primary
+    /// column). Where [`WorkspacePlatform::primary_container_idx`] fails, the default falls back
+    /// to 0.
+    fn promote_focus_container_idx(layout: &Layout) -> usize {
+        Self::primary_container_idx(layout).unwrap_or(0)
+    }
+
     /// Gives the maximized window back to the layout, for the platforms where that is something
     /// to tell the window (KDE asks the compositor; on Windows there is nothing to do).
     fn unmaximize_window(_window: &Self::Window) -> eyre::Result<()> {
@@ -2201,5 +2209,13 @@ mod tests {
         assert_eq!(workspace.container_padding, None);
         assert!(workspace.tile);
         assert_eq!(workspace.layout, Layout::Default(DefaultLayout::BSP));
+    }
+
+    #[test]
+    fn promote_focus_falls_back_to_the_primary_position_and_then_to_zero() {
+        assert_eq!(
+            Plat::promote_focus_container_idx(&Layout::Default(DefaultLayout::BSP)),
+            0
+        );
     }
 }

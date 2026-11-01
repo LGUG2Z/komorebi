@@ -74,6 +74,17 @@ pub fn foreground_window_id() -> Option<PlatformWindowId> {
     WindowsApi::foreground_window().ok()
 }
 
+/// What names a monitor: the type the shared monitor and window manager code compares ids as
+pub type PlatformMonitorId = komorebi_core::PlatformMonitorId<crate::workspace::WindowsPlatform>;
+
+/// The monitor the pointer is on, if the system says (the nearest one when it is on none)
+pub fn monitor_id_at_cursor() -> Option<PlatformMonitorId> {
+    let point = WindowsApi::cursor_pos().ok()?;
+    Some(PlatformMonitorId::from_hmonitor(
+        WindowsApi::monitor_from_point(point),
+    ))
+}
+
 /// Where the pointer is, if the system says
 pub fn cursor_position() -> Option<(i32, i32)> {
     WindowsApi::cursor_pos()

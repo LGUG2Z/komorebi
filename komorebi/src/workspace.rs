@@ -86,6 +86,16 @@ impl komorebi_core::WorkspacePlatform for WindowsPlatform {
         })
     }
 
+    /// `promote-focus` on a custom layout without a primary column focuses its first column rather
+    /// than failing, which is what the Windows daemon always did; the other layouts have the
+    /// primary position first.
+    fn promote_focus_container_idx(layout: &Layout) -> usize {
+        match layout {
+            Layout::Default(_) => 0,
+            Layout::Custom(custom) => custom.first_container_idx(custom.primary_idx().unwrap_or(0)),
+        }
+    }
+
     fn begin_update(_workspace: &mut Workspace) -> eyre::Result<komorebi_core::Flow> {
         if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
             return Ok(komorebi_core::Flow::Skip);

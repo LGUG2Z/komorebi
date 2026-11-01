@@ -48,8 +48,10 @@ use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
 use crate::core::config_generation::MatchingRule;
 use crate::windows_backend::backend;
+use crate::workspace::WindowsPlatform;
 use komorebi_backend::WindowId;
 use komorebi_core::ContainerWindow;
+use komorebi_core::WorkspacePlatform;
 
 use crate::CrossBoundaryBehaviour;
 use crate::DATA_DIR;
@@ -74,6 +76,7 @@ use crate::static_config::StaticConfig;
 use crate::static_config::StaticConfigExt;
 use crate::transparency_manager;
 use crate::window::Window;
+use crate::window::monitor_id_at_cursor;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener;
@@ -3047,10 +3050,7 @@ impl WindowManager {
 
         tracing::info!("promoting focus");
 
-        let target_idx = match &workspace.layout {
-            Layout::Default(_) => 0,
-            Layout::Custom(custom) => custom.first_container_idx(custom.primary_idx().unwrap_or(0)),
-        };
+        let target_idx = WindowsPlatform::promote_focus_container_idx(&workspace.layout);
 
         workspace.focus_container(target_idx);
         self.update_focused_workspace(self.mouse_follows_focus, true)
@@ -3786,17 +3786,17 @@ impl WindowManager {
     }
 
     pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
-        let hmonitor = WindowsApi::monitor_from_point(WindowsApi::cursor_pos().ok()?);
+        let monitor_id = monitor_id_at_cursor()?;
 
         for (i, monitor) in self.monitors().iter().enumerate() {
-            if monitor.id.to_hmonitor() == hmonitor {
+            if monitor.id == monitor_id {
                 return Option::from(i);
             }
         }
 
         // our hmonitor might be stale, so if we didn't return above, try querying via the latest
         // info taken from win32_display_data and update our hmonitor while we're at it
-        if let Ok(latest) = WindowsApi::monitor(hmonitor) {
+        if let Ok(latest) = WindowsApi::monitor(monitor_id.to_hmonitor()) {
             for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
                 if monitor.extra.device_id == latest.extra.device_id {
                     monitor.id = latest.id;
