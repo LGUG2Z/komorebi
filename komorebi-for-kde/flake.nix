@@ -53,9 +53,8 @@
               toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
               craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
               # rustfmt.toml uses options only a nightly rustfmt knows
-              craneLibFmt = (crane.mkLib pkgs).overrideToolchain (
-                pkgs.rust-bin.nightly.latest.minimal.override { extensions = [ "rustfmt" ]; }
-              );
+              fmtToolchain = pkgs.rust-bin.nightly.latest.minimal.override { extensions = [ "rustfmt" ]; };
+              craneLibFmt = (crane.mkLib pkgs).overrideToolchain fmtToolchain;
 
               # the repository, cut down to this workspace and the crates of the root workspace it depends
               # on by path (komorebi-layouts and what they depend on, komorebi-themes), with the root
@@ -208,6 +207,7 @@
               inherit
                 craneLib
                 craneLibFmt
+                fmtToolchain
                 src
                 real
                 workspaceArgs
@@ -339,9 +339,17 @@
               };
 
               checks = {
-                komorebi-workspace-fmt = build.craneLibFmt.cargoFmt (
-                  build.workspaceArgs // { inherit (build) src; cargoExtraArgs = build.packages; }
-                );
+                # tools/format-all --tree kde: the nightly rustfmt over the files of this tree, file by file. `cargo fmt`
+                # followed `mod windows;` of the shared entry files into files this source does not have.
+                komorebi-workspace-fmt =
+                  pkgs.runCommand "komorebi-workspace-fmt"
+                    {
+                      nativeBuildInputs = [ build.fmtToolchain ];
+                    }
+                    ''
+                      RUSTFMT=rustfmt bash ${builtins.path { path = repoRoot + "/tools/format-all"; name = "format-all"; }} --check --tree kde --root ${build.real}
+                      touch $out
+                    '';
 
                 komorebi-workspace-clippy = build.craneLib.cargoClippy (
                   build.individualCrateArgs
@@ -387,8 +395,10 @@
                         "komorebi-client-macos"
                         "komorebi-bar-macos"
                         "version-macos"
-                      ];
-                    cargoDenyChecks = "--config ${platformDir}/deny.toml bans licenses sources";
+                      ]
+                      # --config is an option of `cargo deny`, not of `check`, in the cargo-deny of this flake's nixpkgs
+                      + " --config ${platformDir}/deny.toml";
+                    cargoDenyChecks = "bans licenses sources";
                   }
                 );
 

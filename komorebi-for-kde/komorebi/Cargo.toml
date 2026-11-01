@@ -12,9 +12,13 @@ komorebi-collections = { path = "../../crates/komorebi-collections" }
 komorebi-core = { path = "../../crates/komorebi-core" }
 komorebi-layouts = { path = "../../komorebi-layouts", features = ["schemars"] }
 komorebi-scrolling = { path = "../../komorebi-scrolling" }
-komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = ["schemars"] }
+komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = [
+  "schemars",
+] }
 komorebi-settings = { path = "../../crates/komorebi-settings" }
-komorebi-protocol = { path = "../../crates/komorebi-protocol", default-features = false, features = ["schemars"] }
+komorebi-protocol = { path = "../../crates/komorebi-protocol", default-features = false, features = [
+  "schemars",
+] }
 komorebi-transport = { path = "../../crates/komorebi-transport" }
 version = { package = "version-linux", path = "../version" }
 
@@ -32,7 +36,9 @@ pastey = { version = "0.2" }
 regex = "1"
 schemars = { version = "1.1", optional = true }
 serde = { version = "1", features = ["derive"] }
-serde_json = { package = "serde_json_lenient", version = "0.2", features = ["preserve_order"] }
+serde_json = { package = "serde_json_lenient", version = "0.2", features = [
+  "preserve_order",
+] }
 serde_with = { version = "3", features = ["schemars_1"] }
 strum = { version = "0.28", features = ["derive"] }
 tokio = { version = "1", features = [
@@ -57,7 +63,11 @@ uuid = { version = "1", features = ["v4"] }
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-schemars = ["dep:schemars", "komorebi-collections/schemars", "komorebi-core/schemars"]
+schemars = [
+  "dep:schemars",
+  "komorebi-collections/schemars",
+  "komorebi-core/schemars",
+]
 
 [lib]
 name = "komorebi"

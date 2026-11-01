@@ -34,7 +34,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::sync::atomic::Ordering;
 
-/// The monitor over KDE's [`Window`], which is `komorebi_core::Monitor` with this platform's methods
+/// The monitor over KDE's `Window`, which is `komorebi_core::Monitor` with this platform's methods
 /// added by [`MonitorExt`]
 pub type Monitor = komorebi_core::Monitor<KdePlatform>;
 
