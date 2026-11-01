@@ -40,8 +40,8 @@ win-msgbox = "0.2"
 windows = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-komorebi-linux = { package = "komorebi-linux", path = "../komorebi-for-kde/komorebi", default-features = false }
-komorebi-hotkeys = { path = "../komorebi-for-kde/komorebi-hotkeys" }
+komorebi-linux = { package = "komorebi-linux", path = "../komorebi-linux", default-features = false }
+komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 version = { package = "komorebi-version", path = "../crates/komorebi-version" }
 clap_complete = "4"
 sysinfo = "0.40"

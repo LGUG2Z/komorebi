@@ -12,15 +12,15 @@ edition = "2024"
 serde_json = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-komorebi = { package = "komorebi-windows", path = "../komorebi", default-features = false }
+komorebi = { package = "komorebi-windows", path = "../komorebi-windows", default-features = false }
 uds_windows = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-komorebi-linux = { package = "komorebi-linux", path = "../komorebi-for-kde/komorebi", default-features = false }
+komorebi-linux = { package = "komorebi-linux", path = "../komorebi-linux", default-features = false }
 komorebi-themes = { path = "../komorebi-themes" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-komorebi-macos = { package = "komorebi-macos", path = "../komorebi-for-mac/komorebi", default-features = false }
+komorebi-macos = { package = "komorebi-macos", path = "../komorebi-macos", default-features = false }
 komorebi-themes = { path = "../komorebi-themes" }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]

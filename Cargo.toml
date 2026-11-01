@@ -2,7 +2,7 @@
 
 resolver = "2"
 members = [
-  "komorebi",
+  "komorebi-windows",
   "komorebi-client",
   "komorebi-gui",
   "crates/komorebi-backend",
@@ -24,16 +24,16 @@ members = [
   "komorebi-shortcuts",
   "e2e/guest/agent",
   "e2e/guest/testwin",
-  # komorebi for KDE Plasma (Linux) and komorebi for macOS: built only on their own platform, selected
-  # with -p; `default-members` below is the Windows set that a bare cargo command builds
-  "komorebi-for-kde/komorebi",
-  "komorebi-for-kde/komorebi-hotkeys",
-  "komorebi-for-mac/komorebi",
+  # the daemons of KDE Plasma (Linux) and macOS are built only on their own platform, selected with -p;
+  # `default-members` below is the Windows set that a bare cargo command builds
+  "komorebi-linux",
+  "komorebi-macos",
+  "komorebi-hotkeys",
   "crates/komorebi-version",
 ]
 
 default-members = [
-  "komorebi",
+  "komorebi-windows",
   "komorebi-client",
   "komorebi-gui",
   "crates/komorebi-backend",

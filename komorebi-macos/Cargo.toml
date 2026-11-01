@@ -5,24 +5,24 @@ description = "A tiling window manager for macOS"
 edition = "2024"
 
 [dependencies]
-komorebi-themes = { path = "../../komorebi-themes" }
-komorebi-backend = { path = "../../crates/komorebi-backend" }
-komorebi-collections = { path = "../../crates/komorebi-collections" }
-komorebi-core = { path = "../../crates/komorebi-core" }
-komorebi-layouts = { path = "../../komorebi-layouts", features = [
+komorebi-themes = { path = "../komorebi-themes" }
+komorebi-backend = { path = "../crates/komorebi-backend" }
+komorebi-collections = { path = "../crates/komorebi-collections" }
+komorebi-core = { path = "../crates/komorebi-core" }
+komorebi-layouts = { path = "../komorebi-layouts", features = [
   "darwin",
   "schemars",
 ] }
-komorebi-config = { path = "../../crates/komorebi-config", default-features = false, features = [
+komorebi-config = { path = "../crates/komorebi-config", default-features = false, features = [
   "schemars",
 ] }
-komorebi-settings = { path = "../../crates/komorebi-settings" }
-komorebi-protocol = { path = "../../crates/komorebi-protocol", default-features = false, features = [
+komorebi-settings = { path = "../crates/komorebi-settings" }
+komorebi-protocol = { path = "../crates/komorebi-protocol", default-features = false, features = [
   "schemars",
 ] }
-komorebi-transport = { path = "../../crates/komorebi-transport" }
+komorebi-transport = { path = "../crates/komorebi-transport" }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
-version = { package = "komorebi-version", path = "../../crates/komorebi-version" }
+version = { package = "komorebi-version", path = "../crates/komorebi-version" }
 
 base64 = "0.22"
 block2 = "0.6"
