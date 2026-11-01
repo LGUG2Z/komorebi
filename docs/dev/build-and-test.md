@@ -1,10 +1,9 @@
 # Build and test, per platform
 
-Status (wip-cand4): current. Every command below was read from `flake.nix`, the justfiles, the Cargo
-manifests or the e2e README; the ones marked "ran" were run on the Linux host at this revision (cheap checks
-only: `cargo metadata --no-deps`, `cargo check -p komorebi-linux -p komorebi -p komorebic` in
-`komorebi-for-kde/`). Everything else, including every nix build, e2e and VM run, is documented but was not
-run for this page. macOS cannot be built or run on Linux; Linux can only type-check it.
+Status: the nix commands name the outputs of the one root flake ([flake.md](flake.md) has the
+old-name to new-name table and the layout). Commands marked "ran" were run on the Linux host at the revision
+that made the flake; the rest are documented from `flake.nix`, the justfile, the Cargo manifests or the e2e
+README. macOS cannot be built or run on Linux; Linux can only type-check it.
 
 The map of the repository is [ARCHITECTURE-UNIFIED.md](ARCHITECTURE-UNIFIED.md). Package names in this
 repository (`cargo metadata --no-deps`, ran): `komorebi` (the daemon, `komorebi-daemon/`), `komorebic`,
@@ -20,12 +19,13 @@ shims `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-c
   section 1); on Linux `-p komorebi` is the KDE daemon, on macOS the macOS one.
 - Never put `komorebic` and `komorebic-linux`/`komorebic-macos` in one command (same binary name). The shims
   stay until the cutover.
-- Without a `.git` (a jj workspace) the build script of the macOS and KDE trees needs `COMMIT_HASH=dev`; the
-  `nix flake check --no-build` command fails with `attribute 'dirtyRev' missing` for the same reason. Do not run
-  `nix flake check` on the root flake at all (it builds the VM suites); name the check.
-- Text edits under `komorebi-for-kde/` and `komorebi-for-mac/` change those trees' nix derivations (they are
-  inputs); a docs-only edit elsewhere does not, because the commit stamp is a constant in the checks
-  (`COMMIT_HASH=nix-check`) and only `packages.default` carries the real commit.
+- Without a `.git` (a jj workspace) the build script of the macOS and Linux crates needs `COMMIT_HASH=dev`. Do
+  not run a plain `nix flake check` on the root flake (it boots the VM suites); name the check, or run
+  `nix flake check --no-build --all-systems` for the evaluation only.
+- Text edits under `komorebi-linux/`, `komorebi-hotkeys/` or `komorebi-macos/` change only that platform's nix
+  derivations (each platform builds from its own filtered source, `nix/workspace-src.nix`); a docs-only edit
+  elsewhere changes none, because the commit stamp is a constant in the checks (`COMMIT_HASH=nix-check`) and
+  only the native `default` and `windows-default` packages carry the real commit.
 - Heavy builds and e2e should not run at the same time as a timing-sensitive e2e: the Windows `commands`
   scenario is the most sensitive (section 6).
 
@@ -38,7 +38,7 @@ workspace of the repository; none of them writes to the source tree.
 |---|---|
 | `tools/fast-check [--list] [--range \| --since REV]` | only the checks the touched paths need; warm in seconds (Windows clippy 8-9 s, KDE 1-3 s, macOS 2-3 s) |
 | `tools/e2e-needed [--since REV]` | does this diff change the Windows e2e binaries (`NO` carries a previous passing e2e over) |
-| `tools/kde-closure-check` | the KDE source filter list matches the KDE cargo closure |
+| `tools/kde-closure-check` | the Linux source filter list (`nix/linux/root-crates.json`) matches the Linux cargo closure |
 | `tools/mac-check.sh` | macOS type-check on Linux (fake C compiler `tools/cc-fake.sh`) |
 | `tools/trim-target`, `tools/gate-lock`, `tools/lite-env` | disk trimming, a heavy-gate lock, debug-info-off builds |
 
@@ -49,24 +49,24 @@ The persistent target directories are under `$FAST_CHECK_SCRATCH` (default `~/.c
 Binaries (the flake cross-compiles to `x86_64-pc-windows-msvc` with an xwin SDK):
 
 ```sh
-nix build .#komorebi .#komorebic .#komorebi-bar            # result*/bin/*.exe; also komorebic-no-console, komorebi-gui, komorebi-shortcuts, komorebi-testwin
-nix build .#default                                          # komorebi-full: everything, with the real commit stamp
+nix build .#windows-komorebi .#windows-komorebic .#windows-komorebi-bar   # result*/bin/*.exe; also windows-komorebic-no-console, -komorebi-gui, -komorebi-shortcuts, -komorebi-testwin
+nix build .#windows-default                                  # windows-komorebi-full: everything, with the real commit stamp
 ```
 
 Checks (crane; the clippy one is the pre-landing gate, about 3.5 min warm deps; the dependency derivation is
 shared by all of them):
 
 ```sh
-nix build -L --no-link .#checks.x86_64-linux.komorebi-workspace-clippy
-nix build -L --no-link .#checks.x86_64-linux.komorebi-workspace-nextest
-nix build -L --no-link .#checks.x86_64-linux.komorebi-workspace-fmt .#checks.x86_64-linux.komorebi-workspace-toml-fmt .#checks.x86_64-linux.komorebi-workspace-deny
-nix build -L --no-link .#checks.x86_64-linux.e2e-tests       # the Python of the e2e (pytest), no guest needed
+nix build -L --no-link .#checks.x86_64-linux.windows-clippy
+nix build -L --no-link .#checks.x86_64-linux.windows-nextest
+nix build -L --no-link .#checks.x86_64-linux.windows-fmt .#checks.x86_64-linux.windows-toml-fmt .#checks.x86_64-linux.windows-deny
+nix build -L --no-link .#checks.x86_64-linux.windows-e2e-tests # the Python of the e2e (pytest), no guest needed
 ```
 
 Quick loop without nix builds (what `tools/fast-check` runs; clippy of the Windows tree from the nix dev shell):
 
 ```sh
-nix develop --command cargo clippy --workspace --locked --all-targets -- -D warnings
+nix develop --command cargo clippy --locked --all-targets -- -D warnings
 ```
 
 On a Windows machine itself: `just build` / `just install` (the root `justfile`, PowerShell), or
@@ -78,8 +78,7 @@ Platform-neutral crates test natively on Linux, with no cross toolchain: `cargo 
 
 ## 2. KDE Plasma (native Linux)
 
-From `komorebi-for-kde/` (cargo finds the root workspace; a C compiler is needed, `nix shell nixpkgs#gcc -c`
-or the dev shell):
+From the repository root (a C compiler is needed: `nix shell nixpkgs#gcc -c`, or `nix develop .#native`):
 
 ```sh
 cargo check -p komorebi-linux -p komorebi -p komorebic                         # ran, 27 s with a warm target
@@ -88,40 +87,36 @@ cargo test  -p komorebi-linux --test schemas -- --test-threads=1               #
 cargo test  -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys    # daemon-binary, CLI and client tests (tests/linux_*.rs)
 ```
 
-A single test file: `cargo test -p komorebi-linux --test NAME` (the files are in `komorebi-for-kde/komorebi/tests`).
+A single test file: `cargo test -p komorebi-linux --test NAME` (the files are in `komorebi-linux/tests`).
 The `-p komorebi --lib` that older notes use is the thin binary package now: the unit tests are in
 `komorebi-linux`.
 
-Run `tools/kde-closure-check` (see [tools/README.md](../../tools/README.md)) after any dependency change in the KDE tree or the crates it uses: the KDE
-flake takes only the crates listed in `komorebi-for-kde/nix/root-crates.json`.
+Run `tools/kde-closure-check` (see [tools/README.md](../../tools/README.md)) after any dependency change in the KDE crates or the crates they use: the Linux
+source takes only the crates listed in `nix/linux/root-crates.json`.
 
-KDE nix checks (no VM): from the root flake they are prefixed `kfde-`, and the VM checks are left out:
+KDE nix checks (no VM), prefixed `linux-`:
 
 ```sh
-nix build -L --no-link .#checks.x86_64-linux.kfde-komorebi-workspace-clippy
-nix build -L --no-link .#checks.x86_64-linux.kfde-komorebi-workspace-nextest
-# also kfde-komorebi-workspace-{fmt,toml-fmt,deny,doc}, kfde-nix-options-validation, kfde-nixos-module-eval,
-# kfde-keybindings-fixtures, kfde-schema-fresh
-nix build -L .#packages.x86_64-linux.kfde-komorebi .#packages.x86_64-linux.kfde-komorebic
+nix build -L --no-link .#checks.x86_64-linux.linux-clippy
+nix build -L --no-link .#checks.x86_64-linux.linux-nextest
+# also linux-{fmt,toml-fmt,deny,doc,bridge-js,schema-fresh,nix-options-validation,nixos-module-eval,
+# keybindings-fixtures,plasma-guests-eval}
+nix build -L .#komorebi .#komorebic            # the native packages of the Linux system
 ```
 
-Inside `komorebi-for-kde/` the same checks have no prefix (`nix build .#checks.x86_64-linux.NAME`).
-`komorebi-for-kde/justfile` (`just check`, `just docgen`, `just jsonschema`) still assumes a KDE-only
-workspace: `just check` runs `cargo test --workspace`, which would build the Windows crates on Linux. Use the
-commands above; `just vm NAME` and `just nixgen` are fine.
+`just check` runs `cargo test --workspace`, which would build the Windows crates on Linux. Use the commands
+above; `just vm NAME` and `just nixgen-linux` are fine.
 
 ### KDE VM suites
 
-Each suite under `komorebi-for-kde/nix/tests/vm/suites/NAME` boots NixOS with Plasma and KWin; they need KVM
-(nested is enough under WSL2; `nix run .#wsl2-probe` from `komorebi-for-kde/` measures it).
+Each suite under `nix/linux/tests/vm/suites/NAME` boots NixOS with Plasma and KWin; they need KVM
+(nested is enough under WSL2; `nix run .#wsl2-probe` measures it).
 
 ```sh
-# from komorebi-for-kde/
-just vm NAME                                              # = nix build -L .#checks.x86_64-linux.vm-NAME
+just vm NAME                                              # = nix build -L .#legacyPackages.x86_64-linux.vm.NAME
 just vm-all                                               # every suite in the order of the flake
-# from the repository root (the VM checks are left out of the root `checks`, the suites are here)
-nix build -L .#legacyPackages.x86_64-linux.kfde-vm.NAME
-# from komorebi-for-kde/: the names of each tier as JSON (ran; CI reads it)
+nix build -L .#legacyPackages.x86_64-linux.vm.NAME      # the same suite as a test with a `driver`
+# the names of each tier as JSON (ran; CI reads it)
 nix eval --json .#legacyPackages.x86_64-linux.vmTiers
 ```
 
@@ -133,12 +128,12 @@ Tiers (the `tier` in each suite's `default.nix`; CI runs `fast` on every pull re
   focus-follows-mouse latency keys-engine live-resize lock-sleep look keys-skhd keys-static wallpaper`
 - `vm-lib` (a check, not a suite) runs the unit tests of the VM library; no VM boots.
 
-To run only some steps of a suite: `E2E_ONLY=stacks,monocle nix build --impure .#checks.x86_64-linux.vm-core-e2e -L`
-(from `komorebi-for-kde/`; a substring of the printed `module.function`; `KFDE_ONLY` is the old name).
+To run only some steps of a suite: `E2E_ONLY=stacks,monocle nix build --impure .#legacyPackages.x86_64-linux.vm.core-e2e -L`
+(a substring of the printed `module.function`; `KFDE_ONLY` is the old name).
 To record a run: `KOMOREBI_RECORDER=$(nix build ~/komorebi-recorder#komorebi-recorder --no-link --print-out-paths)
-nix build --impure .#checks.x86_64-linux.vm-core-lock -L` (the recorder's repository is private; `core-e2e` and
+nix build --impure .#legacyPackages.x86_64-linux.vm.core-lock -L` (the recorder's repository is private; `core-e2e` and
 `core-lock` keep `recording-NAME.tar.gz`). Details, the library and how to add a suite:
-[komorebi-for-kde/docs/dev/vm-tests.md](../../komorebi-for-kde/docs/dev/vm-tests.md). The suites use a daemon
+[docs/linux/dev/vm-tests.md](../linux/dev/vm-tests.md). The suites use a daemon
 built once with the constant stamp, so a new commit does not rebuild it.
 
 ## 3. macOS
@@ -154,7 +149,7 @@ cargo test  --locked -p komorebi-macos -p komorebic -p komorebi-client -p komore
 cargo build --locked --features deadlock_detection -p komorebi          # the feature is forwarded
 target/debug/komorebi --version                                          # komorebi 0.1.0 (the macOS version crate)
 target/debug/komorebic --help; target/debug/komorebic docgen --output /tmp/docs-mac
-target/debug/komorebi-bar --schema | cmp - komorebi-for-mac/schema.bar.json
+target/debug/komorebi-bar --schema | cmp - schemas/macos/schema.bar.json
 ```
 
 Never `-p komorebic-macos` together with `-p komorebic` (the shims `komorebic-macos`, `komorebi-client-macos`
@@ -169,10 +164,10 @@ On Linux, macOS can only be type-checked, through a fake C compiler and the targ
 tools/mac-check.sh     # = COMMIT_HASH=dev cargo check --target aarch64-apple-darwin ... --all-targets, CC set to tools/cc-fake.sh
 ```
 
-Nix, on a Mac: the checks of `komorebi-for-mac/flake.nix` (`komorebi-workspace-{clippy,fmt,toml-fmt,deny,nextest}`,
-`nix-options-validation`, `darwin-module-validation`). From Linux they can be evaluated only
-(`nix flake show --all-systems`, `nix eval`), which proves nothing builds. Through the root flake they are
-`kfm-*`.
+Nix, on a Mac: the `macos-*` checks (`macos-{clippy,fmt,toml-fmt,deny,nextest}`,
+`macos-nix-options-validation`, `macos-darwin-module-validation`) and the packages `komorebi`, `komorebic`,
+`komorebi-bar` of `aarch64-darwin`. From Linux they can be evaluated only (`nix flake check --no-build
+--all-systems`, `nix eval`), which proves nothing builds.
 
 ## 4. Windows e2e (QEMU guest)
 
@@ -210,12 +205,12 @@ A change to the Windows daemon or bar needs these before it is considered landed
 | Change touches | Run |
 |---|---|
 | `crates/*` (not bar/komorebic) | section 1 native crate tests, then Windows clippy (section 1), KDE (section 2) and macOS type-check (section 3) |
-| `komorebi/` (Windows daemon) | Windows clippy and nextest, then e2e (section 4) |
-| `komorebi-for-kde/` | section 2 cargo, then KDE checks, VM `fast` tier |
-| `komorebi-for-mac/` | macOS type-check on Linux; build and tests on a Mac |
+| `komorebi-windows/` (Windows daemon) | Windows clippy and nextest, then e2e (section 4) |
+| `komorebi-linux/`, `komorebi-hotkeys/` | section 2 cargo, then KDE checks, VM `fast` tier |
+| `komorebi-macos/` | macOS type-check on Linux; build and tests on a Mac |
 | `komorebi-bar/`, `komorebi-bar-core` | Windows clippy, `cargo test -p komorebi-bar-core`, macOS type-check, e2e `bar` |
 | `komorebic*`, `komorebic-core` | `cargo test -p komorebic-core` (CLI doc oracle), all three platforms' checks |
-| `*.nix`, `flake.lock` | evaluation only (`nix eval ...drvPath`) before a build |
+| `flake.nix`, `nix/**`, `flake.lock` | `nix flake check --no-build --all-systems`, then the checks of the platform edited |
 | docs only | nothing, unless under a platform tree (see section 0) |
 
 ## 6. Known flakes
