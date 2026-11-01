@@ -1,6 +1,6 @@
 # One `komorebi`, one `komorebic`, one `komorebi-bar`
 
-> **Status (wip-cand4):** steps 0-8 done: one `komorebi` (`komorebi-daemon/`), `komorebic`, `komorebi-client` and `komorebi-bar` package, platform by `cfg(target_os)`; the cutover (shim packages, one flake, final directories, one version) is open. The older sections below are history: in particular the note "never write `-p komorebi`" was true before step 8 and is wrong now; see [build-and-test.md](build-and-test.md) for current commands.
+> **Status (the cutover stack, `wip-cutover`):** steps 0-8 done: one `komorebi` (`komorebi-daemon/`), `komorebic`, `komorebi-client` and `komorebi-bar` package, platform by `cfg(target_os)`; the cutover (shim packages deleted, final directories, one version 0.2.0) is done too; the one flake, CI and releases are open (see "What is left for the cutover" at the end). The older sections below are history and keep the names and paths of their time (`komorebic-linux`, `komorebi-for-kde/`, `komorebi-for-mac/`, `version-linux`, the versions 0.1.42 / 0.1.0 / 0.1.1, `kfde-*`/`kfm-*` flake attributes): in particular the note "never write `-p komorebi`" was true before step 8 and is wrong now; see [build-and-test.md](build-and-test.md) for current commands. Where the old directories were: `komorebi/` is now `komorebi-windows/`, `komorebi-for-kde/komorebi/` is `komorebi-linux/`, `komorebi-for-mac/komorebi/` is `komorebi-macos/`, the KDE and macOS docs, nix files and scripts are under `docs/`, `nix/` and `scripts/` in `linux/` and `macos/` subdirectories, and the schemas are in `schemas/{windows,linux,macos}/`.
 
 Goal: three packages and three binaries that build on Windows, KDE (Linux) and macOS, the platform
 chosen by `cfg(target_os)` (generics, `cfg_select!`, exhaustive `match`; no macros as a design tool).
@@ -147,7 +147,7 @@ by hand: 4, 7, 8, 9.
 Mac hand check (type-check proves none of it): `komorebic --version` and `--help` show the macOS
 command set and the name `komorebic`; `komorebic start` finds and starts `komorebi`, `stop` stops it;
 `komorebic docgen` unchanged; `komorebi --version`; the daemon starts, tiles and `komorebic state`
-answers; `komorebi-bar` opens, `--schema` equals `komorebi-for-mac/schema.bar.json`;
+answers; `komorebi-bar` opens, `--schema` equals `komorebi-for-mac/schema.bar.json` [now `schemas/macos/schema.bar.json`];
 the embedded `applications.json` is the macOS one;
 `otool -L` of each binary lists no Windows or Linux-only library.
 
@@ -313,18 +313,18 @@ Run on the revisions of `wip-u-pkg-mig` at or after the stated one, from the rep
 
 ```
 cargo build --locked -p komorebic -p komorebi-macos -p komorebi-bar    # after "one komorebi-bar package"
-cargo build --locked -p komorebic-macos -p komorebi-bar-macos -p komorebi-client-macos   # the shims still build
+# (the line that built the shims komorebic-macos, komorebi-bar-macos, komorebi-client-macos is gone: they were deleted)
 cargo clippy --locked -p komorebic -p komorebi-client -p komorebi-bar -p komorebi-bar-core -p komorebi-macos --all-targets -- -D warnings
 cargo test --locked -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar-core -p komorebi-bar
 target/debug/komorebic --help; target/debug/komorebic --version; target/debug/komorebic docgen --output /tmp/docs-mac
-target/debug/komorebi-bar --schema | cmp - komorebi-for-mac/schema.bar.json
+target/debug/komorebi-bar --schema | cmp - schemas/macos/schema.bar.json
 ```
 
-Note: there is no package named `komorebi` yet: the daemon is `komorebi-macos` on macOS and `komorebi-windows` on Windows (binary name `komorebi` for both; the single `komorebi` package is step 8). Never write `-p komorebi`. Do not build `komorebic` and `komorebic-macos` in the same command (same binary name). The lint fix `fix(bar-core): WidgetConfig::supported as matches!` is needed for clippy to pass.
+Note: there is no package named `komorebi` yet: the daemon is `komorebi-macos` on macOS and `komorebi-windows` on Windows (binary name `komorebi` for both; the single `komorebi` package is step 8). Never write `-p komorebi` (history: step 8 below added it). The `komorebic-macos` shim no longer exists. The lint fix `fix(bar-core): WidgetConfig::supported as matches!` is needed for clippy to pass.
 The macOS checks that matter by revision:
 `refactor(komorebic): move the macOS CLI ...` (komorebic, quickstart, start, stop), `refactor(client): one
 komorebi-client ...` (the client tests in `komorebi-client/src/macos.rs`), and `refactor(bar): one
-komorebi-bar package ...` (the bar opens, `--schema`). Everything in `docs/dev/macos-handcheck.md` still applies.
+komorebi-bar package ...` (the bar opens, `--schema`). Everything in `docs/dev/macos-handcheck.md` still applies. (The commands in this block are those of the time; the runbook with the current names is `docs/dev/macos-hand-check-plan.md`.)
 
 ## Step 8 done: one `komorebi`
 
@@ -337,17 +337,30 @@ files are `daemon.rs` of those libraries (`komorebi::` became `crate::`), and th
 The KDE tests that run the binary moved to `komorebi-daemon/tests/linux_*.rs`.
 
 So `cargo build -p komorebi`, `-p komorebic`, `-p komorebi-bar` and `cargo run -p komorebi-bar -- --schema` build and
-run the right program on Windows, KDE Plasma and macOS. What is left for the cutover (nothing here deletes it yet):
+run the right program on Windows, KDE Plasma and macOS.
+
+### What is left for the cutover
+
+Done in the cutover stack (`jj log -r 'wip-main..wip-cutover'`):
 
 - the shim packages `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-client-macos`,
-  `komorebi-bar-macos` (each a `#[path]` include of the unified module) and their directories under
-  `komorebi-for-kde/` and `komorebi-for-mac/`;
-- the per-platform `version` packages (`version-linux`, `version-macos`) once one `version` crate serves
-  all three;
-- the three flakes becoming one, the repository layout (`komorebi-for-kde/`, `komorebi-for-mac/` trees move
-  under the platform crates' final directories), one `deny.toml`, the workspace-wide version number
-  (0.1.42 / 0.1.0 / 0.1.1), and the comments and docs that name the old paths;
+  `komorebi-bar-macos` and their directories are deleted;
+- `version-linux` and `version-macos` are one `crates/komorebi-version`; the workspace version is 0.2.0 for
+  every package (0.1.42 / 0.1.0 / 0.1.1 above are history);
+- the directories are the final ones (`komorebi-windows/`, `komorebi-linux/`, `komorebi-macos/`,
+  `komorebi-hotkeys/`; `docs/{linux,macos}`, `nix/{linux,macos}`, `scripts/linux`, `schemas/*`), one `deny.toml`,
+  `rustfmt.toml`, `rust-toolchain.toml`, `.gitignore`, `LICENSE.md` and `justfile`, and the comments and
+  docs that named the old paths name the new ones;
 - the libraries `komorebi-windows`, `komorebi-linux`, `komorebi-macos` stay: they are the daemons.
+
+Still open:
+
+- the three flakes becoming one: being written by the agent `flake-one`; the `kfde-*` and `kfm-*` attribute
+  names in this file are the old ones until it lands;
+- CI and release workflows: the old repositories' files are archived in `docs/dev/old-ci/` and nothing
+  builds the Linux or macOS packages in CI;
+- the site and repository URLs of the old projects, which are unchanged;
+- `docs/linux/dev/COMPARE.md` and `scripts/linux/compare-gen.py` are stale.
 
 Owed by the coordinator for this step (none was built): the heavy builds listed above, now also
 `nix build -L .#packages.x86_64-linux.komorebi .#packages.x86_64-linux.kfde-komorebi`; the Windows e2e
@@ -357,7 +370,7 @@ Owed by the coordinator for this step (none was built): the heavy builds listed 
 
 ```
 cargo build --locked -p komorebi -p komorebic -p komorebi-bar
-target/debug/komorebi --version            # prints komorebi 0.1.0 (the macOS version crate)
+target/debug/komorebi --version            # prints komorebi 0.2.0 (it printed 0.1.0 at the time of step 8)
 target/debug/komorebi --help | head -3
 cargo clippy --locked -p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar -p komorebi-bar-core --all-targets -- -D warnings
 cargo test --locked -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar-core -p komorebi-bar

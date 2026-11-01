@@ -1,6 +1,6 @@
 # The consolidation of komorebi, komorebi-for-kde and komorebi-for-mac: final-state summary
 
-Status (written at wip-cand8, b6f4c2ae, 2026-10-31): a summary for a maintainer who was not there.
+Status (written at wip-cand8, b6f4c2ae, 2026-10-31; sections 1, 6, 7 and 8 were brought up to date by the cutover stack, `wip-cutover`, and say so; everything else is as written then, with the paths and version numbers of that time): a summary for a maintainer who was not there.
 Gates for candidate 8 were still running when this was written; the results stated below are the ones
 that had finished, with the candidate they ran on. Companion documents: [ARCHITECTURE-UNIFIED.md](ARCHITECTURE-UNIFIED.md)
 (the map), [build-and-test.md](build-and-test.md) (commands, flakes), [macos-hand-check-plan.md](macos-hand-check-plan.md)
@@ -19,10 +19,12 @@ per user-facing program, the platform chosen by `cfg(target_os)`.
 | `komorebi-client` | `komorebi-client/` | `src/{windows,linux,macos}.rs` behind one `Connection` |
 | `komorebi-bar` | `komorebi-bar/` | `src/windows/`, `src/macos/`; shared part in `crates/komorebi-bar-core`. KDE has no bar |
 
-Three platform trees remain, because the platform layers are different code: the repository root (Windows:
-`komorebi/` is the library `komorebi-windows`), `komorebi-for-kde/` (`komorebi-linux`, hotkeys, NixOS module,
-the VM suites) and `komorebi-for-mac/` (`komorebi-macos`, nix-darwin module). The daemon libraries have no
-binary; the `komorebi` package is the binary. The crate map and the tree layout are in
+Three platform layers remain, because the platform layers are different code, each in its own directory
+since the cutover stack: `komorebi-windows/` (Windows; it was `komorebi/`), `komorebi-linux/` and
+`komorebi-hotkeys/` (KDE; with `nix/linux/`, the NixOS module and the VM suites, and `docs/linux/`) and
+`komorebi-macos/` (macOS; with `nix/macos/`, the nix-darwin module, and `docs/macos/`). The trees
+`komorebi-for-kde/` and `komorebi-for-mac/` of the first version of this summary no longer exist. The daemon
+libraries have no binary; the `komorebi` package is the binary. The crate map and the tree layout are in
 [ARCHITECTURE-UNIFIED.md](ARCHITECTURE-UNIFIED.md); how to build each is in [build-and-test.md](build-and-test.md).
 
 ## 2. What was shared, and how
@@ -64,8 +66,8 @@ flattened in, pinned by tests). Native tests of the shared code run on Linux and
 
 ### Oracles (checked in files, compared byte for byte)
 
-Wire goldens (`komorebi-protocol`), the three `schema.json` and `schema.asc.json`, the two `schema.bar.json`
-(size and hash pinned in `komorebi-bar-core`), the `docs/cli` pages of each tree, JSON pins of `Container`,
+Wire goldens (`komorebi-protocol`), the three `schema.json` and `schema.asc.json` (now `schemas/{windows,linux,macos}/`), the two `schema.bar.json`
+(size and hash pinned in `komorebi-bar-core`), the `docs/cli`, `docs/linux/cli` and `docs/macos/cli` pages (before the cutover: `docs/cli` of each tree), JSON pins of `Container`,
 `Monitor` and the state of the three daemons from real fixtures, and derivation drift (`nix eval ...drvPath`).
 Details in [ARCHITECTURE-UNIFIED.md](ARCHITECTURE-UNIFIED.md) section 5.
 
@@ -112,23 +114,25 @@ commands, now resolved for all platforms by owner decision; (2) `Monitor::focus_
 name; (3) `Workspace::remove_container` focuses the container next to the focused one rather than the removed
 one; (4) a subscriber that stops reading can stall the daemon on macOS (a 1 s write timeout was tried and reverted
 because it can truncate a notification). Items 2-4 are inherited behaviour, pinned by tests, left for a decision.
-Other open items: the Windows lock-hold stall; `komorebi-for-kde/justfile` recipes assume a KDE-only workspace;
-`docs/dev/COMPARE.md` and `scripts/compare-gen.py` are stale.
+Other open items: the Windows lock-hold stall; `docs/linux/dev/COMPARE.md` and `scripts/linux/compare-gen.py` are stale (the
+KDE-only justfile this paragraph used to name was merged into the one root `justfile` by the cutover stack).
 
-## 7. Cutover list (not done)
+## 7. The cutover: done in the cutover stack, and still open
 
-What must be deleted or merged to finish; nothing below was changed.
+The stack `wip-cutover` (on `wip-main`; `jj log -r 'wip-main..wip-cutover'`) did the mechanical part. Each row
+says what the first version of this section proposed and where it stands.
 
-| Item | State | Action |
+| Item | State now | Open |
 |---|---|---|
-| shim packages | `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-client-macos`, `komorebi-bar-macos` are `#[path]` includes of the unified modules | delete them and their directories under `komorebi-for-kde/` and `komorebi-for-mac/`; update the flakes and justfiles that name them |
-| version crates | `version-linux`, `version-macos` | one `version` crate; one workspace version (Windows 0.1.42, KDE 0.1.0, macOS 0.1.1 today) |
-| flakes | three flakes; the root one imports the other two as `kfde-*` and `kfm-*` | one flake with the platform trees moved to final directories; KDE's VM suites and module, macOS's darwin module stay as outputs |
-| `deny.toml`, `rustfmt.toml`, toolchain files | one per tree | one of each |
-| workflows | root: `windows.yaml`, `feature-check.yaml`; KDE: `ci.yaml` (nix checks, VM tiers, canary, release), `update-flake-lock.yaml`, `rerun-no-kvm.yaml`; macOS: `nix.yaml`, `release.yaml` (Homebrew formula) | a proposal, not decided: one CI that builds the three packages, runs `crates/` natively, the nix checks, the Windows e2e on a host with KVM, and the KDE VM tiers as today; one release workflow producing the Windows, Linux and macOS artifacts with one tag and one version |
-| docs | per-tree `docs/`, CONTRIBUTING, READMEs | one docs tree; `docs/cli` per platform stays until commands are merged; retire COMPARE.md |
-| justfiles | three | one |
-| tools | `tools/` is committed (fast-check, format-all, kde-closure-check, e2e-needed, gate-lock, ...); see `tools/README.md` | keep; delete the per-tree copies of what they replace |
+| shim packages | `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-client-macos`, `komorebi-bar-macos` deleted | none |
+| version crates and numbers | one `crates/komorebi-version` instead of `version-linux`, `version-macos`; one workspace version, 0.2.0 (the 0.1.42 / 0.1.0 / 0.1.1 of the first version of this section are history) | none |
+| directories | `komorebi/` is `komorebi-windows/`; the KDE and macOS libraries are `komorebi-linux/` and `komorebi-macos/`; `komorebi-hotkeys/`, `spikes/` at the top level; `docs/{linux,macos}`, `nix/{linux,macos}`, `scripts/linux`, `schemas/{windows,linux,macos}` | none |
+| `deny.toml`, `rustfmt.toml`, toolchain, `.gitignore`, licence, `justfile` | one of each at the root | none |
+| docs | the READMEs and CONTRIBUTING of the ports are `docs/linux/` and `docs/macos/`; paths and links were fixed; the Windows mkdocs site excludes `docs/linux`, `docs/macos` and `docs/dev` | `docs/cli` per platform stays until the commands are merged; `docs/linux/dev/COMPARE.md` is stale and `scripts/linux/compare-gen.py` with it; the KDE documents still say "this repository" for what is now one of three |
+| flakes | the `kfde-*` and `kfm-*` flakes were still three when the directories moved (`komorebi-for-kde/flake.nix`, `komorebi-for-mac/flake.nix`) | one root flake is being written by the agent `flake-one`; the nix commands in the documents name the old attributes until it lands |
+| workflows | the files of the old repositories are in `docs/dev/old-ci/{linux,macos}/` (inert: under `docs/` GitHub does not run them); the Windows `.github/` is as it was | the proposal stands, not decided: one CI that builds the three packages, runs `crates/` natively, the nix checks, the Windows e2e on a host with KVM and the KDE VM tiers; one release workflow with one tag and one version; the Homebrew formula template and the macOS docs-site files wait in the archive |
+| URLs | unchanged | where the repository and the sites are published is not decided: the old GitHub repositories (`LGUG2Z/komorebi-for-kde`, `LGUG2Z/komorebi-for-mac`), `komorebi-for-mac.lgug2z.com`, the update check of the macOS bar, the `$schema` URLs of the example configurations and generated schemas |
+| tools | `tools/` is committed; `tools/format-all` has one group | `tools/kde-closure-check` still reads the old path of `root-crates.json` |
 
 ## 8. How to continue
 
@@ -145,7 +149,7 @@ What must be deleted or merged to finish; nothing below was changed.
    a real platform reason, put the difference behind a hook (as `HideSpot` and `begin_pass` do) rather than
    converging behaviour you cannot verify.
 6. **Decide items 2-4 of the known issues**, then move them into the shared code with the e2e gate.
-7. **Complete the cutover** (section 7), then regenerate the Windows `docs/cli` and the schema docs.
+7. **Finish the cutover** (the open column of section 7: the one flake, CI and releases, the URLs), then regenerate the Windows `docs/cli` and the schema docs.
 
 ## 9. The decisions that shaped the design
 
