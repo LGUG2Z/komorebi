@@ -8,6 +8,7 @@ edition = "2024"
 komorebi-collections = { path = "../komorebi-collections" }
 komorebi-config = { path = "../komorebi-config", default-features = false }
 komorebi-layouts = { path = "../../komorebi-layouts" }
+komorebi-protocol = { path = "../komorebi-protocol" }
 komorebi-scrolling = { path = "../../komorebi-scrolling" }
 color-eyre = { workspace = true }
 nanoid = "0.5"

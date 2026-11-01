@@ -999,7 +999,7 @@ impl WindowManager {
         // We don't have From implemented for &mut WindowManager
         let initial_state = State::from(self.as_ref());
 
-        self.handle_unmanaged_window_behaviour()?;
+        komorebi_core::CommandHost::gate_message(self, &message)?;
 
         match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
@@ -2012,6 +2012,13 @@ fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, 
 /// The window manager as the shared commands of `komorebi_core::command` see it
 impl komorebi_core::CommandHost for WindowManager {
     type P = crate::workspace::KdePlatform;
+
+    fn gate_message(
+        &mut self,
+        _message: &komorebi_protocol::message::SocketMessage,
+    ) -> eyre::Result<()> {
+        self.handle_unmanaged_window_behaviour()
+    }
 
     fn monitors(&self) -> &std::collections::VecDeque<crate::monitor::Monitor> {
         WindowManager::monitors(self)

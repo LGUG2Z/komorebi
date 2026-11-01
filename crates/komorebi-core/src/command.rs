@@ -14,6 +14,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_layouts::CycleDirection;
 use komorebi_layouts::OperationDirection;
+use komorebi_protocol::message::SocketMessage;
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
 
@@ -42,6 +43,15 @@ pub trait CommandHost {
 
     /// Shows workspace `idx` on the focused monitor and focuses it.
     fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()>;
+
+    /// Whether the router may run `message` at all: an error refuses it before any arm runs. The
+    /// default lets everything through (Windows, which gates inside 18 window manager functions
+    /// instead, section 22.1 of docs/dev/core-model.md); KDE and macOS refuse every message while the
+    /// focused window is not managed and `unmanaged_window_operation_behaviour` is `NoOp`.
+    fn gate_message(&mut self, message: &SocketMessage) -> eyre::Result<()> {
+        let _ = message;
+        Ok(())
+    }
 
     /// Shows workspace `workspace_idx` on the monitor at `monitor_idx` (creating it if it is not
     /// there) without focusing that monitor.

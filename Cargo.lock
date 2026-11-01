@@ -3583,6 +3583,7 @@ dependencies = [
  "komorebi-collections",
  "komorebi-config",
  "komorebi-layouts",
+ "komorebi-protocol",
  "komorebi-scrolling",
  "nanoid 0.5.0",
  "schemars 1.2.3",
