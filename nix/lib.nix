@@ -56,10 +56,16 @@ rec {
     };
 
   # nixpkgs with the rust overlay, for a system (x86_64-darwin: see the input nixpkgs-x86_64-darwin)
-  mkPkgs =
-    system:
-    import (if system == "x86_64-darwin" then inputs.nixpkgs-x86_64-darwin else inputs.nixpkgs) {
-      inherit system;
-      overlays = [ (import inputs.rust-overlay) ];
-    };
+  mkPkgs = system: pkgsOf.${system};
+  pkgsOf = builtins.listToAttrs (
+    map (system: {
+      name = system;
+      value =
+        import (if system == "x86_64-darwin" then inputs.nixpkgs-x86_64-darwin else inputs.nixpkgs)
+          {
+            inherit system;
+            overlays = [ (import inputs.rust-overlay) ];
+          };
+    }) (windowsSystems ++ linuxSystems ++ macosSystems)
+  );
 }

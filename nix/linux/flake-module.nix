@@ -12,6 +12,13 @@ let
   inherit (inputs) nixpkgs;
   linux = import ./build.nix { inherit inputs self; };
   inherit (lib') mkPkgs;
+  # The packages of each system, built from one nixpkgs instance: the overlays below run once for every
+  # NixOS system an evaluation instantiates (every node of every VM suite, every module scenario), and
+  # each run would import nixpkgs and build the crane derivations again. The same derivations, but
+  # an evaluation that has all the suites holds one copy of them: see docs/dev/flake-checks.md.
+  buildFor = lib.genAttrs lib'.linuxCheckSystems (
+    system: linux.mkKomorebiPackages { pkgs = mkPkgs system; }
+  );
 in
 {
   perSystem =
@@ -383,7 +390,7 @@ in
     overlays.linux =
       final: _:
       let
-        build = linux.mkKomorebiPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; };
+        build = buildFor.${final.stdenv.hostPlatform.system};
       in
       {
         inherit (build) komorebi komorebic;
@@ -396,7 +403,7 @@ in
     overlays.forVmTests =
       final: prev:
       let
-        build = linux.mkKomorebiPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; };
+        build = buildFor.${final.stdenv.hostPlatform.system};
       in
       (self.overlays.linux final prev)
       // {
