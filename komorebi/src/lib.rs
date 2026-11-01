@@ -15,6 +15,7 @@ pub mod focus_manager;
 pub mod live_resize;
 pub use komorebi_collections::Lockable;
 pub use komorebi_collections::lockable_sequence;
+pub mod heartbeat;
 pub mod lock_holder;
 pub mod monitor;
 pub mod monitor_reconciliator;

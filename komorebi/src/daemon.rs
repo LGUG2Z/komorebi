@@ -333,6 +333,7 @@ pub fn run() -> eyre::Result<()> {
     focus_manager::listen_for_notifications(wm.clone());
     theme_manager::listen_for_notifications();
 
+    crate::heartbeat::start();
     listen_for_commands(wm.clone());
 
     if let Some(port) = opts.tcp_port {

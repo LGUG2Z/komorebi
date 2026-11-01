@@ -114,6 +114,22 @@ struct WindowsConnectionPolicy;
 
 impl ConnectionPolicy<UnixStream> for WindowsConnectionPolicy {
     fn on_accept(&self, stream: &UnixStream) {
+        // when connections come in: a request that waits in the backlog while the process is
+        // stalled is seen here late, next to the heartbeat
+        {
+            static LAST_ACCEPT: parking_lot::Mutex<Option<std::time::Instant>> =
+                parking_lot::Mutex::new(None);
+            let now = std::time::Instant::now();
+            let since = LAST_ACCEPT
+                .lock()
+                .replace(now)
+                .map(|last| now.duration_since(last));
+            tracing::debug!(
+                "accepted a command connection ({} ms since the previous one)",
+                since.map_or(-1, |d| d.as_millis() as i64)
+            );
+        }
+
         match stream.set_read_timeout(Some(Duration::from_secs(1))) {
             Ok(()) => {}
             Err(error) => tracing::error!("{}", error),
