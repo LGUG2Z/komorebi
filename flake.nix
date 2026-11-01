@@ -522,12 +522,19 @@
               }
             );
 
-            komorebi-workspace-fmt = build.craneLib.cargoFmt {
-              inherit (build) src;
-              pname = "komorebi-workspace";
-              version = "0.1.0";
-              cargoToml = "${build.real}/Cargo.toml";
-            };
+            # the nightly rustfmt over the Windows files, as tools/format-all --tree windows does locally. Not
+            # `cargo fmt`: it ran the stable rustfmt (which ignores the nightly options of rustfmt.toml) over
+            # the stub sources of the other platforms and followed `mod linux;` into files the Windows source
+            # does not have.
+            komorebi-workspace-fmt =
+              pkgs.runCommand "komorebi-workspace-fmt"
+                {
+                  nativeBuildInputs = [ nightlyRustfmt ];
+                }
+                ''
+                  RUSTFMT=rustfmt bash ${./tools/format-all} --check --tree windows --root ${build.real}
+                  touch $out
+                '';
 
             komorebi-workspace-toml-fmt = build.craneLib.taploFmt {
               src = pkgs.lib.sources.sourceFilesBySuffices build.real [ ".toml" ];

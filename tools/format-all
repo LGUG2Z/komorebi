@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# format-all: the formatting checks of the nix flakes, runnable locally, and the fix for them.
+#
+# Usage: tools/format-all [--check | --apply] [--tree windows|kde|mac|all] [--root DIR]
+#   --check  (default) fails if any file is not formatted; prints the diff
+#   --apply  formats the files in place (do it LAST on a candidate: it touches many files)
+#   --tree   which flake's check to reproduce (default all)
+#   --root   the repository (default: the one this script is in; the nix check passes its source)
+#
+# The checks use the nightly rustfmt (rustfmt.toml has nightly options) and edition 2024, the
+# edition of every manifest:
+#   windows  every .rs file of the Windows crates with the root rustfmt.toml, file by file
+#            (skip_children: the entry files name modules of other platforms that are not in the
+#            Windows source, which rustfmt would fail to find); the linux and macos modules of the
+#            shared crates belong to the kde and mac trees
+#   mac      komorebi-for-mac/**/*.rs and the macos modules of the shared crates, with
+#            komorebi-for-mac/rustfmt.toml
+#   kde      `cargo fmt -p <the kde packages>`, as komorebi-for-kde/flake.nix does
+# The nightly rustfmt is $RUSTFMT if set, else `rustfmt` if that is a nightly, else the one of the
+# dev shell of the root flake (`nix develop`), which is the one the nix checks use (a nightly of the
+# pinned rust-overlay; another nightly may format a little differently).
+set -uo pipefail
+
+mode=check
+tree=all
+root=$(cd "$(dirname "$0")/.." && pwd)
+while [ $# -gt 0 ]; do
+  case $1 in
+    --check) mode=check ;;
+    --apply) mode=apply ;;
+    --tree) tree=$2; shift ;;
+    --root) root=$2; shift ;;
+    -h | --help) sed -n 2,23p "$0"; exit 0 ;;
+    *) echo "format-all: unknown argument $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+root=$(cd "$root" && pwd)
+
+if [ -z "${RUSTFMT:-}" ]; then
+  if rustfmt --version 2>/dev/null | grep -q nightly; then
+    RUSTFMT=rustfmt
+  elif [ -z "${FORMAT_ALL_IN_SHELL:-}" ] && command -v nix >/dev/null; then
+    FORMAT_ALL_IN_SHELL=1 exec nix develop "$root" --command "$0" "$@" --root "$root"
+  else
+    echo "format-all: no nightly rustfmt (set RUSTFMT)" >&2; exit 2
+  fi
+fi
+export RUSTFMT
+cd "$root" || exit 2
+
+flag=--check
+[ "$mode" = apply ] && flag=
+status=0
+
+# the linux and macos modules of the shared crates (the Windows source filter of flake.nix leaves them out)
+other_platform='(^|/)(komorebic/src/(linux|macos)|komorebic/tests/(linux|macos)_|komorebi-client/src/(linux|macos)\.rs|komorebi-client/tests/(linux|macos)_|komorebi-bar/src/macos|komorebi-daemon/tests/(linux|macos)_)'
+
+rs_files() { find . -name '*.rs' -not -path '*/target/*' -not -path './.git/*' -not -path './.jj/*' | sed 's|^\./||' | sort; }
+
+run_rustfmt() { # config-file, files on stdin
+  local cfg=$1 files
+  mapfile -t files
+  [ ${#files[@]} -eq 0 ] && { echo "format-all: no files for $cfg" >&2; return 1; }
+  "$RUSTFMT" --edition 2024 --config-path "$cfg" --config skip_children=true $flag "${files[@]}"
+}
+
+if [ "$tree" = windows ] || [ "$tree" = all ]; then
+  echo "format-all: windows"
+  rs_files | grep -v '^komorebi-for-\(kde\|mac\)/' | grep -Ev "$other_platform" | run_rustfmt rustfmt.toml || status=1
+fi
+if [ "$tree" = mac ] || [ "$tree" = all ]; then
+  echo "format-all: mac"
+  { rs_files | grep '^komorebi-for-mac/'; rs_files | grep -E "^(komorebic/src/macos|komorebi-bar/src/macos|komorebi-client/src/macos\.rs)"; } \
+    | run_rustfmt komorebi-for-mac/rustfmt.toml || status=1
+fi
+if [ "$tree" = kde ] || [ "$tree" = all ]; then
+  echo "format-all: kde"
+  cargo fmt -p komorebi -p komorebi-linux -p komorebic -p komorebi-client -p komorebi-hotkeys -- $flag || status=1
+fi
+exit $status
