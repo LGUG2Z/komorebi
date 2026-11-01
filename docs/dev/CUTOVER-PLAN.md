@@ -28,12 +28,15 @@ the first version where they differ):**
    sponsors-only early access. The history of the old private repositories becomes public with the push, once the owner
    confirms the push itself (step S4). R1 is therefore answered as to the mirror; the confirmation of the push stays a gate.
 2. **Schemas are per-platform files in the repository.** Done: `schemas/{windows,linux,macos}/{schema.json,schema.asc.json,schema.bar.json}`
-   (linux has no bar schema). R5 is no longer a recommendation; only its sub-questions stay open.
+   (linux has no bar schema). R5 is decided (no root copies either: owner, later message); only the published file names stay open.
 3. **0.2.0 is not published now.** The workspace version is `0.2.0-dev` (as told; the first version of this plan read `0.2.0` at
    `Cargo.toml:61` of `2185556efba6`; re-read it on the final tip). The landing of the line is the beginning of the
    0.2.0-dev line: `komomono` to `master` carrying `0.2.0-dev`, no tag, no release artefacts, CI on. The later **release** of 0.2.0
    (a revision that sets `0.2.0`, tag `v0.2.0`, artefacts, announcement) is a separate step with its own gates. The macOS hand-check
    gates the release, not the dev-line landing.
+4. **One sponsor-only `[FEAT]` policy and one licence for all three platforms (R6), and no root `schema*.json` copies (R5).** The texts
+   that describe the policy must be rewritten for one public project with no private tier (task list 2.2a); the old Windows `master/` schema URLs
+   stop resolving (2.2b: README and release-notes wording). The published per-platform schema file names stay open until the release.
 Sections 4 and 5 and the checklists are split accordingly: **DEV-LINE LANDING** (steps L0 to L6) and **RELEASE** (steps
 E1 to E8). Where the text below says "S4/S5/S7/S8" the new names are: S4 = L3, S5 = L4, S6 = L5, S7 = E3, S8 = E5.
 
@@ -116,8 +119,8 @@ the work clone); the work clone's history of `wip-cand*` bookmarks is local scaf
   (`komorebi-daemon/Cargo.toml` name = "komorebi"), but it is now the cross-platform package, and on Windows needs the `komorebi-windows` crate, which builds (checked on the cutover stack: "Windows clippy" per the progress log).
   Consumers of `komorebi-client = { git = ... }` keep the package name `komorebi-client`. Raw schema URLs `.../LGUG2Z/komorebi/master/schema.asc.json` (komorebic/applications.json:2, written into users' home by
   `komorebic quickstart`, komorebic/src/windows.rs:354-363) and `.../master/schema.json` (spikes fixture) point at root files that **no longer exist**
-  (`schemas/windows/` now). Editors lose validation for those users; nothing crashes. Fix in the pre-cutover stack: keep the three Windows schema files also at the repository root as generated copies guarded by a freshness test, or accept the 404.
-  Recommendation: keep root copies of `schema.json`, `schema.asc.json`, `schema.bar.json` (Windows) for the 0.2 line. Tagged URLs (`.../v0.1.41/schema.json`, used by `docs/komorebi.example.json:2`) stay valid forever (tags are immutable).
+  (`schemas/windows/` now). Editors lose validation for those users; nothing crashes (see 2.2b).
+  Because the root schema files are gone (decision R5), these raw `master/` URLs stop resolving; the consequence, the tasks and the wording for the README and the release notes are in 2.2b. Tagged URLs (`.../v0.1.41/schema.json`, used by `docs/komorebi.example.json:2`) stay valid forever (tags are immutable).
   The Windows tests fetch `.../refs/tags/v{version}/komorebi.example.json` (komorebi-windows/src/static_config.rs:1389) which also remain valid.
 - **winget / Scoop / nixpkgs.** Scoop and WinGet read releases, not branches (`checkver: github`). Their asset-name patterns must be kept exactly:
   `komorebi-<version>-<x86_64|aarch64>-pc-windows-msvc.zip`, `komorebi-<version>-<x86_64|aarch64>.msi` and `checksums.txt` (Scoop reads `$baseurl/checksums.txt`; adding macOS and Linux lines to
@@ -183,7 +186,27 @@ number of macOS users still on 0.1.x is **(unknown)**.
 | `komorebi` | 89 | 27 | stays; the unified tracker |
 
 Method recommendation: one tracker (`LGUG2Z/komorebi`), label by platform; do not transfer anything automatically. A transfer keeps the issue number-to-title mapping only through a redirect from the old URL, and the numbers change, so for 0 to 1 issues it is not worth it.
-The `[FEAT]:` auto-close policy (`.github/workflows/feature-check.yaml`, which closes feature requests unless a stated condition holds) would then apply to Linux and macOS feature requests too; the KDE repo had no such policy. Its message text names a paid-access condition that no longer matches a single public project with no private tier: the text must be revisited whatever is decided (**R6, open**).
+The `[FEAT]:` sponsor-only auto-close policy (`.github/workflows/feature-check.yaml`) now applies to Linux and macOS feature requests too (decided, R6); the KDE repo had no such policy. What must be rewritten for it to make sense is the task list 2.2a.
+
+#### 2.2a R6 task list: the sponsor-only `[FEAT]` policy for one public project with no private tier
+
+Found by `git grep -i sponsor` on the tip (`59b01fdb`, plus the checks of `2185556efba6`):
+1. `.github/workflows/feature-check.yaml:22` (message text): names "current GitHub sponsors on the $5/month tier and above", "valid individual commercial use licence" and "approved contributors". Rewrite so it does not imply a private repository or early access, says it is for all platforms (Windows, Linux, macOS), and links the one licence page. Keep the `[FEAT]: ` title prefix check and the close-and-lock behaviour.
+2. `.github/ISSUE_TEMPLATE/feature_request.yml:2,11,13,16,17,30` (description "Limited to Sponsors, Commercial License Holders, and Collaborators", the sponsorship platform dropdown with GitHub Sponsor and Ko-fi, the username field): add a required **platform** dropdown (Windows, Linux KDE, macOS); keep or adjust the sponsor fields as the owner words them.
+3. `.github/ISSUE_TEMPLATE/bug_report.yml` and `config.yml`: add the platform field and fix the docs link (they point at `lgug2z.github.io/komorebi/...`, Windows-only) so Linux and macOS reporters are not sent to the wrong docs.
+4. `README.md:16-17,102,134-152` and `docs/index.md:48-65`: the "Sponsorship for Personal Use" section and the sentence about "submit feature requests on the issue tracker" are written for the Windows project; reword for the three platforms.
+5. `docs/linux/index.md:124-141` and `docs/macos/index.md:59` and `docs/macos/README.md:19-20,43-47,60`: the same section is copied into the Linux and macOS indexes; remove the paragraph that says the public repository is for releases and a private one for certain sponsor tiers (`docs/macos/README.md:43-47`), keep or delete the copies of the sponsorship text so that there is ONE wording; check the badge lines.
+6. `docs/dev/old-ci/macos/formula.template.rb` (caveat about a private repository and token) is not copied into the new formula (see 2.4).
+7. Licence: `LICENSE.md` (Komorebi License 2.0.0) is the one licence; the macOS formula states `license "Komorebi License 2.0.0"` (formula.template.rb:8) and the KDE tree had its own file merged into one at the cutover: confirm that no per-platform licence text remains (`git ls-files | grep -i licen`) and that `komorebic`'s licence prompt text (`komorebic/src/windows.rs` and `komorebic/src/macos/mod.rs`, which name `https://lgug2z.com/software/komorebi`) is the same on all platforms.
+8. Decide what the policy does for PRs and for the KDE feature set that was developed privately (nothing to do in code; say it in the README).
+
+#### 2.2b R5 consequence: the old Windows `master/` schema URLs stop resolving
+
+No root `schema.json`, `schema.asc.json` or `schema.bar.json` remains (checked: none at the root of the tip). Therefore:
+- `https://raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.asc.json` (the `$schema` line of `komorebic/applications.json`, copied by `komorebic quickstart` into users' homes) and `.../master/schema.json` return 404 after the `master` push. Nothing crashes: only editor validation and completion for those users stops. Users who copied configs with `.../v0.1.41/schema.json` or another tag keep working (tags are immutable); the `komorebic quickstart` of the OLD 0.1.x binaries writes the `master/` URL, so every user who ran it has one.
+- Repository tasks: change `$schema` in `komorebic/applications.json` and in `komorebic/src/macos/applications.json` to the per-platform path (`schemas/<platform>/schema.asc.json`) at the tag chosen under R5; `docs/komorebi.example.json:2` and `docs/komorebi.bar.example.json:2` (they say `v0.1.41`) to the new tag at the release; the spike fixture `spikes/config-parity/fixtures/windows-kitchen-sink.json` can stay.
+- During the dev line (`master` has the new tree but no `v0.2.0` tag), a tagged URL for the new paths does not exist yet; use `.../master/schemas/windows/schema.json` in the dev-line docs only, and switch to the tag at E1.
+- README and release notes must say, in these words or close: "The Windows schema files moved from the repository root to `schemas/windows/`. A `$schema` line that points at `.../LGUG2Z/komorebi/master/schema.json`, `schema.bar.json` or `schema.asc.json` no longer resolves; change it to `.../LGUG2Z/komorebi/v0.2.0/schemas/windows/schema.json` (and `schema.bar.json`, `schema.asc.json`). Lines that name a release tag keep working." Put the sentence in `README.md` (a "Upgrading from 0.1.x" note) at the dev-line landing, and in `RELEASE-NOTES-0.2.0.md` (4.5) as the first migration item for Windows users. Also announce it where the user community reads (the README names Discord).
 
 ### 2.3 Where the old names are used (classified)
 
@@ -354,7 +377,7 @@ Verify: `gh release view v0.2.0`, install each channel on a clean machine (Windo
 
 | # | Step | Reversible? | Gate before it (go/no-go) |
 |---|---|---|---|
-| L0 | Rotate the leaked macOS token; answer R3, R4, R6 to R12 (R1, R2-for-release, R5 mostly decided) | yes | the user's answers |
+| L0 | Rotate the leaked macOS token; answer R3, R4, R7 to R12 (R1, R5, R6 decided; R2 and the R5 file names are release questions); do the R6 text rewrites (2.2a) before CI goes on | yes | the user's answers |
 | L1 | Freeze `master`, triage the 27 PRs, record `master` sha | yes | nobody pushes `master` meanwhile |
 | L2 | Scratch-repo dry run (5.4) of push and CI (the release part is rehearsed later, E0) | yes (delete the scratch repository) | CI files drafted |
 | L3 | Push `komomono` (fast-forward) | **partly**: the private KDE and macOS histories become public | the owner confirms the push itself (decision 1) |
@@ -445,8 +468,8 @@ Before **E5** (publish): draft assets match 4.3; checksums verified; MSI major-u
 2. **R2. May the macOS artefact ship in the 0.2.0 RELEASE before the 5-hour hand-check?** (It does not gate the dev-line landing.) Recommendation: no; release Windows and Linux first, macOS as a pre-release after you run blocks 0 to 4 at least; keep `komorebi-for-mac` un-archived until then.
 3. **R3. Where do the Linux and macOS docs publish?** The Windows site excludes them (`exclude_docs`). Recommendation: the Starlight site (`komorebi-starlight`) for all three, GitHub Pages `gh-pages` stays Windows-only until it is ready.
 4. **R4. Are the known failures release blockers?** Recommendation: not blockers; re-mark the four stale e2e markers and the two `fullscreen` checks before the first nightly, ship with the lock-hold stall and `fullscreen` listed in the notes.
-5. **R5. (MOSTLY DECIDED: schemas are per-platform files, `schemas/{windows,linux,macos}/`, done.)** Open sub-questions: (a) do root `schema.json`, `schema.asc.json`, `schema.bar.json` (Windows) stay as generated copies for old `.../master/schema*.json` URLs, including the one `komorebic quickstart` writes into users' `applications.json`? Recommendation: yes, with a freshness test; (b) what are the published file names per platform? Recommendation: `komorebi.<platform>.<version>.schema.json` style on the existing hosts, keep `komorebi-for-mac.lgug2z.com` alive for 0.1.x. (b) is only needed at the release.
-6. **R6. (OPEN) What happens to the `[FEAT]:` auto-close policy and the Komorebi License 2.0.0 now that there is one public project and no private tier?** The `feature-check.yaml` message names a paid-access condition that no longer matches; the text must change whatever is decided. Recommendation: one licence and one policy for all three platforms, with the message text rewritten by the owner before CI goes on.
+5. **R5. (DECIDED by the owner: per-platform schema files, and NO root `schema*.json` copies and no freshness test.)** Consequence in 2.2b. Open sub-question, only needed at the release: the published file names per platform. Recommendation: `komorebi.<platform>.<version>.schema.json` and `komorebi.bar.<platform>.<version>.schema.json` (platform = `windows`, `linux`, `macos`; no bar file for linux) on the existing Cloudflare Pages project, with `komorebi-for-mac.lgug2z.com` kept alive for the 0.1.x names; and for in-repo `$schema` lines use the tagged raw URL `https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.2.0/schemas/<platform>/schema.json` (tags are immutable).
+6. **R6. (DECIDED by the owner: one sponsor-only `[FEAT]` policy for all three platforms, one licence.)** The policy and the licence stay; the texts must be rewritten so they make sense for one public project with no private tier. The concrete task list is in 2.2a. One-line question left: who rewrites the texts, and by when (before CI goes on at L4, because the auto-close workflow acts on the first feature issue).
 7. **R7. N for the old macOS repository and the name of the Homebrew formula.** Recommendation: 3 months, formula name unchanged for 0.2.0.
 8. **R8. Freeze and PRs.** Recommendation: freeze `master` now, merge the ready PRs, comment the path map on the rest, close the 8 dependabot PRs.
 9. **R9. CI hosting.** Hosted Linux/macOS plus your own machine for Windows e2e (needs the evaluation ISO that expires every 90 days). Recommendation: yes; Windows e2e stays off fork PRs.
