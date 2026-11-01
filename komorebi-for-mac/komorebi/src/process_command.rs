@@ -542,40 +542,24 @@ impl WindowManager {
                 monitor_idx,
                 workspace_idx,
                 container_idx,
-            ) => {
-                let monitor = self
-                    .monitors_mut()
-                    .get_mut(monitor_idx)
-                    .ok_or_eyre("no monitor at the given index")?;
-
-                let workspace = monitor
-                    .workspaces_mut()
-                    .get_mut(workspace_idx)
-                    .ok_or_eyre("no workspace at the given index")?;
-
-                if let Some(container) = workspace.containers_mut().get_mut(container_idx) {
-                    container.locked = true;
-                }
-            }
+            ) => komorebi_core::set_container_locked(
+                self,
+                monitor_idx,
+                workspace_idx,
+                container_idx,
+                true,
+            )?,
             SocketMessage::UnlockMonitorWorkspaceContainer(
                 monitor_idx,
                 workspace_idx,
                 container_idx,
-            ) => {
-                let monitor = self
-                    .monitors_mut()
-                    .get_mut(monitor_idx)
-                    .ok_or_eyre("no monitor at the given index")?;
-
-                let workspace = monitor
-                    .workspaces_mut()
-                    .get_mut(workspace_idx)
-                    .ok_or_eyre("no workspace at the given index")?;
-
-                if let Some(container) = workspace.containers_mut().get_mut(container_idx) {
-                    container.locked = false;
-                }
-            }
+            ) => komorebi_core::set_container_locked(
+                self,
+                monitor_idx,
+                workspace_idx,
+                container_idx,
+                false,
+            )?,
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
@@ -1814,6 +1798,12 @@ impl komorebi_core::MonitorCommandHost for WindowManager {
 
     fn focused_workspace_idx(&self) -> eyre::Result<usize> {
         WindowManager::focused_workspace_idx(self)
+    }
+}
+
+impl komorebi_core::ContainerCommandHost for WindowManager {
+    fn monitors_mut(&mut self) -> &mut std::collections::VecDeque<crate::monitor::Monitor> {
+        WindowManager::monitors_mut(self)
     }
 }
 
