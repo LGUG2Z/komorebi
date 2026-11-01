@@ -43,6 +43,19 @@ fn event_rx() -> Receiver<ReaperNotification> {
     channel().1.clone()
 }
 
+#[allow(deprecated)]
+fn should_reap_window(
+    is_window: bool,
+    is_visible: bool,
+    is_cloaked: Option<bool>,
+    hiding_behaviour: HidingBehaviour,
+) -> bool {
+    !is_window
+        || (!is_visible
+            && !is_cloaked.unwrap_or(true)
+            && !matches!(hiding_behaviour, HidingBehaviour::Hide))
+}
+
 pub fn send_notification(hwnds: HashMap<isize, (usize, usize)>) {
     if event_tx().try_send(ReaperNotification(hwnds)).is_err() {
         tracing::warn!("channel is full; dropping notification")
@@ -184,20 +197,14 @@ fn find_orphans() -> color_eyre::Result<()> {
             let window = Window::from(*hwnd);
 
             #[allow(deprecated)]
-            if !window.is_window()
-                || (
-                    // This one is a hack because WINWORD.EXE is an absolute trainwreck of an app
-                    // when multiple docs are open, it keeps open an invisible window, with WS_EX_LAYERED
-                    // (A STYLE THAT THE REGULAR WINDOWS NEED IN ORDER TO BE MANAGED!) when one of the
-                    // docs is closed
-                    //
-                    // I hate every single person who worked on Microsoft Office 365, especially Word
-                    !window.is_visible()
-                    // We cannot execute this lovely hack if the user is using HidingBehaviour::Hide because
-                    // it will result in legitimate hidden, non-visible windows being yeeted from the state
-                    && !matches!(hiding_behaviour, HidingBehaviour::Hide)
-                )
-            {
+            // This is a hack because WINWORD.EXE can keep an invisible layered window after a
+            // document is closed. Cloaked windows are intentionally hidden and must stay managed.
+            if should_reap_window(
+                window.is_window(),
+                window.is_visible(),
+                window.is_cloaked().ok(),
+                hiding_behaviour,
+            ) {
                 orphan_hwnds.insert(window.hwnd, (*m_idx, *w_idx));
             }
         }
@@ -209,5 +216,61 @@ fn find_orphans() -> color_eyre::Result<()> {
             // Send handles to remove
             event_tx().send(ReaperNotification(orphan_hwnds))?;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cloaked_window_is_not_reaped() {
+        assert!(!should_reap_window(
+            true,
+            false,
+            Some(true),
+            HidingBehaviour::Cloak
+        ));
+    }
+
+    #[test]
+    fn invisible_uncloaked_window_is_reaped() {
+        assert!(should_reap_window(
+            true,
+            false,
+            Some(false),
+            HidingBehaviour::Cloak
+        ));
+    }
+
+    #[test]
+    fn cloak_state_query_error_does_not_reap_window() {
+        assert!(!should_reap_window(
+            true,
+            false,
+            None,
+            HidingBehaviour::Cloak
+        ));
+    }
+
+    #[test]
+    fn destroyed_window_is_reaped() {
+        assert!(should_reap_window(
+            false,
+            false,
+            None,
+            HidingBehaviour::Cloak
+        ));
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn hidden_window_is_not_reaped() {
+        assert!(!should_reap_window(
+            true,
+            false,
+            Some(false),
+            HidingBehaviour::Hide
+        ));
     }
 }
