@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # wsl2-probe: finds out what a NixOS-WSL2 virtual machine can do for a Plasma guest.
 # Start it as `nix run .#wsl2-probe` (or `just wsl2-probe`) and paste the end of its output
-# back. `--help` lists the options, docs/dev/wsl2-probe.md says what each check means.
+# back. `--help` lists the options, docs/linux/dev/wsl2-probe.md says what each check means.
 set -u
 export LC_ALL=C
 # wsl.exe writes UTF-16 unless it is told otherwise; WSLENV carries the variable to it
@@ -1499,7 +1499,7 @@ summary() {
   local probe title text
   out ""
   out "================================ PASTE THIS ================================"
-  out "komorebi-for-kde wsl2-probe, revision $REV, $(date -u +%Y-%m-%dT%H:%M:%SZ), $(uname -m)$([ "$DRY" = 1 ] && echo ', DRY RUN')"
+  out "komorebi (KDE Plasma) wsl2-probe, revision $REV, $(date -u +%Y-%m-%dT%H:%M:%SZ), $(uname -m)$([ "$DRY" = 1 ] && echo ', DRY RUN')"
   for probe in P0 P1 P2 P3 P4 P5 P6; do
     [ "$probe" = P0 ] || want "$probe" || continue
     case $probe in
@@ -1524,7 +1524,7 @@ summary() {
   out "Paste the block between the two lines of equals signs; the whole report if it is asked for."
 }
 
-out "wsl2-probe of komorebi-for-kde, revision $REV: $(date -u +%Y-%m-%dT%H:%M:%SZ)$([ "$DRY" = 1 ] && echo ' (dry run)')"
+out "wsl2-probe of komorebi (KDE Plasma), revision $REV: $(date -u +%Y-%m-%dT%H:%M:%SZ)$([ "$DRY" = 1 ] && echo ' (dry run)')"
 out "It changes nothing: it reads the machine, boots a tiny guest that powers itself off, and listens on local ports for a few seconds."
 if [ "$DRY" = 0 ] && { want P2 || want P3; }; then
   out "It takes about two minutes. A window opens for $HOLD seconds in P2 and in P3: look at the Windows desktop."

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# run-kde: start the komorebi demo guest (nix/dev/run-kde.nix) in a virtual machine, so that anyone
-# can try tiling by hand. docs/trying-it.md is the guide, docs/dev/utm.md says what the guest takes
+# run-kde: start the komorebi demo guest (nix/linux/dev/run-kde.nix) in a virtual machine, so that anyone
+# can try tiling by hand. docs/linux/trying-it.md is the guide, docs/linux/dev/utm.md says what the guest takes
 # from its runner; this is the program.
 #
 #   nix run .#run-kde -- [options]      or      just run-kde [options]
@@ -40,7 +40,7 @@ source and downloads Plasma: there is no binary cache.
   -h, --help          this text
 
 The repository the guest mounts at /repo is the checkout this file is in (or, from the flake, the current
-checkout: the komorebi-for-kde directory of a bigger repository), or KOMOREBI_REPO.
+checkout), or KOMOREBI_REPO.
 EOF
 }
 
@@ -325,7 +325,7 @@ warn() {
 
 # The guest mounts its /nix/store and its shared directories by virtiofs: for each of them the
 # runner starts a virtiofsd as this user, and QEMU hands the guest's virtio-fs device its socket.
-# `wsl2-probe` (docs/dev/wsl2-probe.md, P6) runs the same chain with a guest; its fixes are these.
+# `wsl2-probe` (docs/linux/dev/wsl2-probe.md, P6) runs the same chain with a guest; its fixes are these.
 check_virtiofs() {
   local virtiofsd tmp pid up line lines
   # virtiofsd does not open /dev/fuse (it speaks FUSE to the guest over its socket): a warning
@@ -551,18 +551,16 @@ fi
 
 repo=${KOMOREBI_REPO:-}
 if [ -z "$repo" ]; then
-  # This tree may be a subdirectory of a bigger repository, whose toplevel has a flake.nix of its own,
-  # so the toplevel is not the answer. A run of the file by hand is in scripts/ of the tree; the
-  # flake's wrapper is in the store, and falls back to the checkout the command is run from.
-  here=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2> /dev/null && pwd || true)
+  # The repository is the one whose root has the flake.nix. A run of the file by hand is in
+  # scripts/linux/ of it, two directories down; the flake's wrapper is in the store, and falls back
+  # to the checkout the command is run from.
+  here=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2> /dev/null && pwd || true)
   top=$(git rev-parse --show-toplevel 2> /dev/null || pwd)
   case $here in
     /nix/store/* | "") here= ;;
   esac
   if [ -n "$here" ] && [ -e "$here/flake.nix" ]; then
     repo=$here
-  elif [ -e "$top/komorebi-for-kde/flake.nix" ]; then
-    repo=$top/komorebi-for-kde
   else
     repo=$top
   fi
@@ -574,7 +572,7 @@ fi
 
 disk=$state_dir/disk.qcow2
 
-# the arguments of the runner, and the environment it reads (docs/dev/utm.md says what each does)
+# the arguments of the runner, and the environment it reads (docs/linux/dev/utm.md says what each does)
 if [ "$gpu_on" = 1 ]; then gpu_device_name=virtio-vga-gl; else gpu_device_name=virtio-vga; fi
 width=${resolution%x*}
 height=${resolution#*x}
