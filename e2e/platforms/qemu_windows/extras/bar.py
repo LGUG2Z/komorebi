@@ -39,14 +39,18 @@ ALIVE_SECONDS = 15
 CONFIG = {
     "height": 40,
     "left_widgets": [
-        {"Komorebi": {
-            "workspaces": {"enable": True, "hide_empty_workspaces": False},
-            "layout": {"enable": True},
-        }},
-        {"Applications": {
-            "enable": True,
-            "items": [{"name": "Notepad", "command": "notepad.exe"}],
-        }},
+        {
+            "Komorebi": {
+                "workspaces": {"enable": True, "hide_empty_workspaces": False},
+                "layout": {"enable": True},
+            }
+        },
+        {
+            "Applications": {
+                "enable": True,
+                "items": [{"name": "Notepad", "command": "notepad.exe"}],
+            }
+        },
     ],
     "right_widgets": [
         {"Storage": {"enable": True}},
@@ -68,7 +72,11 @@ def _expected_schema() -> bytes:
     """The checked-in Windows schema.bar.json: from `KOMOREBI_E2E_BAR_SCHEMA` (the nix app
     sets it), otherwise the one at the root of this checkout."""
     given = os.environ.get("KOMOREBI_E2E_BAR_SCHEMA")
-    path = Path(given) if given else Path(__file__).resolve().parents[4] / "schema.bar.json"
+    path = (
+        Path(given)
+        if given
+        else Path(__file__).resolve().parents[4] / "schema.bar.json"
+    )
     return path.read_bytes()
 
 
@@ -77,9 +85,7 @@ def _sha(data: bytes) -> str:
 
 
 def _bar_pids(platform: WindowsPlatform) -> list[str]:
-    listing = platform.agent_exec(
-        "cmd", "/c", 'tasklist /fi "imagename eq komorebi-bar.exe" /fo csv /nh'
-    )["stdout"]
+    listing = platform.agent_exec("cmd", "/c", "tasklist /fo csv /nh")["stdout"]
     return [
         line.split(",")[1].strip('"')
         for line in listing.splitlines()
@@ -164,9 +170,13 @@ def _outcome(platform: WindowsPlatform) -> str:
 def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> None:
     """Starts the bar on the tiled windows of `tiling` and walks through its life. The
     daemon runs at the end and the bar does not."""
-    present = platform.agent_exec("cmd", "/c", f"if exist {BAR_BINARY} (echo yes) else (echo no)")
+    present = platform.agent_exec(
+        "cmd", "/c", f"if exist {BAR_BINARY} (echo yes) else (echo no)"
+    )
     if "yes" not in present["stdout"]:
-        checks.bad(f"komorebi-bar.exe is in the guest ({BAR_BINARY}): the binaries lack it")
+        checks.bad(
+            f"komorebi-bar.exe is in the guest ({BAR_BINARY}): the binaries lack it"
+        )
         return
 
     # the schema the bar prints is the checked-in one, byte for byte
@@ -186,11 +196,15 @@ def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> Non
     platform._agent.put_file(local, BAR_CONFIG)
     # the log of the first run keeps what wgpu says about its adapters
     platform.agent_spawn(
-        "cmd", "/c",
+        "cmd",
+        "/c",
         f"set RUST_LOG={BAR_LOG}&& {BAR_BINARY} --config {BAR_CONFIG} > {BAR_OUTPUT} 2>&1",
     )
 
-    checks.check("the bar process starts", platform.wait_for(lambda: _started(platform), timeout=30))
+    checks.check(
+        "the bar process starts",
+        platform.wait_for(lambda: _started(platform), timeout=30),
+    )
     outcome = _outcome(platform)
     text = _bar_output(platform)
     (platform._out / "bar.out").write_text(text)
@@ -220,12 +234,16 @@ def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> Non
         platform.komorebic("stop", "--bar")
         checks.check(
             "`komorebic stop --bar` stops the daemon",
-            platform.wait_for(lambda: platform.komorebic_status("state")[0] != 0, timeout=20),
+            platform.wait_for(
+                lambda: platform.komorebic_status("state")[0] != 0, timeout=20
+            ),
         )
         platform.start_komorebi()
         return
     if outcome != "running":
-        checks.bad(f"the bar did not open its window ({outcome}); it printed: {text[:600]!r}")
+        checks.bad(
+            f"the bar did not open its window ({outcome}); it printed: {text[:600]!r}"
+        )
         platform.komorebic("stop", "--bar")
         platform.start_komorebi()
         return
@@ -291,7 +309,9 @@ def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> Non
     platform.komorebic("stop", "--bar")
     checks.check(
         "`komorebic stop --bar` stops the daemon",
-        platform.wait_for(lambda: platform.komorebic_status("state")[0] != 0, timeout=20),
+        platform.wait_for(
+            lambda: platform.komorebic_status("state")[0] != 0, timeout=20
+        ),
     )
     checks.check(
         "`komorebic stop --bar` ends the bar process",
