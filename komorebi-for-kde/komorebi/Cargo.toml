@@ -20,7 +20,7 @@ komorebi-protocol = { path = "../../crates/komorebi-protocol", default-features 
   "schemars",
 ] }
 komorebi-transport = { path = "../../crates/komorebi-transport" }
-version = { package = "version-linux", path = "../version" }
+version = { package = "komorebi-version", path = "../../crates/komorebi-version" }
 
 clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = { version = "0.6" }

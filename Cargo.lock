@@ -3661,6 +3661,7 @@ dependencies = [
  "komorebi-settings",
  "komorebi-themes",
  "komorebi-transport",
+ "komorebi-version",
  "lazy_static",
  "nanoid 0.5.0",
  "parking_lot 0.13.0",
@@ -3676,7 +3677,6 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "uuid",
- "version-linux",
  "zbus 6.1.0",
 ]
 
@@ -3705,6 +3705,7 @@ dependencies = [
  "komorebi-settings",
  "komorebi-themes",
  "komorebi-transport",
+ "komorebi-version",
  "lazy_static",
  "nanoid 0.4.0",
  "objc2 0.6.5",
@@ -3731,7 +3732,6 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "uuid",
- "version-macos",
 ]
 
 [[package]]
@@ -3810,6 +3810,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-version"
+version = "0.2.0"
+dependencies = [
+ "shadow-rs 2.0.0",
+]
+
+[[package]]
 name = "komorebi-windows"
 version = "0.2.0"
 dependencies = [
@@ -3883,6 +3890,7 @@ dependencies = [
  "komorebi-config",
  "komorebi-hotkeys",
  "komorebi-linux",
+ "komorebi-version",
  "komorebic-core",
  "lazy_static",
  "miette",
@@ -3897,8 +3905,6 @@ dependencies = [
  "sysinfo 0.39.6",
  "sysinfo 0.40.0",
  "thiserror 2.0.21",
- "version-linux",
- "version-macos",
  "which",
  "win-msgbox",
  "windows 0.62.2",
@@ -3929,12 +3935,12 @@ dependencies = [
  "komorebi-config",
  "komorebi-hotkeys",
  "komorebi-linux",
+ "komorebi-version",
  "komorebic-core",
  "lazy_static",
  "schemars 1.2.3",
  "serde_json_lenient",
  "sysinfo 0.40.0",
- "version-linux",
 ]
 
 [[package]]
@@ -3949,6 +3955,7 @@ dependencies = [
  "fs-tail",
  "komorebi-client-macos",
  "komorebi-config",
+ "komorebi-version",
  "komorebic-core",
  "lazy_static",
  "reqwest",
@@ -3956,7 +3963,6 @@ dependencies = [
  "serde_json_lenient",
  "shadow-rs 1.7.1",
  "sysinfo 0.38.4",
- "version-macos",
 ]
 
 [[package]]
@@ -7850,20 +7856,6 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
-
-[[package]]
-name = "version-linux"
-version = "0.2.0"
-dependencies = [
- "shadow-rs 2.0.0",
-]
-
-[[package]]
-name = "version-macos"
-version = "0.2.0"
-dependencies = [
- "shadow-rs 1.7.1",
-]
 
 [[package]]
 name = "version_check"

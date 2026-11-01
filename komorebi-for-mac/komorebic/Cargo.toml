@@ -10,7 +10,7 @@ komorebi-config = { path = "../../crates/komorebi-config", default-features = fa
 ] }
 komorebi-client = { package = "komorebi-client-macos", path = "../komorebi-client", default-features = false }
 komorebic-core = { path = "../../crates/komorebic-core" }
-version = { package = "version-macos", path = "../version" }
+version = { package = "komorebi-version", path = "../../crates/komorebi-version" }
 
 clap = { version = "4", features = ["derive", "wrap_help"] }
 clap_complete = "4"

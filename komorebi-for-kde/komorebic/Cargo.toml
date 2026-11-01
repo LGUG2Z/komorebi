@@ -12,7 +12,7 @@ komorebi = { package = "komorebi-linux", path = "../komorebi", default-features 
 komorebi-client = { package = "komorebi-client-linux", path = "../komorebi-client", default-features = false }
 komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 komorebic-core = { path = "../../crates/komorebic-core" }
-version = { package = "version-linux", path = "../version" }
+version = { package = "komorebi-version", path = "../../crates/komorebi-version" }
 
 clap = { version = "4", features = ["derive", "wrap_help"] }
 clap_complete = "4"

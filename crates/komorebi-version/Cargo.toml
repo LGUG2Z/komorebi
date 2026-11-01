@@ -1,0 +1,14 @@
+[package]
+name = "komorebi-version"
+description = "The version string that the Linux and macOS komorebi binaries report"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
+shadow-rs = { workspace = true }
+
+[build-dependencies]
+shadow-rs = { workspace = true }
+
+[lib]
+name = "version"

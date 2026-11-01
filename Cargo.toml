@@ -30,12 +30,11 @@ members = [
   "komorebi-for-kde/komorebic",
   "komorebi-for-kde/komorebi-client",
   "komorebi-for-kde/komorebi-hotkeys",
-  "komorebi-for-kde/version",
   "komorebi-for-mac/komorebi",
   "komorebi-for-mac/komorebic",
   "komorebi-for-mac/komorebi-client",
   "komorebi-for-mac/komorebi-bar",
-  "komorebi-for-mac/version",
+  "crates/komorebi-version",
 ]
 
 default-members = [

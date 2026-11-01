@@ -22,7 +22,7 @@ komorebi-protocol = { path = "../../crates/komorebi-protocol", default-features 
 ] }
 komorebi-transport = { path = "../../crates/komorebi-transport" }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
-version = { package = "version-macos", path = "../version" }
+version = { package = "komorebi-version", path = "../../crates/komorebi-version" }
 
 base64 = "0.22"
 block2 = "0.6"

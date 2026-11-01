@@ -42,12 +42,12 @@ windows = { workspace = true }
 [target.'cfg(target_os = "linux")'.dependencies]
 komorebi-linux = { package = "komorebi-linux", path = "../komorebi-for-kde/komorebi", default-features = false }
 komorebi-hotkeys = { path = "../komorebi-for-kde/komorebi-hotkeys" }
-version-linux = { package = "version-linux", path = "../komorebi-for-kde/version" }
+version = { package = "komorebi-version", path = "../crates/komorebi-version" }
 clap_complete = "4"
 sysinfo = "0.40"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-version-macos = { package = "version-macos", path = "../komorebi-for-mac/version" }
+version = { package = "komorebi-version", path = "../crates/komorebi-version" }
 clap_complete = "4"
 reqwest = { version = "0.12", features = ["blocking"] }
 sysinfo = "0.38"
