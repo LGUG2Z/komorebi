@@ -5,7 +5,8 @@
 #
 #   legacyPackages.<system>.checkSets.<set>     one derivation per set: a linkFarm that builds its members
 #   legacyPackages.<system>.checkMembers.<set>  the members of a set, one derivation each
-#   checks.<system>                             the members of the sets that heavyCheckSets does not name
+#   checks.<system>                             the members of the sets of defaultCheckSets (below)
+#   checkSets.cheap, checkSets.all              the default sets together, and every set together
 #
 # so `nix build .#checkSets.linux-lint` builds one set and evaluates nothing else, and `nix flake check`
 # evaluates only what `checks` has. See docs/dev/flake-checks.md.
@@ -76,13 +77,21 @@ let
     tiers:
     lib.mapAttrs' (tier: names: lib.nameValuePair "vm-${tier}" (map (name: "vm-${name}") names)) tiers;
 
-  # the sets that `nix flake check` does not run: evaluating their members takes more memory than a
-  # check of the repository should (docs/dev/flake-checks.md has the numbers)
-  heavyCheckSets = [
-    "linux-demo"
-    "linux-nixos-eval"
-    "vm-fast"
-    "vm-slow"
+  # THE LIST that composes `checks`: what `nix flake check` and a pull request run. The heavy sets
+  # (linux-demo, linux-nixos-eval, vm-fast, vm-slow: 1.5 to 19 GB to evaluate each, see
+  # docs/dev/flake-checks.md) are left out and stay reachable as `.#checkSets.<set>`. Choosing what
+  # `nix flake check` runs is an edit of this list.
+  defaultCheckSets = [
+    "fmt"
+    "deny"
+    "windows-lint"
+    "windows-test"
+    "linux-lint"
+    "linux-test"
+    "linux-options"
+    "macos-lint"
+    "macos-test"
+    "macos-options"
   ];
 in
 {
@@ -117,17 +126,33 @@ in
         description = "Every check of the system by name, whichever set it is in.";
       };
 
-      config = {
-        checks = assert mustBeInOneSet;
-          lib.concatMapAttrs (set: ms: if builtins.elem set heavyCheckSets then { } else ms) nonEmpty;
+      config =
+        let
+          defaultMembers = lib.concatMapAttrs (_: ms: ms) (
+            lib.getAttrs (builtins.filter (set: nonEmpty ? ${set}) defaultCheckSets) nonEmpty
+          );
+        in
+        {
+          checks =
+            assert mustBeInOneSet;
+            defaultMembers;
 
-        legacyPackages = {
-          checkMembers = nonEmpty;
-          checkSets = lib.mapAttrs (
-            set: ms:
-            pkgs.linkFarm "checks-${set}" (lib.mapAttrsToList (name: path: { inherit name path; }) ms)
-          ) nonEmpty;
+          legacyPackages = {
+            checkMembers = nonEmpty;
+            # `cheap` is what `checks` has, `all` every check there is
+            checkSets =
+              lib.mapAttrs
+                (
+                  set: ms: pkgs.linkFarm "checks-${set}" (lib.mapAttrsToList (name: path: { inherit name path; }) ms)
+                )
+                (
+                  nonEmpty
+                  // {
+                    cheap = defaultMembers;
+                    all = allChecks;
+                  }
+                );
+          };
         };
-      };
     };
 }
