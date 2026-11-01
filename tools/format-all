@@ -21,6 +21,7 @@
 # pinned rust-overlay; another nightly may format a little differently).
 set -uo pipefail
 
+orig_args=("$@")
 mode=check
 tree=all
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -41,7 +42,7 @@ if [ -z "${RUSTFMT:-}" ]; then
   if rustfmt --version 2>/dev/null | grep -q nightly; then
     RUSTFMT=rustfmt
   elif [ -z "${FORMAT_ALL_IN_SHELL:-}" ] && command -v nix >/dev/null; then
-    FORMAT_ALL_IN_SHELL=1 exec nix develop "$root" --command "$0" "$@" --root "$root"
+    FORMAT_ALL_IN_SHELL=1 exec nix develop "$root" --command "$0" "${orig_args[@]}" --root "$root"
   else
     echo "format-all: no nightly rustfmt (set RUSTFMT)" >&2; exit 2
   fi
