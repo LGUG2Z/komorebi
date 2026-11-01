@@ -13,8 +13,7 @@ cutover stack and **the one root flake** (docs/dev/flake.md, docs/dev/flake-chec
 replaced by the real output names (checks `.#checkSets.<set>`, packages `windows-komorebi*` and native `komorebi*`, VM suites `legacyPackages.<system>.vm.<name>`). File and line references to
 the first version still name `2185556efba6`; paths of the flake files are those of `wip-main`.
 
-**The token.** The origin URL of `~/komorebi-for-mac` embeds a GitHub token (seen in `git remote -v`; not copied here). Rotate it
-now, whatever else is decided: anything that has read that clone's config, or this machine's shell history, has it.
+**The token.** The origin URL of `~/komorebi-for-mac` embeds a GitHub token (seen in `git remote -v`; not copied here). **Owner decision (2026-11-01): it is not rotated; it is how the owner develops locally.** What the plan must guarantee instead is that it is in nothing that is pushed. Checked without ever reading the value: `gitleaks` (default rules, which include the GitHub token formats) found no leak in all 7609 commits of every ref of the work clone nor in the files of any workspace, and the work clone has no remote URL with credentials. Not checked: the literal value (tooling refused to copy a credential into a file). The owner can run the literal check themselves: `T=$(git -C ~/komorebi-for-mac config remote.origin.url | sed -n 's#^[a-z]*://[^:@/]*:\{0,1\}\([^@/]*\)@.*#\1#p'); git -C <work clone> log --all --oneline -S"$T" | wc -l` (expect 0). Anything that has read that clone's config, or this machine's shell history, still has it.
 The same URL form is used in `docs/dev/old-ci/macos/workflows/nix.yaml` only as `secrets.GH_USER_API_TOKEN`, which is a
 secret name, not a value.
 
@@ -243,7 +242,7 @@ Counted by `git grep` at `2185556efba6` (excluding `docs/dev/old-ci`): `komorebi
    (komorebi-bar/src/macos/os.rs:18) to show an update, and old formulas read this repository; without this, 0.1.x macOS users are never told. The old workflow already published each macOS release in both repos (docs/dev/old-ci/macos/workflows/release.yaml "Create release on public repo").
 3. Close KDE issue #6 and the macOS stale issues, archive KDE immediately, macOS at +3 months (Settings, Archive: reversible).
 4. Keep the Cloudflare Pages project and DNS for `komorebi-for-mac.lgug2z.com` as they are (schema URLs of released 0.1.x configs).
-5. Rotate the token named above, and every PAT whose name appears in the old workflows: `GH_USER_API_TOKEN`, `PAT`, `SCOOP_TOKEN`, `WINGET_TOKEN` (the last two are in use by the Windows repo; rotate only if exposure is suspected).
+5. The macOS origin token is NOT rotated (owner decision); rotate every PAT whose name appears in the old workflows if exposure is suspected: `GH_USER_API_TOKEN`, `PAT`, `SCOOP_TOKEN`, `WINGET_TOKEN` (the last two are in use by the Windows repo; rotate only if exposure is suspected).
 
 ### 2.6 Verify, roll back, irreversible
 
@@ -381,7 +380,7 @@ Verify: `gh release view v0.2.0`, install each channel on a clean machine (Windo
 
 | # | Step | Reversible? | Gate before it (go/no-go) |
 |---|---|---|---|
-| L0 | Rotate the leaked macOS token; answer R2 (release), R3, R7, R11, N1 (nextest); the R6 text rewrites (2.2a, agent `sponsor-texts`, in progress) land before CI goes on | yes | the user's answers |
+| L0 | The macOS token is not rotated (owner decision); answer R2 (release), R3, R7, R11, N1 (nextest); the R6 text rewrites (2.2a, agent `sponsor-texts`, in progress) land before CI goes on | yes | the user's answers |
 | L1 | `master` is already frozen (done by the owner). Merge the ready PRs, post the path-map comment on the rest, close the 8 dependabot PRs; record the `master` sha | yes | `master` sha unchanged since the freeze |
 | L2 | Scratch-repo dry run (5.4) of push and CI (the release part is rehearsed later, E0) | yes (delete the scratch repository) | CI files drafted |
 | L3 | Push `komomono` (fast-forward) | **partly**: the private KDE and macOS histories become public | the owner confirms the push itself (decision 1) |
@@ -459,7 +458,7 @@ Create (by the user) a private repository `LGUG2Z/komorebi-dryrun` (or a fork un
 ### 5.5 Go / no-go checklists
 
 **Dev-line landing checklists**
-Before **L3** (push `komomono`, run by the owner): the owner confirms the push itself (the KDE and macOS private histories become public); the gitleaks result is on record (section 0: default rules, no leaks, limits) and a custom pass for `KomoCorp`, internal hostnames and the token URL form returned nothing (**not run: run it**); token rotated; the old-hash script (1.7) on the work clone gives four `ok`; `jj log -r 'wip-main@work..komomono@origin'` empty; the docs name the flake outputs of `docs/dev/flake.md` (the flake has landed); the version on the line is `0.2.0-dev`; no secrets in the pushed tree (`git grep -nIE '(ghp_|github_pat_|x-access-token)' <sha>` returns nothing: **not run, run it**) and no large artefacts tracked.
+Before **L3** (push `komomono`, run by the owner): the owner confirms the push itself (the KDE and macOS private histories become public); the gitleaks result is on record (section 0: default rules, no leaks, limits) and a custom pass for `KomoCorp`, internal hostnames and the token URL form returned nothing (**not run: run it**); the old-hash script (1.7) on the work clone gives four `ok`; `jj log -r 'wip-main@work..komomono@origin'` empty; the docs name the flake outputs of `docs/dev/flake.md` (the flake has landed); the version on the line is `0.2.0-dev`; no secrets in the pushed tree (`git grep -nIE '(ghp_|github_pat_|x-access-token)' <sha>` returns nothing: **not run, run it**) and no large artefacts tracked.
 Before **L4** (push `master`): L3 reviewed in the GitHub compare view; CI files dry-run green on the scratch repo with the `nightly` publish and any release/winget/tap job disabled or unable to fire (no `v*` tag; `nightly` publish step off); the dev-line gates of 5.2 re-run on the tip commit and logged; the PR triage done; `master` sha unchanged since L1; R3 (docs host) answered; a person is ready to watch the first CI run. The macOS hand-check is NOT required here.
 
 **Release checklists (later)**
@@ -478,7 +477,7 @@ Decided by the owner (kept for the record): **R1** no private sponsors repositor
 5. **R7. N for the old macOS repository and the Homebrew formula name.** Recommendation: 3 months, formula name unchanged for 0.2.0.
 6. **R11. nixpkgs `komorebi`.** Someone must update `package.nix` for the new tree after 0.2.0; recommendation: you send the bump yourself or ask the maintainer.
 7. **N1. The nextest decision.** `windows-nextest` was removed (it ran no test) and `macos-nextest` runs none either, so Windows and macOS unit tests run nowhere in the first CI. Recommendation: add hosted `cargo test` jobs for both outside the `required` check at first; remove `macos-nextest` if it stays empty (3.3).
-8. **Token rotation.** The origin URL of `~/komorebi-for-mac` embeds a GitHub token: rotate it before anything else (L0). Also rotate `GH_USER_API_TOKEN` if it is still valid.
+8. **Token.** The origin URL of `~/komorebi-for-mac` embeds a GitHub token: the owner decided not to rotate it (it is how they develop locally); the plan only guarantees that it is in nothing pushed (section 0). Also rotate `GH_USER_API_TOKEN` if it is still valid.
 
 What could not be determined: active user counts, the macOS repo's 13 "open issues", the cost of hosted minutes, the hosted-runner wall time of the KDE suites, why the KDE `ci` push runs fail in 7 to 10 seconds, whether Chocolatey or other third-party packages exist, the role of `PAT` and `SCOOP_TOKEN`, DNS for `komorebi.lgug2z.com` and `komorebi-for-mac.lgug2z.com`, nixpkgs' build of the new tree, the real names of the flake outputs (placeholders until `flake-one` lands), whether the 19 community PRs merge cleanly after the renames, the installed jj version.
 
