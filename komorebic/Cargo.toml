@@ -8,8 +8,8 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 # The dependencies of each platform are in its own table, so that a build for one target compiles
-# nothing of the others. A dependency key can only have one path, so the Linux and macOS crates
-# are renamed (`komorebi-client-linux`, ...) and main.rs gives them the names the modules use.
+# nothing of the others. A dependency key can only have one path, so each daemon library has a key of
+# its own (`komorebi-linux`, `komorebi-macos`) and main.rs gives them the name the modules use.
 
 [dependencies]
 komorebi-client = { path = "../komorebi-client", default-features = false }

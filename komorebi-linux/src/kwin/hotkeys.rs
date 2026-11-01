@@ -44,7 +44,7 @@
 //! then [`Engine::on_tick`] abandons the chain and the keys of the mode are grabbed again. A key
 //! that is not the next of the chain is not grabbed, so it reaches the focused window and the
 //! chain goes on until the timeout. kglobalaccel's own key sequences are not used: they do not
-//! fire on KWin 6.8 (`docs/dev/PLATFORM.md`).
+//! fire on KWin 6.8 (`docs/linux/dev/PLATFORM.md`).
 //!
 //! # Per-application bindings
 //!
@@ -78,7 +78,7 @@
 //! it: the KWin backend watches `org.kde.kglobalaccel` on the session bus, and when it has an
 //! owner again, [`rebind`] loads the key bindings into the new one.
 //!
-//! `docs/dev/PLATFORM.md` has what was measured of kglobalaccel, and the VM test `vm-keys-engine`
+//! `docs/linux/dev/PLATFORM.md` has what was measured of kglobalaccel, and the VM test `vm-keys-engine`
 //! presses keys in a Plasma session with the daemon running.
 
 use crate::HOME_DIR;

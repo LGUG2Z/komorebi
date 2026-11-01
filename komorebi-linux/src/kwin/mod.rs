@@ -78,8 +78,8 @@
 //! ([`Backend::set_wallpaper`]), without holding up the window manager, and tries again for a
 //! while when the shell is not there yet.
 //!
-//! `docs/dev/PLATFORM.md` has the D-Bus names, the files and the environment variables involved,
-//! and `docs/dev/DESIGN.md` the reasons for this design.
+//! `docs/linux/dev/PLATFORM.md` has the D-Bus names, the files and the environment variables involved,
+//! and `docs/linux/dev/DESIGN.md` the reasons for this design.
 
 #![deny(missing_docs)]
 
@@ -353,7 +353,7 @@ pub struct KWinBackend {
 /// # Example
 ///
 /// This is how the daemon installs the backend. The VM test `vm-kwin-events`
-/// (`nix/tests/vm/suites/kwin-events`) starts the daemon against a real KWin; the example needs
+/// (`nix/linux/tests/vm/suites/kwin-events`) starts the daemon against a real KWin; the example needs
 /// one, so it is only compiled here.
 ///
 /// ```rust,no_run
