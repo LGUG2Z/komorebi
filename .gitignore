@@ -9,6 +9,11 @@ komorebic/applications.yaml
 /komorebi-schema
 /.wrangler
 /.xwin-cache
-result
+/result*
 /.direnv
 procdump.exe
+
+# KDE VM tests, Python bytecode
+/.vm
+__pycache__/
+*.pyc

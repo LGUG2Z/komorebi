@@ -1,8 +1,0 @@
-/target
-/result*
-/.direnv
-/.vm
-
-# Python bytecode
-__pycache__/
-*.pyc
