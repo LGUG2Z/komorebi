@@ -137,6 +137,13 @@ project](https://github.com/sponsors/LGUG2Z). Sponsors can claim custom roles on
 the Discord server, get shout-outs at the end of _komorebi_-related videos on
 YouTube, and gain the ability to submit feature requests on the issue tracker.
 
+Feature requests for all platforms (Windows, Linux and macOS) are accepted from
+current [GitHub sponsors](https://github.com/sponsors/LGUG2Z) on the $5/month tier
+and above, people with a valid [individual commercial use
+license](https://lgug2z.com/software/komorebi), and approved contributors. Issues
+titled `[FEAT]: ` opened by anyone else are closed automatically. Bug reports are
+open to everyone.
+
 If you would like to tip or sponsor the project but are unable to use GitHub
 Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z), or
 make an anonymous Bitcoin donation to `bc1qv73wzspc77k46uty4vp85x8sdp24mphvm58f6q`.
