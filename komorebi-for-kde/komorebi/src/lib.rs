@@ -64,13 +64,13 @@ extern crate komorebi_collections;
 
 pub use komorebi_collections::ring;
 
-pub mod daemon;
 pub mod animation;
 pub mod backend;
 pub mod border_manager;
 pub mod check;
 pub mod container;
 pub mod core;
+pub mod daemon;
 pub mod desktop;
 pub mod kwin;
 pub use komorebi_collections::lockable_sequence;

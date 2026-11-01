@@ -998,7 +998,10 @@ fn the_schema_subcommands_print_a_json_schema_without_a_daemon() {
 
 #[test]
 fn the_schema_files_of_the_repository_are_what_the_subcommands_print() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join("komorebi-for-kde");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("komorebi-for-kde");
 
     for (file, subcommand) in [
         ("schema.json", "static-config-schema"),

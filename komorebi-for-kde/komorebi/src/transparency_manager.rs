@@ -20,7 +20,6 @@ use crate::window_manager::WindowManager;
 use komorebi_backend::WindowId;
 use std::collections::HashSet;
 
-
 /// The opacity of a window that is not see-through at all.
 const OPAQUE: u8 = 255;
 

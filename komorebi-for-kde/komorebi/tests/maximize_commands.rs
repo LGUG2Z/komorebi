@@ -7,7 +7,6 @@
 
 use komorebi::backend::fake::Command;
 use komorebi::backend::fake::FakeBackend;
-use komorebi::workspace::WorkspaceExt;
 use komorebi::backend::with_backend;
 use komorebi::core::CycleDirection;
 use komorebi::core::OperationDirection;
@@ -19,6 +18,7 @@ use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event::KWinNotification;
 use komorebi::window_manager_event::SystemNotification;
 use komorebi::window_manager_event::WindowManagerEvent;
+use komorebi::workspace::WorkspaceExt;
 use komorebi_backend::Backend as _;
 use std::sync::Arc;
 

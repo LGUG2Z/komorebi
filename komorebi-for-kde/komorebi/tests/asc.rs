@@ -215,7 +215,8 @@ fn the_kinds_of_rule_of_other_platforms_are_read_and_do_nothing() {
 
 #[test]
 fn the_applications_file_komorebic_ships_floats_the_programs_it_names() {
-    let shipped = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../komorebic/src/linux/applications.json");
+    let shipped =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../komorebic/src/linux/applications.json");
     let mut desktop = Desktop::load(&applications(&shipped)).unwrap();
 
     assert_eq!(

@@ -60,10 +60,7 @@ fn the_transparency_keys_of_the_file_are_the_transparency_settings() {
     let _ = std::fs::remove_file(&socket);
 
     assert!(komorebi::settings::transparency_enabled());
-    assert_eq!(
-        komorebi::settings::transparency_alpha(),
-        120
-    );
+    assert_eq!(komorebi::settings::transparency_alpha(), 120);
 
     // two windows, one of which the rules keep opaque, and the one without the focus is see-through
     with_backend(fake.clone(), || {
@@ -97,10 +94,7 @@ fn the_transparency_keys_of_the_file_are_the_transparency_settings() {
             .unwrap();
     });
     assert!(!komorebi::settings::transparency_enabled());
-    assert_eq!(
-        komorebi::settings::transparency_alpha(),
-        200
-    );
+    assert_eq!(komorebi::settings::transparency_alpha(), 200);
     assert_eq!(fake.opacity_of(46_002), 255, "opaque again");
 
     // the ignore rules add up, and are not asked again

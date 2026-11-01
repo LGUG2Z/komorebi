@@ -35,11 +35,11 @@
 
 #![deny(missing_docs)]
 
-use crate::monitor::MonitorExt;
-use crate::workspace::WorkspaceExt;
 use crate::core::Rect;
+use crate::monitor::MonitorExt;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
+use crate::workspace::WorkspaceExt;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 

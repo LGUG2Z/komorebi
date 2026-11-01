@@ -10,11 +10,10 @@
 
 use crate::core::animation::AnimationStyle;
 
-pub use prefix::AnimationPrefix;
 pub use komorebi_config::animation::PerAnimationPrefixConfig;
+pub use prefix::AnimationPrefix;
 
 pub mod prefix;
-
 
 pub const DEFAULT_ANIMATION_ENABLED: bool = false;
 pub const DEFAULT_ANIMATION_STYLE: AnimationStyle = AnimationStyle::Linear;

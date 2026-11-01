@@ -576,7 +576,9 @@ pub fn main() -> eyre::Result<()> {
                 std::fs::create_dir_all(&*HOME_DIR)?;
                 std::fs::create_dir_all(&*komorebi_client::DATA_DIR)?;
 
-                let komorebi_json = include_str!("../../../komorebi-for-kde/docs/komorebi.example.json").to_string();
+                let komorebi_json =
+                    include_str!("../../../komorebi-for-kde/docs/komorebi.example.json")
+                        .to_string();
                 let komorebi_path = HOME_DIR.join("komorebi.json");
                 let applications_path = HOME_DIR.join("applications.json");
                 let skhdrc_path = HOME_DIR.join("skhdrc");

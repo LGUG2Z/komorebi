@@ -88,8 +88,6 @@
 //! [`Monitor::assign_windows_to_workspaces`]: crate::monitor::Monitor::assign_windows_to_workspaces
 //! [`Window::set_position`]: crate::window::Window::set_position
 
-use crate::monitor::MonitorExt;
-use crate::workspace::WorkspaceExt;
 use crate::FLOATING_APPLICATIONS;
 use crate::HIDDEN_WINDOWS;
 use crate::Notification;
@@ -104,6 +102,7 @@ use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
+use crate::monitor::MonitorExt;
 use crate::notify_subscribers;
 use crate::state::State;
 use crate::transparency_manager;
@@ -115,6 +114,7 @@ use crate::window::should_act;
 use crate::window_manager::LiveResize;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::workspace::WorkspaceExt;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;

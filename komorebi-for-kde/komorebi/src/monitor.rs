@@ -820,7 +820,8 @@ mod tests {
             "Virtual-0",
             "Virtual-0",
         );
-        let _ = m.focused_workspace_mut()
+        let _ = m
+            .focused_workspace_mut()
             .unwrap()
             .new_container_for_window(Window::from(id));
 

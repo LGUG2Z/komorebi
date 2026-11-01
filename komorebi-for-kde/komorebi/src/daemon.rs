@@ -33,9 +33,6 @@
 //! and closes the connection without writing anything, so a subscriber sees the daemon stop as a
 //! connection with nothing on it.
 
-use clap::Parser;
-use clap::ValueEnum;
-use color_eyre::eyre;
 use crate::DATA_DIR;
 use crate::HOME_DIR;
 use crate::LOG_DIR;
@@ -51,6 +48,9 @@ use crate::static_config::StaticConfig;
 use crate::static_config::StaticConfigExt;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event_listener;
+use clap::Parser;
+use clap::ValueEnum;
+use color_eyre::eyre;
 use komorebi_hotkeys::Format;
 use komorebi_hotkeys::engine::EngineOptions;
 use komorebi_hotkeys::plan::PlanMode;
