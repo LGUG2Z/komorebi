@@ -1,0 +1,793 @@
+# The plan to land the consolidated repository and release 0.2.0
+
+Status: a PLAN, written 2026-11-01 by the agent `merge-plan`. Nothing in it has been executed. Sources were
+read, nothing was run except read-only commands: `jj log`/`jj file show`/`jj file annotate`, `git log`/`git grep`/
+`git blame`/`git show` on the local clone, `gh repo view` and `gh api` GET calls, `gh issue/pr/release/workflow list`,
+and one `curl -I` (a HEAD request to a public schema URL, section 2). No branch, tag, issue, release, secret or setting was
+changed, and no file outside this document was written.
+
+Everything here is tagged with where it was found (a file and line, or the command) or marked **(inferred)** when it
+is reasoning rather than something read. **(unknown)** means it could not be found from here. The cutover
+stack read is `wip-cutover-docs` (`2185556efba6`, 2185556efba61c0185dc2154010bec9d37383b4d: `wip-main` plus the renames,
+version 0.2.0, one deny/justfile/rustfmt, and the docs paths). The one root flake (agent `flake-one`, bookmark
+`wip-cutover-flake`) had NOT landed when this was written (`jj log` shows the bookmark still on `6357bc65`, the first
+revisions on top of it being `wip`), so the flake outputs are named by placeholders: **`FLAKE_WINDOWS_PKGS`**,
+**`FLAKE_LINUX_PKGS`**, **`FLAKE_MACOS_PKGS`** (the packages `komorebi`/`komorebic`/`komorebi-bar` of each platform),
+**`FLAKE_CHECKS_<platform>`** (the nix checks), **`FLAKE_VM_TIERS`** (the KDE VM tiers as JSON) and
+**`FLAKE_E2E_WINDOWS`** (the Windows e2e app, `nix run .#e2e-windows` today, flake.nix:648 at this revision).
+Replace them from `wip-cutover-flake` when it lands; everything else stands.
+
+**The token.** The origin URL of `~/komorebi-for-mac` embeds a GitHub token (seen in `git remote -v`; not copied here). Rotate it
+now, whatever else is decided: anything that has read that clone's config, or this machine's shell history, has it.
+The same URL form is used in `docs/dev/old-ci/macos/workflows/nix.yaml` only as `secrets.GH_USER_API_TOKEN`, which is a
+secret name, not a value.
+
+## 0. What is where today (the facts the rest depends on)
+
+| Fact | Source |
+|---|---|
+| `LGUG2Z/komorebi` (Windows): public, default branch `master` (`72aa4c97`), 15,331 stars, 376 forks, 755 issues ever (89 open), 858 PRs ever (27 open: 19 not by dependabot, 8 dependabot), no branch protection, no rulesets, GitHub Pages from branch `gh-pages` (`https://lgug2z.github.io/komorebi/`), 30 branches | `gh repo view`, `gh issue list --state open/all`, `gh pr list`, `gh api repos/LGUG2Z/komorebi/branches/master/protection` (404 "disabled"), `.../rulesets` (0), `.../pages` |
+| `LGUG2Z/komorebi-for-kde`: **private**, default `master` = `7d19fd40`, 0 stars, 0 forks, 1 open issue (the auto-opened "Canary: a check fails against the tip of nixpkgs-unstable", #6), 5 PRs ever (0 open), 0 releases, 0 tags, workflows `ci`, `rerun-no-kvm`, `update-flake-lock` | `gh api repos/.../komorebi-for-kde` (`visibility: private`), `gh issue list`, `gh release list` (empty), `git tag` (0) |
+| `LGUG2Z/komorebi-for-mac`: public, default `master` = `2cd5884f`, **issues disabled**, 261 stars, 4 forks, 0 PRs ever, releases v0.1.0-prerelease, v0.1.0, v0.1.1 (v0.1.1 `Latest`, 2026-05-03), homepage `https://komorebi.lgug2z.com`; the merged macOS history is the branch `ash-squashem` = `9a58e511`, 41 commits ahead of that `master` | `gh repo view`, `gh release list`, `git rev-list --count master..ash-squashem` in `~/komorebi-for-mac`, `gh api .../branches` |
+| `KomoCorp/komorebi-for-mac` exists and is private (visible to `gh` as `.private == true`). The macOS README says it is "the private repository available to certain GitHub Sponsors tiers where ongoing development work happens and nightly releases are made available", and the public one is "where versioned releases will be published" | `gh api repos/KomoCorp/komorebi-for-mac --jq .private`; docs/macos/README.md:43-47 |
+| The macOS CI runs only in that private repo on a **self-hosted** runner; in the public repo every run is `skipped` (the job guard is `github.repository == 'KomoCorp/komorebi-for-mac'`) | docs/dev/old-ci/macos/workflows/nix.yaml:21-22; `gh api .../komorebi-for-mac/actions/runs` (all `skipped`) |
+| `komomono` is already on GitHub: `LGUG2Z/komorebi` branch `komomono` = `ff3711dc` (committed 2026-10-31T01:59Z), 85 commits ahead of `master`; `next` = `72aa4c97` (= `master`) | `gh api repos/LGUG2Z/komorebi/branches/komomono`, `git -C ~/komorebi log --oneline master..komomono` (85), `git merge-base master komomono` (= `72aa4c97`) |
+| The local line: `wip-main` = `21cf0d73` (landed consolidation), `komomono@source` = `ff3711dc` is its ancestor, **`jj log -r 'wip-main..komomono@source'` is empty and `komomono@source..wip-main` has 1110 revisions** (`master@source..wip-main`: 1195). The stack `wip-main..wip-cutover-docs` has 24 revisions (`jj log -r wip-main..wip-cutover-docs`) | `jj log` revset counts |
+| **Superseded:** the master plan's "local `3127741c` vs `komomono@origin` `989a2d4a` (reconcile first)" no longer applies: both sides are `ff3711dc` and the local line is a pure descendant | plan generic-percolating-matsumoto.md (tips read 2026-10-30) vs the commands above |
+| History is whole: the old tips (KDE `7d19fd40`, macOS `9a58e511`, Windows `72aa4c97`) are ancestors; commit counts preserved (KDE 254, macOS 304) | progress log (entry of the A2 merge: "old tips resolve and are ancestors", "commit counts preserved (KDE 254, macOS 304)"); `git cat-file`/`merge-base --is-ancestor` of the macOS tags below |
+| Tags: Windows `v0.1.0`..`v0.1.41` plus `nightly` (43 tags, all lightweight: `git for-each-ref` reports object type `commit` for each); macOS `v0.1.0-prerelease`, `v0.1.0`, `v0.1.1`, `nightly`; KDE none. The macOS names `v0.1.0` and `v0.1.1` COLLIDE with Windows tags of the same names on different commits; the work clone has only the 43 Windows tags (macOS tags were not imported) but the macOS tag commits (`64341e29`, `ebbd9eee`, `0cc4ca7f`) are ancestors of the cutover stack | `git tag` in each clone; `git merge-base --is-ancestor` |
+| Windows 0.1.41 downloads (a proxy for users, not a user count): x86_64 msi 47,170, x86_64 zip 12,074, aarch64 msi 2,909, aarch64 zip 1,727. macOS v0.1.1 zip: 851. Active user count: **(unknown)** | `gh api repos/LGUG2Z/komorebi/releases/latest`, `.../komorebi-for-mac/releases/latest` |
+| Distribution channels of Windows: Scoop Extras manifest (`checkver: github`, autoupdate URLs `.../releases/download/v$version/komorebi-$version-{x86_64,aarch64}-pc-windows-msvc.zip`, hash from `$baseurl/checksums.txt`), WinGet `LGUG2Z.komorebi` (workflow job `winget`, secret `WINGET_TOKEN`), MSI (wix), `cargo install --path komorebi-daemon --locked` from a clone (docs/installation.md:118), nixpkgs has `pkgs/by-name/ko/komorebi/package.nix`. Chocolatey: **not found** in the repo | `gh api repos/ScoopInstaller/Extras/contents/bucket/komorebi.json`; `.github/workflows/windows.yaml` job `winget`; `gh api repos/NixOS/nixpkgs/contents/pkgs/by-name/ko/komorebi/package.nix`; `grep -i choco` finds nothing |
+| Secrets in the Windows repo: `PAT`, `SCOOP_TOKEN`, `WINGET_TOKEN` (names only); KDE and macOS (public) repos list none | `gh api repos/.../actions/secrets` |
+| Windows CI wall time: 22 to 30 minutes per run (`master` push 2026-10-31 01:21:55 to 01:51:51; schedule 2026-11-01 00:51:43 to 01:14:06; feature-branch pushes 15 to 22 minutes) | `gh api repos/LGUG2Z/komorebi/actions/runs` timestamps |
+| Users of the update checks: the Windows bar and `komorebic` read `https://api.github.com/repos/LGUG2Z/komorebi/releases/latest` (komorebi-bar/src/windows/os.rs:35; komorebic/src/windows.rs:585, 950); the macOS bar reads `.../komorebi-for-mac/releases/latest` (komorebi-bar/src/macos/os.rs:18, 22, 123) | `git grep` at `2185556efba6` |
+
+Two premises of the brief could not be reproduced: "the 23 macOS commits that mention `#N`": in the macOS history only ONE commit
+matches `#[0-9]` (`6b980a03 fix(border): close nswindow on main thread`, whose `#0`..`#17` are stack frames in a log excerpt,
+not issue references: inferred from the body); the KDE history has none. The 309 commits matching `#[0-9]` in the
+merged history (`git log 2185556efba6 --grep='#[0-9]'`) are overwhelmingly Windows commits, whose `(#1234)` references
+are to this repository and stay correct. So nothing needs rewriting; a rewrite is excluded anyway (original hashes are a decision).
+
+## 1. Branch and history mechanics
+
+### 1.1 Decision and owner
+
+Decision: how the consolidated line becomes `LGUG2Z/komorebi` `master`, and what is published first. Owner: the repository owner (the
+user). Agents never push.
+
+**One gate before any option: publishing the KDE history.** `komorebi-for-kde` is private (section 0). Pushing `wip-main`
+publishes its 254 commits and the KDE source to a public repository. That cannot be taken back (forks, clones, GitHub's
+commit cache by hash, search engines). The Windows history already public (85 commits on `komomono`) contains no KDE
+code (it is the pre-merge tree: `git -C ~/komorebi log` of `komomono` has no `komorebi-for-kde/` path; **inferred** from the merge order in the
+progress log: A2 merged KDE and macOS on top of `komomono@source`). The macOS history is mostly public already (`ash-squashem` is a public branch of `komorebi-for-mac`, `gh api .../branches`), but the private
+repository `KomoCorp/komorebi-for-mac` has the "ongoing development" (docs/macos/README.md:46-47): the 41 commits that are only on `ash-squashem`
+are public today. All 254 + 304 authors are one address (`LGUG2Z@fastmail.com`; `git log --format=%ae`, plus one dependabot) so no third-party privacy question arises
+from authorship. A licence question remains: the tree carries `LICENSE.md` "Komorebi License 2.0.0" and the Homebrew template states the same licence
+(docs/dev/old-ci/macos/formula.template.rb:8). Whether KDE and macOS are meant to be public with the Windows project, and whether sponsors
+keep a private early-access repo, is open decision **R1** (section 6). **Do not proceed past step S5 (section 5) without an explicit yes.**
+
+### 1.2 Options
+
+| Option | What it does | For | Against |
+|---|---|---|---|
+| **A. Fast-forward `master` to the cutover tip (recommended)** | `master` (`72aa4c97`) is an ancestor of the local line, so `git push origin <tip>:refs/heads/master` is a fast-forward, no force. `komomono` stays as a pointer for a while | keeps `LGUG2Z/komorebi` (stars, forks, issues, PR numbers, `releases/latest`, Scoop/WinGet/nixpkgs URLs, `cargo install --git`, the update checks) and all original hashes; no history rewrite | master changes shape in one step (see 1.4); needs a master freeze while it is prepared |
+| B. Make `komomono` the default branch, leave `master` | change default branch in settings | master untouched, reversible by one setting | `cargo install --git` and every clone/`git clone` default follow the default branch, so they change anyway; 27 open PRs target `master` and would have to be retargeted; docs say `master` (`mkdocs.yml`, `blob/master`, `raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.asc.json`); two long-lived trunks |
+| C. Rename branch `komomono` to `master` through GitHub's rename | server-side rename moves PRs, protection, Pages | none over A | `master` already exists; renaming over it is what A does without risk. Not needed |
+| D. Squash or rebase the line onto `master` | one new commit set | simple log | rewrites every hash; breaks the binding "original commit hashes kept" decision; needs a force-push. Rejected |
+| E. A new repository (`LGUG2Z/komorebi-all` or an organisation) | clean start | no effect on Windows users until chosen | loses stars (15,331), forks, 755 issues, PR history, `releases/latest` of every installed updater; GitHub offers no way to move them. Rejected |
+
+Recommendation: **A**, in two pushes: (1) push the local line to the branch `komomono` (a fast-forward: `komomono@origin` is its ancestor); review in
+the browser on GitHub (compare `master...komomono`); (2) after the go/no-go checklist, push the same commit to `master`. Both pushes are
+fast-forwards. Never use `--force` or `+refspec`: if a push is rejected, something moved, stop and read why.
+
+### 1.3 What happens to the 85 commits already on `komomono@origin`
+
+They are the first 85 of the 1110. The local line is a descendant (`jj log -r 'wip-main..komomono@source'` empty), so pushing `wip-main` onto
+`komomono` adds 1110 commits and rewrites nothing. The 24 revisions of the cutover stack are NOT on origin yet (they exist only in
+the work clone); the work clone's history of `wip-cand*` bookmarks is local scaffolding and must NOT be pushed (see 1.6).
+
+### 1.4 Effect on open PRs, issues, forks and `master` users
+
+- **Open PRs (27: 19 community, 8 dependabot).** Their merge base is old `master`, so GitHub's diff still shows only their changes. Merging them after the
+  cutover is a three-way merge across renames. The Windows daemon moved from `komorebi/` to `komorebi-windows/`, the root `schema*.json` to `schemas/windows/`, the
+  `komorebi` package directory is now `komorebi-daemon/` (its package name is still `komorebi`; `komorebi-daemon/Cargo.toml`). `git merge` uses rename detection, so
+  many will merge cleanly **(inferred, untested)**; each contributor may be asked to rebase. Whether they merge cleanly: **(unknown)**, test on the scratch repo (section 5.4) with
+  `git merge-tree` for each head in `gh pr list`.
+  Plan: before the freeze, merge or close with a comment those that are ready; for the rest post one comment with the path map (`komorebi/` to `komorebi-windows/`, `schema*.json` to
+  `schemas/windows/`, `komorebi/src/main.rs` to `komorebi-daemon/src/main.rs`) and keep them open. The 8 dependabot PRs: close them; dependabot recreates them against the new `dependabot.yml` (section 3.7).
+- **Open issues (89).** They stay: same repository, same numbers. Add labels `windows`, `linux`, `macos` and a platform field in `.github/ISSUE_TEMPLATE/bug_report.yml` (Windows-only today).
+- **Forks (376).** Unaffected until they sync. A fork's `master` fast-forwards in GitHub's "Sync fork" (no divergence unless the fork's master has commits, in which case they face the rename conflicts).
+- **`master` users.** Anything tracking `master`: `cargo install --git https://github.com/LGUG2Z/komorebi komorebi` still resolves the package `komorebi`
+  (`komorebi-daemon/Cargo.toml` name = "komorebi"), but it is now the cross-platform package, and on Windows needs the `komorebi-windows` crate, which builds (checked on the cutover stack: "Windows clippy" per the progress log).
+  Consumers of `komorebi-client = { git = ... }` keep the package name `komorebi-client`. Raw schema URLs `.../LGUG2Z/komorebi/master/schema.asc.json` (komorebic/applications.json:2, written into users' home by
+  `komorebic quickstart`, komorebic/src/windows.rs:354-363) and `.../master/schema.json` (spikes fixture) point at root files that **no longer exist**
+  (`schemas/windows/` now). Editors lose validation for those users; nothing crashes. Fix in the pre-cutover stack: keep the three Windows schema files also at the repository root as generated copies guarded by a freshness test, or accept the 404.
+  Recommendation: keep root copies of `schema.json`, `schema.asc.json`, `schema.bar.json` (Windows) for the 0.2 line. Tagged URLs (`.../v0.1.41/schema.json`, used by `docs/komorebi.example.json:2`) stay valid forever (tags are immutable).
+  The Windows tests fetch `.../refs/tags/v{version}/komorebi.example.json` (komorebi-windows/src/static_config.rs:1389) which also remain valid.
+- **winget / Scoop / nixpkgs.** Scoop and WinGet read releases, not branches (`checkver: github`). Their asset-name patterns must be kept exactly:
+  `komorebi-<version>-<x86_64|aarch64>-pc-windows-msvc.zip`, `komorebi-<version>-<x86_64|aarch64>.msi` and `checksums.txt` (Scoop reads `$baseurl/checksums.txt`; adding macOS and Linux lines to
+  the same file should be safe because the hash is looked up by file name, **inferred**, verify in the dry run). The Windows `latest` release becomes the unified release, so the pattern holds only if every unified
+  release keeps the Windows assets. nixpkgs' `package.nix` builds from the release tag source; a unified source tree changes its build (`cargoBuildFlags`, `cargoLock`): **(unknown)** until its maintainer is asked; open an issue on nixpkgs after 0.2.0 or send the bump yourself.
+  Chocolatey: not present in the repository or workflows; **(unknown)** whether a third-party package exists.
+
+### 1.5 Protection rules
+
+Today there are none (`branches/master/protection` 404, rulesets 0). After the cutover add a **ruleset** on `master` and on tags `v*`: block force-push and deletion, require a pull request for everyone except the owner (bypass for owner), require the
+one required check named `ci / required` (section 3). The KDE repo could not have protection at all ("Upgrade to GitHub Pro or make this repository public": `gh api .../branches/master/protection`), which is one more small reason to move it. The ruleset is not installed before the push because a
+protected `master` that rejects the first fast-forward from the owner would need a bypass anyway.
+
+### 1.6 What not to push
+
+The work clone `/home/jado/komomono-work/komorebi` has about 60 `wip-*` bookmarks (`jj bookmark list -a`), including `wip-cand1`..`wip-cand9`, `wip-u-*`, `ws-*`, and the `kde`/`mac` remotes pointing into the scratchpad. Push exactly **one** commit id, never `--all` and never `jj git push --tracked`. In `~/komorebi`: import the stack as one bookmark (commands in 5.3).
+
+### 1.7 The old-hashes check (run before and after the push)
+
+Evidence already seen on `2185556efba6`:
+- `git log --follow` and `git blame` follow the pure moves: `git log --follow -- komorebi-windows/src/splash.rs` lists 7 commits back to `b6139864 2025-10-28 feat(wm): add a splash screen for mdm devices` (ran);
+  `git blame -L1,2 -- komorebi-windows/src/splash.rs` names `b61398647 komorebi/src/splash.rs (LGUG2Z 2025-10-28)` (ran). The same `--follow` for `komorebi-macos/src/splash.rs` reaches the same original commit (7 commits; the macOS repository forked from the Windows history).
+- `jj file annotate -r wip-cutover-docs komorebi-windows/src/splash.rs` does **not** follow the move: every line is attributed to the move revision (`ywyyvwzz`, 2026-11-01 07:23). Use `git blame`/`git log --follow` (or `jj file annotate` at the revision before the move) for authorship. The unified-binaries note already says "jj does not follow moves" (docs/dev/unified-binaries.md).
+- `git log -- <new path>` without `--follow` shows 1 commit (the move): expected.
+
+Checks to run on the pushed state (all read-only; expected output in brackets):
+```sh
+for c in 72aa4c97ade72b802a008bdba4bf59cca04df665 7d19fd404534d75edfcece09831143c36896d40b 9a58e5117afa2df6bfbe544a1c40f2534935f094 ff3711dcb5d2a1cbef5e3e91523c0183bc50343e; do
+  git merge-base --is-ancestor $c origin/master && echo "ok $c"; done          # four "ok"
+git merge-base --is-ancestor origin/master~0 origin/master                       # trivial
+git rev-list --count 72aa4c97ade72b802a008bdba4bf59cca04df665..origin/master    # equals the local count (about 1195 + the revisions added after this plan)
+for t in v0.1.0 v0.1.1 v0.1.41; do git rev-parse $t^{commit}; done              # unchanged Windows tags (v0.1.0 and v0.1.1 are Windows commits, not macOS)
+git rev-parse 64341e29a2d55b0b2f4289687944eec5aa519136 0cc4ca7f67d79da0d59d603dde2f6b4445fec85b   # the macOS v0.1.0 and v0.1.1 commits still resolve
+git log --follow --format=%h -- komorebi-macos/src/splash.rs | tail -1          # b6139864
+```
+In the old repos, count what will be pointed at: `git -C ~/komorebi-for-kde rev-list --count master` (254) and `git -C ~/komorebi-for-mac rev-list --count ash-squashem` (304).
+
+### 1.8 Steps (summary; commands in section 5.3)
+
+1. Freeze: no merges to `master`; record `master`'s sha (`72aa4c97` today). 2. Rehearse on a scratch repository (5.4). 3. Fetch the final stack into `~/komorebi`, verify. 4. Push to `komomono` (fast-forward). 5. After sign-off, push the same commit to `master`. 6. Safety branch `legacy/windows-0.1` at `72aa4c97` (so
+`cargo install --git ... --branch legacy/windows-0.1` and hotfixes for 0.1.41 remain possible). 7. Ruleset. 8. Keep `komomono` for two weeks, then delete the branch (reversible while commits are reachable from `master`).
+
+### 1.9 Verify, roll back, irreversible
+
+Verify: the checks in 1.7; `gh api repos/LGUG2Z/komorebi/branches/master --jq .commit.sha` equals the pushed id; GitHub's compare of `72aa4c97...master` shows "ahead by N, behind by 0".
+Roll back **before** the push to `master`: nothing happened (delete the scratch repo, forget the work). Roll back **after**: there is no safe rollback except a *forward* revert (a commit on `master` that restores the old tree) or, as a last resort, a force-push of `master` back to `72aa4c97` which the Windows users' clones would see as a rewritten history and which fights with every PR merged in between: do not do it; instead keep `legacy/windows-0.1`.
+**Irreversible:** publishing KDE's source and history (commits become public and mirrored by forks/caches); anything a third party cloned; the tag `v0.2.0` once Scoop, WinGet or nixpkgs bots picked it up (section 4).
+
+## 2. The two old repositories
+
+### 2.1 Decision and owner
+
+Decision: what each old repository becomes after the cutover and for how long. Owner: the user. Recommendation: **KDE: archive after the cutover (no redirect needed, it is private; nothing to keep alive). macOS: keep alive for 3 months with a README
+banner and a final release, then archive.** "N" = 3 months is a recommendation, not a measurement: the 851 downloads of macOS v0.1.1 and the Homebrew formula suggest a small installed base, so a short window is enough; the
+number of macOS users still on 0.1.x is **(unknown)**.
+
+### 2.2 Issues and PRs
+
+| Repo | Open issues | Open PRs | Method |
+|---|---|---|---|
+| `komorebi-for-kde` | 1 (#6, the canary issue opened by the CI) | 0 (5 total, all closed) | close #6 with a pointer; nothing to transfer |
+| `komorebi-for-mac` | **issues are disabled** (`gh issue list` says so); `open_issues_count` shows 13 but is stale or counts something the API will not list: **(unknown)**; check the web UI | 0 (0 ever) | nothing to transfer; if the 13 are really issues, enable issues for the transfer window and use `gh issue transfer N LGUG2Z/komorebi` (GitHub moves issues between repositories of one owner: all three are `LGUG2Z`) |
+| `komorebi` | 89 | 27 | stays; the unified tracker |
+
+Method recommendation: one tracker (`LGUG2Z/komorebi`), label by platform; do not transfer anything automatically. A transfer keeps the issue number-to-title mapping only through a redirect from the old URL, and the numbers change, so for 0 to 1 issues it is not worth it.
+The `[FEAT]:` auto-close policy (`.github/workflows/feature-check.yaml`) then applies to Linux and macOS feature requests too; the KDE repo had no such policy (**decision R6**).
+
+### 2.3 Where the old names are used (classified)
+
+Counted by `git grep` at `2185556efba6` (excluding `docs/dev/old-ci`): `komorebi-for-kde` 24 files / 98 lines; `komorebi-for-mac` 35 files / 124 lines; `lgug2z.com` 24 files / 37 lines;
+`lgug2z.github.io` 5 files / 10 lines; `KomoCorp` 2 files / 11 lines; `homebrew-tap` 1 file / 3 lines.
+
+| Class | Where | Action at cutover |
+|---|---|---|
+| **A. Runs in a shipped binary (must change before 0.2.0, otherwise a behaviour is wrong)** | `komorebi-bar/src/macos/os.rs:18,22` (update check and release link to `LGUG2Z/komorebi-for-mac`), `:123` (test strings, `v0.1.2`) | point at `LGUG2Z/komorebi/releases/latest`; but note the Windows bar already reads the same URL: after unification the macOS and Windows bars would both see `v0.2.0` and each other's tags. The release tag must therefore stay one number for all (it does), and the "is there a newer release" comparison needs no platform filter. The test at `:123` must follow |
+| A. Schema URLs generated into shipped schemas | `crates/komorebi-config/src/changes.rs:248`, `crates/komorebi-bar-core/src/schema/changes.rs:29` (text becomes `schemas/macos/schema*.json` descriptions: "`$schema`: https://komorebi-for-mac.lgug2z.com/komorebi.0.2.0.schema.json") | decide the URL scheme (R5), change the text, regenerate `schemas/macos/` with `just jsonschema` on a Mac and the `nix-options` check |
+| A. Application-specific config | `komorebic/src/macos/applications.json:2` (`$schema` `.../komorebi-for-mac/master/schema.asc.json`) | new path `schemas/macos/schema.asc.json` of the unified repo, at a tag or `master` |
+| B. Example configs, copied into users' homes | `docs/macos/komorebi.example.json`, `docs/macos/komorebi.bar.example.json` (`$schema` `https://komorebi-for-mac.lgug2z.com/komorebi*.0.1.0.schema.json`), `docs/komorebi.example.json:2` (`.../komorebi/v0.1.41/schema.json`) | the 0.1.x URLs stay valid only while the hosts exist: **keep `komorebi-for-mac.lgug2z.com` serving the 0.1.x schemas** (do not delete the Cloudflare Pages project), and add the 0.2.0 schemas under the chosen scheme |
+| C. Install instructions | `docs/linux/installation.md:27,167,181-182` (`github:LGUG2Z/komorebi-for-kde`, `git clone .../komorebi-for-kde`), `docs/macos/installation.md:48-51,80` (`brew install lgug2z/tap/komorebi-for-mac-nightly`, `inputs.komorebi-for-mac.url = "github:KomoCorp/komorebi-for-mac"`), `docs/macos/README.md:43-51,272` | rewrite to `github:LGUG2Z/komorebi`; the flake attribute names wait for `flake-one` (`FLAKE_*`); note `nixosModules.komorebi-for-kde`, `overlays.komorebi-for-kde`, `darwinModules.komorebi-for-mac` are in today's root flake (flake.nix:407-409): keep these names as aliases of the new ones for one release |
+| C. READMEs and prose | `README.md:72` ("The Mac port used to live in its own repository ... where this repository will be published is not decided"), `docs/linux/README.md:5,81`, `docs/linux/dev/*.md`, `docs/macos/README.md` badges (commented out) | edit once the repository is final; R1 and R3 decide the wording |
+| D. History, left alone on purpose | `docs/dev/*.md` analysis notes, `docs/linux/CONTRIBUTING.md:107-108`, `docs/linux/dev/COMPARE.md`, `scripts/linux/compare-gen.py` (stale, flagged in MIGRATION-SUMMARY.md section 6), `crates/komorebi-version/src/lib.rs:15` (a comment link), `tools/fast-check`, `tools/kde-closure-check`, `tools/e2e-needed` (old directory names; `tools/kde-closure-check` still reads the old path of `root-crates.json`, MIGRATION-SUMMARY.md section 7) | the tools lines are code: fix them in the pre-cutover stack (they affect `tools/fast-check`'s routing, which will mis-route everything now); the prose is history |
+| E. Release machinery | `docs/dev/old-ci/macos/workflows/*.yaml` (`KomoCorp/komorebi-for-mac`, `LGUG2Z/komorebi-for-mac`, gist `78b3dd12a7b7069f1d1c60621fe50730`, `LGUG2Z/homebrew-tap`), `formula.template.rb` (`homepage "https://github.com/KomoCorp/komorebi-for-mac"`, token header for a private asset URL) | rewritten in section 3 and 4, not copied |
+| F. Sites and links on lgug2z.com | `https://lgug2z.com/software/komorebi` (licence purchase, in `README.md`, `komorebic/src/windows.rs` x3, `komorebic/src/macos/mod.rs`, `feature-check.yaml`), `lgug2z.com/articles/educational-source-software/`, `kw-icul.lgug2z.com` and `km-icul.lgug2z.com` (splash.rs of Windows and macOS), `komorebi.lgug2z.com/schema` and `komorebi-bar.lgug2z.com/schema` (mkdocs.yml, docs/usage/*.md, docs/common-workflows/bar.md), `komorebi-starlight.lgug2z.workers.dev` (the reference sites, README.md, docs/macos/README.md) | outside this repository. Which host serves which site and whether DNS stays: **(unknown)** (not checked; a `curl -I https://komorebi.lgug2z.com/komorebi.0.1.41.schema.json` returned 404, so the Windows schemas are not published under that name today) |
+
+### 2.4 Crate, package and tap names
+
+- Cargo packages that disappeared (deleted shim packages): `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-client-macos`, `komorebi-bar-macos` (MIGRATION-SUMMARY.md section 7). Directories `komorebi/` (Windows) is `komorebi-windows/`. None of these was published to crates.io as far as the repository says (no `publish` key, no `cargo publish` in any workflow); whether any name was ever published: **(unknown)**, check `cargo search komorebi` before 0.2.0.
+- Homebrew tap `LGUG2Z/homebrew-tap`: `Formula/komorebi-for-mac.rb` and `Formula/komorebi-for-mac-nightly.rb` exist (`gh api repos/LGUG2Z/homebrew-tap/contents/Formula`). The template downloads from the private `KomoCorp` release with a token header (docs/dev/old-ci/macos/formula.template.rb:4-9). For the public unified repo the formula can use a plain public URL. Recommendation: keep the formula **name** `komorebi-for-mac` for 0.2.0 (users' `brew upgrade` keeps working), point its `url` at the unified release asset `komorebi-0.2.0-aarch64-apple-darwin.zip`; rename later with a tap rename file **(inferred, Homebrew taps support `formula_renames.json`)**.
+- Flake inputs of downstream users: `github:LGUG2Z/komorebi-for-kde` and `github:KomoCorp/komorebi-for-mac`. After archiving, an archived repository still serves flakes (archive is read-only, not removed), so users do not break; they stay on the frozen revision. Their inputs must be changed by hand to `github:LGUG2Z/komorebi` (a tag `v0.2.0` or `master`). Say it in the release notes. **Do not delete or rename** either repository (a rename keeps redirects for git and web but not for flake `github:` inputs reliably: **inferred**; deleting breaks all of it).
+
+### 2.5 Steps
+
+1. In each old repository, one commit on its `master` (user, by hand): README banner "development moved to LGUG2Z/komorebi, 0.2.0 from <date>; this repository is archived on <date+3 months>" with the new install commands. Use GitHub's web editor or a clone in a temp dir; never `~/komorebi*`.
+2. After the unified `v0.2.0` release exists: publish the macOS assets also as a **release in `komorebi-for-mac`** named `v0.2.0` (same zip and `checksums.txt`, a body that points to the unified release). Reason: the already-installed macOS bars read `komorebi-for-mac/releases/latest`
+   (komorebi-bar/src/macos/os.rs:18) to show an update, and old formulas read this repository; without this, 0.1.x macOS users are never told. The old workflow already published each macOS release in both repos (docs/dev/old-ci/macos/workflows/release.yaml "Create release on public repo").
+3. Close KDE issue #6 and the macOS stale issues, archive KDE immediately, macOS at +3 months (Settings, Archive: reversible).
+4. Keep the Cloudflare Pages project and DNS for `komorebi-for-mac.lgug2z.com` as they are (schema URLs of released 0.1.x configs).
+5. Rotate the token named above, and every PAT whose name appears in the old workflows: `GH_USER_API_TOKEN`, `PAT`, `SCOOP_TOKEN`, `WINGET_TOKEN` (the last two are in use by the Windows repo; rotate only if exposure is suspected).
+
+### 2.6 Verify, roll back, irreversible
+
+Verify: `gh repo view LGUG2Z/komorebi-for-mac --json isArchived,description`; `brew fetch` of the formula; open an old macOS bar against a test release. Roll back: archive and README banner are reversible. **Irreversible:** deleting either repository (stars 261, forks 4 vanish), a rename (breaks flake inputs), transferring ownership away (not proposed).
+
+## 3. CI
+
+### 3.1 Decision and owner
+
+Decision: the one workflow set, runners, triggers, what is a nix check and what is cargo. Owner: the user (cost, self-hosted hardware, secrets). Agents may only draft. Nothing here is created under `.github/`; the drafts are in Appendix A.
+
+### 3.2 What exists (read)
+
+| Old workflow | Jobs and facts (file) |
+|---|---|
+| Windows `.github/workflows/windows.yaml` | `cargo-deny` (ubuntu-22.04); `build` matrix `windows-latest` x `x86_64-pc-windows-msvc` and `aarch64-pc-windows-msvc`: CRLF check, `cargo +nightly fmt --check`, `cargo clippy`, `cargo test`, `houseabsolute/actions-rust-cross` release build, `cargo wix --no-build -p komorebi ... -I .\wix\main.wxs`, upload artifact (14 days) with `Swatinem/rust-cache`; `nightly` (schedule `30 0 * * 0` = every Sunday, the comment says "every day": the comment is wrong, only on `master`; deletes and recreates the `nightly` prerelease, notes by `kokai`), `release-dry-run` (draft release), `release` (on `v*` tags, `softprops/action-gh-release@v2`), `winget` (`vedantmgoyal2009/winget-releaser@main`, `WINGET_TOKEN`). Triggers: PR, push to `master`, `feature/*`, `hotfix/*`, tags `v*`, schedule, dispatch. `permissions: write-all` |
+| Windows `feature-check.yaml` | closes `[FEAT]: ` issues for non-sponsors |
+| KDE `docs/dev/old-ci/linux/workflows/ci.yaml` | all jobs guarded by `github.repository == 'LGUG2Z/komorebi-for-kde'`; `cargo-deny`; `checks` (3 shards by regex: `rust`, `guests`, `rest`, all as `nix build` of `checks.x86_64-linux.*` except `vm-*`, `fail-fast: false`); `lint` (`nix develop --command just lint`); `discover` (reads `legacyPackages.x86_64-linux.vmTiers`); `vm-fast` (one runner per suite, KVM, 45 min timeout, `nix build .#checks.x86_64-linux.vm-<suite>`); `vm-slow` (master, schedule, dispatch or PR label `ci:vm-slow`; 60 min; runs the test driver outside the sandbox to upload screenshots and journals); `canary` (weekly: moves `nixpkgs` to the tip in a copy, builds every check, VM tiers included, one machine, 360 min timeout, opens or updates an issue); `build` (x86_64 on `ubuntu-24.04`, aarch64 on `ubuntu-24.04-arm` `continue-on-error`; patchelf to the system loader; runs `--version`); `publish` (tags `v*` and the `nightly` prerelease from master schedule/dispatch; zip per target, `schema.json`, `checksums.txt`, `kokai@0.3.1` notes) |
+| KDE `actions/nix/action.yaml` | frees disk on KVM jobs (a Plasma guest is about 10 GB), enables KVM through a udev rule and fails with a named step "Enable KVM" when absent, `cachix/install-nix-action@v31`, **no Cachix service is used** ("no Cachix cache, account or token is configured"), cache `nix-community/cache-nix-action@v7` keyed on `flake.lock` and `**/Cargo.lock` with `gc-max-store-size-linux: 8G` |
+| KDE `rerun-no-kvm.yaml` | reruns failed jobs up to 3 attempts when every failure is the "Enable KVM" step; runs on `workflow_run` of `ci`. Observed: 5 runs in the history |
+| KDE `update-flake-lock.yaml` | Mondays 03:00 UTC, `DeterminateSystems/update-flake-lock@v29`, PR "chore(deps): flake.lock: Update" |
+| macOS `docs/dev/old-ci/macos/workflows/nix.yaml` | `runs-on: self-hosted`, guarded to `KomoCorp/komorebi-for-mac`: `nix flake check`, `nix build`, upload `result/bin/komorebi*`, on master deploy `schema.json` to a gist (`exuanbo/actions-deploy-gist`, secret `GH_USER_API_TOKEN`), on master schedule/dispatch publish the `nightly` prerelease and push a generated formula to `LGUG2Z/homebrew-tap` |
+| macOS `release.yaml` | manual dispatch with a tag; checks that the tag is at the same commit in both the private and public repositories; `nix flake check`, `nix build`, zip `komorebi-<tag>-aarch64-apple-darwin.zip` (the name includes the `v` of the tag; Windows and Linux names do not) and `checksums.txt`; creates the release in both repos |
+| Three `dependabot.yml` | github-actions and cargo, weekly, assignee LGUG2Z, commit prefix `chore` with scope: the Windows one is live, the other two identical (docs/dev/old-ci/*/dependabot.yml) |
+
+### 3.3 Proposed design
+
+Principles: (1) **required check = one job, `required`, that depends on the others** so protection names one check; (2) everything that runs without a window system runs on the PR; (3) anything that needs KVM or a Mac or the evaluation Windows image does not run on fork PRs; (4) nix checks are the unit of truth for lint/clippy/nextest/doc/deny/fmt of each platform because the old repos already gate on them (the cutover docs list them, `docs/dev/build-and-test.md` sections 1-3); cargo jobs only where Windows or macOS must run natively (the MSI, `cargo test` on Windows).
+
+| Job | Runner | Needs | Runs on | What |
+|---|---|---|---|---|
+| `deny` | `ubuntu-24.04` | | PR, push `master`, schedule | `EmbarkStudios/cargo-deny-action@v2` with the one root `deny.toml` (the cutover merged them) |
+| `nix-checks` (3 shards, as KDE did: rust / guests / rest) | `ubuntu-24.04` | | PR, push | `nix build` of `FLAKE_CHECKS_windows`, `FLAKE_CHECKS_linux`: fmt, toml-fmt, deny, clippy, nextest, doc, schema-fresh, nix-options. Windows clippy is the 3.5-minute pre-landing gate with warm dependencies (docs/dev/build-and-test.md section 1) |
+| `windows-build` | `windows-latest` x two targets | | PR, push, tag | as today: CRLF check, `cargo +nightly fmt --check`, clippy, `cargo test`, release build, `cargo wix -p komorebi`. `cargo test` now sees the Linux and macOS crates compile empty on Windows (target-gated; progress log) |
+| `macos-build` | `macos-14` or `macos-latest` (arm64, hosted) **or** the existing self-hosted Mac | | PR, push | `cargo build/clippy/test --locked` for the packages in docs/dev/build-and-test.md section 3 (665 tests, 0 failed on the Mac Mini at candidate 8 per MIGRATION-SUMMARY.md section 4) and the darwin nix checks `FLAKE_CHECKS_macos`. **No daemon is started**: nothing in CI can verify tiling on macOS (no accessibility grant, no display). A hosted macOS runner can compile and unit-test: **(inferred, never tried here)** |
+| `vm-fast` (matrix over `FLAKE_VM_TIERS.fast`, 16 suites) | `ubuntu-24.04` with KVM | `discover` | **not on fork PRs**; on PRs from the repository, on `master` push, nightly | one runner per suite, 45 min timeout each, as before. KVM on hosted runners is documented for public repositories only (docs/dev/old-ci/linux/actions/nix/action.yaml:20-21); some runner hosts have none, hence `rerun-no-kvm` which stays |
+| `vm-slow` (18 suites) | same | | nightly, `master` push, PR label `ci:vm-slow` | as before, uploads screenshots and journals (7 days) |
+| `e2e-windows` | **self-hosted**, label `kvm-windows-e2e` (the user's machine) | `windows-build` is not required | PR label `ci:e2e` by a maintainer; nightly subset; weekly full; before a release: full | needs KVM, the Windows 11 Enterprise **Evaluation** ISO (`go.microsoft.com/fwlink/?linkid=2289031`), a golden image built locally (the base layer is built once and again "when the 90-day evaluation runs out", `e2e/platforms/qemu_windows/README.md:9-26`); about 4 vCPU and 6 GB per scenario guest. Cannot run on a hosted runner **(inferred: the image is a local multi-GB artifact and the licence is an evaluation)** |
+| `canary` | KVM runner, 360 min | | weekly | as the KDE one: move nixpkgs, build every check against it, open or update an issue. Make it one job per platform group so it does not need 6 hours on one machine |
+| `release` | see section 4 | `required` | tag `v*` | |
+| `rerun-no-kvm` | `ubuntu-24.04` | | `workflow_run` | unchanged |
+| `update-flake-lock` | `ubuntu-24.04` | | Monday 03:00 | `DeterminateSystems/update-flake-lock@v29`; the PR runs the full PR set |
+| `feature-check` | `ubuntu-latest` | | issues opened | unchanged unless R6 says otherwise |
+
+Triggers: `pull_request` (all branches), `push` to `master` only (the old `feature/*` and `hotfix/*` pushes also built; on a one-maintainer repo with a PR flow they double the cost: drop them, **keep `hotfix/*` if hotfixes are pushed without a PR**), tags `v*`, `schedule` nightly `30 0 * * *` for the nightly prerelease plus the e2e/VM/canary sweeps, `workflow_dispatch`. Note: the old schedule was weekly (`30 0 * * 0`), and the comments in two workflows say "every day": the nightly prerelease has been weekly in fact.
+
+**Windows e2e subset.** Measured: 47 scenarios, 2.2 min typical (`commands` 6.2 min), first pass 19:54 to 21:45 = about 111 minutes, plus reruns and the soak (progress log "gate cand8"). The 22-scenario targeted gate took 00:33 to 01:25 (2.5-2.8 min each, `commands` 5.6; progress log "gate cand9"). Proposal:
+- PR (only when `tools/e2e-needed` says YES, it reads the Cargo closure of the Windows binaries and answers whether an e2e is owed): the cluster named in the change plus `commands`, run on the self-hosted machine when the label `ci:e2e` is set. About 3 to 15 minutes.
+- Nightly: the 22-scenario set of the cand9 gate (commands workspaces focus stacks monocle floating maximizing rules rules_class rules_exe manage_rules startup_rules title_rule layouts config_reload lifecycle handover resize lifecycle_hidden hotplug promoting): about 1 hour.
+- Weekly and before a release: all 47: about 2 hours.
+Known failures (docs/dev/build-and-test.md section 6): four stale known-failure markers (`maximizing.user`, `placement`, `unknown_monitor` x2) fail on every commit, `fullscreen` fails 2 checks on baseline too (progress log 2026-11-01 00:30), a `commands` lock-hold stall about 1 in 10-12 sweeps. A green required status cannot be had from the full set until the four stale markers are re-marked and `fullscreen` fixed or marked: re-mark them first (R4).
+
+**KDE VM tiers.** `fast` (16 suites: check hotplug commands kwin-restart kwin-events scrolling workspace-rules core-e2e kwin-contract kwin workspace-switch stacks module placement user-maximize run-kde) on PRs from the repository and on `master`; `slow` (18 suites) nightly and by label. One hosted runner each, in parallel, each up to the old 45/60 min timeouts. Measured on the user's host, not hosted: `commands` 1347 s at load about 2; the whole 16-suite cand9 run took about 65 minutes sequentially (00:02 to 01:07, progress log). Hosted wall time per suite: **(unknown)**; the old repo's `ci` runs on `master` failed within 7 to 10 seconds on push (2026-10-31 01:58 and 01:41) and about 10 minutes on the scheduled run (2026-11-01 00:50 to 01:01); the cause is **(unknown)** (not read: the job logs need `gh run view --log`, not run).
+
+**Caching.** No Cachix was ever used (action.yaml comment). The nix store cache keyed on `flake.lock` and Cargo.lock, 8 GB cap. One repository now carries a Windows, a Linux and a Darwin closure and the GitHub per-repository cache quota is small **(inferred: 10 GB for GitHub Actions caches; check current limits)**: the three would evict each other. Options: (a) a key prefix per job group and smaller `gc-max-store-size`; (b) a Cachix cache (new account, a token secret, cost **(unknown)**); (c) the user's own cache (Attic or S3) fed by the self-hosted machine. Recommendation: start with (a), measure the hit rate in the dry run, escalate to (b) only if PR time exceeds 30 minutes. Cargo jobs: `Swatinem/rust-cache@v2` as today.
+
+**Cost and time.** Public repositories do not bill hosted Linux and Windows minutes **(inferred, GitHub's public-repo policy; macOS hosted runners are also free for public repos at the time of writing, check)**. The private KDE repository did bill. I found no billing data and do not give a cost figure. Times that were read: Windows workflow 22-30 minutes; KDE `vm-fast` timeout 45 min per suite in parallel; the PR critical path is therefore about the slowest of: Windows build 22-30 min, a VM suite up to 45 min, nix checks (Windows clippy 3.5 min warm, cold is **(unknown)**; the KDE shard run out of resources at about six minutes before it was sharded, ci.yaml comment lines 41-43).
+
+**Concurrency and permissions.** Add `concurrency: group: ci-${{ github.ref }}, cancel-in-progress: true` for PR runs, but **not** for `master` or tag runs. Replace `permissions: write-all` (windows.yaml build, nightly, release) by `contents: read` at workflow level and `contents: write` only on release jobs. Self-hosted runner: never run fork PR code (a fork can edit the workflow): gate the job with `github.event.pull_request.head.repo.full_name == github.repository`.
+
+**Secrets needed and who holds them.** `WINGET_TOKEN` (exists), `SCOOP_TOKEN` and `PAT` (exist; what `PAT` and `SCOOP_TOKEN` are used for is **(unknown)**: no workflow in the repository reads them, they may be for the Scoop bucket or leftover), a token to push the Homebrew formula to `LGUG2Z/homebrew-tap` (the old macOS workflow used `GH_USER_API_TOKEN`: create a fine-grained PAT limited to that repository, contents write), a Cloudflare token only if schema publishing moves into CI (`just schemapub` uses `npx wrangler pages deploy`, run by hand today), a cache token if Cachix. No signing secret exists anywhere: the Windows MSI is unsigned (nothing in `windows.yaml` signs) and the macOS formula ad-hoc signs at install (`codesign --force -s -`, formula.template.rb:19-21). The user holds all of them.
+
+### 3.4 Dependabot
+
+One `.github/dependabot.yml` with ecosystems `cargo` (`/`), `github-actions` (`/`) and `nix` (`/`, flake.lock; supported ecosystem name `nix` **(inferred)**: the existing workflow `update-flake-lock` already does this weekly, so choose ONE: keep `update-flake-lock` and do not enable `nix` in dependabot), `weekly`, `assignees: LGUG2Z`, `commit-message: prefix chore, include scope`. Add `groups:` for cargo (one PR for patch/minor) because one lock now serves three platforms and 900 packages (docs/dev/unified-binaries.md: "859 packages (root) -> 900") and eight separate PRs per week would be noise. The `pip` entry that GitHub auto-created in the KDE repo ("Graph Update: pip in /nix/tests/vm/lib") is the dependency graph for the VM library's Python, not a config entry.
+
+### 3.5 Steps
+
+1. Draft files in a revision on top of the cutover stack (user reviews): `.github/workflows/ci.yaml`, `e2e.yaml`, `release.yaml`, `canary.yaml`, `rerun-no-kvm.yaml`, `update-flake-lock.yaml`, and `.github/dependabot.yml` (Appendix A). 2. Dry-run them on the scratch repo (5.4). 3. Land them together with the `master` push; the first run on `master` is the only one that runs for the first time in public.
+Constraint from the decisions: no KDE or macOS workflow runs before the cutover. Satisfied because workflows only trigger on `master`, PRs and tags and `komomono` is none of these (a PR from `komomono` to `master` WOULD run them: do not open one; push `master` directly).
+
+### 3.6 Verify, roll back, irreversible
+
+Verify: every job green on the scratch repo with the three real runners (hosted Linux with KVM, hosted macOS, the self-hosted Windows host). Roll back: delete or disable workflows (Actions tab) or revert the commit; runs and caches vanish with retention. Irreversible: workflow runs and Actions logs in the public repository; consumed secrets if mis-scoped (rotate).
+
+## 4. Release 0.2.0
+
+### 4.1 Decision and owner
+
+Decision: tag, artefacts, notes, channels. Owner: the user (secrets, announcements).
+
+### 4.2 Version and tag policy
+
+- One version: `[workspace.package] version = "0.2.0"` (Cargo.toml:61); the schemas say `v0.2.0` (commit `b8bbad87`); `komorebi-version` is one crate. **Tag `v0.2.0`** annotated, on the commit of `master` that passed the gates, pushed alone: `git tag -a v0.2.0 -m "komorebi 0.2.0" <sha>`; `git push origin v0.2.0`.
+- Why v0.2.0 is monotonic for everyone: Windows is at 0.1.41, macOS at 0.1.1 (the bar even has a test string for `v0.1.2`), KDE never released. Semver orders 0.2.0 above all.
+- Old tags: leave Windows `v0.1.*` as they are. The macOS tags `v0.1.0`, `v0.1.1`, `v0.1.0-prerelease` collide in name with Windows ones and were not imported; if the commits should be findable by name in the unified repository, create **`macos-v0.1.0-prerelease`, `macos-v0.1.0`, `macos-v0.1.1`** pointing at `ebbd9eee`, `64341e29`, `0cc4ca7f` (which are ancestors, section 0). The old `nightly` tags are moving tags: the unified `nightly` replaces them; the macOS `nightly` commit `6ab9f56a` is not in the work clone's object store (**missing**), so nothing points to it, and it need not.
+- Release note policy: one release `v0.2.0` of the repository with all platforms' assets. The release notes: `kokai release` (what the old workflows used) lists the commits between the previous tag and the tag; with 1195 commits since `v0.1.41` this is useless as notes. Write them by hand (4.5); keep `kokai` only for `nightly`.
+
+### 4.3 Artefact matrix
+
+| Platform | Artefacts | Built by | Name pattern (keep stable for Scoop/WinGet) |
+|---|---|---|---|
+| Windows x86_64 and aarch64 | zip of the `.exe` files (komorebi, komorebic, komorebic-no-console, komorebi-bar, komorebi-gui, komorebi-shortcuts per `windows_targets` in `justfile`), MSI by `cargo wix -p komorebi -I .\wix\main.wxs`, `checksums.txt` | `windows-build` job (cargo, MSVC), not nix | `komorebi-<ver>-<target>.zip`, `komorebi-<ver>-<arch>.msi` as in windows.yaml; `wix/main.wxs` Product `UpgradeCode` `F8B967B5-...` must not change (a major upgrade keeps replacing the old install) |
+| Scoop | manifest in ScoopInstaller/Extras (autoupdate by bot) | their bot, from `checkver: github` | needs the zip names above |
+| WinGet | `LGUG2Z.komorebi` via `winget-releaser` on a published release | `winget` job | needs the MSI names |
+| Linux (KDE) | zip of `komorebi`, `komorebic` for x86_64 and aarch64 (patchelf'ed to the system glibc loader, as the old `build` job did), `schema.json`; the **NixOS module** and overlay through the flake; no tarball existed | nix (`FLAKE_LINUX_PKGS`), `ubuntu-24.04` and `ubuntu-24.04-arm` | `komorebi-<ver>-x86_64-unknown-linux-gnu.zip` |
+| macOS aarch64 | zip of `komorebi`, `komorebic`, `komorebi-bar` (nix `result/bin/*`), `checksums.txt`, Homebrew formula, the nix-darwin module through the flake | nix on a Mac (`FLAKE_MACOS_PKGS`) | `komorebi-<ver>-aarch64-apple-darwin.zip` (no leading `v`: the old release.yaml included it, `komorebi-v0.1.1-...`; choose the Windows form) |
+| Schemas | `schemas/{windows,linux,macos}/schema*.json` attached to the release and published to the schema host | `just schemapub` (Cloudflare Pages `komorebi`) | see R5 |
+| Docs | Windows mkdocs to `gh-pages` (`mkdocs gh-deploy`: the last commit on `gh-pages` is "Deployed 8f982e45 with MkDocs version 1.6.1", i.e. a manual deploy, no workflow builds it); the Starlight reference by `just docgen starlight <repo>` | by hand | `mkdocs.yml` now `exclude_docs` `/linux/`, `/macos/`, `/dev/` (commit `4eae178f`): Linux and macOS docs are NOT on the Windows site; decide where they publish (R3) |
+
+`crates.io`: no crate is published today as far as the repository says; do not start with 0.2.0.
+
+### 4.4 Secrets and holders
+
+WinGet PAT (`WINGET_TOKEN`), Scoop (`SCOOP_TOKEN`, role **unknown**), a tap token (new, fine-grained), Cloudflare (schemas, only by hand today), none for signing (no signing exists). All held by the user. Agents never receive them.
+
+### 4.5 What a user of each old project must change (the release notes skeleton)
+
+Read from docs/dev/MIGRATION-SUMMARY.md and docs/dev/known-issues.md; what is NOT known is marked.
+- **Windows 0.1.41 users.** The configuration file and `komorebic` commands are meant to be unchanged: MIGRATION-SUMMARY.md section 2 says the Windows state JSON "is unchanged by the shared Monitor/Workspace (platform extras are flattened in, pinned by tests)" and the schemas are pinned byte for byte; the CLI pages (`docs/cli`) were the oracle. Behaviour changes to mention: `komorebic visible-windows` now lists unreadable windows with empty strings (decision 14); the runtime `required` order in generated schemas may change (decision 11); windows rendering of the bar falls back to software OpenGL (wgpu) when OpenGL 2.0 is missing (decision 21). A shared `komorebi-client` still exports the same crate name. `cargo install --path komorebi` from a clone becomes `--path komorebi-daemon` (docs/installation.md:118). **Whether a user-visible change exists that the e2e did not catch: (unknown)**; the Windows e2e passed on cand9 except the known failures (below).
+- **KDE users (the private repository: mostly the owner).** The repository, the flake input (`github:LGUG2Z/komorebi-for-kde` to `github:LGUG2Z/komorebi`), the module names (kept as aliases), `schema` location; `komorebic` for KDE got the pointer-picks-the-monitor preamble for `focus-workspace*` (known-issues.md section 1, decision 19) and the Windows-wording help texts of fifteen subcommands (progress log: "fifteen subcommands whose help differed join Messages with one help text"). Config: `StaticConfig` is one union type with per-platform views (decision 4); the KDE schema is checked in under `schemas/linux`.
+- **macOS 0.1.x users.** Flake input `github:KomoCorp/komorebi-for-mac` (private) or `github:LGUG2Z/komorebi-for-mac` to `github:LGUG2Z/komorebi`; brew formula name unchanged; `$schema` URL of the config files (R5); `komorebi-bar` and `komorebic` are in the same zip as before; **behaviour changes that nobody has seen on a Mac**: hiding, the id registry, the shared Container API, settings snapshot, pointer picks the monitor, bar clicks (MIGRATION-SUMMARY.md section 5): all the subject of `docs/dev/macos-hand-check-plan.md`. Say so in the notes or do not ship macOS (5.2).
+- All: one version number across platforms; `komorebi --version` prints 0.2.0 on Windows, Linux and macOS (the three are one crate, `komorebi-version`); the macOS bar update check now points at the unified repository (class A above).
+- Known issues to list (docs/dev/known-issues.md): items 2, 3 (inherited, pinned by tests), 4 (macOS subscriber stall); the Windows `commands` stall (about 1 in 10-12 sweeps, cause not found); `fullscreen` fails 2 checks on baseline too; the four stale e2e markers.
+
+### 4.6 Steps (release day, after section 5's gates)
+
+1. `git tag -a v0.2.0 <sha>` and push the tag (the `release` workflow builds, with `draft: true` first: the old `release-dry-run` job already creates a draft release; keep the draft step). 2. Check the draft's assets against the pattern table, the checksums, run each binary's `--version` (the old Linux job did this on the runner). 3. Publish the release (the draft turns to published; `winget-releaser` runs on publish). 4. Push the Homebrew formula (formula `komorebi-for-mac`, `url` = the public asset, no token header; delete the "requires a private repository" caveat). 5. `just schemapub` for each platform (R5). 6. `mkdocs gh-deploy`; deploy the Starlight reference. 7. The macOS mirror release in `komorebi-for-mac` (2.5 step 2). 8. Announce (the owner's channels, Discord is named in the README: `README.md` "you can ask on Discord"; nothing is posted by an agent). 9. Close or update the open PR comments; flip the README "not decided yet" text.
+
+### 4.7 Verify, roll back, irreversible
+
+Verify: `gh release view v0.2.0`, install each channel on a clean machine (Windows: the MSI over 0.1.41 as a major upgrade, which `wix/main.wxs` `MajorUpgrade` supports; Linux: the NixOS module in a VM (the VM suite `module` covers it); macOS: the formula on a Mac that is not the live one). Roll back: delete the draft; **after publish**: delete the release and tag only if no bot has run; mark `Pre-release` rather than delete if one has. **Irreversible once consumed:** a published tag and release that Scoop (autoupdate), WinGet (PR to winget-pkgs) and any nixpkgs bot picked up; downloaded installers; announcement posts.
+
+## 5. Sequencing and gates
+
+### 5.1 Order of the irreversible steps
+
+| # | Step | Reversible? | Gate before it (go/no-go) |
+|---|---|---|---|
+| S0 | Rotate the leaked macOS token; decide R1 to R7 | yes | the user's answers |
+| S1 | Freeze `master`, triage the 27 PRs, record `master` sha | yes | nobody pushes `master` meanwhile |
+| S2 | Scratch-repo dry run (5.4) of push, CI, release (with a pre-release tag) | yes (delete the scratch repository) | CI files drafted |
+| S3 | Final tree gates (5.2) | yes | see 5.2 |
+| S4 | Push `komomono` (fast-forward) | **partly**: public disclosure of KDE | R1 = yes |
+| S5 | Review on GitHub, then push `master` (fast-forward) | no (see 1.9) | S3 green on the exact commit; macOS decision (5.2) |
+| S6 | Ruleset, `legacy/windows-0.1` branch, CI enabled (it is, with the files) | yes | |
+| S7 | Tag `v0.2.0`, draft release | draft yes | first `master` CI green; the e2e full run on the tagged commit |
+| S8 | Publish; WinGet/Scoop/tap/schemas/docs | **no once consumed** | the checklist in 5.5 |
+| S9 | Old repos: banner, mirror release, archive KDE | archive yes | after S8 |
+| S10 | Archive macOS repo (+3 months) | yes | N months passed |
+
+### 5.2 Gates on the final tree, and the open findings
+
+The gates that exist: Windows e2e (QEMU, section 3), KDE VM `fast` and `slow`, the nix check groups of each platform, native tests (`cargo test --workspace` on Linux: 96 test binaries per the progress log), macOS compile/clippy/unit tests on the Mac Mini (665 passed, 0 failed, 1 ignored at candidate 8). State at the last landing (progress log 2026-11-01 01:08): all gates green on `wip-cand9b` (`21cf0d73` = `wip-main`): KDE VM cand9 16/16, Windows targeted gate cand9 22 scenarios green but for the stale `maximizing.user` marker, nix Windows and KDE groups and packages pass, Mini cand9b green. **What was NOT run on the final tree**: the KDE `slow` tier (18 suites) was never run on any candidate (MIGRATION-SUMMARY.md section 5), the full 47-scenario Windows set on cand9/the cutover stack (cand8 ran it; cand9 ran 22), anything on the cutover stack (renames, version 0.2.0, docs, and the flake rewrite): the renames moved every directory so **every gate must be re-run once on the tip**, since a rebase invalidates a claim (decision 26). The progress log records "verified: Windows clippy, Linux tests 96 binaries, macOS fake-CC check" for the cutover stack, not the e2e or VM or nix builds.
+
+**The macOS hand-check pass** (`docs/dev/macos-hand-check-plan.md`, about 5 hours on a real Mac, never run; blocks 0-8, table line 288 "total about 5 hours"). Options: (1) block the whole release until it is done, (2) ship Windows and Linux 0.2.0 and macOS as "0.2.0 (unverified, `nightly` channel)", (3) ship all three. The macOS code has never run as a daemon in these builds (MIGRATION-SUMMARY.md section 5) and changed substantially (shared Container, registry, settings, hiding): the risk is a user installing a window manager that does not hide windows. **Recommendation: (2).** Ship macOS in 0.2.0 only if the user does the pass first (blocks 0 to 4 are the "could make the daemon unusable" ones: about 2.7 hours: 25+40+45+40+10 min per the block headers); otherwise do not publish the macOS artefact or Homebrew formula under 0.2.0, keep users on `komorebi-for-mac` 0.1.1 (so the old repository stays un-archived), and publish macOS as a separate pre-release tag `v0.2.0-macos-rc1` after the pass. Note the unified version number then has a hole: macOS goes `0.1.1` to `0.2.1`, or the tag `v0.2.0` carries no macOS asset. R2.
+
+**Open findings as release blockers or not** (docs/dev/known-issues.md, build-and-test.md section 6, progress log):
+- not blockers (inherited behaviour, pinned by tests): known-issues 2 (`Monitor::focus_workspace` overwrites a name), 3 (`remove_container` focus), 4 (macOS subscriber with no write timeout), mention in notes;
+- **not a blocker but must be marked, not left failing:** the four stale e2e markers and `fullscreen` (fails the same 2 checks on baseline, cand1, cand5, cand8: "does not take the window out of fullscreen", "not on any other window"; pre-existing, not a regression): re-mark so a green nightly is possible (R4);
+- **blocker-candidate:** the Windows lock-hold stall (`commands` stops answering `komorebic state` for 3 to 3.6 s about 1 in 10-12 sweeps; longest hold 5746 ms at cand9 vs 8250 at cand5; cause not found): it exists on the baseline (1/10 before the consolidation) so it is not a regression; ship with a known-issue entry (R4);
+- `known-issues.md` itself has no entry for `fullscreen` yet (grep of the file shows none): add it before release.
+
+### 5.3 The git commands (to be run by the user, never by an agent)
+
+All commands assume `~/komorebi` is the user's repository (jj colocated), `origin` = GitHub. They are written down, not run.
+
+```sh
+# S1  record the base and freeze (nothing is pushed)
+git -C ~/komorebi fetch origin
+git -C ~/komorebi rev-parse origin/master                     # expect 72aa4c97ade72b802a008bdba4bf59cca04df665 (or newer: then merge, do not fast-forward)
+gh api repos/LGUG2Z/komorebi/branches/master --jq .commit.sha
+
+# S3  import the final stack as ONE bookmark (D1 in the decisions log describes the work clone)
+cd ~/komorebi
+jj git remote add work /home/jado/komomono-work/komorebi        # once
+jj git fetch --remote work --branch wip-cutover-final           # bookmark that the coordinator sets after flake-one lands
+jj log -r 'komomono@origin..wip-cutover-final@work' --no-graph -T 'commit_id.short()++"\n"' | wc -l   # about 1110 + the cutover stack
+jj log -r 'wip-cutover-final@work..komomono@origin'             # must be EMPTY (the local line contains origin's komomono)
+
+# S4  push komomono: a fast-forward of origin's komomono, never --force
+jj bookmark set komomono -r wip-cutover-final@work               # a forward move; jj refuses a sideways move without --allow-backwards
+jj git push --bookmark komomono                                  # pushes ONLY this bookmark
+# equivalent with git, as a double check that it is a fast-forward:
+git merge-base --is-ancestor origin/komomono "$(jj log -r komomono --no-graph -T commit_id)" && echo fast-forward
+
+# S5  after sign-off: master gets the same commit (fast-forward)
+jj bookmark set master -r komomono
+jj git push --bookmark master                                    # rejected if master moved: STOP, do not force
+git branch legacy/windows-0.1 72aa4c97ade72b802a008bdba4bf59cca04df665
+git push origin legacy/windows-0.1
+
+# S7  the tag
+git tag -a v0.2.0 -m "komorebi 0.2.0" "$(jj log -r master --no-graph -T commit_id)"
+git push origin v0.2.0
+# macOS historic tags, optional:
+git tag macos-v0.1.1 0cc4ca7f67d79da0d59d603dde2f6b4445fec85b && git push origin macos-v0.1.1
+```
+`jj git push --bookmark master` refuses a non-fast-forward move by default and prints the reason; if it does, do not add `--allow-...` flags. Check before each push with `jj git push --dry-run --bookmark komomono` (jj 0.2x+; **the installed jj version was not checked**, `git push --dry-run origin <sha>:refs/heads/master` is the git equivalent).
+
+### 5.4 Dry run on a scratch repository (proposed, not created)
+
+Create (by the user) a private repository `LGUG2Z/komorebi-dryrun` (or a fork under another account, since forks of a public repo are public) and: (1) push the same single commit as `master`, two tags `v0.2.0-rc1` and `nightly`; (2) add the Actions secrets as dummies (`WINGET_TOKEN=dummy`) so that jobs which publish fail at the publish step, not before; (3) give it the self-hosted runner label, a Linux KVM-capable hosted runner (private repositories may land on a host with no `/dev/kvm`: that is the failure `rerun-no-kvm` was written for), a macOS runner; (4) run the whole `ci` once, the nightly, a release from the `-rc1` tag with `draft: true`; (5) check the checksum file with Scoop's rule by running `scoop`'s `checkver`/`autoupdate` locally (`checkver.ps1` against the scratch release) and `winget-releaser` in `--dry-run` style input if available **(unknown)**; (6) `git merge-tree` of each of the 19 open community PR heads against the pushed `master` to count clean merges; (7) delete the repository. Cost: private-repo Actions minutes are billed on a Free plan: **(unknown)**; to avoid it make it public for the hour and delete it, but that publishes KDE history (R1), so do not do that before R1 is answered. A tree with the KDE source removed would not be the tree under test.
+
+### 5.5 Go / no-go checklists
+
+Before **S4** (push `komomono`): R1 answered yes; token rotated; the old-hash script (1.7) on the work clone gives four `ok`; `jj log -r 'wip-cutover-final@work..komomono@origin'` empty; the flake has landed (names resolved) and the docs name its outputs; the working copy of the exact commit has no `*.log`, no secrets (`git grep -nIE '(ghp_|github_pat_|x-access-token)' <sha>` returns nothing: **not run, run it**) and the tree has no large artefacts (the big files live under `target/`, not tracked).
+Before **S5** (push `master`): S4 reviewed in the GitHub compare view; CI files dry-run green on the scratch repo; every gate of 5.2 re-run on the tip commit and logged; the PR triage done; `master` sha unchanged since S1; R2 (macOS) and R3 (docs host) answered; a person is ready to watch the first CI run.
+Before **S8** (publish): draft assets match 4.3; checksums verified; MSI major-upgrade install tested over 0.1.41 in the Windows e2e guest or a VM; the Linux zip's binaries run on a plain Ubuntu runner (`--version`); macOS decision applied; release notes include the migration skeleton (4.5) and the known issues; `WINGET_TOKEN` valid.
+
+## 6. Risks and open decisions for the user (answer in one line each)
+
+1. **R1. Publish the KDE source and history publicly?** `komorebi-for-kde` is private today; pushing the line to `LGUG2Z/komorebi` makes it public for good, and macOS "ongoing development" lives in the private `KomoCorp/komorebi-for-mac` for sponsors. Recommendation: yes for KDE (0 stars, 0 forks, one author) **only if** you do not need a sponsors-only repository for KDE/macOS; if you do, keep a private mirror `KomoCorp/komorebi` that tracks `master` and carries sponsor nightlies, and keep `master` public. Answer: public or not, and private mirror or not.
+2. **R2. May 0.2.0 ship macOS before the 5-hour hand-check?** Recommendation: no; ship Windows and Linux 0.2.0 first, macOS as a pre-release after you run blocks 0 to 4 at least; keep `komorebi-for-mac` un-archived until then.
+3. **R3. Where do the Linux and macOS docs publish?** The Windows site excludes them (`exclude_docs`). Recommendation: the Starlight site (`komorebi-starlight`) for all three, GitHub Pages `gh-pages` stays Windows-only until it is ready.
+4. **R4. Are the known failures release blockers?** Recommendation: not blockers; re-mark the four stale e2e markers and the two `fullscreen` checks before the first nightly, ship with the lock-hold stall and `fullscreen` listed in the notes.
+5. **R5. Schema URL scheme.** One version now has three platform schemas that would all be `komorebi.0.2.0.schema.json`. Recommendation: `komorebi.windows.0.2.0.schema.json` style per platform on the existing hosts, keep `komorebi-for-mac.lgug2z.com` alive for 0.1.x, and keep root Windows copies `schema*.json` in the repository for old `master/` URLs.
+6. **R6. Do the `[FEAT]:` sponsor-only policy and the Komorebi License 2.0.0 apply to Linux and macOS?** Recommendation: yes (one licence, one policy) unless you want KDE open.
+7. **R7. N for the old macOS repository and the name of the Homebrew formula.** Recommendation: 3 months, formula name unchanged for 0.2.0.
+8. **R8. Freeze and PRs.** Recommendation: freeze `master` now, merge the ready PRs, comment the path map on the rest, close the 8 dependabot PRs.
+9. **R9. CI hosting.** Hosted Linux/macOS plus your own machine for Windows e2e (needs the evaluation ISO that expires every 90 days). Recommendation: yes; Windows e2e stays off fork PRs.
+10. **R10. Keep `hotfix/*` and `feature/*` push triggers?** Recommendation: drop them, PR-only.
+11. **R11. nixpkgs `komorebi`.** Someone must update `package.nix` for the new tree after 0.2.0; recommendation: you send the bump yourself or ask the maintainer.
+12. **R12. Cache.** Recommendation: GitHub cache with per-platform keys first, Cachix only if PR time exceeds 30 minutes.
+
+What could not be determined: active user counts, the macOS repo's 13 "open issues", the cost of hosted minutes, the hosted-runner wall time of the KDE suites, why the KDE `ci` push runs fail in 7 to 10 seconds, whether Chocolatey or other third-party packages exist, the role of `PAT` and `SCOOP_TOKEN`, DNS for `komorebi.lgug2z.com` and `komorebi-for-mac.lgug2z.com`, nixpkgs' build of the new tree, the real names of the flake outputs (placeholders until `flake-one` lands), whether the 19 community PRs merge cleanly after the renames, the installed jj version.
+
+## Appendix A. Drafts of the workflow files (text only; nothing was created under `.github/`)
+
+Placeholders: `FLAKE_*` (see the head of this document). Pin actions by tag as the old files did (`actions/checkout@v7`, `actions/upload-artifact@v7`, `actions/download-artifact@v8`, versions as in the old workflows and in the dependabot PRs open on the Windows repository).
+
+### A.1 `.github/workflows/ci.yaml`
+
+```yaml
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: "30 0 * * *"      # nightly: the sweeps and the prerelease
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  deny:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  # The old KDE job: every check that boots no VM, as a derivation, in shards so that one runner does not run
+  # out of resources. FLAKE_CHECKS_* are the check attribute names of the root flake (placeholders).
+  nix-checks:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: windows
+            pattern: "^(windows|win)-"          # FLAKE_CHECKS_windows
+          - shard: linux
+            pattern: "^(linux|kde|kfde)-.*(clippy|nextest|fmt|doc|deny|schema|nix-options|module)"
+          - shard: rest
+            pattern: ""
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: ./.github/actions/nix
+      - env:
+          PATTERN: ${{ matrix.pattern }}
+        run: |
+          nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
+            jq -r --arg p "$PATTERN" '.[] | select(startswith("vm-") | not) | select(if $p == "" then true else test($p) end)' |
+            sed 's|^|.#checks.x86_64-linux.|' | xargs --no-run-if-empty nix build -L --no-link
+
+  windows-build:
+    strategy:
+      fail-fast: true
+      matrix:
+        platform:
+          - { os-name: Windows-x86_64, runs-on: windows-latest, target: x86_64-pc-windows-msvc }
+          - { os-name: Windows-aarch64, runs-on: windows-latest, target: aarch64-pc-windows-msvc }
+    runs-on: ${{ matrix.platform.runs-on }}
+    env:
+      RUSTFLAGS: -Ctarget-feature=+crt-static -Dwarnings
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup component add --toolchain stable-x86_64-pc-windows-msvc clippy
+      - run: rustup toolchain install nightly --allow-downgrade -c rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with: { cache-on-failure: "true", cache-all-crates: "true", key: "${{ matrix.platform.target }}" }
+      - name: Check that no file is stored with CRLF
+        run: |
+          $crlf = git ls-files --eol | Select-String -Pattern '^i/crlf'
+          if ($crlf) { $crlf; exit 1 }
+      - run: cargo +nightly fmt --check
+      - run: cargo clippy --locked
+      - run: cargo test --locked
+      - uses: houseabsolute/actions-rust-cross@v1
+        with: { command: build, target: "${{ matrix.platform.target }}", args: "--locked --release" }
+      - run: |
+          cargo install cargo-wix
+          cargo wix --no-build -p komorebi --nocapture -I .\wix\main.wxs --target ${{ matrix.platform.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: komorebi-${{ matrix.platform.target }}-${{ github.sha }}
+          path: |
+            target/${{ matrix.platform.target }}/release/*.exe
+            target/${{ matrix.platform.target }}/release/*.pdb
+            target/wix/komorebi-*.msi
+          retention-days: 14
+
+  macos-build:
+    runs-on: macos-14                    # or [self-hosted, macos, arm64]: decide with R9
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: ./.github/actions/nix
+      - run: |
+          nix build -L .#FLAKE_MACOS_PKGS            # placeholder: komorebi, komorebic, komorebi-bar
+          nix build -L .#checks.aarch64-darwin.FLAKE_CHECKS_macos
+      - uses: actions/upload-artifact@v7
+        with:
+          name: komorebi-aarch64-apple-darwin-${{ github.sha }}
+          path: result/bin/komorebi*
+          retention-days: 14
+
+  discover:
+    runs-on: ubuntu-24.04
+    outputs:
+      fast: ${{ steps.tiers.outputs.fast }}
+      slow: ${{ steps.tiers.outputs.slow }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+      - id: tiers
+        run: |
+          tiers=$(nix eval --json .#legacyPackages.x86_64-linux.FLAKE_VM_TIERS)
+          echo "fast=$(jq -c '.fast // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
+          echo "slow=$(jq -c '.slow // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
+
+  vm-fast:
+    needs: discover
+    # fork PRs run no VM (no KVM guarantee, and a fork edits the workflow)
+    if: needs.discover.outputs.fast != '[]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJson(needs.discover.outputs.fast) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+        with: { kvm: "true" }
+      - run: nix build -L .#checks.x86_64-linux.vm-${{ matrix.suite }}
+
+  vm-slow:
+    needs: discover
+    if: >-
+      needs.discover.outputs.slow != '[]' &&
+      (github.ref == 'refs/heads/master' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+       contains(github.event.pull_request.labels.*.name, 'ci:vm-slow'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJson(needs.discover.outputs.slow) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+        with: { kvm: "true" }
+      - run: nix build -L .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}.driver -o driver
+      - run: mkdir -p out && cd out && ../driver/bin/nixos-test-driver -o .
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with: { name: "vm-${{ matrix.suite }}-${{ github.sha }}", path: out/, retention-days: 7 }
+
+  linux-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, runs-on: ubuntu-24.04, loader: /lib64/ld-linux-x86-64.so.2, optional: false }
+          - { target: aarch64-unknown-linux-gnu, runs-on: ubuntu-24.04-arm, loader: /lib/ld-linux-aarch64.so.1, optional: true }
+    runs-on: ${{ matrix.runs-on }}
+    continue-on-error: ${{ matrix.optional }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+      - env: { LOADER: "${{ matrix.loader }}" }
+        run: |
+          mkdir bin
+          for name in komorebi komorebic; do
+            cp "$(nix build -L --no-link --print-out-paths ".#FLAKE_LINUX_PKGS_$name")/bin/$name" bin/   # placeholder attribute per binary
+          done
+          chmod u+w bin/*
+          nix run --inputs-from . nixpkgs#patchelf -- --set-interpreter "$LOADER" --remove-rpath bin/*
+          bin/komorebi --version
+          bin/komorebic --version
+      - uses: actions/upload-artifact@v7
+        with: { name: "komorebi-${{ matrix.target }}-${{ github.sha }}", path: bin/, retention-days: 14 }
+
+  # The one required check (branch ruleset names only this job).
+  required:
+    if: always()
+    needs: [deny, nix-checks, windows-build, macos-build, vm-fast, linux-build]
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          echo '${{ toJSON(needs) }}' | jq -e 'to_entries | all(.value.result == "success" or .value.result == "skipped")'
+```
+
+### A.2 `.github/workflows/e2e.yaml` (the Windows e2e on the owner's host)
+
+```yaml
+name: e2e-windows
+
+on:
+  schedule:
+    - cron: "15 1 * * *"                 # nightly: the 22 scenarios; the full set on Sundays
+  pull_request:
+    types: [labeled, synchronize]
+  workflow_dispatch:
+    inputs:
+      scenarios:
+        description: "space separated scenarios, or 'full'"
+        default: "commands"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    # label-gated and never for fork code: the runner is the owner's machine
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'ci:e2e') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, linux, kvm-windows-e2e]
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - name: Does this diff owe an e2e? (PR only)
+        if: github.event_name == 'pull_request'
+        run: tools/e2e-needed --range || true
+      - name: Run
+        env:
+          E2E_GOLDEN: /srv/komorebi-e2e/golden        # built once, see e2e/platforms/qemu_windows/README.md
+        run: |
+          set -eu
+          nightly="commands workspaces focus stacks monocle floating maximizing rules rules_class rules_exe manage_rules startup_rules title_rule layouts config_reload lifecycle handover resize lifecycle_hidden hotplug promoting"
+          case "${{ github.event_name }}:${{ inputs.scenarios }}" in
+            schedule:*) if [ "$(date +%u)" = 7 ]; then set -- ; else set -- $nightly; fi ;;   # no arguments = the full set (check the runner's CLI)
+            workflow_dispatch:full) set -- ;;
+            workflow_dispatch:*) set -- ${{ inputs.scenarios }} ;;
+            *) set -- commands ;;
+          esac
+          nix run .#FLAKE_E2E_WINDOWS -- "$RUNNER_TEMP/out" "$@"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with: { name: e2e-${{ github.run_id }}, path: "${{ runner.temp }}/out/**/result.json", retention-days: 14 }
+```
+Whether `e2e-windows` with no scenario names runs the full set is **not verified** (its usage line says `e2e-windows OUT SCENARIO...`, flake.nix:456): list the 47 names, or add an `all` word, before using it.
+
+### A.3 `.github/workflows/release.yaml`
+
+```yaml
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  schedule:
+    - cron: "30 0 * * 0"                  # the weekly nightly, as before
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yaml     # needs `on: workflow_call` added to ci.yaml
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "TAG=$GITHUB_REF_NAME" >>"$GITHUB_ENV"; echo "VERSION=${GITHUB_REF_NAME#v}" >>"$GITHUB_ENV"
+          else
+            echo "TAG=nightly" >>"$GITHUB_ENV"; echo "VERSION=nightly" >>"$GITHUB_ENV"
+          fi
+      - uses: actions/download-artifact@v8
+        with: { pattern: "komorebi-*-${{ github.sha }}", path: artifacts }
+      - name: Package (Windows zips and MSIs, Linux zips, macOS zip) with the names Scoop and WinGet expect
+        shell: bash
+        run: |
+          mkdir dist
+          for t in x86_64-pc-windows-msvc aarch64-pc-windows-msvc; do
+            d="artifacts/komorebi-$t-$GITHUB_SHA"
+            (cd "$d/$t/release" && zip -j "$GITHUB_WORKSPACE/dist/komorebi-$VERSION-$t.zip" *.exe)
+            cp "$d"/wix/*"${t%%-*}".msi "dist/komorebi-$VERSION-${t%%-*}.msi"
+          done
+          for t in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
+            d="artifacts/komorebi-$t-$GITHUB_SHA"; [ -d "$d" ] || continue
+            chmod +x "$d"/*; zip -j "dist/komorebi-$VERSION-$t.zip" "$d"/komorebi "$d"/komorebic
+          done
+          d="artifacts/komorebi-aarch64-apple-darwin-$GITHUB_SHA"
+          chmod +x "$d"/*; zip -j "dist/komorebi-$VERSION-aarch64-apple-darwin.zip" "$d"/*
+          cp schemas/windows/schema.json dist/schema.windows.json
+          cp schemas/linux/schema.json   dist/schema.linux.json
+          cp schemas/macos/schema.json   dist/schema.macos.json
+          (cd dist && sha256sum -- *.zip *.msi *.json > checksums.txt)
+      - name: Release notes
+        run: |
+          if [ "$TAG" = nightly ]; then
+            cargo install --locked kokai@0.3.1
+            git tag --force nightly
+            kokai release --no-emoji --add-links github:commits,issues --ref nightly >"$RUNNER_TEMP/notes.md"
+          else
+            cp docs/dev/RELEASE-NOTES-$VERSION.md "$RUNNER_TEMP/notes.md"      # written by hand (CUTOVER-PLAN 4.5)
+          fi
+      - name: Publish
+        run: |
+          if [ "$TAG" = nightly ]; then
+            gh release delete nightly --cleanup-tag --yes || true
+            gh release create nightly --target "$GITHUB_SHA" --prerelease --title "komorebi nightly ($GITHUB_SHA)" \
+              --notes-file "$RUNNER_TEMP/notes.md" dist/*
+          else
+            gh release create "$TAG" --verify-tag --draft --title "komorebi $TAG" --notes-file "$RUNNER_TEMP/notes.md" dist/*
+            # the owner reviews the draft and publishes it by hand; WinGet runs on publish
+          fi
+
+  winget:
+    needs: publish
+    if: github.event_name == 'release' && github.event.action == 'published'     # moved to its own workflow `on: release: published` when drafts are used
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vedantmgoyal2009/winget-releaser@main
+        with:
+          identifier: LGUG2Z.komorebi
+          token: ${{ secrets.WINGET_TOKEN }}
+```
+The `winget` job as written never runs from this file: a draft published by hand fires `release: published`, so it belongs in its own workflow file with that trigger. The Homebrew push is a second job in that file, using a fine-grained token limited to `LGUG2Z/homebrew-tap` and a formula without the token header (the old `formula.template.rb` replaced `REPLACE_ASSET_ID` and `REPLACE_SHA_256` with `sed`; keep that mechanism, replace `url` by the public download URL).
+
+### A.4 `.github/workflows/update-flake-lock.yaml`, `rerun-no-kvm.yaml`, `canary.yaml`
+
+`update-flake-lock.yaml` and `rerun-no-kvm.yaml`: the old files unchanged (docs/dev/old-ci/linux/workflows/), with the `if: github.repository == 'LGUG2Z/komorebi-for-kde'` guards changed to `LGUG2Z/komorebi`, and `workflows: [ci]` kept in `rerun-no-kvm`. `canary.yaml`: the old `canary` job split by platform group, with the `nixpkgs` move done in a copy of the checkout as before (docs/dev/old-ci/linux/workflows/ci.yaml `canary`, 360-minute timeout) and the issue title "Canary: a check fails against the tip of nixpkgs-unstable" kept so the existing issue logic keeps working.
+
+### A.5 `.github/dependabot.yml`
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule: { interval: "weekly" }
+    assignees: ["LGUG2Z"]
+    commit-message: { prefix: chore, include: scope }
+
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule: { interval: "weekly" }
+    assignees: ["LGUG2Z"]
+    commit-message: { prefix: chore, include: scope }
+    groups:
+      cargo-minor-patch:
+        update-types: ["minor", "patch"]
+# flake.lock is updated by .github/workflows/update-flake-lock.yaml (weekly); the `nix` ecosystem is not enabled
+# so that two bots do not update the same file.
+```
+
+### A.6 `.github/actions/nix/action.yaml`
+
+The old composite action (docs/dev/old-ci/linux/actions/nix/action.yaml) moves as is to `.github/actions/nix/action.yaml`; its cache key `hashFiles('flake.lock', '**/Cargo.lock')` already covers the one lock; add the runner's job group to the key prefix for the cache decision R12.
+
+## Appendix B. Where the facts come from
+
+`docs/dev/MIGRATION-SUMMARY.md` (sections 1, 4-7, 9), `docs/dev/known-issues.md`, `docs/dev/unified-binaries.md`, `docs/dev/build-and-test.md` (sections 1-6), `docs/dev/macos-hand-check-plan.md` (headers, line 288), `docs/macos/README.md:43-47`, `.github/workflows/*`, `docs/dev/old-ci/{linux,macos}/**`, `Cargo.toml:61`, `justfile` (`schemapub`, `windows_targets`), `wix/main.wxs`, `mkdocs.yml`, `e2e/platforms/qemu_windows/README.md`, `tools/e2e-needed`; the plan `generic-percolating-matsumoto.md` ("Decisions already made", Part A); the progress log `~/.claude/plans/komomono-progress.md` (the entries for the e2e gates, "ALL GATES GREEN on wip-cand9b", the cutover cleanup and docs-paths entries) and the decisions log; commands: `jj log -r ...` on `/home/jado/komomono-work/komorebi`, `git log/grep/show/blame/tag` on that clone and on the three old clones, `gh repo view`, `gh api` (repos, branches, rulesets, pages, secrets (names), actions/runs, releases, contents of `ScoopInstaller/Extras` and `NixOS/nixpkgs` and `LGUG2Z/homebrew-tap`), `gh issue list`, `gh pr list`, `gh release list`, `gh workflow list`, and one `curl -I` to `https://komorebi.lgug2z.com/komorebi.0.1.41.schema.json` (404).
