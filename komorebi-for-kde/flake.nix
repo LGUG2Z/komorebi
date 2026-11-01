@@ -387,8 +387,10 @@
                         "komorebi-client-macos"
                         "komorebi-bar-macos"
                         "version-macos"
-                      ];
-                    cargoDenyChecks = "--config ${platformDir}/deny.toml bans licenses sources";
+                      ]
+                      # --config is an option of `cargo deny`, not of `check`, in the cargo-deny of this flake's nixpkgs
+                      + " --config ${platformDir}/deny.toml";
+                    cargoDenyChecks = "bans licenses sources";
                   }
                 );
 
