@@ -22,6 +22,21 @@ now, whatever else is decided: anything that has read that clone's config, or th
 The same URL form is used in `docs/dev/old-ci/macos/workflows/nix.yaml` only as `secrets.GH_USER_API_TOKEN`, which is a
 secret name, not a value.
 
+**Owner decisions taken after the first version of this plan (2026-11-01, relayed by the coordinator; they override
+the first version where they differ):**
+1. **No private sponsors repository.** There will be no private mirror (`KomoCorp/komorebi` or any other) and no
+   sponsors-only early access. The history of the old private repositories becomes public with the push, once the owner
+   confirms the push itself (step S4). R1 is therefore answered as to the mirror; the confirmation of the push stays a gate.
+2. **Schemas are per-platform files in the repository.** Done: `schemas/{windows,linux,macos}/{schema.json,schema.asc.json,schema.bar.json}`
+   (linux has no bar schema). R5 is no longer a recommendation; only its sub-questions stay open.
+3. **0.2.0 is not published now.** The workspace version is `0.2.0-dev` (as told; the first version of this plan read `0.2.0` at
+   `Cargo.toml:61` of `2185556efba6`; re-read it on the final tip). The landing of the line is the beginning of the
+   0.2.0-dev line: `komomono` to `master` carrying `0.2.0-dev`, no tag, no release artefacts, CI on. The later **release** of 0.2.0
+   (a revision that sets `0.2.0`, tag `v0.2.0`, artefacts, announcement) is a separate step with its own gates. The macOS hand-check
+   gates the release, not the dev-line landing.
+Sections 4 and 5 and the checklists are split accordingly: **DEV-LINE LANDING** (steps L0 to L6) and **RELEASE** (steps
+E1 to E8). Where the text below says "S4/S5/S7/S8" the new names are: S4 = L3, S5 = L4, S6 = L5, S7 = E3, S8 = E5.
+
 ## 0. What is where today (the facts the rest depends on)
 
 | Fact | Source |
@@ -29,7 +44,7 @@ secret name, not a value.
 | `LGUG2Z/komorebi` (Windows): public, default branch `master` (`72aa4c97`), 15,331 stars, 376 forks, 755 issues ever (89 open), 858 PRs ever (27 open: 19 not by dependabot, 8 dependabot), no branch protection, no rulesets, GitHub Pages from branch `gh-pages` (`https://lgug2z.github.io/komorebi/`), 30 branches | `gh repo view`, `gh issue list --state open/all`, `gh pr list`, `gh api repos/LGUG2Z/komorebi/branches/master/protection` (404 "disabled"), `.../rulesets` (0), `.../pages` |
 | `LGUG2Z/komorebi-for-kde`: **private**, default `master` = `7d19fd40`, 0 stars, 0 forks, 1 open issue (the auto-opened "Canary: a check fails against the tip of nixpkgs-unstable", #6), 5 PRs ever (0 open), 0 releases, 0 tags, workflows `ci`, `rerun-no-kvm`, `update-flake-lock` | `gh api repos/.../komorebi-for-kde` (`visibility: private`), `gh issue list`, `gh release list` (empty), `git tag` (0) |
 | `LGUG2Z/komorebi-for-mac`: public, default `master` = `2cd5884f`, **issues disabled**, 261 stars, 4 forks, 0 PRs ever, releases v0.1.0-prerelease, v0.1.0, v0.1.1 (v0.1.1 `Latest`, 2026-05-03), homepage `https://komorebi.lgug2z.com`; the merged macOS history is the branch `ash-squashem` = `9a58e511`, 41 commits ahead of that `master` | `gh repo view`, `gh release list`, `git rev-list --count master..ash-squashem` in `~/komorebi-for-mac`, `gh api .../branches` |
-| `KomoCorp/komorebi-for-mac` exists and is private (visible to `gh` as `.private == true`). The macOS README says it is "the private repository available to certain GitHub Sponsors tiers where ongoing development work happens and nightly releases are made available", and the public one is "where versioned releases will be published" | `gh api repos/KomoCorp/komorebi-for-mac --jq .private`; docs/macos/README.md:43-47 |
+| `KomoCorp/komorebi-for-mac` exists and is private (visible to `gh` as `.private == true`); it is where the macOS CI ran and where the macOS development happened (docs/macos/README.md:43-47). It is retired by the owner's decision: nothing replaces it, and its README text must go (class C in 2.3) | `gh api repos/KomoCorp/komorebi-for-mac --jq .private`; docs/macos/README.md:43-47 |
 | The macOS CI runs only in that private repo on a **self-hosted** runner; in the public repo every run is `skipped` (the job guard is `github.repository == 'KomoCorp/komorebi-for-mac'`) | docs/dev/old-ci/macos/workflows/nix.yaml:21-22; `gh api .../komorebi-for-mac/actions/runs` (all `skipped`) |
 | `komomono` is already on GitHub: `LGUG2Z/komorebi` branch `komomono` = `ff3711dc` (committed 2026-10-31T01:59Z), 85 commits ahead of `master`; `next` = `72aa4c97` (= `master`) | `gh api repos/LGUG2Z/komorebi/branches/komomono`, `git -C ~/komorebi log --oneline master..komomono` (85), `git merge-base master komomono` (= `72aa4c97`) |
 | The local line: `wip-main` = `21cf0d73` (landed consolidation), `komomono@source` = `ff3711dc` is its ancestor, **`jj log -r 'wip-main..komomono@source'` is empty and `komomono@source..wip-main` has 1110 revisions** (`master@source..wip-main`: 1195). The stack `wip-main..wip-cutover-docs` has 24 revisions (`jj log -r wip-main..wip-cutover-docs`) | `jj log` revset counts |
@@ -60,11 +75,11 @@ publishes its 254 commits and the KDE source to a public repository. That cannot
 commit cache by hash, search engines). The Windows history already public (85 commits on `komomono`) contains no KDE
 code (it is the pre-merge tree: `git -C ~/komorebi log` of `komomono` has no `komorebi-for-kde/` path; **inferred** from the merge order in the
 progress log: A2 merged KDE and macOS on top of `komomono@source`). The macOS history is mostly public already (`ash-squashem` is a public branch of `komorebi-for-mac`, `gh api .../branches`), but the private
-repository `KomoCorp/komorebi-for-mac` has the "ongoing development" (docs/macos/README.md:46-47): the 41 commits that are only on `ash-squashem`
-are public today. All 254 + 304 authors are one address (`LGUG2Z@fastmail.com`; `git log --format=%ae`, plus one dependabot) so no third-party privacy question arises
+repository `KomoCorp/komorebi-for-mac` held the development (docs/macos/README.md:46-47); the 41 commits that are only on `ash-squashem`
+are public today. The owner has decided that there is no private repository afterwards. All 254 + 304 authors are one address (`LGUG2Z@fastmail.com`; `git log --format=%ae`, plus one dependabot) so no third-party privacy question arises
 from authorship. A licence question remains: the tree carries `LICENSE.md` "Komorebi License 2.0.0" and the Homebrew template states the same licence
-(docs/dev/old-ci/macos/formula.template.rb:8). Whether KDE and macOS are meant to be public with the Windows project, and whether sponsors
-keep a private early-access repo, is open decision **R1** (section 6). **Do not proceed past step S5 (section 5) without an explicit yes.**
+(docs/dev/old-ci/macos/formula.template.rb:8). The owner decided that KDE and macOS become public with the Windows project and that there is no private mirror (R1,
+answered). **The push itself still needs the owner's explicit confirmation at step L3 (section 5): do not push before it.**
 
 ### 1.2 Options
 
@@ -168,7 +183,7 @@ number of macOS users still on 0.1.x is **(unknown)**.
 | `komorebi` | 89 | 27 | stays; the unified tracker |
 
 Method recommendation: one tracker (`LGUG2Z/komorebi`), label by platform; do not transfer anything automatically. A transfer keeps the issue number-to-title mapping only through a redirect from the old URL, and the numbers change, so for 0 to 1 issues it is not worth it.
-The `[FEAT]:` auto-close policy (`.github/workflows/feature-check.yaml`) then applies to Linux and macOS feature requests too; the KDE repo had no such policy (**decision R6**).
+The `[FEAT]:` auto-close policy (`.github/workflows/feature-check.yaml`, which closes feature requests unless a stated condition holds) would then apply to Linux and macOS feature requests too; the KDE repo had no such policy. Its message text names a paid-access condition that no longer matches a single public project with no private tier: the text must be revisited whatever is decided (**R6, open**).
 
 ### 2.3 Where the old names are used (classified)
 
@@ -217,7 +232,7 @@ Decision: the one workflow set, runners, triggers, what is a nix check and what 
 | Old workflow | Jobs and facts (file) |
 |---|---|
 | Windows `.github/workflows/windows.yaml` | `cargo-deny` (ubuntu-22.04); `build` matrix `windows-latest` x `x86_64-pc-windows-msvc` and `aarch64-pc-windows-msvc`: CRLF check, `cargo +nightly fmt --check`, `cargo clippy`, `cargo test`, `houseabsolute/actions-rust-cross` release build, `cargo wix --no-build -p komorebi ... -I .\wix\main.wxs`, upload artifact (14 days) with `Swatinem/rust-cache`; `nightly` (schedule `30 0 * * 0` = every Sunday, the comment says "every day": the comment is wrong, only on `master`; deletes and recreates the `nightly` prerelease, notes by `kokai`), `release-dry-run` (draft release), `release` (on `v*` tags, `softprops/action-gh-release@v2`), `winget` (`vedantmgoyal2009/winget-releaser@main`, `WINGET_TOKEN`). Triggers: PR, push to `master`, `feature/*`, `hotfix/*`, tags `v*`, schedule, dispatch. `permissions: write-all` |
-| Windows `feature-check.yaml` | closes `[FEAT]: ` issues for non-sponsors |
+| Windows `feature-check.yaml` | closes `[FEAT]: ` issues unless a condition stated in its message holds (see R6) |
 | KDE `docs/dev/old-ci/linux/workflows/ci.yaml` | all jobs guarded by `github.repository == 'LGUG2Z/komorebi-for-kde'`; `cargo-deny`; `checks` (3 shards by regex: `rust`, `guests`, `rest`, all as `nix build` of `checks.x86_64-linux.*` except `vm-*`, `fail-fast: false`); `lint` (`nix develop --command just lint`); `discover` (reads `legacyPackages.x86_64-linux.vmTiers`); `vm-fast` (one runner per suite, KVM, 45 min timeout, `nix build .#checks.x86_64-linux.vm-<suite>`); `vm-slow` (master, schedule, dispatch or PR label `ci:vm-slow`; 60 min; runs the test driver outside the sandbox to upload screenshots and journals); `canary` (weekly: moves `nixpkgs` to the tip in a copy, builds every check, VM tiers included, one machine, 360 min timeout, opens or updates an issue); `build` (x86_64 on `ubuntu-24.04`, aarch64 on `ubuntu-24.04-arm` `continue-on-error`; patchelf to the system loader; runs `--version`); `publish` (tags `v*` and the `nightly` prerelease from master schedule/dispatch; zip per target, `schema.json`, `checksums.txt`, `kokai@0.3.1` notes) |
 | KDE `actions/nix/action.yaml` | frees disk on KVM jobs (a Plasma guest is about 10 GB), enables KVM through a udev rule and fails with a named step "Enable KVM" when absent, `cachix/install-nix-action@v31`, **no Cachix service is used** ("no Cachix cache, account or token is configured"), cache `nix-community/cache-nix-action@v7` keyed on `flake.lock` and `**/Cargo.lock` with `gc-max-store-size-linux: 8G` |
 | KDE `rerun-no-kvm.yaml` | reruns failed jobs up to 3 attempts when every failure is the "Enable KVM" step; runs on `workflow_run` of `ci`. Observed: 5 runs in the history |
@@ -276,15 +291,21 @@ Constraint from the decisions: no KDE or macOS workflow runs before the cutover.
 
 Verify: every job green on the scratch repo with the three real runners (hosted Linux with KVM, hosted macOS, the self-hosted Windows host). Roll back: delete or disable workflows (Actions tab) or revert the commit; runs and caches vanish with retention. Irreversible: workflow runs and Actions logs in the public repository; consumed secrets if mis-scoped (rotate).
 
-## 4. Release 0.2.0
+## 4. The 0.2.0-dev landing and the release of 0.2.0
 
 ### 4.1 Decision and owner
 
-Decision: tag, artefacts, notes, channels. Owner: the user (secrets, announcements).
+Two phases (owner decision 3). **Dev-line landing:** `komomono` to `master` with the workspace at `0.2.0-dev`; no tag, no GitHub release, no
+Scoop/WinGet/Homebrew/schema/docs publication, no announcement; CI on (it builds artefacts as workflow artifacts only, and the
+weekly `nightly` prerelease is NOT enabled until the release phase, because `nightly` is a published release that Scoop-like consumers
+and the update checks could see: disable the `nightly` publish step, or keep it to the dev line only once the owner says so). Consequence for users:
+`releases/latest` stays `v0.1.41`, so the Windows update check, Scoop, WinGet and nixpkgs see no change; only people who build or install
+from `master` see the new tree (1.4). **Release:** a revision on `master` that sets the version to `0.2.0`, then the tag, artefacts and announcement
+(4.2 to 4.7). Decision: tag, artefacts, notes, channels. Owner: the user (secrets, announcements).
 
 ### 4.2 Version and tag policy
 
-- One version: `[workspace.package] version = "0.2.0"` (Cargo.toml:61); the schemas say `v0.2.0` (commit `b8bbad87`); `komorebi-version` is one crate. **Tag `v0.2.0`** annotated, on the commit of `master` that passed the gates, pushed alone: `git tag -a v0.2.0 -m "komorebi 0.2.0" <sha>`; `git push origin v0.2.0`.
+- One version: `[workspace.package] version` was `"0.2.0"` (Cargo.toml:61 at `2185556efba6`) and is `0.2.0-dev` on the line to land (as told by the coordinator, not re-read); the schemas say `v0.2.0` (commit `b8bbad87`): check that schema description text and `Cargo.lock` are consistent with `0.2.0-dev`, and regenerate both in the release revision (E1). `komorebi-version` is one crate. During the dev line **no `v0.2.0*` tag exists** (a `v0.2.0-dev` tag is not proposed either: a `v*` tag triggers the release workflow and Scoop/WinGet bots). **Tag `v0.2.0`** (release phase only) annotated, on the commit of `master` that passed the gates, pushed alone: `git tag -a v0.2.0 -m "komorebi 0.2.0" <sha>`; `git push origin v0.2.0`.
 - Why v0.2.0 is monotonic for everyone: Windows is at 0.1.41, macOS at 0.1.1 (the bar even has a test string for `v0.1.2`), KDE never released. Semver orders 0.2.0 above all.
 - Old tags: leave Windows `v0.1.*` as they are. The macOS tags `v0.1.0`, `v0.1.1`, `v0.1.0-prerelease` collide in name with Windows ones and were not imported; if the commits should be findable by name in the unified repository, create **`macos-v0.1.0-prerelease`, `macos-v0.1.0`, `macos-v0.1.1`** pointing at `ebbd9eee`, `64341e29`, `0cc4ca7f` (which are ancestors, section 0). The old `nightly` tags are moving tags: the unified `nightly` replaces them; the macOS `nightly` commit `6ab9f56a` is not in the work clone's object store (**missing**), so nothing points to it, and it need not.
 - Release note policy: one release `v0.2.0` of the repository with all platforms' assets. The release notes: `kokai release` (what the old workflows used) lists the commits between the previous tag and the tag; with 1195 commits since `v0.1.41` this is useless as notes. Write them by hand (4.5); keep `kokai` only for `nightly`.
@@ -298,7 +319,7 @@ Decision: tag, artefacts, notes, channels. Owner: the user (secrets, announcemen
 | WinGet | `LGUG2Z.komorebi` via `winget-releaser` on a published release | `winget` job | needs the MSI names |
 | Linux (KDE) | zip of `komorebi`, `komorebic` for x86_64 and aarch64 (patchelf'ed to the system glibc loader, as the old `build` job did), `schema.json`; the **NixOS module** and overlay through the flake; no tarball existed | nix (`FLAKE_LINUX_PKGS`), `ubuntu-24.04` and `ubuntu-24.04-arm` | `komorebi-<ver>-x86_64-unknown-linux-gnu.zip` |
 | macOS aarch64 | zip of `komorebi`, `komorebic`, `komorebi-bar` (nix `result/bin/*`), `checksums.txt`, Homebrew formula, the nix-darwin module through the flake | nix on a Mac (`FLAKE_MACOS_PKGS`) | `komorebi-<ver>-aarch64-apple-darwin.zip` (no leading `v`: the old release.yaml included it, `komorebi-v0.1.1-...`; choose the Windows form) |
-| Schemas | `schemas/{windows,linux,macos}/schema*.json` attached to the release and published to the schema host | `just schemapub` (Cloudflare Pages `komorebi`) | see R5 |
+| Schemas | `schemas/{windows,linux,macos}/schema*.json` attached to the release and published to the schema host | `just schemapub` (Cloudflare Pages `komorebi`, copies `schemas/<platform>/`) | per-platform files in the repository (decided); the published names are the open part of R5 |
 | Docs | Windows mkdocs to `gh-pages` (`mkdocs gh-deploy`: the last commit on `gh-pages` is "Deployed 8f982e45 with MkDocs version 1.6.1", i.e. a manual deploy, no workflow builds it); the Starlight reference by `just docgen starlight <repo>` | by hand | `mkdocs.yml` now `exclude_docs` `/linux/`, `/macos/`, `/dev/` (commit `4eae178f`): Linux and macOS docs are NOT on the Windows site; decide where they publish (R3) |
 
 `crates.io`: no crate is published today as far as the repository says; do not start with 0.2.0.
@@ -316,8 +337,9 @@ Read from docs/dev/MIGRATION-SUMMARY.md and docs/dev/known-issues.md; what is NO
 - All: one version number across platforms; `komorebi --version` prints 0.2.0 on Windows, Linux and macOS (the three are one crate, `komorebi-version`); the macOS bar update check now points at the unified repository (class A above).
 - Known issues to list (docs/dev/known-issues.md): items 2, 3 (inherited, pinned by tests), 4 (macOS subscriber stall); the Windows `commands` stall (about 1 in 10-12 sweeps, cause not found); `fullscreen` fails 2 checks on baseline too; the four stale e2e markers.
 
-### 4.6 Steps (release day, after section 5's gates)
+### 4.6 Steps (release phase only, after section 5's release gates; E1 and E2 come first)
 
+E1. A revision `chore(version): 0.2.0` setting the workspace version to `0.2.0` and regenerating the schemas, `Cargo.lock` and the nix options; re-run the gates (5.2) on it. E2. Write `docs/dev/RELEASE-NOTES-0.2.0.md` (4.5). Then:
 1. `git tag -a v0.2.0 <sha>` and push the tag (the `release` workflow builds, with `draft: true` first: the old `release-dry-run` job already creates a draft release; keep the draft step). 2. Check the draft's assets against the pattern table, the checksums, run each binary's `--version` (the old Linux job did this on the runner). 3. Publish the release (the draft turns to published; `winget-releaser` runs on publish). 4. Push the Homebrew formula (formula `komorebi-for-mac`, `url` = the public asset, no token header; delete the "requires a private repository" caveat). 5. `just schemapub` for each platform (R5). 6. `mkdocs gh-deploy`; deploy the Starlight reference. 7. The macOS mirror release in `komorebi-for-mac` (2.5 step 2). 8. Announce (the owner's channels, Discord is named in the README: `README.md` "you can ask on Discord"; nothing is posted by an agent). 9. Close or update the open PR comments; flip the README "not decided yet" text.
 
 ### 4.7 Verify, roll back, irreversible
@@ -328,25 +350,37 @@ Verify: `gh release view v0.2.0`, install each channel on a clean machine (Windo
 
 ### 5.1 Order of the irreversible steps
 
+**Phase 1: DEV-LINE LANDING (`0.2.0-dev`, no tag, no release artefacts, CI on)**
+
 | # | Step | Reversible? | Gate before it (go/no-go) |
 |---|---|---|---|
-| S0 | Rotate the leaked macOS token; decide R1 to R7 | yes | the user's answers |
-| S1 | Freeze `master`, triage the 27 PRs, record `master` sha | yes | nobody pushes `master` meanwhile |
-| S2 | Scratch-repo dry run (5.4) of push, CI, release (with a pre-release tag) | yes (delete the scratch repository) | CI files drafted |
-| S3 | Final tree gates (5.2) | yes | see 5.2 |
-| S4 | Push `komomono` (fast-forward) | **partly**: public disclosure of KDE | R1 = yes |
-| S5 | Review on GitHub, then push `master` (fast-forward) | no (see 1.9) | S3 green on the exact commit; macOS decision (5.2) |
-| S6 | Ruleset, `legacy/windows-0.1` branch, CI enabled (it is, with the files) | yes | |
-| S7 | Tag `v0.2.0`, draft release | draft yes | first `master` CI green; the e2e full run on the tagged commit |
-| S8 | Publish; WinGet/Scoop/tap/schemas/docs | **no once consumed** | the checklist in 5.5 |
-| S9 | Old repos: banner, mirror release, archive KDE | archive yes | after S8 |
-| S10 | Archive macOS repo (+3 months) | yes | N months passed |
+| L0 | Rotate the leaked macOS token; answer R3, R4, R6 to R12 (R1, R2-for-release, R5 mostly decided) | yes | the user's answers |
+| L1 | Freeze `master`, triage the 27 PRs, record `master` sha | yes | nobody pushes `master` meanwhile |
+| L2 | Scratch-repo dry run (5.4) of push and CI (the release part is rehearsed later, E0) | yes (delete the scratch repository) | CI files drafted |
+| L3 | Push `komomono` (fast-forward) | **partly**: the private KDE and macOS histories become public | the owner confirms the push itself (decision 1) |
+| L4 | Review on GitHub, then push `master` (fast-forward) | no (see 1.9) | gates of 5.2 (dev-line column) green on the exact commit |
+| L5 | Ruleset, `legacy/windows-0.1` branch; CI runs on `master` | yes | |
+| L6 | Old repos: README banner pointing at the dev line; nothing archived yet (the release is what users are told to install) | yes | after L5 |
+
+**Phase 2: RELEASE of 0.2.0 (later, when the owner decides)**
+
+| # | Step | Reversible? | Gate before it (go/no-go) |
+|---|---|---|---|
+| E0 | Dry run of the release (draft, `-rc` tag on the scratch repo) | yes | CI green on `master` for the dev line |
+| E1 | Revision setting version `0.2.0`, regenerate schemas and lock | yes until pushed | gates of 5.2 (release column) |
+| E2 | Release notes | yes | |
+| E3 | Tag `v0.2.0`, draft release | draft yes | full Windows e2e and KDE `fast`+`slow` on the tagged commit; macOS decision (R2) |
+| E4 | Mirror macOS release in `komorebi-for-mac` (only if macOS ships) | yes | |
+| E5 | Publish; WinGet/Scoop/tap/schemas/docs; enable `nightly` | **no once consumed** | the release checklist in 5.5 |
+| E6 | Announce | no | after E5 verified |
+| E7 | Archive KDE repo | yes | after E5 |
+| E8 | Archive macOS repo (+N months) | yes | N months passed |
 
 ### 5.2 Gates on the final tree, and the open findings
 
 The gates that exist: Windows e2e (QEMU, section 3), KDE VM `fast` and `slow`, the nix check groups of each platform, native tests (`cargo test --workspace` on Linux: 96 test binaries per the progress log), macOS compile/clippy/unit tests on the Mac Mini (665 passed, 0 failed, 1 ignored at candidate 8). State at the last landing (progress log 2026-11-01 01:08): all gates green on `wip-cand9b` (`21cf0d73` = `wip-main`): KDE VM cand9 16/16, Windows targeted gate cand9 22 scenarios green but for the stale `maximizing.user` marker, nix Windows and KDE groups and packages pass, Mini cand9b green. **What was NOT run on the final tree**: the KDE `slow` tier (18 suites) was never run on any candidate (MIGRATION-SUMMARY.md section 5), the full 47-scenario Windows set on cand9/the cutover stack (cand8 ran it; cand9 ran 22), anything on the cutover stack (renames, version 0.2.0, docs, and the flake rewrite): the renames moved every directory so **every gate must be re-run once on the tip**, since a rebase invalidates a claim (decision 26). The progress log records "verified: Windows clippy, Linux tests 96 binaries, macOS fake-CC check" for the cutover stack, not the e2e or VM or nix builds.
 
-**The macOS hand-check pass** (`docs/dev/macos-hand-check-plan.md`, about 5 hours on a real Mac, never run; blocks 0-8, table line 288 "total about 5 hours"). Options: (1) block the whole release until it is done, (2) ship Windows and Linux 0.2.0 and macOS as "0.2.0 (unverified, `nightly` channel)", (3) ship all three. The macOS code has never run as a daemon in these builds (MIGRATION-SUMMARY.md section 5) and changed substantially (shared Container, registry, settings, hiding): the risk is a user installing a window manager that does not hide windows. **Recommendation: (2).** Ship macOS in 0.2.0 only if the user does the pass first (blocks 0 to 4 are the "could make the daemon unusable" ones: about 2.7 hours: 25+40+45+40+10 min per the block headers); otherwise do not publish the macOS artefact or Homebrew formula under 0.2.0, keep users on `komorebi-for-mac` 0.1.1 (so the old repository stays un-archived), and publish macOS as a separate pre-release tag `v0.2.0-macos-rc1` after the pass. Note the unified version number then has a hole: macOS goes `0.1.1` to `0.2.1`, or the tag `v0.2.0` carries no macOS asset. R2.
+**The macOS hand-check pass** (`docs/dev/macos-hand-check-plan.md`, about 5 hours on a real Mac, never run; blocks 0-8, table line 288 "total about 5 hours"). **It gates the RELEASE, not the dev-line landing** (owner decision 3): landing `0.2.0-dev` on `master` publishes source, not a build anyone is told to install. Release options: (1) block the release until it is done, (2) release Windows and Linux 0.2.0 and macOS later, (3) release all three. The macOS code has never run as a daemon in these builds (MIGRATION-SUMMARY.md section 5) and changed substantially (shared Container, registry, settings, hiding): the risk is a user installing a window manager that does not hide windows. **Recommendation: (2)** unless the user does the pass first (blocks 0 to 4 are the "could make the daemon unusable" ones: about 2.7 hours: 25+40+45+40+10 min per the block headers); otherwise do not publish the macOS artefact or Homebrew formula under 0.2.0, keep macOS users on `komorebi-for-mac` 0.1.1 (so the old repository stays un-archived) and publish macOS as a separate pre-release after the pass. The unified version then has a hole: macOS goes `0.1.1` to `0.2.1`, or `v0.2.0` carries no macOS asset. R2. **Gates by phase:** dev line = the existing green gates re-run on the tip after the renames and the flake (Windows e2e targeted set, KDE VM `fast`, nix groups, native tests, Mac Mini compile/unit); release = the dev-line gates plus the full 47-scenario Windows set, KDE `slow`, and the macOS pass if macOS ships.
 
 **Open findings as release blockers or not** (docs/dev/known-issues.md, build-and-test.md section 6, progress log):
 - not blockers (inherited behaviour, pinned by tests): known-issues 2 (`Monitor::focus_workspace` overwrites a name), 3 (`remove_container` focus), 4 (macOS subscriber with no write timeout), mention in notes;
@@ -359,31 +393,31 @@ The gates that exist: Windows e2e (QEMU, section 3), KDE VM `fast` and `slow`, t
 All commands assume `~/komorebi` is the user's repository (jj colocated), `origin` = GitHub. They are written down, not run.
 
 ```sh
-# S1  record the base and freeze (nothing is pushed)
+# L1  record the base and freeze (nothing is pushed)
 git -C ~/komorebi fetch origin
 git -C ~/komorebi rev-parse origin/master                     # expect 72aa4c97ade72b802a008bdba4bf59cca04df665 (or newer: then merge, do not fast-forward)
 gh api repos/LGUG2Z/komorebi/branches/master --jq .commit.sha
 
-# S3  import the final stack as ONE bookmark (D1 in the decisions log describes the work clone)
+# L3  (before the push) import the final stack as ONE bookmark (D1 in the decisions log describes the work clone)
 cd ~/komorebi
 jj git remote add work /home/jado/komomono-work/komorebi        # once
 jj git fetch --remote work --branch wip-cutover-final           # bookmark that the coordinator sets after flake-one lands
 jj log -r 'komomono@origin..wip-cutover-final@work' --no-graph -T 'commit_id.short()++"\n"' | wc -l   # about 1110 + the cutover stack
 jj log -r 'wip-cutover-final@work..komomono@origin'             # must be EMPTY (the local line contains origin's komomono)
 
-# S4  push komomono: a fast-forward of origin's komomono, never --force
+# L3  push komomono: a fast-forward of origin's komomono, never --force
 jj bookmark set komomono -r wip-cutover-final@work               # a forward move; jj refuses a sideways move without --allow-backwards
 jj git push --bookmark komomono                                  # pushes ONLY this bookmark
 # equivalent with git, as a double check that it is a fast-forward:
 git merge-base --is-ancestor origin/komomono "$(jj log -r komomono --no-graph -T commit_id)" && echo fast-forward
 
-# S5  after sign-off: master gets the same commit (fast-forward)
+# L4  after sign-off: master gets the same commit (fast-forward)
 jj bookmark set master -r komomono
 jj git push --bookmark master                                    # rejected if master moved: STOP, do not force
 git branch legacy/windows-0.1 72aa4c97ade72b802a008bdba4bf59cca04df665
 git push origin legacy/windows-0.1
 
-# S7  the tag
+# E3  (RELEASE phase only, never during the dev line) the tag
 git tag -a v0.2.0 -m "komorebi 0.2.0" "$(jj log -r master --no-graph -T commit_id)"
 git push origin v0.2.0
 # macOS historic tags, optional:
@@ -393,22 +427,26 @@ git tag macos-v0.1.1 0cc4ca7f67d79da0d59d603dde2f6b4445fec85b && git push origin
 
 ### 5.4 Dry run on a scratch repository (proposed, not created)
 
-Create (by the user) a private repository `LGUG2Z/komorebi-dryrun` (or a fork under another account, since forks of a public repo are public) and: (1) push the same single commit as `master`, two tags `v0.2.0-rc1` and `nightly`; (2) add the Actions secrets as dummies (`WINGET_TOKEN=dummy`) so that jobs which publish fail at the publish step, not before; (3) give it the self-hosted runner label, a Linux KVM-capable hosted runner (private repositories may land on a host with no `/dev/kvm`: that is the failure `rerun-no-kvm` was written for), a macOS runner; (4) run the whole `ci` once, the nightly, a release from the `-rc1` tag with `draft: true`; (5) check the checksum file with Scoop's rule by running `scoop`'s `checkver`/`autoupdate` locally (`checkver.ps1` against the scratch release) and `winget-releaser` in `--dry-run` style input if available **(unknown)**; (6) `git merge-tree` of each of the 19 open community PR heads against the pushed `master` to count clean merges; (7) delete the repository. Cost: private-repo Actions minutes are billed on a Free plan: **(unknown)**; to avoid it make it public for the hour and delete it, but that publishes KDE history (R1), so do not do that before R1 is answered. A tree with the KDE source removed would not be the tree under test.
+Create (by the user) a private repository `LGUG2Z/komorebi-dryrun` (or a fork under another account, since forks of a public repo are public) and: (1) push the same single commit as `master`, two tags `v0.2.0-rc1` and `nightly`; (2) add the Actions secrets as dummies (`WINGET_TOKEN=dummy`) so that jobs which publish fail at the publish step, not before; (3) give it the self-hosted runner label, a Linux KVM-capable hosted runner (private repositories may land on a host with no `/dev/kvm`: that is the failure `rerun-no-kvm` was written for), a macOS runner; (4) run the whole `ci` once, the nightly, a release from the `-rc1` tag with `draft: true`; (5) check the checksum file with Scoop's rule by running `scoop`'s `checkver`/`autoupdate` locally (`checkver.ps1` against the scratch release) and `winget-releaser` in `--dry-run` style input if available **(unknown)**; (6) `git merge-tree` of each of the 19 open community PR heads against the pushed `master` to count clean merges; (7) delete the repository. Cost: private-repo Actions minutes are billed on a Free plan: **(unknown)**; to avoid it make it public for the hour and delete it, but that publishes KDE history: do not do that before the owner has confirmed the push (L3). A tree with the KDE source removed would not be the tree under test.
 
 ### 5.5 Go / no-go checklists
 
-Before **S4** (push `komomono`): R1 answered yes; token rotated; the old-hash script (1.7) on the work clone gives four `ok`; `jj log -r 'wip-cutover-final@work..komomono@origin'` empty; the flake has landed (names resolved) and the docs name its outputs; the working copy of the exact commit has no `*.log`, no secrets (`git grep -nIE '(ghp_|github_pat_|x-access-token)' <sha>` returns nothing: **not run, run it**) and the tree has no large artefacts (the big files live under `target/`, not tracked).
-Before **S5** (push `master`): S4 reviewed in the GitHub compare view; CI files dry-run green on the scratch repo; every gate of 5.2 re-run on the tip commit and logged; the PR triage done; `master` sha unchanged since S1; R2 (macOS) and R3 (docs host) answered; a person is ready to watch the first CI run.
-Before **S8** (publish): draft assets match 4.3; checksums verified; MSI major-upgrade install tested over 0.1.41 in the Windows e2e guest or a VM; the Linux zip's binaries run on a plain Ubuntu runner (`--version`); macOS decision applied; release notes include the migration skeleton (4.5) and the known issues; `WINGET_TOKEN` valid.
+**Dev-line landing checklists**
+Before **L3** (push `komomono`): the owner has confirmed the push (decision 1: the KDE and macOS private histories become public); token rotated; the old-hash script (1.7) on the work clone gives four `ok`; `jj log -r 'wip-cutover-final@work..komomono@origin'` empty; the flake has landed (names resolved) and the docs name its outputs; the version on the line is `0.2.0-dev`; no secrets in the pushed tree (`git grep -nIE '(ghp_|github_pat_|x-access-token)' <sha>` returns nothing: **not run, run it**) and no large artefacts tracked.
+Before **L4** (push `master`): L3 reviewed in the GitHub compare view; CI files dry-run green on the scratch repo with the `nightly` publish and any release/winget/tap job disabled or unable to fire (no `v*` tag; `nightly` publish step off); the dev-line gates of 5.2 re-run on the tip commit and logged; the PR triage done; `master` sha unchanged since L1; R3 (docs host) answered; a person is ready to watch the first CI run. The macOS hand-check is NOT required here.
+
+**Release checklists (later)**
+Before **E3** (tag): E1 revision gated again on its own tip (a rebase invalidates a claim); full Windows e2e (47 scenarios) and KDE VM `fast` and `slow` on the exact commit; R2 answered, and if macOS ships, the macOS hand-check blocks 0 to 8 (at least 0 to 4) done and logged; known issues entries written (R4); release notes written.
+Before **E5** (publish): draft assets match 4.3; checksums verified; MSI major-upgrade install tested over 0.1.41 in the Windows e2e guest or a VM; the Linux zip's binaries run on a plain Ubuntu runner (`--version`); macOS decision applied; the notes include the migration skeleton (4.5) and known issues; `WINGET_TOKEN` valid; the published schema names (R5) decided.
 
 ## 6. Risks and open decisions for the user (answer in one line each)
 
-1. **R1. Publish the KDE source and history publicly?** `komorebi-for-kde` is private today; pushing the line to `LGUG2Z/komorebi` makes it public for good, and macOS "ongoing development" lives in the private `KomoCorp/komorebi-for-mac` for sponsors. Recommendation: yes for KDE (0 stars, 0 forks, one author) **only if** you do not need a sponsors-only repository for KDE/macOS; if you do, keep a private mirror `KomoCorp/komorebi` that tracks `master` and carries sponsor nightlies, and keep `master` public. Answer: public or not, and private mirror or not.
-2. **R2. May 0.2.0 ship macOS before the 5-hour hand-check?** Recommendation: no; ship Windows and Linux 0.2.0 first, macOS as a pre-release after you run blocks 0 to 4 at least; keep `komorebi-for-mac` un-archived until then.
+1. **R1. (ANSWERED by the owner: no private sponsors repository.)** There is no private mirror and no sponsors-only early access; the KDE and macOS histories become public with the push. Remaining one-line question: confirm the push itself at L3 (KDE has 0 stars, 0 forks, one author; irreversible once pushed).
+2. **R2. May the macOS artefact ship in the 0.2.0 RELEASE before the 5-hour hand-check?** (It does not gate the dev-line landing.) Recommendation: no; release Windows and Linux first, macOS as a pre-release after you run blocks 0 to 4 at least; keep `komorebi-for-mac` un-archived until then.
 3. **R3. Where do the Linux and macOS docs publish?** The Windows site excludes them (`exclude_docs`). Recommendation: the Starlight site (`komorebi-starlight`) for all three, GitHub Pages `gh-pages` stays Windows-only until it is ready.
 4. **R4. Are the known failures release blockers?** Recommendation: not blockers; re-mark the four stale e2e markers and the two `fullscreen` checks before the first nightly, ship with the lock-hold stall and `fullscreen` listed in the notes.
-5. **R5. Schema URL scheme.** One version now has three platform schemas that would all be `komorebi.0.2.0.schema.json`. Recommendation: `komorebi.windows.0.2.0.schema.json` style per platform on the existing hosts, keep `komorebi-for-mac.lgug2z.com` alive for 0.1.x, and keep root Windows copies `schema*.json` in the repository for old `master/` URLs.
-6. **R6. Do the `[FEAT]:` sponsor-only policy and the Komorebi License 2.0.0 apply to Linux and macOS?** Recommendation: yes (one licence, one policy) unless you want KDE open.
+5. **R5. (MOSTLY DECIDED: schemas are per-platform files, `schemas/{windows,linux,macos}/`, done.)** Open sub-questions: (a) do root `schema.json`, `schema.asc.json`, `schema.bar.json` (Windows) stay as generated copies for old `.../master/schema*.json` URLs, including the one `komorebic quickstart` writes into users' `applications.json`? Recommendation: yes, with a freshness test; (b) what are the published file names per platform? Recommendation: `komorebi.<platform>.<version>.schema.json` style on the existing hosts, keep `komorebi-for-mac.lgug2z.com` alive for 0.1.x. (b) is only needed at the release.
+6. **R6. (OPEN) What happens to the `[FEAT]:` auto-close policy and the Komorebi License 2.0.0 now that there is one public project and no private tier?** The `feature-check.yaml` message names a paid-access condition that no longer matches; the text must change whatever is decided. Recommendation: one licence and one policy for all three platforms, with the message text rewritten by the owner before CI goes on.
 7. **R7. N for the old macOS repository and the name of the Homebrew formula.** Recommendation: 3 months, formula name unchanged for 0.2.0.
 8. **R8. Freeze and PRs.** Recommendation: freeze `master` now, merge the ready PRs, comment the path map on the rest, close the 8 dependabot PRs.
 9. **R9. CI hosting.** Hosted Linux/macOS plus your own machine for Windows e2e (needs the evaluation ISO that expires every 90 days). Recommendation: yes; Windows e2e stays off fork PRs.
@@ -668,7 +706,7 @@ jobs:
 ```
 Whether `e2e-windows` with no scenario names runs the full set is **not verified** (its usage line says `e2e-windows OUT SCENARIO...`, flake.nix:456): list the 47 names, or add an `all` word, before using it.
 
-### A.3 `.github/workflows/release.yaml`
+### A.3 `.github/workflows/release.yaml` (RELEASE phase: leave this file out of the dev-line landing, or keep only the `ci` call; the `schedule` and `v*` triggers and the `nightly` publish must not fire until the release phase)
 
 ```yaml
 name: release
