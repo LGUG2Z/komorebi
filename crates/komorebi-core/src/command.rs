@@ -10,11 +10,15 @@
 
 use crate::Monitor;
 use crate::MonitorPlatform;
+use crate::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_config::behaviour::WindowContainerBehaviour;
 use komorebi_layouts::CycleDirection;
 use komorebi_layouts::OperationDirection;
 use komorebi_protocol::message::SocketMessage;
+use komorebi_protocol::types::MonocleFocusBehaviour;
+use komorebi_protocol::types::MoveBehaviour;
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
 
@@ -402,4 +406,211 @@ pub fn focus_workspace_numbers<H: CommandHost>(
 
     host.focus_workspace(workspace_idx)?;
     Ok(())
+}
+
+/// What the commands on the focused window need from the window manager, beyond [`CommandHost`]:
+/// the moves and focus changes by direction (each daemon's own text, they differ in the borders,
+/// the animation guard and the window API) and the layout of the focused workspace.
+pub trait WindowCommandHost: CommandHost {
+    /// Moves the focused container in `direction` (tiling layer).
+    fn move_container_in_direction(&mut self, direction: OperationDirection) -> eyre::Result<()>;
+
+    /// Moves the focused floating window in `direction` (floating layer).
+    fn move_floating_window_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()>;
+
+    /// Focuses the container in `direction` (tiling layer).
+    fn focus_container_in_direction(&mut self, direction: OperationDirection) -> eyre::Result<()>;
+
+    /// Focuses the floating window in `direction` (floating layer).
+    fn focus_floating_window_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()>;
+
+    /// Focuses the next or previous container (tiling layer).
+    fn focus_container_in_cycle_direction(&mut self, direction: CycleDirection)
+    -> eyre::Result<()>;
+
+    /// Focuses the next or previous floating window (floating layer).
+    fn focus_floating_window_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()>;
+
+    /// Preselects the place in `direction` of the focused container for the next window.
+    fn preselect_container_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()>;
+
+    /// Moves the focused container to the front of the layout.
+    fn promote_container_to_front(&mut self) -> eyre::Result<()>;
+
+    /// Lays the focused workspace out again (`Workspace::update`).
+    fn update_focused_workspace_layout(&mut self) -> eyre::Result<()>;
+}
+
+fn focused_layer<H: CommandHost>(host: &H) -> eyre::Result<WorkspaceLayer> {
+    Ok(host
+        .focused_monitor()
+        .and_then(|monitor| monitor.focused_workspace())
+        .ok_or_eyre("there is no workspace")?
+        .layer)
+}
+
+/// Moves the focused container (tiling layer) or floating window (floating layer) in `direction`
+pub fn move_window<H: WindowCommandHost>(
+    host: &mut H,
+    direction: OperationDirection,
+) -> eyre::Result<()> {
+    match focused_layer(host)? {
+        WorkspaceLayer::Tiling => host.move_container_in_direction(direction),
+        WorkspaceLayer::Floating => host.move_floating_window_in_direction(direction),
+    }
+}
+
+/// Focuses the container (tiling layer) or floating window (floating layer) in `direction`
+pub fn focus_window<H: WindowCommandHost>(
+    host: &mut H,
+    direction: OperationDirection,
+) -> eyre::Result<()> {
+    match focused_layer(host)? {
+        WorkspaceLayer::Tiling => host.focus_container_in_direction(direction),
+        WorkspaceLayer::Floating => host.focus_floating_window_in_direction(direction),
+    }
+}
+
+/// Focuses the next or previous container (tiling layer) or floating window (floating layer)
+pub fn cycle_focus_window<H: WindowCommandHost>(
+    host: &mut H,
+    direction: CycleDirection,
+) -> eyre::Result<()> {
+    match focused_layer(host)? {
+        WorkspaceLayer::Tiling => host.focus_container_in_cycle_direction(direction),
+        WorkspaceLayer::Floating => host.focus_floating_window_in_cycle_direction(direction),
+    }
+}
+
+/// Preselects the place in `direction` of the focused container for the next window, on the
+/// tiling layer and only when the workspace has no preselect yet, and lays the workspace out
+pub fn preselect_direction<H: WindowCommandHost>(
+    host: &mut H,
+    direction: OperationDirection,
+) -> eyre::Result<()> {
+    let workspace = host
+        .focused_monitor()
+        .and_then(|monitor| monitor.focused_workspace())
+        .ok_or_eyre("there is no workspace")?;
+
+    if workspace.preselected_container_idx.is_some() {
+        tracing::warn!("ignoring command as this workspace already has a direction preselect set");
+    } else if matches!(workspace.layer, WorkspaceLayer::Tiling) {
+        host.preselect_container_in_direction(direction)?;
+        host.update_focused_workspace_layout()?;
+    }
+
+    Ok(())
+}
+
+/// Forgets the preselect of the focused workspace and lays it out
+pub fn cancel_preselect<H: WindowCommandHost>(host: &mut H) -> eyre::Result<()> {
+    host.focused_monitor_mut()
+        .and_then(|monitor| monitor.focused_workspace_mut())
+        .ok_or_eyre("there is no workspace")?
+        .cancel_preselect();
+    host.update_focused_workspace_layout()
+}
+
+/// Focuses the container in `direction`, then moves it to the front of the layout
+pub fn promote_window<H: WindowCommandHost>(
+    host: &mut H,
+    direction: OperationDirection,
+) -> eyre::Result<()> {
+    host.focus_container_in_direction(direction)?;
+    host.promote_container_to_front()
+}
+
+/// The index of the workspace called `name` and the monitor that has it, searching the monitors in
+/// order
+pub fn monitor_workspace_index_by_name<H: CommandHost>(
+    host: &H,
+    name: &str,
+) -> Option<(usize, usize)> {
+    host.monitors()
+        .iter()
+        .enumerate()
+        .find_map(|(monitor_idx, monitor)| {
+            monitor
+                .workspaces()
+                .iter()
+                .position(|workspace| workspace.name.as_deref() == Some(name))
+                .map(|workspace_idx| (monitor_idx, workspace_idx))
+        })
+}
+
+/// Focuses the workspace called `name`, on the monitor that has it
+pub fn focus_named_workspace<H: CommandHost>(host: &mut H, name: &str) -> eyre::Result<()> {
+    if let Some((monitor_idx, workspace_idx)) = monitor_workspace_index_by_name(host, name) {
+        host.focus_monitor(monitor_idx)?;
+        host.focus_workspace(workspace_idx)?;
+    }
+    Ok(())
+}
+
+/// Moves the focused container to the workspace called `name`, on whichever monitor has it, and
+/// follows it when `follow` is set
+pub fn move_container_to_named_workspace<H: MonitorCommandHost>(
+    host: &mut H,
+    name: &str,
+    follow: bool,
+) -> eyre::Result<()> {
+    if let Some((monitor_idx, workspace_idx)) = monitor_workspace_index_by_name(host, name) {
+        let direction = host.direction_from_monitor_idx(monitor_idx);
+        host.move_container_to_monitor(monitor_idx, Some(workspace_idx), follow, direction)?;
+    }
+    Ok(())
+}
+
+/// The settings the behaviour toggles flip.
+pub trait BehaviourCommandHost {
+    /// Whether a new window gets a container of its own or joins the focused one.
+    fn window_container_behaviour(&self) -> WindowContainerBehaviour;
+    /// Sets [`BehaviourCommandHost::window_container_behaviour`].
+    fn set_window_container_behaviour(&mut self, behaviour: WindowContainerBehaviour);
+    /// What a cross-monitor move does with the container it meets.
+    fn cross_monitor_move_behaviour(&self) -> MoveBehaviour;
+    /// Sets [`BehaviourCommandHost::cross_monitor_move_behaviour`].
+    fn set_cross_monitor_move_behaviour(&mut self, behaviour: MoveBehaviour);
+    /// What focusing does while a monocle container is in front.
+    fn monocle_focus_behaviour(&self) -> MonocleFocusBehaviour;
+    /// Sets [`BehaviourCommandHost::monocle_focus_behaviour`].
+    fn set_monocle_focus_behaviour(&mut self, behaviour: MonocleFocusBehaviour);
+}
+
+/// Flips between creating a container for a new window and appending it to the focused one
+pub fn toggle_window_container_behaviour<H: BehaviourCommandHost>(host: &mut H) {
+    host.set_window_container_behaviour(match host.window_container_behaviour() {
+        WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
+        WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
+    });
+}
+
+/// Flips a cross-monitor move between swapping and inserting; `NoOp` stays as it is
+pub fn toggle_cross_monitor_move_behaviour<H: BehaviourCommandHost>(host: &mut H) {
+    match host.cross_monitor_move_behaviour() {
+        MoveBehaviour::Swap => host.set_cross_monitor_move_behaviour(MoveBehaviour::Insert),
+        MoveBehaviour::Insert => host.set_cross_monitor_move_behaviour(MoveBehaviour::Swap),
+        _ => {}
+    }
+}
+
+/// Flips the focus behaviour of a monocle container between cycling and doing nothing
+pub fn toggle_monocle_focus_behaviour<H: BehaviourCommandHost>(host: &mut H) {
+    host.set_monocle_focus_behaviour(match host.monocle_focus_behaviour() {
+        MonocleFocusBehaviour::Cycle => MonocleFocusBehaviour::NoOp,
+        MonocleFocusBehaviour::NoOp => MonocleFocusBehaviour::Cycle,
+    });
 }
