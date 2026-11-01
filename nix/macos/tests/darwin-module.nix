@@ -163,7 +163,7 @@ let
   testKomorebiConfigFile = evalDarwinModule {
     services.komorebi = {
       enable = true;
-      configFile = ../../docs/komorebi.example.json;
+      configFile = ../../../docs/macos/komorebi.example.json;
     };
   };
 
@@ -171,7 +171,7 @@ let
   testBarConfigFile = evalDarwinModule {
     services.komorebi-bar = {
       enable = true;
-      bars.main.configFile = ../../docs/komorebi.bar.example.json;
+      bars.main.configFile = ../../../docs/macos/komorebi.bar.example.json;
     };
   };
 

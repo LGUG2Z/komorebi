@@ -65,7 +65,7 @@ let
     skhd's format. The repository is mounted at /repo: edit komorebi there and
     build it in this machine with `cargo`.
 
-    ${builtins.readFile ../../docs/skhdrc.sample}
+    ${builtins.readFile ../../../docs/linux/skhdrc.sample}
   '';
 
   # the file the module starts the daemon with, which is the `--config` of its command line, and
@@ -83,7 +83,7 @@ let
       }
       {
         name = "skhdrc";
-        path = ../../docs/skhdrc.sample;
+        path = ../../../docs/linux/skhdrc.sample;
       }
     ];
 
@@ -271,7 +271,7 @@ in
     # the module's default mode, with the sample bindings of docs/skhdrc.sample
     keybindings = {
       format = "skhd";
-      file = ../../docs/skhdrc.sample;
+      file = ../../../docs/linux/skhdrc.sample;
     };
   };
 

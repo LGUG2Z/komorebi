@@ -15,11 +15,11 @@ let
 in
 pkgs.runCommand "keybindings-fixtures"
   {
-    fixtures = ../../komorebi-hotkeys/tests/fixtures;
+    fixtures = ../../../komorebi-hotkeys/tests/fixtures;
     expected = ./keybindings.expected;
     samples = lib.fileset.toSource {
-      root = ../../docs;
-      fileset = lib.fileset.fileFilter (file: file.hasExt "sample") ../../docs;
+      root = ../../../docs/linux;
+      fileset = lib.fileset.fileFilter (file: file.hasExt "sample") ../../../docs/linux;
     };
   }
   ''

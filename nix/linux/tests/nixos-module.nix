@@ -344,13 +344,13 @@ let
 
   withFile = keybindings {
     format = "sxhkd";
-    file = ../../komorebi-hotkeys/tests/fixtures/plain.sxhkdrc;
+    file = ../../../komorebi-hotkeys/tests/fixtures/plain.sxhkdrc;
   };
 
   textAndFile = keybindings {
     format = "skhd";
     text = "alt - h : komorebic focus left\n";
-    file = ../../komorebi-hotkeys/tests/fixtures/plain.skhdrc;
+    file = ../../../komorebi-hotkeys/tests/fixtures/plain.skhdrc;
   };
 
   # the typed `config` and the key bindings are two parts of one command line

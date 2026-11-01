@@ -6,7 +6,7 @@
   script = "../../keys-corpus.py";
   node.services.komorebi.keybindings = {
     format = "whkd";
-    file = ../../../../../komorebi-hotkeys/tests/fixtures/vm.whkdrc;
+    file = ../../../../../../komorebi-hotkeys/tests/fixtures/vm.whkdrc;
     mode = "auto";
   };
 }

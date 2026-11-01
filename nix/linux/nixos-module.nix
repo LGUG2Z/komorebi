@@ -39,7 +39,7 @@ let
     }:
     pkgs.runCommand "validated-${name}" { nativeBuildInputs = [ pkgs.check-jsonschema ]; } ''
       grep -v '^\s*//' ${jsonFile} > clean.json
-      check-jsonschema --schemafile ${../schema.json} clean.json
+      check-jsonschema --schemafile ${../../schemas/linux/schema.json} clean.json
       cp clean.json $out
     '';
 

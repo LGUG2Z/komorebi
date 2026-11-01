@@ -53,8 +53,8 @@ let
     builtins.toJSON configs.komorebi-bar-example
   );
 
-  schemaPath = ../../schema.json;
-  barSchemaPath = ../../schema.bar.json;
+  schemaPath = ../../../schemas/macos/schema.json;
+  barSchemaPath = ../../../schemas/macos/schema.bar.json;
 
 in
 pkgs.runCommand "nix-options-validation"

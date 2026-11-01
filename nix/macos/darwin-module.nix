@@ -11,8 +11,8 @@ let
 
   jsonFormat = pkgs.formats.json { };
 
-  komorebiSchemaPath = ../schema.json;
-  komorebiBarSchemaPath = ../schema.bar.json;
+  komorebiSchemaPath = ../../schemas/macos/schema.json;
+  komorebiBarSchemaPath = ../../schemas/macos/schema.bar.json;
 
   filterNulls =
     value:

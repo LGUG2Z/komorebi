@@ -6,7 +6,7 @@
   script = "../../keys-corpus.py";
   node.services.komorebi.keybindings = {
     format = "skhd";
-    file = ../../../../../komorebi-hotkeys/tests/fixtures/vm.skhdrc;
+    file = ../../../../../../komorebi-hotkeys/tests/fixtures/vm.skhdrc;
     mode = "auto";
   };
 }

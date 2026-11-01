@@ -104,7 +104,7 @@ let
     text = ''
       export WSL2_PROBE_GUEST=${guest}
       export WSL2_PROBE_REV=${rev}
-      ${builtins.readFile ../../scripts/wsl2-probe.sh}
+      ${builtins.readFile ../../../scripts/linux/wsl2-probe.sh}
     '';
     meta = {
       description = "Probes a NixOS-WSL2 machine for KVM, WSLg, a GPU and RDP, for a Plasma guest";

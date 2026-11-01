@@ -101,9 +101,9 @@ let
 
   # the file has comment lines (komorebi reads them), which the schema checker does not
   exampleJson = pkgs.runCommand "komorebi.example.json" { } ''
-    grep -v '^\s*//' ${../../docs/komorebi.example.json} > $out
+    grep -v '^\s*//' ${../../../docs/linux/komorebi.example.json} > $out
   '';
-  schema = ../../schema.json;
+  schema = ../../../schemas/linux/schema.json;
 in
 pkgs.runCommand "nix-options-validation"
   {
