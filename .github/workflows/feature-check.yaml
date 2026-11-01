@@ -19,7 +19,7 @@ jobs:
             
             if (issue.title.startsWith('[FEAT]: ')) {
               const message = `
-                Feature requests on this repository are only open to current [GitHub sponsors](https://github.com/sponsors/LGUG2Z) on the $5/month tier and above, people with a valid [individual commercial use license](https://lgug2z.com/software/komorebi), and approved contributors. 
+                Feature requests for all platforms (Windows, Linux and macOS) on this repository are only open to current [GitHub sponsors](https://github.com/sponsors/LGUG2Z) on the $5/month tier and above, people with a valid [individual commercial use license](https://lgug2z.com/software/komorebi), and approved contributors. See [Sponsorship for Personal Use](https://github.com/LGUG2Z/komorebi#sponsorship-for-personal-use) for details.
             
                 This issue has been automatically closed until one of those pre-requisites can be validated.
               `.replace(/^\s+/gm, ''); 
