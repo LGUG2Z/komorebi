@@ -6,7 +6,6 @@
 //! was), and what it does differently from the shared monitor is [`MonitorExt`].
 
 use crate::container::Container;
-use crate::container::ContainerExt;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::OperationDirection;
@@ -396,7 +395,7 @@ impl MonitorExt for Monitor {
 
             if target_workspace.monocle_container.is_some() {
                 for container in target_workspace.containers_mut() {
-                    container.restore_focused_window()?;
+                    container.restore()?;
                 }
 
                 for window in target_workspace.floating_windows_mut() {
@@ -454,7 +453,7 @@ impl MonitorExt for Monitor {
 
         if target_workspace.monocle_container.is_some() {
             for container in target_workspace.containers_mut() {
-                container.restore_focused_window()?;
+                container.restore()?;
             }
 
             target_workspace.reintegrate_monocle_container()?;

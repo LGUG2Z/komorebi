@@ -1,14 +1,11 @@
 //! [`Container`], the windows that share one tile of a workspace's layout.
 //!
 //! The container is [`komorebi_core::Container`], shared with the other komorebi daemons, over the
-//! macOS [`Window`]. What it cannot share is how a window is hidden: macOS needs the monitor's
-//! `WindowHidingPosition` (and for a whole container the bounds of its display) with every hide,
-//! and a hide can fail. Those four operations are [`ContainerExt`], under names the shared
-//! container does not use (`add_window_at`, `load_focused_window_at`, `hide_on`,
-//! `restore_focused_window`), because an inherent method of the shared type would hide an
-//! extension method of the same name.
+//! macOS [`Window`]. How a window is hidden is [`MacosHideSpot`]: the monitor's `WindowHidingPosition`
+//! and, for the containers of a workspace that is being hidden, the bounds of its display. The
+//! workspace gives it with `Workspace::hide_spot` and every container call takes it, as on the other
+//! platforms (where it is `()`).
 
-use crate::accessibility::error::AccessibilityError;
 use crate::core::WindowHidingPosition;
 use crate::window::Window;
 use color_eyre::eyre;
@@ -94,120 +91,6 @@ impl komorebi_core::WorkspaceWindow for Window {
     }
 }
 
-/// What a macOS container does that the shared one cannot: hide and restore its windows with the
-/// monitor's hiding position, and say when that failed.
-pub trait ContainerExt {
-    /// Puts a window at the back of the container and gives it the front, hiding every other
-    /// window of the container at `hiding_position`
-    fn add_window_at(
-        &mut self,
-        window: &Window,
-        hiding_position: WindowHidingPosition,
-    ) -> eyre::Result<()>;
-
-    /// Hides the unfocused windows of the container and restores the focused one. This function
-    /// is used to make sure we update the window that should be shown on a stack. If the container
-    /// isn't a stack this function won't change anything.
-    fn load_focused_window_at(
-        &mut self,
-        hiding_position: WindowHidingPosition,
-    ) -> Result<(), AccessibilityError>;
-
-    /// Hide the windows of the container, other than `omit`, on `screen`, the bounds of the display
-    /// of the monitor that has the container, or on whichever display they are found on if that is
-    /// not given
-    fn hide_on(
-        &mut self,
-        hiding_position: WindowHidingPosition,
-        omit: Option<u32>,
-        screen: Option<CGRect>,
-    ) -> eyre::Result<()>;
-
-    /// Restores the window in front, which is the one that is shown when the container is a stack
-    fn restore_focused_window(&mut self) -> eyre::Result<()>;
-}
-
-impl ContainerExt for Container {
-    fn add_window_at(
-        &mut self,
-        window: &Window,
-        hiding_position: WindowHidingPosition,
-    ) -> eyre::Result<()> {
-        self.windows_mut().push_back(window.clone());
-        self.focus_window(self.windows().len().saturating_sub(1));
-
-        if !cfg!(test) {
-            let focused_window_idx = self.focused_window_idx();
-
-            for (i, window) in self.windows_mut().iter_mut().enumerate() {
-                if i != focused_window_idx {
-                    window.hide(hiding_position)?;
-                }
-            }
-        } else {
-            tracing::info!("not hiding windows to {hiding_position} during test execution")
-        }
-
-        Ok(())
-    }
-
-    fn load_focused_window_at(
-        &mut self,
-        hiding_position: WindowHidingPosition,
-    ) -> Result<(), AccessibilityError> {
-        let focused_idx = self.focused_window_idx();
-
-        if !cfg!(test) {
-            for (i, window) in self.windows_mut().iter_mut().enumerate() {
-                if i == focused_idx {
-                    window.restore()?;
-                } else {
-                    window.hide(hiding_position)?;
-                }
-            }
-        } else {
-            tracing::info!(
-                "not hiding/restoring windows to/from {hiding_position} during test execution"
-            )
-        }
-
-        Ok(())
-    }
-
-    fn hide_on(
-        &mut self,
-        hiding_position: WindowHidingPosition,
-        omit: Option<u32>,
-        screen: Option<CGRect>,
-    ) -> eyre::Result<()> {
-        for window in self.windows_mut().iter_mut().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide
-                && let Some(omit) = omit
-                && omit != window.id
-            {
-                should_hide = true
-            }
-
-            // a window that has gone away must not leave the ones after it in view
-            if should_hide && let Err(error) = window.hide_on(hiding_position, screen) {
-                tracing::warn!("failed to hide window {}: {error}", window.id);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn restore_focused_window(&mut self) -> eyre::Result<()> {
-        if let Some(window) = self.focused_window_mut() {
-            window.restore()?;
-        }
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,7 +103,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window(Window::from(i), Default::default())
                 .unwrap();
         }
 
@@ -239,7 +122,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window(Window::from(i), Default::default())
                 .unwrap();
         }
 
@@ -259,7 +142,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window(Window::from(i), Default::default())
                 .unwrap();
         }
 
@@ -281,7 +164,7 @@ mod tests {
         let mut container = Container::default();
 
         container
-            .add_window_at(&Window::from(1), WindowHidingPosition::BottomLeft)
+            .add_window(Window::from(1), Default::default())
             .unwrap();
 
         assert_eq!(container.windows().len(), 1);
@@ -295,7 +178,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window(Window::from(i), Default::default())
                 .unwrap();
         }
 
@@ -321,7 +204,7 @@ mod tests {
 
         for i in 0..3 {
             container
-                .add_window_at(&Window::from(i), WindowHidingPosition::BottomLeft)
+                .add_window(Window::from(i), Default::default())
                 .unwrap();
         }
 

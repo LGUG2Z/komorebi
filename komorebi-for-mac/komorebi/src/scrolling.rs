@@ -13,7 +13,6 @@
 
 use crate::arrival;
 use crate::container::Container;
-use crate::container::ContainerExt;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::Rect;
@@ -60,7 +59,7 @@ fn show(container: &mut Container) -> eyre::Result<()> {
     });
 
     #[cfg(not(test))]
-    container.restore_focused_window()?;
+    container.restore()?;
 
     Ok(())
 }
@@ -632,7 +631,7 @@ impl WorkspaceScrolling for Workspace {
     }
 
     fn stack_scrolling_column(&mut self, column: &[String]) -> eyre::Result<()> {
-        let hiding_position = self.state.window_hiding_position;
+        let spot = self.hide_spot();
 
         let focused_window = self
             .focused_container()
@@ -654,7 +653,7 @@ impl WorkspaceScrolling for Workspace {
 
         if let Some(container) = self.containers_mut().get_mut(idx) {
             for window in &windows {
-                container.add_window_at(window, hiding_position)?;
+                container.add_window(window.clone(), spot)?;
             }
 
             // the window that had focus is the one that is showing
@@ -665,7 +664,7 @@ impl WorkspaceScrolling for Workspace {
             }
 
             if !cfg!(test) {
-                container.load_focused_window_at(hiding_position)?;
+                container.load_focused_window(spot)?;
             }
         }
 
@@ -675,7 +674,7 @@ impl WorkspaceScrolling for Workspace {
     }
 
     fn unstack_scrolling_column(&mut self) -> eyre::Result<bool> {
-        let hiding_position = self.state.window_hiding_position;
+        let spot = self.hide_spot();
         let idx = self.focused_container_idx();
 
         let Some(container) = self.containers_mut().get_mut(idx) else {
@@ -703,7 +702,7 @@ impl WorkspaceScrolling for Workspace {
         let mut ids = vec![];
         for (offset, window) in rest.iter().enumerate() {
             let mut container = Container::default();
-            container.add_window_at(window, hiding_position)?;
+            container.add_window(window.clone(), spot)?;
             ids.push(container.id.clone());
 
             // it was one of the tabs that were out of sight, and has to be put where it is shown
@@ -1448,7 +1447,7 @@ mod tests {
             .containers_mut()
             .front_mut()
             .unwrap()
-            .add_window_at(&Window::from(6_000_062), WindowHidingPosition::default())
+            .add_window(Window::from(6_000_062), Default::default())
             .unwrap();
         workspace.layout_scrolling(&AREA, 0);
 
@@ -1839,7 +1838,7 @@ mod tests {
             .containers_mut()
             .front_mut()
             .unwrap()
-            .add_window_at(&Window::from(212), WindowHidingPosition::default())
+            .add_window(Window::from(212), Default::default())
             .unwrap();
         workspace.layout_scrolling(&AREA, 0);
         assert_eq!(windows_of(&workspace), [vec![210, 212], vec![211]]);
