@@ -100,7 +100,9 @@ complete [CLI reference](https://lgug2z.github.io/komorebi/cli/quickstart.html).
 There is a [Discord server](https://discord.gg/mGkn66PHkx) available for
 _komorebi_-related discussion, help, troubleshooting etc. If you have any
 specific feature requests or bugs to report, please create an issue in this
-repository.
+repository and choose the platform (Windows, Linux or macOS) your report is about;
+see [Sponsorship for Personal Use](#sponsorship-for-personal-use) for who can
+submit feature requests.
 
 There is a [YouTube
 channel](https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg) where I post
@@ -147,6 +149,15 @@ project](https://github.com/sponsors/LGUG2Z). Sponsors can claim custom roles on
 the Discord server, get shout outs at the end of _komorebi_-related videos on
 YouTube, gain the ability to submit feature requests on the issue tracker, and
 receive releases of komorebi with "easter eggs" on physical media.
+
+Feature requests for all platforms (Windows, Linux and macOS) are accepted from
+current [GitHub sponsors](https://github.com/sponsors/LGUG2Z) on the $5/month tier
+and above, people with a valid [individual commercial use
+license](https://lgug2z.com/software/komorebi), and approved contributors. Issues
+titled `[FEAT]: ` opened by anyone else are closed automatically. Bug reports are
+open to everyone.
+
+<!-- OWNER: with the private macOS repository retired, what do sponsors get beyond Discord roles, shout-outs, feature requests and (where stated) easter-egg releases? Nothing else is promised here. -->
 
 If you would like to tip or sponsor the project but are unable to use GitHub
 Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z), or
