@@ -1,8 +1,14 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Komorebi Documentation
+  - name: Komorebi Documentation (Windows)
     url: https://lgug2z.github.io/komorebi/
-    about: Please search the documentation website before opening an issue
-  - name: Komorebi Quickstart Tutorial Video
+    about: Windows users, please search the documentation website before opening an issue
+  - name: Komorebi Documentation (Linux, KDE Plasma)
+    url: https://github.com/LGUG2Z/komorebi/blob/master/docs/linux/index.md
+    about: Linux users, please read the Linux documentation before opening an issue
+  - name: Komorebi Documentation (macOS)
+    url: https://github.com/LGUG2Z/komorebi/blob/master/docs/macos/index.md
+    about: macOS users, please read the macOS documentation before opening an issue
+  - name: Komorebi Quickstart Tutorial Video (Windows)
     url: https://www.youtube.com/watch?v=MMZUAtHbTYY
-    about: If you are new, please make sure you watch the quickstart tutorial video
+    about: If you are new to komorebi on Windows, please make sure you watch the quickstart tutorial video

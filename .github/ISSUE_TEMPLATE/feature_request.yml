@@ -1,14 +1,25 @@
 name: Feature request
-description: Suggest a new feature (Limited to Sponsors, Commercial License Holders, and Collaborators)
+description: Suggest a new feature for Windows, Linux or macOS (Limited to Sponsors, Commercial License Holders, and Collaborators)
 labels: [enhancement]
 title: "[FEAT]: "
 body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which platform is this about?
+      options:
+        - Windows
+        - Linux (KDE Plasma)
+        - macOS
+    validations:
+      required: true
   - type: dropdown
     id: Eligibility
     attributes:
       label: Eligibility
       description: >
-        Feature requests are considered from individuals who are current $5+ monthly sponsors to the project, individual commercial use license holders, and approved collaborators.
+        Feature requests for all platforms (Windows, Linux and macOS) are considered from individuals who are current $5+ monthly sponsors to the project, individual commercial use license holders, and approved collaborators.
 
         Please specify the platform you use to sponsor the project.
       options:

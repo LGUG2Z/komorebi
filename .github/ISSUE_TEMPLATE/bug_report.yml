@@ -3,10 +3,21 @@ description: File a bug report
 labels: [bug]
 title: "[BUG]: "
 body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which platform is this about?
+      options:
+        - Windows
+        - Linux (KDE Plasma)
+        - macOS
+    validations:
+      required: true
   - type: markdown
     attributes:
       value: |
-        Please **do not** open an issue for applications with invisible windows leaving ghost tiles.
+        Windows only: please **do not** open an issue for applications with invisible windows leaving ghost tiles.
 
         You can run `komorebic visible-windows` when the ghost tile is present on your workspace to retrieve the invisible window's exe, class name and title, and then use that information to [ignore the window](https://lgug2z.github.io/komorebi/common-workflows/ignore-windows.html) responsible for the ghost tile.
 
@@ -27,15 +38,19 @@ body:
     attributes:
       label: Version Information
       description: >
-        Please provide information about the versions of Windows and komorebi
-        running on your machine.
+        Please provide information about the versions of your operating system and komorebi
+        running on your machine (on Linux, your KDE Plasma version too).
 
-        Do not submit a bug if you are not using an official version of Windows
-        such as AtlasOS; only official versions of Windows are supported.
+        On Windows, do not submit a bug if you are not using an official version of
+        Windows such as AtlasOS; only official versions of Windows are supported.
+
+        On Windows:
 
         ```
         systeminfo | findstr /B /C:"OS Name" /B /C:"OS Version"
         ```
+
+        On Linux or macOS, use your system's version command (for example `uname -a` or `sw_vers`).
 
         ```
         komorebic --version
@@ -54,7 +69,7 @@ body:
     attributes:
       label: Hotkey Configuration
       description: >
-        Please provide your whkdrc or komorebi.ahk hotkey configuration file
+        Please provide your hotkey configuration file (for example whkdrc, komorebi.ahk, skhdrc or sxhkdrc)
       render: shell
   - type: textarea
     validations:
@@ -62,5 +77,5 @@ body:
     attributes:
       label: Output of komorebic check
       description: >
-        Please provide the output of `komorebic check`
+        Please provide the output of `komorebic check` (on platforms where it is available)
       render: shell
