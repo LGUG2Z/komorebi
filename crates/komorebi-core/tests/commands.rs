@@ -19,7 +19,6 @@ struct Host {
     focused: usize,
     pointer_on: Option<usize>,
     calls: Vec<String>,
-    pointer_for_all: bool,
 }
 
 fn monitor(workspaces: usize) -> Monitor<StubPlatform> {
@@ -50,7 +49,6 @@ impl Host {
             focused: 0,
             pointer_on: None,
             calls: vec![],
-            pointer_for_all: false,
         }
     }
 
@@ -61,7 +59,8 @@ impl Host {
     /// puts a window on workspace `idx` of the focused monitor
     fn occupy(&mut self, idx: usize, window: u32) {
         self.monitors[self.focused].workspaces_mut()[idx]
-            .new_container_for_window(StubWindow { id: window });
+            .new_container_for_window(StubWindow { id: window })
+            .unwrap();
     }
 }
 
