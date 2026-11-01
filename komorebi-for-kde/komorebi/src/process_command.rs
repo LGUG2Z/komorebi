@@ -270,6 +270,7 @@ use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
+use komorebi_config::matching::push_simple_rule;
 use komorebi_themes::colour::Rgb;
 use komorebi_transport::CommandTarget;
 use komorebi_transport::NoPolicy;
@@ -1993,22 +1994,6 @@ pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> 
     komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &NoPolicy)
 }
 
-/// Add a simple socket-created rule unless one with the same kind and id is already present;
-/// a rule of another kind with the same id is a different rule
-fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, id: &str) {
-    let exists = rules
-        .iter()
-        .any(|r| matches!(r, MatchingRule::Simple(r) if r.kind == kind && r.id.eq(id)));
-
-    if !exists {
-        rules.push(MatchingRule::Simple(IdWithIdentifier {
-            kind,
-            id: id.to_string(),
-            matching_strategy: Option::from(MatchingStrategy::Legacy),
-        }));
-    }
-}
-
 /// The window manager as the shared commands of `komorebi_core::command` see it
 impl komorebi_core::CommandHost for WindowManager {
     type P = crate::workspace::KdePlatform;
@@ -2393,27 +2378,5 @@ mod tests {
         assert_eq!(wm.focused_workspace_idx().unwrap(), 5);
 
         std::fs::remove_file(socket_path).unwrap();
-    }
-
-    #[test]
-    fn push_simple_rule_keeps_rules_of_another_kind_with_the_same_id() {
-        let mut rules = vec![];
-
-        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
-        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
-        assert_eq!(rules.len(), 2);
-
-        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
-        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
-        assert_eq!(rules.len(), 2);
-
-        rules.clear();
-        rules.push(MatchingRule::Composite(vec![IdWithIdentifier {
-            kind: ApplicationIdentifier::Exe,
-            id: "foo".to_string(),
-            matching_strategy: None,
-        }]));
-        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
-        assert_eq!(rules.len(), 2);
     }
 }
