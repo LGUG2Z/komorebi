@@ -1,7 +1,7 @@
 //! The oracle of the crate: the schemas that are checked in next to the three daemons.
 //!
-//! `schema.json` and `schema.asc.json` of the Windows tree (the repository root), of
-//! `komorebi-for-kde` and of `komorebi-for-mac` are what users, the docs and the nix options
+//! `schema.json` and `schema.asc.json` of the three platforms (`schemas/windows`, `schemas/linux`,
+//! `schemas/macos`) are what users, the docs and the nix options
 //! are generated from, so they must not change by accident while the data types move into this
 //! crate. The files are read by their path relative to the repository.
 //!
@@ -26,19 +26,19 @@ struct Tree {
 const TREES: [Tree; 3] = [
     Tree {
         name: "windows",
-        dir: "",
+        dir: "schemas/windows",
         properties: 53,
         defs: 60,
     },
     Tree {
         name: "kde",
-        dir: "komorebi-for-kde",
+        dir: "schemas/linux",
         properties: 37,
         defs: 52,
     },
     Tree {
         name: "macos",
-        dir: "komorebi-for-mac",
+        dir: "schemas/macos",
         properties: 33,
         defs: 47,
     },

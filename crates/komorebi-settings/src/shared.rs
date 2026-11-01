@@ -48,7 +48,7 @@ impl PlatformDefaults {
         container_padding: 10,
         workspace_padding: 10,
     };
-    /// `komorebi-for-kde/komorebi/src/border_manager/mod.rs` and `.../lib.rs`
+    /// `komorebi-linux/src/border_manager/mod.rs` and `.../lib.rs`
     pub const KDE: Self = Self {
         border_width: 10,
         border_offset: 0,
@@ -56,7 +56,7 @@ impl PlatformDefaults {
         container_padding: 5,
         workspace_padding: 5,
     };
-    /// `komorebi-for-mac/komorebi/src/border_manager/mod.rs` and `.../lib.rs`
+    /// `komorebi-macos/src/border_manager/mod.rs` and `.../lib.rs`
     pub const MACOS: Self = Self {
         border_width: 10,
         border_offset: 0,

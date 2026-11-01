@@ -1,6 +1,6 @@
 //! The schema oracle of the shared bar.
 //!
-//! `schema.bar.json` (Windows, at the root) and `komorebi-for-mac/schema.bar.json` are what
+//! `schemas/windows/schema.bar.json` and `schemas/macos/schema.bar.json` are what
 //! `komorebi-bar --schema` prints. They are pinned here by size and a FNV-1a hash of their bytes,
 //! so that a move or a convergence of bar code cannot change them unnoticed. A reviewed change
 //! to either file updates the matching pin in the same revision.
@@ -20,13 +20,13 @@ struct Pin {
 
 const PINS: [Pin; 2] = [
     Pin {
-        file: "schema.bar.json",
+        file: "schemas/windows/schema.bar.json",
         lines: 9_091,
         bytes: 248_539,
         fnv1a: 0xaaa0_fabf_b459_67b7,
     },
     Pin {
-        file: "komorebi-for-mac/schema.bar.json",
+        file: "schemas/macos/schema.bar.json",
         lines: 3_774,
         bytes: 116_925,
         fnv1a: 0xa042_f6ac_063a_0cfd,
@@ -88,16 +88,18 @@ mod views {
     /// The Windows file is the union; its Windows view is itself.
     #[test]
     fn the_windows_view_of_the_union_is_the_windows_file() {
-        let union = serde_json::from_str(&text("schema.bar.json")).expect("json");
-        assert!(view_text(union, SchemaPlatform::Windows) == text("schema.bar.json"));
+        let union = serde_json::from_str(&text("schemas/windows/schema.bar.json")).expect("json");
+        assert!(
+            view_text(union, SchemaPlatform::Windows) == text("schemas/windows/schema.bar.json")
+        );
     }
 
     /// The macOS view of the union is the macOS file, byte for byte.
     #[test]
     fn the_macos_view_of_the_union_is_the_macos_file() {
-        let union = serde_json::from_str(&text("schema.bar.json")).expect("json");
+        let union = serde_json::from_str(&text("schemas/windows/schema.bar.json")).expect("json");
         let view = view_text(union, SchemaPlatform::MacOs);
-        let file = text("komorebi-for-mac/schema.bar.json");
+        let file = text("schemas/macos/schema.bar.json");
         if view != file {
             let first = view.lines().zip(file.lines()).position(|(a, b)| a != b);
             panic!(
@@ -112,7 +114,7 @@ mod views {
     /// schema through it.
     #[test]
     fn a_view_is_idempotent() {
-        let union = serde_json::from_str(&text("schema.bar.json")).expect("json");
+        let union = serde_json::from_str(&text("schemas/windows/schema.bar.json")).expect("json");
         let once = view_text(union, SchemaPlatform::MacOs);
         let again = view_text(
             serde_json::from_str(&once).expect("json"),
@@ -133,8 +135,7 @@ mod generated {
     /// out-of-tree harness covers it.)
     #[test]
     fn the_generated_macos_view_is_the_macos_file() {
-        let file =
-            String::from_utf8(super::read("komorebi-for-mac/schema.bar.json")).expect("utf-8");
+        let file = String::from_utf8(super::read("schemas/macos/schema.bar.json")).expect("utf-8");
         let text = generated_text::<KomobarConfig>(SchemaPlatform::MacOs);
         if text != file {
             let first = text.lines().zip(file.lines()).position(|(a, b)| a != b);

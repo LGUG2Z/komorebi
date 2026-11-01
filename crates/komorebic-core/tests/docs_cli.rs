@@ -27,7 +27,7 @@ fn macos_page(name: &str, page: &str) -> String {
 
 #[test]
 fn every_macos_page_is_as_checked_in() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../komorebi-for-mac/docs/cli");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/macos/cli");
     if !dir.is_dir() {
         // a source tree without the macOS tree (the nix build of the Windows workspace)
         return;
@@ -41,9 +41,6 @@ fn every_macos_page_is_as_checked_in() {
             stale.push(name.as_str());
         }
     }
-    assert!(
-        stale.is_empty(),
-        "stale pages in komorebi-for-mac/docs/cli: {stale:?}"
-    );
+    assert!(stale.is_empty(), "stale pages in docs/macos/cli: {stale:?}");
     assert_eq!(rendered.len(), std::fs::read_dir(&dir).unwrap().count());
 }

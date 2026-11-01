@@ -5,7 +5,7 @@
 //! bar does not have (the keyboard, media and systray widgets, the mouse options and their
 //! definitions, which pruning of the unreachable definitions finishes) and sets the text and the
 //! defaults that read differently. Each entry is a convergence candidate: dropping one changes
-//! one line of `komorebi-for-mac/schema.bar.json` and of `nix/komorebi-bar-options.nix`.
+//! one line of `schemas/macos/schema.bar.json` and of `nix/macos/komorebi-bar-options.nix`.
 //!
 //! Generated from the difference between the two checked-in files; `tests/schema_oracle.rs`
 //! proves that the view of the Windows file is byte-identical to the macOS file.

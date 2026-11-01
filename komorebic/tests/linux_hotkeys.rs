@@ -78,7 +78,7 @@ fn stderr(output: &Output) -> String {
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../komorebi-for-kde/komorebi-hotkeys/tests/fixtures")
+        .join("../komorebi-hotkeys/tests/fixtures")
         .join(name)
 }
 

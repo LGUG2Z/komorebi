@@ -577,8 +577,7 @@ pub fn main() -> eyre::Result<()> {
                 std::fs::create_dir_all(&*komorebi_client::DATA_DIR)?;
 
                 let komorebi_json =
-                    include_str!("../../../komorebi-for-kde/docs/komorebi.example.json")
-                        .to_string();
+                    include_str!("../../../docs/linux/komorebi.example.json").to_string();
                 let komorebi_path = HOME_DIR.join("komorebi.json");
                 let applications_path = HOME_DIR.join("applications.json");
                 let skhdrc_path = HOME_DIR.join("skhdrc");
@@ -590,7 +589,7 @@ pub fn main() -> eyre::Result<()> {
                 let applications_json = include_str!("applications.json");
                 write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
 
-                let skhdrc = include_str!("../../../komorebi-for-kde/docs/skhdrc.sample");
+                let skhdrc = include_str!("../../../docs/linux/skhdrc.sample");
                 write_file_with_prompt(&skhdrc_path, skhdrc, &mut written_files)?;
                 if written_files.is_empty() {
                     println!("\nNo files were written.")

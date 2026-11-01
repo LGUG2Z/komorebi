@@ -1812,7 +1812,7 @@ mod tests {
         let Some(known) = known_keys() else {
             return;
         };
-        let example = include_str!("../../docs/komorebi.example.json");
+        let example = include_str!("../../docs/linux/komorebi.example.json");
         let value: serde_json::Value = serde_json::from_str(example).unwrap();
 
         let findings = check_keys(&value, &known);

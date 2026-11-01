@@ -278,11 +278,9 @@ pub fn main() -> eyre::Result<()> {
                 std::fs::create_dir_all(data_dir)?;
 
                 let mut komorebi_json =
-                    include_str!("../../../komorebi-for-mac/docs/komorebi.example.json")
-                        .to_string();
+                    include_str!("../../../docs/macos/komorebi.example.json").to_string();
                 let komorebi_bar_json =
-                    include_str!("../../../komorebi-for-mac/docs/komorebi.bar.example.json")
-                        .to_string();
+                    include_str!("../../../docs/macos/komorebi.bar.example.json").to_string();
 
                 if std::env::var("KOMOREBI_CONFIG_HOME").is_ok() {
                     komorebi_json =
@@ -302,7 +300,7 @@ pub fn main() -> eyre::Result<()> {
                 let applications_json = include_str!("applications.json");
                 write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
 
-                let whkdrc = include_str!("../../../komorebi-for-mac/docs/skhdrc.sample");
+                let whkdrc = include_str!("../../../docs/macos/skhdrc.sample");
                 write_file_with_prompt(&skhdrc_path, whkdrc, &mut written_files)?;
                 if written_files.is_empty() {
                     println!("\nNo files were written.")

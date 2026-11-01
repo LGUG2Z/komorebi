@@ -1,5 +1,5 @@
 //! Can one `komorebi.json` be shared across platforms? The fixtures are the file this repository
-//! ships (`docs/komorebi.example.json`) and files of komorebi for Windows, which has keys that
+//! ships (`docs/linux/komorebi.example.json`) and files of komorebi for Windows, which has keys that
 //! mean nothing on KDE Plasma. Every fixture must deserialize with [`StaticConfig`], round-trip
 //! through its serializer, and lose only the top-level keys that are Windows-only
 //! ([`WINDOWS_ONLY`]).
@@ -48,7 +48,7 @@ fn repo_root() -> PathBuf {
 
 fn fixtures() -> Vec<PathBuf> {
     let root = repo_root();
-    let mut out = vec![root.join("docs/komorebi.example.json")];
+    let mut out = vec![root.join("docs/linux/komorebi.example.json")];
     let dir = root.join("spikes/config-parity/fixtures");
     let mut stack = vec![dir];
     while let Some(d) = stack.pop() {
@@ -185,8 +185,10 @@ fn the_lists_name_no_key_that_is_read() {
 
 #[test]
 fn the_example_in_the_docs_is_the_example_file() {
-    let page = std::fs::read_to_string(repo_root().join("docs/example-configurations.md")).unwrap();
-    let file = std::fs::read_to_string(repo_root().join("docs/komorebi.example.json")).unwrap();
+    let page =
+        std::fs::read_to_string(repo_root().join("docs/linux/example-configurations.md")).unwrap();
+    let file =
+        std::fs::read_to_string(repo_root().join("docs/linux/komorebi.example.json")).unwrap();
 
     let start = page.find("```json\n").expect("the page has the example") + "```json\n".len();
     let end = start + page[start..].find("```").expect("the example ends");
