@@ -1330,18 +1330,8 @@ impl WindowManager {
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
                 self.resize_window_axis(axis, sizing)?
             }
-            SocketMessage::Minimize => {
-                let foreground_window = backend()
-                    .foreground_window()
-                    .ok_or_eyre("there is no foreground window")?;
-                Window::from(foreground_window).minimize()?;
-            }
-            SocketMessage::Close => {
-                let foreground_window = backend()
-                    .foreground_window()
-                    .ok_or_eyre("there is no foreground window")?;
-                Window::from(foreground_window).close()?;
-            }
+            SocketMessage::Minimize => self.minimize_foreground_window()?,
+            SocketMessage::Close => self.close_foreground_window()?,
             SocketMessage::ManageFocusedWindow => {
                 self.manage_focused_window()?;
             }
@@ -1819,19 +1809,7 @@ impl WindowManager {
                 workspace.resize_dimensions = resize;
                 self.update_focused_workspace(false, false)?;
             }
-            SocketMessage::DebugWindow(window_id) => {
-                // an id that is not a u32 is not a window
-                let window = u32::try_from(window_id).map(Window::from);
-                if let Ok(window) = window
-                    && window.is_valid()
-                {
-                    let mut rule_debug = RuleDebug::default();
-                    let _ = window.should_manage(None, &mut rule_debug);
-                    let schema = serde_json::to_string_pretty(&rule_debug)?;
-
-                    reply.write_all(schema.as_bytes())?;
-                }
-            }
+            SocketMessage::DebugWindow(window_id) => self.debug_window(window_id, &mut reply)?,
             SocketMessage::Border(enable) => {
                 border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
                 if !enable {
@@ -1992,6 +1970,46 @@ impl WindowManager {
 /// - [`WindowManager::process_command`] fails: the lines after it are not read.
 pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> eyre::Result<()> {
     komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &NoPolicy)
+}
+
+impl WindowManager {
+    /// Minimizes the window that has the focus
+    pub fn minimize_foreground_window(&mut self) -> eyre::Result<()> {
+        let foreground_window = backend()
+            .foreground_window()
+            .ok_or_eyre("there is no foreground window")?;
+        Window::from(foreground_window).minimize()?;
+        Ok(())
+    }
+
+    /// Closes the window that has the focus
+    pub fn close_foreground_window(&mut self) -> eyre::Result<()> {
+        let foreground_window = backend()
+            .foreground_window()
+            .ok_or_eyre("there is no foreground window")?;
+        Window::from(foreground_window).close()?;
+        Ok(())
+    }
+
+    /// Answers with why the window of this id is, or is not, managed
+    pub fn debug_window(
+        &self,
+        window_id: i64,
+        reply: &mut impl std::io::Write,
+    ) -> eyre::Result<()> {
+        // an id that is not a u32 is not a window
+        let window = u32::try_from(window_id).map(Window::from);
+        if let Ok(window) = window
+            && window.is_valid()
+        {
+            let mut rule_debug = RuleDebug::default();
+            let _ = window.should_manage(None, &mut rule_debug);
+            let schema = serde_json::to_string_pretty(&rule_debug)?;
+
+            reply.write_all(schema.as_bytes())?;
+        }
+        Ok(())
+    }
 }
 
 /// The window manager as the shared commands of `komorebi_core::command` see it
