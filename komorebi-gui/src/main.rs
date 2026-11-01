@@ -252,7 +252,8 @@ impl eframe::App for KomorebiGui {
                     ui.collapsing("Window Rules", |ui| {
                         let window = Window::from(self.debug_hwnd);
 
-                        let label = if let (Some(title), Some(exe)) = (window.title(), window.exe()) {
+                        let label = if let (Some(title), Some(exe)) = (window.title(), window.exe())
+                        {
                             format!("{title} ({exe})")
                         } else {
                             String::from("Select a Window")

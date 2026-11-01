@@ -28,18 +28,33 @@ use serde_json::Value;
 const PLATFORMS: [(&str, usize); 3] = [("windows", 1), ("kde", 2), ("macos", 3)];
 
 fn golden(platform: &str) -> Value {
-    let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden").join(platform).join("variants.json");
+    let p = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/golden")
+        .join(platform)
+        .join("variants.json");
     serde_json::from_str(&std::fs::read_to_string(p).unwrap()).unwrap()
 }
 
 fn schema_variants(platform: &str) -> BTreeSet<String> {
-    let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden").join(platform).join("schema-variants.txt");
-    std::fs::read_to_string(p).unwrap().lines().map(str::to_owned).collect()
+    let p = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/golden")
+        .join(platform)
+        .join("schema-variants.txt");
+    std::fs::read_to_string(p)
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect()
 }
 
 fn table() -> Vec<Vec<String>> {
     let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/variants-table.tsv");
-    std::fs::read_to_string(p).unwrap().lines().skip(1).map(|l| l.split('\t').map(str::to_owned).collect()).collect()
+    std::fs::read_to_string(p)
+        .unwrap()
+        .lines()
+        .skip(1)
+        .map(|l| l.split('\t').map(str::to_owned).collect())
+        .collect()
 }
 
 #[test]
@@ -63,24 +78,32 @@ fn golden_variants_match_the_support_table() {
     let rows = table();
     assert_eq!(rows.len(), 197);
     for (platform, col) in PLATFORMS {
-        let from_table: BTreeSet<String> = rows.iter().filter(|r| r[col] != "-").map(|r| r[0].clone()).collect();
+        let from_table: BTreeSet<String> = rows
+            .iter()
+            .filter(|r| r[col] != "-")
+            .map(|r| r[0].clone())
+            .collect();
         assert_eq!(from_table, schema_variants(platform), "{platform}");
         // every golden instance is of a variant of the platform (or one of its serde aliases)
         let g = golden(platform);
         for (name, v) in g.as_object().unwrap() {
             let ty = v["golden"]["type"].as_str().unwrap();
-            assert!(from_table.contains(ty), "{platform}: {name} serialises as {ty}, which the table does not list");
+            assert!(
+                from_table.contains(ty),
+                "{platform}: {name} serialises as {ty}, which the table does not list"
+            );
         }
     }
 }
-
 
 use komorebi_protocol::message::SocketMessage;
 use komorebi_protocol::platforms::Platform;
 
 /// Path-expansion instances depend on the compile target (HOME, %VAR%, ~): only with STRICT_PATHS=1
 fn is_path_extra(name: &str) -> bool {
-    ["@~", "@dollar", "@braces", "@percent", "@psenv"].iter().any(|s| name.ends_with(s))
+    ["@~", "@dollar", "@braces", "@percent", "@psenv"]
+        .iter()
+        .any(|s| name.ends_with(s))
 }
 
 fn pin_environment() {
@@ -127,11 +150,14 @@ fn the_unified_enum_accepts_every_golden_instance_with_the_same_wire_text() {
 
 /// The variants of the unified schema, from the generator, one instance each
 fn unified() -> (Value, Value) {
-    let dir = std::env::temp_dir().join(format!("komorebi-protocol-unified-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("komorebi-protocol-unified-{}", std::process::id()));
     pin_environment();
     golden_gen::run::<SocketMessage>("unified", &dir, &[], &["ApplyState"]);
-    let schema = serde_json::from_str(&std::fs::read_to_string(dir.join("schema.json")).unwrap()).unwrap();
-    let variants = serde_json::from_str(&std::fs::read_to_string(dir.join("variants.json")).unwrap()).unwrap();
+    let schema =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("schema.json")).unwrap()).unwrap();
+    let variants =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("variants.json")).unwrap()).unwrap();
     let _ = std::fs::remove_dir_all(dir);
     (schema, variants)
 }
@@ -143,12 +169,23 @@ fn the_unified_schema_has_every_variant_of_every_platform_and_all_of_them_round_
         .as_array()
         .unwrap()
         .iter()
-        .map(|b| b["properties"]["type"]["const"].as_str().unwrap().to_owned())
+        .map(|b| {
+            b["properties"]["type"]["const"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
         .collect();
     assert_eq!(in_schema.len(), 197);
     for (platform, _) in PLATFORMS {
-        let missing: Vec<_> = schema_variants(platform).difference(&in_schema).cloned().collect();
-        assert!(missing.is_empty(), "{platform}: {missing:?} are not in the unified schema");
+        let missing: Vec<_> = schema_variants(platform)
+            .difference(&in_schema)
+            .cloned()
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "{platform}: {missing:?} are not in the unified schema"
+        );
     }
     for (name, v) in variants.as_object().unwrap() {
         assert_eq!(v["deserialised"], Value::Bool(true), "{name}");
@@ -163,7 +200,12 @@ fn platforms_says_what_each_platform_handled_and_nothing_else() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|b| b["properties"]["type"]["const"].as_str().unwrap().to_owned())
+        .map(|b| {
+            b["properties"]["type"]["const"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
         .collect();
     for (platform, _) in PLATFORMS {
         let handled = schema_variants(platform);
@@ -173,7 +215,8 @@ fn platforms_says_what_each_platform_handled_and_nothing_else() {
             _ => Platform::MacOs,
         };
         for name in &all {
-            let message: SocketMessage = serde_json::from_value(variants[name]["instance"].clone()).unwrap();
+            let message: SocketMessage =
+                serde_json::from_value(variants[name]["instance"].clone()).unwrap();
             assert_eq!(
                 message.platforms().contains(which),
                 handled.contains(name),
@@ -196,7 +239,8 @@ enum Stand {
 fn generator_runs_on_a_stand_in_enum() {
     let dir = std::env::temp_dir().join(format!("komorebi-protocol-golden-{}", std::process::id()));
     golden_gen::run::<Stand>("stand-in", &dir, &[], &[]);
-    let v: Value = serde_json::from_str(&std::fs::read_to_string(dir.join("variants.json")).unwrap()).unwrap();
+    let v: Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("variants.json")).unwrap()).unwrap();
     for k in ["Unit", "Number", "Pair", "Maybe"] {
         assert_eq!(v[k]["deserialised"], Value::Bool(true), "{k}");
     }

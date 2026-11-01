@@ -1,20 +1,20 @@
 use crate::config::types::*;
-use crate::statics::AUTO_SELECT_FILL_COLOUR;
-use crate::statics::AUTO_SELECT_TEXT_COLOUR;
-use crate::statics::DEFAULT_PADDING;
 use crate::platform::platform;
 use crate::render::Grouping;
 use crate::render::RenderConfig;
 use crate::render::RenderExt;
+use crate::statics::AUTO_SELECT_FILL_COLOUR;
+use crate::statics::AUTO_SELECT_TEXT_COLOUR;
+use crate::statics::DEFAULT_PADDING;
 use crate::widgets::widget::WidgetConfig;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::FontId;
 use eframe::egui::TextBuffer;
 use eframe::egui::TextStyle;
-use komorebi_protocol::pathext::PathExt;
 use komorebi_layouts::Rect;
 use komorebi_protocol::message::SocketMessage;
+use komorebi_protocol::pathext::PathExt;
 use komorebi_themes::colour::Colour;
 use komorebi_themes::colour::Rgb;
 use serde::Deserialize;
@@ -535,7 +535,9 @@ impl KomobarConfig {
         );
 
         if value.mouse.is_some() && !cfg!(target_os = "windows") {
-            tracing::warn!("the `mouse` options are not supported on this platform and are ignored");
+            tracing::warn!(
+                "the `mouse` options are not supported on this platform and are ignored"
+            );
         }
 
         if value.frame.is_none() {

@@ -1,7 +1,6 @@
 use crate::windows::MAX_LABEL_WIDTH;
 use crate::windows::bar::Alignment;
 use crate::windows::config::MediaDisplayFormat;
-pub use komorebi_bar_core::widgets::platform_config::MediaConfig;
 use crate::windows::render::RenderConfig;
 use crate::windows::selected_frame::SelectableFrame;
 use crate::windows::ui::CustomUi;
@@ -13,6 +12,7 @@ use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use eframe::egui::text::LayoutJob;
+pub use komorebi_bar_core::widgets::platform_config::MediaConfig;
 use std::sync::atomic::Ordering;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus;

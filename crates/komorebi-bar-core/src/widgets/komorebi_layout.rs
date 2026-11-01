@@ -1,7 +1,7 @@
 use crate::config::DisplayFormat;
+use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
-use crate::platform::platform;
 use crate::widgets::komorebi_config::KomorebiLayout;
 use crate::widgets::komorebi_config::KomorebiLayoutConfig;
 use eframe::egui::Context;
@@ -61,38 +61,44 @@ impl KomorebiLayoutExt for KomorebiLayout {
         match self {
             KomorebiLayout::Default(option) => {
                 if let Some(ws_idx) = workspace_idx
-                    && platform().send_komorebi_message(&SocketMessage::WorkspaceLayout(
-                        monitor_idx,
-                        ws_idx,
-                        *option,
-                    ))
-                    .is_err()
+                    && platform()
+                        .send_komorebi_message(&SocketMessage::WorkspaceLayout(
+                            monitor_idx,
+                            ws_idx,
+                            *option,
+                        ))
+                        .is_err()
                 {
                     tracing::error!("could not send message to komorebi: WorkspaceLayout");
                 }
             }
             KomorebiLayout::Monocle => {
-                if platform().send_komorebi_batch(vec![
-                    SocketMessage::FocusMonitorAtCursor,
-                    SocketMessage::ToggleMonocle,
-                ])
-                .is_err()
+                if platform()
+                    .send_komorebi_batch(vec![
+                        SocketMessage::FocusMonitorAtCursor,
+                        SocketMessage::ToggleMonocle,
+                    ])
+                    .is_err()
                 {
                     tracing::error!("could not send message to komorebi: ToggleMonocle");
                 }
             }
             KomorebiLayout::Floating => {
-                if platform().send_komorebi_batch(vec![
-                    SocketMessage::FocusMonitorAtCursor,
-                    SocketMessage::ToggleTiling,
-                ])
-                .is_err()
+                if platform()
+                    .send_komorebi_batch(vec![
+                        SocketMessage::FocusMonitorAtCursor,
+                        SocketMessage::ToggleTiling,
+                    ])
+                    .is_err()
                 {
                     tracing::error!("could not send message to komorebi: ToggleTiling");
                 }
             }
             KomorebiLayout::Paused => {
-                if platform().send_komorebi_message(&SocketMessage::TogglePause).is_err() {
+                if platform()
+                    .send_komorebi_message(&SocketMessage::TogglePause)
+                    .is_err()
+                {
                     tracing::error!("could not send message to komorebi: TogglePause");
                 }
             }

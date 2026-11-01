@@ -392,7 +392,8 @@ fn pointer_on_the_second_monitor() -> Host {
 }
 
 #[test]
-fn the_pointer_picks_the_monitor_for_the_empty_close_last_cycle_and_number_commands_on_all_platforms() {
+fn the_pointer_picks_the_monitor_for_the_empty_close_last_cycle_and_number_commands_on_all_platforms()
+ {
     // commands.py: close-workspace, cycle-empty-workspace, focus-last-workspace, focus-workspace,
     // focus-workspaces; the monitor under the pointer is focused first when its workspace is empty
     for command in 0..5 {
@@ -400,7 +401,9 @@ fn the_pointer_picks_the_monitor_for_the_empty_close_last_cycle_and_number_comma
         match command {
             0 => komorebi_core::close_workspace(&mut host).unwrap(),
             1 => komorebi_core::focus_last_workspace(&mut host).unwrap(),
-            2 => komorebi_core::cycle_focus_empty_workspace(&mut host, CycleDirection::Next).unwrap(),
+            2 => {
+                komorebi_core::cycle_focus_empty_workspace(&mut host, CycleDirection::Next).unwrap()
+            }
             3 => komorebi_core::focus_workspace_number(&mut host, 1).unwrap(),
             _ => komorebi_core::focus_workspace_numbers(&mut host, 1).unwrap(),
         }

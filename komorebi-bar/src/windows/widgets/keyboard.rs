@@ -1,5 +1,4 @@
 use crate::windows::config::LabelPrefix;
-pub use komorebi_bar_core::widgets::platform_config::KeyboardConfig;
 use crate::windows::render::RenderConfig;
 use crate::windows::widgets::widget::BarWidget;
 use color_eyre::eyre;
@@ -10,6 +9,7 @@ use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::WidgetText;
 use eframe::egui::text::LayoutJob;
+pub use komorebi_bar_core::widgets::platform_config::KeyboardConfig;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;

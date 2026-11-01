@@ -18,7 +18,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 fn resolve<'a>(root: &'a Value, r: &str) -> &'a Value {
-    let path = r.strip_prefix("#/").unwrap_or_else(|| panic!("unsupported $ref {r}"));
+    let path = r
+        .strip_prefix("#/")
+        .unwrap_or_else(|| panic!("unsupported $ref {r}"));
     let mut cur = root;
     for seg in path.split('/') {
         cur = cur.get(seg).unwrap_or_else(|| panic!("dangling $ref {r}"));
@@ -34,12 +36,20 @@ thread_local! {
 /// The smallest value the schema accepts; deterministic (branch MODE.0, lowest bound).
 pub fn minimal(s: &Value, root: &Value, depth: usize) -> Value {
     assert!(depth < 40, "schema recursion too deep");
-    let Some(o) = s.as_object() else { return Value::Null };
+    let Some(o) = s.as_object() else {
+        return Value::Null;
+    };
     if let Some(r) = o.get("$ref").and_then(Value::as_str) {
         let mut base = minimal(resolve(root, r), root, depth + 1);
         // siblings of $ref (schemars adds `properties` for an internally tagged variant)
-        if let (Value::Object(m), Some(p)) = (&mut base, o.get("properties").and_then(Value::as_object)) {
-            let req: Vec<&str> = o.get("required").and_then(Value::as_array).map(|r| r.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+        if let (Value::Object(m), Some(p)) =
+            (&mut base, o.get("properties").and_then(Value::as_object))
+        {
+            let req: Vec<&str> = o
+                .get("required")
+                .and_then(Value::as_array)
+                .map(|r| r.iter().filter_map(Value::as_str).collect())
+                .unwrap_or_default();
             for (k, v) in p {
                 if req.contains(&k.as_str()) {
                     m.insert(k.clone(), minimal(v, root, depth + 1));
@@ -59,7 +69,10 @@ pub fn minimal(s: &Value, root: &Value, depth: usize) -> Value {
         if let Some(b) = o.get(k).and_then(Value::as_array) {
             // prefer a branch that is not the bare null type; keep source order otherwise
             let (k, nulls) = MODE.get();
-            let non_null: Vec<&Value> = b.iter().filter(|x| x.get("type") != Some(&json!("null"))).collect();
+            let non_null: Vec<&Value> = b
+                .iter()
+                .filter(|x| x.get("type") != Some(&json!("null")))
+                .collect();
             let null = b.iter().find(|x| x.get("type") == Some(&json!("null")));
             let pick = match (nulls, null) {
                 (true, Some(n)) => n,
@@ -104,11 +117,19 @@ pub fn minimal(s: &Value, root: &Value, depth: usize) -> Value {
         "null" => Value::Null,
         "boolean" => json!(false),
         "integer" | "number" => {
-            let mut v = o.get("minimum").and_then(Value::as_f64).unwrap_or(0.0).max(0.0);
+            let mut v = o
+                .get("minimum")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
+                .max(0.0);
             if let Some(x) = o.get("exclusiveMinimum").and_then(Value::as_f64) {
                 v = v.max(x + 1.0);
             }
-            if ty == "integer" { json!(v as i64) } else { json!(v) }
+            if ty == "integer" {
+                json!(v as i64)
+            } else {
+                json!(v)
+            }
         }
         "string" => json!("x"),
         "array" => {
@@ -116,7 +137,10 @@ pub fn minimal(s: &Value, root: &Value, depth: usize) -> Value {
                 return Value::Array(p.iter().map(|x| minimal(x, root, depth + 1)).collect());
             }
             let n = o.get("minItems").and_then(Value::as_u64).unwrap_or(0) as usize;
-            let item = o.get("items").map(|i| minimal(i, root, depth + 1)).unwrap_or(Value::Null);
+            let item = o
+                .get("items")
+                .map(|i| minimal(i, root, depth + 1))
+                .unwrap_or(Value::Null);
             Value::Array(vec![item; n])
         }
         "object" => {
@@ -151,27 +175,50 @@ where
         std::env::set_var("GOLDEN_VAR", "golden-value");
     }
     let schema = serde_json::to_value(schemars::schema_for!(T)).unwrap();
-    std::fs::write(outdir.join("schema.json"), serde_json::to_string_pretty(&schema).unwrap() + "\n").unwrap();
+    std::fs::write(
+        outdir.join("schema.json"),
+        serde_json::to_string_pretty(&schema).unwrap() + "\n",
+    )
+    .unwrap();
 
     let branches = schema["oneOf"].as_array().expect("top-level oneOf");
     let mut out: BTreeMap<String, Value> = BTreeMap::new();
     let mut inst_by_name: BTreeMap<String, Value> = BTreeMap::new();
     for b in branches {
-        let name = b["properties"]["type"]["const"].as_str().expect("type const").to_owned();
+        let name = b["properties"]["type"]["const"]
+            .as_str()
+            .expect("type const")
+            .to_owned();
         let mut inst = Map::new();
         inst.insert("type".into(), json!(name));
         if let Some(c) = b["properties"].get("content") {
             inst.insert("content".into(), minimal(c, &schema, 0));
         }
-        assert!(inst_by_name.insert(name, Value::Object(inst)).is_none(), "duplicate variant");
+        assert!(
+            inst_by_name.insert(name, Value::Object(inst)).is_none(),
+            "duplicate variant"
+        );
     }
     // more instances: other oneOf/enum branches (@1, @2, @3, only if different), null options (@nulls)
-    let base: Vec<(String, Value)> = inst_by_name.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let base: Vec<(String, Value)> = inst_by_name
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
     for b in branches {
-        let name = b["properties"]["type"]["const"].as_str().unwrap().to_owned();
-        let Some(c) = b["properties"].get("content") else { continue };
+        let name = b["properties"]["type"]["const"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let Some(c) = b["properties"].get("content") else {
+            continue;
+        };
         let mut seen = vec![inst_by_name[&name]["content"].clone()];
-        for (suffix, mode) in [("@1", (1, false)), ("@2", (2, false)), ("@3", (3, false)), ("@nulls", (0, true))] {
+        for (suffix, mode) in [
+            ("@1", (1, false)),
+            ("@2", (2, false)),
+            ("@3", (3, false)),
+            ("@nulls", (0, true)),
+        ] {
             MODE.set(mode);
             let v = minimal(c, &schema, 0);
             MODE.set((0, false));
@@ -182,16 +229,22 @@ where
                 if serde_json::from_value::<T>(inst.clone()).is_ok() {
                     inst_by_name.insert(format!("{name}{suffix}"), inst);
                 } else {
-                    println!("  skipped alternative instance {name}{suffix} (not accepted by the type)");
+                    println!(
+                        "  skipped alternative instance {name}{suffix} (not accepted by the type)"
+                    );
                 }
             }
         }
     }
     let _ = base;
     for (name, content) in [
-        ("Load@~", "~/k.json"), ("Load@dollar", "$HOME/k.json"), ("Load@braces", "${GOLDEN_VAR}/k.json"),
-        ("Load@percent", "%USERPROFILE%/k.json"), ("Load@psenv", "$Env:USERPROFILE/k.json"),
-        ("Save@~", "~/k.json"), ("ReplaceConfiguration@dollar", "$HOME/k.json"),
+        ("Load@~", "~/k.json"),
+        ("Load@dollar", "$HOME/k.json"),
+        ("Load@braces", "${GOLDEN_VAR}/k.json"),
+        ("Load@percent", "%USERPROFILE%/k.json"),
+        ("Load@psenv", "$Env:USERPROFILE/k.json"),
+        ("Save@~", "~/k.json"),
+        ("ReplaceConfiguration@dollar", "$HOME/k.json"),
         ("ReloadStaticConfiguration@percent", "%USERPROFILE%/k.json"),
     ] {
         let t = name.split('@').next().unwrap();
@@ -215,7 +268,11 @@ where
                 let s = serde_json::to_string(&t).unwrap();
                 wire = json!(s.clone());
                 let back: T = serde_json::from_str(&s).expect("reserialised text must parse");
-                assert_eq!(serde_json::to_value(&back).unwrap(), g, "{name}: unstable round trip");
+                assert_eq!(
+                    serde_json::to_value(&back).unwrap(),
+                    g,
+                    "{name}: unstable round trip"
+                );
                 let eq = &g == inst;
                 (g, true, eq)
             }
@@ -228,7 +285,11 @@ where
             json!({ "instance": inst, "wire": wire, "golden": golden, "deserialised": de, "roundtrip_equal": eq, "payload_stubbed": stubbed.contains(&name.as_str()) }),
         );
     }
-    std::fs::write(outdir.join("variants.json"), serde_json::to_string_pretty(&out).unwrap() + "\n").unwrap();
+    std::fs::write(
+        outdir.join("variants.json"),
+        serde_json::to_string_pretty(&out).unwrap() + "\n",
+    )
+    .unwrap();
     let names: Vec<&String> = out.keys().collect();
     std::fs::write(
         outdir.join("variants.txt"),
@@ -244,7 +305,10 @@ where
     );
     for (n, v) in &out {
         if v["deserialised"] == json!(false) || v["roundtrip_equal"] == json!(false) {
-            println!("  note {n}: deserialised={} equal={} golden={}", v["deserialised"], v["roundtrip_equal"], v["golden"]);
+            println!(
+                "  note {n}: deserialised={} equal={} golden={}",
+                v["deserialised"], v["roundtrip_equal"], v["golden"]
+            );
         }
     }
 }

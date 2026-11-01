@@ -1,5 +1,7 @@
 use crate::alignment::Alignment;
 use crate::config::LabelPrefix;
+use crate::platform::SystemTool;
+use crate::platform::platform;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
@@ -11,8 +13,6 @@ use eframe::egui::Ui;
 use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
-use crate::platform::SystemTool;
-use crate::platform::platform;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Disks;

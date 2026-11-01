@@ -42,5 +42,5 @@ pub use id::MonitorId;
 pub use id::WindowId;
 pub use info::MonitorInfo;
 pub use info::WindowInfo;
-pub use registry::Registry;
 pub use komorebi_layouts::Rect;
+pub use registry::Registry;

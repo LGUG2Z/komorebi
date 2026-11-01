@@ -10,10 +10,10 @@
 //! A container can be locked ([`Lockable`]): a locked container keeps its index in the workspace
 //! while others are inserted, removed or swapped around it.
 
+use color_eyre::eyre;
 use komorebi_collections::Lockable;
 use komorebi_collections::ring::Ring;
 use nanoid::nanoid;
-use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::VecDeque;
@@ -319,7 +319,10 @@ mod tests {
         }
 
         fn hide_stacked(&self, spot: u8) -> eyre::Result<()> {
-            LOG.with(|log| log.borrow_mut().push(format!("hide-stacked {} at {spot}", self.0)));
+            LOG.with(|log| {
+                log.borrow_mut()
+                    .push(format!("hide-stacked {} at {spot}", self.0))
+            });
             Ok(())
         }
 
@@ -435,7 +438,11 @@ mod tests {
 
         assert_eq!(
             log(),
-            ["restore-stacked 1", "hide-stacked 2 at 7", "hide-stacked 3 at 7"]
+            [
+                "restore-stacked 1",
+                "hide-stacked 2 at 7",
+                "hide-stacked 3 at 7"
+            ]
         );
     }
 

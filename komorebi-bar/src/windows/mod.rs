@@ -311,21 +311,30 @@ pub fn main() -> color_eyre::Result<()> {
      -> eframe::AppCreator<'static> {
         Box::new(move |cc| {
             let ctx_repainter = cc.egui_ctx.clone();
-            std::thread::spawn(move || loop {
-                std::thread::sleep(Duration::from_secs(1));
-                ctx_repainter.request_repaint();
+            std::thread::spawn(move || {
+                loop {
+                    std::thread::sleep(Duration::from_secs(1));
+                    ctx_repainter.request_repaint();
+                }
             });
 
             let ctx_komorebi = cc.egui_ctx.clone();
             std::thread::spawn(move || {
-                let subscriber_name = format!("komorebi-bar-{}", random_word::get(random_word::Lang::En));
+                let subscriber_name =
+                    format!("komorebi-bar-{}", random_word::get(random_word::Lang::En));
 
-                let listener = komorebi_client::subscribe_with_options(&subscriber_name, SubscribeOptions {
-                    filter_state_changes: true,
-                })
-                    .expect("could not subscribe to komorebi notifications");
+                let listener = komorebi_client::subscribe_with_options(
+                    &subscriber_name,
+                    SubscribeOptions {
+                        filter_state_changes: true,
+                    },
+                )
+                .expect("could not subscribe to komorebi notifications");
 
-                tracing::info!("subscribed to komorebi notifications: \"{}\"", subscriber_name);
+                tracing::info!(
+                    "subscribed to komorebi notifications: \"{}\"",
+                    subscriber_name
+                );
 
                 for client in listener.incoming() {
                     match client {
@@ -345,7 +354,7 @@ pub fn main() -> color_eyre::Result<()> {
                                 while komorebi_client::send_message(
                                     &SocketMessage::AddSubscriberSocket(subscriber_name.clone()),
                                 )
-                                    .is_err()
+                                .is_err()
                                 {
                                     std::thread::sleep(Duration::from_secs(1));
                                 }
@@ -353,7 +362,9 @@ pub fn main() -> color_eyre::Result<()> {
                                 tracing::info!("reconnected to komorebi");
 
                                 if let Err(error) = tx_gui.send(KomorebiEvent::Reconnect) {
-                                    tracing::error!("could not send komorebi reconnect event to gui thread: {error}")
+                                    tracing::error!(
+                                        "could not send komorebi reconnect event to gui thread: {error}"
+                                    )
                                 }
 
                                 ctx_komorebi.request_repaint();
@@ -368,14 +379,20 @@ pub fn main() -> color_eyre::Result<()> {
                                         Ok(notification) => {
                                             tracing::debug!("received notification from komorebi");
 
-                                            if let Err(error) = tx_gui.send(KomorebiEvent::Notification(Box::new(notification))) {
-                                                tracing::error!("could not send komorebi notification update to gui thread: {error}")
+                                            if let Err(error) = tx_gui.send(
+                                                KomorebiEvent::Notification(Box::new(notification)),
+                                            ) {
+                                                tracing::error!(
+                                                    "could not send komorebi notification update to gui thread: {error}"
+                                                )
                                             }
 
                                             ctx_komorebi.request_repaint();
                                         }
                                         Err(error) => {
-                                            tracing::error!("could not deserialize komorebi notification: {error}");
+                                            tracing::error!(
+                                                "could not deserialize komorebi notification: {error}"
+                                            );
                                         }
                                     }
                                 }
@@ -401,7 +418,14 @@ pub fn main() -> color_eyre::Result<()> {
         native_options,
         // a creator for each attempt: the first is never run when its renderer fails to start, so the
         // second gets what it would have had (the channels are shared, the configuration is a copy)
-        |_renderer| app_creator(tx_gui.clone(), rx_gui.clone(), rx_config.clone(), config.clone()),
+        |_renderer| {
+            app_creator(
+                tx_gui.clone(),
+                rx_gui.clone(),
+                rx_config.clone(),
+                config.clone(),
+            )
+        },
     )
 }
 
@@ -431,13 +455,19 @@ fn run_with_fallback(
     creator: impl Fn(eframe::Renderer) -> eframe::AppCreator<'static>,
 ) -> color_eyre::Result<()> {
     tracing::info!("renderer: glow");
-    match eframe::run_native("komorebi-bar", options(eframe::Renderer::Glow), creator(eframe::Renderer::Glow)) {
+    match eframe::run_native(
+        "komorebi-bar",
+        options(eframe::Renderer::Glow),
+        creator(eframe::Renderer::Glow),
+    ) {
         Err(error) if is_context_failure(&error) => {
             tracing::warn!("renderer: glow failed ({error}); trying wgpu");
-            eframe::run_native("komorebi-bar", options(eframe::Renderer::Wgpu), creator(eframe::Renderer::Wgpu))
-                .map_err(|wgpu| {
-                    color_eyre::eyre::Error::msg(format!("glow: {error}; wgpu: {wgpu}"))
-                })
+            eframe::run_native(
+                "komorebi-bar",
+                options(eframe::Renderer::Wgpu),
+                creator(eframe::Renderer::Wgpu),
+            )
+            .map_err(|wgpu| color_eyre::eyre::Error::msg(format!("glow: {error}; wgpu: {wgpu}")))
         }
         result => result.map_err(|error| color_eyre::eyre::Error::msg(error.to_string())),
     }
