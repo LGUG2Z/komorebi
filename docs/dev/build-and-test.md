@@ -63,6 +63,16 @@ nix build -L --no-link .#checks.x86_64-linux.windows-fmt .#checks.x86_64-linux.w
 nix build -L --no-link .#checks.x86_64-linux.windows-e2e-tests # the Python of the e2e (pytest), no guest needed
 ```
 
+The checks are in sets (docs/dev/flake-checks.md): one set alone builds without the others being evaluated.
+
+```sh
+nix build -L --no-link .#checkSets.fmt .#checkSets.deny      # a set (a linkFarm of its members); also linux-lint, linux-test, windows-lint, ...
+nix build -L --no-link .#checkSets.cheap                      # what `nix flake check` runs (defaultCheckSets in nix/checks.nix)
+nix build -L --no-link .#checkSets.vm-fast                    # the heavy sets: vm-fast, vm-slow, linux-nixos-eval, linux-demo
+nix build -L --no-link .#checkMembers.vm-fast.vm-kwin         # one member of any set (what a heavy check is called)
+nix flake check --no-build                                    # evaluates the default sets and every other output
+```
+
 Quick loop without nix builds (what `tools/fast-check` runs; clippy of the Windows tree from the nix dev shell):
 
 ```sh

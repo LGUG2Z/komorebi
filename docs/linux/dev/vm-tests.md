@@ -49,7 +49,7 @@ Each suite is a directory under
 [`nix/linux/tests/vm/suites`](../../../nix/linux/tests/vm/suites). The generator in
 [`nix/linux/tests/vm/default.nix`](../../../nix/linux/tests/vm/default.nix) lists that
 directory, so a new suite is a new directory and nothing else: it appears as
-`checks.<system>.vm-NAME` on Linux and as `legacyPackages.<system>.vm.NAME`
+`legacyPackages.<system>.vm.NAME` (and, on Linux, as a member of the set `vm-fast` or `vm-slow` by its tier, `.#checkSets.vm-fast`)
 everywhere. `legacyPackages.<system>.vmTiers` lists the names of each tier as
 JSON, which is what CI reads.
 

@@ -62,7 +62,7 @@ prefixes `kfde-` and `kfm-`) and of the nested flakes themselves.
 | `kfde-schema-fresh`, `kfde-nix-options-validation`, `kfde-keybindings-fixtures`, `kfde-nixos-module-eval`, `kfde-plasma-guests-eval` | `linux-schema-fresh`, `linux-nix-options-validation`, `linux-keybindings-fixtures`, `linux-nixos-module-eval`, `linux-plasma-guests-eval` |
 | `kfde-wsl2-probe`, `kfde-wsl2-probe-dry-run`, `kfde-run-kde`, `kfde-run-kde-doctor`, `kfde-run-kde-dry-run` | `linux-wsl2-probe`, `linux-wsl2-probe-dry-run`, `linux-run-kde`, `linux-run-kde-doctor`, `linux-run-kde-dry-run` |
 | `kfde-kde-rounded-corners-komorebi-install`, `kfde-kwin-effect-geometry-change-komorebi-install` | `linux-kde-rounded-corners-komorebi-install`, `linux-kwin-effect-geometry-change-komorebi-install` |
-| `vm-NAME`, `vm-lib` (nested KDE flake only; the root flake left them out) | unchanged names, in `legacyPackages.<linux>.heavyChecks` for now (see Checks); the suites are also `legacyPackages.<s>.vm.NAME` |
+| `vm-NAME`, `vm-lib` (nested KDE flake only; the root flake left them out) | unchanged names, in `checks` (`vm-lib`) or the sets `vm-fast`, `vm-slow` (see Checks and flake-checks.md); the suites are also `legacyPackages.<s>.vm.NAME` |
 | `kfm-komorebi-workspace-clippy`, `-fmt`, `-toml-fmt`, `-deny`, `-nextest` | `macos-clippy`, `macos-fmt`, `macos-toml-fmt`, `macos-deny`, `macos-nextest` |
 | `kfm-nix-options-validation`, `kfm-darwin-module-validation` | `macos-nix-options-validation`, `macos-darwin-module-validation` |
 | `pre-commit`, `treefmt`, `kfde-pre-commit`, `kfde-treefmt`, `kfm-pre-commit`, `kfm-treefmt` | `pre-commit`, `treefmt` (one each, for the whole repository) |
@@ -135,13 +135,13 @@ others' derivations. A change in a crate under `crates/` (or in `komorebic`, `ko
   `macos-darwin-module-validation`
 - `treefmt` and `pre-commit` for the whole tree
 
-The checks that evaluate a NixOS system or a VM (`vm-lib`, one `vm-NAME` per suite, `linux-nixos-module-eval`,
-`linux-plasma-guests-eval`, `linux-run-kde`, `linux-run-kde-doctor`, `linux-run-kde-dry-run`) are NOT in `checks`:
-they are `legacyPackages.<system>.heavyChecks.<name>` (`nix build -L .#legacyPackages.x86_64-linux.heavyChecks.vm-lib`).
-Evaluating them takes minutes and more memory than `nix flake check --no-build --all-systems` can use (it was
-killed at 28 GB). This is a placeholder until the structure of the check sets is decided. Name the check you want (`nix build -L
-.#checks.x86_64-linux.windows-clippy`). `nix flake check --no-build --all-systems` evaluates every output of
-every system (42 s) and is the evaluation test of this file.
+The checks are in sets (docs/dev/flake-checks.md): `checks.<system>` has the members of the sets of
+`defaultCheckSets` in `nix/checks.nix`, the cheap ones. The ones that evaluate NixOS systems (the VM suites,
+`linux-nixos-module-eval`, `linux-plasma-guests-eval`, `linux-run-kde*`) are the sets `vm-fast`, `vm-slow`,
+`linux-nixos-eval` and `linux-demo`, which `nix flake check` leaves out (evaluating them took more memory than the host
+has): `nix build -L .#checkSets.<set>`, or one member, `.#checkMembers.<set>.<name>`. A check is named as before
+(`nix build -L .#checks.x86_64-linux.windows-clippy`). `nix flake check --no-build --all-systems` evaluates the
+default sets and every other output of every system and is the evaluation test of this file.
 
 ## Dev shells
 

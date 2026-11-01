@@ -617,7 +617,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/nix
         with: { kvm: "true" }
-      - run: nix build -L .#checks.x86_64-linux.vm-${{ matrix.suite }}
+      - run: nix build -L .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}
 
   vm-slow:
     needs: discover

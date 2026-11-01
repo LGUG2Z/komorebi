@@ -1,4 +1,4 @@
-# The NixOS VM tests. Every directory under `suites/` is one test, `checks.<system>.vm-<name>`
+# The NixOS VM tests. Every directory under `suites/` is one test, `legacyPackages.<system>.checkMembers.vm-<tier>.vm-<name>`
 # (Linux) and `legacyPackages.<system>.vm.<name>` (everywhere), so a new suite needs no edit to
 # the flake. See docs/dev/vm-tests.md.
 #
