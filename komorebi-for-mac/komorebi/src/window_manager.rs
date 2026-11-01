@@ -17,7 +17,6 @@ use crate::application::Application;
 use crate::border_manager;
 use crate::border_manager::BorderLook;
 use crate::container::Container;
-use crate::container::ContainerExt;
 use crate::core::Arrangement;
 use crate::core::Axis;
 use crate::core::CrossBoundaryBehaviour;
@@ -1249,9 +1248,9 @@ impl WindowManager {
                 }
             }
 
-            let window_hiding_position = workspace.state.window_hiding_position;
+            let spot = workspace.hide_spot();
             if changed_focus && let Some(container) = workspace.focused_container_mut() {
-                container.load_focused_window_at(window_hiding_position)?;
+                container.load_focused_window(spot)?;
                 if let Some(window) = container.focused_window() {
                     window.focus(mouse_follows_focus)?;
                 }
@@ -1332,7 +1331,7 @@ impl WindowManager {
         tracing::info!("cycling container windows");
 
         let mouse_follows_focus = self.mouse_follows_focus;
-        let window_hiding_position = self.focused_workspace()?.state.window_hiding_position;
+        let spot = self.focused_workspace()?.hide_spot();
 
         let container = self.focused_container_mut()?;
 
@@ -1347,7 +1346,7 @@ impl WindowManager {
         let next_idx = direction.next_idx(current_idx, len);
 
         container.focus_window(next_idx);
-        container.load_focused_window_at(window_hiding_position)?;
+        container.load_focused_window(spot)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -1545,17 +1544,12 @@ impl WindowManager {
     pub fn monocle_on(&mut self) -> eyre::Result<()> {
         tracing::info!("enabling monocle");
 
-        let hiding_position = self
-            .focused_monitor()
-            .ok_or_eyre("there is no monitor")?
-            .extra
-            .window_hiding_position;
-
         let workspace = self.focused_workspace_mut()?;
         workspace.new_monocle_container()?;
 
+        let spot = workspace.hide_spot();
         for container in workspace.containers_mut() {
-            container.hide_on(hiding_position, None, None)?;
+            container.hide(None, spot)?;
         }
 
         Ok(())
@@ -1568,7 +1562,7 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
 
         for container in workspace.containers_mut() {
-            container.restore_focused_window()?;
+            container.restore()?;
         }
 
         workspace.reintegrate_monocle_container()
@@ -1582,17 +1576,12 @@ impl WindowManager {
             return Ok(());
         }
 
-        let hiding_position = self
-            .focused_monitor()
-            .ok_or_eyre("there is no monitor")?
-            .extra
-            .window_hiding_position;
-
         self.focused_workspace_mut()?
             .cycle_monocle_container(direction)?;
 
+        let spot = self.focused_workspace()?.hide_spot();
         for container in self.focused_workspace_mut()?.containers_mut() {
-            container.hide_on(hiding_position, None, None)?;
+            container.hide(None, spot)?;
         }
 
         self.update_focused_workspace(true, true)
@@ -2611,7 +2600,7 @@ impl WindowManager {
 
         if target_workspace.monocle_container.is_some() {
             for container in target_workspace.containers_mut() {
-                container.restore_focused_window()?;
+                container.restore()?;
             }
 
             for window in target_workspace.floating_windows_mut() {
@@ -2881,7 +2870,7 @@ impl WindowManager {
         tracing::info!("cycling container window index");
 
         let mouse_follows_focus = self.mouse_follows_focus;
-        let window_hiding_position = self.focused_workspace()?.state.window_hiding_position;
+        let spot = self.focused_workspace()?.hide_spot();
 
         let container =
             if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
@@ -2902,7 +2891,7 @@ impl WindowManager {
         container.windows_mut().swap(current_idx, next_idx);
 
         container.focus_window(next_idx);
-        container.load_focused_window_at(window_hiding_position)?;
+        container.load_focused_window(spot)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -2916,7 +2905,7 @@ impl WindowManager {
         tracing::info!("focusing container window at index {idx}");
 
         let mouse_follows_focus = self.mouse_follows_focus;
-        let window_hiding_position = self.focused_workspace()?.state.window_hiding_position;
+        let spot = self.focused_workspace()?.hide_spot();
 
         let container =
             if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
@@ -2937,7 +2926,7 @@ impl WindowManager {
         }
 
         container.focus_window(idx);
-        container.load_focused_window_at(window_hiding_position)?;
+        container.load_focused_window(spot)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -2951,7 +2940,7 @@ impl WindowManager {
         tracing::info!("stacking all windows on workspace");
 
         let workspace = self.focused_workspace_mut()?;
-        let window_hiding_position = workspace.state.window_hiding_position;
+        let spot = workspace.hide_spot();
 
         let mut focused_hwnd = None;
         if let Some(container) = workspace.focused_container()
@@ -2979,7 +2968,7 @@ impl WindowManager {
             && let Some(w_idx_to_focus) = c.idx_for_window(hwnd)
         {
             c.focus_window(w_idx_to_focus);
-            c.load_focused_window_at(window_hiding_position)?;
+            c.load_focused_window(spot)?;
         }
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
@@ -3783,7 +3772,7 @@ impl WindowManager {
                     .ok_or_eyre("there is no workspace for this monitor")?;
 
                 for container in origin_workspace.containers_mut() {
-                    container.restore_focused_window()?;
+                    container.restore()?;
                 }
 
                 origin_workspace.reintegrate_monocle_container()?;

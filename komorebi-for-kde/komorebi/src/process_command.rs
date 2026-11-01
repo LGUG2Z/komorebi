@@ -1125,21 +1125,10 @@ impl WindowManager {
             }
             SocketMessage::FocusLastWorkspace => self.focus_last_workspace()?,
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
-                if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
-                    self.focus_workspace(workspace_idx)?;
-                }
+                komorebi_core::focus_workspace_number(self, workspace_idx)?
             }
             SocketMessage::FocusWorkspaceNumbers(workspace_idx) => {
-                let focused_monitor_idx = self.focused_monitor_idx();
-
-                for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
-                    if i != focused_monitor_idx {
-                        monitor.focus_workspace(workspace_idx)?;
-                        monitor.load_focused_workspace(false)?;
-                    }
-                }
-
-                self.focus_workspace(workspace_idx)?;
+                komorebi_core::focus_workspace_numbers(self, workspace_idx)?
             }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
                 komorebi_core::focus_monitor_workspace_number(self, monitor_idx, workspace_idx)?
@@ -2050,6 +2039,16 @@ impl komorebi_core::CommandHost for WindowManager {
 
     fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
         WindowManager::focus_workspace(self, idx)
+    }
+
+    fn show_workspace_on(&mut self, monitor_idx: usize, workspace_idx: usize) -> eyre::Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor at this index")?;
+        monitor.focus_workspace(workspace_idx)?;
+        monitor.load_focused_workspace(false)?;
+        Ok(())
     }
 
     fn move_container_to_workspace(

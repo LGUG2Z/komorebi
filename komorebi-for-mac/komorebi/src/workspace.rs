@@ -8,7 +8,6 @@
 
 use crate::DATA_DIR;
 use crate::REGEX_IDENTIFIERS;
-use crate::container::ContainerExt;
 use crate::container::MacosHideSpot;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
@@ -464,7 +463,7 @@ impl WorkspaceExt for Workspace {
             }
 
             for c in self.containers_mut() {
-                c.restore_focused_window()?;
+                c.restore()?;
             }
 
             return Ok(window);
@@ -474,7 +473,7 @@ impl WorkspaceExt for Workspace {
             .container_idx_for_window(window_id)
             .ok_or_eyre("there is no window")?;
 
-        let window_hiding_position = self.state.window_hiding_position;
+        let spot = self.hide_spot();
 
         // a strip of columns has to know what there is before it is told what goes
         self.sync_scrolling_containers();
@@ -502,7 +501,7 @@ impl WorkspaceExt for Workspace {
                 self.focus_previous_container();
             }
         } else {
-            container.load_focused_window_at(window_hiding_position)?;
+            container.load_focused_window(spot)?;
             if let Some(window) = container.focused_window() {
                 window.focus(false)?;
             }
@@ -523,7 +522,7 @@ impl WorkspaceExt for Workspace {
 
     fn restore_windows(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         if let Some(container) = &mut self.monocle_container {
-            container.restore_focused_window()?;
+            container.restore()?;
 
             if let Some(window) = container.focused_window() {
                 window.focus(mouse_follows_focus)?;
@@ -544,7 +543,7 @@ impl WorkspaceExt for Workspace {
         }
 
         for container in self.containers_mut() {
-            container.restore_focused_window()?;
+            container.restore()?;
         }
 
         if let Some(container) = self.focused_container_mut() {
@@ -1074,7 +1073,7 @@ mod tests {
         let window = ws.floating_windows_mut().pop_back().unwrap();
         let mut container = Container::default();
         container
-            .add_window_at(&window, WindowHidingPosition::BottomLeft)
+            .add_window(window, Default::default())
             .unwrap();
         ws.insert_container_at_idx(ws.focused_container_idx(), container);
 

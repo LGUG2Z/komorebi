@@ -31,6 +31,7 @@ BAR_CONFIG = "C:\\e2e\\bar.json"
 BAR_OUTPUT = "C:\\e2e\\bar.out"
 # the title eframe gives the window (`run_native("komorebi-bar", ...)`)
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
+BAR_LOG = "info,wgpu_hal=debug,wgpu_core=warn"
 BAR_TITLE = "komorebi-bar"
 # how long the bar must keep running, in seconds
 ALIVE_SECONDS = 15
@@ -104,21 +105,32 @@ def _alive_for(platform: WindowsPlatform, seconds: float) -> bool:
     return bool(_bar_pids(platform))
 
 
-# what the bar prints when eframe cannot make a window for lack of OpenGL (komorebi-bar's
-# `run_native` error), as the gate printed it: "egui_glow requires opengl 2.0+"
+# what the bar prints when glow cannot make its context (komorebi-bar's `run_native` error), as the gate
+# printed it: "egui_glow requires opengl 2.0+". The bar then tries wgpu (Direct3D 12, WARP) and, when that
+# fails too, ends with "glow: <error>; wgpu: <error>".
 NO_OPENGL_TEXT = "requires opengl"
-NO_OPENGL = "guest has no OpenGL 2.0"
 
 
 def classify(output: str) -> str | None:
-    """What the bar's own output says about its start: "no_opengl" (it could not make a
-    window for lack of OpenGL), "failed" (it ended with any other error: a configuration it
+    """What the bar's own output says about its start: "no_renderer" (neither glow nor wgpu
+    could make a window: no OpenGL 2.0 and no usable Direct3D 12 adapter), "failed" (it ended with any other error: a configuration it
     could not read, a crash) or None (no error, it runs)."""
     if "Error:" not in output and "panicked" not in output:
         return None
     if NO_OPENGL_TEXT in output.lower():
-        return "no_opengl"
+        return "no_renderer"
     return "failed"
+
+
+def _renderer_errors(output: str) -> str:
+    """The line that names what glow and wgpu said, for a skip."""
+    for line in output.splitlines():
+        if "wgpu:" in line and "glow:" in line:
+            return line.strip()
+    for line in output.splitlines():
+        if NO_OPENGL_TEXT in line.lower():
+            return f"glow: {line.strip()}; (no wgpu attempt: an older bar)"
+    return "no renderer"
 
 
 def _bar_output(platform: WindowsPlatform) -> str:
@@ -135,7 +147,7 @@ def _started(platform: WindowsPlatform) -> bool:
 
 
 def _outcome(platform: WindowsPlatform) -> str:
-    """Waits for the bar's window or its end: "running" (the window is there), "no_opengl",
+    """Waits for the bar's window or its end: "running" (the window is there), "no_renderer",
     "failed", or "timeout" (neither within a minute)."""
     deadline = time.monotonic() + 60 * platform._scale
     while time.monotonic() < deadline:
@@ -172,8 +184,10 @@ def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> Non
     local = platform._out / "bar.json"
     local.write_text(json.dumps(CONFIG, indent=2))
     platform._agent.put_file(local, BAR_CONFIG)
+    # the log of the first run keeps what wgpu says about its adapters
     platform.agent_spawn(
-        "cmd", "/c", f"{BAR_BINARY} --config {BAR_CONFIG} > {BAR_OUTPUT} 2>&1"
+        "cmd", "/c",
+        f"set RUST_LOG={BAR_LOG}&& {BAR_BINARY} --config {BAR_CONFIG} > {BAR_OUTPUT} 2>&1",
     )
 
     checks.check("the bar process starts", platform.wait_for(lambda: _started(platform), timeout=30))
@@ -188,16 +202,17 @@ def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> Non
         outcome != "failed" and "found configuration file" in text,
     )
 
-    if outcome == "no_opengl":
-        # the golden guest has no OpenGL 2.0 (basic display and QXL, no software opengl32), so
-        # eframe cannot make the window: not what a change of the bar did, and not a pass
+    if outcome == "no_renderer":
+        # the bar tried glow and then wgpu and neither could make a window: not what a change of the
+        # bar did, and not a pass
+        reason = f"guest cannot draw: {_renderer_errors(text)}"
         for what in (
             f"the bar's window titled {BAR_TITLE!r} appears",
             f"the bar keeps running for {ALIVE_SECONDS} s",
             "the bar is still running after the daemon stopped",
             "the bar runs on after the daemon is back",
         ):
-            checks.skip(what, NO_OPENGL)
+            checks.skip(what, reason)
         checks.check(
             "`komorebic state` answers after the bar has started",
             platform.wait_for(lambda: platform.komorebic_status("state")[0] == 0),
@@ -215,6 +230,8 @@ def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> Non
         platform.start_komorebi()
         return
 
+    used = "wgpu" if "trying wgpu" in text else "glow"
+    print(f"     the bar draws with {used}")
     window = _bar_window(platform)
     checks.check(f"the bar's window titled {BAR_TITLE!r} appears", window is not None)
     if window is not None:

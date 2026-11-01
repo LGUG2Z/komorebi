@@ -21,6 +21,7 @@ use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::core::Sizing;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
@@ -592,37 +593,10 @@ impl WindowManager {
             }
             SocketMessage::FocusLastWorkspace => self.focus_last_workspace()?,
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
-                if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
-                    self.focus_workspace(workspace_idx)?;
-                }
+                komorebi_core::focus_workspace_number(self, workspace_idx)?
             }
             SocketMessage::FocusWorkspaceNumbers(workspace_idx) => {
-                // TODO: figure out if we need to do this on macOS
-                // // This is to ensure that even on an empty workspace on a secondary monitor, the
-                // // secondary monitor where the cursor is focused will be used as the target for
-                // // the workspace switch op
-                // if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                //     if monitor_idx != self.focused_monitor_idx() {
-                //         if let Some(monitor) = self.monitors().get(monitor_idx) {
-                //             if let Some(workspace) = monitor.focused_workspace() {
-                //                 if workspace.is_empty() {
-                //                     self.focus_monitor(monitor_idx)?;
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
-
-                let focused_monitor_idx = self.focused_monitor_idx();
-
-                for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
-                    if i != focused_monitor_idx {
-                        monitor.focus_workspace(workspace_idx)?;
-                        monitor.load_focused_workspace(false)?;
-                    }
-                }
-
-                self.focus_workspace(workspace_idx)?;
+                komorebi_core::focus_workspace_numbers(self, workspace_idx)?
             }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
                 komorebi_core::focus_monitor_workspace_number(self, monitor_idx, workspace_idx)?
@@ -645,117 +619,7 @@ impl WindowManager {
             }
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleFloat => self.toggle_float(false)?,
-            SocketMessage::ToggleWorkspaceLayer => {
-                let mouse_follows_focus = self.mouse_follows_focus;
-                let hiding_position = self
-                    .focused_monitor()
-                    .ok_or_eyre("there is no monitor")?
-                    .extra
-                    .window_hiding_position;
-                let workspace = self.focused_workspace_mut()?;
-
-                let mut to_focus = None;
-                match workspace.layer {
-                    WorkspaceLayer::Tiling => {
-                        workspace.layer = WorkspaceLayer::Floating;
-                        tracing::info!("WorkspaceLayer is now Floating");
-
-                        let focused_idx = workspace.focused_floating_window_idx();
-                        let mut window_idx_pairs = workspace
-                            .floating_windows_mut()
-                            .make_contiguous()
-                            .iter_mut()
-                            .enumerate()
-                            .collect::<Vec<_>>();
-
-                        // Sort by window area
-                        window_idx_pairs.sort_by_key(|(_, w)| {
-                            let rect = Rect::from(w.window_rect().unwrap_or_default());
-                            rect.right * rect.bottom
-                        });
-                        window_idx_pairs.reverse();
-
-                        for (i, window) in window_idx_pairs {
-                            if i == focused_idx {
-                                to_focus = Some(window.clone());
-                            } else {
-                                window.restore()?;
-                                window.raise()?;
-                            }
-                        }
-
-                        if let Some(focused_window) = &mut to_focus {
-                            // The focused window should be the last one raised to make sure it is
-                            // on top
-                            focused_window.restore()?;
-                            focused_window.raise()?;
-                        }
-
-                        for container in workspace.containers() {
-                            if let Some(_window) = container.focused_window() {
-                                // TODO: figure out z order
-                                // window.lower()?;
-                            }
-                        }
-
-                        if let Some(monocle) = &workspace.monocle_container
-                            && let Some(_window) = monocle.focused_window()
-                        {
-                            // TODO: figure out z order
-                            // window.lower()?;
-                        }
-                    }
-                    WorkspaceLayer::Floating => {
-                        workspace.layer = WorkspaceLayer::Tiling;
-                        tracing::info!("WorkspaceLayer is now Tiling");
-
-                        if let Some(monocle) = &workspace.monocle_container {
-                            if let Some(window) = monocle.focused_window() {
-                                to_focus = Some(window.clone());
-                                window.raise()?;
-                            }
-
-                            for window in workspace.floating_windows_mut() {
-                                window.hide(hiding_position)?;
-                            }
-                        } else {
-                            let focused_container_idx = workspace.focused_container_idx();
-                            for (i, container) in workspace.containers_mut().iter_mut().enumerate()
-                            {
-                                if let Some(window) = container.focused_window() {
-                                    if i == focused_container_idx {
-                                        to_focus = Some(window.clone());
-                                    }
-
-                                    window.raise()?;
-                                }
-                            }
-
-                            let mut window_idx_pairs = workspace
-                                .floating_windows_mut()
-                                .make_contiguous()
-                                .iter_mut()
-                                .collect::<Vec<_>>();
-
-                            // Sort by window area
-                            window_idx_pairs.sort_by_key(|w| {
-                                let rect = Rect::from(w.window_rect().unwrap_or_default());
-                                rect.right * rect.bottom
-                            });
-
-                            for window in window_idx_pairs {
-                                // TODO: figure out z order
-                                window.hide(hiding_position)?;
-                                // window.lower()?;
-                            }
-                        }
-                    }
-                };
-
-                if let Some(window) = to_focus {
-                    window.focus(mouse_follows_focus)?;
-                }
-            }
+            SocketMessage::ToggleWorkspaceLayer => self.toggle_workspace_layer()?,
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
                 // resizing is done by the key, over and over, and every press is laid out where it
                 // goes and not by an animation that the next press would have to catch up with
@@ -763,65 +627,7 @@ impl WindowManager {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
-                let _suspended_animations = animation::suspend();
-                match axis {
-                    Axis::Horizontal => {
-                        self.resize_window(
-                            OperationDirection::Left,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Right,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                    }
-                    Axis::Vertical => {
-                        self.resize_window(
-                            OperationDirection::Up,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Down,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                    }
-                    Axis::HorizontalAndVertical => {
-                        self.resize_window(
-                            OperationDirection::Left,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Right,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Up,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Down,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                    }
-                }
-
-                self.update_focused_workspace(false, false)?;
+                self.resize_window_axis(axis, sizing)?
             }
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
@@ -1012,42 +818,7 @@ impl WindowManager {
                 reply.write_all(monitors_state.as_bytes())?;
             }
             SocketMessage::Query(query) => self.answer_query(query, &mut reply)?,
-            SocketMessage::SessionFloatRule => {
-                let foreground_window =
-                    MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
-                let (exe, title, role) = (
-                    AdhocWindow::exe(&foreground_window),
-                    AdhocWindow::title(&foreground_window),
-                    AdhocWindow::role(&foreground_window),
-                );
-
-                if let (Some(exe), Some(title), Some(role)) = (exe, title, role) {
-                    let rule = MatchingRule::Composite(vec![
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Exe,
-                            id: exe,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Title,
-                            id: title,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                        IdWithIdentifier {
-                            kind: ApplicationIdentifier::Class,
-                            id: role,
-                            matching_strategy: Option::from(MatchingStrategy::Equals),
-                        },
-                    ]);
-
-                    let mut floating_applications = FLOATING_APPLICATIONS.lock();
-                    floating_applications.push(rule.clone());
-                    let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
-                    session_floating_applications.push(rule.clone());
-
-                    self.toggle_float(true)?;
-                }
-            }
+            SocketMessage::SessionFloatRule => self.add_session_float_rule()?,
             SocketMessage::SessionFloatRules => {
                 let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
                 let rules = serde_json::to_string_pretty(&*session_floating_applications)
@@ -1130,78 +901,7 @@ impl WindowManager {
                 self.enforce_workspace_rules()?;
             }
             SocketMessage::IgnoreRule(identifier, ref id) => {
-                let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
-
-                let mut should_push = true;
-                for i in &*ignore_identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
-
-                let offset = self.work_area_offset;
-
-                let mut window_ids_to_purge = vec![];
-                for (i, monitor) in self.monitors().iter().enumerate() {
-                    for container in monitor
-                        .focused_workspace()
-                        .ok_or_eyre("there is no workspace")?
-                        .containers()
-                    {
-                        for window in container.windows() {
-                            match identifier {
-                                ApplicationIdentifier::Path => {
-                                    if window.path().unwrap_or_default().to_string_lossy() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-                                }
-                                ApplicationIdentifier::Exe => {
-                                    if window.exe().unwrap_or_default() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-                                }
-                                ApplicationIdentifier::Class => {
-                                    if window.role().unwrap_or_default() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-
-                                    if window.subrole().unwrap_or_default() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-                                }
-                                ApplicationIdentifier::Title => {
-                                    if window.title().unwrap_or_default() == *id {
-                                        window_ids_to_purge.push((i, window.id));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                for (monitor_idx, id) in window_ids_to_purge {
-                    let monitor = self
-                        .monitors_mut()
-                        .get_mut(monitor_idx)
-                        .ok_or_eyre("there is no monitor")?;
-
-                    monitor
-                        .focused_workspace_mut()
-                        .ok_or_eyre("there is no focused workspace")?
-                        .remove_window(id)?;
-
-                    monitor.update_focused_workspace(offset)?;
-                }
+                self.add_ignore_rule(identifier, id)?
             }
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
@@ -1562,34 +1262,7 @@ impl WindowManager {
                 });
             }
             SocketMessage::ReplaceConfiguration(ref config) => {
-                // Check that this is a valid static config file first
-                if StaticConfig::read(config).is_ok() {
-                    // Clear workspace rules; these will need to be replaced
-                    WORKSPACE_MATCHING_RULES.lock().clear();
-                    // Pause so that restored windows come to the foreground from all workspaces
-                    self.is_paused = true;
-                    // Bring all windows to the foreground
-                    self.restore_all_windows(false)?;
-
-                    // Create a new wm from the config path
-                    let mut wm = StaticConfig::preload(
-                        config,
-                        window_manager_event_listener::event_rx(),
-                        self.command_listener.try_clone().ok(),
-                        &self.run_loop.0,
-                    )?;
-
-                    // Initialize the new wm
-                    wm.init()?;
-
-                    wm.restore_all_windows(true)?;
-
-                    // This is equivalent to StaticConfig::postload for this use case
-                    StaticConfig::reload(config, &mut wm)?;
-
-                    // Set self to the new wm instance
-                    *self = wm;
-                }
+                self.replace_configuration(config)?
             }
             SocketMessage::Border(enable) => {
                 border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
@@ -1727,6 +1400,298 @@ pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> 
     komorebi_transport::read_commands::<WindowManager, _>(wm, stream, &NoPolicy)
 }
 
+impl WindowManager {
+    /// Switches the focused workspace between its tiling and floating layers, and focuses a window of the layer it switched to
+    pub fn toggle_workspace_layer(&mut self) -> eyre::Result<()> {
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let hiding_position = self
+            .focused_monitor()
+            .ok_or_eyre("there is no monitor")?
+            .extra
+            .window_hiding_position;
+        let workspace = self.focused_workspace_mut()?;
+
+        let mut to_focus = None;
+        match workspace.layer {
+            WorkspaceLayer::Tiling => {
+                workspace.layer = WorkspaceLayer::Floating;
+                tracing::info!("WorkspaceLayer is now Floating");
+
+                let focused_idx = workspace.focused_floating_window_idx();
+                let mut window_idx_pairs = workspace
+                    .floating_windows_mut()
+                    .make_contiguous()
+                    .iter_mut()
+                    .enumerate()
+                    .collect::<Vec<_>>();
+
+                // Sort by window area
+                window_idx_pairs.sort_by_key(|(_, w)| {
+                    let rect = Rect::from(w.window_rect().unwrap_or_default());
+                    rect.right * rect.bottom
+                });
+                window_idx_pairs.reverse();
+
+                for (i, window) in window_idx_pairs {
+                    if i == focused_idx {
+                        to_focus = Some(window.clone());
+                    } else {
+                        window.restore()?;
+                        window.raise()?;
+                    }
+                }
+
+                if let Some(focused_window) = &mut to_focus {
+                    // The focused window should be the last one raised to make sure it is
+                    // on top
+                    focused_window.restore()?;
+                    focused_window.raise()?;
+                }
+
+                for container in workspace.containers() {
+                    if let Some(_window) = container.focused_window() {
+                        // TODO: figure out z order
+                        // window.lower()?;
+                    }
+                }
+
+                if let Some(monocle) = &workspace.monocle_container
+                    && let Some(_window) = monocle.focused_window()
+                {
+                    // TODO: figure out z order
+                    // window.lower()?;
+                }
+            }
+            WorkspaceLayer::Floating => {
+                workspace.layer = WorkspaceLayer::Tiling;
+                tracing::info!("WorkspaceLayer is now Tiling");
+
+                if let Some(monocle) = &workspace.monocle_container {
+                    if let Some(window) = monocle.focused_window() {
+                        to_focus = Some(window.clone());
+                        window.raise()?;
+                    }
+
+                    for window in workspace.floating_windows_mut() {
+                        window.hide(hiding_position)?;
+                    }
+                } else {
+                    let focused_container_idx = workspace.focused_container_idx();
+                    for (i, container) in workspace.containers_mut().iter_mut().enumerate() {
+                        if let Some(window) = container.focused_window() {
+                            if i == focused_container_idx {
+                                to_focus = Some(window.clone());
+                            }
+
+                            window.raise()?;
+                        }
+                    }
+
+                    let mut window_idx_pairs = workspace
+                        .floating_windows_mut()
+                        .make_contiguous()
+                        .iter_mut()
+                        .collect::<Vec<_>>();
+
+                    // Sort by window area
+                    window_idx_pairs.sort_by_key(|w| {
+                        let rect = Rect::from(w.window_rect().unwrap_or_default());
+                        rect.right * rect.bottom
+                    });
+
+                    for window in window_idx_pairs {
+                        // TODO: figure out z order
+                        window.hide(hiding_position)?;
+                        // window.lower()?;
+                    }
+                }
+            }
+        };
+
+        if let Some(window) = to_focus {
+            window.focus(mouse_follows_focus)?;
+        }
+        Ok(())
+    }
+
+    /// Resizes the focused window along an axis, by the edge that the axis says
+    pub fn resize_window_axis(&mut self, axis: Axis, sizing: Sizing) -> eyre::Result<()> {
+        let _suspended_animations = animation::suspend();
+        match axis {
+            Axis::Horizontal => {
+                self.resize_window(OperationDirection::Left, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Right, sizing, self.resize_delta, false)?;
+            }
+            Axis::Vertical => {
+                self.resize_window(OperationDirection::Up, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Down, sizing, self.resize_delta, false)?;
+            }
+            Axis::HorizontalAndVertical => {
+                self.resize_window(OperationDirection::Left, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Right, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Up, sizing, self.resize_delta, false)?;
+                self.resize_window(OperationDirection::Down, sizing, self.resize_delta, false)?;
+            }
+        }
+
+        self.update_focused_workspace(false, false)?;
+        Ok(())
+    }
+
+    /// Adds a float rule for the focused window (its executable, title and role), until the daemon stops
+    pub fn add_session_float_rule(&mut self) -> eyre::Result<()> {
+        let foreground_window =
+            MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
+        let (exe, title, role) = (
+            AdhocWindow::exe(&foreground_window),
+            AdhocWindow::title(&foreground_window),
+            AdhocWindow::role(&foreground_window),
+        );
+
+        if let (Some(exe), Some(title), Some(role)) = (exe, title, role) {
+            let rule = MatchingRule::Composite(vec![
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Exe,
+                    id: exe,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Title,
+                    id: title,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Class,
+                    id: role,
+                    matching_strategy: Option::from(MatchingStrategy::Equals),
+                },
+            ]);
+
+            let mut floating_applications = FLOATING_APPLICATIONS.lock();
+            floating_applications.push(rule.clone());
+            let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+            session_floating_applications.push(rule.clone());
+
+            self.toggle_float(true)?;
+        }
+        Ok(())
+    }
+
+    /// Adds a rule that ignores the windows matching `id`, and takes the ones it matches out of the workspaces
+    pub fn add_ignore_rule(
+        &mut self,
+        identifier: ApplicationIdentifier,
+        id: &str,
+    ) -> eyre::Result<()> {
+        let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+
+        let mut should_push = true;
+        for i in &*ignore_identifiers {
+            if let MatchingRule::Simple(i) = i
+                && i.id == id
+            {
+                should_push = false;
+            }
+        }
+
+        if should_push {
+            ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
+                kind: identifier,
+                id: id.to_string(),
+                matching_strategy: Option::from(MatchingStrategy::Legacy),
+            }));
+        }
+
+        let offset = self.work_area_offset;
+
+        let mut window_ids_to_purge = vec![];
+        for (i, monitor) in self.monitors().iter().enumerate() {
+            for container in monitor
+                .focused_workspace()
+                .ok_or_eyre("there is no workspace")?
+                .containers()
+            {
+                for window in container.windows() {
+                    match identifier {
+                        ApplicationIdentifier::Path => {
+                            if window.path().unwrap_or_default().to_string_lossy() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+                        }
+                        ApplicationIdentifier::Exe => {
+                            if window.exe().unwrap_or_default() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+                        }
+                        ApplicationIdentifier::Class => {
+                            if window.role().unwrap_or_default() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+
+                            if window.subrole().unwrap_or_default() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+                        }
+                        ApplicationIdentifier::Title => {
+                            if window.title().unwrap_or_default() == *id {
+                                window_ids_to_purge.push((i, window.id));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (monitor_idx, id) in window_ids_to_purge {
+            let monitor = self
+                .monitors_mut()
+                .get_mut(monitor_idx)
+                .ok_or_eyre("there is no monitor")?;
+
+            monitor
+                .focused_workspace_mut()
+                .ok_or_eyre("there is no focused workspace")?
+                .remove_window(id)?;
+
+            monitor.update_focused_workspace(offset)?;
+        }
+        Ok(())
+    }
+
+    /// Replaces the running configuration with the one in the file
+    pub fn replace_configuration(&mut self, config: &std::path::Path) -> eyre::Result<()> {
+        // Check that this is a valid static config file first
+        if StaticConfig::read(config).is_ok() {
+            // Clear workspace rules; these will need to be replaced
+            WORKSPACE_MATCHING_RULES.lock().clear();
+            // Pause so that restored windows come to the foreground from all workspaces
+            self.is_paused = true;
+            // Bring all windows to the foreground
+            self.restore_all_windows(false)?;
+
+            // Create a new wm from the config path
+            let mut wm = StaticConfig::preload(
+                config,
+                window_manager_event_listener::event_rx(),
+                self.command_listener.try_clone().ok(),
+                &self.run_loop.0,
+            )?;
+
+            // Initialize the new wm
+            wm.init()?;
+
+            wm.restore_all_windows(true)?;
+
+            // This is equivalent to StaticConfig::postload for this use case
+            StaticConfig::reload(config, &mut wm)?;
+
+            // Set self to the new wm instance
+            *self = wm;
+        }
+        Ok(())
+    }
+}
+
 /// The window manager as the shared commands of `komorebi_core::command` see it
 impl komorebi_core::CommandHost for WindowManager {
     type P = crate::workspace::MacosPlatform;
@@ -1757,6 +1722,16 @@ impl komorebi_core::CommandHost for WindowManager {
 
     fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
         WindowManager::focus_workspace(self, idx)
+    }
+
+    fn show_workspace_on(&mut self, monitor_idx: usize, workspace_idx: usize) -> eyre::Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor at this index")?;
+        monitor.focus_workspace(workspace_idx)?;
+        monitor.load_focused_workspace(false)?;
+        Ok(())
     }
 
     fn move_container_to_workspace(

@@ -273,10 +273,7 @@ pub fn main() -> color_eyre::Result<()> {
         .with_transparent(true)
         .with_taskbar(false);
 
-    let native_options = eframe::NativeOptions {
-        viewport: viewport_builder,
-        ..Default::default()
-    };
+    let native_options = |renderer| native_options(viewport_builder.clone(), renderer);
 
     if let Some(rect) = &work_area_offset {
         komorebi_client::send_message(&SocketMessage::MonitorWorkAreaOffset(monitor_index, *rect))?;
@@ -307,10 +304,12 @@ pub fn main() -> color_eyre::Result<()> {
 
     tracing::info!("watching configuration file for changes");
 
-    eframe::run_native(
-        "komorebi-bar",
-        native_options,
-        Box::new(|cc| {
+    let app_creator = |tx_gui: crossbeam_channel::Sender<KomorebiEvent>,
+                       rx_gui: crossbeam_channel::Receiver<KomorebiEvent>,
+                       rx_config: crossbeam_channel::Receiver<KomobarConfig>,
+                       config: KomobarConfig|
+     -> eframe::AppCreator<'static> {
+        Box::new(move |cc| {
             let ctx_repainter = cc.egui_ctx.clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(Duration::from_secs(1));
@@ -395,7 +394,62 @@ pub fn main() -> color_eyre::Result<()> {
             });
 
             Ok(Box::new(Komobar::new(cc, rx_gui, rx_config, config)))
-        }),
+        })
+    };
+
+    run_with_fallback(
+        native_options,
+        // a creator for each attempt: the first is never run when its renderer fails to start, so the
+        // second gets what it would have had (the channels are shared, the configuration is a copy)
+        |_renderer| app_creator(tx_gui.clone(), rx_gui.clone(), rx_config.clone(), config.clone()),
     )
-        .map_err(|error| color_eyre::eyre::Error::msg(error.to_string()))
+}
+
+/// The options of a window drawn by `renderer`. The renderer is always named: with eframe's `glow` and `wgpu`
+/// features both compiled, its default is wgpu, and glow has to stay the first choice.
+fn native_options(viewport: ViewportBuilder, renderer: eframe::Renderer) -> eframe::NativeOptions {
+    eframe::NativeOptions {
+        viewport,
+        renderer,
+        ..Default::default()
+    }
+}
+
+/// Whether `error` is the renderer failing to get a graphics context (what a machine without OpenGL 2.0
+/// does to glow: "egui_glow requires opengl 2.0+"), so that the other renderer is worth a try.
+fn is_context_failure(error: &eframe::Error) -> bool {
+    matches!(
+        error,
+        eframe::Error::OpenGL(_) | eframe::Error::Glutin(_) | eframe::Error::NoGlutinConfigs(..)
+    )
+}
+
+/// Runs the bar with glow, as always; only when glow cannot make its context (no OpenGL 2.0), runs it again with
+/// wgpu, which draws through Direct3D 12 and finds the software adapter (WARP) when there is no GPU driver.
+fn run_with_fallback(
+    options: impl Fn(eframe::Renderer) -> eframe::NativeOptions,
+    creator: impl Fn(eframe::Renderer) -> eframe::AppCreator<'static>,
+) -> color_eyre::Result<()> {
+    tracing::info!("renderer: glow");
+    match eframe::run_native("komorebi-bar", options(eframe::Renderer::Glow), creator(eframe::Renderer::Glow)) {
+        Err(error) if is_context_failure(&error) => {
+            tracing::warn!("renderer: glow failed ({error}); trying wgpu");
+            eframe::run_native("komorebi-bar", options(eframe::Renderer::Wgpu), creator(eframe::Renderer::Wgpu))
+                .map_err(|wgpu| {
+                    color_eyre::eyre::Error::msg(format!("glow: {error}; wgpu: {wgpu}"))
+                })
+        }
+        result => result.map_err(|error| color_eyre::eyre::Error::msg(error.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_bar_failing_to_start_is_not_a_reason_to_try_the_other_renderer() {
+        let creation = eframe::Error::AppCreation("no".into());
+        assert!(!is_context_failure(&creation));
+    }
 }

@@ -13,7 +13,6 @@ use crate::accessibility::notification_constants::AccessibilityNotification;
 use crate::animation::animator;
 use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
 use crate::border_manager;
-use crate::container::ContainerExt;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::Rect;
@@ -701,11 +700,11 @@ impl WindowManager {
                                 self.update_focused_workspace(false, false)?;
                             }
                             WindowContainerBehaviour::Append => {
-                                let window_hiding_position = workspace.state.window_hiding_position;
+                                let spot = workspace.hide_spot();
                                 workspace
                                     .focused_container_mut()
                                     .ok_or_eyre("there is no focused container")?
-                                    .add_window_at(&window, window_hiding_position)?;
+                                    .add_window(window.clone(), spot)?;
                                 workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(true, false)?;
                             }

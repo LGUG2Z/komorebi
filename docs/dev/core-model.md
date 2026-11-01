@@ -1390,8 +1390,8 @@ monitors (`CycleMoveContainerToWorkspace`, `CycleSendContainerToWorkspace`, `Cyc
 `CycleMoveContainerToMonitor`, `CycleSendContainerToMonitor`, `FocusMonitorWorkspaceNumber`,
 `MoveContainerToMonitorWorkspaceNumber`, `SendContainerToMonitorWorkspaceNumber`) and the lock and
 unlock of a container by index. The one platform difference found, that Windows lets the pointer pick the
-monitor first for the empty, close and last-workspace commands (a probable omission on KDE and macOS,
-section 18), is the const `CommandHost::POINTER_PICKS_THE_MONITOR_FOR_ALL`, true only for Windows.
+monitor first for the empty, close, last-workspace and workspace-number commands (an omission on KDE and macOS,
+section 18), is gone: all three do it now (wip-u-ptr), so the const that held the difference was removed.
 
 **What stays, and why** (identical across the three unless noted; each needs a `WindowManager` method
 or field, so moving them means moving `WindowManager`, the blockers of section 18):
@@ -1409,3 +1409,87 @@ or field, so moving them means moving `WindowManager`, the blockers of section 1
   `WorkAreaOffset`, ...): thin calls of `WindowManager` methods that edit a workspace and re-layout, the
   same coupling;
 - queries, configuration, borders, animations, transparency, schema: statics and the platform.
+
+## 23. Design note: thin events, a common vocabulary for `process_event` (not implemented)
+
+Status: design only (D-coord-13 (c)). Nothing here is built; the event enums and handlers are unchanged. The variant lists below were read from the three `window_manager_event.rs` files; how each handler arm behaves was read at section 17 and not re-measured here.
+
+**Today.** Each daemon has its own `WindowManagerEvent`, built from the platform notification:
+- Windows: `Destroy, FocusChange, Hide, Cloak, Minimize, Show, Uncloak, MoveResizeStart, MoveResizeEnd, MouseCapture, Maximize, Unmaximize, Manage, Unmanage, Raise, TitleUpdate`, most carrying `(WinEvent, Window)`.
+- KDE: `FocusChange, Show, Destroy, Minimize, Restore, TitleUpdate, FullscreenChange(bool), OutputChange, MaximizeChange(bool), Manage, Unmanage, MoveStart, MoveEnd, ResizeStart, ResizeEnd, ResizeStep, WorkspaceChange(desktop, idx), WorkspaceMove`, carrying `(SystemNotification, Window)`.
+- macOS: `FocusChange, Show, Destroy, Minimize, Restore, Manage, Unmanage, MoveStart, MoveEnd, ResizeStart, ResizeStep, ResizeEnd, SpaceChange, ScreenLock, ScreenUnlock`, carrying a process id and a window id instead of a `Window`.
+
+Only `Destroy`, `Show` and `Minimize` exist under the same name on all three; `FocusChange`, `Manage`, `Unmanage`, `TitleUpdate` exist on Windows and KDE (macOS has the first three). The payloads differ: the platform notification, a `Window` or raw ids. So a shared `process_event` cannot match on today's enums.
+
+**Proposal.** A small enum in `komorebi-core`, generic over the platform's window id and window type, that the platform adapter produces from its notification and that describes what happened, not how the OS said it:
+
+```rust
+pub enum CoreEvent<W> {
+    Appeared(W),            // Show, Manage, Uncloak, WindowAdded
+    Gone(W),                // Destroy, Unmanage, Hide of a managed window
+    Minimized(W),           // Minimize, Cloak on Windows
+    Restored(W),            // Restore, Unminimize, Uncloak
+    FocusMoved(W),          // FocusChange
+    MoveOrResize(Phase, W), // Start, Step, End for Windows MoveResize*, KDE and macOS Move/Resize
+    FullscreenOrMaximize(W, bool),
+    Retitled(W),
+    OutputChanged(W),
+    WorkspaceChanged(..),   // KDE virtual desktop, macOS space: the platform tells which workspace
+}
+```
+
+The Windows events that have no other-platform meaning (`MouseCapture`, `Raise`, `Cloak`/`Uncloak` distinctions) stay platform events: the adapter turns them into `CoreEvent` where they mean the same thing and handles the rest itself before or after. A handler for a `CoreEvent` is a `WindowManager` method with a platform hook for each decision the arms make today: `should_manage` (rules, already in `komorebi-rules` or in the daemon), whether the window is on this monitor, the border and transparency refresh after the layout, and the unmanaged-window check at the top (section 18 blocker; the router form is the target).
+
+**What a shared handler looks like.** For `Gone(w)`: find the container holding `w`, `Workspace::remove_window` (shared), prune empty containers, `update`, then the border hook. For `Appeared(w)`: ask the `should_manage` hook, find the target monitor and workspace through the (shared) rules, `Workspace::new_container_for_window`, `update`, focus hook. For `Minimized(w)`: shared `Workspace` already hides and updates. These three account for the arms the three process_event files share most (sections 17 and 18).
+
+**Prerequisites** (in order): the unmanaged-window-check converged to the router form on Windows (kfw); `WindowManager<P>` or at least a shared `WindowManagerState<P>` in core so the shared handler has a `self` (section 18 says the 60% threshold is not met yet); a `PlatformMonitorId`; the border calls behind hooks. Without the first two the shared handlers have nothing to run on.
+
+**Risks.** The ordering of side effects inside each arm is part of today's behaviour, for instance Windows doing the border update before the focus event is forwarded, and KDE debouncing `ResizeStep`; a shared handler must keep the order per platform through hooks, or the change is a BEHAVIOUR change needing the Windows e2e, the KDE VM suites and the macOS hand check. `FocusChange` on macOS carries an optional window id and there is no `Window` yet at that point, so the `CoreEvent<W>` payload cannot always be a window.
+
+**Decision wanted from the owner.** Whether to pursue this after `WindowManager<P>` lands; the gain is the event-handling arms (about a third of `process_event.rs` by line count at section 17) running natively on a stub for all three platforms.
+
+## 22. After the macOS deep dedup (kfm, D-coord-13): the container API, the arms, and `update`
+
+**Done.** (1) macOS `ContainerExt` is gone: every container call in the macOS daemon is the shared
+`Container::{add_window, load_focused_window, hide, restore}` with `workspace.hide_spot()`, a method of
+`Workspace` that is `P::hide_spot(self)` (`()` on KDE, `MacosHideSpot` on macOS). (2) the nine window
+manager functions that differed only in these calls (`add_window_to_container`,
+`cycle_container_window_in_direction`, `cycle_container_window_index_in_direction`,
+`focus_container_window`, `stack_all`, `monocle_on`, `monocle_off`, `cycle_monocle`, `transfer_window`)
+are now byte-identical in `komorebi-for-kde` and `komorebi-for-mac`; the `?` form replaced KDE's
+`let _ =` (equivalent, its operations always answer `Ok`). Measured with the function splitter: 76 of the
+92 function names that the two `window_manager.rs` share have the same text, and 1521 of KDE's 2713
+stripped lines are identical with macOS (56%, from 45% in section 20; the 60% bar needs the platform
+entry points of blocker 3). (3) `ToggleWorkspaceLayer`, `ResizeWindowAxis`, `SessionFloatRule`,
+`IgnoreRule` and `ReplaceConfiguration` are methods of the KDE names on macOS and the router arms are the
+KDE text; `Close`, `Minimize`, `DebugWindow` and `ManageRule` stay macOS's own arms (the foreground
+element and the role instead of the class; there is no KDE method to match).
+
+**`update` is not adopted, and why (exact differences from `update_shared`).** Each is a reason, and
+the first two alone would make it unprovable:
+
+1. **A scrolling workspace returns early.** macOS's `update` does `return self.arrange_scrolling(..)`
+   inside the tile branch, so for a scrolling workspace it never reaches the closing
+   `self.resize_dimensions.resize(container_count, None)` that `update_shared` always runs, and it places
+   the windows itself (drag-step layout, `adopt_actual_sizes`, `hide_scrolling` at the display edge,
+   the animator), not through one `place_container` per container. Folding it into `scrolling_layouts` plus
+   `place_container` would change both the placement order and whether the resize dimensions are
+   truncated for a scrolling workspace.
+2. **The SkyLight batch is wider.** macOS disables screen updates around the whole tile branch
+   (monocle, scrolling and the container loop) and re-enables on every exit; a `begin_update` guard would
+   start before `prune_duplicate_windows` and the container retain and end after the resize-dimensions
+   fix-up, and would be taken when `tile` is false as well. Probably harmless, not provable.
+3. **Own `calculate_layouts`**: the same arrangement call as `update_shared`'s inline one (checked line by
+   line), so this one alone would fold.
+4. **Unconditional clamp**: `clamp_to_work_area` runs for every non-scrolling layout; the shared
+   `adjust_layout` hook can do that (as KDE's does).
+5. **No maximized branch**: the macOS workspace never has a `maximized_window` (no writer), so the shared
+   branch is unreachable; `maximize_in_layout` is not needed.
+6. **Placement errors are logged and the next window is placed** (`tracing::warn!`): a `place_container`
+   hook can swallow them as KDE's does.
+7. **No second pass and no stackbar**: `end_update` answers `Pass::Done`.
+
+Items 3 to 7 would fold with hooks; 1 and 2 are the blockers, and 1 is the owner's decision: either the
+macOS scrolling placement becomes the `scrolling_layouts` and `place_container` hooks (and the
+truncation of the resize dimensions is accepted for a scrolling workspace, which is a behaviour change),
+or `update` stays macOS's.

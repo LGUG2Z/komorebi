@@ -22,12 +22,6 @@ pub trait CommandHost {
     /// The platform whose monitors the host has.
     type P: MonitorPlatform;
 
-    /// Whether the commands that act on the focused monitor first focus the monitor the pointer is
-    /// on when the workspace shown there is empty, for `cycle_focus_empty_workspace`,
-    /// `close_workspace` and `focus_last_workspace` (the other commands always do). Windows does it
-    /// for all of them; KDE and macOS do not.
-    const POINTER_PICKS_THE_MONITOR_FOR_ALL: bool = false;
-
     /// The monitors.
     fn monitors(&self) -> &VecDeque<Monitor<Self::P>>;
 
@@ -48,6 +42,10 @@ pub trait CommandHost {
 
     /// Shows workspace `idx` on the focused monitor and focuses it.
     fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()>;
+
+    /// Shows workspace `workspace_idx` on the monitor at `monitor_idx` (creating it if it is not
+    /// there) without focusing that monitor.
+    fn show_workspace_on(&mut self, monitor_idx: usize, workspace_idx: usize) -> eyre::Result<()>;
 
     /// Moves the focused container to workspace `idx` of the focused monitor.
     fn move_container_to_workspace(
@@ -100,9 +98,7 @@ pub fn cycle_focus_empty_workspace<H: CommandHost>(
     host: &mut H,
     direction: CycleDirection,
 ) -> eyre::Result<()> {
-    if H::POINTER_PICKS_THE_MONITOR_FOR_ALL {
-        focus_the_monitor_under_the_pointer(host)?;
-    }
+    focus_the_monitor_under_the_pointer(host)?;
 
     let focused_monitor = host.focused_monitor().ok_or_eyre("there is no monitor")?;
 
@@ -138,9 +134,7 @@ pub fn cycle_focus_empty_workspace<H: CommandHost>(
 /// Removes the focused workspace when it is empty, unnamed and not the monitor's only one, and
 /// focuses the one before it
 pub fn close_workspace<H: CommandHost>(host: &mut H) -> eyre::Result<()> {
-    if H::POINTER_PICKS_THE_MONITOR_FOR_ALL {
-        focus_the_monitor_under_the_pointer(host)?;
-    }
+    focus_the_monitor_under_the_pointer(host)?;
 
     let mut can_close = false;
 
@@ -173,9 +167,7 @@ pub fn close_workspace<H: CommandHost>(host: &mut H) -> eyre::Result<()> {
 
 /// Focuses the workspace that was focused before this one
 pub fn focus_last_workspace<H: CommandHost>(host: &mut H) -> eyre::Result<()> {
-    if H::POINTER_PICKS_THE_MONITOR_FOR_ALL {
-        focus_the_monitor_under_the_pointer(host)?;
-    }
+    focus_the_monitor_under_the_pointer(host)?;
 
     let idx = host
         .focused_monitor()
@@ -365,5 +357,39 @@ pub fn set_container_locked<H: ContainerCommandHost>(
         container.locked = locked;
     }
 
+    Ok(())
+}
+
+/// Shows workspace `workspace_idx` on the focused monitor, unless it is the one in front; the
+/// monitor the pointer is on is focused first when its workspace is empty
+pub fn focus_workspace_number<H: MonitorCommandHost>(
+    host: &mut H,
+    workspace_idx: usize,
+) -> eyre::Result<()> {
+    focus_the_monitor_under_the_pointer(host)?;
+
+    if host.focused_workspace_idx().unwrap_or_default() != workspace_idx {
+        host.focus_workspace(workspace_idx)?;
+    }
+    Ok(())
+}
+
+/// Shows workspace `workspace_idx` on every monitor, the focused one last; the monitor the pointer
+/// is on is focused first when its workspace is empty
+pub fn focus_workspace_numbers<H: CommandHost>(
+    host: &mut H,
+    workspace_idx: usize,
+) -> eyre::Result<()> {
+    focus_the_monitor_under_the_pointer(host)?;
+
+    let focused_monitor_idx = host.focused_monitor_idx();
+
+    for idx in 0..host.monitors().len() {
+        if idx != focused_monitor_idx {
+            host.show_workspace_on(idx, workspace_idx)?;
+        }
+    }
+
+    host.focus_workspace(workspace_idx)?;
     Ok(())
 }

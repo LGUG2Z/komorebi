@@ -2,7 +2,9 @@
 
 Findings of the consolidation reviews and tests that are NOT fixed because whether they are bugs, or how to fix them, is a decision for the owner. Each has the evidence, why it may or may not be a bug, the platforms, and a proposed fix. Paths are relative to the repository root at the time of writing and may have moved.
 
-## 1. KDE FocusWorkspaceNumber, FocusWorkspaceNumbers and FocusLastWorkspace skip the pointer-monitor preamble
+## 1. RESOLVED (wip-u-ptr): KDE FocusWorkspaceNumber, FocusWorkspaceNumbers and FocusLastWorkspace skipped the pointer-monitor preamble
+
+- **Resolution**: the owner approved Windows behaviour for all platforms. The preamble now runs for all three daemons in the shared `komorebi_core::command` functions (`focus_workspace_number`, `focus_workspace_numbers`, `focus_last_workspace`, and the others). KDE is covered by `komorebi-for-kde/komorebi/tests/pointer_monitor.rs`, core by `crates/komorebi-core/tests/commands.rs`. Owed: KDE VM commands and workspace-switch, macOS hand check H1 (docs/dev/macos-handcheck.md). The text below is the original finding.
 
 - **Evidence**: komorebi-for-kde/komorebi/src/process_command.rs lines 1245-1277: the arms for the three messages call `focus_workspace` on the focused monitor directly. The Windows daemon (komorebi/src/process_command.rs:972-987 for `FocusWorkspaceNumber`, and lines about 2185 and 2215 for the helpers behind `FocusLastWorkspace` and `FocusWorkspaceNumbers`) first checks `monitor_idx_from_current_pos()`: when the pointer is on another monitor whose focused workspace is empty, that monitor becomes the focused one. KDE has the same preamble only in `cycle_focus_workspace` (line 897-909).
 - **Why it may be a bug**: on a secondary monitor with an empty workspace and the pointer on it, `focus-workspace 2` switches the workspace of the monitor that was focused before, not the one the user is pointing at, unlike on Windows and unlike KDE's own `cycle-focus-workspace`. **Why not**: KWin may not report an empty monitor as pointed at the same way; the KDE tests do not cover it, so it may have been left out on purpose.

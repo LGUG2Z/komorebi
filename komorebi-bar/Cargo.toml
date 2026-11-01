@@ -40,6 +40,9 @@ tracing-subscriber = { workspace = true }
 [target.'cfg(windows)'.dependencies]
 komorebi-themes = { path = "../komorebi-themes", default-features = false }
 egui_extras = { workspace = true }
+# a second renderer, wgpu (Direct3D 12, which has the software adapter WARP), for a machine where OpenGL 2.0 is not
+# there; glow stays the first (see `renderer_attempts` in windows/mod.rs). Windows only: the macOS bar has no use for it
+eframe = { workspace = true, features = ["wgpu"] }
 netdev = "0.46"
 regex = "1"
 sysinfo = { workspace = true }
