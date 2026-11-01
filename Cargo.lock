@@ -3387,7 +3387,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "komorebi"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "color-eyre",
  "komorebi-linux",
@@ -3398,14 +3398,14 @@ dependencies = [
 
 [[package]]
 name = "komorebi-backend"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "komorebi-layouts",
 ]
 
 [[package]]
 name = "komorebi-bar"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -3455,7 +3455,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-bar-core"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -3479,7 +3479,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-client"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "komorebi-linux",
  "komorebi-macos",
@@ -3492,7 +3492,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-collections"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "pastey 0.2.3",
  "schemars 1.2.3",
@@ -3502,7 +3502,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-config"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "clap",
  "color-eyre",
@@ -3519,7 +3519,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "color-eyre",
  "komorebi-collections",
@@ -3536,7 +3536,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-e2e-agent"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "serde",
  "serde_json_lenient",
@@ -3545,7 +3545,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-gui"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "eframe",
  "egui_extras",
@@ -3558,14 +3558,14 @@ dependencies = [
 
 [[package]]
 name = "komorebi-hotkeys"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "whkd-parser",
 ]
 
 [[package]]
 name = "komorebi-layouts"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "clap",
  "color-eyre",
@@ -3582,7 +3582,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-linux"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "clap",
  "color-eyre",
@@ -3624,7 +3624,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-macos"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.2",
@@ -3678,7 +3678,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-protocol"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "clap",
  "color-eyre",
@@ -3693,11 +3693,11 @@ dependencies = [
 
 [[package]]
 name = "komorebi-scrolling"
-version = "0.2.0"
+version = "0.2.0-dev"
 
 [[package]]
 name = "komorebi-settings"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "komorebi-config",
  "komorebi-layouts",
@@ -3708,7 +3708,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-shortcuts"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "dirs 6.0.0",
  "eframe",
@@ -3718,7 +3718,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-testwin"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "serde_json_lenient",
  "windows 0.62.2",
@@ -3726,7 +3726,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-themes"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",
@@ -3741,7 +3741,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-transport"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "color-eyre",
  "crossbeam-channel",
@@ -3753,14 +3753,14 @@ dependencies = [
 
 [[package]]
 name = "komorebi-version"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "shadow-rs 2.0.0",
 ]
 
 [[package]]
 name = "komorebi-windows"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "base64 0.22.1",
  "bitflags 2.13.2",
@@ -3819,7 +3819,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "chrono",
  "clap",
@@ -3854,7 +3854,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-core"
-version = "0.2.0"
+version = "0.2.0-dev"
 dependencies = [
  "clap",
  "clap_complete",
@@ -3865,7 +3865,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-no-console"
-version = "0.2.0"
+version = "0.2.0-dev"
 
 [[package]]
 name = "konst"

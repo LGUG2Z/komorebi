@@ -58,7 +58,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.0-dev"
 
 [workspace.dependencies]
 clap = { version = "4", features = ["derive", "wrap_help"] }
