@@ -43,7 +43,7 @@ pub use komorebi_core::WorkspaceWindowLocation;
 pub(crate) use komorebi_core::sorted_layout_options_rules;
 
 /// The workspace over KDE's [`Window`], which is `komorebi_core::Workspace` with this platform's
-/// methods added by [`WorkspaceExt`] and the scrolling ones of [`WorkspaceScrolling`]
+/// methods added by [`WorkspaceExt`] and the scrolling ones of `WorkspaceScrolling`
 pub type Workspace = komorebi_core::Workspace<KdePlatform>;
 
 /// What only KDE keeps in a workspace

@@ -98,7 +98,7 @@ pub fn transparent_windows(wm: &WindowManager) -> Vec<u32> {
 ///
 /// The backend is told only what differs from what it was last told, which the window manager
 /// keeps in [`WindowManager::opacity_applied`]: windows that should not be see-through any more
-/// are made opaque, and the others are given [`TRANSPARENCY_ALPHA`]. With transparency off, every
+/// are made opaque, and the others are given `TRANSPARENCY_ALPHA`. With transparency off, every
 /// window is opaque. A failure is logged.
 pub fn apply(wm: &mut WindowManager) {
     // one snapshot, so the flag and the alpha are from the same configuration

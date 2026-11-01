@@ -52,8 +52,8 @@
 //! When something other than komorebi does either, the script reports it, and the table turns it
 //! into a [`WorkspaceChange`] or a [`WorkspaceMove`] for the window manager to follow.
 //!
-//! Hiding a window ([`Backend::hide`]) moves it to one more desktop, `komorebi-park`, that nobody
-//! looks at and that is not a workspace; [`Backend::restore`] moves it back to the desktop of its
+//! Hiding a window (`Backend::hide`) moves it to one more desktop, `komorebi-park`, that nobody
+//! looks at and that is not a workspace; `Backend::restore` moves it back to the desktop of its
 //! workspace. KWin saves its desktops in `kwinrc` as soon as one is made, so a desktop that
 //! komorebi made and did not remove would be there for every later session: komorebi removes it
 //! when it stops, and one that an earlier run left (it was killed, or the session was torn down
@@ -304,12 +304,12 @@ impl Poll {
 /// The desktop of a running KWin, read and changed through the script komorebi loads into it.
 ///
 /// The queries are answered from a [`state::Table`] that the script's events keep up to date, so
-/// they do not wait for KWin, except [`Backend::cursor_pos`]: only the script can read the pointer,
+/// they do not wait for KWin, except `Backend::cursor_pos`: only the script can read the pointer,
 /// so it is asked, and given 250 ms to answer. The table also keeps the frame a window had when the
 /// user began to drag it, for [`Backend::drag_origin`], and the frame the user asked for when they
 /// let go of an edge of it, for [`Backend::drag_end`].
 ///
-/// A command ([`Backend::set_rect`], [`Backend::focus`] and the rest) is queued for the script and
+/// A command (`Backend::set_rect`, `Backend::focus` and the rest) is queued for the script and
 /// returns: the script gets the queue as the answer to its held `Poll` call, and carries the
 /// commands out in order. Commands queued within a millisecond of each other go out as one batch,
 /// so a retile reaches KWin at once. A command is an error when the table does not know the
@@ -318,7 +318,7 @@ impl Poll {
 ///
 /// The script cannot move the pointer, so the pointer follows the focus through KWin's own "Move
 /// Mouse to Focus" action, over `kglobalaccel`: it lands in the middle of the window KWin has
-/// focused, whatever rectangle [`Backend::center_cursor_in`] is given. A KWin without global
+/// focused, whatever rectangle `Backend::center_cursor_in` is given. A KWin without global
 /// shortcuts leaves the pointer where it is.
 ///
 /// It is made by [`connect`].

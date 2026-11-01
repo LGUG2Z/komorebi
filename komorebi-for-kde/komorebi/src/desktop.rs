@@ -286,17 +286,14 @@ pub fn update_monitor_work_areas(wm: &mut WindowManager) -> eyre::Result<()> {
 /// are on, so that starting komorebi tiles what is on screen.
 ///
 /// Each monitor is first focused on the workspace the compositor shows on it
-/// ([`Backend::current_workspaces`]). A window is on the monitor whose bounds contain its middle,
-/// and on the workspace whose desktop it is on ([`Backend::window_workspace`]), which need not be
+/// (`Backend::current_workspaces`). A window is on the monitor whose bounds contain its middle,
+/// and on the workspace whose desktop it is on (`Backend::window_workspace`), which need not be
 /// the one in front; a window on every desktop goes to the one in front. The monitor gets as many
 /// workspaces as that takes. A window that is minimized, that komorebi does not manage
 /// ([`Window::should_manage`]: not a normal window, or one the rules ignore), or that is on no
 /// monitor is left alone. A window that is already maximized is the workspace's maximized window
 /// ([`Workspace::adopt_maximized_window`](crate::workspace::Workspace::adopt_maximized_window)), not
 /// a container. Nothing is moved: tiling is [`WindowManager::retile_all`]'s job.
-///
-/// [`Backend::current_workspaces`]: crate::backend::Backend::current_workspaces
-/// [`Backend::window_workspace`]: crate::backend::Backend::window_workspace
 ///
 /// # Errors
 ///
