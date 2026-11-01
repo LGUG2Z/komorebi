@@ -55,9 +55,22 @@ back full control of your system.
 
 If you need help doing this you can ask on Discord.
 
-## Note: komorebi for Mac
+## Platforms
 
-komorebi for Mac lives [here](https://github.com/LGUG2Z/komorebi-for-mac) :)
+This repository holds komorebi for Windows (this README and the documentation under
+[`docs/`](./docs)), komorebi for KDE Plasma on Wayland (Linux) and komorebi for macOS. They share
+one workspace version, the crates under [`crates/`](./crates) and the binaries `komorebi`,
+`komorebic` and `komorebi-bar`; each platform has its own daemon library and documentation:
+
+| Platform | Daemon library | Documentation | Schemas |
+| --- | --- | --- | --- |
+| Windows | [`komorebi-windows`](./komorebi-windows) | this README, [`docs/`](./docs) | [`schemas/windows`](./schemas/windows) |
+| KDE Plasma (Linux) | [`komorebi-linux`](./komorebi-linux) | [`docs/linux/README.md`](./docs/linux/README.md) | [`schemas/linux`](./schemas/linux) |
+| macOS | [`komorebi-macos`](./komorebi-macos) | [`docs/macos/README.md`](./docs/macos/README.md) | [`schemas/macos`](./schemas/macos) |
+
+The rest of this README is about komorebi for Windows. The Mac port used to live in
+[its own repository](https://github.com/LGUG2Z/komorebi-for-mac); where this repository will be
+published and where the releases and sites of the platforms will be is not decided yet.
 
 ## Overview
 
@@ -480,7 +493,7 @@ A TCP listener can optionally be exposed on a port of your choosing with the `--
 provided to `komorebi` or `komorebic start`, no TCP listener will be created.
 
 Once created, your client may send
-any [SocketMessage](https://github.com/LGUG2Z/komorebi/blob/master/komorebi/src/core/mod.rs#L37) to `komorebi` in the
+any [SocketMessage](./crates/komorebi-protocol/src/message.rs) to `komorebi` in the
 same way that `komorebic` would.
 
 This can be used if you would like to create your own alternative to `komorebic` which incorporates scripting and

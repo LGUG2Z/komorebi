@@ -1,3 +1,5 @@
+The Linux and macOS ports have contribution guides of their own: [`docs/linux/CONTRIBUTING.md`](docs/linux/CONTRIBUTING.md) and [`docs/macos/CONTRIBUTING.md`](docs/macos/CONTRIBUTING.md).
+
 # Contributing to the Project
 
 The project is a collection of contributions from both the project leaders and
