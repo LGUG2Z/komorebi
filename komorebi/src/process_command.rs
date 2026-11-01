@@ -59,8 +59,6 @@ use crate::core::CycleDirection;
 use crate::core::FocusFollowsMouseImplementation;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
-use crate::core::MonocleFocusBehaviour;
-use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::Sizing;
@@ -359,66 +357,19 @@ impl WindowManager {
             SocketMessage::PromoteSwap => self.promote_container_swap()?,
             SocketMessage::PromoteFocus => self.promote_focus_to_front()?,
             SocketMessage::PromoteWindow(direction) => {
-                self.focus_container_in_direction(direction)?;
-                self.promote_container_to_front()?
+                komorebi_core::promote_window(self, direction)?
             }
             SocketMessage::EagerFocus(ref exe) => {
                 self.eager_focus(exe)?;
             }
-            SocketMessage::FocusWindow(direction) => {
-                let focused_workspace = self.focused_workspace()?;
-                match focused_workspace.layer {
-                    WorkspaceLayer::Tiling => {
-                        self.focus_container_in_direction(direction)?;
-                    }
-                    WorkspaceLayer::Floating => {
-                        self.focus_floating_window_in_direction(direction)?;
-                    }
-                }
-            }
+            SocketMessage::FocusWindow(direction) => komorebi_core::focus_window(self, direction)?,
             SocketMessage::PreselectDirection(direction) => {
-                let focused_workspace = self.focused_workspace()?;
-                let mut update = false;
-
-                if focused_workspace.preselected_container_idx.is_some() {
-                    tracing::warn!(
-                        "ignoring command as this workspace already has a direction preselect set"
-                    );
-                } else if matches!(focused_workspace.layer, WorkspaceLayer::Tiling) {
-                    self.preselect_container_in_direction(direction)?;
-                    update = true;
-                }
-
-                if update {
-                    self.focused_workspace_mut()?.update()?;
-                }
+                komorebi_core::preselect_direction(self, direction)?
             }
-            SocketMessage::CancelPreselect => {
-                let focused_workspace = self.focused_workspace_mut()?;
-                focused_workspace.cancel_preselect();
-                focused_workspace.update()?;
-            }
-            SocketMessage::MoveWindow(direction) => {
-                let focused_workspace = self.focused_workspace()?;
-                match focused_workspace.layer {
-                    WorkspaceLayer::Tiling => {
-                        self.move_container_in_direction(direction)?;
-                    }
-                    WorkspaceLayer::Floating => {
-                        self.move_floating_window_in_direction(direction)?;
-                    }
-                }
-            }
+            SocketMessage::CancelPreselect => komorebi_core::cancel_preselect(self)?,
+            SocketMessage::MoveWindow(direction) => komorebi_core::move_window(self, direction)?,
             SocketMessage::CycleFocusWindow(direction) => {
-                let focused_workspace = self.focused_workspace()?;
-                match focused_workspace.layer {
-                    WorkspaceLayer::Tiling => {
-                        self.focus_container_in_cycle_direction(direction)?;
-                    }
-                    WorkspaceLayer::Floating => {
-                        self.focus_floating_window_in_cycle_direction(direction)?;
-                    }
-                }
+                komorebi_core::cycle_focus_window(self, direction)?
             }
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
@@ -706,30 +657,10 @@ impl WindowManager {
                 )?
             }
             SocketMessage::SendContainerToNamedWorkspace(ref workspace) => {
-                if let Some((monitor_idx, workspace_idx)) =
-                    self.monitor_workspace_index_by_name(workspace)
-                {
-                    let direction = self.direction_from_monitor_idx(monitor_idx);
-                    self.move_container_to_monitor(
-                        monitor_idx,
-                        Option::from(workspace_idx),
-                        false,
-                        direction,
-                    )?;
-                }
+                komorebi_core::move_container_to_named_workspace(self, workspace, false)?
             }
             SocketMessage::MoveContainerToNamedWorkspace(ref workspace) => {
-                if let Some((monitor_idx, workspace_idx)) =
-                    self.monitor_workspace_index_by_name(workspace)
-                {
-                    let direction = self.direction_from_monitor_idx(monitor_idx);
-                    self.move_container_to_monitor(
-                        monitor_idx,
-                        Option::from(workspace_idx),
-                        true,
-                        direction,
-                    )?;
-                }
+                komorebi_core::move_container_to_named_workspace(self, workspace, true)?
             }
 
             SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
@@ -936,12 +867,7 @@ impl WindowManager {
                 komorebi_core::focus_monitor_workspace_number(self, monitor_idx, workspace_idx)?
             }
             SocketMessage::FocusNamedWorkspace(ref name) => {
-                if let Some((monitor_idx, workspace_idx)) =
-                    self.monitor_workspace_index_by_name(name)
-                {
-                    self.focus_monitor(monitor_idx)?;
-                    self.focus_workspace(workspace_idx)?;
-                }
+                komorebi_core::focus_named_workspace(self, name)?
             }
             SocketMessage::ToggleWorkspaceLayer => {
                 self.toggle_workspace_layer()?;
@@ -1211,16 +1137,7 @@ impl WindowManager {
                 self.resize_delta = delta;
             }
             SocketMessage::ToggleWindowContainerBehaviour => {
-                match self.window_management_behaviour.current_behaviour {
-                    WindowContainerBehaviour::Create => {
-                        self.window_management_behaviour.current_behaviour =
-                            WindowContainerBehaviour::Append;
-                    }
-                    WindowContainerBehaviour::Append => {
-                        self.window_management_behaviour.current_behaviour =
-                            WindowContainerBehaviour::Create;
-                    }
-                }
+                komorebi_core::toggle_window_container_behaviour(self)
             }
             SocketMessage::ToggleFloatOverride => {
                 self.window_management_behaviour.float_override =
@@ -1260,24 +1177,13 @@ impl WindowManager {
                 *hiding_behaviour = behaviour;
             }
             SocketMessage::ToggleCrossMonitorMoveBehaviour => {
-                match self.cross_monitor_move_behaviour {
-                    MoveBehaviour::Swap => {
-                        self.cross_monitor_move_behaviour = MoveBehaviour::Insert;
-                    }
-                    MoveBehaviour::Insert => {
-                        self.cross_monitor_move_behaviour = MoveBehaviour::Swap;
-                    }
-                    _ => {}
-                }
+                komorebi_core::toggle_cross_monitor_move_behaviour(self)
             }
             SocketMessage::CrossMonitorMoveBehaviour(behaviour) => {
                 self.cross_monitor_move_behaviour = behaviour;
             }
             SocketMessage::ToggleMonocleFocusBehaviour => {
-                self.monocle_focus_behaviour = match self.monocle_focus_behaviour {
-                    MonocleFocusBehaviour::Cycle => MonocleFocusBehaviour::NoOp,
-                    MonocleFocusBehaviour::NoOp => MonocleFocusBehaviour::Cycle,
-                };
+                komorebi_core::toggle_monocle_focus_behaviour(self)
             }
             SocketMessage::MonocleFocusBehaviour(behaviour) => {
                 self.monocle_focus_behaviour = behaviour;
@@ -2340,6 +2246,96 @@ impl komorebi_core::MonitorCommandHost for WindowManager {
 impl komorebi_core::ContainerCommandHost for WindowManager {
     fn monitors_mut(&mut self) -> &mut std::collections::VecDeque<crate::monitor::Monitor> {
         WindowManager::monitors_mut(self)
+    }
+}
+
+/// The window manager as the window commands of `komorebi_core::command` see it
+impl komorebi_core::WindowCommandHost for WindowManager {
+    fn move_container_in_direction(&mut self, direction: OperationDirection) -> eyre::Result<()> {
+        WindowManager::move_container_in_direction(self, direction)
+    }
+
+    fn move_floating_window_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        WindowManager::move_floating_window_in_direction(self, direction)
+    }
+
+    fn focus_container_in_direction(&mut self, direction: OperationDirection) -> eyre::Result<()> {
+        WindowManager::focus_container_in_direction(self, direction)
+    }
+
+    fn focus_floating_window_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        WindowManager::focus_floating_window_in_direction(self, direction)
+    }
+
+    fn focus_container_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        WindowManager::focus_container_in_cycle_direction(self, direction)
+    }
+
+    fn focus_floating_window_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        WindowManager::focus_floating_window_in_cycle_direction(self, direction)
+    }
+
+    fn preselect_container_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        WindowManager::preselect_container_in_direction(self, direction)
+    }
+
+    fn promote_container_to_front(&mut self) -> eyre::Result<()> {
+        WindowManager::promote_container_to_front(self)
+    }
+
+    fn update_focused_workspace_layout(&mut self) -> eyre::Result<()> {
+        self.focused_workspace_mut()?.update()
+    }
+}
+
+/// The window manager as the behaviour toggles of `komorebi_core::command` see it
+impl komorebi_core::BehaviourCommandHost for WindowManager {
+    fn window_container_behaviour(&self) -> komorebi_config::behaviour::WindowContainerBehaviour {
+        self.window_management_behaviour.current_behaviour
+    }
+
+    fn set_window_container_behaviour(
+        &mut self,
+        behaviour: komorebi_config::behaviour::WindowContainerBehaviour,
+    ) {
+        self.window_management_behaviour.current_behaviour = behaviour;
+    }
+
+    fn cross_monitor_move_behaviour(&self) -> komorebi_protocol::types::MoveBehaviour {
+        self.cross_monitor_move_behaviour
+    }
+
+    fn set_cross_monitor_move_behaviour(
+        &mut self,
+        behaviour: komorebi_protocol::types::MoveBehaviour,
+    ) {
+        self.cross_monitor_move_behaviour = behaviour;
+    }
+
+    fn monocle_focus_behaviour(&self) -> komorebi_protocol::types::MonocleFocusBehaviour {
+        self.monocle_focus_behaviour
+    }
+
+    fn set_monocle_focus_behaviour(
+        &mut self,
+        behaviour: komorebi_protocol::types::MonocleFocusBehaviour,
+    ) {
+        self.monocle_focus_behaviour = behaviour;
     }
 }
 
