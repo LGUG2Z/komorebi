@@ -30,6 +30,7 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         ./nix/common.nix
+        ./nix/checks.nix
         ./nix/windows/flake-module.nix
         ./nix/linux/flake-module.nix
         ./nix/macos/flake-module.nix

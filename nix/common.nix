@@ -168,6 +168,7 @@ in
     {
       treefmt = {
         projectRootFile = "flake.nix";
+        flakeCheck = false;
         programs = {
           deadnix.enable = true;
           just.enable = true;
@@ -194,8 +195,15 @@ in
         };
       };
 
+      # the two checks of these modules are members of the set `fmt` (nix/checks.nix), which adds them
+      # to `checks` itself: the modules' own `checks` entries are off
+      allChecks = {
+        treefmt = config.treefmt.build.check config.treefmt.projectRoot;
+        pre-commit = config.pre-commit.settings.run;
+      };
+
       pre-commit = {
-        check.enable = true;
+        check.enable = false;
         settings.hooks.treefmt = {
           enable = true;
           package = config.treefmt.build.wrapper;

@@ -73,7 +73,7 @@ in
       };
     }
     // lib.optionalAttrs (builtins.elem system lib'.windowsSystems) {
-      checks = {
+      allChecks = {
         windows-clippy = build.craneLib.cargoClippy (
           build.individualCrateArgs
           // {

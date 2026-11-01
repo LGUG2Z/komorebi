@@ -21,7 +21,7 @@ in
       nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
     in
     lib.optionalAttrs (builtins.elem system lib'.macosSystems) {
-      checks = {
+      allChecks = {
         macos-clippy = build.craneLib.cargoClippy build.individualCrateArgs;
 
         # the nightly rustfmt over the macOS files only (the source of this platform has no others), with
