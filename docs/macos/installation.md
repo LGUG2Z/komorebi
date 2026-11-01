@@ -112,7 +112,7 @@ compiler toolchain.
 Clone the git repository, enter the directory, and build the following binaries:
 
 ```powershell
-cargo +stable install --path komorebi --locked --target-dir ~/.cargo/bin
+cargo +stable install --path komorebi-daemon --locked --target-dir ~/.cargo/bin
 cargo +stable install --path komorebic --locked --target-dir ~/.cargo/bin
 cargo +stable install --path komorebi-bar --locked --target-dir ~/.cargo/bin
 ```
