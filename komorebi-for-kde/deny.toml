@@ -49,11 +49,6 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "komorebi-client-linux"
-expression = "LicenseRef-Komorebi-2.0"
-license-files = []
-
-[[licenses.clarify]]
 crate = "komorebi-hotkeys"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
@@ -65,11 +60,6 @@ license-files = []
 
 [[licenses.clarify]]
 crate = "komorebi-scrolling"
-expression = "LicenseRef-Komorebi-2.0"
-license-files = []
-
-[[licenses.clarify]]
-crate = "komorebic-linux"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 

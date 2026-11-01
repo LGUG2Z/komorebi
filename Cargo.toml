@@ -27,13 +27,8 @@ members = [
   # komorebi for KDE Plasma (Linux) and komorebi for macOS: built only on their own platform, selected
   # with -p; `default-members` below is the Windows set that a bare cargo command builds
   "komorebi-for-kde/komorebi",
-  "komorebi-for-kde/komorebic",
-  "komorebi-for-kde/komorebi-client",
   "komorebi-for-kde/komorebi-hotkeys",
   "komorebi-for-mac/komorebi",
-  "komorebi-for-mac/komorebic",
-  "komorebi-for-mac/komorebi-client",
-  "komorebi-for-mac/komorebi-bar",
   "crates/komorebi-version",
 ]
 

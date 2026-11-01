@@ -2,8 +2,7 @@
 //!
 //! The platform is the target OS: each of the three modules is the CLI of one platform, with the
 //! subcommands that platform has, and `main` runs the one that was compiled in. The code they share
-//! is `komorebic-core`. The Linux and macOS modules are still in their own trees and are included
-//! from there.
+//! is `komorebic-core`.
 
 cfg_select! {
     target_os = "windows" => {

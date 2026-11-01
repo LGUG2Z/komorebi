@@ -6,8 +6,11 @@
   "crates/komorebi-protocol",
   "crates/komorebi-settings",
   "crates/komorebi-transport",
+  "crates/komorebi-version",
   "crates/komorebic-core",
+  "komorebi-client",
   "komorebi-layouts",
   "komorebi-scrolling",
-  "komorebi-themes"
+  "komorebi-themes",
+  "komorebic"
 ]

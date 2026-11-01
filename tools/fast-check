@@ -99,7 +99,7 @@ if [ "$want_kde" = 1 ]; then
     "export CARGO_TARGET_DIR=$S/kde-target COMMIT_HASH=\${COMMIT_HASH:-dev}; K=komorebi; grep -q 'name = \"komorebi-linux\"' $( [ $MERGED = 1 ] && echo komorebi-for-kde/ )komorebi/Cargo.toml && K=komorebi-linux; export K; nix shell nixpkgs#gcc -c bash -c 'cargo check --locked -p \$K && { [ -d komorebi-daemon ] && cargo check --locked -p komorebi || true; } && cargo test --locked -p \$K --lib && cargo test --locked -p \$K --test schemas -- --test-threads=1'"
 fi
 if [ "$want_mac" = 1 ]; then
-  if [ $MERGED = 1 ]; then MD=.; MP="-p komorebi -p komorebi-macos -p komorebic-macos -p komorebi-client-macos -p komorebi-bar-macos"; else MD=komorebi-for-mac; MP=--workspace; fi
+  if [ $MERGED = 1 ]; then MD=.; MP="-p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar"; else MD=komorebi-for-mac; MP=--workspace; fi
   add "macos: type-check only (fake CC, cannot link)" "$MD" \
     "export CARGO_TARGET_DIR=$S/target-fast-mac COMMIT_HASH=\${COMMIT_HASH:-dev} CC_aarch64_apple_darwin=$HERE/cc-fake.sh AR_aarch64_apple_darwin=ar; PKG_CONFIG_PATH=\$(nix build --no-link --print-out-paths nixpkgs#openssl.dev)/lib/pkgconfig; export PKG_CONFIG_PATH; nix shell nixpkgs#gcc nixpkgs#pkg-config nixpkgs#openssl.dev -c cargo check --locked --target aarch64-apple-darwin $MP --all-targets"
 fi

@@ -14,7 +14,7 @@ if [ -f "$root/komorebi-for-kde/Cargo.toml" ]; then
         | ltrimstr($r) | sub("/Cargo.toml$"; "")' | sort)
 else
   # merged workspace: the closure of the KDE packages on a Linux target
-  have=$(cd "$root" && for p in komorebi-linux komorebic-linux komorebi-client-linux komorebi-hotkeys; do
+  have=$(cd "$root" && for p in komorebi-linux komorebic komorebi-client komorebi-hotkeys; do
       nice -n 19 cargo tree --offline --locked -p "$p" --target x86_64-unknown-linux-gnu --prefix none -e normal,build,dev 2>/dev/null
     done | grep -o "($root/[^)]*)" | tr -d '()' | sed "s#^$root/##" | grep -v '^komorebi-for-kde' | sort -u)
 fi

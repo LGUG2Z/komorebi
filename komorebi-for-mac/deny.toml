@@ -54,27 +54,12 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
-crate = "komorebi-client-macos"
-expression = "LicenseRef-Komorebi-2.0"
-license-files = []
-
-[[licenses.clarify]]
 crate = "komorebi-scrolling"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
 crate = "komorebi-layouts"
-expression = "LicenseRef-Komorebi-2.0"
-license-files = []
-
-[[licenses.clarify]]
-crate = "komorebic-macos"
-expression = "LicenseRef-Komorebi-2.0"
-license-files = []
-
-[[licenses.clarify]]
-crate = "komorebi-bar-macos"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
