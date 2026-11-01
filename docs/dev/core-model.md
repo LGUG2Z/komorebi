@@ -1409,3 +1409,107 @@ or field, so moving them means moving `WindowManager`, the blockers of section 1
   `WorkAreaOffset`, ...): thin calls of `WindowManager` methods that edit a workspace and re-layout, the
   same coupling;
 - queries, configuration, borders, animations, transparency, schema: statics and the platform.
+
+## 22. What Windows keeps platform-specific for a shared `WindowManager<P>` (kfw, wip-u-win-deep)
+
+Written against `wip-cand7` plus the revisions of `wip-u-win-deep`: `PlatformMonitorId<P>` is in
+`komorebi-core` (blocker 5 of section 18), the Windows `monitor_idx_from_current_pos` has KDE's text, and
+`promote-focus` on a custom layout is the `WorkspacePlatform::promote_focus_container_idx` hook (blocker
+6, the fallback part). This is the hook list kfde can implement: every item says what Windows does, what
+KDE and macOS do (from sections 17, 18 and 20), and the proposed shape. Items are ordered by how many
+shared functions they touch.
+
+### 22.1 The unmanaged-window gate (blocker 1): not converged, and why
+
+`handle_unmanaged_window_behaviour()` (refuse a command when `OperationBehaviour::NoOp` is set and the
+focused window is not in a container of the focused workspace) is called at the top of 18 functions on
+Windows: `move_container_to_monitor`, `move_container_to_workspace`, `focus_container_in_direction`,
+`move_container_in_direction`, `focus_container_in_cycle_direction`, `move_container_in_cycle_direction`,
+`cycle_container_window_in_direction`, `cycle_container_window_index_in_direction`,
+`focus_container_window`, `stack_all`, `unstack_all`, `add_window_to_container`,
+`promote_container_to_front`, `promote_container_swap`, `promote_focus_to_front`,
+`remove_window_from_container`, `toggle_monocle`, `toggle_maximize`. KDE and macOS call it once in the
+router, before the `match`, for every message. Moving Windows to the router is **not** behaviour-neutral
+and was not done: the reading of `process_command` shows four ways in which the two forms differ.
+
+1. The router form refuses every message, including queries, rule and configuration commands, the
+   workspace-focus commands and `stop` (those never call one of the 18); the per-function form refuses
+   only what reaches one. A router that gated the same set would need a message list
+   (`requires_managed_focus(&SocketMessage)`) that nothing shares.
+2. An arm that does other work first is not refused as a whole on Windows: `FocusStackWindow` focuses the
+   monitor under the pointer and only then calls `focus_container_window`; `MoveContainerToNamedWorkspace`
+   and the `Cycle*Container*` arms look up the target first; a router gate would refuse before any of it.
+3. The layer split: `FocusWindow`, `MoveWindow` and `CycleFocusWindow` call a gated function in the Tiling
+   layer and an ungated floating function in the Floating layer, so one message is refused in one layer
+   only; a router gate refuses both.
+4. Nested and direct callers that do not pass the router: `focus_container_window` is also called from the
+   arm of `process_command` that focuses a window by its location (`WorkspaceWindowLocation::Monocle` and
+   `Container`), `move_container_to_workspace` from `move_container_to_monitor` and from
+   `move_container_in_direction`, `toggle_monocle` and `toggle_maximize` from
+   `move_container_in_direction` and the cycle functions, and the unit tests of `window_manager.rs` call
+   all of them directly. The nested calls are covered by the outer gate; the direct ones are not.
+
+The hook that makes both shapes expressible is a defaulted method on the shared router,
+`fn gate_message(&self, message: &SocketMessage) -> eyre::Result<()>`: the default (KDE, macOS) calls
+`handle_unmanaged_window_behaviour` for every message; Windows returns `Ok(())` and keeps the call inside
+the 18 functions (they stay Windows text until the owner decides that Windows should refuse more).
+
+### 22.2 Hooks of the window manager (`WindowManagerPlatform`)
+
+| Windows keeps | What it is | KDE / macOS | Shape |
+|---|---|---|---|
+| `new`, `init` | `new` takes the command listener, the event channel and the socket; `init` loads monitor and workspace information through `WindowsApi`, uncloaks left-behind windows, starts the border and stackbar machinery | KDE: backend monitors and desktops; macOS: run loop and AX | `fn init(&mut WindowManager<Self>)`, `fn new(..)` as associated functions; the struct's platform fields in `P::State` (section 2: `known_hwnds`, `virtual_desktop_id`, `uncloack_to_ignore`, `has_pending_raise_op`, `pending_move_op` with handle and rect, `already_moved_window_handles`) |
+| `stop` | writes `komorebi.state.json`, switches animations off, waits for them, restores every window, turns focus-follows-mouse off, shuts the subscriber sockets, removes the socket file, waits for a bar restart in progress, `process::exit(0)` | KDE: `backend().shutdown()`; macOS: its own | `fn stop(&mut WindowManager<Self>, ignore_restore: bool)`; the shared part is the restore, the rest is the hook |
+| `restore_all_windows` | restores each window by `WindowsApi` (cloak/hide/minimize, the maximized and monocle windows), skipping windows the user hid | KDE and macOS have their own | `fn restore_all_windows(..)`; Windows' body stays |
+| `resize_window` | resizes by edge with DPI scaling and the min-size rules (58 lines); `ResizeWindowEdge` additionally goes through the live-resize guard | macOS 52 lines of its own, KDE none (the compositor) | `fn resize_window(..)`; the arm `ResizeWindowEdge` is a hook too |
+| `focus_workspace` | plans a slide transition (`workspace_transition_plan`, `focus_workspace_towards`) and runs the animation, or shows and hides windows | KDE asks the compositor for the desktop | plan/execute split: `fn plan_workspace_transition(..) -> Plan` (shared) and `fn execute(plan)` (hook) |
+| `enforce_workspace_rules`, `manage_focused_window`, `unmanage_focused_window`, `monitor_idx_from_window` | rules apply to windows found by `WindowsApi` and move them with `SetWindowPos`; manage/unmanage are fed by an event on Windows and a notification on KDE | differ in input | hooks `fn windows_to_enforce(..)`, `fn manage_focused(..)` |
+| `move_container_in_direction` | a DPI check across monitors (`monitors_have_same_dpi`) before a cross-monitor move | none | `fn before_cross_monitor_move(a, b) -> eyre::Result<()>`, no-op default |
+| `move_floating_window_in_direction`, `focus_floating_window_in_direction` | border offsets and the floating-window search (105 lines) | KDE and macOS: 29-line variants | stay platform; extension trait |
+
+### 22.3 Borders, stackbars, animations: the `BorderPlatform` hook
+
+`window_manager.rs` calls the border manager in few places: `cycle_monocle` destroys the borders
+(`border_manager::destroy_all_borders`), `stop` reads the border implementation, the ghost kinds are set in
+one free function; the router arms `Border*`, `Retile*`, `ReloadStaticConfiguration` and `TogglePause` set
+`force_update_borders` and notify the border thread. `monocle_on` and `monocle_off` also hide and restore
+the floating windows (through the backend). The stackbar manager is not called from `window_manager.rs`. KDE draws borders in the
+compositor and calls none of these, macOS has its own border thread. Shape: a defaulted
+`BorderPlatform` with `fn borders_changed(&mut self)`, `fn destroy_borders(&mut self)`,
+`fn hide_floating_for_monocle(&mut self, hide: bool)`; defaults do nothing (KDE) and macOS implements
+its own. The `force_update_borders` flag of the router becomes the return value of those hooks, as
+`replace_configuration` already returns it.
+
+### 22.4 Wallpaper, window-handling behaviour, workspace names, custom layouts
+
+- **Wallpaper.** `apply_wallpaper_for_monitor_workspace` finds the wallpaper of a monitor/workspace pair
+  and calls `Workspace::apply_wallpaper` (which is the `WorkspacePlatform::apply_wallpaper` hook:
+  `WindowsApi::set_wallpaper` through COM on Windows, the backend on KDE, nothing on macOS); the shared
+  function takes a `PlatformMonitorId` now and can move as it is.
+- **Window handling behaviour.** `WINDOW_HANDLING_BEHAVIOUR` (Sync/Async, the `ASYNC_WINDOW_POS` flag of
+  `SetWindowPos`) is read inside `WindowsApi::position_window`, never in `window_manager.rs`: it is a
+  setting of the Windows `set_rect`, not a hook of the window manager. Keep it in `Settings::platform`.
+- **Workspace names.** `set_workspace_name` records the name in the monitor's `Extra` (`workspace_names`),
+  and `known_workspace_name` is already the `MonitorPlatform` hook; a shared `set_workspace_name` calls a
+  `fn record_workspace_name(monitor: &mut Monitor<Self>, idx: usize, name: &str)` hook (default: nothing).
+- **Custom layouts.** `Layout::Custom` stays in `komorebi-layouts`; the Windows arms of `cycle_layout`,
+  `promote_container_swap` and `change_workspace_layout_default` fail for a custom layout without a primary
+  column, which `primary_container_idx` already expresses; the one real difference (`promote-focus` falls
+  back to the first column) is `promote_focus_container_idx`, done in this branch.
+
+### 22.5 Cosmetic differences: nothing left to do
+
+Section 18 lists which near-identical functions were cosmetic and converged (`bail!`, `Lockable`, log
+text, the `SessionFloatRules` and `State` arms); the rest of its table is real. Re-reading the Windows and
+KDE copies of the functions that differ by at most four lines against that table found no cosmetic
+difference left (`float_window` and the `focus_*` family read `mouse_follows_focus` into a local on KDE
+because of a borrow, and Windows has no such need: they stay as they are).
+
+### 22.6 Order for kfde
+
+1. `fn gate_message` on the shared router (22.1), Windows `Ok(())`.
+2. `BorderPlatform` (22.3) with no-op defaults: unblocks `cycle_monocle`, `retile_all`, `monocle_on/off`.
+3. `record_workspace_name` (22.4) and the `PlatformMonitorId` use in the shared wallpaper function.
+4. The plan/execute split of `focus_workspace`, then `init`/`stop`/`new`/`restore_all_windows` as hooks.
+Gates for each: Windows `commands`, `workspaces`, `focus`, `stacking`, `monocle` (maximizing), `borders`,
+`layouts` scenarios; KDE fast tier and VM for the router change.
