@@ -129,14 +129,24 @@
                   || member == "komorebi-bar"
                   || builtins.any (crate: member == crate || pkgs.lib.hasPrefix "${crate}/" member) rootCrates;
               };
+              lockFile = builtins.path {
+                path = repoRoot + "/Cargo.lock";
+                name = "Cargo.lock";
+              };
+              tomlFile = builtins.path {
+                path = repoRoot + "/Cargo.toml";
+                name = "Cargo.toml";
+              };
               packages = "-p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar";
               workspaceArgs = {
                 pname = "komorebi-workspace";
                 inherit version;
-                cargoLock = "${real}/Cargo.lock";
-                cargoToml = "${real}/Cargo.toml";
-                # vendored from the filtered source, not the stubbed one: no build is needed to evaluate
-                cargoVendorDir = craneLib.vendorCargoDeps { src = real; };
+                # the lock and the root manifest as files of their own: a path inside the filtered source
+                # would put all of it into the context of every derivation, and an edit of any file
+                # would then change the dependencies
+                cargoLock = lockFile;
+                cargoToml = tomlFile;
+                cargoVendorDir = craneLib.vendorCargoDeps { cargoLock = lockFile; };
               };
 
               commonArgs = workspaceArgs // {

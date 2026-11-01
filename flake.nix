@@ -239,12 +239,23 @@
             isReal = member: !(pkgs.lib.hasPrefix "komorebi-for-" member);
           };
 
+          lockFile = builtins.path {
+            path = ./Cargo.lock;
+            name = "Cargo.lock";
+          };
+          tomlFile = builtins.path {
+            path = ./Cargo.toml;
+            name = "Cargo.toml";
+          };
+
           commonArgs = {
             inherit src version;
-            cargoLock = "${real}/Cargo.lock";
-            cargoToml = "${real}/Cargo.toml";
-            # vendored from the filtered source, not the stubbed one: no build is needed to evaluate
-            cargoVendorDir = craneLib.vendorCargoDeps { src = real; };
+            # the lock and the root manifest as files of their own: a path inside the filtered source would put the
+            # whole filtered source into the context of every derivation, and then an edit of any file
+            # would change the dependencies
+            cargoLock = lockFile;
+            cargoToml = tomlFile;
+            cargoVendorDir = craneLib.vendorCargoDeps { cargoLock = lockFile; };
             strictDeps = true;
             # applications.json is committed now; this copies the pinned asc input over it, so that the
             # embedded file is the pinned one even when the committed copy is older
