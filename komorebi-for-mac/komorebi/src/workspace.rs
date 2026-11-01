@@ -1072,9 +1072,7 @@ mod tests {
         // new_container_for_floating_window which usually handles unfloating
         let window = ws.floating_windows_mut().pop_back().unwrap();
         let mut container = Container::default();
-        container
-            .add_window(window, Default::default())
-            .unwrap();
+        container.add_window(window, Default::default()).unwrap();
         ws.insert_container_at_idx(ws.focused_container_idx(), container);
 
         // all indexes should be at their original position
