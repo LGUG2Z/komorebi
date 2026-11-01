@@ -22,7 +22,7 @@ when the agent needs more in the image, or when the 90-day evaluation runs
 out (about 20 minutes, more under load):
 
 ```sh
-nix build .#komorebi-e2e-agent -o agent
+nix build .#windows-komorebi-e2e-agent -o agent
 build-base.sh win11.iso agent/bin/komorebi-e2e-agent.exe base
 ```
 

@@ -97,7 +97,7 @@ These are intentional, not leftovers; before "unifying" one, read the document n
 | Bar schema views | `schemas/windows/schema.bar.json`, `schemas/macos/schema.bar.json`; `crates/komorebi-bar-core/tests/schema_oracle.rs` pins size and hash; `komorebi-bar --schema` prints the view of the target OS | a changed bar configuration | `cargo test -p komorebi-bar-core`; Windows e2e scenario `bar` compares `--schema` byte for byte |
 | CLI docs | `docs/cli`, `docs/linux/cli`, `docs/macos/cli`; `crates/komorebic-core/tests/docs_cli.rs` and `platforms.rs` | a changed subcommand or help text | `cargo test -p komorebic-core`; `komorebic docgen --output DIR` regenerates |
 | Schema docs completeness | `check_schema_docs.py` (root; the macOS copy is archived in `docs/dev/old-ci/macos/`) | schema entries with no description | by hand |
-| Drift of derivations | `nix eval .#packages.x86_64-linux.default.drvPath` and the check derivations | an unintended change of what nix builds | by hand (see build-and-test.md) |
+| Drift of derivations | `nix eval .#packages.x86_64-linux.windows-default.drvPath` and the check derivations | an unintended change of what nix builds | by hand (see build-and-test.md) |
 | Backend contract | `komorebi-backend/src/contract.rs` | a backend that breaks a rule of the trait | `cargo test -p komorebi-backend` and each daemon's tests |
 | Runtime | Windows e2e (QEMU), KDE VM suites | real behaviour | tier 3 below |
 
@@ -155,7 +155,7 @@ left out. The table is the original assessment.
 |---|---|---|
 | `fast-check` (+ its README) | runs only the checks that the touched paths need (tier 1 and 2), with persistent target dirs | yes: it is the quickest way to get the right gate for a change; needs its scratch paths made configurable (`FAST_CHECK_SCRATCH`, already an env var) |
 | `mac-check.sh` | macOS type-check through a fake C compiler | yes, merged into `fast-check` (it has hard-coded paths to a workspace) |
-| `kde-closure-check` | fails when `nix/linux/root-crates.json` and the KDE cargo closure differ (the script in `tools/` still reads the old path `komorebi-for-kde/nix/root-crates.json`) | yes: it protects the KDE source filter; run after any dependency change in the KDE tree or the crates it uses |
+| `kde-closure-check` | fails when `nix/linux/root-crates.json` and the KDE cargo closure differ | yes: it protects the KDE source filter; run after any dependency change in the KDE tree or the crates it uses |
 | `lite-env` | env vars for builds without debug info | optional (one `.env` file) |
 | `gate-lock` | host-wide FIFO lock so heavy gates and timing-sensitive e2e do not overlap | host policy; commit only if more than one person shares a build host |
 | `e2e-needed` | says whether a diff touches anything the Windows e2e binaries are built from (decides whether the e2e gate is owed) | yes, next to `fast-check` |

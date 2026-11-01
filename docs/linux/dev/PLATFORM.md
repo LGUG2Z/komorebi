@@ -876,7 +876,7 @@ RDP](#rendering-in-virtual-machines-and-over-rdp).
 Measured on 2026-10-28 on the machine `run-kde` is written for: Windows 11, a Ryzen 9 5900X (24
 threads for WSL 2), 31 GB of memory for WSL 2, NixOS-WSL with `nestedVirtualization=true` and
 `/dev/kvm` writable by the build users, so the suites ran under KVM inside Hyper-V. These are the
-wall times of `nix build .#checks.x86_64-linux.vm-NAME` from a warm store, the boot of the machine
+wall times of `nix build .#legacyPackages.x86_64-linux.vm.NAME` from a warm store, the boot of the machine
 included. Another VM was running for some of the non-timing suites, and none was for the timing
 ones.
 

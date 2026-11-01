@@ -9,7 +9,7 @@ they are laid out, how to run them, and how to add one.
 
 | Where | How | Accelerator |
 |---|---|---|
-| CI, `x86_64-linux` | `nix build -L .#checks.x86_64-linux.vm-NAME` | KVM |
+| CI, `x86_64-linux` | `nix build -L .#legacyPackages.x86_64-linux.vm.NAME` | KVM |
 | CI, `x86_64-linux`, the weekly canary | the same, with nixpkgs moved to the tip of nixpkgs-unstable | KVM |
 | A Linux machine with KVM | `just vm NAME` | KVM |
 | A Mac | `just vm NAME`, which runs `scripts/linux/vm-mac` | HVF |
@@ -394,7 +394,7 @@ the fake and fails on KDE has found a bug in the fake, the library or the daemon
   the test:
 
   ```sh
-  E2E_ONLY=stacks,monocle nix build --impure .#checks.x86_64-linux.vm-core-e2e -L
+  E2E_ONLY=stacks,monocle nix build --impure .#legacyPackages.x86_64-linux.vm.core-e2e -L
   ```
 
   A step that is left out returns `None`, so a suite that uses what a step returned must run that
@@ -407,7 +407,7 @@ it builds it elsewhere and passes the store path, evaluating with `--impure`:
 
 ```sh
 KOMOREBI_RECORDER=$(nix build ~/komorebi-recorder#komorebi-recorder --no-link --print-out-paths) \
-  nix build --impure .#checks.x86_64-linux.vm-core-lock -L
+  nix build --impure .#legacyPackages.x86_64-linux.vm.core-lock -L
 ```
 
 `core-e2e` and `core-lock` then record the session without video (`komorebi_vm.recorder`), print

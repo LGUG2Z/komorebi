@@ -68,7 +68,7 @@ with a scenario in [`nix/linux/tests/nixos-module.nix`](../../nix/linux/tests/ni
 the `nixos-module-eval` check: each scenario is a real NixOS system that is
 evaluated and never built, and its checks read the assertions, the unit and
 the options it evaluates to. It runs on a Mac too, with `nix build
-.#checks.aarch64-darwin.nixos-module-eval`. A change to what the unit does in a
+.#legacyPackages.aarch64-darwin.heavyChecks.linux-nixos-module-eval`. A change to what the unit does in a
 session also changes the VM suite `module`, which logs in to Plasma on a machine
 with the module and checks the daemon the unit runs. Every other VM suite runs
 on machines built with the module too.
@@ -138,8 +138,8 @@ and checks the files it installs, and for a patched package that the patch is
 in them:
 
 ```sh
-nix build .#checks.x86_64-linux.kde-rounded-corners-komorebi-install
-nix build .#checks.x86_64-linux.kwin-effect-geometry-change-komorebi-install
+nix build .#checks.x86_64-linux.linux-kde-rounded-corners-komorebi-install
+nix build .#checks.x86_64-linux.linux-kwin-effect-geometry-change-komorebi-install
 ```
 
 ## Plasma guests to develop in
