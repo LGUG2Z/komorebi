@@ -48,6 +48,10 @@
 //!
 //! [`listen_for_commands`]: crate::process_command::listen_for_commands
 
+// the text of the container calls is the same as on macOS, where the hide spot is a value: here it
+// is `()`, and binding it is how the two stay identical
+#![allow(clippy::let_unit_value)]
+
 use crate::DATA_DIR;
 use crate::HIDDEN_WINDOWS;
 use crate::LibraryError;
@@ -1320,8 +1324,10 @@ impl WindowManager {
                     workspace.move_window_to_container(adjusted_new_index)?;
                 }
             }
+
+            let spot = workspace.hide_spot();
             if changed_focus && let Some(container) = workspace.focused_container_mut() {
-                let _ = container.load_focused_window(());
+                container.load_focused_window(spot)?;
                 if let Some(window) = container.focused_window() {
                     window.focus(mouse_follows_focus)?;
                 }
@@ -1425,6 +1431,7 @@ impl WindowManager {
         tracing::info!("cycling container windows");
 
         let mouse_follows_focus = self.mouse_follows_focus;
+        let spot = self.focused_workspace()?.hide_spot();
 
         let container = self.focused_container_mut()?;
 
@@ -1439,7 +1446,7 @@ impl WindowManager {
         let next_idx = direction.next_idx(current_idx, len);
 
         container.focus_window(next_idx);
-        let _ = container.load_focused_window(());
+        container.load_focused_window(spot)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -1631,8 +1638,9 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
         workspace.new_monocle_container()?;
 
+        let spot = workspace.hide_spot();
         for container in workspace.containers_mut() {
-            let _ = container.hide(None, ());
+            container.hide(None, spot)?;
         }
 
         Ok(())
@@ -1651,7 +1659,7 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
 
         for container in workspace.containers_mut() {
-            let _ = container.restore();
+            container.restore()?;
         }
 
         workspace.reintegrate_monocle_container()
@@ -1678,8 +1686,9 @@ impl WindowManager {
         self.focused_workspace_mut()?
             .cycle_monocle_container(direction)?;
 
+        let spot = self.focused_workspace()?.hide_spot();
         for container in self.focused_workspace_mut()?.containers_mut() {
-            let _ = container.hide(None, ());
+            container.hide(None, spot)?;
         }
 
         self.update_focused_workspace(true, true)
@@ -2811,6 +2820,7 @@ impl WindowManager {
         tracing::info!("cycling container window index");
 
         let mouse_follows_focus = self.mouse_follows_focus;
+        let spot = self.focused_workspace()?.hide_spot();
 
         let container =
             if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
@@ -2831,7 +2841,7 @@ impl WindowManager {
         container.windows_mut().swap(current_idx, next_idx);
 
         container.focus_window(next_idx);
-        let _ = container.load_focused_window(());
+        container.load_focused_window(spot)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -2853,6 +2863,7 @@ impl WindowManager {
         tracing::info!("focusing container window at index {idx}");
 
         let mouse_follows_focus = self.mouse_follows_focus;
+        let spot = self.focused_workspace()?.hide_spot();
 
         let container =
             if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
@@ -2873,7 +2884,7 @@ impl WindowManager {
         }
 
         container.focus_window(idx);
-        let _ = container.load_focused_window(());
+        container.load_focused_window(spot)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -2893,6 +2904,7 @@ impl WindowManager {
         tracing::info!("stacking all windows on workspace");
 
         let workspace = self.focused_workspace_mut()?;
+        let spot = workspace.hide_spot();
 
         let mut focused_hwnd = None;
         if let Some(container) = workspace.focused_container()
@@ -2920,7 +2932,7 @@ impl WindowManager {
             && let Some(w_idx_to_focus) = c.idx_for_window(hwnd)
         {
             c.focus_window(w_idx_to_focus);
-            let _ = c.load_focused_window(());
+            c.load_focused_window(spot)?;
         }
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
@@ -3893,7 +3905,7 @@ impl WindowManager {
                     .ok_or_eyre("there is no workspace for this monitor")?;
 
                 for container in origin_workspace.containers_mut() {
-                    let _ = container.restore();
+                    container.restore()?;
                 }
 
                 origin_workspace.reintegrate_monocle_container()?;
@@ -3906,15 +3918,46 @@ impl WindowManager {
                         target_container_idx,
                     ),
                 )?;
+                // TODO: don't think this is needed on macOS
+                // After we restore the origin workspace, some windows that were cloacked
+                // by the monocle might now be uncloacked which would trigger a workspace
+                // reconciliation since the focused monitor would be different from origin.
+                // That workspace reconciliation would focus the window on the origin monitor.
+                // So we need to ignore the uncloak events produced by the origin workspace
+                // restore to avoid that issue.
+                // self.uncloack_to_ignore = uncloack_amount;
             }
+            // TODO: this probably won't be used on macOS
         } else if origin_workspace
             .maximized_window
             .as_ref()
             .map(|max| max.id == window_id)
             .unwrap_or_default()
         {
-            // A maximized window is in no container, so there is none to transfer: it stays where
-            // it is
+            // Moving maximized_window
+            // TODO: not sure if we'll support maximized windows on macOS
+            // if let Some(maximized_idx) = origin_workspace.maximized_window_restore_idx {
+            //     self.focus_monitor(origin_monitor_idx)?;
+            //     let origin_monitor = self
+            //         .focused_monitor_mut()
+            //         .ok_or_eyre("there is no origin monitor")?;
+            //     origin_monitor.focus_workspace(origin_workspace_idx)?;
+            //     self.unmaximize_window()?;
+            //     self.focus_monitor(target_monitor_idx)?;
+            //     let target_monitor = self
+            //         .focused_monitor_mut()
+            //         .ok_or_eyre("there is no target monitor")?;
+            //     target_monitor.focus_workspace(target_workspace_idx)?;
+            //
+            //     self.transfer_container(
+            //         (origin_monitor_idx, origin_workspace_idx, maximized_idx),
+            //         (
+            //             target_monitor_idx,
+            //             target_workspace_idx,
+            //             target_container_idx,
+            //         ),
+            //     )?;
+            // }
         }
         Ok(())
     }
