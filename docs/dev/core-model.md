@@ -1371,3 +1371,41 @@ Recommended next step: kfm unifies the container API (blocker 1) and the `?` pol
 daemons; after that the nine functions are identical and the shared share passes 60% without new
 hooks, and `WindowManager<P>` can be created over KDE and macOS with the entry points of blocker 3 left
 in each daemon's extension trait.
+
+## 21. The shared commands (`komorebi_core::command`, wip-u-cmd)
+
+**Mechanism.** The daemons' `WindowManager` is per platform, so the commands cannot be methods of a
+shared type yet; they are free functions generic over a *host*, a small trait the daemon implements by
+forwarding to its own methods: `CommandHost` (monitors, focused monitor, the monitor under the pointer,
+`focus_monitor`, `focus_workspace`, `move_container_to_workspace`), `MonitorCommandHost` (mouse follows
+focus, `update_focused_workspace`, `direction_from_monitor_idx`, `move_container_to_monitor`, the focused
+workspace index) and `ContainerCommandHost` (`monitors_mut`). A recording stub host in
+`crates/komorebi-core/tests/commands.rs` tests each function natively, naming the e2e check of
+`commands.py` it mirrors; this is the model-level command harness that only KDE had.
+
+**Moved (sixteen router arms, the same text on all three daemons):** the workspace navigation
+(`CycleFocusWorkspace`, `CycleFocusEmptyWorkspace`, `CloseWorkspace`, `FocusLastWorkspace`,
+`MoveContainerToLastWorkspace`, `SendContainerToLastWorkspace`), the moves across workspaces and
+monitors (`CycleMoveContainerToWorkspace`, `CycleSendContainerToWorkspace`, `CycleFocusMonitor`,
+`CycleMoveContainerToMonitor`, `CycleSendContainerToMonitor`, `FocusMonitorWorkspaceNumber`,
+`MoveContainerToMonitorWorkspaceNumber`, `SendContainerToMonitorWorkspaceNumber`) and the lock and
+unlock of a container by index. The one platform difference found, that Windows lets the pointer pick the
+monitor first for the empty, close and last-workspace commands (a probable omission on KDE and macOS,
+section 18), is the const `CommandHost::POINTER_PICKS_THE_MONITOR_FOR_ALL`, true only for Windows.
+
+**What stays, and why** (identical across the three unless noted; each needs a `WindowManager` method
+or field, so moving them means moving `WindowManager`, the blockers of section 18):
+- the moves and focus by direction (`MoveWindow`, `FocusWindow`, `CycleFocusWindow`, `CycleMoveWindow`,
+  `PreselectDirection`, `Promote*`, `StackWindow`, `UnstackWindow`, `StackAll`, `CycleStack*`): they call
+  `move_container_in_direction`, `focus_container_in_direction` and the floating variants, which are the
+  big window manager functions with the platform window operations;
+- the named-workspace commands (`MoveContainerToNamedWorkspace`, `SendContainerToNamedWorkspace`,
+  `FocusNamedWorkspace`, the layout and tiling by name): need `monitor_workspace_index_by_name`, a
+  `WindowManager` method over the monitors (a candidate for the next host method once the names are
+  in `Monitor`);
+- the behaviour toggles (`ToggleCrossMonitorMoveBehaviour`, `ToggleWindowContainerBehaviour`): fields
+  of `WindowManager`;
+- the layout and rule commands (`WorkspaceLayout*`, `WorkspaceRule`, `ContainerPadding`,
+  `WorkAreaOffset`, ...): thin calls of `WindowManager` methods that edit a workspace and re-layout, the
+  same coupling;
+- queries, configuration, borders, animations, transparency, schema: statics and the platform.

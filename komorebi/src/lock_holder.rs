@@ -91,6 +91,38 @@ pub fn describe() -> Option<String> {
     })
 }
 
+/// A lock guard together with the record of who holds it, released together: the record first, then
+/// the lock, so the diagnostics never say that a thread holds the lock after it has let go. Drop it
+/// (`drop(guard)`) at the point where the lock is released.
+pub struct HeldGuard<'a, T> {
+    // field order is drop order: the record goes before the guard
+    _held: Held,
+    guard: parking_lot::MutexGuard<'a, T>,
+}
+
+/// Locks `mutex` and records `what` as the holder until the returned guard is dropped
+pub fn lock<T>(mutex: &Mutex<T>, what: impl Into<Cow<'static, str>>) -> HeldGuard<'_, T> {
+    let guard = mutex.lock();
+    HeldGuard {
+        _held: held(what),
+        guard,
+    }
+}
+
+impl<T> std::ops::Deref for HeldGuard<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.guard
+    }
+}
+
+impl<T> std::ops::DerefMut for HeldGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.guard
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -17,6 +17,7 @@ an artefact (`bar.png`, `bar-after-restart.png`).
 import hashlib
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -29,6 +30,7 @@ BAR_BINARY = f"{GUEST_BIN}\\komorebi-bar.exe"
 BAR_CONFIG = "C:\\e2e\\bar.json"
 BAR_OUTPUT = "C:\\e2e\\bar.out"
 # the title eframe gives the window (`run_native("komorebi-bar", ...)`)
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
 BAR_TITLE = "komorebi-bar"
 # how long the bar must keep running, in seconds
 ALIVE_SECONDS = 15
@@ -55,7 +57,8 @@ CONFIG = {
     # bar's PowerShell session
     "mouse": {
         "on_extra2_click": {"message": {"type": "Retile"}},
-        "on_middle_click": {"Command": "echo komorebi-bar-e2e"},
+        # `MouseMessage::Command(String)` is untagged: a plain string, not {"Command": ...}
+        "on_middle_click": "echo komorebi-bar-e2e",
     },
 }
 
@@ -101,6 +104,51 @@ def _alive_for(platform: WindowsPlatform, seconds: float) -> bool:
     return bool(_bar_pids(platform))
 
 
+# what the bar prints when eframe cannot make a window for lack of OpenGL (komorebi-bar's
+# `run_native` error), as the gate printed it: "egui_glow requires opengl 2.0+"
+NO_OPENGL_TEXT = "requires opengl"
+NO_OPENGL = "guest has no OpenGL 2.0"
+
+
+def classify(output: str) -> str | None:
+    """What the bar's own output says about its start: "no_opengl" (it could not make a
+    window for lack of OpenGL), "failed" (it ended with any other error: a configuration it
+    could not read, a crash) or None (no error, it runs)."""
+    if "Error:" not in output and "panicked" not in output:
+        return None
+    if NO_OPENGL_TEXT in output.lower():
+        return "no_opengl"
+    return "failed"
+
+
+def _bar_output(platform: WindowsPlatform) -> str:
+    try:
+        text = platform.agent_get_file(BAR_OUTPUT).decode(errors="replace")
+    except Exception:
+        return ""
+    return ANSI.sub("", text)
+
+
+def _started(platform: WindowsPlatform) -> bool:
+    """The bar runs, or it has already ended with something to say."""
+    return bool(_bar_pids(platform)) or classify(_bar_output(platform)) is not None
+
+
+def _outcome(platform: WindowsPlatform) -> str:
+    """Waits for the bar's window or its end: "running" (the window is there), "no_opengl",
+    "failed", or "timeout" (neither within a minute)."""
+    deadline = time.monotonic() + 60 * platform._scale
+    while time.monotonic() < deadline:
+        if _bar_window(platform) is not None:
+            return "running"
+        if not _bar_pids(platform):
+            why = classify(_bar_output(platform))
+            if why is not None:
+                return why
+        time.sleep(1)
+    return classify(_bar_output(platform)) or "timeout"
+
+
 def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> None:
     """Starts the bar on the tiled windows of `tiling` and walks through its life. The
     daemon runs at the end and the bar does not."""
@@ -128,12 +176,47 @@ def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> Non
         "cmd", "/c", f"{BAR_BINARY} --config {BAR_CONFIG} > {BAR_OUTPUT} 2>&1"
     )
 
+    checks.check("the bar process starts", platform.wait_for(lambda: _started(platform), timeout=30))
+    outcome = _outcome(platform)
+    text = _bar_output(platform)
+    (platform._out / "bar.out").write_text(text)
+    # the configuration is parsed before the window is made, so a bar that got as far as
+    # opening a window (or failing to) has read all of it, the Keyboard and Systray
+    # widgets and the mouse block included
     checks.check(
-        "the bar process starts", platform.wait_for(lambda: bool(_bar_pids(platform)), timeout=30)
+        "the bar reads its configuration (every widget, the mouse block)",
+        outcome != "failed" and "found configuration file" in text,
     )
-    appeared = platform.wait_for(lambda: _bar_window(platform) is not None, timeout=60)
-    checks.check(f"the bar's window titled {BAR_TITLE!r} appears", appeared)
+
+    if outcome == "no_opengl":
+        # the golden guest has no OpenGL 2.0 (basic display and QXL, no software opengl32), so
+        # eframe cannot make the window: not what a change of the bar did, and not a pass
+        for what in (
+            f"the bar's window titled {BAR_TITLE!r} appears",
+            f"the bar keeps running for {ALIVE_SECONDS} s",
+            "the bar is still running after the daemon stopped",
+            "the bar runs on after the daemon is back",
+        ):
+            checks.skip(what, NO_OPENGL)
+        checks.check(
+            "`komorebic state` answers after the bar has started",
+            platform.wait_for(lambda: platform.komorebic_status("state")[0] == 0),
+        )
+        platform.komorebic("stop", "--bar")
+        checks.check(
+            "`komorebic stop --bar` stops the daemon",
+            platform.wait_for(lambda: platform.komorebic_status("state")[0] != 0, timeout=20),
+        )
+        platform.start_komorebi()
+        return
+    if outcome != "running":
+        checks.bad(f"the bar did not open its window ({outcome}); it printed: {text[:600]!r}")
+        platform.komorebic("stop", "--bar")
+        platform.start_komorebi()
+        return
+
     window = _bar_window(platform)
+    checks.check(f"the bar's window titled {BAR_TITLE!r} appears", window is not None)
     if window is not None:
         frame = window["frame"]
         checks.check(
@@ -197,10 +280,5 @@ def run(platform: WindowsPlatform, checks: Checks, clients: list[Client]) -> Non
         "`komorebic stop --bar` ends the bar process",
         platform.wait_for(lambda: not _bar_pids(platform), timeout=20),
     )
-    try:
-        text = platform.agent_get_file(BAR_OUTPUT).decode(errors="replace")
-        (platform._out / "bar.out").write_text(text)
-    except Exception as e:
-        print(f"     no bar output: {e}")
     # left as the other scenarios leave it: the daemon runs
     platform.start_komorebi()

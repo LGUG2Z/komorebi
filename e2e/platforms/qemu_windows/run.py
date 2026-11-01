@@ -544,6 +544,8 @@ def main(argv: list[str]) -> int:
             failed += 1
             continue
         print(f"{name}: passed {checks.passed} failed {checks.failed}")
+        if checks.skipped:
+            print(f"{name}: skipped {len(checks.skipped)}")
         if checks.known:
             print(f"{name}: known failures {len(checks.known)}")
         failed += checks.failed

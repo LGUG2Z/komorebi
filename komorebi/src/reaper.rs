@@ -77,10 +77,12 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
 
     for notification in receiver {
         let orphan_hwnds = notification.0;
-        let mut wm = wm.lock();
-        let _held = crate::lock_holder::held("reaper");
+        let mut wm = crate::lock_holder::lock(&wm, "reaper");
 
         let mut update_borders = false;
+        // what the subscribers are told, and in what state, is decided here with the lock held and
+        // sent after it is released (a subscriber, or the disk, must not hold the lock)
+        let mut notifications = vec![];
 
         for (hwnd, (m_idx, w_idx)) in orphan_hwnds.iter() {
             if let Some(monitor) = wm.monitors_mut().get_mut(*m_idx) {
@@ -117,16 +119,23 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
             wm.known_hwnds.remove(hwnd);
 
             let window = Window::from(*hwnd);
-            notify_subscribers(
-                crate::Notification {
-                    event: NotificationEvent::WindowManager(WindowManagerEvent::Destroy(
-                        WinEvent::ObjectDestroy,
-                        window,
-                    )),
-                    state: wm.as_ref().into(),
-                },
-                true,
-            )?;
+            notifications.push(crate::Notification {
+                event: NotificationEvent::WindowManager(WindowManagerEvent::Destroy(
+                    WinEvent::ObjectDestroy,
+                    window,
+                )),
+                state: wm.as_ref().into(),
+            });
+        }
+
+        let seq = HWND_LIST_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        let known_hwnds = wm.known_hwnds.keys().copied().collect::<Vec<_>>();
+
+        // the lock is released here, before the subscribers are pushed to and the file is written
+        drop(wm);
+
+        for notification in notifications {
+            notify_subscribers(notification, true)?;
         }
 
         if update_borders {
@@ -134,14 +143,7 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
         }
 
         // Save to file
-        let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
-        let file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(hwnd_json)?;
-
-        serde_json::to_writer_pretty(&file, &wm.known_hwnds.keys().collect::<Vec<_>>())?;
+        write_known_hwnds(seq, &known_hwnds)?;
     }
 
     Ok(())
@@ -212,4 +214,32 @@ fn find_orphans() -> color_eyre::Result<()> {
             event_tx().send(ReaperNotification(orphan_hwnds))?;
         }
     }
+}
+
+/// Numbers the lists of known handles, in the order the window manager decided them (taken with
+/// the window manager locked), so that a list written late is not written over a newer one
+pub static HWND_LIST_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The number of the list that is in `komorebi.hwnd.json`, and the lock that serialises the writes
+static HWND_FILE: Mutex<u64> = Mutex::new(0);
+
+/// Writes `komorebi.hwnd.json`, synchronously, unless a newer list (`seq` from
+/// [`HWND_LIST_SEQ`]) has been written already. The reaper calls it after it has released the
+/// window manager lock, the commands with it held: the writes do not interleave and the file is
+/// never overwritten by an older list.
+pub fn write_known_hwnds(seq: u64, hwnds: &[isize]) -> std::io::Result<()> {
+    let mut written = HWND_FILE.lock();
+    if seq < *written {
+        return Ok(());
+    }
+
+    let file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(DATA_DIR.join("komorebi.hwnd.json"))?;
+    serde_json::to_writer_pretty(&file, hwnds)?;
+    *written = seq;
+
+    Ok(())
 }

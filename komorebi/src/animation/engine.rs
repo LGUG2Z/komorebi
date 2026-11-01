@@ -131,8 +131,7 @@ impl AnimationEngine {
                 ANIMATION_MANAGER.lock().start(key.as_str());
             }
 
-            let target_frame_time =
-                Duration::from_millis(1000 / crate::settings::animation_fps());
+            let target_frame_time = Duration::from_millis(1000 / crate::settings::animation_fps());
             let animation_start = Instant::now();
 
             let mut stats = FrameStats::default();

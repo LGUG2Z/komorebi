@@ -3565,6 +3565,7 @@ dependencies = [
  "komorebi-layouts",
  "komorebi-protocol",
  "komorebi-themes",
+ "regex",
  "schemars 1.2.3",
  "serde",
  "serde_json_lenient",

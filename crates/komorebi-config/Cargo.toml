@@ -11,6 +11,7 @@ komorebi-themes = { path = "../../komorebi-themes" }
 
 clap = { workspace = true }
 color-eyre = { workspace = true }
+regex = "1"
 serde = { workspace = true }
 serde_with = { version = "3.12", features = ["schemars_1"] }
 serde_json = { workspace = true, features = ["preserve_order"] }

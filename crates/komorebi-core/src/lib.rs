@@ -7,6 +7,7 @@
 
 #![deny(missing_docs)]
 
+mod command;
 mod container;
 mod globals;
 #[allow(missing_docs)]
@@ -14,6 +15,7 @@ mod monitor;
 #[allow(missing_docs)]
 mod workspace;
 
+pub use command::*;
 pub use container::Container;
 pub use container::ContainerWindow;
 pub use container::WorkspaceWindow;

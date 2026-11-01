@@ -1,0 +1,31 @@
+"""What the `bar` scenario decides from the bar's own output, without a guest."""
+
+from platforms.qemu_windows.extras import bar
+
+GL = (
+    "2026-10-31T07:25:02Z  INFO komorebi_bar::windows: found configuration file: C:\\e2e\\bar.json\n"
+    "Error: \n   0: egui_glow: OpenGL: egui_glow requires opengl 2.0+. \n"
+)
+PARSE = (
+    "found configuration file: C:\\e2e\\bar.json\nError: \n"
+    "   0: data did not match any variant of untagged enum MouseMessage at line 59 column 3\n"
+)
+
+
+def test_no_opengl_is_told_from_other_errors():
+    assert bar.classify(GL) == "no_opengl"
+
+
+def test_any_other_error_is_a_failure():
+    assert bar.classify(PARSE) == "failed"
+    assert bar.classify("thread 'main' panicked at x") == "failed"
+
+
+def test_a_bar_that_prints_no_error_runs():
+    assert bar.classify("") is None
+    assert bar.classify("found configuration file: x\nwatching configuration file\n") is None
+
+
+def test_the_test_configuration_is_plain_json_values():
+    # the untagged MouseMessage::Command is a string
+    assert isinstance(bar.CONFIG["mouse"]["on_middle_click"], str)

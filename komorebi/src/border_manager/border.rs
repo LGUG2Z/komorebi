@@ -835,8 +835,10 @@ mod tests {
 
         let tracked_hwnd = tracked.0 as isize;
         // put back when the guard is dropped, unless something else changed it meanwhile
-        let handling_override = crate::settings::settings()
-            .scoped(|settings| &mut settings.platform.window_handling_behaviour, handling);
+        let handling_override = crate::settings::settings().scoped(
+            |settings| &mut settings.platform.window_handling_behaviour,
+            handling,
+        );
 
         let mut border =
             Border::create("komorebi-border-test", tracked_hwnd, 0).expect("a border to paint");

@@ -15,13 +15,13 @@ use std::sync::atomic::Ordering;
 #[cfg(feature = "deadlock_detection")]
 use std::time::Duration;
 
+use crate::animation::AnimationEngine;
+use crate::replace_env_in_path;
 use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use color_eyre::eyre::bail;
 use crossbeam_utils::Backoff;
-use crate::animation::AnimationEngine;
-use crate::replace_env_in_path;
 use parking_lot::Mutex;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
@@ -333,6 +333,7 @@ pub fn run() -> eyre::Result<()> {
     focus_manager::listen_for_notifications(wm.clone());
     theme_manager::listen_for_notifications();
 
+    crate::heartbeat::start();
     listen_for_commands(wm.clone());
 
     if let Some(port) = opts.tcp_port {

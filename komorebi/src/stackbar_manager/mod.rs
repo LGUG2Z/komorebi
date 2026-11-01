@@ -95,8 +95,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let mut stackbars_monitors = STACKBARS_MONITORS.lock();
 
         // Check the wm state every time we receive a notification
-        let mut state = wm.lock();
-        let _held = crate::lock_holder::held("stackbar manager");
+        let mut state = crate::lock_holder::lock(&wm, "stackbar manager");
 
         // If stackbars are disabled
         if matches!(STACKBAR_MODE.load(), StackbarMode::Never)
