@@ -157,8 +157,6 @@ license](https://lgug2z.com/software/komorebi), and approved contributors. Issue
 titled `[FEAT]: ` opened by anyone else are closed automatically. Bug reports are
 open to everyone.
 
-<!-- OWNER: with the private macOS repository retired, what do sponsors get beyond Discord roles, shout-outs, feature requests and (where stated) easter-egg releases? Nothing else is promised here. -->
-
 If you would like to tip or sponsor the project but are unable to use GitHub
 Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z), or
 make an anonymous Bitcoin donation to `bc1qv73wzspc77k46uty4vp85x8sdp24mphvm58f6q`.
