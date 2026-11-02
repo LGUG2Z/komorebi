@@ -56,7 +56,7 @@ in
           }
         );
 
-        macos-nextest = build.craneLib.cargoNextest build.individualCrateArgs;
+        macos-nextest = build.craneLib.cargoNextest (build.individualCrateArgs // { doCheck = true; });
 
         macos-nix-options-validation = import ./tests { inherit pkgs; };
 
