@@ -31,9 +31,12 @@ let
       "macos-deny"
     ];
     windows-lint = [ "windows-clippy" ];
-    # the Python of the Windows e2e that needs no guest; the Rust tests of the Windows crates cannot run
-    # on a Linux builder (see nix/windows/flake-module.nix)
-    windows-test = [ "windows-e2e-tests" ];
+    # the Python of the Windows e2e that needs no guest, and the Windows crates' test executables,
+    # cross-built: they cannot run on a Linux builder, they run in the guest (`nix run .#windows-nextest`)
+    windows-test = [
+      "windows-e2e-tests"
+      "windows-nextest-build"
+    ];
     linux-lint = [
       "linux-clippy"
       "linux-doc"

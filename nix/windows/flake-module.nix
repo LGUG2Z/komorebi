@@ -62,6 +62,29 @@ in
             "$E2E_GOLDEN" "$bins" "$out" "$@"
         '';
       };
+      # the members that are stubs here (the Linux and macOS packages) have no test and do not build
+      excluded = pkgs.lib.concatMapStringsSep " " (p: "--exclude ${p}") build.stubbedPackages;
+      windowsNextestBuild = build.craneLib.mkCargoDerivation (
+        build.individualCrateArgs
+        // {
+          pnameSuffix = "-nextest-build";
+          doInstallCargoArtifacts = false;
+          nativeBuildInputs = build.individualCrateArgs.nativeBuildInputs ++ [ pkgs.jq ];
+          buildPhaseCargoCommand = ''
+            cargo test --locked --workspace ${excluded} --release --no-run --message-format json > messages.json
+          '';
+          installPhaseCommand = ''
+            mkdir -p $out/tests
+            jq -r 'select(.executable != null and .profile.test == true)
+                  | "\(.target.name)-\(.target.kind | join(","))\t\(.executable)"' messages.json \
+              | sort -u | while IFS=$'\t' read -r name exe; do
+                  cp "$exe" "$out/tests/$name.exe"
+                  printf '%s\t%s.exe\n' "$name" "$name" >> $out/tests.tsv
+                done
+          '';
+        }
+      );
+
       # the nightly rustfmt of the checks is the one of the dev shell: see nix/dev-shell.nix
       nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
     in
@@ -112,10 +135,11 @@ in
           }
         );
 
-        # There is no `windows-nextest`: it ran no test. The tests of the Windows crates are Windows
-        # programs, which a Linux builder cannot run, and `individualCrateArgs` has `doCheck = false`, so
-        # crane's nextest derivation only ran `cargo nextest --version`. `windows-clippy` (--all-targets)
-        # compiles them; `cargo test` of the Windows CI runs them (docs/dev/flake-checks.md).
+        # The Windows crates' test executables, cross-built and not run: a Linux builder cannot run them,
+        # so this proves that they compile and link. They run in the Windows e2e guest with
+        # `nix run .#windows-nextest` (e2e/platforms/qemu_windows/cargo_tests.py). The `windows-nextest`
+        # that crane's cargoNextest made here ran no test (`doCheck = false`), so the name is the app's.
+        windows-nextest-build = windowsNextestBuild;
       }
       // {
         # the Python of the Windows e2e guest that needs no guest: the
