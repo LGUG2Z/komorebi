@@ -16,8 +16,7 @@ using keyboard shortcuts.
 
 ## Installation
 
-<!-- OWNER: does the `komorebi-for-mac-nightly` Homebrew package and "nightly builds" survive the consolidation (and from which repository)? Left unchanged. -->
-Nightly builds are available to install
+Nightly builds, built from the [LGUG2Z/komorebi](https://github.com/LGUG2Z/komorebi) repository, are available to install
 via [Homebrew](https://github.com/LGUG2Z/homebrew-tap), and you may also build
 from source if you would prefer.
 
@@ -60,27 +59,14 @@ brew install skhd
 
 ## Nix Flake
 
-<!-- OWNER: this section tells users to add the private KomoCorp/komorebi-for-mac repository as a flake input with a GitHub token; that repository is retired. What is the public flake input for macOS (the root flake output names are not final)? Left unchanged until decided. -->
-
-Ensure that your system Flake is configured to use your GitHub token so that you can add a private repository as an input
-
-```nix
-{
-  nix = {
-    settings = {
-      access-tokens = [
-        "github.com=YOUR ACCESS TOKEN"
-      ];
-    };
-  };
-}
-```
+The macOS packages and the nix-darwin module are consumed from the
+[LGUG2Z/komorebi](https://github.com/LGUG2Z/komorebi) repository.
 
 Add the repository as an input
 
 ```nix
 {
-  inputs.komorebi-for-mac.url = "github:KomoCorp/komorebi-for-mac";
+  inputs.komorebi.url = "github:LGUG2Z/komorebi";
 }
 ```
 
@@ -90,7 +76,7 @@ Add the overlay to your system's nixpkgs configuration
 {
   pkgs = import nixpkgs {
     inherit system;
-    overlays = [ komorebi-for-mac.overlays.default ];
+    overlays = [ komorebi.overlays.macos ];
     # the rest of your pkgs configuration
   };
 }
