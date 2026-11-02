@@ -133,7 +133,31 @@ in
           }
         );
 
-        linux-nextest = build.craneLib.cargoNextest (build.individualCrateArgs // { doCheck = true; });
+        # the Linux packages and the platform-neutral crates (layouts, scrolling, themes and the
+        # shared crates/*), whose tests ran in no check. Not `--workspace`: that unifies the
+        # features of komorebi-daemon and the crates it pulls in, and windows-future fails to build.
+        linux-nextest = build.craneLib.cargoNextest (
+          build.individualCrateArgs
+          // {
+            doCheck = true;
+            cargoNextestExtraArgs = "--no-fail-fast";
+            cargoExtraArgs =
+              "--locked ${build.packages} "
+              + lib.concatMapStringsSep " " (p: "-p ${p}") [
+                "komorebi-layouts"
+                "komorebi-scrolling"
+                "komorebi-themes"
+                "komorebi-backend"
+                "komorebi-collections"
+                "komorebi-config"
+                "komorebi-core"
+                "komorebi-protocol"
+                "komorebi-settings"
+                "komorebi-transport"
+                "komorebic-core"
+              ];
+          }
+        );
 
         # The bridge is not Rust: tsc checks its types from its JSDoc comments, and node runs
         # its tests against a fake KWin. No package.json and no build step.

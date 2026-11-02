@@ -126,7 +126,10 @@ let
         # the script komorebi loads into KWin and the JSON the tests and the daemon read
         (lib.hasSuffix ".js" rel || lib.hasSuffix ".json" rel)
         && !(lib.hasPrefix "docs/" rel || lib.hasPrefix "schemas/" rel)
-        || lib.hasPrefix "schemas/linux/" rel
+        # the schemas of every platform: a test of komorebi-config compares them
+        || lib.hasPrefix "schemas/" rel
+        # the macOS CLI pages that a test of komorebic-core compares with the commands
+        || lib.hasPrefix "docs/macos/cli/" rel
         || lib.hasPrefix "spikes/config-parity/" rel
         || builtins.elem rel [
           # the example configuration and the sample key bindings that `komorebic quickstart` includes
