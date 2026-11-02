@@ -75,7 +75,7 @@ members, and every set is also one derivation (`pkgs.linkFarm`) that builds its 
 | `fmt` | `treefmt`, `pre-commit`, `windows-fmt`, `windows-toml-fmt`, `linux-fmt`, `linux-toml-fmt` (macOS systems: `macos-fmt`, `macos-toml-fmt`) | cheap |
 | `deny` | `windows-deny`, `linux-deny` (`macos-deny`) | cheap |
 | `windows-lint` | `windows-clippy` | cheap |
-| `windows-test` | `windows-e2e-tests` (the Rust tests of the Windows crates cannot run on a Linux builder; the old `windows-nextest` ran none, see below) | cheap |
+| `windows-test` | `windows-e2e-tests`, `windows-nextest-build` (the Windows test executables, cross-built and not run; they run in the guest with `nix run .#windows-nextest`, below) | cheap |
 | `linux-lint` | `linux-clippy`, `linux-doc` | cheap |
 | `linux-test` | `linux-nextest`, `linux-bridge-js`, `linux-keybindings-fixtures`, `vm-lib`, `linux-wsl2-probe`, `linux-wsl2-probe-dry-run`, the two effect install checks | cheap |
 | `linux-demo` | `linux-run-kde`, `linux-run-kde-doctor`, `linux-run-kde-dry-run` | 1.5 GB |
@@ -85,7 +85,7 @@ members, and every set is also one derivation (`pkgs.linkFarm`) that builds its 
 | `vm-fast` | the suites whose `tier` is `fast` (16), computed from `suite.tier` | 9 GB |
 | `vm-slow` | the suites of tier `slow` (18) | 10 GB |
 
-The Windows end-to-end run is an app (`nix run .#e2e-windows`), not a check: it needs a golden image. The
+The Windows end-to-end run is an app (`nix run .#e2e-windows`), and so is `windows-nextest`, not a check: it needs a golden image. The
 sets that exist on a system are the ones with members on it (a Mac has no `windows-*` build host except
 Apple silicon's cross build, which the member lists already say).
 
@@ -174,18 +174,36 @@ where its two checks took 10.3 + 9.0 GB alone before. Every set of one platform 
 set was killed.
 
 Nothing is lost: the check names of every system (`checks` plus what `heavyChecks` had) before, and the union
-of `checkMembers` after, are the same sets except `windows-nextest` (below): 61 names on x86_64-linux and
-aarch64-linux, 27 on aarch64-darwin, 9 on x86_64-darwin. The `drvPath` of every one of them is the same before and
+of `checkMembers` after, are the same sets except `windows-nextest` (below), which is now an app, and the new check
+`windows-nextest-build`: that was 61 names on x86_64-linux and aarch64-linux, 27 on aarch64-darwin, 9 on
+x86_64-darwin, and each system that builds the Windows crates has one more now (not re-counted). The `drvPath` of every one of them is the same before and
 after, except `treefmt` and `pre-commit`, which hash the whole source tree and so change with any edit of it.
 
 ## `windows-nextest` and `macos-nextest` ran no test
 
 `cargoNextest` of crane runs the tests in its check phase, and the Windows and macOS `individualCrateArgs`
 have `doCheck = false` (Linux passes `doCheck = true`), so the derivation ran `cargo nextest --version` and
-nothing else. A Windows program's tests cannot run on a Linux builder, so `windows-nextest` is gone (a check
-that runs nothing under the name of one that runs tests is worse than no check) and `windows-clippy
---all-targets` is what compiles them; the Windows CI runs `cargo test`. `macos-nextest` is the same shape and is
-kept, unchanged and still named for what it does not do, only until a Mac run decides whether `doCheck = true`
-is right there (the tests of `komorebi-macos` run natively on an Apple machine). Open: the tests of the
-platform-neutral crates `komorebi-layouts` and `komorebi-scrolling` run in the Windows CI and nowhere in nix
-(`linux-nextest` names `-p komorebi -p komorebi-linux -p komorebic -p komorebi-client -p komorebi-hotkeys`).
+nothing else. A Windows program's tests cannot run on a Linux builder, so the check `windows-nextest` was
+removed (a check that runs nothing under the name of one that runs tests is worse than no check). The tests
+now run in the Windows e2e guest, which is the answer to "can the Windows nextest run in a VM from NixOS":
+
+- `windows-nextest-build` (a check, set `windows-test`) cross-compiles every test executable of the Windows
+  workspace (`cargo test --workspace --release --no-run`, xwin, 48 executables) and keeps them, so that they
+  are proved to compile and link; about 90 s with warm dependencies.
+- `windows-nextest` (an app, the name of the old check) boots the golden image like a scenario, uploads the
+  executables and the data files they read at the path the build baked in (the schemas, the fixtures), runs
+  every test in a process of its own (as nextest does) and prints a line per executable and the failures;
+  `OUT/cargo-tests.json` has every result. The guest needs KVM and the golden image, so it is not a check:
+
+  ```sh
+  E2E_GOLDEN=golden KOMOREBI_E2E_SCALE=1.5 KOMOREBI_E2E_STATE=state-nextest nix run .#windows-nextest -- OUT
+  ```
+
+  964 tests ran and passed (the first run also saves the guest state, 163 s; after that about 3.5 minutes,
+  of which the tests are 171 s). It is a release build: debug assertions are off, as in `linux-nextest`.
+
+The neutral crates (`komorebi-layouts`, `komorebi-scrolling`, `komorebi-themes`, the shared `crates/*`) now
+also run in `linux-nextest` (1532 tests with the Linux packages), which needs the schemas of every platform
+and `docs/macos/cli` in the Linux source (`nix/workspace-src.nix`). `macos-nextest` is the same shape as the
+old Windows one and is kept, unchanged and still named for what it does not do, only until a Mac run decides
+whether `doCheck = true` is right there (the tests of `komorebi-macos` run natively on an Apple machine).

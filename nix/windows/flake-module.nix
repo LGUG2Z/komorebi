@@ -62,6 +62,25 @@ in
             "$E2E_GOLDEN" "$bins" "$out" "$@"
         '';
       };
+      # the Windows unit tests in the guest: every test of every executable in a process of its own
+      windowsNextest = pkgs.writeShellApplication {
+        name = "windows-nextest";
+        runtimeInputs = [
+          pkgs.qemu
+          pkgs.swtpm
+          (pkgs.python3.withPackages (p: [ p.pillow ]))
+        ];
+        text = ''
+          : "''${E2E_GOLDEN:?set E2E_GOLDEN to the golden image directory}"
+          out=''${1:?usage: windows-nextest OUT}
+          export OVMF_FD=${ovmfWithTpm}
+          export PYTHONPATH=${lib'.repoFile "e2e/lib"}:${lib'.repoFile "e2e"}
+          exec python -m platforms.qemu_windows.cargo_tests \
+            "$E2E_GOLDEN" "$out" "''${KOMOREBI_E2E_STATE:--}" ${windowsNextestBuild}
+        '';
+      };
+      # the test executables of the Windows workspace, with a list of them (name, tab, file) for the
+      # guest runner; the check `windows-nextest-build` and the app `windows-nextest` use it
       # the members that are stubs here (the Linux and macOS packages) have no test and do not build
       excluded = pkgs.lib.concatMapStringsSep " " (p: "--exclude ${p}") build.stubbedPackages;
       windowsNextestBuild = build.craneLib.mkCargoDerivation (
@@ -69,7 +88,10 @@ in
         // {
           pnameSuffix = "-nextest-build";
           doInstallCargoArtifacts = false;
-          nativeBuildInputs = build.individualCrateArgs.nativeBuildInputs ++ [ pkgs.jq ];
+          nativeBuildInputs = build.individualCrateArgs.nativeBuildInputs ++ [
+            pkgs.jq
+            pkgs.cpio
+          ];
           buildPhaseCargoCommand = ''
             cargo test --locked --workspace ${excluded} --release --no-run --message-format json > messages.json
           '';
@@ -81,6 +103,13 @@ in
                   cp "$exe" "$out/tests/$name.exe"
                   printf '%s\t%s.exe\n' "$name" "$name" >> $out/tests.tsv
                 done
+            # the data files the tests read by the absolute path the build baked into them
+            # (CARGO_MANIFEST_DIR): the guest gets them at the same path under C:
+            pwd > $out/srcroot
+            mkdir -p $out/data
+            find . -path ./target -prune -o -type f \
+              \( -path './schemas/*' -o -path '*/tests/*' -o -path '*/fixtures/*' \) \
+              ! -name '*.rs' -print | cpio -pdm $out/data 2>/dev/null
           '';
         }
       );
@@ -222,6 +251,12 @@ in
         e2e-windows = {
           type = "app";
           program = pkgs.lib.getExe e2eWindows;
+        };
+        # the unit tests of the Windows crates in the guest (E2E_GOLDEN as above):
+        #   E2E_GOLDEN=<golden> KOMOREBI_E2E_SCALE=1.5 nix run .#windows-nextest -- OUT
+        windows-nextest = {
+          type = "app";
+          program = pkgs.lib.getExe windowsNextest;
         };
       };
     };

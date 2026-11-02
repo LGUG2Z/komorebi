@@ -58,7 +58,7 @@ shared by all of them):
 
 ```sh
 nix build -L --no-link .#checks.x86_64-linux.windows-clippy
-# (there is no windows-nextest: the Windows crates' tests run on Windows, `cargo test` of .github/workflows/windows.yaml)
+nix build -L --no-link .#checks.x86_64-linux.windows-nextest-build # cross-compiles the Windows crates' test executables (48), runs none
 nix build -L --no-link .#checks.x86_64-linux.windows-fmt .#checks.x86_64-linux.windows-toml-fmt .#checks.x86_64-linux.windows-deny
 nix build -L --no-link .#checks.x86_64-linux.windows-e2e-tests # the Python of the e2e (pytest), no guest needed
 ```
@@ -186,6 +186,7 @@ Full text: `e2e/platforms/qemu_windows/README.md` (building the golden image, ev
 ```sh
 E2E_GOLDEN=golden nix run .#e2e-windows -- OUT SCENARIO...      # e.g. OUT tiling focus commands
 E2E_GOLDEN=golden KOMOREBI_E2E_SCALE=1.5 nix run .#e2e-windows -- OUT bar   # the komorebi-bar scenario
+E2E_GOLDEN=golden KOMOREBI_E2E_STATE=state-nextest nix run .#windows-nextest -- OUT   # the Windows crates' unit tests in the guest
 ```
 
 The app uses this checkout's binaries, built with the constant stamp `e2e` (so a docs-only commit reuses them);
