@@ -3393,7 +3393,7 @@
             "format": "float"
           },
           "maxItems": 5,
-          "minItems": 5
+          "minItems": 1
         },
         "grid": {
           "description": "Options related to the Grid layout",
