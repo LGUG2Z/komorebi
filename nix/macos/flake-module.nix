@@ -13,6 +13,21 @@ let
   inherit (lib') mkPkgs;
 in
 {
+  # the options and the nix-darwin module are plain Nix: they take a plain `pkgs` and are evaluated on
+  # every system, so that a Linux runner can check them (the ci workflow does)
+  imports = [
+    {
+      perSystem =
+        { pkgs, ... }:
+        {
+          allChecks = {
+            macos-nix-options-validation = import ./tests { inherit pkgs; };
+            macos-darwin-module-validation = import ./tests/darwin-module.nix { inherit pkgs; };
+          };
+        };
+    }
+  ];
+
   perSystem =
     { pkgs, system, ... }:
     let
@@ -57,10 +72,6 @@ in
         );
 
         macos-nextest = build.craneLib.cargoNextest (build.individualCrateArgs // { doCheck = true; });
-
-        macos-nix-options-validation = import ./tests { inherit pkgs; };
-
-        macos-darwin-module-validation = import ./tests/darwin-module.nix { inherit pkgs; };
       };
 
       packages = {
