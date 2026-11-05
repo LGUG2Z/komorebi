@@ -85,7 +85,7 @@ fn session(name: &str) -> String {
         .log(3.5, "INFO", "komorebi::reaper: reaping window: 2")
         .log(3.6, "INFO", "komorebi::border_manager: invalidating border observer")
         .log(3.9, "INFO", "process_event: komorebi::process_event: processing event: FocusChange for process 7 with notification AXApplicationActivated")
-        .log(3.95, "INFO", "process_event:focus_container{idx=0}: komorebi::workspace: focusing container")
+        .log(3.95, "INFO", "process_event:focus_container{idx=0}: komorebi_core::workspace: focusing container")
         .log(5.9, "INFO", "process_event: komorebi::process_event: processing event: Show for process 7 with notification AXWindowCreated")
         .build();
     session.dir.display().to_string()
@@ -158,7 +158,10 @@ fn the_text_trace_reads_top_to_bottom() {
     assert!(handler < ambient && ambient < changed, "{text}");
     assert!(text.contains("reaper (high)"), "{text}");
     assert!(text.contains("evidence: log:2"), "{text}");
-    assert!(text.contains("from komorebi/src/workspace.rs"), "{text}");
+    assert!(
+        text.contains("from crates/komorebi-core/src/workspace.rs"),
+        "{text}"
+    );
 }
 
 #[test]

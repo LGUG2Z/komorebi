@@ -19,18 +19,11 @@
 //! programs with different logs, and [`of`] picks the one for the flavor a session recorded (see
 //! [`Analysis::catalog`](super::Analysis::catalog)): a session recorded on Windows is mapped to
 //! komorebi for Windows' source even when it is investigated on a Mac. Each is built from a
-//! checkout of that komorebi named by an environment variable when the recorder is compiled:
+//! source tree of this repository when the recorder is compiled: the daemon of the flavor and the crates
+//! it shares (see `build.rs` for the directories). `KOMOREBI_SRC` and `KOMOREBI_COMMIT` index another checkout
+//! instead, and name the commit when the source is not a git checkout (nix).
 //!
-//! | flavor | checkout | its commit, outside a git checkout | directories indexed |
-//! |---|---|---|---|
-//! | [`Flavor::Macos`] | `KOMOREBI_MAC_SRC` | `KOMOREBI_MAC_COMMIT` | `komorebi/src`, `komorebi-client/src` |
-//! | [`Flavor::Windows`] | `KOMOREBI_WINDOWS_SRC` | `KOMOREBI_WINDOWS_COMMIT` | `komorebi/src`, `komorebi-layouts/src` |
-//!
-//! `nix develop` sets all four. A flavor whose variable is not set (or whose checkout has no Rust
-//! files in those directories) gets an **empty** catalog: nothing is found in it,
-//! [`Catalog::is_empty`] is `true`, and [`skew`] tells the reader which variable to set. `build.rs`
-//! prints a cargo warning if a checkout is named but nothing in it could be read, or if a file
-//! fails to parse.
+//! `build.rs` prints a cargo warning if nothing in the source could be read, or if a file fails to parse.
 //!
 //! What is indexed, for each Rust file of those directories:
 //!
@@ -152,8 +145,8 @@ pub fn of(flavor: Flavor) -> &'static Catalog {
 
 impl Catalog {
     /// Returns the commit of the source that was indexed, or `None` if the checkout was not a git
-    /// repository and the build was not told the commit either (`KOMOREBI_MAC_COMMIT` or
-    /// `KOMOREBI_WINDOWS_COMMIT`), as is the case for an empty catalog.
+    /// repository and the build was not told the commit either (`KOMOREBI_COMMIT`), as is the case
+    /// for an empty catalog.
     #[must_use]
     pub fn commit(&self) -> Option<&'static str> {
         (!self.commit.is_empty()).then_some(self.commit)
@@ -258,12 +251,12 @@ impl Statement {
     ///     level: "INFO".to_string(),
     ///     target: "komorebi::process_event".to_string(),
     ///     template: "processing event: {} for process {} with notification {}".to_string(),
-    ///     file: "komorebi/src/process_event.rs".to_string(),
+    ///     file: "komorebi-macos/src/process_event.rs".to_string(),
     ///     line: 120,
     ///     function: "process_event".to_string(),
     ///     owner: "WindowManager".to_string(),
     /// };
-    /// assert_eq!(statement.location(), "komorebi/src/process_event.rs:120");
+    /// assert_eq!(statement.location(), "komorebi-macos/src/process_event.rs:120");
     /// assert_eq!(statement.qualified_function(), "WindowManager::process_event");
     ///
     /// // outside any `impl`, the function stands alone
@@ -381,12 +374,12 @@ impl Catalog {
     /// use komorebi_recorder::analysis::logparse::Level;
     ///
     /// let catalog = catalog::of(Flavor::Macos);
-    /// # if catalog.is_empty() { return; } // built without KOMOREBI_MAC_SRC: nothing is indexed
+    /// # if catalog.is_empty() { return; } // built without the source: nothing is indexed
     ///
     /// let found = catalog
     ///     .find("komorebi::reaper", Level::Info, "reaping window: 4711")
     ///     .expect("the reaper logs this");
-    /// assert_eq!(found.statement.file, "komorebi/src/reaper.rs");
+    /// assert_eq!(found.statement.file, "komorebi-macos/src/reaper.rs");
     /// assert!(found.statement.template.starts_with("reaping window"));
     ///
     /// // no statement could have written this
@@ -753,7 +746,7 @@ pub fn skew_between(
 /// `root` (see [`crate::annotations::default_code_root`]) to say which files differ.
 ///
 /// If the flavor's catalog is empty the warning is replaced by one saying that nothing is indexed
-/// and which variable to build with (`KOMOREBI_MAC_SRC` or `KOMOREBI_WINDOWS_SRC`); the verdict is
+/// and which variable to build with (`KOMOREBI_SRC`); the verdict is
 /// left as [`skew_between`] decided it. [`Analysis::skew`](super::Analysis::skew) calls this with
 /// the session's flavor and recorded versions.
 ///
@@ -772,13 +765,8 @@ pub fn skew(flavor: Flavor, versions: &[KomorebiVersion], root: Option<&std::pat
     if catalog.is_empty() {
         skew.warning = Some(format!(
             "this build of komorebi-recorder has no source indexed for komorebi for {flavor}, so \
-             log lines cannot be mapped to code; build it with {} pointing at a checkout of \
-             komorebi for {flavor}",
-            match flavor {
-                Flavor::Macos => "KOMOREBI_MAC_SRC",
-                Flavor::Windows => "KOMOREBI_WINDOWS_SRC",
-                Flavor::Kde => "KOMOREBI_KDE_SRC",
-            }
+             log lines cannot be mapped to code; build it with KOMOREBI_SRC pointing at a checkout of \
+             komorebi for {flavor}"
         ));
     }
 
@@ -795,7 +783,13 @@ mod tests {
     }
 
     /// The directories of the Mac checkout that its catalog indexes.
-    const MAC_PATHS: &[&str] = &["komorebi/src", "komorebi-client/src"];
+    const MAC_PATHS: &[&str] = &[
+        "komorebi-macos/src",
+        "komorebi-client/src",
+        "komorebi-layouts/src",
+        "crates/komorebi-core/src",
+        "crates/komorebi-transport/src",
+    ];
 
     fn commit() -> Option<&'static str> {
         mac().commit()
@@ -856,7 +850,7 @@ mod tests {
         )
         .expect("the header statement");
 
-        assert_eq!(found.statement.file, "komorebi/src/process_event.rs");
+        assert_eq!(found.statement.file, "komorebi-macos/src/process_event.rs");
         assert_eq!(found.statement.function, "process_event");
         assert_eq!(found.statement.owner, "WindowManager");
         assert_eq!(found.confidence, Confidence::Likely);
@@ -1001,7 +995,7 @@ mod tests {
         );
         assert_eq!(skew.verdict, "same");
         assert!(skew.warning.is_none());
-        assert!(!skew.file_changed("komorebi/src/window.rs"));
+        assert!(!skew.file_changed("komorebi-macos/src/window.rs"));
 
         // but not if the source had uncommitted changes when indexed
         let dirty = skew_between(
@@ -1032,15 +1026,17 @@ mod tests {
                 .contains("cannot say how they differ")
         );
         // when it cannot be told, nothing is vouched for
-        assert!(skew.file_changed("komorebi/src/window.rs"));
+        assert!(skew.file_changed("komorebi-macos/src/window.rs"));
     }
 
     #[test]
     fn an_older_commit_differs_in_exactly_the_files_git_says() {
         let Some(indexed) = commit() else { return };
         // the commit before the latest change to komorebi's source
-        let Some(history) = git(&repo(), &["log", "-2", "--format=%H", "--", "komorebi/src"])
-        else {
+        let Some(history) = git(
+            &repo(),
+            &["log", "-2", "--format=%H", "--", "komorebi-macos/src"],
+        ) else {
             return;
         };
         let Some(older) = history.lines().nth(1) else {
@@ -1062,8 +1058,11 @@ mod tests {
                 older,
                 indexed,
                 "--",
-                "komorebi/src",
+                "komorebi-macos/src",
                 "komorebi-client/src",
+                "komorebi-layouts/src",
+                "crates/komorebi-core/src",
+                "crates/komorebi-transport/src",
             ],
         )
         .expect("git diff");
@@ -1079,7 +1078,7 @@ mod tests {
         for file in expected.lines() {
             assert!(skew.file_changed(file));
         }
-        assert!(!skew.file_changed("komorebi/src/a_file_that_never_changed.rs"));
+        assert!(!skew.file_changed("komorebi-macos/src/a_file_that_never_changed.rs"));
     }
 
     fn rust_files(directory: &std::path::Path, found: &mut Vec<std::path::PathBuf>) {
@@ -1099,7 +1098,7 @@ mod tests {
     #[test]
     fn every_log_statement_in_komorebis_source_is_indexed() {
         crate::skip_without_komorebi_mac_source!();
-        let root = crate::testkit::komorebi_mac_src().join("komorebi/src");
+        let root = crate::testkit::komorebi_mac_src().join("komorebi-macos/src");
         let mut files = Vec::new();
         rust_files(&root, &mut files);
 
@@ -1119,7 +1118,7 @@ mod tests {
         let indexed = mac()
             .entries
             .iter()
-            .filter(|entry| entry.file.starts_with("komorebi/src/"))
+            .filter(|entry| entry.file.starts_with("komorebi-macos/src/"))
             .count();
         assert_eq!(
             indexed, in_source,
@@ -1129,8 +1128,7 @@ mod tests {
 
     #[test]
     fn each_flavor_has_a_catalog_of_its_own_source() {
-        // the Windows catalog is built only when KOMOREBI_WINDOWS_SRC names a checkout; where it
-        // is, its statements are komorebi for Windows's, not the Mac's
+        // the Windows catalog is of the Windows daemon's source, not the Mac's
         let windows = of(Flavor::Windows);
         if windows.is_empty() {
             assert_eq!(windows.files_scanned(), 0);
@@ -1167,7 +1165,7 @@ mod tests {
         let skew = skew(Flavor::Windows, &[], None);
         if of(Flavor::Windows).is_empty() {
             let warning = skew.warning.expect("a warning");
-            assert!(warning.contains("KOMOREBI_WINDOWS_SRC"), "{warning}");
+            assert!(warning.contains("KOMOREBI_SRC"), "{warning}");
         }
     }
 }

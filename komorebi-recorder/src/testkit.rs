@@ -725,39 +725,37 @@ pub fn numbered_frame_index(bgra: &[u8], width: u32, height: u32) -> u32 {
     index
 }
 
-/// The checkout of komorebi for Mac that the tests which read komorebi's source read it from.
+/// The checkout of komorebi that the tests which read komorebi's source read it from.
 ///
-/// That is the catalog and `code`. It is the checkout `KOMOREBI_MAC_SRC` names, which `nix develop`
-/// sets to the revision pinned in `flake.lock`.
+/// That is the catalog and `code`. It is the repository this crate is in, or the checkout
+/// `KOMOREBI_SRC` names (nix builds the tests from a copy of the source).
 ///
 /// # Panics
 ///
-/// Panics, naming the variable, when it is not set: those tests have nothing to check without a
-/// tree.
+/// Panics when the directory above the manifest cannot be found.
 #[must_use]
 pub fn komorebi_mac_src() -> PathBuf {
-    std::env::var_os("KOMOREBI_MAC_SRC")
+    std::env::var_os("KOMOREBI_SRC")
         .map(PathBuf::from)
         .filter(|path| !path.as_os_str().is_empty())
         .unwrap_or_else(|| {
-            panic!(
-                "KOMOREBI_MAC_SRC is not set: it names the checkout of komorebi for Mac that these \
-                 tests read (`nix develop` sets it)"
-            )
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .expect("the repository above the crate")
+                .to_path_buf()
         })
 }
 
-/// Whether the tests that read komorebi for Mac's source can run: `KOMOREBI_MAC_SRC` names a
-/// checkout, and this build indexed it (an empty catalog means it was built without one).
+/// Whether the tests that read komorebi for Mac's source can run: this build indexed the source
+/// (an empty catalog means it was built from a tree without it).
 ///
-/// A machine that has neither (Windows, or a Mac outside `nix develop`) has nothing for those
-/// tests to check, which is not a failure: they use
+/// A build from a tree that has no komorebi source around it has nothing for those tests to
+/// check, which is not a failure: they use
 /// [`skip_without_komorebi_mac_source!`](crate::skip_without_komorebi_mac_source) to say so and
 /// stop, as the tests that need `ffmpeg` do.
 #[must_use]
 pub fn komorebi_mac_source_available() -> bool {
-    std::env::var_os("KOMOREBI_MAC_SRC").is_some_and(|path| !path.is_empty())
-        && !crate::analysis::catalog::of(crate::analysis::flavor::Flavor::Macos).is_empty()
+    !crate::analysis::catalog::of(crate::analysis::flavor::Flavor::Macos).is_empty()
 }
 
 /// Ends the test that uses it, saying why, on a machine that has no komorebi for Mac source to
@@ -767,7 +765,7 @@ macro_rules! skip_without_komorebi_mac_source {
     () => {
         if !$crate::testkit::komorebi_mac_source_available() {
             eprintln!(
-                "skipped: KOMOREBI_MAC_SRC is not set, or this build was made without it \
+                "skipped: this build indexed no komorebi source \
                  (`nix develop` sets it)"
             );
             return;

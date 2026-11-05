@@ -292,13 +292,13 @@ impl Analysis {
     ///
     /// let (session, _) = SessionBuilder::new("doc-code-search").build();
     /// let analysis = Analysis::open(&session.dir)?;
-    /// # if analysis.catalog().is_empty() { return Ok(()); } // built without KOMOREBI_MAC_SRC
+    /// # if analysis.catalog().is_empty() { return Ok(()); } // built without the source
     ///
     /// let found = analysis.code_search("Reaping WINDOW");
     /// assert_eq!(found.about, "grep Reaping WINDOW");
     /// assert!(found.lines.is_empty());
     /// assert!(!found.statements.is_empty());
-    /// assert!(found.statements.iter().any(|statement| statement.file == "komorebi/src/reaper.rs"));
+    /// assert!(found.statements.iter().any(|statement| statement.file == "komorebi-macos/src/reaper.rs"));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     ///

@@ -35,7 +35,7 @@ fn session(name: &str, commit: Option<&str>) -> String {
             None,
         )
         .log(2.0, "INFO", "process_event: komorebi::process_event: processing event: FocusChange for process 7 with notification AXApplicationActivated")
-        .log(2.1, "INFO", "process_event:focus_window{idx=0}: komorebi::container: focusing window")
+        .log(2.1, "INFO", "process_event:focus_window{idx=0}: komorebi_core::container: focusing window")
         .log(2.2, "INFO", "komorebi::reaper: reaping window: 4711")
         .log(2.25, "INFO", "komorebi::border_manager: invalidating border observer");
     if let Some(commit) = commit {
@@ -57,7 +57,7 @@ fn a_log_line_is_traced_to_the_statement_that_wrote_it() {
     assert_eq!(line["target"], "komorebi::reaper");
     assert_eq!(line["message"], "reaping window: 4711");
     let source = &line["source"]["statement"];
-    assert_eq!(source["file"], "komorebi/src/reaper.rs");
+    assert_eq!(source["file"], "komorebi-macos/src/reaper.rs");
     assert!(
         source["template"]
             .as_str()
@@ -149,7 +149,7 @@ fn git(args: &[&str]) -> Option<String> {
 #[test]
 fn only_the_files_that_changed_since_the_recorded_commit_are_doubted() {
     komorebi_recorder::skip_without_komorebi_mac_source!();
-    let Some(history) = git(&["log", "-2", "--format=%H", "--", "komorebi/src"]) else {
+    let Some(history) = git(&["log", "-2", "--format=%H", "--", "komorebi-macos/src"]) else {
         return;
     };
     let Some(older) = history.lines().nth(1) else {
@@ -164,8 +164,11 @@ fn only_the_files_that_changed_since_the_recorded_commit_are_doubted() {
         older,
         indexed,
         "--",
-        "komorebi/src",
+        "komorebi-macos/src",
         "komorebi-client/src",
+        "komorebi-layouts/src",
+        "crates/komorebi-core/src",
+        "crates/komorebi-transport/src",
     ]) else {
         return;
     };
@@ -237,7 +240,7 @@ fn statements_can_be_searched_by_their_text() {
     let statements = answer["data"]["statements"].as_array().expect("statements");
     let in_reaper = statements
         .iter()
-        .filter(|statement| statement["file"] == "komorebi/src/reaper.rs")
+        .filter(|statement| statement["file"] == "komorebi-macos/src/reaper.rs")
         .count();
     assert_eq!(in_reaper, 3, "{statements:#?}");
 }

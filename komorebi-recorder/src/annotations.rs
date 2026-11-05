@@ -1152,11 +1152,11 @@ pub fn delete(dir: &Path, id: &str) -> eyre::Result<()> {
 /// 1. the flavor's own environment variable: `KOMOREBI_MAC_SRC` for komorebi for Mac,
 ///    `KOMOREBI_WINDOWS_SRC` for komorebi for Windows;
 /// 2. `KOMOREBI_SOURCE`, which serves either flavor;
-/// 3. the checkout this recorder was built against, if it was built with one for this flavor (the
-///    `KOMOREBI_MAC_ROOT` or `KOMOREBI_WINDOWS_ROOT` that its build script sets) and that
-///    directory is still on disk.
+/// 3. the checkout this recorder was built in (the `KOMOREBI_MAC_ROOT`, `KOMOREBI_WINDOWS_ROOT` or
+///    `KOMOREBI_KDE_ROOT` that its build script sets), if that directory is still on disk.
 ///
-/// The first candidate that has a `komorebi/src` directory is returned. A candidate that does not
+/// The first candidate that has the flavor's daemon source directory (see
+/// [`Flavor::daemon_source`]) is returned. A candidate that does not
 /// have one is skipped, not reported, so a variable that is set but wrong falls through to the
 /// next. `None` means no candidate qualified; [`validate_refs`] then cannot check [`Ref::Code`]
 /// and reports it in a warning.
@@ -1187,7 +1187,7 @@ pub fn default_code_root(flavor: Flavor) -> Option<PathBuf> {
         .filter_map(std::env::var_os)
         .map(PathBuf::from)
         .chain(built_from)
-        .find(|root| root.join("komorebi/src").is_dir())
+        .find(|root| root.join(flavor.daemon_source()).is_dir())
 }
 
 fn count_lines(path: &Path) -> std::io::Result<u64> {

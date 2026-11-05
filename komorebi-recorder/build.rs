@@ -8,18 +8,18 @@
 //! `komorebi-recorder code` can answer "which line wrote this?" and say when the answer may be
 //! about a different version of komorebi than the one that was recorded.
 //!
-//! There is one catalog per flavor, because komorebi for Mac and komorebi for Windows are different
-//! programs with different logs. Each is built from a checkout named by an environment variable:
+//! There is one catalog per flavor, because komorebi for Windows, macOS and KDE Plasma are different
+//! daemons with different logs. All of them are in this repository, so each is built from the
+//! directories of its own daemon and of the crates it shares, in the checkout this crate is in:
 //!
-//! | flavor | variable | when it is not set |
-//! |---|---|---|
-//! | macOS | `KOMOREBI_MAC_SRC` | an empty catalog, which says so |
-//! | Windows | `KOMOREBI_WINDOWS_SRC` | an empty catalog, which says so |
+//! | flavor | directories indexed |
+//! |---|---|
+//! | macOS | `komorebi-macos/src`, the shared crates |
+//! | Windows | `komorebi-windows/src`, the shared crates |
+//! | KDE | `komorebi-linux/src`, the shared crates |
 //!
-//! The commit of each comes from git, or else from `KOMOREBI_MAC_COMMIT` /
-//! `KOMOREBI_WINDOWS_COMMIT` for a build outside a checkout (nix).
-//!
-//! If a source is not there the catalog is empty and says so.
+//! `KOMOREBI_SRC` names another checkout of the repository to index instead, and `KOMOREBI_COMMIT` the
+//! commit of the source when it is not a git checkout (nix). The commit otherwise comes from git.
 //!
 //! The script also gives the Windows executables their icon, which Explorer reads from a resource in the file: see
 //! [`embed_icon`].
@@ -38,40 +38,47 @@ use syn::visit::Visit;
 struct Flavor {
     /// The name of its catalog in the generated code.
     name: &'static str,
-    /// The variable naming a checkout of it.
-    source_env: &'static str,
-    /// The variable giving the commit when the checkout is not a git repository.
-    commit_env: &'static [&'static str],
     /// The source trees to index: their directory under the checkout, and their Rust crate name.
     crates: &'static [(&'static str, &'static str)],
 }
 
+/// The crates of every flavor that write log statements: the daemons call into them.
+const SHARED: &[(&str, &str)] = &[
+    ("komorebi-client/src", "komorebi_client"),
+    ("komorebi-layouts/src", "komorebi_layouts"),
+    ("crates/komorebi-core/src", "komorebi_core"),
+    ("crates/komorebi-transport/src", "komorebi_transport"),
+];
+
 const FLAVORS: &[Flavor] = &[
     Flavor {
         name: "MAC",
-        source_env: "KOMOREBI_MAC_SRC",
-        commit_env: &["KOMOREBI_MAC_COMMIT"],
         crates: &[
-            ("komorebi/src", "komorebi"),
-            ("komorebi-client/src", "komorebi_client"),
+            ("komorebi-macos/src", "komorebi"),
+            SHARED[0],
+            SHARED[1],
+            SHARED[2],
+            SHARED[3],
         ],
     },
     Flavor {
         name: "WINDOWS",
-        source_env: "KOMOREBI_WINDOWS_SRC",
-        commit_env: &["KOMOREBI_WINDOWS_COMMIT"],
         crates: &[
-            ("komorebi/src", "komorebi"),
-            ("komorebi-layouts/src", "komorebi_layouts"),
+            ("komorebi-windows/src", "komorebi"),
+            SHARED[0],
+            SHARED[1],
+            SHARED[2],
+            SHARED[3],
         ],
     },
     Flavor {
         name: "KDE",
-        source_env: "KOMOREBI_KDE_SRC",
-        commit_env: &["KOMOREBI_KDE_COMMIT"],
         crates: &[
-            ("komorebi/src", "komorebi"),
-            ("komorebi-client/src", "komorebi_client"),
+            ("komorebi-linux/src", "komorebi"),
+            SHARED[0],
+            SHARED[1],
+            SHARED[2],
+            SHARED[3],
         ],
     },
 ];
@@ -359,14 +366,18 @@ fn key(path: &Path, repo: &Path) -> String {
 
 /// The generated code for one flavor's catalog.
 fn index(flavor: &Flavor) -> String {
-    println!("cargo:rerun-if-env-changed={}", flavor.source_env);
-    for variable in flavor.commit_env {
-        println!("cargo:rerun-if-env-changed={variable}");
-    }
+    println!("cargo:rerun-if-env-changed=KOMOREBI_SRC");
+    println!("cargo:rerun-if-env-changed=KOMOREBI_COMMIT");
 
-    let repo = env::var_os(flavor.source_env)
+    // this crate is a member of the repository it indexes
+    let repo = env::var_os("KOMOREBI_SRC")
         .map(PathBuf::from)
-        .filter(|path| !path.as_os_str().is_empty());
+        .filter(|path| !path.as_os_str().is_empty())
+        .or_else(|| {
+            env::var_os("CARGO_MANIFEST_DIR")
+                .map(PathBuf::from)
+                .and_then(|manifest| manifest.parent().map(Path::to_path_buf))
+        });
 
     let mut logs = Vec::new();
     let mut spans = Vec::new();
@@ -432,10 +443,9 @@ fn index(flavor: &Flavor) -> String {
         .and_then(|repo| git(repo, &["rev-parse", "HEAD"]));
     let commit = from_git
         .or_else(|| {
-            flavor
-                .commit_env
-                .iter()
-                .find_map(|variable| env::var(variable).ok().filter(|hash| !hash.is_empty()))
+            env::var("KOMOREBI_COMMIT")
+                .ok()
+                .filter(|hash| !hash.is_empty())
         })
         .unwrap_or_default();
     if let Some(repo) = &repo {

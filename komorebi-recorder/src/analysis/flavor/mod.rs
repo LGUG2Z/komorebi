@@ -195,6 +195,25 @@ pub enum Flavor {
 }
 
 impl Flavor {
+    /// Returns the directory of this flavor's daemon source in the komorebi repository, which is
+    /// where [`Ref::Code`](crate::annotations::Ref::Code) paths for it start.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi_recorder::analysis::flavor::Flavor;
+    ///
+    /// assert_eq!(Flavor::Macos.daemon_source(), "komorebi-macos/src");
+    /// ```
+    #[must_use]
+    pub const fn daemon_source(self) -> &'static str {
+        match self {
+            Flavor::Macos => "komorebi-macos/src",
+            Flavor::Windows => "komorebi-windows/src",
+            Flavor::Kde => "komorebi-linux/src",
+        }
+    }
+
     /// Returns the flavor of the komorebi that runs on this machine: there is one per OS, and a
     /// recorder watches the one on its own host.
     ///
