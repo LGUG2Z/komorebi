@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# The self-test of tools/test-partition (`tools/test-partition --self-test`): `check` must pass on the tree and must
+# fail, for the stated reason, on deliberately broken copies of the classification.
+set -euo pipefail
+
+tool=${1:-$(dirname "${BASH_SOURCE[0]}")/test-partition}
+root=$(cd "$(dirname "$tool")/.." && pwd)
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+# (a metadata file in TEST_PARTITION_METADATA is used instead of running cargo)
+if [ -z "${TEST_PARTITION_METADATA:-}" ]; then
+    (cd "$root" && cargo metadata --format-version 1 --no-deps) >"$work/metadata.json"
+    export TEST_PARTITION_METADATA=$work/metadata.json
+fi
+good=$root/tools/test-partition.json
+failures=0
+
+# expect_fail <name> <jq filter that breaks the classification> <text the error must contain>
+expect_fail() {
+    local name=$1 filter=$2 needle=$3 out
+    jq "$filter" "$good" >"$work/broken.json"
+    if out=$(TEST_PARTITION_JSON=$work/broken.json "$tool" check 2>&1); then
+        echo "FAIL $name: check passed on a broken classification"
+        failures=$((failures + 1))
+    elif ! grep -qF -- "$needle" <<<"$out"; then
+        echo "FAIL $name: check failed, but not with '$needle':"
+        echo "$out"
+        failures=$((failures + 1))
+    else
+        echo "ok   $name"
+    fi
+}
+
+if "$tool" check; then
+    echo "ok   the current tree"
+else
+    echo "FAIL the current tree"
+    failures=$((failures + 1))
+fi
+
+expect_fail "a member in no class" '.none -= ["komorebi-gui"]' "komorebi-gui: in no class"
+expect_fail "a member in two classes" '.none += ["komorebi-windows"]' "komorebi-windows: in two classes"
+expect_fail "a package that is no member" '.none += ["not-a-crate"]' "not-a-crate (none): not a member"
+expect_fail "a package listed twice" '.none += ["komorebi-gui"]' "komorebi-gui: listed twice"
+expect_fail "an unknown class" '. + {"fast": []}' "unknown class fast"
+expect_fail "a neutral package with target-specific dependencies" \
+    '.os_sensitive -= ["komorebi-transport"] | .neutral += ["komorebi-transport"]' \
+    "komorebi-transport: neutral, but depends on uds_windows only for"
+expect_fail "a neutral package that depends on a platform crate" \
+    '.mixed -= ["komorebi-client"] | .neutral += ["komorebi-client"]' \
+    "komorebi-client: neutral, but depends on"
+
+# the output formats the CI jobs rely on
+[ "$("$tool" packages windows)" = "-p komorebi-windows" ] || { echo "FAIL packages windows"; failures=$((failures + 1)); }
+[ "$("$tool" expr windows)" = "package(komorebi-windows)" ] || { echo "FAIL expr windows"; failures=$((failures + 1)); }
+[ "$("$tool" expr macos)" = "package(komorebi-macos)" ] || { echo "FAIL expr macos"; failures=$((failures + 1)); }
+"$tool" packages nonsense >/dev/null 2>&1 && { echo "FAIL an unknown class was accepted"; failures=$((failures + 1)); }
+
+if [ "$failures" -ne 0 ]; then
+    echo "$failures failure(s)"
+    exit 1
+fi
+echo "all passed"

@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Which packages of the workspace are tested where: see tools/README.md and docs/dev/build-and-test.md.
+#
+#   tools/test-partition check             fail when the classification and the workspace disagree
+#   tools/test-partition packages <class>  print `-p a -p b` for cargo
+#   tools/test-partition expr <class>      print a nextest filterset: `package(a) | package(b)`
+#   tools/test-partition expr recorder-macos
+#                                          the filterset of the recorder tests that run on macOS
+#   tools/test-partition --self-test       run `check` against the tree and against deliberately broken copies
+#
+# The classification is tools/test-partition.json (class -> package names); it is the single source of truth
+# for the CI jobs, the justfile and the Nix check sets (nix/windows). It needs only bash, cargo and jq.
+#
+# Environment (for the self-test): TEST_PARTITION_JSON overrides the classification file, and
+# TEST_PARTITION_METADATA is a file with the output of `cargo metadata --format-version 1 --no-deps`.
+set -euo pipefail
+
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+json=${TEST_PARTITION_JSON:-$root/tools/test-partition.json}
+
+classes="neutral os_sensitive windows linux macos mixed tool none"
+
+# the crates a `neutral` package must not depend on, directly
+platform_crates='["komorebi-windows","komorebi-macos","komorebi-linux"]'
+
+# the tests of the recorder that run on macOS, by their module path: the macOS flavoured sources, which
+# the recorder's other tests (the platform-neutral ones) share a binary with
+recorder_macos_filter='package(komorebi-recorder) & test(/^(sources::oslog|av|capture::sck|platform|power|system_state)::/)'
+
+die() {
+    echo "test-partition: $*" >&2
+    exit 1
+}
+
+metadata() {
+    if [ -n "${TEST_PARTITION_METADATA:-}" ]; then
+        cat "$TEST_PARTITION_METADATA"
+    else
+        (cd "$root" && cargo metadata --format-version 1 --no-deps)
+    fi
+}
+
+valid_class() {
+    case " $classes " in
+        *" $1 "*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+check() {
+    local meta problems
+    meta=$(metadata)
+    problems=$(
+        jq -r --argjson platform "$platform_crates" --slurpfile part "$json" --arg classes "$classes" '
+            ($part[0]) as $p
+            | [ .packages[] ] as $pkgs
+            | ($classes | split(" ")) as $known
+            | (
+                # classes the file has that are not part of the contract
+                ($p | keys[] | select(. as $k | $known | index($k) | not)
+                    | "unknown class \(.)"),
+                # a member in no class, or in two
+                ($pkgs[].name as $n
+                    | [ $known[] as $c | select(($p[$c] // []) | index($n)) | $c ] as $in
+                    | if ($in | length) == 0 then "\($n): in no class"
+                      elif ($in | length) > 1 then "\($n): in two classes (\($in | join(", ")))"
+                      else empty end),
+                # a name that is no member (stale), or listed twice in one class
+                ($known[] as $c | ($p[$c] // [])[] as $n
+                    | select(($pkgs | map(.name) | index($n)) == null)
+                    | "\($n) (\($c)): not a member of the workspace"),
+                ($known[] as $c | ($p[$c] // []) | group_by(.)[] | select(length > 1)
+                    | "\(.[0]): listed twice in \($c)"),
+                # a neutral package that is not neutral
+                ($pkgs[] | select(.name as $n | ($p.neutral // []) | index($n))
+                    | .name as $n
+                    | (.dependencies[]
+                        | select(.target != null)
+                        | "\($n): neutral, but depends on \(.name) only for \(.target)"),
+                      (.dependencies[] | select(.name as $d | $platform | index($d))
+                        | "\($n): neutral, but depends on the platform crate \(.name)")
+                )
+            )
+        ' <<<"$meta"
+    )
+    if [ -n "$problems" ]; then
+        echo "$problems" >&2
+        echo "test-partition: tools/test-partition.json does not match the workspace" >&2
+        return 1
+    fi
+}
+
+members_of() {
+    jq -r --arg c "$1" '.[$c] // [] | .[]' "$json"
+}
+
+cmd=${1:-}
+case "$cmd" in
+    check)
+        check
+        ;;
+    packages)
+        class=${2:-}
+        valid_class "$class" || die "unknown class '$class' (one of: $classes)"
+        members_of "$class" | sed 's/^/-p /' | paste -sd' ' -
+        ;;
+    expr)
+        class=${2:-}
+        if [ "$class" = recorder-macos ]; then
+            echo "$recorder_macos_filter"
+            exit 0
+        fi
+        valid_class "$class" || die "unknown class '$class' (one of: $classes)"
+        members_of "$class" | sed 's/.*/package(&)/' | paste -sd'|' - | sed 's/|/ | /g'
+        ;;
+    --self-test)
+        exec "$root/tools/test-partition.test" "$root/tools/test-partition"
+        ;;
+    *)
+        sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' >&2
+        exit 2
+        ;;
+esac

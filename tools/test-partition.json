@@ -1,0 +1,46 @@
+{
+  "neutral": [
+    "komorebi-backend",
+    "komorebi-bar-core",
+    "komorebi-collections",
+    "komorebi-core",
+    "komorebi-layouts",
+    "komorebi-scrolling",
+    "komorebi-settings",
+    "komorebi-themes",
+    "komorebi-version"
+  ],
+  "os_sensitive": [
+    "komorebi-config",
+    "komorebi-protocol",
+    "komorebi-transport",
+    "komorebic-core"
+  ],
+  "windows": [
+    "komorebi-windows"
+  ],
+  "linux": [
+    "komorebi",
+    "komorebi-hotkeys",
+    "komorebi-linux",
+    "komorebic"
+  ],
+  "macos": [
+    "komorebi-macos"
+  ],
+  "mixed": [
+    "komorebi-bar",
+    "komorebi-client",
+    "komorebi-recorder"
+  ],
+  "tool": [
+    "komorebi-e2e-agent",
+    "komorebi-testwin",
+    "schemars-nixgen"
+  ],
+  "none": [
+    "komorebi-gui",
+    "komorebi-shortcuts",
+    "komorebic-no-console"
+  ]
+}
