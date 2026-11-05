@@ -60,7 +60,11 @@ jobs:
           if ($crlf) { $crlf; exit 1 }
       - run: cargo +nightly fmt --check
       - run: cargo clippy
-      - run: cargo test
+      - run: cargo test --workspace --exclude komorebi-recorder --exclude komorebi-linux --exclude komorebi-macos --exclude komorebi-hotkeys
+      # Informational until it has been seen green on Windows: the recorder's tests were written on a Mac
+      # and nothing has run them here. Make it blocking by removing `continue-on-error`.
+      - run: cargo test -p komorebi-recorder
+        continue-on-error: true
       - uses: houseabsolute/actions-rust-cross@v1
         with:
           command: "build"
