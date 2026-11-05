@@ -1,433 +1,137 @@
+# The crane derivations of komorebi-recorder on macOS and Linux, from the one Cargo workspace
+# (nix/workspace-src.nix, platform "recorder": the recorder and the sources of the daemons it
+# indexes). On Windows the recorder is built with the rest of the workspace (nix/windows/build.nix).
+{ inputs, self }:
+let
+  lib' = import ../lib.nix { inherit inputs; };
+  inherit (inputs) crane;
+  # the recorder has a version of its own: it is released with komorebi, but is not komorebi
+  version =
+    (builtins.fromTOML (builtins.readFile ../../komorebi-recorder/Cargo.toml)).package.version;
+in
 {
-  description = "komorebi-recorder: synchronized screen, log and trace capture for komorebi bug reproduction";
-
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    crane.url = "github:ipetkov/crane";
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
-    treefmt-nix.url = "github:numtide/treefmt-nix";
-    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
-    git-hooks-nix.url = "github:cachix/git-hooks.nix";
-    git-hooks-nix.inputs.nixpkgs.follows = "nixpkgs";
-
-    # komorebi for Mac and komorebi for Windows: only their sources, which the recorder indexes so
-    # that `code` can map a line of a session's log to the statement that wrote it
-    komorebi-mac = {
-      url = "github:LGUG2Z/komorebi-for-mac";
-      flake = false;
-    };
-    komorebi-windows = {
-      url = "github:LGUG2Z/komorebi";
-      flake = false;
-    };
-  };
-
-  outputs =
-    inputs@{
-      nixpkgs,
-      flake-parts,
-      crane,
-      rust-overlay,
-      ...
-    }:
+  mkRecorderPackages =
+    { pkgs }:
     let
-      windows = import ./nix/windows.nix;
+      runtime = import ./runtime.nix { inherit pkgs; };
+      toolchain = pkgs.rust-bin.fromRustupToolchainFile ../../rust-toolchain.toml;
+      craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
 
-      # the sources the recorder indexes for each flavor of komorebi (see komorebi-recorder/build.rs),
-      # which are also the trees the tests that read komorebi's source read
-      sourceEnv = {
-        KOMOREBI_MAC_SRC = "${inputs.komorebi-mac}";
-        KOMOREBI_MAC_COMMIT = inputs.komorebi-mac.rev;
-        KOMOREBI_WINDOWS_SRC = "${inputs.komorebi-windows}";
-        KOMOREBI_WINDOWS_COMMIT = inputs.komorebi-windows.rev;
-      };
+      inherit
+        (import ../workspace-src.nix {
+          inherit pkgs craneLib;
+          repoRoot = ../..;
+          platform = "recorder";
+        })
+        src
+        ;
 
-      version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
+      lockFile = lib'.repoFile "Cargo.lock";
+      tomlFile = lib'.repoFile "Cargo.toml";
 
-      # what GStreamer needs on Linux: the libraries to link, and the plugins that decode (libav,
-      # for H.264 and HEVC) and encode (x264, in ugly) the recorded video
-      gstreamerPackages =
-        pkgs: with pkgs.gst_all_1; [
-          gstreamer
-          gst-plugins-base
-          gst-plugins-good
-          gst-plugins-bad
-          gst-plugins-ugly
-          gst-libav
-          pkgs.pipewire
+      commonArgs = {
+        pname = "komorebi-recorder";
+        inherit version src;
+        cargoExtraArgs = "--locked -p komorebi-recorder";
+        # the lock and the root manifest as files of their own: a path inside the filtered source
+        # would put all of it into the context of every derivation, and an edit of any file
+        # would then change the dependencies
+        cargoLock = lockFile;
+        cargoToml = tomlFile;
+        cargoVendorDir = craneLib.vendorCargoDeps { cargoLock = lockFile; };
+        strictDeps = true;
+        # the commit of the komorebi source the build script indexes: a constant, so that the
+        # dependencies and every check are the same derivations for every commit; only the build
+        # below stamps the real one (outside a git checkout the build script is told it)
+        KOMOREBI_COMMIT = "nix-check";
+      }
+      // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
+        nativeBuildInputs = [
+          pkgs.darwin.cctools
+          # the tests that clone, and the ones that read the history of the source
+          pkgs.git
         ];
-
-      gstreamerPluginPath =
-        pkgs: pkgs.lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" (gstreamerPackages pkgs);
-
-      # the libraries the program opens when it needs them: Wayland, for the compositor and the
-      # window, and what the window draws through
-      linuxRuntimeLibraries = pkgs: [
-        pkgs.wayland
-        pkgs.libxkbcommon
-        pkgs.libGL
-        pkgs.vulkan-loader
-        pkgs.libx11
-        pkgs.libxcursor
-        pkgs.libxi
-        pkgs.libxrandr
-      ];
-
-      # what the build needs of the repository: Cargo sources, and the files the crate embeds or
-      # its tests read
-      mkSource =
-        { pkgs, craneLib }:
-        pkgs.lib.cleanSourceWith {
-          src = ./.;
-          filter =
-            path: type:
-            (craneLib.filterCargoSources path type)
-            || (pkgs.lib.hasSuffix "/komorebi-recorder/src/guide.md" path)
-            || (pkgs.lib.hasInfix "/komorebi-recorder/tests/fixtures/" path)
-            # the installer, which `tests/packaging.rs` checks
-            || (pkgs.lib.hasInfix "/wix/" path)
-            # the icon, which `src/icon.rs` embeds and `build.rs` compiles into the Windows executables
-            || (pkgs.lib.hasInfix "/komorebi-recorder/assets/" path);
-        };
-
-      mkPackages =
-        { pkgs }:
-        let
-          toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-          craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-          src = mkSource { inherit pkgs craneLib; };
-
-          commonArgs = {
-            inherit src version;
-            pname = "komorebi-recorder";
-            strictDeps = true;
-            inherit (sourceEnv)
-              KOMOREBI_MAC_SRC
-              KOMOREBI_MAC_COMMIT
-              KOMOREBI_WINDOWS_SRC
-              KOMOREBI_WINDOWS_COMMIT
-              ;
-          }
-          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
-            nativeBuildInputs = [
-              pkgs.darwin.cctools
-            ];
-            postFixup = ''
-              for bin in $out/bin/*; do
-                if [ -f "$bin" ] && [ -x "$bin" ]; then
-                  # Get all linked libraries and fix libiconv references
-                  otool -L "$bin" | grep -o '/nix/store/[^/]*/lib/libiconv[^ ]*' | while read -r lib; do
-                    install_name_tool -change "$lib" /usr/lib/libiconv.dylib "$bin"
-                  done
-                fi
+        postFixup = ''
+          for bin in $out/bin/*; do
+            if [ -f "$bin" ] && [ -x "$bin" ]; then
+              # Get all linked libraries and fix libiconv references
+              otool -L "$bin" | grep -o '/nix/store/[^/]*/lib/libiconv[^ ]*' | while read -r lib; do
+                install_name_tool -change "$lib" /usr/lib/libiconv.dylib "$bin"
               done
-            '';
-          }
-          # on Linux the video is encoded and decoded by GStreamer (the OS media stack there, as
-          # AVFoundation is on a Mac), and found at run time through its plugin path
-          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-            nativeBuildInputs = [
-              pkgs.pkg-config
-              pkgs.makeWrapper
-              # the tests that record a video to read back make it with ffmpeg
-              pkgs.ffmpeg-headless
-            ];
-            buildInputs = gstreamerPackages pkgs;
-            postFixup = ''
-              for bin in $out/bin/*; do
-                if [ -f "$bin" ] && [ -x "$bin" ]; then
-                  wrapProgram "$bin" \
-                    --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : ${gstreamerPluginPath pkgs} \
-                    --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (linuxRuntimeLibraries pkgs)}
-                fi
-              done
-            '';
-          };
-
-          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-
-          individualCrateArgs = commonArgs // {
-            inherit cargoArtifacts;
-            doCheck = false;
-            doDoc = false;
-          };
-
-          fullBuild = craneLib.buildPackage individualCrateArgs;
-
-          # `komorebi-recorder-gui` is the same program as `komorebi-recorder` on a Mac; on Linux
-          # the wrapped programs are all copied, so that the wrappers keep what they wrap
-          komorebi-recorder = pkgs.runCommand "komorebi-recorder" { meta = fullBuild.meta // { }; } (
-            if pkgs.stdenv.hostPlatform.isLinux then
-              ''
-                mkdir -p $out/bin
-                cp -a ${fullBuild}/bin/. $out/bin/
-              ''
-            else
-              ''
-                mkdir -p $out/bin
-                cp ${fullBuild}/bin/komorebi-recorder $out/bin/
-              ''
-          );
-        in
-        {
-          inherit
-            craneLib
-            src
-            individualCrateArgs
-            fullBuild
-            komorebi-recorder
-            ;
-        };
-
-      # komorebi-recorder for Windows, cross-compiled from this host
-      mkWindowsPackages =
-        { pkgs, windowsSdk }:
-        let
-          toolchain = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml).override {
-            targets = [ "x86_64-pc-windows-msvc" ];
-          };
-          craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-          msvcEnv = windows.mkMsvcEnv { inherit pkgs windowsSdk; };
-          src = mkSource { inherit pkgs craneLib; };
-
-          commonArgs = {
-            inherit src version;
-            pname = "komorebi-recorder-windows";
-            strictDeps = true;
-            cargoExtraArgs = "--locked -p komorebi-recorder";
-            inherit (sourceEnv)
-              KOMOREBI_MAC_SRC
-              KOMOREBI_MAC_COMMIT
-              KOMOREBI_WINDOWS_SRC
-              KOMOREBI_WINDOWS_COMMIT
-              ;
-
-            nativeBuildInputs = [
-              pkgs.llvmPackages.clang-unwrapped
-              pkgs.llvmPackages.lld
-              pkgs.llvmPackages.llvm
-            ];
-          }
-          // msvcEnv;
-
-          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-          individualCrateArgs = commonArgs // {
-            inherit cargoArtifacts;
-            doCheck = false;
-            doDoc = false;
-          };
-
-          komorebi-recorder = craneLib.buildPackage individualCrateArgs;
-        in
-        {
-          inherit
-            craneLib
-            individualCrateArgs
-            msvcEnv
-            komorebi-recorder
-            ;
-        };
-
-      mkPkgs =
-        system:
-        import nixpkgs {
-          inherit system;
-          overlays = [ (import rust-overlay) ];
-        };
-    in
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [
-        "aarch64-darwin"
-        "x86_64-darwin"
-        "x86_64-linux"
-      ];
-
-      imports = [
-        inputs.treefmt-nix.flakeModule
-        inputs.git-hooks-nix.flakeModule
-      ];
-
-      perSystem =
-        { config, system, ... }:
-        let
-          pkgs = mkPkgs system;
-          build = mkPackages { inherit pkgs; };
-          windowsSdk = windows.mkWindowsSdk {
-            inherit pkgs;
-            inherit (windows) windowsSdkVersion windowsCrtVersion;
-          };
-          windowsBuild = mkWindowsPackages { inherit pkgs windowsSdk; };
-          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-          nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
-          rustToolchainWithNightlyRustfmt = pkgs.symlinkJoin {
-            name = "rust-toolchain-with-nightly-rustfmt";
-            paths = [
-              nightlyRustfmt
-              rustToolchain
-            ];
-          };
-        in
-        {
-          treefmt = {
-            projectRootFile = "flake.nix";
-            programs = {
-              deadnix.enable = true;
-              just.enable = true;
-              nixfmt.enable = true;
-              taplo.enable = true;
-              rustfmt = {
-                enable = true;
-                package = pkgs.rust-bin.nightly.latest.rustfmt;
-              };
-            };
-          };
-
-          checks = {
-            komorebi-recorder-clippy = build.craneLib.cargoClippy (
-              build.individualCrateArgs
-              // {
-                cargoClippyExtraArgs = "--all-targets -- -D warnings";
-              }
-            );
-
-            komorebi-recorder-fmt = build.craneLib.cargoFmt {
-              inherit (build) src;
-              pname = "komorebi-recorder";
-            };
-
-            komorebi-recorder-toml-fmt = build.craneLib.taploFmt {
-              src = pkgs.lib.sources.sourceFilesBySuffices build.src [ ".toml" ];
-              pname = "komorebi-recorder";
-            };
-
-            komorebi-recorder-deny = build.craneLib.cargoDeny {
-              inherit (build) src;
-              pname = "komorebi-recorder";
-            };
-
-            komorebi-recorder-nextest = build.craneLib.cargoNextest build.individualCrateArgs;
-
-            # `--all-targets` so that every line of `cfg(windows)` code, tests included, is type-checked
-            # without a Windows machine
-            komorebi-recorder-windows-clippy = windowsBuild.craneLib.cargoClippy (
-              windowsBuild.individualCrateArgs
-              // {
-                cargoClippyExtraArgs = "--all-targets -- -D warnings";
-              }
-            );
-          };
-
-          packages = {
-            inherit (build) komorebi-recorder;
-            inherit windowsSdk;
-            komorebi-recorder-windows = windowsBuild.komorebi-recorder;
-            default = build.komorebi-recorder;
-          };
-
-          apps = {
-            komorebi-recorder = {
-              type = "app";
-              program = "${build.komorebi-recorder}/bin/komorebi-recorder";
-            };
-            default = {
-              type = "app";
-              program = "${build.komorebi-recorder}/bin/komorebi-recorder";
-            };
-          };
-
-          devShells.default = pkgs.mkShell (
-            {
-              name = "komorebi-recorder";
-
-              RUST_BACKTRACE = "full";
-
-              inherit (sourceEnv)
-                KOMOREBI_MAC_SRC
-                KOMOREBI_MAC_COMMIT
-                KOMOREBI_WINDOWS_SRC
-                KOMOREBI_WINDOWS_COMMIT
-                ;
-
-              inputsFrom = [ build.fullBuild ];
-
-              packages = [
-                rustToolchainWithNightlyRustfmt
-
-                pkgs.cargo-deny
-                pkgs.cargo-nextest
-                # `komorebi-recorder frames` and `selftest` extract frames with ffmpeg; it is never
-                # used for capture and is not bundled into the packaged binary
-                pkgs.ffmpeg-headless
-                pkgs.jq
-                pkgs.just
-                pkgs.ripgrep
-                # `just icon` renders the watermelon
-                pkgs.resvg
-              ];
-            }
-            // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-              # the libraries that Wayland, the window and the GPU are reached through are opened
-              # when they are needed, not linked
-              LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (linuxRuntimeLibraries pkgs);
-            }
-          );
-
-          # For working on the Windows side from a Mac: `nix develop .#windows`, then plain
-          # `cargo clippy --all-targets` (the target is already `x86_64-pc-windows-msvc`).
-          devShells.windows = pkgs.mkShell {
-            name = "komorebi-recorder-windows";
-
-            RUST_BACKTRACE = "full";
-
-            inherit (windowsBuild.msvcEnv)
-              CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER
-              CC_x86_64_pc_windows_msvc
-              CXX_x86_64_pc_windows_msvc
-              AR_x86_64_pc_windows_msvc
-              CFLAGS_x86_64_pc_windows_msvc
-              CXXFLAGS_x86_64_pc_windows_msvc
-              CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS
-              CARGO_BUILD_TARGET
-              ;
-            inherit (sourceEnv)
-              KOMOREBI_MAC_SRC
-              KOMOREBI_MAC_COMMIT
-              KOMOREBI_WINDOWS_SRC
-              KOMOREBI_WINDOWS_COMMIT
-              ;
-
-            packages = [
-              (rustToolchain.override { targets = [ "x86_64-pc-windows-msvc" ]; })
-              pkgs.llvmPackages.clang-unwrapped # provides clang-cl
-              pkgs.llvmPackages.lld # provides lld-link
-              pkgs.llvmPackages.llvm # provides llvm-lib
-              pkgs.cargo-deny
-              pkgs.just
-            ];
-          };
-
-          pre-commit = {
-            check.enable = true;
-            settings.hooks.treefmt = {
-              enable = true;
-              package = config.treefmt.build.wrapper;
-              pass_filenames = false;
-            };
-          };
-        };
-
-      flake = {
-        overlays.default =
-          final: _:
-          let
-            pkgs = mkPkgs final.system;
-            build = mkPackages { inherit pkgs; };
-          in
-          {
-            inherit (build) komorebi-recorder;
-          };
+            fi
+          done
+        '';
+      }
+      # on Linux the video is encoded and decoded by GStreamer (the OS media stack there, as
+      # AVFoundation is on a Mac), and found at run time through its plugin path
+      // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        nativeBuildInputs = [
+          pkgs.pkg-config
+          pkgs.makeWrapper
+          # the tests that clone, and the ones that read the history of the source
+          pkgs.git
+          # the tests that record a video to read back make it with ffmpeg
+          pkgs.ffmpeg-headless
+        ];
+        buildInputs = runtime.gstreamerPackages;
+        postFixup = ''
+          for bin in $out/bin/*; do
+            if [ -f "$bin" ] && [ -x "$bin" ]; then
+              wrapProgram "$bin" \
+                --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : ${runtime.gstreamerPluginPath} \
+                --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath runtime.linuxRuntimeLibraries}
+            fi
+          done
+        '';
       };
+
+      # the dummy source is of the manifests alone (nix/lib.nix): the dependencies are the same
+      # derivations for every source file and every stub, and nothing is built at evaluation
+      cargoArtifacts = craneLib.buildDepsOnly (
+        builtins.removeAttrs commonArgs [ "src" ]
+        // {
+          dummySrc = craneLib.mkDummySrc {
+            src = lib'.manifestSource pkgs.lib;
+            cargoLock = lockFile;
+          };
+        }
+      );
+
+      individualCrateArgs = commonArgs // {
+        inherit cargoArtifacts;
+        doCheck = false;
+        doDoc = false;
+      };
+
+      fullBuild = craneLib.buildPackage (
+        individualCrateArgs
+        // {
+          KOMOREBI_COMMIT = self.rev or (pkgs.lib.removeSuffix "-dirty" (self.dirtyRev or "unknown"));
+        }
+      );
+
+      # `komorebi-recorder-gui` is the same program as `komorebi-recorder` on a Mac; on Linux the
+      # wrapped programs are all copied, so that the wrappers keep what they wrap
+      komorebi-recorder = pkgs.runCommand "komorebi-recorder" { meta = fullBuild.meta // { }; } (
+        if pkgs.stdenv.hostPlatform.isLinux then
+          ''
+            mkdir -p $out/bin
+            cp -a ${fullBuild}/bin/. $out/bin/
+          ''
+        else
+          ''
+            mkdir -p $out/bin
+            cp ${fullBuild}/bin/komorebi-recorder $out/bin/
+          ''
+      );
+    in
+    {
+      inherit
+        craneLib
+        src
+        individualCrateArgs
+        fullBuild
+        komorebi-recorder
+        ;
     };
 }

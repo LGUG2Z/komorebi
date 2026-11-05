@@ -108,7 +108,7 @@ in
             pwd > $out/srcroot
             mkdir -p $out/data
             find . -path ./target -prune -o -type f \
-              \( -path './schemas/*' -o -path '*/tests/*' -o -path '*/fixtures/*' \) \
+              \( -path './schemas/*' -o -path './wix/*' -o -path '*/tests/*' -o -path '*/fixtures/*' \) \
               ! -name '*.rs' -print | cpio -pdm $out/data 2>/dev/null
           '';
         }
@@ -201,6 +201,8 @@ in
         windows-komorebi-bar = build.komorebi-bar;
         windows-komorebi-gui = build.komorebi-gui;
         windows-komorebi-shortcuts = build.komorebi-shortcuts;
+        windows-komorebi-recorder = build.komorebi-recorder;
+        windows-komorebi-recorder-gui = build.komorebi-recorder-gui;
         windows-komorebi-testwin = build.komorebi-testwin;
         windows-komorebi-e2e-agent = build.komorebi-e2e-agent;
         windows-sdk = windowsSdk;
@@ -235,6 +237,10 @@ in
         windows-komorebi-shortcuts = {
           type = "app";
           program = "${build.komorebi-shortcuts}/bin/komorebi-shortcuts.exe";
+        };
+        windows-komorebi-recorder = {
+          type = "app";
+          program = "${build.komorebi-recorder}/bin/komorebi-recorder.exe";
         };
         windows-default = {
           type = "app";

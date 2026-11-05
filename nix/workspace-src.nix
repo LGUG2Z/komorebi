@@ -1,6 +1,6 @@
 # The source of a build of one platform, cut from the one Cargo workspace of this repository.
 #
-#   import ./workspace-src.nix { pkgs; craneLib; repoRoot; platform = "windows" | "linux" | "macos"; }
+#   import ./workspace-src.nix { pkgs; craneLib; repoRoot; platform = "windows" | "linux" | "macos" | "recorder"; }
 #
 # Cargo has to load every member of the workspace (the root manifest lists the members of all three
 # platforms), but a build of one platform needs the sources of that platform's crates only. The result:
@@ -12,6 +12,10 @@
 #             a lock file that has packages the workspace does not have fails under --locked)
 #   members   the members of the platform; stubbed the others; stubbedPackages their package names (for
 #             `cargo deny --exclude`)
+#
+# The platform "recorder" is the source of komorebi-recorder's own builds on macOS and Linux: the recorder
+# indexes the log statements of the daemons of all three platforms (komorebi-recorder/build.rs), so it
+# has their sources, whole, and nothing else; the Windows build has the recorder as one of its members.
 #
 # An edit under one platform therefore changes nothing in the derivations of the others, except where
 # the edit is in a crate they share or in the root manifest, lock or toolchain files.
@@ -40,7 +44,20 @@ let
   ];
   macosOnly = [ "komorebi-macos" ];
 
+  # the recorder and the crates whose source its build script indexes (komorebi-recorder/build.rs)
+  recorderMembers = [
+    "komorebi-recorder"
+    "komorebi-windows"
+    "komorebi-macos"
+    "komorebi-linux"
+    "komorebi-client"
+    "komorebi-layouts"
+    "crates/komorebi-core"
+    "crates/komorebi-transport"
+  ];
+
   membersOf = {
+    recorder = recorderMembers;
     # everything but the other two platforms' daemons
     windows = builtins.filter (m: !(builtins.elem m (linuxOnly ++ macosOnly))) allMembers;
     linux = linuxOnly ++ linuxShared;
@@ -77,7 +94,8 @@ let
     linux = "(src/linux(\\.rs|/.*)|tests/linux_.*)";
     macos = "(src/macos(\\.rs|/.*)|tests/macos_.*)";
   };
-  otherMarkers = builtins.attrValues (removeAttrs markers [ platform ]);
+  # the recorder indexes every platform's files
+  otherMarkers = if platform == "recorder" then [ ] else builtins.attrValues (removeAttrs markers [ platform ]);
   ofOtherPlatform =
     rel:
     builtins.any (
@@ -91,11 +109,21 @@ let
   # the directories of the source (a file is kept only under one of them)
   roots =
     members
-    ++ [
-      "docs"
-      "schemas"
-      ".cargo"
-    ]
+    ++ lib.optional (platform == "windows") "wix"
+    ++ (
+      if platform == "recorder" then
+        [
+          ".cargo"
+          # the installer, which a test of the recorder checks for its binaries
+          "wix"
+        ]
+      else
+        [
+          "docs"
+          "schemas"
+          ".cargo"
+        ]
+    )
     # the configurations that the config_parity test of komorebi-linux loads
     ++ lib.optional (platform == "linux") "spikes/config-parity";
   underRoot = rel: builtins.any (r: rel == r || lib.hasPrefix "${r}/" rel) roots;
@@ -121,7 +149,10 @@ let
         )
         || lib.hasPrefix "docs/macos/cli/" rel
         || lib.hasPrefix "schemas/" rel
-        || lib.hasPrefix "komorebic/fixtures/" rel;
+        || lib.hasPrefix "komorebic/fixtures/" rel
+        # the icon and the guide the recorder embeds, and the installer a test of it reads
+        || lib.hasPrefix "komorebi-recorder/" rel
+        || lib.hasPrefix "wix/" rel;
       linux =
         # the script komorebi loads into KWin and the JSON the tests and the daemon read
         (lib.hasSuffix ".js" rel || lib.hasSuffix ".json" rel)
@@ -145,6 +176,8 @@ let
         || lib.hasPrefix "docs/macos/" rel
         || lib.hasPrefix "schemas/macos/" rel
         || lib.hasPrefix "komorebic/fixtures/" rel;
+      # the guide and the icon the recorder embeds, and the installer
+      recorder = lib.hasPrefix "komorebi-recorder/" rel || lib.hasPrefix "wix/" rel;
     }
     .${platform};
 

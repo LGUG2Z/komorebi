@@ -277,6 +277,8 @@ let
       komorebi-bar = extractBinary "komorebi-bar";
       komorebi-gui = extractBinary "komorebi-gui";
       komorebi-shortcuts = extractBinary "komorebi-shortcuts";
+      komorebi-recorder = extractBinary "komorebi-recorder";
+      komorebi-recorder-gui = extractBinary "komorebi-recorder-gui";
       komorebi-testwin = extractBinary "komorebi-testwin";
       komorebi-e2e-agent = extractBinary "komorebi-e2e-agent";
     };

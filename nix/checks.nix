@@ -55,6 +55,8 @@ let
       "linux-nix-options-validation"
       "linux-schema-fresh"
     ];
+    recorder-lint = [ "recorder-clippy" ];
+    recorder-test = [ "recorder-nextest" ];
     macos-lint = [ "macos-clippy" ];
     macos-test = [ "macos-nextest" ];
     macos-options = [
@@ -94,6 +96,8 @@ let
     "macos-lint"
     "macos-test"
     "macos-options"
+    "recorder-lint"
+    "recorder-test"
   ];
 in
 {

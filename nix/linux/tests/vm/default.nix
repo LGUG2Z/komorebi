@@ -15,8 +15,8 @@
 let
   inherit (hostPkgs) lib;
 
-  # `komorebi-recorder`, when the run is given one: its repository is private, so it is not an
-  # input of the flake. `KOMOREBI_RECORDER=$(nix build --print-out-paths ...)` and `--impure`.
+  # `komorebi-recorder`, when the run is given one, so that a suite does not build it unless asked:
+  # `KOMOREBI_RECORDER=$(nix build .#komorebi-recorder --print-out-paths)` and `--impure`.
   recorder =
     let
       path = builtins.getEnv "KOMOREBI_RECORDER";

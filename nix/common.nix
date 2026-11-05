@@ -32,8 +32,8 @@ in
     # nix/linux/flake-module.nix) or the macOS ones (overlays.macos)
     overlays.default =
       final: prev:
-      (if final.stdenv.hostPlatform.isDarwin then self.overlays.macos else self.overlays.linux) final
-        prev;
+      (if final.stdenv.hostPlatform.isDarwin then self.overlays.macos else self.overlays.linux) final prev
+      // self.overlays.recorder final prev;
     overlays.komorebi = self.overlays.default;
   };
 
@@ -88,6 +88,11 @@ in
         pkgs.cargo-deny
         pkgs.cargo-nextest
         pkgs.cargo-outdated
+        # `komorebi-recorder frames` and `selftest` extract frames with ffmpeg; it is never used for
+        # capture and is not bundled into the packaged binary
+        pkgs.ffmpeg-headless
+        # `just icon` renders the watermelon of the recorder
+        pkgs.resvg
         pkgs.check-jsonschema
         pkgs.jq
         pkgs.just
@@ -141,6 +146,18 @@ in
 
             packages = tools;
           }
+          # the recorder's video on Linux is GStreamer's, and the libraries its window draws through are
+          # opened when they are needed, not linked
+          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
+            let
+              runtime = import ./recorder/runtime.nix { inherit pkgs; };
+            in
+            {
+              buildInputs = runtime.gstreamerPackages;
+              GST_PLUGIN_SYSTEM_PATH_1_0 = runtime.gstreamerPluginPath;
+              LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath runtime.linuxRuntimeLibraries;
+            }
+          )
           // pkgs.lib.optionalAttrs (crossToWindows) {
             # the Windows e2e guest (e2e/platforms/qemu_windows): the build
             # scripts and the runner find OVMF here, and the vendored core
