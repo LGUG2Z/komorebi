@@ -30,6 +30,7 @@ members = [
   "komorebi-macos",
   "komorebi-hotkeys",
   "crates/komorebi-version",
+  "komorebi-recorder",
 ]
 
 default-members = [
@@ -55,6 +56,7 @@ default-members = [
   "komorebi-shortcuts",
   "e2e/guest/agent",
   "e2e/guest/testwin",
+  "komorebi-recorder",
 ]
 
 [workspace.package]

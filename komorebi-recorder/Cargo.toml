@@ -1,9 +1,9 @@
 [package]
 name = "komorebi-recorder"
-version.workspace = true
+version = "0.1.0-dev"
 description = "Synchronized screen, log and trace capture for komorebi bug reproduction"
-edition.workspace = true
-repository.workspace = true
+edition = "2024"
+repository = "https://github.com/LGUG2Z/komorebi"
 
 [dependencies]
 ab_glyph = "0.2"
