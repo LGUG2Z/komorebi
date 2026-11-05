@@ -1,0 +1,56 @@
+# EXPERIMENTAL, by hand only. Builds the Windows 11 guest image from the evaluation ISO on a hosted
+# runner with KVM and runs the Windows unit tests in it (`nix run .#windows-nextest`). Nothing says that
+# it works on a hosted runner: the install takes about 20 minutes with KVM, the runner may have no
+# nested virtualization, the guest needs the internet for the Visual C++ runtime, and the display
+# driver of the second monitor (virtio-win's QXL driver) is not fetched, so the guest has one display.
+# The steps follow e2e/platforms/qemu_windows/README.md. It is not part of the ladder and not required.
+
+name: windows-guest
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: windows-guest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+          free-disk: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Download the evaluation ISO
+        run: curl -fL --retry 3 -o "$RUNNER_TEMP/win11.iso" 'https://go.microsoft.com/fwlink/?linkid=2289031'
+      - name: Build the guest agent
+        run: |
+          nix build -L .#windows-komorebi-e2e-agent -o "$RUNNER_TEMP/agent"
+      - name: Build the base image (about 20 minutes) and the golden image
+        run: |
+          # shellcheck disable=SC2016
+          nix develop --command nix shell nixpkgs#xorriso nixpkgs#qemu nixpkgs#swtpm nixpkgs#socat nixpkgs#python3 --command bash -euo pipefail -c '
+            cd e2e/platforms/qemu_windows
+            ./build-base.sh "$RUNNER_TEMP/win11.iso" "$RUNNER_TEMP/agent/bin/komorebi-e2e-agent.exe" "$RUNNER_TEMP/base"
+            # no QXL driver: an empty directory, so the guest has one display
+            mkdir -p "$RUNNER_TEMP/qxldod"
+            cd ..
+            ../../e2e/platforms/qemu_windows/build-golden.sh "$RUNNER_TEMP/base" "$RUNNER_TEMP/golden" "$RUNNER_TEMP/qxldod"
+          '
+      - name: The Windows unit tests in the guest
+        run: E2E_GOLDEN="$RUNNER_TEMP/golden" nix run .#windows-nextest -- "$RUNNER_TEMP/out"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-windows-guest-${{ github.sha }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: ignore
+          retention-days: 7
