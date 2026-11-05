@@ -203,14 +203,14 @@ impl Flavor {
     /// ```rust
     /// use komorebi_recorder::analysis::flavor::Flavor;
     ///
-    /// assert_eq!(Flavor::Macos.daemon_source(), "komorebi-macos/src");
+    /// assert_eq!(Flavor::Macos.daemon_source(), "crates/komorebi-macos/src");
     /// ```
     #[must_use]
     pub const fn daemon_source(self) -> &'static str {
         match self {
-            Flavor::Macos => "komorebi-macos/src",
-            Flavor::Windows => "komorebi-windows/src",
-            Flavor::Kde => "komorebi-linux/src",
+            Flavor::Macos => "crates/komorebi-macos/src",
+            Flavor::Windows => "crates/komorebi-windows/src",
+            Flavor::Kde => "crates/komorebi-linux/src",
         }
     }
 

@@ -1,5 +1,5 @@
 # vm-keys-skhd, vm-keys-whkd and vm-keys-sxhkd: the case `vm` of the key binding corpus
-# (komorebi-hotkeys/tests/fixtures/vm.*), in the format of the suite, installed by the NixOS module
+# (crates/komorebi-hotkeys/tests/fixtures/vm.*), in the format of the suite, installed by the NixOS module
 # (`services.komorebi.keybindings`, mode auto). Alt+J can be a static shortcut, which KWin runs
 # from the system profile; Alt+, cannot, so the module's daemon registers it and runs it. The Rust
 # tests and `keybindings-fixtures` check the plan; only a real session can say that what the

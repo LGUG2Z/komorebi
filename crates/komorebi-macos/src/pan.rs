@@ -459,13 +459,13 @@ mod tests {
     #[test]
     fn the_swipes_of_a_stream_lift_at_the_speed_that_they_were_made_to() {
         let long = lift_speed(&moves_of(include_str!(
-            "../../komorebic/fixtures/pan3-long.transcript.txt"
+            "../../komorebic-core/fixtures/pan3-long.transcript.txt"
         )));
         let flick = lift_speed(&moves_of(include_str!(
-            "../../komorebic/fixtures/pan3-flick.transcript.txt"
+            "../../komorebic-core/fixtures/pan3-flick.transcript.txt"
         )));
         let slow = lift_speed(&moves_of(include_str!(
-            "../../komorebic/fixtures/pan3-slow.transcript.txt"
+            "../../komorebic-core/fixtures/pan3-slow.transcript.txt"
         )));
 
         // 0.128 cm every 8 ms, and 0.267 every 8

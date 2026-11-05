@@ -1,5 +1,5 @@
 # `keybindings-fixtures`: every key binding file of the fixture corpus
-# (komorebi-hotkeys/tests/fixtures) through `komorebic hotkeys compile --mode auto --dry-run`,
+# (crates/komorebi-hotkeys/tests/fixtures) through `komorebic hotkeys compile --mode auto --dry-run`,
 # the command the NixOS module runs, compared with `keybindings.expected`: the static shortcuts of
 # each file, the bindings left to the engine, and the diagnostics, as the build log of the module
 # shows them. After a change that means to change them, write the file again with the loop below,
@@ -15,7 +15,7 @@ let
 in
 pkgs.runCommand "keybindings-fixtures"
   {
-    fixtures = ../../../komorebi-hotkeys/tests/fixtures;
+    fixtures = ../../../crates/komorebi-hotkeys/tests/fixtures;
     expected = ./keybindings.expected;
     samples = lib.fileset.toSource {
       root = ../../../docs/linux;

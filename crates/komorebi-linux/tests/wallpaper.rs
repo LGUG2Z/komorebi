@@ -381,7 +381,7 @@ fn theme_options_choose_the_variant_and_the_colour_each_border_takes() {
 
 #[test]
 fn the_wallpaper_example_in_the_docs_loads() {
-    let docs = Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/linux/usage/wallpapers.md");
+    let docs = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/linux/usage/wallpapers.md");
     let docs = std::fs::read_to_string(docs).unwrap();
     let json = docs
         .split("```json\n")

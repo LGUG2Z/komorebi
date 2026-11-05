@@ -355,7 +355,7 @@ mod tests {
     use super::*;
 
     const TRANSCRIPT: &str =
-        include_str!("../../../komorebic/fixtures/gesture-stream.transcript.txt");
+        include_str!("../fixtures/gesture-stream.transcript.txt");
 
     fn gestures(told: &[SocketMessage]) -> Vec<PanGesture> {
         told.iter()
@@ -542,9 +542,9 @@ mod tests {
 
     /// What whkd writes for a swipe of three fingers that goes on for about two seconds, a
     /// flick, and one that eases to a stop: `whkd touchpad --demo <name> --instant`
-    const LONG: &str = include_str!("../../../komorebic/fixtures/pan3-long.transcript.txt");
-    const FLICK: &str = include_str!("../../../komorebic/fixtures/pan3-flick.transcript.txt");
-    const SLOW: &str = include_str!("../../../komorebic/fixtures/pan3-slow.transcript.txt");
+    const LONG: &str = include_str!("../fixtures/pan3-long.transcript.txt");
+    const FLICK: &str = include_str!("../fixtures/pan3-flick.transcript.txt");
+    const SLOW: &str = include_str!("../fixtures/pan3-slow.transcript.txt");
 
     /// How many lines of a transcript are not part of the stream: whkd's demo says which swipe
     /// it saw, as `swipe swipe3right`, among them, and nothing says that the program that it

@@ -14,9 +14,9 @@
 //!
 //! | flavor | directories indexed |
 //! |---|---|
-//! | macOS | `komorebi-macos/src`, the shared crates |
-//! | Windows | `komorebi-windows/src`, the shared crates |
-//! | KDE | `komorebi-linux/src`, the shared crates |
+//! | macOS | `crates/komorebi-macos/src`, the shared crates |
+//! | Windows | `crates/komorebi-windows/src`, the shared crates |
+//! | KDE | `crates/komorebi-linux/src`, the shared crates |
 //!
 //! `KOMOREBI_SRC` names another checkout of the repository to index instead, and `KOMOREBI_COMMIT` the
 //! commit of the source when it is not a git checkout (nix). The commit otherwise comes from git.
@@ -44,8 +44,8 @@ struct Flavor {
 
 /// The crates of every flavor that write log statements: the daemons call into them.
 const SHARED: &[(&str, &str)] = &[
-    ("komorebi-client/src", "komorebi_client"),
-    ("komorebi-layouts/src", "komorebi_layouts"),
+    ("crates/komorebi-client/src", "komorebi_client"),
+    ("crates/komorebi-layouts/src", "komorebi_layouts"),
     ("crates/komorebi-core/src", "komorebi_core"),
     ("crates/komorebi-transport/src", "komorebi_transport"),
 ];
@@ -54,7 +54,7 @@ const FLAVORS: &[Flavor] = &[
     Flavor {
         name: "MAC",
         crates: &[
-            ("komorebi-macos/src", "komorebi"),
+            ("crates/komorebi-macos/src", "komorebi"),
             SHARED[0],
             SHARED[1],
             SHARED[2],
@@ -64,7 +64,7 @@ const FLAVORS: &[Flavor] = &[
     Flavor {
         name: "WINDOWS",
         crates: &[
-            ("komorebi-windows/src", "komorebi"),
+            ("crates/komorebi-windows/src", "komorebi"),
             SHARED[0],
             SHARED[1],
             SHARED[2],
@@ -74,7 +74,7 @@ const FLAVORS: &[Flavor] = &[
     Flavor {
         name: "KDE",
         crates: &[
-            ("komorebi-linux/src", "komorebi"),
+            ("crates/komorebi-linux/src", "komorebi"),
             SHARED[0],
             SHARED[1],
             SHARED[2],

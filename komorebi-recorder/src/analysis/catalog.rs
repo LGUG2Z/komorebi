@@ -251,12 +251,12 @@ impl Statement {
     ///     level: "INFO".to_string(),
     ///     target: "komorebi::process_event".to_string(),
     ///     template: "processing event: {} for process {} with notification {}".to_string(),
-    ///     file: "komorebi-macos/src/process_event.rs".to_string(),
+    ///     file: "crates/komorebi-macos/src/process_event.rs".to_string(),
     ///     line: 120,
     ///     function: "process_event".to_string(),
     ///     owner: "WindowManager".to_string(),
     /// };
-    /// assert_eq!(statement.location(), "komorebi-macos/src/process_event.rs:120");
+    /// assert_eq!(statement.location(), "crates/komorebi-macos/src/process_event.rs:120");
     /// assert_eq!(statement.qualified_function(), "WindowManager::process_event");
     ///
     /// // outside any `impl`, the function stands alone
@@ -379,7 +379,7 @@ impl Catalog {
     /// let found = catalog
     ///     .find("komorebi::reaper", Level::Info, "reaping window: 4711")
     ///     .expect("the reaper logs this");
-    /// assert_eq!(found.statement.file, "komorebi-macos/src/reaper.rs");
+    /// assert_eq!(found.statement.file, "crates/komorebi-macos/src/reaper.rs");
     /// assert!(found.statement.template.starts_with("reaping window"));
     ///
     /// // no statement could have written this
@@ -784,9 +784,9 @@ mod tests {
 
     /// The directories of the Mac checkout that its catalog indexes.
     const MAC_PATHS: &[&str] = &[
-        "komorebi-macos/src",
-        "komorebi-client/src",
-        "komorebi-layouts/src",
+        "crates/komorebi-macos/src",
+        "crates/komorebi-client/src",
+        "crates/komorebi-layouts/src",
         "crates/komorebi-core/src",
         "crates/komorebi-transport/src",
     ];
@@ -850,7 +850,7 @@ mod tests {
         )
         .expect("the header statement");
 
-        assert_eq!(found.statement.file, "komorebi-macos/src/process_event.rs");
+        assert_eq!(found.statement.file, "crates/komorebi-macos/src/process_event.rs");
         assert_eq!(found.statement.function, "process_event");
         assert_eq!(found.statement.owner, "WindowManager");
         assert_eq!(found.confidence, Confidence::Likely);
@@ -995,7 +995,7 @@ mod tests {
         );
         assert_eq!(skew.verdict, "same");
         assert!(skew.warning.is_none());
-        assert!(!skew.file_changed("komorebi-macos/src/window.rs"));
+        assert!(!skew.file_changed("crates/komorebi-macos/src/window.rs"));
 
         // but not if the source had uncommitted changes when indexed
         let dirty = skew_between(
@@ -1026,7 +1026,7 @@ mod tests {
                 .contains("cannot say how they differ")
         );
         // when it cannot be told, nothing is vouched for
-        assert!(skew.file_changed("komorebi-macos/src/window.rs"));
+        assert!(skew.file_changed("crates/komorebi-macos/src/window.rs"));
     }
 
     #[test]
@@ -1035,7 +1035,7 @@ mod tests {
         // the commit before the latest change to komorebi's source
         let Some(history) = git(
             &repo(),
-            &["log", "-2", "--format=%H", "--", "komorebi-macos/src"],
+            &["log", "-2", "--format=%H", "--", "crates/komorebi-macos/src"],
         ) else {
             return;
         };
@@ -1058,9 +1058,9 @@ mod tests {
                 older,
                 indexed,
                 "--",
-                "komorebi-macos/src",
-                "komorebi-client/src",
-                "komorebi-layouts/src",
+                "crates/komorebi-macos/src",
+                "crates/komorebi-client/src",
+                "crates/komorebi-layouts/src",
                 "crates/komorebi-core/src",
                 "crates/komorebi-transport/src",
             ],
@@ -1078,7 +1078,7 @@ mod tests {
         for file in expected.lines() {
             assert!(skew.file_changed(file));
         }
-        assert!(!skew.file_changed("komorebi-macos/src/a_file_that_never_changed.rs"));
+        assert!(!skew.file_changed("crates/komorebi-macos/src/a_file_that_never_changed.rs"));
     }
 
     fn rust_files(directory: &std::path::Path, found: &mut Vec<std::path::PathBuf>) {
@@ -1098,7 +1098,7 @@ mod tests {
     #[test]
     fn every_log_statement_in_komorebis_source_is_indexed() {
         crate::skip_without_komorebi_mac_source!();
-        let root = crate::testkit::komorebi_mac_src().join("komorebi-macos/src");
+        let root = crate::testkit::komorebi_mac_src().join("crates/komorebi-macos/src");
         let mut files = Vec::new();
         rust_files(&root, &mut files);
 
@@ -1118,7 +1118,7 @@ mod tests {
         let indexed = mac()
             .entries
             .iter()
-            .filter(|entry| entry.file.starts_with("komorebi-macos/src/"))
+            .filter(|entry| entry.file.starts_with("crates/komorebi-macos/src/"))
             .count();
         assert_eq!(
             indexed, in_source,

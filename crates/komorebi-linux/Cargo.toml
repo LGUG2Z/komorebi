@@ -7,20 +7,20 @@ edition = "2024"
 [dependencies]
 komorebi-hotkeys = { path = "../komorebi-hotkeys" }
 komorebi-themes = { path = "../komorebi-themes" }
-komorebi-backend = { path = "../crates/komorebi-backend" }
-komorebi-collections = { path = "../crates/komorebi-collections" }
-komorebi-core = { path = "../crates/komorebi-core" }
+komorebi-backend = { path = "../komorebi-backend" }
+komorebi-collections = { path = "../komorebi-collections" }
+komorebi-core = { path = "../komorebi-core" }
 komorebi-layouts = { path = "../komorebi-layouts", features = ["schemars"] }
 komorebi-scrolling = { path = "../komorebi-scrolling" }
-komorebi-config = { path = "../crates/komorebi-config", default-features = false, features = [
+komorebi-config = { path = "../komorebi-config", default-features = false, features = [
   "schemars",
 ] }
-komorebi-settings = { path = "../crates/komorebi-settings" }
-komorebi-protocol = { path = "../crates/komorebi-protocol", default-features = false, features = [
+komorebi-settings = { path = "../komorebi-settings" }
+komorebi-protocol = { path = "../komorebi-protocol", default-features = false, features = [
   "schemars",
 ] }
-komorebi-transport = { path = "../crates/komorebi-transport" }
-version = { package = "komorebi-version", path = "../crates/komorebi-version" }
+komorebi-transport = { path = "../komorebi-transport" }
+version = { package = "komorebi-version", path = "../komorebi-version" }
 
 clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = { version = "0.6" }

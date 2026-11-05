@@ -38,14 +38,24 @@ let
   # kept equal to `cargo tree` by tools/kde-closure-check); komorebi-bar and komorebi-bar-core (the egui
   # bar) are not in it, so an edit of the bar does not rebuild the KDE packages
   linuxShared = builtins.fromJSON (builtins.readFile ./linux/root-crates.json) ++ [
-    "komorebi-daemon"
+    "komorebi"
   ];
 
+  # the crates only one platform builds; the Windows set also has the e2e guests and the Windows-only
+  # binaries, which the other platforms never build
   linuxOnly = [
-    "komorebi-linux"
-    "komorebi-hotkeys"
+    "crates/komorebi-linux"
+    "crates/komorebi-hotkeys"
   ];
-  macosOnly = [ "komorebi-macos" ];
+  macosOnly = [ "crates/komorebi-macos" ];
+  windowsOnly = [
+    "crates/komorebi-windows"
+    "crates/komorebi-e2e-agent"
+    "crates/komorebi-testwin"
+    "komorebi-gui"
+    "komorebic-no-console"
+    "komorebi-shortcuts"
+  ];
 
   # the development tool that writes the Nix options: built by its own checks (nix/nixgen)
   toolOnly = [ "crates/schemars-nixgen" ];
@@ -53,11 +63,11 @@ let
   # the recorder and the crates whose source its build script indexes (komorebi-recorder/build.rs)
   recorderMembers = [
     "komorebi-recorder"
-    "komorebi-windows"
-    "komorebi-macos"
-    "komorebi-linux"
-    "komorebi-client"
-    "komorebi-layouts"
+    "crates/komorebi-windows"
+    "crates/komorebi-macos"
+    "crates/komorebi-linux"
+    "crates/komorebi-client"
+    "crates/komorebi-layouts"
     "crates/komorebi-core"
     "crates/komorebi-transport"
   ];
@@ -65,21 +75,13 @@ let
   membersOf = {
     recorder = recorderMembers;
     nixgen = toolOnly;
-    # everything but the other two platforms' daemons and the tool
+    # everything but the other two platforms' crates and the tool
     windows = builtins.filter (m: !(builtins.elem m (linuxOnly ++ macosOnly ++ toolOnly))) allMembers;
     linux = linuxOnly ++ linuxShared;
-    macos =
-      macosOnly
-      ++ [
-        "komorebic"
-        "komorebi-client"
-        "komorebi-bar"
-        "komorebi-daemon"
-        "komorebi-layouts"
-        "komorebi-scrolling"
-        "komorebi-themes"
-      ]
-      ++ builtins.filter (m: lib.hasPrefix "crates/" m && !(builtins.elem m toolOnly)) allMembers;
+    # everything but the Windows and Linux crates, the tool and the recorder
+    macos = builtins.filter (
+      m: !(builtins.elem m (windowsOnly ++ linuxOnly ++ toolOnly ++ [ "komorebi-recorder" ]))
+    ) allMembers;
   };
 
   members = builtins.filter (m: builtins.elem m membersOf.${platform}) allMembers;
@@ -92,9 +94,9 @@ let
   # tests (named by prefix) and drops the other platforms'
   sharedCrates = [
     "komorebic"
-    "komorebi-client"
+    "crates/komorebi-client"
     "komorebi-bar"
-    "komorebi-daemon"
+    "komorebi"
   ];
   markers = {
     windows = "(src/windows(\\.rs|/.*)|tests/windows_.*)";
@@ -158,7 +160,6 @@ let
         )
         || lib.hasPrefix "docs/macos/cli/" rel
         || lib.hasPrefix "schemas/" rel
-        || lib.hasPrefix "komorebic/fixtures/" rel
         # the icon and the guide the recorder embeds, and the installer a test of it reads
         || lib.hasPrefix "komorebi-recorder/" rel
         || lib.hasPrefix "wix/" rel;
@@ -183,8 +184,7 @@ let
       macos =
         lib.hasSuffix ".json" rel && !(lib.hasPrefix "docs/" rel || lib.hasPrefix "schemas/" rel)
         || lib.hasPrefix "docs/macos/" rel
-        || lib.hasPrefix "schemas/macos/" rel
-        || lib.hasPrefix "komorebic/fixtures/" rel;
+        || lib.hasPrefix "schemas/macos/" rel;
       # the guide and the icon the recorder embeds, and the installer
       recorder = lib.hasPrefix "komorebi-recorder/" rel || lib.hasPrefix "wix/" rel;
       nixgen = false;

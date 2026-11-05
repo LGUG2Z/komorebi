@@ -15,13 +15,13 @@ edition = "2024"
 color-eyre = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-komorebi-windows = { package = "komorebi-windows", path = "../komorebi-windows", default-features = false }
+komorebi-windows = { package = "komorebi-windows", path = "../crates/komorebi-windows", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-komorebi-linux = { package = "komorebi-linux", path = "../komorebi-linux", default-features = false }
+komorebi-linux = { package = "komorebi-linux", path = "../crates/komorebi-linux", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-komorebi-macos = { package = "komorebi-macos", path = "../komorebi-macos", default-features = false }
+komorebi-macos = { package = "komorebi-macos", path = "../crates/komorebi-macos", default-features = false }
 
 [features]
 default = ["schemars"]

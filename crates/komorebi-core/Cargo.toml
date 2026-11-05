@@ -7,9 +7,9 @@ edition = "2024"
 [dependencies]
 komorebi-collections = { path = "../komorebi-collections" }
 komorebi-config = { path = "../komorebi-config", default-features = false }
-komorebi-layouts = { path = "../../komorebi-layouts" }
+komorebi-layouts = { path = "../komorebi-layouts" }
 komorebi-protocol = { path = "../komorebi-protocol" }
-komorebi-scrolling = { path = "../../komorebi-scrolling" }
+komorebi-scrolling = { path = "../komorebi-scrolling" }
 color-eyre = { workspace = true }
 nanoid = "0.5"
 schemars = { workspace = true, optional = true }

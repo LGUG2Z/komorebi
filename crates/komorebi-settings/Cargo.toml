@@ -6,8 +6,8 @@ description = "The settings every komorebi daemon reads while it runs: one immut
 
 [dependencies]
 komorebi-config = { path = "../komorebi-config", default-features = false }
-komorebi-layouts = { path = "../../komorebi-layouts" }
+komorebi-layouts = { path = "../komorebi-layouts" }
 komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
-komorebi-themes = { path = "../../komorebi-themes", default-features = false }
+komorebi-themes = { path = "../komorebi-themes", default-features = false }
 
 parking_lot = "0.12"

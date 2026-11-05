@@ -5,8 +5,8 @@ edition = "2024"
 description = "The wire types shared by every komorebi daemon and client: SocketMessage and its payloads"
 
 [dependencies]
-komorebi-layouts = { path = "../../komorebi-layouts" }
-komorebi-themes = { path = "../../komorebi-themes" }
+komorebi-layouts = { path = "../komorebi-layouts" }
+komorebi-themes = { path = "../komorebi-themes" }
 
 clap = { workspace = true }
 color-eyre = { workspace = true }

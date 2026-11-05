@@ -12,7 +12,7 @@ edition = "2024"
 # its own (`komorebi-linux`, `komorebi-macos`) and main.rs gives them the name the modules use.
 
 [dependencies]
-komorebi-client = { path = "../komorebi-client", default-features = false }
+komorebi-client = { path = "../crates/komorebi-client", default-features = false }
 komorebi-config = { path = "../crates/komorebi-config", default-features = false }
 komorebic-core = { path = "../crates/komorebic-core" }
 
@@ -40,8 +40,8 @@ win-msgbox = "0.2"
 windows = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-komorebi-linux = { package = "komorebi-linux", path = "../komorebi-linux", default-features = false }
-komorebi-hotkeys = { path = "../komorebi-hotkeys" }
+komorebi-linux = { package = "komorebi-linux", path = "../crates/komorebi-linux", default-features = false }
+komorebi-hotkeys = { path = "../crates/komorebi-hotkeys" }
 version = { package = "komorebi-version", path = "../crates/komorebi-version" }
 clap_complete = "4"
 sysinfo = "0.40"

@@ -5,9 +5,9 @@ edition = "2024"
 description = "The komorebi.json data types (StaticConfig and the types it is made of) and the generation of its JSON Schema"
 
 [dependencies]
-komorebi-layouts = { path = "../../komorebi-layouts" }
+komorebi-layouts = { path = "../komorebi-layouts" }
 komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
-komorebi-themes = { path = "../../komorebi-themes" }
+komorebi-themes = { path = "../komorebi-themes" }
 
 clap = { workspace = true }
 color-eyre = { workspace = true }

@@ -8,16 +8,16 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-komorebi-backend = { path = "../crates/komorebi-backend" }
-komorebi-collections = { path = "../crates/komorebi-collections" }
-komorebi-core = { path = "../crates/komorebi-core" }
-komorebi-config = { path = "../crates/komorebi-config", default-features = false }
-komorebi-settings = { path = "../crates/komorebi-settings" }
+komorebi-backend = { path = "../komorebi-backend" }
+komorebi-collections = { path = "../komorebi-collections" }
+komorebi-core = { path = "../komorebi-core" }
+komorebi-config = { path = "../komorebi-config", default-features = false }
+komorebi-settings = { path = "../komorebi-settings" }
 komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
 komorebi-scrolling = { path = "../komorebi-scrolling" }
 komorebi-themes = { path = "../komorebi-themes" }
-komorebi-protocol = { path = "../crates/komorebi-protocol", default-features = false }
-komorebi-transport = { path = "../crates/komorebi-transport" }
+komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
+komorebi-transport = { path = "../komorebi-transport" }
 
 base64 = "0.22"
 bitflags = { version = "2", features = ["serde"] }

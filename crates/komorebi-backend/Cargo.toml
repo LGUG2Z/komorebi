@@ -5,4 +5,4 @@ description = "What every komorebi daemon asks of its platform: the Backend trai
 edition = "2024"
 
 [dependencies]
-komorebi-layouts = { path = "../../komorebi-layouts" }
+komorebi-layouts = { path = "../komorebi-layouts" }

@@ -135,7 +135,7 @@ in
 
         # the Linux packages and the platform-neutral crates (layouts, scrolling, themes and the
         # shared crates/*), whose tests ran in no check. Not `--workspace`: that unifies the
-        # features of komorebi-daemon and the crates it pulls in, and windows-future fails to build.
+        # features of komorebi and the crates it pulls in, and windows-future fails to build.
         linux-nextest = build.craneLib.cargoNextest (
           build.individualCrateArgs
           // {
@@ -169,8 +169,8 @@ in
                 pkgs.typescript
               ];
               src = lib.fileset.toSource {
-                root = ../../komorebi-linux/src/kwin;
-                fileset = lib.fileset.fileFilter (file: !file.hasExt "rs") ../../komorebi-linux/src/kwin;
+                root = ../../crates/komorebi-linux/src/kwin;
+                fileset = lib.fileset.fileFilter (file: !file.hasExt "rs") ../../crates/komorebi-linux/src/kwin;
               };
             }
             ''

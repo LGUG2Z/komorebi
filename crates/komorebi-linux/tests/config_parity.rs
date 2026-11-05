@@ -41,7 +41,8 @@ const WINDOWS_ONLY: &[&str] = &[
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
+        .ancestors()
+        .nth(2)
         .unwrap()
         .to_path_buf()
 }

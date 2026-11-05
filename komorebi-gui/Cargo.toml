@@ -6,7 +6,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-komorebi-client = { path = "../komorebi-client", default-features = false }
+komorebi-client = { path = "../crates/komorebi-client", default-features = false }
 
 eframe = { workspace = true }
 egui_extras = { workspace = true }

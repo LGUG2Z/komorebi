@@ -13,8 +13,8 @@ lazy_static = { workspace = true }
 image = "0.25"
 komorebi-config = { path = "../komorebi-config", default-features = false }
 reqwest = { version = "0.12", features = ["blocking"] }
-komorebi-layouts = { path = "../../komorebi-layouts" }
-komorebi-themes = { path = "../../komorebi-themes", default-features = false }
+komorebi-layouts = { path = "../komorebi-layouts" }
+komorebi-themes = { path = "../komorebi-themes", default-features = false }
 komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
 serde = { workspace = true }
 color-eyre = { workspace = true }

@@ -298,7 +298,7 @@ impl Analysis {
     /// assert_eq!(found.about, "grep Reaping WINDOW");
     /// assert!(found.lines.is_empty());
     /// assert!(!found.statements.is_empty());
-    /// assert!(found.statements.iter().any(|statement| statement.file == "komorebi-macos/src/reaper.rs"));
+    /// assert!(found.statements.iter().any(|statement| statement.file == "crates/komorebi-macos/src/reaper.rs"));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     ///
