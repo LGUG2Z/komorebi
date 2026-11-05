@@ -2,22 +2,69 @@ set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
 
 export RUST_BACKTRACE := "full"
 
-# The binaries are the same three packages on every platform; Windows has three more.
-windows_targets := "komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts"
-unix_targets := "komorebic komorebi komorebi-bar"
+# The conditional attributes ([windows], [macos], [linux], [unix]) enable an item only on that OS, so each of the
+# variables and recipes below that differ by platform is written once per platform instead of branching inside.
+
 # the platform of the schemas and docs that `jsonschema` and `docgen` write
-platform := if os() == "windows" { "windows" } else if os() == "macos" { "macos" } else { "linux" }
+[windows]
+platform := "windows"
+
+[macos]
+platform := "macos"
+
+[linux]
+platform := "linux"
+
+# the binaries that are built, installed and run on this platform, by package name
+[windows]
+targets := "komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts"
+
+[macos]
+targets := "komorebic komorebi komorebi-bar"
+
+[linux]
+targets := "komorebic komorebi"
+
+# the packages the workspace-wide commands (fmt, fix) run on: a bare cargo command builds the Windows set, and the
+# crates of the other platforms do not compile here
+[windows]
+packages := ""
+
+[macos]
+packages := "--workspace --exclude komorebi-windows --exclude komorebi-linux --exclude komorebi-gui --exclude komorebic-no-console --exclude komorebi-shortcuts --exclude komorebi-e2e-agent --exclude komorebi-testwin"
+
+[linux]
+packages := "-p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
+
+# How cargo is invoked. Outside nix it is rustup's, which takes the +toolchain. Inside `nix develop` (IN_NIX_SHELL) the
+# toolchain is the nix one: there is no rustup to take +toolchain, and its cargo already formats with the nightly
+# rustfmt. The default shell also exports CARGO_BUILD_TARGET=x86_64-pc-windows-msvc for the Windows cross build,
+# which every native recipe on macOS and Linux drops (`nix develop .#native` leaves it out to begin with).
+[windows]
+cargo_stable := "cargo +stable"
+
+[windows]
+cargo_nightly := "cargo +nightly"
+
+[unix]
+cargo_stable := "env -u CARGO_BUILD_TARGET cargo" + if env("IN_NIX_SHELL", "") == "" { " +stable" } else { "" }
+
+[unix]
+cargo_nightly := "env -u CARGO_BUILD_TARGET cargo" + if env("IN_NIX_SHELL", "") == "" { " +nightly" } else { "" }
+
+# the directory of a target's package: the `komorebi` binary is the package in komorebi-daemon
+daemon_dir := "komorebi-daemon"
 
 clean:
     cargo clean
 
 # format the Rust sources with the nightly rustfmt (tools/format-all does it for every file, as the nix checks do)
 fmt:
-    cargo +nightly fmt
-    cargo +stable clippy
+    {{ cargo_nightly }} fmt {{ packages }}
+    {{ cargo_stable }} clippy {{ packages }}
 
 fix:
-    cargo clippy --fix --allow-dirty
+    {{ cargo_stable }} clippy {{ packages }} --fix --allow-dirty
 
 # the macros the codebase has agreed not to use, the workflows (actionlint, shellcheck) and the probe script
 lint:
@@ -40,8 +87,12 @@ install-targets *targets:
 install-targets *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just install-target $_ }
 
-install-target target:
-    cargo +stable install --path {{ target }} --locked --no-default-features
+# fails when a target is not one of the binaries of this platform (the default of `ok` is evaluated on every call)
+[private]
+check-target target ok=(if target =~ "^(" + replace(targets, " ", "|") + ")$" { "" } else { error(target + " is not built on " + platform + ", the targets are: " + targets) }):
+
+install-target target: (check-target target)
+    {{ cargo_stable }} install --path {{ if target == "komorebi" { daemon_dir } else { target } }} --locked --no-default-features
 
 [unix]
 install-targets-with-jsonschema *targets:
@@ -51,24 +102,14 @@ install-targets-with-jsonschema *targets:
 install-targets-with-jsonschema *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just install-target-with-jsonschema $_ }
 
-install-target-with-jsonschema target:
-    cargo +stable install --path {{ target }} --locked
+install-target-with-jsonschema target: (check-target target)
+    {{ cargo_stable }} install --path {{ if target == "komorebi" { daemon_dir } else { target } }} --locked
 
-[unix]
 install:
-    just install-targets {{ unix_targets }}
+    just install-targets {{ targets }}
 
-[windows]
-install:
-    just install-targets {{ windows_targets }}
-
-[unix]
 install-with-jsonschema:
-    just install-targets-with-jsonschema {{ unix_targets }}
-
-[windows]
-install-with-jsonschema:
-    just install-targets-with-jsonschema {{ windows_targets }}
+    just install-targets-with-jsonschema {{ targets }}
 
 [unix]
 build-targets *targets:
@@ -78,16 +119,11 @@ build-targets *targets:
 build-targets *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just build-target $_ }
 
-build-target target:
-    cargo +stable build --package {{ target }} --locked --release --no-default-features
+build-target target: (check-target target)
+    {{ cargo_stable }} build --package {{ target }} --locked --release --no-default-features
 
-[unix]
 build:
-    just build-targets {{ unix_targets }}
-
-[windows]
-build:
-    just build-targets {{ windows_targets }}
+    just build-targets {{ targets }}
 
 [windows]
 copy-target target:
@@ -103,10 +139,10 @@ wpm target:
 
 [windows]
 copy:
-    just copy-targets {{ windows_targets }}
+    just copy-targets {{ targets }}
 
-run target *args:
-    cargo +stable run --bin {{ target }} --locked --no-default-features -- {{ args }}
+run target *args: (check-target target)
+    {{ cargo_stable }} run --package {{ target }} --bin {{ target }} --locked --no-default-features -- {{ args }}
 
 warn target $RUST_LOG="warn":
     just run {{ target }}
@@ -121,23 +157,39 @@ trace target $RUST_LOG="trace":
     just run {{ target }}
 
 deadlock $RUST_LOG="trace":
-    cargo +stable run --bin komorebi --locked --no-default-features --features deadlock_detection
+    {{ cargo_stable }} run --package komorebi --bin komorebi --locked --no-default-features --features deadlock_detection
 
 # the JSON Schemas of the platform this runs on, from the Rust types, into schemas/<platform>/
-jsonschema:
-    cargo run --package komorebic --locked -- static-config-schema > schemas/{{ platform }}/schema.json
-    cargo run --package komorebic --locked -- application-specific-configuration-schema > schemas/{{ platform }}/schema.asc.json
-    {{ if platform == "linux" { "true" } else { "cargo run --package komorebi-bar --locked -- --schema > schemas/" + platform + "/schema.bar.json" } }}
+jsonschema: && jsonschema-bar
+    {{ cargo_stable }} run --package komorebic --locked -- static-config-schema > schemas/{{ platform }}/schema.json
+    {{ cargo_stable }} run --package komorebic --locked -- application-specific-configuration-schema > schemas/{{ platform }}/schema.asc.json
+
+# Linux has no bar, so no schema of one
+[private]
+[linux]
+jsonschema-bar:
+
+[private]
+[macos]
+[windows]
+jsonschema-bar:
+    {{ cargo_stable }} run --package komorebi-bar --locked -- --schema > schemas/{{ platform }}/schema.bar.json
 
 # the help of every komorebic subcommand of the platform this runs on, one page each: docs/cli (Windows),
 # docs/linux/cli or docs/macos/cli
+[windows]
 docgen-local:
-    cargo run --package komorebic --locked -- docgen --output {{ if platform == "windows" { "docs/cli" } else { "docs/" + platform + "/cli" } }}
+    {{ cargo_stable }} run --package komorebic --locked -- docgen --output docs/cli
+
+[macos]
+[linux]
+docgen-local:
+    {{ cargo_stable }} run --package komorebic --locked -- docgen --output docs/{{ platform }}/cli
 
 # the reference pages of the Windows or macOS site, from the schemas and the command line
 docgen starlight:
     rm {{ starlight }}/src/data/cli/{{ platform }}/*.md
-    cargo run --package komorebic -- docgen --output {{ starlight }}/src/data/cli/{{ platform }}
+    {{ cargo_stable }} run --package komorebic -- docgen --output {{ starlight }}/src/data/cli/{{ platform }}
     schemars-docgen ./schemas/{{ platform }}/schema.json --output {{ starlight }}/src/content/docs/reference/komorebi-{{ platform }}.mdx --title "komorebi.json ({{ platform }})" --description "komorebi configuration schema reference for {{ platform }}"
     schemars-docgen ./schemas/{{ platform }}/schema.bar.json --output {{ starlight }}/src/content/docs/reference/bar-{{ platform }}.mdx --title "komorebi.bar.json ({{ platform }})" --description "komorebi-bar configuration schema reference for {{ platform }}"
 
@@ -155,25 +207,36 @@ nixgen-macos:
 
 version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "komorebi") | .version'`
 
-[unix]
-schemapub:
-    rm -rf komorebi-schema
-    mkdir -p komorebi-schema
-    cp schemas/{{ platform }}/schema.json komorebi-schema/komorebi.{{ version }}.schema.json
-    cp schemas/{{ platform }}/schema.bar.json komorebi-schema/komorebi.bar.{{ version }}.schema.json
+[macos]
+[linux]
+schemapub: schemapub-files
     npx wrangler pages deploy --project-name komorebi --branch main ./komorebi-schema
 
 [windows]
-schemapub:
-    rm -Force komorebi-schema
+schemapub: schemapub-files
+    npx wrangler pages deploy --project-name komorebi --branch main .\komorebi-schema
+
+[private]
+[unix]
+schemapub-files:
+    rm -rf komorebi-schema
+    mkdir -p komorebi-schema
+    cp schemas/{{ platform }}/schema.json komorebi-schema/komorebi.{{ version }}.schema.json
+    {{ if platform == "linux" { "true" } else { "cp schemas/" + platform + "/schema.bar.json komorebi-schema/komorebi.bar." + version + ".schema.json" } }}
+
+[private]
+[windows]
+schemapub-files:
+    if (Test-Path komorebi-schema) { Remove-Item -Recurse -Force komorebi-schema }
     mkdir -Force komorebi-schema
     cp schemas/windows/schema.json komorebi-schema/komorebi.{{ version }}.schema.json
     cp schemas/windows/schema.bar.json komorebi-schema/komorebi.bar.{{ version }}.schema.json
-    npx wrangler pages deploy --project-name komorebi --branch main .\komorebi-schema
 
+# udeps needs a nightly compiler: `cargo +nightly` outside nix, and inside it the cargo-udeps wrapper of the dev shell
+# puts one on its PATH. It checks the packages of this platform, so run it on each platform.
 depcheck:
     cargo outdated --depth 2
-    cargo +nightly udeps --quiet
+    {{ cargo_nightly }} udeps --quiet {{ packages }}
 
 deps:
     cargo update
