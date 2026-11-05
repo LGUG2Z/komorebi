@@ -140,8 +140,8 @@ Tiers (the `tier` in each suite's `default.nix`; CI runs `fast` on every pull re
 
 To run only some steps of a suite: `E2E_ONLY=stacks,monocle nix build --impure .#legacyPackages.x86_64-linux.vm.core-e2e -L`
 (a substring of the printed `module.function`; `KFDE_ONLY` is the old name).
-To record a run: `KOMOREBI_RECORDER=$(nix build ~/komorebi-recorder#komorebi-recorder --no-link --print-out-paths)
-nix build --impure .#legacyPackages.x86_64-linux.vm.core-lock -L` (the recorder's repository is private; `core-e2e` and
+To record a run: `KOMOREBI_RECORDER=$(nix build .#komorebi-recorder --no-link --print-out-paths)
+nix build --impure .#legacyPackages.x86_64-linux.vm.core-lock -L` (`core-e2e` and
 `core-lock` keep `recording-NAME.tar.gz`). Details, the library and how to add a suite:
 [docs/linux/dev/vm-tests.md](../linux/dev/vm-tests.md). The suites use a daemon
 built once with the constant stamp, so a new commit does not rebuild it.

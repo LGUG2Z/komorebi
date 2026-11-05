@@ -42,7 +42,7 @@ The rest of the crate never names a system API. [`platform`](../komorebi-recorde
 small modules (`clock`, `shell` and, as the recorder grows, `capture`, `power`, `session`, `trace`, `process`, `apps`
 and `window`), and `cfg` selects the directory behind it: `platform/macos/`, `platform/win/` or `platform/unsupported.rs`.
 Each host provides the same names with the same signatures. A missing or mismatched function is a compile error on the
-host being built, and on no other, so the Windows host is built from a Mac by `just check-windows` and by CI, and
+host being built, and on no other, so the Windows host is built from a Mac by `nix build .#checks.x86_64-linux.windows-clippy` and by CI, and
 `unsupported` (which exists so that the commands that only read a session directory work on a Linux agent box) is built
 only on a third OS.
 
@@ -103,7 +103,7 @@ schema, warnings, whether it was truncated and a cursor, and failures exit with 
 
 | Rule | Enforced by |
 |---|---|
-| Every host provides the same functions with the same signatures | the compiler, for the host being built; `just check-windows` and CI build the Windows host from a Mac; nothing builds `unsupported` |
+| Every host provides the same functions with the same signatures | the compiler, for the host being built; `nix build .#checks.x86_64-linux.windows-clippy` and CI build the Windows host from a Mac; nothing builds `unsupported` |
 | A timestamp in a session is on the master clock | convention, and the tests that place records at known times: the type is a plain `u64` |
 | An implementor of `Rules` answers every question that has no default | the type system: a missing method is E0046, proved by a `compile_fail` example on `Rules` |
 | Code that reads komorebi's output asks `Rules` and does not match on `Flavor` | convention only |

@@ -46,16 +46,17 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ## Development environment
 
-The project is built with Nix. `nix develop` (or direnv, whose `.envrc` is `use flake`) provides the
-Rust toolchain with nightly `rustfmt`, `cargo-deny`, `cargo-nextest`, `ffmpeg`, `jq`, `just`,
-`resvg` and `ripgrep`, and sets `KOMOREBI_MAC_SRC` and `KOMOREBI_WINDOWS_SRC` (with `_COMMIT`) to the komorebi
-sources pinned in `flake.lock`. The tests that read komorebi's source need them, so run `cargo` inside
-the shell.
+The recorder is built in the komorebi repository, with Nix. `nix develop` provides the Rust toolchain with
+nightly `rustfmt`, `cargo-deny`, `cargo-nextest`, `ffmpeg`, `jq`, `just`, `resvg` and `ripgrep`, and on Linux the
+GStreamer libraries. The recorder indexes the log statements of the komorebi source around it
+(`komorebi-recorder/build.rs`), so the tests that read it need no setting: `KOMOREBI_SRC` and
+`KOMOREBI_COMMIT` are only for a build outside a checkout (nix).
 
-The Windows code is type-checked from a Mac with `nix develop .#windows`, whose target is
-`x86_64-pc-windows-msvc`. Nothing there runs it: a change to a `cfg(windows)` line is first run by the
-`windows` job in CI.
-On a Windows machine, the steps in [docs/dev/windows-checkpoints.md](docs/dev/windows-checkpoints.md)
+The default `nix develop` shell cross-compiles for `x86_64-pc-windows-msvc`, which type-checks the Windows code
+from a Mac or Linux machine (`just` drops that target for the native recipes). `nix develop .#native` leaves the
+target out. Nothing there runs the Windows code: a change to a `cfg(windows)` line is first run by the
+Windows workflow in CI.
+On a Windows machine, the steps in [windows-checkpoints.md](dev/windows-checkpoints.md)
 say what to run and what to look for.
 
 The icon is `komorebi-recorder/assets/watermelon.svg`. After changing it, run `just icon` to render the PNG that
@@ -66,11 +67,13 @@ the windows set and the ICO that Windows embeds, and commit the three together.
 Before pushing, run
 
 ```sh
-just check
+just fmt
+just lint
+nix build -L .#checkSets.recorder-lint .#checkSets.recorder-test .#checkSets.fmt .#checkSets.deny
 ```
 
-which runs formatting, clippy and the tests for macOS, clippy for Windows, rustdoc with its warnings as
-errors for both hosts, and `cargo deny`. `just --list` shows the other recipes.
+which formats, runs the macros the codebase does not allow, and runs clippy and the tests of the recorder, the
+format checks and `cargo deny` of the workspace. `just --list` shows the other recipes.
 
 ## Commits
 

@@ -402,11 +402,11 @@ the fake and fails on KDE has found a bug in the fake, the library or the daemon
 
 ## Recording a run with komorebi-recorder
 
-`komorebi-recorder`'s repository is private, so it is not an input of the flake. A run that wants
-it builds it elsewhere and passes the store path, evaluating with `--impure`:
+`komorebi-recorder` is a package of this flake (`.#komorebi-recorder`), but the suites do not depend on it:
+a run that wants it builds it and passes the store path, evaluating with `--impure`:
 
 ```sh
-KOMOREBI_RECORDER=$(nix build ~/komorebi-recorder#komorebi-recorder --no-link --print-out-paths) \
+KOMOREBI_RECORDER=$(nix build .#komorebi-recorder --no-link --print-out-paths) \
   nix build --impure .#legacyPackages.x86_64-linux.vm.core-lock -L
 ```
 

@@ -20,9 +20,9 @@ ls result-windows/bin
 ```
 
 Copy `komorebi-recorder.exe` to the Windows machine. The `windows` job of CI builds the same executables natively and
-uploads them, with the installer, as artifacts of the run. To check that the Windows code still type-checks
-without building it: `nix flake check` (the `komorebi-recorder-windows-clippy` check) or
-`nix develop .#windows --command cargo clippy --all-targets`.
+uploads them, with the komorebi installer that carries them, as artifacts of the run. To check that the Windows
+code still type-checks without building it: `nix build .#checks.x86_64-linux.windows-clippy` or, in the default
+`nix develop` shell, `cargo clippy -p komorebi-recorder --all-targets`.
 
 ## W0: what komorebi for Windows really sends
 

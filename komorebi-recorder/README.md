@@ -24,16 +24,17 @@ SmartScreen and Defender may warn about them.
 
 ### From source
 
-The repository is a Nix flake. In a checkout:
+The recorder is a crate of the komorebi repository, and ships in the komorebi release, installer included. In a
+checkout of the repository:
 
 ```sh
-nix develop                  # the toolchain and the pinned komorebi sources
+nix develop                  # the toolchain, ffmpeg and the rest
 cargo install --path komorebi-recorder --locked
 ```
 
-`nix build` makes the macOS binary in `./result/bin`, and `nix build .#komorebi-recorder-windows` cross-compiles
-`komorebi-recorder.exe` and, with it, `komorebi-recorder-gui.exe` from a Mac. `nix run github:LGUG2Z/komorebi-recorder`
-runs the latest commit without a checkout.
+`nix build .#komorebi-recorder` makes the macOS or Linux binary, and `nix build .#windows-komorebi-recorder`
+cross-compiles `komorebi-recorder.exe` (and `.#windows-komorebi-recorder-gui` the viewer) from either.
+`nix run github:LGUG2Z/komorebi#komorebi-recorder` runs the latest commit without a checkout.
 
 ## Record a bug
 
@@ -106,9 +107,11 @@ rewritten after they are written.
 
 ## Checks
 
-`just check` runs formatting, clippy and the tests for macOS, clippy for Windows (the Windows code is type-checked
-from a Mac, not run), rustdoc with its warnings as errors for both hosts, and `cargo deny`. It needs `nix develop`.
-CI runs the same checks, builds both platforms and, for Windows, the installer.
+The recorder is checked with the rest of the repository. `nix build .#checkSets.recorder-lint` and
+`.#checkSets.recorder-test` are its clippy and tests on this host, and the `windows-*` checks type-check its
+Windows code from a Mac or Linux machine (`windows-clippy`; the Windows tests only compile there, and run in the
+guest). CI runs the same sets, and the Windows workflow builds the executables and the komorebi installer that
+carries them.
 
 ## Documentation
 

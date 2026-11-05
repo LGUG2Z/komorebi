@@ -196,5 +196,5 @@ desktop, so an analysis of a KDE session says so, as it does for Windows.
   prints nowhere, and start komorebi with `--log-level debug` and `RUST_LOG=komorebi=debug`.
 - **Investigating on any host.** A session is read the same everywhere. `ffmpeg` is needed only for `frames` and
   `selftest`.
-- **Changing code that has a host-specific part.** Provide the function on every host, and run `just check-windows` from a
+- **Changing code that has a host-specific part.** Provide the function on every host, and run `nix build .#checks.x86_64-linux.windows-clippy` from a
   Mac: it type-checks every `cfg(windows)` line, tests included.
