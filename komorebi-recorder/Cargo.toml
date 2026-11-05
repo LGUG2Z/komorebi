@@ -1,0 +1,160 @@
+[package]
+name = "komorebi-recorder"
+version.workspace = true
+description = "Synchronized screen, log and trace capture for komorebi bug reproduction"
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+ab_glyph = "0.2"
+chrono = { workspace = true }
+clap = { workspace = true }
+color-eyre = { workspace = true }
+crossbeam-channel = { workspace = true }
+ctrlc = { version = "3", features = ["termination"] }
+dirs = { workspace = true }
+dunce = { workspace = true }
+eframe = { workspace = true }
+epaint_default_fonts = "0.33"
+parking_lot = { workspace = true }
+png = "0.18"
+regex = "1"
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sysinfo = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+dispatch2 = "0.3"
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-av-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "objc2-core-media",
+  "AVAsset",
+  "AVAssetReader",
+  "AVAssetReaderOutput",
+  "AVAssetTrack",
+  "AVAssetWriter",
+  "AVAssetWriterInput",
+  "objc2-core-foundation",
+  "AVMediaFormat",
+  "AVVideoSettings",
+] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "CFArray",
+  "CFDictionary",
+  "CFNumber",
+  "CFString",
+  "CFCGTypes",
+] }
+objc2-core-graphics = { version = "0.3", default-features = false, features = [
+  "std",
+  "libc",
+  "CGDirectDisplay",
+  "CGDisplayConfiguration",
+  "CGError",
+  "CGGeometry",
+  "CGRemoteOperation",
+  "CGSession",
+  "CGWindow",
+] }
+objc2-core-media = { version = "0.3", default-features = false, features = [
+  "std",
+  "objc2-core-video",
+  "CMBase",
+  "CMSampleBuffer",
+  "CMSync",
+  "CMTime",
+  "CMTimeRange",
+] }
+objc2-core-video = { version = "0.3", default-features = false, features = [
+  "std",
+  "CVBase",
+  "CVBuffer",
+  "CVImageBuffer",
+  "CVPixelBuffer",
+  "CVReturn",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSArray",
+  "NSDictionary",
+  "NSEnumerator",
+  "NSError",
+  "NSObject",
+  "NSString",
+  "NSURL",
+  "NSValue",
+] }
+objc2-screen-capture-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "dispatch2",
+  "libc",
+  "objc2-core-foundation",
+  "objc2-core-graphics",
+  "objc2-core-media",
+  "SCShareableContent",
+  "SCStream",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+uds_windows = "1"
+windows = { version = "0.62", features = [
+  "Foundation",
+  "Graphics",
+  "Graphics_Capture",
+  "Graphics_DirectX",
+  "Graphics_DirectX_Direct3D11",
+  "Wdk_System_SystemServices",
+  "Win32_Foundation",
+  "Win32_Graphics_Direct3D",
+  "Win32_Graphics_Direct3D11",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Dxgi",
+  "Win32_Graphics_Dxgi_Common",
+  "Win32_Graphics_Gdi",
+  "Win32_Media",
+  "Win32_Media_MediaFoundation",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_EventLog",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Performance",
+  "Win32_System_Power",
+  "Win32_System_RemoteDesktop",
+  "Win32_System_StationsAndDesktops",
+  "Win32_System_SystemInformation",
+  "Win32_System_SystemServices",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_System_WinRT",
+  "Win32_System_WinRT_Direct3D11",
+  "Win32_System_WinRT_Graphics_Capture",
+  "Win32_System_WindowsProgramming",
+  "Win32_UI_Accessibility",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gstreamer = "0.25.4"
+gstreamer-app = "0.25.2"
+gstreamer-video = "0.25.4"
+wayland-client = "0.31.15"
+wayland-protocols = { version = "0.32.13", features = ["client", "unstable"] }
+wayland-protocols-plasma = { version = "0.3.12", features = ["client"] }
+zbus = "5"
+
+[build-dependencies]
+embed-resource = "3"
+proc-macro2 = { version = "1", features = ["span-locations"] }
+syn = { version = "2", features = ["full", "visit"] }

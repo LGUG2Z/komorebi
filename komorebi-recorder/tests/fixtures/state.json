@@ -1,0 +1,1133 @@
+{
+  "monitors": {
+    "elements": [
+      {
+        "id": 1,
+        "device": "Built-in Retina Display",
+        "serial_number_id": "4251086178",
+        "workspaces": {
+          "elements": [
+            {
+              "name": "mbp",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "-x9yvVVoVJE2oIpDBUt9E",
+                    "locked": false,
+                    "windows": {
+                      "elements": [],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 0
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": null,
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 5130,
+                  "top": 42,
+                  "right": 1492,
+                  "bottom": 930
+                }
+              ],
+              "resize_dimensions": [
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            }
+          ],
+          "focused": 0
+        },
+        "size": {
+          "left": 5120,
+          "top": 0,
+          "right": 1512,
+          "bottom": 982
+        },
+        "work_area_offset": null,
+        "work_area_size": {
+          "left": 5120,
+          "top": 32,
+          "right": 1512,
+          "bottom": 950
+        },
+        "window_based_work_area_offset": null,
+        "window_based_work_area_offset_limit": 1,
+        "container_padding": null,
+        "workspace_padding": null,
+        "last_focused_workspace": 0,
+        "wallpaper": null,
+        "floating_layer_behaviour": null,
+        "window_hiding_position": "BottomLeft"
+      },
+      {
+        "id": 3,
+        "device": "49M2C8900",
+        "serial_number_id": "AU42516000125",
+        "workspaces": {
+          "elements": [
+            {
+              "name": "one",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "zRQ8xHXD_hb3mVpw392vK",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 59,
+                          "rect": {
+                            "left": -1685,
+                            "top": 1408,
+                            "right": 1686,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 59",
+                            "exe": "Slack",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Slack.app/Contents/Resources/electron.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "DCzW4Jkmw80_tv5tE_uqC",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 61,
+                          "rect": {
+                            "left": -1685,
+                            "top": 1399,
+                            "right": 1686,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 61",
+                            "exe": "Brave",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Brave Browser.app/Contents/Resources/app.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "HU8F1rZmCJCaxItkD_tU4",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 8310,
+                          "rect": {
+                            "left": -1685,
+                            "top": 1399,
+                            "right": 1686,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 8310",
+                            "exe": "Brave",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Brave Browser.app/Contents/Resources/app.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 1
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 1686,
+                  "bottom": 1420
+                },
+                {
+                  "left": 1716,
+                  "top": 10,
+                  "right": 1686,
+                  "bottom": 1420
+                },
+                {
+                  "left": 3422,
+                  "top": 10,
+                  "right": 1686,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [
+                {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                },
+                null,
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "two",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "WvGMKLnBEWThdRaQfHYax",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 107,
+                          "rect": {
+                            "left": -3789,
+                            "top": 1412,
+                            "right": 3790,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 107",
+                            "exe": "IntelliJ IDEA",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/IntelliJ IDEA.app/Contents/Resources/idea.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "YzldHyefzbcQsv7NVo8FD",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 3395,
+                          "rect": {
+                            "left": -1289,
+                            "top": 1412,
+                            "right": 1290,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 3395",
+                            "exe": "WezTerm",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/WezTerm.app/Contents/Resources/terminal.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 1
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 3790,
+                  "bottom": 1420
+                },
+                {
+                  "left": 3820,
+                  "top": 10,
+                  "right": 1290,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [
+                {
+                  "left": 0,
+                  "top": 0,
+                  "right": 2500,
+                  "bottom": 0
+                },
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "three",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "NaByxkkLha1tEdjH4bNCG",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 6569,
+                          "rect": {
+                            "left": -2589,
+                            "top": 1412,
+                            "right": 2590,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 6569",
+                            "exe": "IntelliJ IDEA",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/IntelliJ IDEA.app/Contents/Resources/idea.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "LO7PIzCMGoCIUuWVA4Ese",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 7371,
+                          "rect": {
+                            "left": -2489,
+                            "top": 1412,
+                            "right": 2490,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 7371",
+                            "exe": "WezTerm",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/WezTerm.app/Contents/Resources/terminal.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 1
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 2590,
+                  "bottom": 1420
+                },
+                {
+                  "left": 2620,
+                  "top": 10,
+                  "right": 2490,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [
+                {
+                  "left": 0,
+                  "top": 0,
+                  "right": 2500,
+                  "bottom": 0
+                },
+                {
+                  "left": -2400,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                }
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "four",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "vw3zZFkT1zlRXRKQzg3JV",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 7565,
+                          "rect": {
+                            "left": -3589,
+                            "top": 1412,
+                            "right": 3590,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 7565",
+                            "exe": "IntelliJ IDEA",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/IntelliJ IDEA.app/Contents/Resources/idea.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "V_g36DRvnt2XD8ZqQuKmY",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 7584,
+                          "rect": {
+                            "left": -1539,
+                            "top": 1412,
+                            "right": 1540,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 7584",
+                            "exe": "WezTerm",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/WezTerm.app/Contents/Resources/terminal.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 0
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 3590,
+                  "bottom": 1420
+                },
+                {
+                  "left": 3620,
+                  "top": 10,
+                  "right": 1490,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [
+                {
+                  "left": 0,
+                  "top": 0,
+                  "right": 2100,
+                  "bottom": 0
+                },
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "five",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "9n4k9T5BXmVa_JdEOkPEA",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 66,
+                          "rect": {
+                            "left": -2539,
+                            "top": 1412,
+                            "right": 2540,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 66",
+                            "exe": "Linear",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Linear.app/Contents/Resources/icon.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "K3sDjCvzHtuNjzyEkCa2X",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 60,
+                          "rect": {
+                            "left": -2539,
+                            "top": 1412,
+                            "right": 2540,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 60",
+                            "exe": "Notion",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Notion.app/Contents/Resources/electron.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 1
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 2540,
+                  "bottom": 1420
+                },
+                {
+                  "left": 2570,
+                  "top": 10,
+                  "right": 2540,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [
+                null,
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "six",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "zXQTPvVKjTgGSOxH1tCLa",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 1723,
+                          "rect": {
+                            "left": -2539,
+                            "top": 1402,
+                            "right": 2540,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 1723",
+                            "exe": "Whale",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Whale.app/Contents/Resources/Whale.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "9WBHU1hS__FeN5BPSDkmg",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 69,
+                          "rect": {
+                            "left": -2539,
+                            "top": 1376,
+                            "right": 2540,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 69",
+                            "exe": "Spotify",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Spotify.app/Contents/Resources/AppIcon.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 1
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 2540,
+                  "bottom": 1420
+                },
+                {
+                  "left": 2570,
+                  "top": 10,
+                  "right": 2540,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [
+                null,
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "seven",
+              "containers": {
+                "elements": [],
+                "focused": 0
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [],
+              "resize_dimensions": [],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "eight",
+              "containers": {
+                "elements": [],
+                "focused": 0
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 5100,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "nine",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "ndpjPdHTsFxrikXEdPx9y",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 53,
+                          "rect": {
+                            "left": -2539,
+                            "top": 1388,
+                            "right": 2540,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 53",
+                            "exe": "ChatGPT",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/ChatGPT.app/Contents/Resources/AppIcon.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "ho7cSIZhExt0O6SLCh99H",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 6293,
+                          "rect": {
+                            "left": -2539,
+                            "top": 1412,
+                            "right": 2540,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 6293",
+                            "exe": "Claude",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Claude.app/Contents/Resources/electron.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 1
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 2540,
+                  "bottom": 1420
+                },
+                {
+                  "left": 2570,
+                  "top": 10,
+                  "right": 2540,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [
+                null,
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            },
+            {
+              "name": "ten",
+              "containers": {
+                "elements": [
+                  {
+                    "id": "65sIQSKd25pTgYg4uKY5B",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 72,
+                          "rect": {
+                            "left": 10,
+                            "top": 10,
+                            "right": 1686,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 72",
+                            "exe": "Beeper",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Beeper Desktop.app/Contents/Resources/icon.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "2ohZle6epBNEhZ66Qo_fS",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 356,
+                          "rect": {
+                            "left": 1716,
+                            "top": 10,
+                            "right": 1686,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 356",
+                            "exe": "Brave Beta",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/Brave Browser Beta.app/Contents/Resources/app.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  },
+                  {
+                    "id": "wufgNN9bZ3N144Epty2vZ",
+                    "locked": false,
+                    "windows": {
+                      "elements": [
+                        {
+                          "id": 8550,
+                          "rect": {
+                            "left": 3422,
+                            "top": 10,
+                            "right": 1686,
+                            "bottom": 1420
+                          },
+                          "details": {
+                            "title": "window 8550",
+                            "exe": "WezTerm",
+                            "role": "AXWindow",
+                            "subrole": "AXStandardWindow",
+                            "icon_path": "/Applications/WezTerm.app/Contents/Resources/terminal.icns"
+                          }
+                        }
+                      ],
+                      "focused": 0
+                    }
+                  }
+                ],
+                "focused": 2
+              },
+              "monocle_container": null,
+              "maximized_window": null,
+              "floating_windows": {
+                "elements": [],
+                "focused": 0
+              },
+              "layout": {
+                "Default": "Columns"
+              },
+              "layout_options": {
+                "scrolling": null,
+                "grid": {
+                  "rows": 2
+                }
+              },
+              "layout_rules": [],
+              "layout_flip": null,
+              "workspace_padding": null,
+              "container_padding": null,
+              "latest_layout": [
+                {
+                  "left": 10,
+                  "top": 10,
+                  "right": 1686,
+                  "bottom": 1420
+                },
+                {
+                  "left": 1716,
+                  "top": 10,
+                  "right": 1686,
+                  "bottom": 1420
+                },
+                {
+                  "left": 3422,
+                  "top": 10,
+                  "right": 1686,
+                  "bottom": 1420
+                }
+              ],
+              "resize_dimensions": [
+                null,
+                null,
+                null
+              ],
+              "tile": true,
+              "work_area_offset": null,
+              "apply_window_based_work_area_offset": true,
+              "window_container_behaviour": null,
+              "window_container_behaviour_rules": null,
+              "float_override": null,
+              "layer": "Tiling",
+              "floating_layer_behaviour": null,
+              "wallpaper": null
+            }
+          ],
+          "focused": 9
+        },
+        "size": {
+          "left": 0,
+          "top": 0,
+          "right": 5120,
+          "bottom": 1440
+        },
+        "work_area_offset": null,
+        "work_area_size": {
+          "left": 0,
+          "top": 0,
+          "right": 5120,
+          "bottom": 1440
+        },
+        "window_based_work_area_offset": null,
+        "window_based_work_area_offset_limit": 1,
+        "container_padding": null,
+        "workspace_padding": null,
+        "last_focused_workspace": 2,
+        "wallpaper": null,
+        "floating_layer_behaviour": null,
+        "window_hiding_position": "BottomLeft"
+      }
+    ],
+    "focused": 1
+  },
+  "monitor_usr_idx_map": {
+    "1": 1,
+    "0": 0
+  },
+  "is_paused": false,
+  "resize_delta": 100,
+  "new_window_behaviour": "Create",
+  "float_override": false,
+  "cross_monitor_move_behaviour": "Insert",
+  "unmanaged_window_operation_behaviour": "Op",
+  "work_area_offset": null,
+  "mouse_follows_focus": true
+}

@@ -1,0 +1,81 @@
+# Contributing to komorebi-recorder
+
+The project is a collection of contributions from both the project leaders and
+community members. There are many ways to contribute, this can include content
+in the project repositories, as well as contributing in public and private
+conversation, assisting users, writing blog posts, and many other ways.
+
+## How contributions are made
+
+Contributions to the project primarily happen in the project source
+repositories, but may also occur in other places, such as discussion forums and
+public and private discourse.
+
+## Contributing content to the Project
+
+In order for the project leaders to manage sustained progress toward the
+project goals and maintain project velocity, focus and quality, the project may
+adjust the license terms over time.
+
+Content contributed to the project must therefore be provided under
+sufficiently liberal terms to allow these operations to proceed unimpeded. As
+such contributions are accepted with the following understanding:
+
+* Contributed content is licensed under the terms of the 0-BSD license
+* Contributors accept the terms of the project license at the time of
+  contribution
+
+By making a contribution, you accept both the current project license terms,
+and that all contributions that you have made are provided under the terms of
+the 0-BSD license.
+
+## Zero-Clause BSD
+
+```
+Permission to use, copy, modify, and/or distribute this software for  
+any purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED “AS IS” AND THE AUTHOR DISCLAIMS ALL  
+WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES  
+OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE  
+FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY  
+DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN  
+AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT  
+OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+```
+
+## Development environment
+
+The project is built with Nix. `nix develop` (or direnv, whose `.envrc` is `use flake`) provides the
+Rust toolchain with nightly `rustfmt`, `cargo-deny`, `cargo-nextest`, `ffmpeg`, `jq`, `just`,
+`resvg` and `ripgrep`, and sets `KOMOREBI_MAC_SRC` and `KOMOREBI_WINDOWS_SRC` (with `_COMMIT`) to the komorebi
+sources pinned in `flake.lock`. The tests that read komorebi's source need them, so run `cargo` inside
+the shell.
+
+The Windows code is type-checked from a Mac with `nix develop .#windows`, whose target is
+`x86_64-pc-windows-msvc`. Nothing there runs it: a change to a `cfg(windows)` line is first run by the
+`windows` job in CI.
+On a Windows machine, the steps in [docs/dev/windows-checkpoints.md](docs/dev/windows-checkpoints.md)
+say what to run and what to look for.
+
+The icon is `komorebi-recorder/assets/watermelon.svg`. After changing it, run `just icon` to render the PNG that
+the windows set and the ICO that Windows embeds, and commit the three together.
+
+## Checks
+
+Before pushing, run
+
+```sh
+just check
+```
+
+which runs formatting, clippy and the tests for macOS, clippy for Windows, rustdoc with its warnings as
+errors for both hosts, and `cargo deny`. `just --list` shows the other recipes.
+
+## Commits
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), as the pull request
+template asks: the release notes are generated from them.
+
+A change that alters what the documentation says (the rustdoc, the README, `docs/`) updates the
+documentation in the same commit, so that the documentation never describes code that is not there.

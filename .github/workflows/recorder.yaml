@@ -1,0 +1,241 @@
+# Adapted from komorebi's windows workflow, with a macOS job added. One workflow builds both
+# platforms and one job publishes what they built.
+
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - "*"
+  push:
+    branches:
+      - master
+      - feature/*
+      - hotfix/*
+    tags:
+      - v*
+  schedule:
+    - cron: "30 0 * * 0" # Every Sunday at 00:30 UTC
+  workflow_dispatch:
+
+jobs:
+  cargo-deny:
+    if: github.repository == 'LGUG2Z/komorebi-recorder'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  # `nix flake check` includes the Windows clippy check, which type-checks every `cfg(windows)` line
+  macos:
+    if: github.repository == 'LGUG2Z/komorebi-recorder'
+    runs-on: self-hosted
+    permissions: write-all
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - run: nix flake check
+      - run: nix build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: komorebi-recorder-aarch64-apple-darwin-${{ github.sha }}
+          path: result/bin/komorebi-recorder
+          retention-days: 14
+
+  # the Linux host (KDE Plasma): `nix flake check` builds it, clippy and the tests included (those of
+  # the screen need a Plasma session and are not among them), and type-checks the Windows code too
+  linux:
+    if: github.repository == 'LGUG2Z/komorebi-recorder'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: nix flake check
+      - run: nix build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: komorebi-recorder-x86_64-unknown-linux-gnu-${{ github.sha }}
+          path: result/bin/
+          retention-days: 14
+
+  windows:
+    if: github.repository == 'LGUG2Z/komorebi-recorder'
+    strategy:
+      fail-fast: true
+      matrix:
+        platform:
+          - os-name: Windows-x86_64
+            runs-on: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os-name: Windows-aarch64
+            runs-on: windows-latest
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.platform.runs-on }}
+    permissions: write-all
+    env:
+      RUSTFLAGS: -Ctarget-feature=+crt-static -Dwarnings
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      # There is no nix here, so the komorebi sources the recorder indexes (and its tests read) are
+      # checked out at the revisions flake.lock pins, which stays the single place they are pinned
+      - name: Check out the komorebi sources at the revisions flake.lock pins
+        shell: bash
+        run: |
+          for input in komorebi-mac:LGUG2Z/komorebi-for-mac komorebi-windows:LGUG2Z/komorebi; do
+            name="${input%%:*}"
+            repository="${input#*:}"
+            rev="$(jq -r ".nodes[\"$name\"].locked.rev" flake.lock)"
+            directory="$RUNNER_TEMP/$name"
+            git init --quiet "$directory"
+            git -C "$directory" fetch --quiet --depth 100 "https://github.com/$repository" "$rev"
+            git -C "$directory" checkout --quiet FETCH_HEAD
+            variable="$(echo "$name" | sed -e 's/^komorebi-mac$/KOMOREBI_MAC/' -e 's/^komorebi-windows$/KOMOREBI_WINDOWS/')"
+            echo "${variable}_SRC=$(cygpath -m "$directory")" >> "$GITHUB_ENV"
+            echo "${variable}_COMMIT=$rev" >> "$GITHUB_ENV"
+          done
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup component add --toolchain stable-x86_64-pc-windows-msvc clippy
+      - run: rustup toolchain install nightly --allow-downgrade -c rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          cache-all-crates: "true"
+          key: ${{ matrix.platform.target }}
+      # the checks run on the x86_64 host, once
+      - if: matrix.platform.target == 'x86_64-pc-windows-msvc'
+        run: cargo +nightly fmt --check
+      - if: matrix.platform.target == 'x86_64-pc-windows-msvc'
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # Informational until it has been seen green on Windows: the tests were written on a Mac and
+      # nothing has run them here. Make it blocking by removing `continue-on-error`.
+      - if: matrix.platform.target == 'x86_64-pc-windows-msvc'
+        run: cargo test --workspace --locked
+        continue-on-error: true
+      - uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: "build"
+          target: ${{ matrix.platform.target }}
+          args: "--locked --release"
+      - shell: pwsh
+        run: |
+          cargo install cargo-wix
+          cargo wix --no-build -p komorebi-recorder --nocapture -I .\wix\main.wxs --target ${{ matrix.platform.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: komorebi-recorder-${{ matrix.platform.target }}-${{ github.sha }}
+          path: |
+            target/${{ matrix.platform.target }}/release/*.exe
+            target/${{ matrix.platform.target }}/release/*.pdb
+            target/wix/komorebi-recorder-*.msi
+          retention-days: 14
+
+  # Packages what the two builds made and publishes it. What kind of publication depends on the
+  # event: a push of a `v*` tag releases; a scheduled or manual run on master replaces the rolling
+  # `nightly` prerelease; any other push to master makes a draft release to look at.
+  publish:
+    if: github.repository == 'LGUG2Z/komorebi-recorder' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [macos, windows]
+    runs-on: self-hosted
+    permissions: write-all
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Decide what is being published
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "MODE=release" >> "$GITHUB_ENV"
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          elif [[ "$GITHUB_EVENT_NAME" == schedule || "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            echo "MODE=nightly" >> "$GITHUB_ENV"
+            echo "VERSION=nightly" >> "$GITHUB_ENV"
+          else
+            echo "MODE=draft" >> "$GITHUB_ENV"
+            echo "VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/download-artifact@v8
+      - name: Package
+        shell: bash
+        run: |
+          mkdir dist
+          # artifacts do not keep the executable bit
+          chmod +x "komorebi-recorder-aarch64-apple-darwin-${GITHUB_SHA}/komorebi-recorder"
+          zip -j "dist/komorebi-recorder-${VERSION}-aarch64-apple-darwin.zip" \
+            "komorebi-recorder-aarch64-apple-darwin-${GITHUB_SHA}/komorebi-recorder"
+          for triple in x86_64-pc-windows-msvc aarch64-pc-windows-msvc; do
+            arch="${triple%%-*}"
+            zip -j "dist/komorebi-recorder-${VERSION}-${triple}.zip" \
+              "komorebi-recorder-${triple}-${GITHUB_SHA}/${triple}/release/"*.exe
+            cp "komorebi-recorder-${triple}-${GITHUB_SHA}/wix/"*"-${arch}.msi" \
+              "dist/komorebi-recorder-${VERSION}-${arch}.msi"
+          done
+          (cd dist && shasum -a 256 -- * > checksums.txt)
+      - name: Write the release notes
+        shell: bash
+        run: |
+          if ! type kokai >/dev/null; then cargo install --locked kokai --force; fi
+          case "$MODE" in
+            nightly)
+              git tag -d nightly || true
+              git tag nightly
+              ref=nightly ;;
+            draft) ref="$GITHUB_REF_NAME" ;;
+            release) ref="$GITHUB_REF_NAME" ;;
+          esac
+          kokai release --no-emoji --add-links github:commits,issues --ref "$ref" > "$RUNNER_TEMP/release-notes.md"
+      - name: Publish
+        shell: bash
+        run: |
+          case "$MODE" in
+            nightly)
+              gh release delete nightly --yes || true
+              git push origin :nightly || true
+              gh release create nightly \
+                --target "$GITHUB_SHA" \
+                --prerelease \
+                --title "komorebi-recorder nightly (${GITHUB_SHA})" \
+                --notes-file "$RUNNER_TEMP/release-notes.md" \
+                dist/* ;;
+            draft)
+              # a draft is not found by its tag, so the previous one is found in the list
+              gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+                --jq '.[] | select(.draft and .tag_name == "draft") | .id' |
+                while read -r id; do gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}"; done
+              gh release create draft \
+                --draft \
+                --target "$GITHUB_SHA" \
+                --title "komorebi-recorder ${VERSION} (draft, ${GITHUB_SHA})" \
+                --notes-file "$RUNNER_TEMP/release-notes.md" \
+                dist/* ;;
+            release)
+              gh release create "$GITHUB_REF_NAME" \
+                --verify-tag \
+                --title "komorebi-recorder ${VERSION}" \
+                --notes-file "$RUNNER_TEMP/release-notes.md" \
+                dist/* ;;
+          esac
+
+  winget:
+    if: github.repository == 'LGUG2Z/komorebi-recorder' && startsWith(github.ref, 'refs/tags/v')
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vedantmgoyal2009/winget-releaser@main
+        with:
+          identifier: LGUG2Z.komorebi-recorder
+          token: ${{ secrets.WINGET_TOKEN }}

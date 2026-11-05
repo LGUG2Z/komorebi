@@ -1,0 +1,55 @@
+2026-10-26T03:17:17.188982Z  INFO process_event:focus_container{[3midx[0m[2m=[0m0}: komorebi::workspace: focusing container
+2026-10-26T03:17:17.214014Z  INFO process_event: komorebi::process_event: processing event: FocusChange for process 20934 with notification AXApplicationActivated
+2026-10-26T03:17:17.216855Z  INFO process_event:focus_window{[3midx[0m[2m=[0m0}: komorebi::container: focusing window
+2026-10-26T03:17:17.216865Z  INFO process_event:focus_container{[3midx[0m[2m=[0m0}: komorebi::workspace: focusing container
+2026-10-26T03:37:19.703632Z  INFO process_event: komorebi::process_event: processing event: FocusChange for process 681 with notification AXApplicationActivated
+2026-10-26T03:37:19.781106Z ERROR process_event:update_focused_workspace{[3mfollow_focus[0m[2m=[0mtrue [3mtrigger_focus[0m[2m=[0mfalse}:update_focused_workspace:window_rect: komorebi::macos_api: failed to get window position: AXError::InvalidUIElement
+2026-10-26T03:37:19.783788Z  WARN process_event:update_focused_workspace{[3mfollow_focus[0m[2m=[0mtrue [3mtrigger_focus[0m[2m=[0mfalse}:update_focused_workspace: komorebi::workspace: failed to set window position: AXError::InvalidUIElement
+2026-10-26T03:37:19.784070Z ERROR process_event:update_focused_workspace{[3mfollow_focus[0m[2m=[0mtrue [3mtrigger_focus[0m[2m=[0mfalse}:update_focused_workspace:window_rect: komorebi::macos_api: failed to get window position: AXError::InvalidUIElement
+2026-10-26T03:37:19.784980Z  WARN process_event:update_focused_workspace{[3mfollow_focus[0m[2m=[0mtrue [3mtrigger_focus[0m[2m=[0mfalse}:update_focused_workspace: komorebi::workspace: failed to set window position: AXError::InvalidUIElement
+2026-10-26T03:37:19.785498Z ERROR process_event:update_focused_workspace{[3mfollow_focus[0m[2m=[0mtrue [3mtrigger_focus[0m[2m=[0mfalse}:update_focused_workspace:window_rect: komorebi::macos_api: failed to get window position: AXError::InvalidUIElement
+2026-10-26T03:37:19.786441Z  WARN process_event:update_focused_workspace{[3mfollow_focus[0m[2m=[0mtrue [3mtrigger_focus[0m[2m=[0mfalse}:update_focused_workspace: komorebi::workspace: failed to set window position: AXError::InvalidUIElement
+2026-10-26T03:37:19.814623Z  INFO process_event: komorebi::window: invalidating window observer for <NO TITLE FOUND>
+2026-10-26T03:37:19.815152Z  INFO process_event: komorebi::window: invalidating window observer for <NO TITLE FOUND>
+2026-10-26T03:37:19.815516Z  INFO process_event: komorebi::window: invalidating window observer for <NO TITLE FOUND>
+2026-10-26T03:37:19.815854Z  INFO process_event: komorebi::window: invalidating window observer for <NO TITLE FOUND>
+2026-10-26T03:37:19.816454Z  INFO process_event: komorebi::window: invalidating window observer for <NO TITLE FOUND>
+2026-10-26T03:37:19.817274Z  INFO process_event: komorebi::window: invalidating window observer for <NO TITLE FOUND>
+thread 'main' panicked at komorebi/src/example.rs:1:1:
+   0: backtrace frame
+2026-10-26T23:09:16.612287Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 1942 with notification AXWindowMoved
+2026-10-26T23:09:16.622615Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 72441 with notification AXWindowMoved
+2026-10-26T23:09:16.630261Z  INFO komorebi::border_manager: invalidating border observer
+2026-10-26T23:09:16.642847Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 79469 with notification AXWindowMoved
+2026-10-26T23:09:16.643436Z  INFO komorebi::border_manager: invalidating border observer
+2026-10-26T23:09:16.653486Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 96328 with notification AXWindowMoved
+2026-10-26T23:09:16.664319Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 47907 with notification AXWindowMoved
+2026-10-26T23:09:16.685293Z  INFO process_event: komorebi::process_event: processing event: FocusChange for process 79469 with notification NSWorkspaceDidActivateApplicationNotification
+2026-10-26T23:09:16.688494Z  INFO process_event:focus_window{[3midx[0m[2m=[0m0}: komorebi::container: focusing window
+2026-10-26T23:09:16.688514Z  INFO process_event:focus_container{[3midx[0m[2m=[0m0}: komorebi::workspace: focusing container
+2026-10-26T23:09:16.698081Z  INFO process_event: komorebi::process_event: processing event: FocusChange for process 79469 with notification AXApplicationActivated
+2026-10-26T23:09:16.700732Z  INFO process_event:focus_window{[3midx[0m[2m=[0m0}: komorebi::container: focusing window
+2026-10-26T23:09:16.700745Z  INFO process_event:focus_container{[3midx[0m[2m=[0m0}: komorebi::workspace: focusing container
+2026-10-26T23:09:17.733307Z  INFO process_command: komorebi::process_command: processing command: FocusWorkspaceNumber
+2026-10-26T23:09:17.733352Z  INFO process_command:focus_workspace{[3midx[0m[2m=[0m0}: komorebi::window_manager: focusing workspace
+2026-10-26T23:09:17.733359Z  INFO process_command:focus_workspace{[3midx[0m[2m=[0m0}:focus_workspace{[3midx[0m[2m=[0m0}: komorebi::monitor: focusing workspace
+2026-10-26T23:09:17.756767Z  INFO process_command:focus_workspace{[3midx[0m[2m=[0m0}:focus_window{[3midx[0m[2m=[0m0}: komorebi::container: focusing window
+2026-10-26T23:09:17.887836Z  INFO process_command: komorebi::process_command: processed command: FocusWorkspaceNumber
+2026-10-26T23:09:17.889498Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 79469 with notification AXWindowMoved
+2026-10-26T23:09:17.901710Z  INFO komorebi::border_manager: invalidating border observer
+2026-10-26T23:09:17.902705Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 96328 with notification AXWindowMoved
+2026-10-26T23:09:17.915306Z  INFO komorebi::border_manager: invalidating border observer
+2026-10-26T23:09:17.924521Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 47907 with notification AXWindowMoved
+2026-10-26T23:09:17.927939Z  INFO komorebi::border_manager: invalidating border observer
+2026-10-26T23:09:17.937888Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 20934 with notification AXWindowMoved
+2026-10-26T23:09:17.960135Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 1942 with notification AXWindowMoved
+2026-10-26T23:09:17.969092Z  INFO process_event: komorebi::process_event: processing event: MoveEnd for process 72441 with notification AXWindowMoved
+2026-10-26T23:09:18.001875Z  INFO process_event: komorebi::process_event: processing event: FocusChange for process 20934 with notification NSWorkspaceDidActivateApplicationNotification
+2026-10-26T23:09:18.008861Z  INFO process_event:focus_window{[3midx[0m[2m=[0m0}: komorebi::container: focusing window
+2026-10-26T23:09:18.008881Z  INFO process_event:focus_container{[3midx[0m[2m=[0m0}: komorebi::workspace: focusing container
+2026-10-26T23:09:18.018616Z  INFO process_event: komorebi::process_event: processing event: FocusChange for process 20934 with notification AXMainWindowChanged
+2026-10-26T23:09:18.026372Z  INFO process_event:focus_window{[3midx[0m[2m=[0m0}: komorebi::container: focusing window
+2026-10-26T23:09:18.026387Z  INFO process_event:focus_container{[3midx[0m[2m=[0m0}: komorebi::workspace: focusing container
+2026-10-26T23:09:18.048765Z  INFO process_event: komorebi::process_event: processing event: FocusChange for process 20934 with notification AXApplicationActivated
+2026-10-26T23:09:18.052082Z  INFO process_event:focus_window{[3midx[0m[2m=[0m0}: komorebi::container: focusing window
+2026-10-26T23:09:18.052094Z  INFO process_event:focus_container{[3midx[0m[2m=[0m0}: komorebi::workspace: focusing container
