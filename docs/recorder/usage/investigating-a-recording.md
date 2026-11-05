@@ -195,7 +195,7 @@ An agent's findings keep their annotation id (`a-3f9c1e02`).
 ```
 komorebi-recorder annotate <session> add --kind finding --about <bug id> \
   --text "the Show handler tiles the window onto the display that is going away" \
-  --ref event:12 --ref log:340 --ref code:komorebi/src/process_event.rs:512
+  --ref event:12 --ref log:340 --ref code:crates/komorebi-macos/src/process_event.rs:512
 ```
 
 A finding with no evidence is refused, and every reference is checked to exist: the event, the log line, the video time,

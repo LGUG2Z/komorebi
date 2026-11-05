@@ -8,8 +8,8 @@ exits with "cannot find ^enum SubCommand". It runs only against the pre-consolid
 named in COMPARE.md. Port it to the crates before using it again, or retire it with COMPARE.md.
 
 NOTE (layout): STALE in a second way, and NOT repaired on purpose. This file now lives in
-scripts/linux/ of the consolidated repository, and the three trees it compares are komorebi-windows/,
-komorebi-linux/ and komorebi-macos/ of that one repository (the old komorebi-for-kde/ and
+scripts/linux/ of the consolidated repository, and the three trees it compares are crates/komorebi-windows/,
+crates/komorebi-linux/ and crates/komorebi-macos/ of that one repository (the old komorebi-for-kde/ and
 komorebi-for-mac/ directories, the `komorebi/src` paths below, and the MONOREPO / HERE.parent
 logic describe the layout before the consolidation). `HERE` below is scripts/linux/, not a tree.
 

@@ -41,7 +41,7 @@ directory): a message can ask for the state of the window manager, ask which
 monitor, workspace or container has the focus, give the focus to another
 window, move the focused window to another tile, change the layout, resize a
 tile, float a window, give one window the whole work area or have KWin maximize it, retile every
-monitor, or stop the daemon. [`komorebi-client`](../../komorebi-client) writes them, and `komorebic`,
+monitor, or stop the daemon. [`komorebi-client`](../../crates/komorebi-client) writes them, and `komorebic`,
 the command line, is how a person sends them. `komorebic start` runs the
 `komorebi` on the `PATH`, and passes it what follows a `--`. In a Plasma
 session:
@@ -95,8 +95,8 @@ komorebi from source.
 
 ## Crates
 
-- [`komorebi-linux`](../../komorebi-linux): the library behind the daemon (the `komorebi` binary is the
-  package [`komorebi-daemon`](../../komorebi-daemon), which calls its `daemon::run` on Linux). The library has
+- [`komorebi-linux`](../../crates/komorebi-linux): the library behind the daemon (the `komorebi` binary is the
+  package [`komorebi`](../../komorebi), which calls its `daemon::run` on Linux). The library has
   the vocabulary the window manager is written in (`core`), the `Backend` trait
   through which it reaches a compositor and the in-memory desktop the tests use
   (`backend`), the backend that reaches KWin through a script it runs and edits
@@ -123,15 +123,15 @@ komorebi from source.
   key binding file, and the desktop it runs on, for mistakes without the daemon
   (`check`). With a key binding file, it registers keys with KWin's global
   shortcut daemon and runs their commands (`kwin::hotkeys`).
-- [`komorebi-client`](../../komorebi-client): a library (shared with Windows and macOS, with a `linux` module) that sends messages to the
+- [`komorebi-client`](../../crates/komorebi-client): a library (shared with Windows and macOS, with a `linux` module) that sends messages to the
   daemon, reads its answers, subscribes to its notifications, and re-exports
   the types they are made of.
-- [`komorebi-hotkeys`](../../komorebi-hotkeys): reads the key binding files of skhd,
+- [`komorebi-hotkeys`](../../crates/komorebi-hotkeys): reads the key binding files of skhd,
   whkd and sxhkd into one model, with the keys as KDE stores them, plans each
   binding as a KDE shortcut file or as a key komorebi registers itself, and has
   the engine that decides, with no I/O of its own, which keys komorebi holds
   and what each press does. It does not depend on the daemon. Its tests read the files in
-  [`komorebi-hotkeys/tests/fixtures`](../../komorebi-hotkeys/tests/fixtures), where
+  [`crates/komorebi-hotkeys/tests/fixtures`](../../crates/komorebi-hotkeys/tests/fixtures), where
   each case is written in every format that can express it.
 - [`komorebic`](../../komorebic): the command line (one package for the three platforms, with a `linux` module). A subcommand that asks something
   of the daemon is one message on its socket, and the others work without the daemon:

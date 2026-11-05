@@ -118,6 +118,20 @@ the work clone); the work clone's history of `wip-cand*` bookmarks is local scaf
   `git merge-tree` for each head in `gh pr list`.
   Plan (master is already frozen): merge or close with a comment those that are ready; for the rest post one comment with the path map (`komorebi/` to `komorebi-windows/`, `schema*.json` to
   `schemas/windows/`, `komorebi/src/main.rs` to `komorebi-daemon/src/main.rs`) and keep them open. The 8 dependabot PRs: close them; dependabot recreates them against the new `dependabot.yml` (section 3.7).
+- **Contributor path map (final layout).** Libraries and dev tools live under `crates/`, shipped binaries stay at the top level. A patch written against old `master` or against an earlier state of the cutover stack is rewritten with:
+
+  | old path | new path |
+  |---|---|
+  | `komorebi/` (the OLD Windows daemon, e.g. `komorebi/src/window_manager.rs`) | `crates/komorebi-windows/` (NOT the new `komorebi/`, which is the thin binary package: a PR that touches `komorebi/src/*` of old `master` must be rewritten by hand against `crates/komorebi-windows/src/*`) |
+  | `komorebi-daemon/` (cutover stack, before the final layout) | `komorebi/` |
+  | `komorebi-{windows,linux,macos,hotkeys,client,layouts,scrolling,themes}/` | `crates/komorebi-{windows,linux,macos,hotkeys,client,layouts,scrolling,themes}/` |
+  | `e2e/guest/agent`, `e2e/guest/testwin` | `crates/komorebi-e2e-agent`, `crates/komorebi-testwin` |
+  | `komorebic/fixtures/` | `crates/komorebic-core/fixtures/` |
+  | `schema*.json` (root) | `schemas/windows/` |
+
+  The rewrite recipe for a patch series (the Windows daemon rule must come first, so that its output is not caught by the `komorebi/` of the last rule):
+  `git format-patch -o /tmp/p origin/master..mybranch && sed -i -E 's#([ab]/)komorebi/#\1crates/komorebi-windows/#g; s#([ab]/)komorebi-(linux|macos|hotkeys|client|layouts|scrolling|themes)/#\1crates/komorebi-\2/#g; s#([ab]/)komorebi-daemon/#\1komorebi/#g; s#([ab]/)e2e/guest/agent#\1crates/komorebi-e2e-agent#g; s#([ab]/)e2e/guest/testwin#\1crates/komorebi-testwin#g; s#([ab]/)komorebic/fixtures/#\1crates/komorebic-core/fixtures/#g' /tmp/p/*.patch && git checkout -b mybranch-rebased <new master> && git am -3 /tmp/p/*.patch`
+  (`git am -3` also falls back to rename detection for what the sed misses; the `index` lines of the patches need not be changed).
 - **Open issues (89).** They stay: same repository, same numbers. Add labels `windows`, `linux`, `macos` and a platform field in `.github/ISSUE_TEMPLATE/bug_report.yml` (Windows-only today).
 - **Forks (376).** Unaffected until they sync. A fork's `master` fast-forwards in GitHub's "Sync fork" (no divergence unless the fork's master has commits, in which case they face the rename conflicts).
 - **`master` users.** Anything tracking `master`: `cargo install --git https://github.com/LGUG2Z/komorebi komorebi` still resolves the package `komorebi`

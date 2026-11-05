@@ -6,7 +6,7 @@ that made the flake; the rest are documented from `flake.nix`, the justfile, the
 README. macOS cannot be built or run on Linux; Linux can only type-check it.
 
 The map of the repository is [ARCHITECTURE-UNIFIED.md](ARCHITECTURE-UNIFIED.md). Package names in this
-repository (`cargo metadata --no-deps`, ran): `komorebi` (the daemon, `komorebi-daemon/`), `komorebic`,
+repository (`cargo metadata --no-deps`, ran): `komorebi` (the daemon, `komorebi/`), `komorebic`,
 `komorebi-client`, `komorebi-bar`, the libraries `komorebi-windows`, `komorebi-linux`, `komorebi-macos`, the
 shims `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-client-macos`,
 `komorebi-bar-macos`, and `komorebi-backend`, `-bar-core`, `komorebic-core`, `-collections`, `-config`,
@@ -22,7 +22,7 @@ shims `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-c
 - Without a `.git` (a jj workspace) the build script of the macOS and Linux crates needs `COMMIT_HASH=dev`. Do
   not run a plain `nix flake check` on the root flake (it boots the VM suites); name the check, or run
   `nix flake check --no-build --all-systems` for the evaluation only.
-- Text edits under `komorebi-linux/`, `komorebi-hotkeys/` or `komorebi-macos/` change only that platform's nix
+- Text edits under `crates/komorebi-linux/`, `crates/komorebi-hotkeys/` or `crates/komorebi-macos/` change only that platform's nix
   derivations (each platform builds from its own filtered source, `nix/workspace-src.nix`); a docs-only edit
   elsewhere changes none, because the commit stamp is a constant in the checks (`COMMIT_HASH=nix-check`) and
   only the native `default` and `windows-default` packages carry the real commit.
@@ -97,7 +97,7 @@ cargo test  -p komorebi-linux --test schemas -- --test-threads=1               #
 cargo test  -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys    # daemon-binary, CLI and client tests (tests/linux_*.rs)
 ```
 
-A single test file: `cargo test -p komorebi-linux --test NAME` (the files are in `komorebi-linux/tests`).
+A single test file: `cargo test -p komorebi-linux --test NAME` (the files are in `crates/komorebi-linux/tests`).
 The `-p komorebi --lib` that older notes use is the thin binary package now: the unit tests are in
 `komorebi-linux`.
 
@@ -216,9 +216,9 @@ A change to the Windows daemon or bar needs these before it is considered landed
 | Change touches | Run |
 |---|---|
 | `crates/*` (not bar/komorebic) | section 1 native crate tests, then Windows clippy (section 1), KDE (section 2) and macOS type-check (section 3) |
-| `komorebi-windows/` (Windows daemon) | Windows clippy and nextest, then e2e (section 4) |
-| `komorebi-linux/`, `komorebi-hotkeys/` | section 2 cargo, then KDE checks, VM `fast` tier |
-| `komorebi-macos/` | macOS type-check on Linux; build and tests on a Mac |
+| `crates/komorebi-windows/` (Windows daemon) | Windows clippy and nextest, then e2e (section 4) |
+| `crates/komorebi-linux/`, `crates/komorebi-hotkeys/` | section 2 cargo, then KDE checks, VM `fast` tier |
+| `crates/komorebi-macos/` | macOS type-check on Linux; build and tests on a Mac |
 | `komorebi-bar/`, `komorebi-bar-core` | Windows clippy, `cargo test -p komorebi-bar-core`, macOS type-check, e2e `bar` |
 | `komorebic*`, `komorebic-core` | `cargo test -p komorebic-core` (CLI doc oracle), all three platforms' checks |
 | `flake.nix`, `nix/**`, `flake.lock` | `nix flake check --no-build --all-systems`, then the checks of the platform edited |

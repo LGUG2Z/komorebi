@@ -103,7 +103,7 @@ loads every member in every build. `nix/workspace-src.nix` cuts one source per p
 
 - `real` is the filtered source: the platform's members, the root manifest, lock and toolchain files, the
   platform's own files of the crates the platforms share (`komorebic`, `komorebi-client`, `komorebi-bar`,
-  `komorebi-daemon`: the `linux`, `macos` and `windows` modules and tests are told apart by name) and the data
+  `komorebi`: the `linux`, `macos` and `windows` modules and tests are told apart by name) and the data
   files the sources and tests read (docs, schemas, fixtures).
 - `src` is `real` plus a stub for every other member: its manifest with an empty library and a `main` that does
   nothing. Stubs are needed: cargo refuses a workspace with a member that is not there, and `--locked` refuses
@@ -124,7 +124,7 @@ crates and `crates/`.
 
 Every platform's checks run on its own source, so a change in one platform's directories does not rebuild the
 others' derivations. A change in a crate under `crates/` (or in `komorebic`, `komorebi-client`,
-`komorebi-daemon`), in `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` or `deny.toml` rebuilds those that read it.
+`komorebi`), in `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` or `deny.toml` rebuilds those that read it.
 
 - `windows-clippy`, `windows-fmt`, `windows-toml-fmt`, `windows-deny`, `windows-e2e-tests`
 - `linux-clippy`, `linux-doc`, `linux-nextest`, `linux-fmt`, `linux-toml-fmt`, `linux-deny`, `linux-bridge-js`,

@@ -64,9 +64,9 @@ one workspace version, the crates under [`crates/`](./crates) and the binaries `
 
 | Platform | Daemon library | Documentation | Schemas |
 | --- | --- | --- | --- |
-| Windows | [`komorebi-windows`](./komorebi-windows) | this README, [`docs/`](./docs) | [`schemas/windows`](./schemas/windows) |
-| KDE Plasma (Linux) | [`komorebi-linux`](./komorebi-linux) | [`docs/linux/README.md`](./docs/linux/README.md) | [`schemas/linux`](./schemas/linux) |
-| macOS | [`komorebi-macos`](./komorebi-macos) | [`docs/macos/README.md`](./docs/macos/README.md) | [`schemas/macos`](./schemas/macos) |
+| Windows | [`komorebi-windows`](./crates/komorebi-windows) | this README, [`docs/`](./docs) | [`schemas/windows`](./schemas/windows) |
+| KDE Plasma (Linux) | [`komorebi-linux`](./crates/komorebi-linux) | [`docs/linux/README.md`](./docs/linux/README.md) | [`schemas/linux`](./schemas/linux) |
+| macOS | [`komorebi-macos`](./crates/komorebi-macos) | [`docs/macos/README.md`](./docs/macos/README.md) | [`schemas/macos`](./schemas/macos) |
 
 The rest of this README is about komorebi for Windows. The Mac port used to live in
 [its own repository](https://github.com/LGUG2Z/komorebi-for-mac); where this repository will be

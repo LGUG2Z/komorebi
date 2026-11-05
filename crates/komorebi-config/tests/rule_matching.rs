@@ -3,7 +3,7 @@
 //! three daemons call (`komorebi_config::rules`), so what the `rules`, `rules_class`, `rules_exe`,
 //! `title_rule` and `startup_rules` end-to-end scenarios assert about WHICH window a rule catches
 //! is asserted here once, with no window manager. These tests are the ones the KDE daemon had
-//! (`komorebi-linux/tests/rule_matching.rs`), moved with the function; they run the
+//! (`crates/komorebi-linux/tests/rule_matching.rs`), moved with the function; they run the
 //! KDE/macOS input shape (`RuleQuirks::UNIX`, a window with a list of classes).
 //!
 //! Not covered here, and so still end-to-end: that the daemon applies the rule at the right moment

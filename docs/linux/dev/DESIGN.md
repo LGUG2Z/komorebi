@@ -295,7 +295,7 @@ window in the task manager would leave the monitor showing the parking desktop, 
 on it but hidden windows. The table sends the monitor straight back to the desktop it showed
 before, and the window's own focus change then brings it to the front of its stack.
 
-komorebi keeps a table of the windows it hid, [`HIDDEN_WINDOWS`](../../../komorebi-linux/src/lib.rs), and
+komorebi keeps a table of the windows it hid, [`HIDDEN_WINDOWS`](../../../crates/komorebi-linux/src/lib.rs), and
 records a window in it before it asks the backend to hide it. What the compositor reports about a
 hidden window (a minimize, a move to another desktop) is the echo of a command komorebi sent, and
 the window manager has to be able to tell that from the user's own: a window that the user
@@ -304,9 +304,9 @@ minimizes leaves the layout, and one komorebi hid does not.
 ## Why is the monocle container not one of the containers?
 
 Because a layout gives every container a tile, and the monocle container is the one that has the
-whole work area. [`Workspace::new_monocle_container`](../../../komorebi-linux/src/workspace.rs) takes the
+whole work area. [`Workspace::new_monocle_container`](../../../crates/komorebi-linux/src/workspace.rs) takes the
 focused container out of the workspace's containers and remembers its index, and
-[`Workspace::update`](../../../komorebi-linux/src/workspace.rs) puts the window of the monocle container on
+[`Workspace::update`](../../../crates/komorebi-linux/src/workspace.rs) puts the window of the monocle container on
 the work area and gives the other containers no tile. The container is taken out and put back
 with the plain remove and insert of the ring, and not the ones that respect locked containers:
 the comments of the code say that a monocle, like a maximize, takes over the whole screen before
@@ -325,7 +325,7 @@ adjustment of the container in monocle would be lost when it came back (the comm
 Because KWin has a maximize of its own, and komorebi asks for it. The window gets the work area of
 its output with the panels left alone, and a restore goes back to where the window was
 (see the comment in the bridge where it carries the command out). It is the work
-area and not the padded one that [`Workspace::update`](../../../komorebi-linux/src/workspace.rs) maximizes
+area and not the padded one that [`Workspace::update`](../../../crates/komorebi-linux/src/workspace.rs) maximizes
 a window to ("the compositor's own maximize, which is the work area and not the padded one"), so
 the window cannot be a container: a layout would give it a tile, less the padding. It is held in
 `maximized_window` instead, with the index it came from, and when it is restored it goes back to
@@ -427,7 +427,7 @@ default, and its check asserts it, so that an update of the effect cannot change
 
 Because the compositor has the frames, the corners and the shadows of the windows, and komorebi
 has none of them. komorebi decides what the windows look like and describes it to the backend as a
-`Look` ([`Backend::apply_look`](../../../komorebi-linux/src/backend/mod.rs)); on KWin the effect KDE
+`Look` ([`Backend::apply_look`](../../../crates/komorebi-linux/src/backend/mod.rs)); on KWin the effect KDE
 Rounded Corners draws it, and komorebi writes the effect's settings. The same code that decides the
 look then runs against the fake desktop, which records the look it was asked for.
 
@@ -470,7 +470,7 @@ build every kind falls back to the two colors of the look, and komorebi says so 
 Because the compositor draws the windows: an animation komorebi made would be a series of frames
 asked of KWin, each a command, where the Geometry Change effect animates what is painted, in the
 compositor, at the refresh rate of the screen. komorebi tells the effect how long an animation
-lasts ([`border_manager::current_look`](../../../komorebi-linux/src/border_manager/mod.rs)). That is why
+lasts ([`border_manager::current_look`](../../../crates/komorebi-linux/src/border_manager/mod.rs)). That is why
 `animation-fps` is accepted and does nothing, and why the frame KWin reports for a window is the
 final one from the start of the animation: the effect moves what is painted and not the window
 ([PLATFORM.md](PLATFORM.md#kwin-effects)).
@@ -485,7 +485,7 @@ resize, and what the window shows does not change.
 
 Because KWin animates with `QEasingCurve`, and a style is a curve KWin has when it is Qt's name
 without the "Ease": `EaseInOutSine` is `InOutSine`
-([`QtCurve::qt_curve`](../../../komorebi-linux/src/core/animation.rs)). A custom cubic Bézier is not
+([`QtCurve::qt_curve`](../../../crates/komorebi-linux/src/core/animation.rs)). A custom cubic Bézier is not
 one of Qt's curves, and is drawn as an ease out, the kind of curve a window moving to its place
 wants. The stock Geometry Change has one curve, an exponential ease out, so komorebi's build of
 it reads a `Curve` setting ([PLATFORM.md](PLATFORM.md#the-patches)).
@@ -493,7 +493,7 @@ it reads a `Curve` setting ([PLATFORM.md](PLATFORM.md#the-patches)).
 ## Why does the window manager keep the opacity it gave each window?
 
 So that the backend is told only what changed. `transparency_manager::apply`
-([`transparency_manager.rs`](../../../komorebi-linux/src/transparency_manager.rs)) is called after every
+([`transparency_manager.rs`](../../../crates/komorebi-linux/src/transparency_manager.rs)) is called after every
 event and every message, and most of them change no window's opacity: the window manager keeps
 the opacity it gave each window that is not opaque (`WindowManager::opacity_applied`), sends the
 difference, makes a window opaque again when it should no longer be see-through (and only if it is
@@ -683,7 +683,7 @@ already as it asked, but the user's title bar does it without komorebi's knowing
 stayed a tile would be asked to move at the next retile: the code that reads the windows that are
 open when komorebi starts says a window that is already maximized is "the maximized window, not a tile
 that would be asked to leave the maximized state". So
-[`WindowManager::adopt_maximize_change`](../../../komorebi-linux/src/window_manager.rs) takes the window out of
+[`WindowManager::adopt_maximize_change`](../../../crates/komorebi-linux/src/window_manager.rs) takes the window out of
 the layout as `toggle-maximize` makes a window leave it, and what is asked of the layout does
 nothing "until it is restored, by `toggle-maximize` or by the user" (the comment in
 `process_command`). Because the report is the same either way, one comparison serves both: a window
@@ -692,7 +692,7 @@ that is, or is not, already the workspace's maximized window changes nothing.
 ## Why does komorebi leave a fullscreen window alone, and tile the workspace when it comes back?
 
 Because the window covers the monitor on purpose. The comment in
-[`Window::set_position`](../../../komorebi-linux/src/window.rs) says that "moving it would take it out of
+[`Window::set_position`](../../../crates/komorebi-linux/src/window.rs) says that "moving it would take it out of
 fullscreen, or be ignored", and that "it goes back to its tile when it leaves fullscreen". The
 window stays in its container, so the other windows are tiled as if it were not fullscreen, and
 every move the window manager makes goes through `set_position`, which is where the window is
@@ -700,13 +700,13 @@ skipped. When the window comes back, "KWin gives it the frame it had before, whi
 tile it has now" (the comment in `handle_event`), so the workspace is tiled again. The bridge's
 second request for a position gives up after three tries for the same reason: so that a window that
 cannot go where it was asked, "a fullscreen one, say", is left alone rather than chased (the comment
-on `settle` in [`bridge.js`](../../../komorebi-linux/src/kwin/bridge.js)).
+on `settle` in [`bridge.js`](../../../crates/komorebi-linux/src/kwin/bridge.js)).
 
 ## Why does `initial_window_placement_rules` take a number as well as text?
 
 Because the documentation of the setting shows a number (`"initial_window_placement_rules": 3`),
 and a JSON object's keys can only be text: the doc comment on the `Deserialize` of
-[`PlacementTarget`](../../../komorebi-linux/src/core/mod.rs) says both. The place is read from `"Primary"`,
+[`PlacementTarget`](../../../crates/komorebi-linux/src/core/mod.rs) says both. The place is read from `"Primary"`,
 `"3"` and `3`, so the form the page shows works as well as the form a map's keys force. In komorebi
 for Windows, at its commit 83c4e11d, the deserializer reads only text, so the number its page shows
 is refused. [The page of this repository](../initial-window-placement-rules.md#on-kde) says which
@@ -714,7 +714,7 @@ forms are read.
 
 The JSON schema of the type is written by hand, so that it says the same. The one `schemars`
 derives for the enum is an object with a `Placement` or an `Index` key, which the comment on the
-`JsonSchema` impl of [`PlacementTarget`](../../../komorebi-linux/src/core/mod.rs) calls "not what
+`JsonSchema` impl of [`PlacementTarget`](../../../crates/komorebi-linux/src/core/mod.rs) calls "not what
 `Serialize` and `Deserialize` read and write". The schema `schemas/linux/schema.json` has says a name, a number,
 or text that is a number, which is also what the module's typed `config` takes.
 

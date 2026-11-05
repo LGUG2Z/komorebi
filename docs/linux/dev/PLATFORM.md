@@ -19,7 +19,7 @@ tests of this repository run against the nixpkgs that `flake.lock` pins: at time
 - **Session bus**: the D-Bus bus of the session. komorebi and KWin talk over it.
 - **KWin**: the compositor and window manager of Plasma, `kwin_wayland`.
 - **Script**: a JavaScript program that KWin runs inside itself, through its scripting API.
-  komorebi's is the **bridge**, [`bridge.js`](../../../komorebi-linux/src/kwin/bridge.js).
+  komorebi's is the **bridge**, [`bridge.js`](../../../crates/komorebi-linux/src/kwin/bridge.js).
 - **Output**: KWin's name for a monitor.
 - **Desktop**: one of KWin's virtual desktops. Each output shows one; komorebi's workspace `i`
   is desktop `i`.
@@ -517,7 +517,7 @@ configuration it has.
 
 What the KWin scripting API offers a script, and what it does not, at time of writing
 (2026-10-27). The bridge is written around these, and
-[`kwin-api.d.ts`](../../../komorebi-linux/src/kwin/kwin-api.d.ts) declares the part of the API it
+[`kwin-api.d.ts`](../../../crates/komorebi-linux/src/kwin/kwin-api.d.ts) declares the part of the API it
 uses, which `tsc` checks it against with ECMAScript 2016's library and nothing else. Node and
 TypeScript are needed only for those checks: in the session the bridge needs KWin alone.
 
@@ -620,7 +620,7 @@ with two outputs of 1920x1080:
 
 At time of writing (2026-10-27), a real suspend and resume is not tested: the QEMU guests the VM
 tests run in have no way to wake from one. The signals are tested on private buses
-(`komorebi-linux/tests/power.rs`), and the lock screen against a real KWin in a Plasma session
+(`crates/komorebi-linux/tests/power.rs`), and the lock screen against a real KWin in a Plasma session
 (`vm-lock-sleep`, which locks and unlocks with `loginctl lock-session` and `unlock-session`).
 
 ## How long a retile takes

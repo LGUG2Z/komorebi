@@ -8,7 +8,7 @@ Base16 palette of your own.
 
 There is no `komorebic` command for it: the daemon takes it from the `theme` key of
 [`komorebi.json`](configuration.md#borders), or as a message on its socket, the `Theme` message,
-which a program sends with [`komorebi-client`](../../../komorebi-client/src/lib.rs) or a script writes
+which a program sends with [`komorebi-client`](../../../crates/komorebi-client/src/lib.rs) or a script writes
 as a line of JSON.
 
 ```rust

@@ -173,7 +173,7 @@ from the enum rather than the hand-written deserializer, describes the type as o
 description of the case and the reason, and records the case that way, whether the daemon does not
 start or puts the windows elsewhere. The other four cases give the same order on both ports.
 Fixed upstream in kfw (`3b424dd7`: accept an integer as well as a string, and a schema written by hand);
-kfde already had the same fix, and its unit test is in `komorebi-linux/src/core/mod.rs`. A Windows run
+kfde already had the same fix, and its unit test is in `crates/komorebi-linux/src/core/mod.rs`. A Windows run
 of kfw's `next` passes all 5 cases.
 
 **`hotplug` on kfw (fixed upstream).** After a display is unplugged, Windows reports one display within a second,
@@ -244,7 +244,7 @@ window it did not have again as a `Show` on a title change, so that a rule on th
 decided (windows are often announced before their title is set), and a window that renamed itself
 away from an ignore rule was tiled. The `title_rule` scenario found the difference (kfw's first
 Windows run: the window was never managed). The decision is that the ports match, and kfde changed:
-`WindowManagerEvent::TitleUpdate` does nothing, the unit tests in `komorebi-linux/tests/rule_commands.rs`
+`WindowManagerEvent::TitleUpdate` does nothing, the unit tests in `crates/komorebi-linux/tests/rule_commands.rs`
 say so, and `title_rule` asserts it on both ports. Passes on a real KWin (5 checks). The price on
 KDE: a window that opens with no title and gets one later is decided by the rules on the empty
 title only.
@@ -314,7 +314,7 @@ set of five had one run lose its agent for over a minute, mid-sweep, which nothi
 
 ## Does a broken daemon turn them red
 
-On kfde, with a real KWin: `komorebi-linux/src/workspace.rs` was changed, for one run and never
+On kfde, with a real KWin: `crates/komorebi-linux/src/workspace.rs` was changed, for one run and never
 committed, to make every tile 200 pixels too wide after the layout is calculated, so that tiles
 overlap. `core-e2e` failed 7 checks and passed 139: the overlap checks of the suite's own first
 tiling and of the `tiling` scenario (two each), the one in the suite that says two windows share

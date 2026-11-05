@@ -50,7 +50,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
-//! `komorebi-client/tests/daemon.rs` sends the same messages to a window manager that listens the
+//! `crates/komorebi-client/tests/daemon.rs` sends the same messages to a window manager that listens the
 //! way the daemon does, over an in-memory desktop.
 
 use crate::komorebi_linux as komorebi;

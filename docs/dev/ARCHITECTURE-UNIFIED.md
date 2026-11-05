@@ -14,18 +14,27 @@ How to build and test: [build-and-test.md](build-and-test.md). Why things are sh
 [settings.md](settings.md), [unified-binaries.md](unified-binaries.md), [bar-unification.md](bar-unification.md),
 [backend-switch.md](backend-switch.md). What a person with a Mac has to check: [macos-handcheck.md](macos-handcheck.md).
 
-## 1. Three platforms, one workspace, one directory level
+## 1. Three platforms, one workspace, one rule for the directories
 
-The root `Cargo.toml` is the only workspace. Its members are all at the top level or under `crates/`;
-the platform-specific parts are:
+The root `Cargo.toml` is the only workspace. One rule says where a member lives:
+
+- a **shipped binary** has a directory at the top level: `komorebi/`, `komorebic/`, `komorebic-no-console/`,
+  `komorebi-bar/`, `komorebi-gui/`, `komorebi-shortcuts/` and `komorebi-recorder/` (with its `wix/` and
+  `docs/recorder/`). The directory of the package is its name, so `cargo install --path komorebi` installs
+  the `komorebi` binary;
+- every **library** and every **development tool** lives under `crates/<package name>/`: the daemon
+  libraries of the three platforms, the shared crates, the end-to-end guests (`crates/komorebi-e2e-agent`,
+  `crates/komorebi-testwin`) and `crates/schemars-nixgen`.
+
+The platform-specific parts are:
 
 | Platform | Where it is | What is in it |
 |---|---|---|
-| Windows (the original) | `komorebi-windows/` (the daemon library), `komorebi-bar/`, `komorebic/`, `komorebi-gui/`, `komorebi-shortcuts/`, `komorebic-no-console/`, `komorebi-layouts/`, `komorebi-scrolling/`, `komorebi-themes/`, `e2e/`, `wix/`; docs in `docs/` | the Windows daemon library, the unified packages, the Windows-only tools |
-| Linux, KDE Plasma on KWin (Wayland) | `komorebi-linux/` (the daemon library), `komorebi-hotkeys/`, `nix/linux/` (NixOS module, VM test suites in `nix/linux/tests/vm`, KWin effects), `scripts/linux/`, `spikes/`; docs in `docs/linux/` | the KDE daemon library, the key binding crate, the NixOS module and the VM tests |
-| macOS | `komorebi-macos/` (the daemon library), `nix/macos/`; docs in `docs/macos/` | the macOS daemon library and the nix-darwin module |
+| Windows (the original) | `crates/komorebi-windows/` (the daemon library), `komorebi-bar/`, `komorebic/`, `komorebi-gui/`, `komorebi-shortcuts/`, `komorebic-no-console/`, `crates/komorebi-layouts/`, `crates/komorebi-scrolling/`, `crates/komorebi-themes/`, `crates/komorebi-e2e-agent/`, `crates/komorebi-testwin/`, `e2e/`, `wix/`; docs in `docs/` | the Windows daemon library, the unified packages, the Windows-only tools |
+| Linux, KDE Plasma on KWin (Wayland) | `crates/komorebi-linux/` (the daemon library), `crates/komorebi-hotkeys/`, `nix/linux/` (NixOS module, VM test suites in `nix/linux/tests/vm`, KWin effects), `scripts/linux/`, `spikes/`; docs in `docs/linux/` | the KDE daemon library, the key binding crate, the NixOS module and the VM tests |
+| macOS | `crates/komorebi-macos/` (the daemon library), `nix/macos/`; docs in `docs/macos/` | the macOS daemon library and the nix-darwin module |
 
-Shared: `crates/` (including `crates/komorebi-version`, the version string of the Linux and macOS
+Shared: `crates/` (the libraries; including `crates/komorebi-version`, the version string of the Linux and macOS
 binaries), `schemas/{windows,linux,macos}/` (the generated JSON schemas), one `deny.toml`, `rustfmt.toml`,
 `rust-toolchain.toml`, `.gitignore`, `LICENSE.md` and `justfile` at the root. The old repositories'
 workflows, dependabot files, the Homebrew formula template and the macOS docs-site files are kept, inert, in
@@ -36,13 +45,13 @@ workflows, dependabot files, the Homebrew formula template and the macOS docs-si
 
 | Package (binary) | Directory | How the platform is chosen |
 |---|---|---|
-| `komorebi` (`komorebi`) | `komorebi-daemon/` | `src/main.rs` is a `cfg_select!` that calls `daemon::run()` of the library of the target OS; the libraries are target-gated dependencies in `Cargo.toml` |
+| `komorebi` (`komorebi`) | `komorebi/` | `src/main.rs` is a `cfg_select!` that calls `daemon::run()` of the library of the target OS; the libraries are target-gated dependencies in `Cargo.toml` |
 | `komorebic` (`komorebic`) | `komorebic/` | `src/windows.rs`, `src/linux/`, `src/macos/`, one `cfg` per target; the arguments are in `crates/komorebic-core` |
-| `komorebi-client` (library) | `komorebi-client/` | `src/windows.rs`, `src/linux.rs`, `src/macos.rs` re-export the daemon library of the target OS behind one `Connection` |
+| `komorebi-client` (library) | `crates/komorebi-client/` | `src/windows.rs`, `src/linux.rs`, `src/macos.rs` re-export the daemon library of the target OS behind one `Connection` |
 | `komorebi-bar` (`komorebi-bar`) | `komorebi-bar/` | `src/windows/` and `src/macos/` modules; shared code in `crates/komorebi-bar-core`. **KDE has no bar** |
 
-The daemon libraries are `komorebi-windows` (`komorebi-windows/`), `komorebi-linux` (`komorebi-linux/`) and
-`komorebi-macos` (`komorebi-macos/`). They have no binary: each has a `daemon.rs` with
+The daemon libraries are `komorebi-windows` (`crates/komorebi-windows/`), `komorebi-linux` (`crates/komorebi-linux/`) and
+`komorebi-macos` (`crates/komorebi-macos/`). They have no binary: each has a `daemon.rs` with
 `run()`, the old `main`. `-p komorebi-windows` etc. build them, as libraries.
 
 The shim packages (`komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-client-macos`,
@@ -50,7 +59,9 @@ The shim packages (`komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`
 so were `version-linux` and `version-macos` (now `crates/komorebi-version`). To build a platform use the
 one package name, for example `-p komorebic -p komorebi-client -p komorebi-bar -p komorebi-macos` on macOS.
 
-## 3. The shared crates (`crates/`)
+## 3. The libraries and tools (`crates/`)
+
+Every library and tool of the workspace is a directory of `crates/`, named as its package; the shared ones are:
 
 | Crate | What it holds | Used by |
 |---|---|---|
@@ -64,7 +75,7 @@ one package name, for example `-p komorebic -p komorebi-client -p komorebi-bar -
 | `komorebi-bar-core` | the bar's configuration, widgets and platform seam | `komorebi-bar` |
 | `komorebic-core` | the command line definitions of every platform (`cli`, `docgen`, `platform::{windows,macos,...}`) | `komorebic` |
 
-Also shared by path from the Windows tree: `komorebi-layouts`, `komorebi-scrolling`, `komorebi-themes`.
+Also under `crates/`: `komorebi-layouts`, `komorebi-scrolling`, `komorebi-themes` (Windows-origin, platform-neutral), `komorebi-client`, and the daemon libraries (section 2).
 
 ## 4. Where the platforms differ on purpose
 
@@ -112,7 +123,7 @@ Done in the cutover stack (`jj log -r 'wip-main..wip-cutover'`, one revision per
   and 0.1.1 are history); one `komorebi-version` crate instead of `version-linux` and `version-macos`;
 - the shim packages `komorebic-linux`, `komorebic-macos`, `komorebi-client-linux`, `komorebi-client-macos`
   and `komorebi-bar-macos` deleted;
-- the directories renamed: `komorebi/` to `komorebi-windows/`, the KDE and macOS libraries to
+- the directories renamed (at that time; since then every library moved under `crates/`, and `komorebi-daemon/` became `komorebi/`, see section 1): `komorebi/` to `komorebi-windows/`, the KDE and macOS libraries to
   `komorebi-linux/` and `komorebi-macos/`, `komorebi-hotkeys/` to the top level; `docs/{linux,macos}`,
   `nix/{linux,macos}`, `scripts/linux`, `spikes/`, `schemas/{windows,linux,macos}`;
 - one `deny.toml`, `rustfmt.toml`, `rust-toolchain.toml`, `.gitignore`, `LICENSE.md` and `justfile`;

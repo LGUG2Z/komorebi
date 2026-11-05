@@ -180,7 +180,7 @@ version string builds libgit2, and zlib when the system has none. Then:
 ```sh
 git clone https://github.com/LGUG2Z/komorebi-for-kde
 cd komorebi-for-kde
-cargo install --locked --path komorebi-daemon
+cargo install --locked --path komorebi
 cargo install --locked --path komorebic
 ```
 

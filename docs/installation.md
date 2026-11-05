@@ -115,7 +115,7 @@ prerequisites](https://rust-lang.github.io/rustup/installation/windows-msvc.html
 Clone the git repository, enter the directory, and build the following binaries:
 
 ```powershell
-cargo +stable install --path komorebi-daemon --locked
+cargo +stable install --path komorebi --locked
 cargo +stable install --path komorebic --locked
 cargo +stable install --path komorebic-no-console --locked
 cargo +stable install --path komorebi-gui --locked

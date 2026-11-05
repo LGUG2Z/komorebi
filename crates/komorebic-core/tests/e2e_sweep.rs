@@ -8,7 +8,7 @@
 //!
 //! mirrors: commands / <command> (the part "the command is understood: exit status 0", for the
 //! command line only; what the daemon does with it is the daemon's tests, see
-//! `komorebi-linux/tests/command_sweep.rs`)
+//! `crates/komorebi-linux/tests/command_sweep.rs`)
 
 use komorebic_core::cli::Meta;
 use komorebic_core::cli::command;

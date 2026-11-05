@@ -98,21 +98,21 @@ of a column.
 
 ## How it is tested
 
-- `komorebi-linux/tests/drag_resize.rs`, against the fake desktop: a drag of the split between two
+- `crates/komorebi-linux/tests/drag_resize.rs`, against the fake desktop: a drag of the split between two
   tiles; a long drag of the narrow right-hand stack of the ultrawide vertical stack; a drag past
   what the neighbor can give; a shrink past what the tile can lose; a drag of a window that is
   short of its tile, which must not move the divider on its other side; a drag of a window that is
   not the focused one; an edge with no neighbor; a drag that changed nothing; a corner; the edge
   of a stack; a floating window and the window of a monocle; a drag whose frame had not got to
   where the user took the edge when the window manager read the end.
-- `komorebi-linux/src/kwin/state.rs`: the end of a resize is the frame the user asked for and a frame
+- `crates/komorebi-linux/src/kwin/state.rs`: the end of a resize is the frame the user asked for and a frame
   event after it does not change that, the end of a move is the frame, and the frame a drag began
   with is kept while the frame changes.
 - `vm-drag-resize`, in a Plasma session with a pointer device: edges and corners of three tiles
   are dragged with the pointer, and the tiles are checked exactly (the dragged edge moved by what
   the pointer moved, the neighbor's with it, nothing else), the frames within a cell of the
   terminal's font.
-- `komorebi-linux/tests/live_resize.rs`, against the fake desktop: the neighbors follow a drag while it
+- `crates/komorebi-linux/tests/live_resize.rs`, against the fake desktop: the neighbors follow a drag while it
   goes on and the dragged window is left alone; the same result with steps as without; a drag
   taken back; a step with no drag going on; a window that opens part way through.
 - `vm-live-resize`, in the same session: the edge is held part way and then all the way, and the
