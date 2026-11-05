@@ -34,7 +34,7 @@ packages := ""
 packages := "--workspace --exclude komorebi-windows --exclude komorebi-linux --exclude komorebi-gui --exclude komorebic-no-console --exclude komorebi-shortcuts --exclude komorebi-e2e-agent --exclude komorebi-testwin"
 
 [linux]
-packages := "-p komorebi-recorder -p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
+packages := "-p schemars-nixgen -p komorebi-recorder -p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
 
 # How cargo is invoked. Outside nix it is rustup's, which takes the +toolchain. Inside `nix develop` (IN_NIX_SHELL) the
 # toolchain is the nix one: there is no rustup to take +toolchain, and its cargo already formats with the nightly
@@ -195,15 +195,18 @@ docgen starlight:
     schemars-docgen ./schemas/{{ platform }}/schema.json --output {{ starlight }}/src/content/docs/reference/komorebi-{{ platform }}.mdx --title "komorebi.json ({{ platform }})" --description "komorebi configuration schema reference for {{ platform }}"
     schemars-docgen ./schemas/{{ platform }}/schema.bar.json --output {{ starlight }}/src/content/docs/reference/bar-{{ platform }}.mdx --title "komorebi.bar.json ({{ platform }})" --description "komorebi-bar configuration schema reference for {{ platform }}"
 
-# the options of the NixOS module (KDE) and the darwin module (macOS), from the schemas; needs schemars-nixgen
+# schemars-nixgen, built from this tree: the tool is a member of the workspace (crates/schemars-nixgen)
+nixgen := cargo_stable + " run --package schemars-nixgen --locked --"
+
+# the options of the NixOS module (KDE) and the darwin module (macOS), from the schemas; built from crates/schemars-nixgen
 nixgen-linux:
-    schemars-nixgen schemas/linux/schema.json -o nix/linux/komorebi-options.nix --name komorebi --description "komorebi for KDE Plasma configuration"
+    {{ nixgen }} schemas/linux/schema.json -o nix/linux/komorebi-options.nix --name komorebi --description "komorebi for KDE Plasma configuration"
     nix fmt nix/linux/komorebi-options.nix
     nix build -L --no-link ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).linux-nix-options-validation"
 
 nixgen-macos:
-    schemars-nixgen schemas/macos/schema.json -o nix/macos/komorebi-options.nix --name komorebi --description "komorebi for Mac configuration"
-    schemars-nixgen schemas/macos/schema.bar.json -o nix/macos/komorebi-bar-options.nix --name komorebi-bar --description "komorebi for Mac bar configuration"
+    {{ nixgen }} schemas/macos/schema.json -o nix/macos/komorebi-options.nix --name komorebi --description "komorebi for Mac configuration"
+    {{ nixgen }} schemas/macos/schema.bar.json -o nix/macos/komorebi-bar-options.nix --name komorebi-bar --description "komorebi for Mac bar configuration"
     nix fmt nix/macos/
     nix build -f nix/macos/tests/default.nix
 
