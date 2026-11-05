@@ -24,6 +24,7 @@ ignore = [
   { id = "RUSTSEC-2026-0370", reason = "zvariant is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
   { id = "RUSTSEC-2026-0371", reason = "zbus_names is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
   { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is maintained inside zbus from zbus 6; komorebi talks to KWin with zbus 5" },
+  { id = "RUSTSEC-2025-0059", reason = "servo-fontconfig is unmaintained and has no safe upgrade; it is reached only through font-loader, which komorebi-bar looks up system fonts with" },
   { id = "RUSTSEC-2026-0183", reason = "git2 is only used by shadow-rs at build time to read version info from our own repository" },
   { id = "RUSTSEC-2026-0184", reason = "git2 is only used by shadow-rs at build time to read version info from our own repository" },
   { id = "RUSTSEC-2026-0194", reason = "quick-xml is only used to parse local, trusted XML (config conversion and plist files), not untrusted input" },
