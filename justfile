@@ -249,7 +249,8 @@ deps:
 
 depgen:
     cargo deny check
-    cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json
+    # the crates of this workspace are listed by name and version: their `path+file://` source is a path on the machine this ran on
+    cargo deny list --format json | jq 'del(.unlicensed) | walk(if type == "string" then sub(" path\\+file://.*$"; "") else . end)' > dependencies.json
 
 [windows]
 procdump:
