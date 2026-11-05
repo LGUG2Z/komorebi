@@ -1,0 +1,90 @@
+# The path filters of .github/workflows/ci.yaml (dorny/paths-filter), the one place that says which
+# files concern which platform. The workflow does not use `paths:` because a required check that is
+# never started blocks a merge; it asks this file and skips the jobs instead.
+#
+# A platform is concerned by the shared crates, the manifests and the flake, its own nix files, schemas,
+# docs, crates and files of the crates that every platform has, and the workflow files of the ladder.
+
+shared: &shared
+  - Cargo.toml
+  - Cargo.lock
+  - rust-toolchain.toml
+  - rustfmt.toml
+  - deny.toml
+  - flake.nix
+  - flake.lock
+  - nix/*.nix
+  - nix/workspace-src.nix
+  - tools/test-partition*
+  - .github/ci-paths.yaml
+  - .github/workflows/ci.yaml
+  - .github/workflows/_macos.yaml
+  - .github/actions/nix/**
+  # the libraries every platform builds
+  - crates/komorebi-backend/**
+  - crates/komorebi-bar-core/**
+  - crates/komorebi-collections/**
+  - crates/komorebi-config/**
+  - crates/komorebi-core/**
+  - crates/komorebi-layouts/**
+  - crates/komorebi-macos-core/**
+  - crates/komorebi-protocol/**
+  - crates/komorebi-scrolling/**
+  - crates/komorebi-settings/**
+  - crates/komorebi-themes/**
+  - crates/komorebi-transport/**
+  - crates/komorebi-version/**
+  - crates/komorebic-core/**
+  - crates/schemars-nixgen/**
+  - nix/nixgen/**
+  - nix/recorder/**
+  - komorebi-recorder/**
+  - docs/recorder/**
+
+linux:
+  - *shared
+  - crates/komorebi-linux/**
+  - crates/komorebi-hotkeys/**
+  - crates/komorebi-client/**
+  - komorebi/**
+  - komorebic/**
+  - komorebi-bar/**
+  - nix/linux/**
+  - schemas/linux/**
+  - docs/linux/**
+  - e2e/lib/**
+  - scripts/linux/**
+
+macos:
+  - *shared
+  - crates/komorebi-macos/**
+  - crates/komorebi-client/**
+  - komorebi/**
+  - komorebic/**
+  - komorebi-bar/**
+  - komorebi-recorder/**
+  - nix/macos/**
+  - nix/recorder/**
+  - schemas/macos/**
+  - docs/macos/**
+  - .github/workflows/macos-selfhosted.yaml
+
+windows:
+  - *shared
+  - crates/komorebi-windows/**
+  - crates/komorebi-client/**
+  - crates/komorebi-hotkeys/**
+  - crates/komorebi-testwin/**
+  - crates/komorebi-e2e-agent/**
+  - komorebi/**
+  - komorebic/**
+  - komorebic-no-console/**
+  - komorebi-bar/**
+  - komorebi-gui/**
+  - komorebi-shortcuts/**
+  - nix/windows/**
+  - schemas/windows/**
+  - docs/windows/**
+  - e2e/lib/**
+  - e2e/platforms/**
+  - wix/**
