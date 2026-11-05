@@ -850,7 +850,10 @@ mod tests {
         )
         .expect("the header statement");
 
-        assert_eq!(found.statement.file, "crates/komorebi-macos/src/process_event.rs");
+        assert_eq!(
+            found.statement.file,
+            "crates/komorebi-macos/src/process_event.rs"
+        );
         assert_eq!(found.statement.function, "process_event");
         assert_eq!(found.statement.owner, "WindowManager");
         assert_eq!(found.confidence, Confidence::Likely);
@@ -1035,7 +1038,13 @@ mod tests {
         // the commit before the latest change to komorebi's source
         let Some(history) = git(
             &repo(),
-            &["log", "-2", "--format=%H", "--", "crates/komorebi-macos/src"],
+            &[
+                "log",
+                "-2",
+                "--format=%H",
+                "--",
+                "crates/komorebi-macos/src",
+            ],
         ) else {
             return;
         };

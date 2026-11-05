@@ -2,13 +2,12 @@
 # `just nixgen-macos`), and its checks. It is a development tool: nothing of a release has it.
 {
   inputs,
-  self,
   lib,
   ...
 }:
 let
   lib' = import ../lib.nix { inherit inputs; };
-  nixgen = import ./build.nix { inherit inputs self; };
+  nixgen = import ./build.nix { inherit inputs; };
 in
 {
   perSystem =

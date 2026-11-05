@@ -149,7 +149,13 @@ fn git(args: &[&str]) -> Option<String> {
 #[test]
 fn only_the_files_that_changed_since_the_recorded_commit_are_doubted() {
     komorebi_recorder::skip_without_komorebi_mac_source!();
-    let Some(history) = git(&["log", "-2", "--format=%H", "--", "crates/komorebi-macos/src"]) else {
+    let Some(history) = git(&[
+        "log",
+        "-2",
+        "--format=%H",
+        "--",
+        "crates/komorebi-macos/src",
+    ]) else {
         return;
     };
     let Some(older) = history.lines().nth(1) else {

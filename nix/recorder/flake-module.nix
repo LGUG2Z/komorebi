@@ -44,9 +44,11 @@ in
 
   flake.overlays.recorder =
     final: _:
-    lib.optionalAttrs (builtins.elem final.stdenv.hostPlatform.system (lib'.macosSystems ++ lib'.linuxSystems)) {
-      inherit (recorder.mkRecorderPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; })
-        komorebi-recorder
-        ;
-    };
+    lib.optionalAttrs
+      (builtins.elem final.stdenv.hostPlatform.system (lib'.macosSystems ++ lib'.linuxSystems))
+      {
+        inherit (recorder.mkRecorderPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; })
+          komorebi-recorder
+          ;
+      };
 }

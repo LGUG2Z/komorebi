@@ -104,7 +104,11 @@ let
     macos = "(src/macos(\\.rs|/.*)|tests/macos_.*)";
   };
   # the recorder indexes every platform's files
-  otherMarkers = if platform == "recorder" || platform == "nixgen" then [ ] else builtins.attrValues (removeAttrs markers [ platform ]);
+  otherMarkers =
+    if platform == "recorder" || platform == "nixgen" then
+      [ ]
+    else
+      builtins.attrValues (removeAttrs markers [ platform ]);
   ofOtherPlatform =
     rel:
     builtins.any (

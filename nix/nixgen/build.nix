@@ -1,7 +1,7 @@
 # The crane derivations of schemars-nixgen, the tool that writes the Nix options of the modules from the JSON
 # Schemas, from the one Cargo workspace (nix/workspace-src.nix, platform "nixgen": the tool and nothing
 # else). It is pure Rust, so one build serves every system.
-{ inputs, self }:
+{ inputs }:
 let
   lib' = import ../lib.nix { inherit inputs; };
   inherit (inputs) crane;
@@ -61,6 +61,11 @@ in
       schemars-nixgen = craneLib.buildPackage individualCrateArgs;
     in
     {
-      inherit craneLib src individualCrateArgs schemars-nixgen;
+      inherit
+        craneLib
+        src
+        individualCrateArgs
+        schemars-nixgen
+        ;
     };
 }

@@ -354,8 +354,7 @@ pub fn run(
 mod tests {
     use super::*;
 
-    const TRANSCRIPT: &str =
-        include_str!("../fixtures/gesture-stream.transcript.txt");
+    const TRANSCRIPT: &str = include_str!("../fixtures/gesture-stream.transcript.txt");
 
     fn gestures(told: &[SocketMessage]) -> Vec<PanGesture> {
         told.iter()
