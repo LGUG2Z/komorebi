@@ -1,0 +1,89 @@
+name: nix
+description: Install nix on a runner, with the Cachix cache of the project read (and, on master, written) and, on request, KVM enabled
+
+# A composite action cannot read `vars` or `secrets`: the caller passes them as inputs
+#
+#   with:
+#     cachix-cache: ${{ vars.CACHIX_CACHE }}
+#     cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+#
+# With no cache name there is no cache and the job builds everything. With a name and no token (a fork,
+# or a repository that has not made the secret) the cache is only read. With a token, the store paths
+# of the job are pushed only on master, on a manual run and on a schedule: a pull request or the
+# temporary branch never writes to the cache.
+
+inputs:
+  install:
+    description: Install nix (turn off on a self-hosted machine that has it)
+    default: "true"
+  kvm:
+    description: Make /dev/kvm usable and tell nix that this machine can run NixOS tests
+    default: "false"
+  free-disk:
+    description: Delete the toolchains of the hosted image that this repository does not use (about 25 GB)
+    default: "false"
+  swap:
+    description: Add 16 GB of swap, for the jobs that evaluate NixOS systems (about 11 GB of memory at the peak)
+    default: "false"
+  cache:
+    description: Use the Cachix cache (the canary turns it off, because it builds against another nixpkgs)
+    default: "true"
+  cachix-cache:
+    description: The name of the Cachix cache, vars.CACHIX_CACHE
+    default: ""
+  cachix-auth-token:
+    description: The token that may push to the cache, secrets.CACHIX_AUTH_TOKEN
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    # A Plasma guest is a closure of about 10 GB, and a hosted runner has little free space on /
+    # until the toolchains it ships with are gone.
+    - name: Free disk space
+      if: inputs.free-disk == 'true' || inputs.kvm == 'true'
+      shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        df -h /
+
+    - name: Add swap
+      if: inputs.swap == 'true'
+      shell: bash
+      run: |
+        sudo swapoff -a || true
+        sudo fallocate -l 16G /mnt/ci-swapfile
+        sudo chmod 600 /mnt/ci-swapfile
+        sudo mkswap /mnt/ci-swapfile
+        sudo swapon /mnt/ci-swapfile
+        free -h
+
+    # The udev rule is what makes /dev/kvm writable for the runner's user. KVM on hosted runners
+    # is documented for public repositories; `test -w` is what says whether this one has it.
+    - name: Enable KVM
+      if: inputs.kvm == 'true'
+      shell: bash
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+          sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+        # The host of a hosted runner is not chosen: some have no nested virtualization. The step is
+        # named so that rerun-no-kvm.yaml can tell this failure from a failed suite and run it again.
+        test -w /dev/kvm || { echo "::error::this runner has no usable /dev/kvm"; exit 1; }
+
+    - name: Install nix
+      if: inputs.install == 'true'
+      uses: cachix/install-nix-action@v31
+      with:
+        extra_nix_config: |
+          accept-flake-config = false
+          system-features = nixos-test benchmark big-parallel ${{ inputs.kvm == 'true' && 'kvm' || '' }}
+
+    # The token is handed over only where writing is wanted; without it the action only reads.
+    - name: Cachix
+      if: inputs.cache == 'true' && inputs.cachix-cache != ''
+      uses: cachix/cachix-action@v16
+      with:
+        name: ${{ inputs.cachix-cache }}
+        authToken: ${{ (github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && inputs.cachix-auth-token || '' }}
