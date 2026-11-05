@@ -1,4 +1,4 @@
-# schema-sha256: a75d1f23c0c1ea4b5997649acb7e94f7ccfc5b8a2f0c5b22e427cd7a86921127
+# schema-sha256: 6058719e72c9b903e26cc773f8de2e1d55c997cb0a6e555450a4d0e3d3e4d217
 { lib, ... }:
 let
   applicationsDisplayFormat = (

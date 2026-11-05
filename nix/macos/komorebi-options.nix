@@ -1,4 +1,4 @@
-# schema-sha256: 3bb1c9b8bc046eda845db5bd00ea9925b8cbfe965b97612dc50657e7e8ba06bf
+# schema-sha256: 9399ecd8417711f544f0507e92bd40e992f63e9941a5a21641120292e48fc151
 { lib, ... }:
 let
   animationStyle = (
