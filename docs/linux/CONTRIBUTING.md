@@ -75,8 +75,8 @@ on machines built with the module too.
 
 Three files are generated from the Rust types and committed: `schemas/linux/schema.json` and
 `schemas/linux/schema.asc.json` (`just jsonschema`), and `nix/linux/komorebi-options.nix`, which types the
-module's `config` (`just nixgen`, which needs `schemars-nixgen`, `cargo install
-schemars-nixgen`). A change to what `komorebi.json` or an `applications.json` can
+module's `config` (`just nixgen-linux`, which runs `schemars-nixgen`, built from
+[`crates/schemars-nixgen`](../../crates/schemars-nixgen)). A change to what `komorebi.json` or an `applications.json` can
 say regenerates them in the same commit, and the check `schema-fresh` fails when
 it does not. The first line of the options file is the hash of the schema it was
 made from, which is how the check tells without running `schemars-nixgen`.
