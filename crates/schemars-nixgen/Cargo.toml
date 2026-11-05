@@ -2,7 +2,8 @@
 name = "schemars-nixgen"
 version = "0.1.0"
 edition = "2024"
-license-file = "LICENSE.md"
+license-file = "../../LICENSE.md"
+publish = false
 
 [lib]
 name = "schemars_nixgen"
@@ -13,10 +14,10 @@ name = "schemars-nixgen"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4", features = ["derive", "wrap_help"] }
-color-eyre = "0.6"
-schemars = "1.1"
-serde = { version = "1", features = ["derive"] }
-serde_json = { package = "serde_json_lenient", version = "0.2" }
+clap = { workspace = true }
+color-eyre = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 sha2 = "0.10"
 thiserror = "2"

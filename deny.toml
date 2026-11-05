@@ -78,6 +78,11 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
+crate = "schemars-nixgen"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
 crate = "komorebi-hotkeys"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []

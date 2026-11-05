@@ -6781,6 +6781,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemars-nixgen"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json_lenient",
+ "sha2",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "schemars_derive"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

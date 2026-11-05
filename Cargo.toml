@@ -31,6 +31,9 @@ members = [
   "komorebi-hotkeys",
   "crates/komorebi-version",
   "komorebi-recorder",
+  # a development tool (it writes the Nix options of the modules): built and tested by its own checks,
+  # not a default member, so that a bare `cargo build --release` never builds it and no release ships it
+  "crates/schemars-nixgen",
 ]
 
 default-members = [
