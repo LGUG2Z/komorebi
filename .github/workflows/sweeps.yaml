@@ -1,0 +1,220 @@
+# What is too slow or too heavy for the ladder of ci.yaml, and what runs against the world as it
+# changes: the slow VM suites, the evaluation of every NixOS system, the demo guest, and the canary of
+# nixpkgs at its tip. None of it is required by a ruleset; a failure here is read, not blocking.
+#
+#   vm-slow, nixos-eval, linux-demo   label ci:vm-slow on a pull request, a push to master, by hand
+#   canary                            every Saturday and by hand (it opens an issue when a check fails)
+
+name: sweeps
+
+on:
+  pull_request:
+    types: [labeled, synchronize]
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: "20 5 * * 6" # Every Saturday at 05:20 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: sweeps-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # the suites are found in the flake, as in ci.yaml
+  discover:
+    if: >-
+      ${{ github.event_name != 'schedule' &&
+      (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:vm-slow')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      slow: ${{ steps.tiers.outputs.slow }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - id: tiers
+        run: |
+          tiers=$(nix eval --json .#legacyPackages.x86_64-linux.vmTiers)
+          echo "slow=$(jq -c '.slow // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
+
+  # The suites that draw and move a pointer. The driver is run by hand, outside the sandbox, so that the
+  # screenshots and the journals of a failed run can be uploaded.
+  vm-slow:
+    needs: [discover]
+    if: ${{ needs.discover.outputs.slow != '[]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        suite: ${{ fromJson(needs.discover.outputs.slow) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix build -L .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}.driver -o driver
+      - run: mkdir -p out && cd out && ../driver/bin/nixos-test-driver -o .
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-vm-${{ matrix.suite }}-${{ github.sha }}
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Evaluating every NixOS system of the module and of the Plasma guests peaks at about 11.6 GB (see
+  # docs/dev/flake-checks.md): the swap is for that, and the free disk for the guests' closures.
+  nixos-eval:
+    if: >-
+      ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:vm-slow') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          free-disk: "true"
+          swap: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix build -L --no-link .#checkSets.linux-nixos-eval
+
+  # the demo guest of `run-kde`, instantiated to check the command (about 1.5 GB to evaluate)
+  linux-demo:
+    if: >-
+      ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:vm-slow') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          free-disk: "true"
+          swap: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix build -L --no-link .#checkSets.linux-demo
+
+  # The flake follows the tip of nixpkgs-unstable, so KWin and Plasma change under it whenever flake.lock
+  # moves. Every week, and on a manual run, each job moves nixpkgs to the tip in a copy of the checkout
+  # and builds its part of the checks against it, one after the other on one machine so that komorebi and
+  # the guests are built once. There is one job per part so that each stays under the 6 hours of a job.
+  # When a check fails, it opens an issue, or comments on the one that is open. Nothing is pushed: the new
+  # lock exists only in the copy.
+  canary:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      issues: write
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [checks, fast, slow]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+          cache: "false"
+          swap: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Move nixpkgs to the tip in a copy of the checkout
+        run: |
+          cp -a . "$RUNNER_TEMP/canary"
+          cd "$RUNNER_TEMP/canary"
+          locked=$(nix eval --raw --inputs-from . nixpkgs#kdePackages.kwin.version)
+          nix flake update nixpkgs
+          rev=$(jq -r .nodes.nixpkgs.locked.rev flake.lock)
+          echo "NIXPKGS_REV=$rev" >>"$GITHUB_ENV"
+          tip=$(nix eval --raw --inputs-from . nixpkgs#kdePackages.kwin.version)
+          echo "KWIN=$tip (flake.lock has $locked)" >>"$GITHUB_ENV"
+      - id: build
+        name: Build its checks against it
+        working-directory: ${{ runner.temp }}/canary
+        env:
+          PART: ${{ matrix.part }}
+        run: |
+          failed="$RUNNER_TEMP/canary-failed"
+          : >"$failed"
+          case "$PART" in
+            # the checks that need no virtual machine (what `nix flake check` has)
+            checks)
+              targets=$(nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
+                jq -r '.[] | ".#checks.x86_64-linux." + .') ;;
+            # the suites of a tier, as the discover jobs list them
+            *)
+              targets=$(nix eval --json .#legacyPackages.x86_64-linux.vmTiers |
+                jq -r --arg tier "$PART" '(.[$tier] // [])[] | ".#legacyPackages.x86_64-linux.vm." + .') ;;
+          esac
+          for target in $targets; do
+            echo "::group::$target"
+            nix build -L --no-link "$target" || echo "$target" >>"$failed"
+            echo "::endgroup::"
+          done
+          test ! -s "$failed"
+      - name: Report
+        if: always()
+        env:
+          BUILD: ${{ steps.build.outcome }}
+          PART: ${{ matrix.part }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          failed="$RUNNER_TEMP/canary-failed"
+          {
+            echo "- part: $PART"
+            echo "- commit: $GITHUB_SHA"
+            if [ -n "${NIXPKGS_REV:-}" ]; then
+              echo "- nixpkgs-unstable:" \
+                "[\`${NIXPKGS_REV:0:12}\`](https://github.com/NixOS/nixpkgs/commit/$NIXPKGS_REV)${KWIN:+, with KWin $KWIN}"
+            else
+              echo "- nixpkgs-unstable: the update of flake.lock failed"
+            fi
+            echo
+            if [ -s "$failed" ]; then
+              echo "These failed:"
+              echo
+              while read -r check; do echo "- \`$check\`"; done <"$failed"
+            elif [ "$BUILD" = success ]; then
+              echo "Every check passed."
+            else
+              echo "The job failed before it could build the checks."
+            fi
+            echo
+            echo "The logs are in [the run]($RUN_URL)."
+          } >"$RUNNER_TEMP/canary.md"
+          cat "$RUNNER_TEMP/canary.md" >>"$GITHUB_STEP_SUMMARY"
+      - name: Open or update the canary issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PART: ${{ matrix.part }}
+        run: |
+          title="Canary ($PART): a check fails against the tip of nixpkgs-unstable"
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 1000 \
+            --json number,title |
+            jq -r --arg title "$title" 'map(select(.title == $title)) | first | .number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/canary.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --body-file "$RUNNER_TEMP/canary.md"
+          fi

@@ -1,0 +1,27 @@
+# komorebi tracks the tip of nixpkgs-unstable, so the lock moves every week. The pull request runs
+# the ladder of ci.yaml like any other, which is what says whether the new nixpkgs still builds. The
+# lock is updated with the token of the repository: a pull request opened with it does not start
+# other workflows, so close and reopen it (or push to its branch as a person) to run the ladder.
+
+name: update-flake-lock
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Every Monday at 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update:
+    if: github.repository == 'LGUG2Z/komorebi'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: cachix/install-nix-action@v31
+      - uses: DeterminateSystems/update-flake-lock@v29
+        with:
+          commit-msg: "chore(deps): flake.lock: Update"
+          pr-title: "chore(deps): flake.lock: Update"
+          pr-assignees: LGUG2Z
