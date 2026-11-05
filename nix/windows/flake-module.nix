@@ -62,57 +62,87 @@ in
             "$E2E_GOLDEN" "$bins" "$out" "$@"
         '';
       };
-      # the Windows unit tests in the guest: every test of every executable in a process of its own
-      windowsNextest = pkgs.writeShellApplication {
-        name = "windows-nextest";
-        runtimeInputs = [
-          pkgs.qemu
-          pkgs.swtpm
-          (pkgs.python3.withPackages (p: [ p.pillow ]))
-        ];
-        text = ''
-          : "''${E2E_GOLDEN:?set E2E_GOLDEN to the golden image directory}"
-          out=''${1:?usage: windows-nextest OUT}
-          export OVMF_FD=${ovmfWithTpm}
-          export PYTHONPATH=${lib'.repoFile "e2e/lib"}:${lib'.repoFile "e2e"}
-          exec python -m platforms.qemu_windows.cargo_tests \
-            "$E2E_GOLDEN" "$out" "''${KOMOREBI_E2E_STATE:--}" ${windowsNextestBuild}
-        '';
-      };
-      # the test executables of the Windows workspace, with a list of them (name, tab, file) for the
-      # guest runner; the check `windows-nextest-build` and the app `windows-nextest` use it
+      # the packages whose tests the guest runs by default: the partition (tools/test-partition.json, the
+      # one list of which package is tested where) says which are the Windows ones, and which are neutral
+      # but depend on the OS (sockets, pipes, paths, the registry). The neutral ones run on Linux.
+      partition = builtins.fromJSON (builtins.readFile (lib'.repoFile "tools/test-partition.json"));
+      windowsPackages = partition.windows ++ partition.os_sensitive;
+      selected = pkgs.lib.concatMapStringsSep " " (p: "-p ${p}") windowsPackages;
       # the members that are stubs here (the Linux and macOS packages) have no test and do not build
       excluded = pkgs.lib.concatMapStringsSep " " (p: "--exclude ${p}") build.stubbedPackages;
-      windowsNextestBuild = build.craneLib.mkCargoDerivation (
-        build.individualCrateArgs
-        // {
-          pnameSuffix = "-nextest-build";
-          doInstallCargoArtifacts = false;
-          nativeBuildInputs = build.individualCrateArgs.nativeBuildInputs ++ [
-            pkgs.jq
-            pkgs.cpio
+
+      # the Windows unit tests in the guest: every test of every executable in a process of its own
+      mkWindowsNextest =
+        { name, tests }:
+        pkgs.writeShellApplication {
+          inherit name;
+          runtimeInputs = [
+            pkgs.qemu
+            pkgs.swtpm
+            (pkgs.python3.withPackages (p: [ p.pillow ]))
           ];
-          buildPhaseCargoCommand = ''
-            cargo test --locked --workspace ${excluded} --release --no-run --message-format json > messages.json
+          text = ''
+            : "''${E2E_GOLDEN:?set E2E_GOLDEN to the golden image directory}"
+            out=''${1:?usage: ${name} OUT}
+            export OVMF_FD=${ovmfWithTpm}
+            export PYTHONPATH=${lib'.repoFile "e2e/lib"}:${lib'.repoFile "e2e"}
+            exec python -m platforms.qemu_windows.cargo_tests \
+              "$E2E_GOLDEN" "$out" "''${KOMOREBI_E2E_STATE:--}" ${tests}
           '';
-          installPhaseCommand = ''
-            mkdir -p $out/tests
-            jq -r 'select(.executable != null and .profile.test == true)
-                  | "\(.target.name)-\(.target.kind | join(","))\t\(.executable)"' messages.json \
-              | sort -u | while IFS=$'\t' read -r name exe; do
-                  cp "$exe" "$out/tests/$name.exe"
-                  printf '%s\t%s.exe\n' "$name" "$name" >> $out/tests.tsv
-                done
-            # the data files the tests read by the absolute path the build baked into them
-            # (CARGO_MANIFEST_DIR): the guest gets them at the same path under C:
-            pwd > $out/srcroot
-            mkdir -p $out/data
-            find . -path ./target -prune -o -type f \
-              \( -path './schemas/*' -o -path './wix/*' -o -path '*/tests/*' -o -path '*/fixtures/*' \) \
-              ! -name '*.rs' -print | cpio -pdm $out/data 2>/dev/null
-          '';
-        }
-      );
+        };
+      # the test executables of the Windows workspace, with a list of them (name, tab, file) for the
+      # guest runner; the checks `windows-nextest-build` and `windows-nextest-full-build` and the apps
+      # `windows-nextest` and `windows-nextest-full` use them
+      mkNextestBuild =
+        { suffix, packages }:
+        build.craneLib.mkCargoDerivation (
+          build.individualCrateArgs
+          // {
+            pnameSuffix = suffix;
+            doInstallCargoArtifacts = false;
+            nativeBuildInputs = build.individualCrateArgs.nativeBuildInputs ++ [
+              pkgs.jq
+              pkgs.cpio
+            ];
+            buildPhaseCargoCommand = ''
+              cargo test --locked ${packages} --release --no-run --message-format json > messages.json
+            '';
+            installPhaseCommand = ''
+              mkdir -p $out/tests
+              jq -r 'select(.executable != null and .profile.test == true)
+                    | "\(.target.name)-\(.target.kind | join(","))\t\(.executable)"' messages.json \
+                | sort -u | while IFS=$'\t' read -r name exe; do
+                    cp "$exe" "$out/tests/$name.exe"
+                    printf '%s\t%s.exe\n' "$name" "$name" >> $out/tests.tsv
+                  done
+              # the data files the tests read by the absolute path the build baked into them
+              # (CARGO_MANIFEST_DIR): the guest gets them at the same path under C:
+              pwd > $out/srcroot
+              mkdir -p $out/data
+              find . -path ./target -prune -o -type f \
+                \( -path './schemas/*' -o -path './wix/*' -o -path '*/tests/*' -o -path '*/fixtures/*' \) \
+                ! -name '*.rs' -print | cpio -pdm $out/data 2>/dev/null
+            '';
+          }
+        );
+      # the default: the windows and os_sensitive packages only
+      windowsNextestBuild = mkNextestBuild {
+        suffix = "-nextest-build";
+        packages = selected;
+      };
+      # the whole Windows workspace, as before the partition: for the owner to run by hand
+      windowsNextestFullBuild = mkNextestBuild {
+        suffix = "-nextest-full-build";
+        packages = "--workspace ${excluded}";
+      };
+      windowsNextest = mkWindowsNextest {
+        name = "windows-nextest";
+        tests = windowsNextestBuild;
+      };
+      windowsNextestFull = mkWindowsNextest {
+        name = "windows-nextest-full";
+        tests = windowsNextestFullBuild;
+      };
 
       # the nightly rustfmt of the checks is the one of the dev shell: see nix/dev-shell.nix
       nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
@@ -169,6 +199,9 @@ in
         # `nix run .#windows-nextest` (e2e/platforms/qemu_windows/cargo_tests.py). The `windows-nextest`
         # that crane's cargoNextest made here ran no test (`doCheck = false`), so the name is the app's.
         windows-nextest-build = windowsNextestBuild;
+        # the same for the whole Windows workspace, which is not in a default check set (nix/checks.nix):
+        # `nix build .#checkSets.windows-test-full`, or run it in the guest with `.#windows-nextest-full`
+        windows-nextest-full-build = windowsNextestFullBuild;
       }
       // {
         # the Python of the Windows e2e guest that needs no guest: the
@@ -263,6 +296,12 @@ in
         windows-nextest = {
           type = "app";
           program = pkgs.lib.getExe windowsNextest;
+        };
+        # every unit test of the Windows workspace in the guest, not only the windows and os_sensitive
+        # packages of tools/test-partition.json: what `just test-windows-full` runs on a Windows machine
+        windows-nextest-full = {
+          type = "app";
+          program = pkgs.lib.getExe windowsNextestFull;
         };
       };
     };

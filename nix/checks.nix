@@ -37,6 +37,10 @@ let
       "windows-e2e-tests"
       "windows-nextest-build"
     ];
+    # the test executables of the WHOLE Windows workspace, not only the windows and os_sensitive packages that
+    # `windows-test` builds (tools/test-partition.json): for the owner to run by hand in the guest
+    # (`nix run .#windows-nextest-full`). Not in defaultCheckSets, so no pull request builds it.
+    windows-test-full = [ "windows-nextest-full-build" ];
     linux-lint = [
       "linux-clippy"
       "linux-doc"
