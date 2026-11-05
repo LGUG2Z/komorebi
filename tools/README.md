@@ -15,6 +15,7 @@ the xwin cross toolchain), so it needs no Windows host. `shellcheck` and `bash -
 | `cc-fake.sh` | the fake C compiler `mac-check.sh` and `fast-check` use for `aarch64-apple-darwin` |
 | `kde-closure-check` | fails when `nix/linux/root-crates.json` (the Linux source filter) and the Linux cargo closure differ |
 | `e2e-needed` | says whether a diff touches anything the Windows e2e binaries are built from |
+| `test-partition` | which package is tested where: `check`, `packages CLASS`, `expr CLASS`, `--self-test` (`tools/test-partition.json` is the list) |
 | `trim-target` | deletes stale test executables from the persistent target directories |
 | `gate-lock` | a host-wide FIFO lock for heavy gates (optional) |
 | `lite-env` | source it to build with debug info off (optional) |
@@ -110,3 +111,26 @@ held), `heavy` and `timing` queue FIFO. It cannot stop work that does not use it
 `. tools/lite-env` sets `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`, `CARGO_INCREMENTAL=0` (unless
 already set) and `CARGO_BUILD_JOBS=3`: same code and tests, far smaller test binaries and less disk write.
 Panic backtraces lose line numbers. Use a separate `CARGO_TARGET_DIR` (the first build is cold). Not for nix builds.
+
+## test-partition
+
+`tools/test-partition.json` classifies every package of the workspace by where its tests run; the CI jobs, the
+justfile and the Nix check sets (`nix/windows/flake-module.nix`) read it, so there is one list. Needs bash, cargo and jq.
+
+| class | meaning | where its tests run |
+|---|---|---|
+| `neutral` | no platform code (no `[target.'cfg(..)'.dependencies]`, no dependency on `komorebi-windows`, `-macos`, `-linux`) | Linux (and macOS) |
+| `os_sensitive` | neutral in intent, but touches the OS (sockets, pipes, paths, the registry) | Linux, macOS and Windows |
+| `windows`, `linux`, `macos` | the platform's own crates | that platform |
+| `mixed` | has tests of several platforms in one package (`komorebi-client`, `komorebi-bar`, `komorebi-recorder`) | each platform's job selects its subset (below) |
+| `tool` | dev tools and the e2e guest programs | their own checks |
+| `none` | no tests | nowhere |
+
+`tools/test-partition check` fails when a member is in no class or in two, when a name is not a member, and when a
+`neutral` package is not neutral. `packages CLASS` prints `-p a -p b`; `expr CLASS` prints the nextest filterset
+`package(a) | package(b)`. `expr recorder-macos` is the filterset of the recorder tests that run on macOS (the macOS
+flavoured modules `sources::oslog`, `av`, `capture::sck`, `platform`, `power`, `system_state`: 36 tests); run it with
+`cargo nextest run -p komorebi-recorder -E "$(tools/test-partition expr recorder-macos)"`. `komorebi-bar` has one
+Windows-only test and `komorebi-client` Linux-only ones: their jobs name the package with `-p`, the partition says
+only that the package is in no platform's default list. `tools/test-partition --self-test` (`just test-partition-check`)
+runs `check` on the tree and on deliberately broken copies of the classification.

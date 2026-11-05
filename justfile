@@ -71,6 +71,31 @@ lint:
     nix shell --inputs-from . nixpkgs#actionlint nixpkgs#shellcheck --command actionlint .github/workflows/*.yaml
     nix shell --inputs-from . nixpkgs#shellcheck --command shellcheck scripts/linux/wsl2-probe.sh
 
+# tools/test-partition needs bash, cargo and jq
+# the classification of the packages by where their tests run matches the workspace, and the checker catches a broken one
+[unix]
+test-partition-check:
+    tools/test-partition check
+    tools/test-partition --self-test
+
+[windows]
+test-partition-check:
+    bash tools/test-partition check
+    bash tools/test-partition --self-test
+
+# The neutral packages run on Linux and macOS; `just test-windows-full` runs them all too.
+# the windows and os_sensitive packages of tools/test-partition.json with nextest, as the Windows CI job does
+[windows]
+test-windows:
+    $packages = (bash tools/test-partition packages windows) + ' ' + (bash tools/test-partition packages os_sensitive); cargo nextest run --locked --no-fail-fast @($packages -split ' ')
+
+# The same commands as the test step of .github/workflows/windows.yaml before the partition; run it by hand on Windows.
+# every test of the Windows workspace, the neutral packages and the recorder included
+[windows]
+test-windows-full:
+    cargo test --workspace --exclude komorebi-recorder --exclude komorebi-linux --exclude komorebi-macos --exclude komorebi-hotkeys --exclude schemars-nixgen
+    cargo test -p komorebi-recorder
+
 # the KWin bridge of the KDE daemon (JavaScript): its types by tsc, its tests by node against a fake KWin
 check-js:
     cd crates/komorebi-linux/src/kwin && tsc -p tsconfig.json

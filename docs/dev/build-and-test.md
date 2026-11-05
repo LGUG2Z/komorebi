@@ -39,6 +39,7 @@ workspace of the repository; none of them writes to the source tree.
 | `tools/fast-check [--list] [--range \| --since REV]` | only the checks the touched paths need; warm in seconds (Windows clippy 8-9 s, KDE 1-3 s, macOS 2-3 s) |
 | `tools/e2e-needed [--since REV]` | does this diff change the Windows e2e binaries (`NO` carries a previous passing e2e over) |
 | `tools/kde-closure-check` | the Linux source filter list (`nix/linux/root-crates.json`) matches the Linux cargo closure |
+| `tools/test-partition check \| packages CLASS \| expr CLASS` | which package is tested where (`tools/test-partition.json`); `just test-partition-check` also runs its self-test |
 | `tools/mac-check.sh` | macOS type-check on Linux (fake C compiler `tools/cc-fake.sh`) |
 | `tools/trim-target`, `tools/gate-lock`, `tools/lite-env` | disk trimming, a heavy-gate lock, debug-info-off builds |
 
@@ -58,7 +59,7 @@ shared by all of them):
 
 ```sh
 nix build -L --no-link .#checks.x86_64-linux.windows-clippy
-nix build -L --no-link .#checks.x86_64-linux.windows-nextest-build # cross-compiles the Windows crates' test executables (48), runs none
+nix build -L --no-link .#checks.x86_64-linux.windows-nextest-build # cross-compiles the test executables of the windows and os_sensitive packages (tools/test-partition.json), runs none
 nix build -L --no-link .#checks.x86_64-linux.windows-fmt .#checks.x86_64-linux.windows-toml-fmt .#checks.x86_64-linux.windows-deny
 nix build -L --no-link .#checks.x86_64-linux.windows-e2e-tests # the Python of the e2e (pytest), no guest needed
 ```
@@ -210,6 +211,24 @@ the printed line. `docs/dev/bar-e2e.md` describes the `bar` scenario.
 
 A change to the Windows daemon or bar needs these before it is considered landed (commit types BEHAVIOUR):
 `commands`, plus the scenario of the cluster named in the revision body (see backend-switch.md for the table).
+
+### The full Windows suite by hand
+
+CI runs, on Windows, only the packages that need Windows: the `windows` and `os_sensitive` classes of
+`tools/test-partition.json` (the neutral packages run on Linux and macOS, `crates/komorebi-macos-core` among them). The
+whole suite that ran on Windows before the partition is still there, to run by hand:
+
+```sh
+just test-windows-full          # on a Windows machine, native: cargo test --workspace (less the other platforms' crates) and the recorder
+just test-windows               # on a Windows machine: only the windows and os_sensitive packages, with nextest (what CI runs)
+nix build -L --no-link .#checkSets.windows-test-full           # cross-builds the test executables of every Windows crate, runs none
+E2E_GOLDEN=golden KOMOREBI_E2E_STATE=state-nextest nix run .#windows-nextest-full -- OUT   # the whole suite in the guest
+```
+
+`windows-nextest-full` and its build `windows-nextest-full-build` (the set `windows-test-full`) are not in
+`defaultCheckSets` of `nix/checks.nix`, so no pull request builds them; `windows-nextest` and `windows-nextest-build`
+are the trimmed default. Both derive their package list from the same `tools/test-partition.json`. The recipes of the
+justfile that need the partition call `bash tools/test-partition`, so on Windows they want Git for Windows' bash and `jq`.
 
 ## 5. What runs where (summary)
 
