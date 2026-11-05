@@ -31,11 +31,11 @@ this tool.
 
 | touched | check (tier) |
 |---|---|
-| `komorebi-linux/**`, `komorebi-hotkeys/**`, `scripts/linux/**`, the Linux files of `komorebic`/`komorebi-client`/`komorebi-daemon` | `cargo check`, `cargo test --lib` and `--test schemas -- --test-threads=1` of the Linux daemon package (1) |
-| `komorebi-macos/**`, the macOS files of `komorebic`/`komorebi-client`/`komorebi-bar` | `cargo check --target aarch64-apple-darwin --all-targets` with the fake CC; type-check only, cannot link or test (2) |
-| the Windows crates (`komorebi-windows/`, `komorebi-gui/`, ..., `e2e/`), `Cargo.*` | `nix develop --command cargo clippy --locked --all-targets -- -D warnings` (2) |
-| `komorebi-layouts/`, `komorebi-scrolling/` | native `cargo test` of both plus the Windows check |
-| `crates/**` | native tests, plus the KDE, macOS and Windows checks |
+| `crates/komorebi-linux/**`, `crates/komorebi-hotkeys/**`, `scripts/linux/**`, the Linux files of `komorebic`/`crates/komorebi-client`/`komorebi` | `cargo check`, `cargo test --lib` and `--test schemas -- --test-threads=1` of the Linux daemon package (1) |
+| `crates/komorebi-macos/**`, the macOS files of `komorebic`/`crates/komorebi-client`/`komorebi-bar` | `cargo check --target aarch64-apple-darwin --all-targets` with the fake CC; type-check only, cannot link or test (2) |
+| the Windows crates (`crates/komorebi-windows/`, `komorebi-gui/`, `crates/komorebi-e2e-agent/`, ..., `e2e/`), `Cargo.*` | `nix develop --command cargo clippy --locked --all-targets -- -D warnings` (2) |
+| `crates/komorebi-layouts/`, `crates/komorebi-scrolling/` | native `cargo test` of both plus the Windows check |
+| the other `crates/**` | native tests, plus the KDE, macOS and Windows checks |
 | `flake.nix`, `flake.lock`, `nix/**` | evaluation only: `nix flake show` and `nix eval ...drvPath` of one check and one package per platform (no `nix flake check`) |
 | `*.md`, `docs/`, `tools/`, images, `.github` | nothing |
 

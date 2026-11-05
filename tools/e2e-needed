@@ -61,9 +61,9 @@ while IFS= read -r f; do
   reason=""
   case "$f" in
     Cargo.lock|Cargo.toml|rust-toolchain.toml|flake.nix|flake.lock|nix/windows/*|nix/workspace-src.nix|nix/lib.nix|nix/common.nix) reason="fixed input" ;;
-    e2e/*) reason="e2e harness / guest" ;;
+    e2e/*|crates/komorebi-e2e-agent/*) reason="e2e harness / guest" ;;
     */build.rs) reason="build script" ;;
-    komorebi-linux/*|komorebi-hotkeys/*|komorebi-macos/*|nix/linux/*|nix/macos/*|scripts/linux/*|schemas/linux/*|schemas/macos/*) ;;  # the other platforms, not in the Windows closure
+    crates/komorebi-linux/*|crates/komorebi-hotkeys/*|crates/komorebi-macos/*|nix/linux/*|nix/macos/*|scripts/linux/*|schemas/linux/*|schemas/macos/*) ;;  # the other platforms, not in the Windows closure
     *.md|docs/*|tools/*|.github/*) ;;                              # docs and dev tools (include!-ed docs are caught below)
   esac
   if [ -z "$reason" ]; then
@@ -79,7 +79,7 @@ while IFS= read -r f; do
   fi
   if [ -z "$reason" ]; then
     case "$f" in
-      komorebi-linux/*|komorebi-hotkeys/*|komorebi-macos/*|nix/linux/*|nix/macos/*|scripts/linux/*|schemas/linux/*|schemas/macos/*|*.md|docs/*|tools/*|.github/*) ;;
+      crates/komorebi-linux/*|crates/komorebi-hotkeys/*|crates/komorebi-macos/*|nix/linux/*|nix/macos/*|scripts/linux/*|schemas/linux/*|schemas/macos/*|*.md|docs/*|tools/*|.github/*) ;;
       komorebi-bar/*|komorebi-gui/*|komorebi-shortcuts/*|komorebic-no-console/*|crates/komorebi-bar-core/*|schemas/windows/*|schema*.json|komorebic.lib.ahk|wix/*|justfile|mkdocs.yml|deny.toml|rustfmt.toml|*.json)
         # known Windows-tree paths outside the closure (crates not in the closure were checked above)
         case "$f" in */*.json|*.json) [ "$f" = dependencies.json ] || [ "${f#schema}" != "$f" ] || reason="json file outside known oracle files: treated as needed" ;; esac ;;

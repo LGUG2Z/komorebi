@@ -379,12 +379,22 @@ def main():
     schemas = [
         SchemaConfig(
             schema_file="schema.json",
-            search_paths=["komorebi/src", "komorebi-themes/src"],
+            search_paths=[
+                "crates/komorebi-windows/src",
+                "crates/komorebi-config/src",
+                "crates/komorebi-settings/src",
+                "crates/komorebi-layouts/src",
+                "crates/komorebi-themes/src",
+            ],
             display_name="komorebi",
         ),
         SchemaConfig(
             schema_file="schema.bar.json",
-            search_paths=["komorebi-bar/src", "komorebi-themes/src"],
+            search_paths=[
+                "komorebi-bar/src",
+                "crates/komorebi-bar-core/src",
+                "crates/komorebi-themes/src",
+            ],
             display_name="komorebi-bar",
         ),
     ]

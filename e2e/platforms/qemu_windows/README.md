@@ -153,7 +153,7 @@ say it can go).
 ## Pieces
 
 `guest.py` (QEMU, swtpm, the overlay), `qmp.py` (keys, pointer, screenshots),
-`agent.py` and `../../guest/agent` (windows, processes and files in the guest
+`agent.py` and `../../../crates/komorebi-e2e-agent` (windows, processes and files in the guest
 over TCP), `windows_platform.py` (the shared `Platform` protocol), `run.py`
 (the runner), `extras/` (what only Windows checks), `display.ps1` (changes the
 mode of a display), `w1_*.py` (probes, each prints what it saw).

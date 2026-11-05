@@ -52,9 +52,6 @@ cargo_stable := "env -u CARGO_BUILD_TARGET cargo" + if env("IN_NIX_SHELL", "") =
 [unix]
 cargo_nightly := "env -u CARGO_BUILD_TARGET cargo" + if env("IN_NIX_SHELL", "") == "" { " +nightly" } else { "" }
 
-# the directory of a target's package: the `komorebi` binary is the package in komorebi-daemon
-daemon_dir := "komorebi-daemon"
-
 clean:
     cargo clean
 
@@ -70,14 +67,14 @@ fix:
 lint:
     test -z "$(rg 'eyre!' --type rust .)" || (echo "eyre! macro not allowed"; false)
     test -z "$(rg 'dbg!' --type rust .)" || (echo "dbg! macro not allowed"; false)
-    test -z "$(rg 'println!' --type rust ./komorebi-linux/src ./komorebi-macos/src)" || (echo "println! macro not allowed"; false)
+    test -z "$(rg 'println!' --type rust ./crates/komorebi-linux/src ./crates/komorebi-macos/src)" || (echo "println! macro not allowed"; false)
     nix shell --inputs-from . nixpkgs#actionlint nixpkgs#shellcheck --command actionlint .github/workflows/*.yaml
     nix shell --inputs-from . nixpkgs#shellcheck --command shellcheck scripts/linux/wsl2-probe.sh
 
 # the KWin bridge of the KDE daemon (JavaScript): its types by tsc, its tests by node against a fake KWin
 check-js:
-    cd komorebi-linux/src/kwin && tsc -p tsconfig.json
-    node --test komorebi-linux/src/kwin/bridge.test.js
+    cd crates/komorebi-linux/src/kwin && tsc -p tsconfig.json
+    node --test crates/komorebi-linux/src/kwin/bridge.test.js
 
 [unix]
 install-targets *targets:
@@ -92,7 +89,7 @@ install-targets *targets:
 check-target target ok=(if target =~ "^(" + replace(targets, " ", "|") + ")$" { "" } else { error(target + " is not built on " + platform + ", the targets are: " + targets) }):
 
 install-target target: (check-target target)
-    {{ cargo_stable }} install --path {{ if target == "komorebi" { daemon_dir } else { target } }} --locked --no-default-features
+    {{ cargo_stable }} install --path {{ target }} --locked --no-default-features
 
 [unix]
 install-targets-with-jsonschema *targets:
@@ -103,7 +100,7 @@ install-targets-with-jsonschema *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just install-target-with-jsonschema $_ }
 
 install-target-with-jsonschema target: (check-target target)
-    {{ cargo_stable }} install --path {{ if target == "komorebi" { daemon_dir } else { target } }} --locked
+    {{ cargo_stable }} install --path {{ target }} --locked
 
 install:
     just install-targets {{ targets }}
@@ -167,12 +164,12 @@ jsonschema: && jsonschema-bar
     {{ cargo_stable }} run --package komorebic --locked -- application-specific-configuration-schema > schemas/{{ platform }}/schema.asc.json
 
 # Linux has no bar, so no schema of one
-[private]
 [linux]
+[private]
 jsonschema-bar:
 
-[private]
 [macos]
+[private]
 [windows]
 jsonschema-bar:
     {{ cargo_stable }} run --package komorebi-bar --locked -- --schema > schemas/{{ platform }}/schema.bar.json
@@ -183,8 +180,8 @@ jsonschema-bar:
 docgen-local:
     {{ cargo_stable }} run --package komorebic --locked -- docgen --output docs/cli
 
-[macos]
 [linux]
+[macos]
 docgen-local:
     {{ cargo_stable }} run --package komorebic --locked -- docgen --output docs/{{ platform }}/cli
 
@@ -212,8 +209,8 @@ nixgen-macos:
 
 version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "komorebi") | .version'`
 
-[macos]
 [linux]
+[macos]
 schemapub: schemapub-files
     npx wrangler pages deploy --project-name komorebi --branch main ./komorebi-schema
 

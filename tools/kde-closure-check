@@ -4,13 +4,13 @@
 # Usage: tools/kde-closure-check [REPO_ROOT]   (default: the repository this script is in)
 set -euo pipefail
 root=$(cd "${1:-$(dirname "$0")/..}" && pwd)
-# the list holds the crates the Linux source needs besides komorebi-linux, komorebi-hotkeys and komorebi-daemon
+# the list holds the crates the Linux source needs besides crates/komorebi-linux, crates/komorebi-hotkeys and komorebi
 want=$(jq -r '.[]' "$root/nix/linux/root-crates.json" | sort)
 # the closure of the Linux packages on a Linux target
 have=$(cd "$root" && for p in komorebi-linux komorebic komorebi-client komorebi-hotkeys komorebi; do
     nice -n 19 cargo tree --offline --locked -p "$p" --target x86_64-unknown-linux-gnu --prefix none -e normal,build,dev 2>/dev/null
   done | grep -o "($root/[^)]*)" | tr -d '()' | sed "s#^$root/##" \
-  | grep -vx -e komorebi-linux -e komorebi-hotkeys -e komorebi-daemon | sort -u)
+  | grep -vx -e crates/komorebi-linux -e crates/komorebi-hotkeys -e komorebi | sort -u)
 if [ "$want" != "$have" ]; then
   echo "Linux source filter and cargo closure differ" >&2
   diff <(echo "$want") <(echo "$have") | sed 's/^</  only in root-crates.json:/; s/^>/  only in cargo closure:     /' >&2
