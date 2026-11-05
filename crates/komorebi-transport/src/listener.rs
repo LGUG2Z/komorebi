@@ -254,13 +254,21 @@ impl CommandListener for uds_windows::UnixListener {
     }
 }
 
-#[cfg(all(test, unix))]
+/// The tests run against the listener each platform really uses: the Unix domain sockets of the OS
+/// on Unix, and the `uds_windows` ones (AF_UNIX on Windows) that the Windows daemon listens on
+#[cfg(all(test, any(unix, windows)))]
 mod tests {
     use super::*;
     use parking_lot::Mutex;
+    #[cfg(unix)]
     use std::os::unix::net::UnixListener;
+    #[cfg(unix)]
     use std::os::unix::net::UnixStream;
     use std::sync::Arc;
+    #[cfg(windows)]
+    use uds_windows::UnixListener;
+    #[cfg(windows)]
+    use uds_windows::UnixStream;
 
     /// A window manager that records what it is asked, and answers each message with its name
     struct Recorder {
