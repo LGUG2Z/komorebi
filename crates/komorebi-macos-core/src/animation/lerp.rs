@@ -1,5 +1,5 @@
-use crate::core::Rect;
-use crate::core::animation::AnimationStyle;
+use komorebi_layouts::Rect;
+use komorebi_protocol::animation::AnimationStyle;
 
 use super::style::apply_ease_func;
 

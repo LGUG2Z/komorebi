@@ -10,15 +10,17 @@ use step::MotionSpec;
 pub mod animator;
 pub mod capture;
 pub mod ghost;
-pub mod lerp;
 pub mod prefix;
-pub mod stats;
-pub mod step;
-pub mod style;
-pub mod throttle;
-pub mod tracks;
-pub mod transition;
 pub mod workspace_transition;
+
+// the pure part of the animations lives in komorebi-macos-core, and is where it always was
+pub use komorebi_macos_core::animation::lerp;
+pub use komorebi_macos_core::animation::stats;
+pub use komorebi_macos_core::animation::step;
+pub use komorebi_macos_core::animation::style;
+pub use komorebi_macos_core::animation::throttle;
+pub use komorebi_macos_core::animation::tracks;
+pub use komorebi_macos_core::animation::transition;
 
 pub const DEFAULT_ANIMATION_ENABLED: bool = false;
 pub const DEFAULT_ANIMATION_STYLE: AnimationStyle = AnimationStyle::Linear;

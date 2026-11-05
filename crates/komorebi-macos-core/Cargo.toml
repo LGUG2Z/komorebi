@@ -1,0 +1,12 @@
+[package]
+name = "komorebi-macos-core"
+version.workspace = true
+description = "The platform-neutral parts of komorebi-macos (animation maths, arrival record, accessibility rules), tested on every platform"
+edition = "2024"
+publish = false
+
+[dependencies]
+komorebi-layouts = { path = "../komorebi-layouts" }
+komorebi-protocol = { path = "../komorebi-protocol", default-features = false }
+parking_lot = { workspace = true }
+tracing = { workspace = true }

@@ -617,6 +617,7 @@
         "komorebi-layouts 0.2.0-dev",
         "komorebi-linux 0.2.0-dev",
         "komorebi-macos 0.2.0-dev",
+        "komorebi-macos-core 0.2.0-dev",
         "komorebi-protocol 0.2.0-dev",
         "komorebi-recorder 0.1.0-dev",
         "komorebi-scrolling 0.2.0-dev",

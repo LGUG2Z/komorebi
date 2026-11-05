@@ -6,9 +6,9 @@
 //! rects, so that it can be tested without a screen.
 
 use crate::animation::style::apply_ease_func;
-use crate::core::OperationDirection;
-use crate::core::Rect;
-use crate::core::animation::AnimationStyle;
+use komorebi_layouts::OperationDirection;
+use komorebi_layouts::Rect;
+use komorebi_protocol::animation::AnimationStyle;
 
 /// Which side of the monitor the workspace that is entered comes in from. The workspace that is
 /// left goes out on the other side.

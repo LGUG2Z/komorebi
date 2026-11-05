@@ -4,8 +4,8 @@
 //! can be tested deterministically and the animator is free to decide when a frame happens.
 
 use super::style::apply_ease_func;
-use crate::core::Rect;
-use crate::core::animation::AnimationStyle;
+use komorebi_layouts::Rect;
+use komorebi_protocol::animation::AnimationStyle;
 use std::time::Duration;
 use std::time::Instant;
 

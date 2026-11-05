@@ -47,7 +47,7 @@ pub mod accessibility;
 pub mod animation;
 pub mod app_kit_notification_constants;
 pub mod application;
-pub mod arrival;
+pub use komorebi_macos_core::arrival;
 pub mod ax_registry;
 pub mod border_manager;
 pub mod container;

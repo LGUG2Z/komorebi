@@ -1,4 +1,4 @@
-use crate::core::animation::AnimationStyle;
+use komorebi_protocol::animation::AnimationStyle;
 
 use std::f64::consts::PI;
 

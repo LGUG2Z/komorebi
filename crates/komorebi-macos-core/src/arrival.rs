@@ -10,7 +10,7 @@
 //! this module waits for anything or takes the lock of the window manager, so it can be called
 //! from any thread. The layout picks up what has been said the next time that it runs.
 
-use crate::core::Rect;
+use komorebi_layouts::Rect;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::LazyLock;

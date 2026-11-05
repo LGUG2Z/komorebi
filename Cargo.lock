@@ -3872,6 +3872,7 @@ dependencies = [
  "komorebi-config",
  "komorebi-core",
  "komorebi-layouts",
+ "komorebi-macos-core",
  "komorebi-protocol",
  "komorebi-settings",
  "komorebi-themes",
@@ -3903,6 +3904,16 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "komorebi-macos-core"
+version = "0.2.0-dev"
+dependencies = [
+ "komorebi-layouts",
+ "komorebi-protocol",
+ "parking_lot 0.12.5",
+ "tracing",
 ]
 
 [[package]]

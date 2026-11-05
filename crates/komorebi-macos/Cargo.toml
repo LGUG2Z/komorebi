@@ -9,6 +9,7 @@ komorebi-themes = { path = "../komorebi-themes" }
 komorebi-backend = { path = "../komorebi-backend" }
 komorebi-collections = { path = "../komorebi-collections" }
 komorebi-core = { path = "../komorebi-core" }
+komorebi-macos-core = { path = "../komorebi-macos-core" }
 komorebi-layouts = { path = "../komorebi-layouts", features = [
   "darwin",
   "schemars",

@@ -28,6 +28,7 @@ members = [
   # `default-members` below is the Windows set that a bare cargo command builds
   "crates/komorebi-linux",
   "crates/komorebi-macos",
+  "crates/komorebi-macos-core",
   "crates/komorebi-hotkeys",
   "crates/komorebi-version",
   "komorebi-recorder",
