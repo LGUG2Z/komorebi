@@ -17,13 +17,13 @@ platform := "linux"
 
 # the binaries that are built, installed and run on this platform, by package name
 [windows]
-targets := "komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts"
+targets := "komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts komorebi-recorder"
 
 [macos]
-targets := "komorebic komorebi komorebi-bar"
+targets := "komorebic komorebi komorebi-bar komorebi-recorder"
 
 [linux]
-targets := "komorebic komorebi"
+targets := "komorebic komorebi komorebi-recorder"
 
 # the packages the workspace-wide commands (fmt, fix) run on: a bare cargo command builds the Windows set, and the
 # crates of the other platforms do not compile here
@@ -34,7 +34,7 @@ packages := ""
 packages := "--workspace --exclude komorebi-windows --exclude komorebi-linux --exclude komorebi-gui --exclude komorebic-no-console --exclude komorebi-shortcuts --exclude komorebi-e2e-agent --exclude komorebi-testwin"
 
 [linux]
-packages := "-p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
+packages := "-p komorebi-recorder -p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
 
 # How cargo is invoked. Outside nix it is rustup's, which takes the +toolchain. Inside `nix develop` (IN_NIX_SHELL) the
 # toolchain is the nix one: there is no rustup to take +toolchain, and its cargo already formats with the nightly
@@ -141,7 +141,9 @@ wpm target:
 copy:
     just copy-targets {{ targets }}
 
+# run a binary of this platform; every binary of its package is built first, as komorebi-recorder opens its viewer as the separate komorebi-recorder-gui
 run target *args: (check-target target)
+    {{ cargo_stable }} build --package {{ target }} --bins --locked --no-default-features
     {{ cargo_stable }} run --package {{ target }} --bin {{ target }} --locked --no-default-features -- {{ args }}
 
 warn target $RUST_LOG="warn":
@@ -278,3 +280,16 @@ vm-all:
 # `just run-kde --doctor` says what this machine is missing
 run-kde *args:
     nix run .#run-kde -- {{ args }}
+
+# record a bug repro: screen + komorebi log/events + OS trace, then query it with `komorebi-recorder at`
+record *args:
+    just run komorebi-recorder {{ args }}
+
+# render the icon: komorebi-recorder/assets/watermelon.svg into the PNG the windows set and the ICO Windows embeds
+icon:
+    python3 komorebi-recorder/assets/generate.py
+
+# cross-compile komorebi-recorder.exe and komorebi-recorder-gui.exe into ./result-windows and ./result-windows-gui
+build-windows-recorder:
+    nix build .#windows-komorebi-recorder --out-link result-windows
+    nix build .#windows-komorebi-recorder-gui --out-link result-windows-gui
