@@ -1,0 +1,66 @@
+# The macOS jobs, called by ci.yaml on a hosted runner and by macos-selfhosted.yaml on the Mac Mini.
+# `runs-on` is JSON: '"macos-14"' or '["self-hosted","macOS","ARM64"]'.
+
+name: macos
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: The runner, as JSON
+        type: string
+        required: true
+      install-nix:
+        description: Install nix (a self-hosted machine already has it)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 120
+    env:
+      # a symlinked TMPDIR (/var/folders -> /private/var/folders) breaks a test of the recorder: the
+      # cargo steps run in a canonical one
+      TMPDIR: /private/tmp/komorebi-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - run: mkdir -p "$TMPDIR"
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          install: ${{ inputs.install-nix }}
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: The macOS checks
+        run: nix build -L --no-link .#checkSets.macos-lint .#checkSets.macos-test .#checkSets.macos-options
+      # the recorder's tests of the macOS sources (oslog, av, capture, platform, power, system state): the
+      # filterset is tools/test-partition's
+      - name: The recorder's macOS tests
+        run: |
+          # shellcheck disable=SC2016
+          nix develop --command bash -c 'cargo nextest run --locked -p komorebi-recorder -E "$(tools/test-partition expr recorder-macos)"'
+      - name: The binaries
+        run: |
+          nix build -L --no-link --print-out-paths .#komorebi .#komorebic .#komorebi-bar |
+            while read -r out; do
+              for bin in "$out"/bin/*; do "$bin" --version; done
+            done
+      - name: The schemas are current
+        run: |
+          nix develop --command just jsonschema
+          git diff --exit-code schemas/macos
+      - name: Logs of a failed run
+        if: failure()
+        run: |
+          mkdir -p "$RUNNER_TEMP/logs"
+          cp -R "$TMPDIR"/. "$RUNNER_TEMP/logs/" 2>/dev/null || true
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-macos-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/logs
+          if-no-files-found: ignore
+          retention-days: 7

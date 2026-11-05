@@ -1,0 +1,364 @@
+# The ladder: each stage is cheaper than the next and only starts when the one before it has passed, so
+# a typo costs two minutes and not an hour. Every job is a `needs:` of `required`, the one check that a
+# ruleset has to require: a job that is skipped (a stage that the paths of the change do not concern)
+# counts as passed, a job that failed or was cancelled does not. The model is in docs/dev/ci.md.
+#
+# Nothing here publishes anything: the release, nightly, MSI and winget jobs are windows.yaml's and
+# are not touched by this file. The paths that say which platform a change concerns are in
+# .github/ci-paths.yaml.
+
+name: ci
+
+on:
+  pull_request:
+    # `labeled` so that adding ci:vm, ci:macos or ci:win-arm starts the stage the label asks for
+    types: [opened, synchronize, reopened, labeled]
+  merge_group:
+  push:
+    branches:
+      - master
+      # TEMPORARY: remove when komomono is merged to master
+      - komomono
+  workflow_dispatch:
+
+# a pull request cancels its own earlier run; the runs of a push, of the merge queue and by hand never
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # which platforms the change concerns, from .github/ci-paths.yaml. A manual run concerns all of them.
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      linux: ${{ steps.final.outputs.linux }}
+      macos: ${{ steps.final.outputs.macos }}
+      windows: ${{ steps.final.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # the merge queue and a push are compared with a commit that a shallow clone does not have
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: .github/ci-paths.yaml
+          # the merge queue has no base of its own for the action: it is the commit the group is on
+          base: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || '' }}
+      - id: final
+        env:
+          ALL: ${{ github.event_name == 'workflow_dispatch' }}
+          LINUX: ${{ steps.filter.outputs.linux }}
+          MACOS: ${{ steps.filter.outputs.macos }}
+          WINDOWS: ${{ steps.filter.outputs.windows }}
+        run: |
+          if [ "$ALL" = true ]; then LINUX=true MACOS=true WINDOWS=true; fi
+          {
+            echo "linux=$LINUX"
+            echo "macos=$MACOS"
+            echo "windows=$WINDOWS"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  # ---- stage 0: no nix, no compilation, about two minutes ----
+
+  hygiene:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: No file is stored with CRLF
+        run: |
+          if git ls-files --eol | grep '^i/crlf'; then
+            echo "::error::files are stored with CRLF"
+            exit 1
+          fi
+      # what `just lint` bans, with git grep (no ripgrep on the runner)
+      - name: The banned macros
+        run: |
+          status=0
+          if git grep -n 'eyre!' -- '*.rs'; then echo "::error::eyre! macro not allowed"; status=1; fi
+          if git grep -n 'dbg!' -- '*.rs'; then echo "::error::dbg! macro not allowed"; status=1; fi
+          if git grep -n 'println!' -- 'crates/komorebi-linux/src/*.rs' 'crates/komorebi-macos/src/*.rs'; then
+            echo "::error::println! macro not allowed"; status=1
+          fi
+          exit "$status"
+      - name: actionlint
+        # windows.yaml is the release workflow of the Windows build and is not linted (its PowerShell is
+        # read as bash by actionlint); the workflows of this ladder are
+        run: |
+          files=$(git ls-files '.github/workflows/*.yaml' ':!:.github/workflows/windows.yaml')
+          # shellcheck disable=SC2086
+          docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color $files
+      - name: shellcheck
+        run: |
+          files=(scripts/linux/wsl2-probe.sh)
+          for f in tools/*; do
+            if head -n 1 "$f" | grep -q '^#!.*\(ba\)\?sh'; then files+=("$f"); fi
+          done
+          shellcheck "${files[@]}"
+      - name: Cargo
+        run: cargo fetch --locked
+      - name: The Linux source filter matches the cargo closure
+        run: tools/kde-closure-check
+      - name: Every crate is in one class of the test partition
+        run: tools/test-partition check
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - name: dependencies.json is current
+        run: |
+          cargo deny list --format json |
+            jq 'del(.unlicensed) | walk(if type == "string" then sub(" path\\+file://.*$"; "") else . end)' \
+              >"$RUNNER_TEMP/dependencies.json"
+          diff -u dependencies.json "$RUNNER_TEMP/dependencies.json" ||
+            { echo "::error::dependencies.json is stale: regenerate it with just depgen"; exit 1; }
+
+  # the nightly rustfmt over every .rs file of the repository (the pinned nightly of the flake is what
+  # stage 1 checks: a difference between the two is the nightly of the day, not the code)
+  fmt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - run: rustup toolchain install nightly --profile minimal --component rustfmt
+      - run: RUSTFMT="$(rustup which --toolchain nightly rustfmt)" tools/format-all --check --root .
+
+  deny:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  # ---- stage 1: nix evaluation, and the checks that are options and formatting ----
+
+  nix-eval:
+    needs: [hygiene, fmt, deny]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          free-disk: "true"
+          swap: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      # every output of every system evaluates, and no check is built. `nix flake check` also evaluates the
+      # nixosConfigurations, which peak at several GB: the swap of the action is for that
+      - run: nix flake check --no-build --all-systems
+      # what is built here is what no later stage builds: the formatting, the options and the
+      # nix-darwin module (plain Nix: they evaluate against x86_64-linux nixpkgs, so the macOS ones
+      # are checked on Linux too) and the Windows e2e Python
+      - run: |
+          nix build -L --no-link \
+            .#checkSets.fmt \
+            .#checkSets.linux-options \
+            .#checkSets.macos-options \
+            .#checkMembers.windows-test.windows-e2e-tests
+
+  # ---- stage 2: lint ----
+
+  lint:
+    needs: [nix-eval]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        set: [windows-lint, linux-lint, recorder-lint, nixgen-lint]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          free-disk: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix build -L --no-link .#checkSets.${{ matrix.set }}
+
+  # the macOS packages type-checked on Linux (target aarch64-apple-darwin, through the fake C compiler of
+  # tools/cc-fake.sh): it cannot link or run anything. The dev shell of the flake has the Windows
+  # target and not this one, so the std of the target comes from the toolchain of the runner. clippy
+  # could be run the same way (`cargo clippy --target aarch64-apple-darwin`); tools/mac-check.sh only checks.
+  mac-typecheck:
+    needs: [changes, nix-eval]
+    if: ${{ !cancelled() && !failure() && (github.event_name != 'pull_request' || needs.changes.outputs.macos == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: rustup target add aarch64-apple-darwin
+      - run: tools/mac-check.sh
+
+  # ---- stage 3: tests ----
+
+  test:
+    needs: [lint]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        set: [linux-test, windows-test, recorder-test, nixgen-test]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          free-disk: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix build -L --no-link .#checkSets.${{ matrix.set }}
+
+  # The Windows tests on Windows: the partition of tools/test-partition (the Windows crates and the ones
+  # whose tests depend on the OS). windows.yaml still runs every test of the workspace.
+  windows-native-test:
+    needs: [changes, lint]
+    if: ${{ !cancelled() && !failure() && needs.changes.outputs.windows == 'true' }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      # the scripts of tools/ must keep their LF
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@nextest
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - shell: bash
+        run: |
+          # the words of the two lists are the arguments
+          # shellcheck disable=SC2046
+          cargo nextest run --locked $(tools/test-partition packages windows) $(tools/test-partition packages os_sensitive)
+
+  # the same on Windows ARM: with the label ci:win-arm, on master, and by hand
+  windows-native-test-arm:
+    needs: [changes, lint]
+    if: >-
+      ${{ !cancelled() && !failure() && (
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:win-arm') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.changes.outputs.windows == 'true')) }}
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v6
+      # the image may not have Rust
+      - name: Rust
+        shell: pwsh
+        run: |
+          if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
+            Invoke-WebRequest https://win.rustup.rs/aarch64 -OutFile rustup-init.exe
+            ./rustup-init.exe -y --default-toolchain stable --profile minimal
+            "$env:USERPROFILE\.cargo\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          }
+      - uses: taiki-e/install-action@nextest
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - shell: bash
+        run: |
+          # the words of the two lists are the arguments
+          # shellcheck disable=SC2046
+          cargo nextest run --locked $(tools/test-partition packages windows) $(tools/test-partition packages os_sensitive)
+
+  # ---- stage 4: the KDE guests ----
+
+  # The suites are found in the flake, so that a new directory under nix/linux/tests/vm/suites is run
+  # without an edit here.
+  discover:
+    needs: [changes, test]
+    if: >-
+      ${{ !cancelled() && !failure() && (
+      needs.changes.outputs.linux == 'true' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:vm') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/master')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      fast: ${{ steps.tiers.outputs.fast }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - id: tiers
+        run: |
+          tiers=$(nix eval --json .#legacyPackages.x86_64-linux.vmTiers)
+          echo "fast=$(jq -c '.fast // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
+
+  # each suite in its own machine, in a sandboxed `nix build` like any other check
+  vm-fast:
+    needs: [discover]
+    if: ${{ !cancelled() && !failure() && needs.discover.result == 'success' && needs.discover.outputs.fast != '[]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        suite: ${{ fromJson(needs.discover.outputs.fast) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: nix build -L --no-link .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}
+
+  # ---- stage 5: macOS ----
+
+  macos-hosted:
+    needs: [changes, vm-fast, mac-typecheck]
+    if: >-
+      ${{ !cancelled() && !failure() && (
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:macos')) ||
+      (github.event_name != 'pull_request' && needs.changes.outputs.macos == 'true')) }}
+    uses: ./.github/workflows/_macos.yaml
+    with:
+      runs-on: '"macos-14"'
+    secrets: inherit
+
+  # the only check that a ruleset requires: every job above passed or was skipped
+  required:
+    if: always()
+    needs:
+      - changes
+      - hygiene
+      - fmt
+      - deny
+      - nix-eval
+      - lint
+      - mac-typecheck
+      - test
+      - windows-native-test
+      - windows-native-test-arm
+      - discover
+      - vm-fast
+      - macos-hosted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
+          if jq -e 'any(.[]; .result == "failure" or .result == "cancelled")' <<<"$NEEDS" >/dev/null; then
+            echo "::error::a job failed or was cancelled"
+            exit 1
+          fi
