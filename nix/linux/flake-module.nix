@@ -147,6 +147,8 @@ in
                 "komorebi-layouts"
                 "komorebi-scrolling"
                 "komorebi-themes"
+                # the part of the macOS daemon that needs no macOS (nix/workspace-src.nix: linuxNeutralTests)
+                "komorebi-macos-core"
                 "komorebi-backend"
                 "komorebi-collections"
                 "komorebi-config"

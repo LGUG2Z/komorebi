@@ -26,7 +26,7 @@ in
 
       lockFile = lib'.repoFile "Cargo.lock";
       tomlFile = lib'.repoFile "Cargo.toml";
-      packages = "-p komorebi -p komorebi-macos -p komorebic -p komorebi-client -p komorebi-bar";
+      packages = "-p komorebi -p komorebi-macos -p komorebi-macos-core -p komorebic -p komorebi-client -p komorebi-bar";
       workspaceArgs = {
         pname = "komorebi-workspace-macos";
         inherit version;

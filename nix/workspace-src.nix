@@ -48,6 +48,12 @@ let
     "crates/komorebi-hotkeys"
   ];
   macosOnly = [ "crates/komorebi-macos" ];
+
+  # crates that no Linux package depends on, but whose tests need no macOS and so run in `linux-nextest`:
+  # the FFI-free part of the macOS daemon. They are not in linux/root-crates.json (that list is the
+  # `cargo tree` of the Linux packages, which tools/kde-closure-check keeps equal), only members of the
+  # Linux source.
+  linuxNeutralTests = [ "crates/komorebi-macos-core" ];
   windowsOnly = [
     "crates/komorebi-windows"
     "crates/komorebi-e2e-agent"
@@ -77,7 +83,7 @@ let
     nixgen = toolOnly;
     # everything but the other two platforms' crates and the tool
     windows = builtins.filter (m: !(builtins.elem m (linuxOnly ++ macosOnly ++ toolOnly))) allMembers;
-    linux = linuxOnly ++ linuxShared;
+    linux = linuxOnly ++ linuxShared ++ linuxNeutralTests;
     # everything but the Windows and Linux crates, the tool and the recorder
     macos = builtins.filter (
       m: !(builtins.elem m (windowsOnly ++ linuxOnly ++ toolOnly ++ [ "komorebi-recorder" ]))
