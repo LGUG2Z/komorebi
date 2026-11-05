@@ -55,6 +55,8 @@ let
       "linux-nix-options-validation"
       "linux-schema-fresh"
     ];
+    nixgen-lint = [ "nixgen-clippy" ];
+    nixgen-test = [ "nixgen-nextest" ];
     recorder-lint = [ "recorder-clippy" ];
     recorder-test = [ "recorder-nextest" ];
     macos-lint = [ "macos-clippy" ];
@@ -98,6 +100,8 @@ let
     "macos-options"
     "recorder-lint"
     "recorder-test"
+    "nixgen-lint"
+    "nixgen-test"
   ];
 in
 {

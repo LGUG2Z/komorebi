@@ -88,6 +88,8 @@ in
         pkgs.cargo-deny
         pkgs.cargo-nextest
         pkgs.cargo-outdated
+        # writes the Nix options of the modules from the schemas (`just nixgen-linux`, `just nixgen-macos`)
+        config.packages.schemars-nixgen
         # `komorebi-recorder frames` and `selftest` extract frames with ffmpeg; it is never used for
         # capture and is not bundled into the packaged binary
         pkgs.ffmpeg-headless

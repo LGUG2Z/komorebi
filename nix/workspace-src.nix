@@ -1,6 +1,6 @@
 # The source of a build of one platform, cut from the one Cargo workspace of this repository.
 #
-#   import ./workspace-src.nix { pkgs; craneLib; repoRoot; platform = "windows" | "linux" | "macos" | "recorder"; }
+#   import ./workspace-src.nix { pkgs; craneLib; repoRoot; platform = "windows" | "linux" | "macos" | "recorder" | "nixgen"; }
 #
 # Cargo has to load every member of the workspace (the root manifest lists the members of all three
 # platforms), but a build of one platform needs the sources of that platform's crates only. The result:
@@ -16,6 +16,9 @@
 # The platform "recorder" is the source of komorebi-recorder's own builds on macOS and Linux: the recorder
 # indexes the log statements of the daemons of all three platforms (komorebi-recorder/build.rs), so it
 # has their sources, whole, and nothing else; the Windows build has the recorder as one of its members.
+#
+# The platform "nixgen" is the source of schemars-nixgen's own builds: the tool and nothing else. It is a
+# stub in every other platform, so that an edit of it changes none of their derivations.
 #
 # An edit under one platform therefore changes nothing in the derivations of the others, except where
 # the edit is in a crate they share or in the root manifest, lock or toolchain files.
@@ -44,6 +47,9 @@ let
   ];
   macosOnly = [ "komorebi-macos" ];
 
+  # the development tool that writes the Nix options: built by its own checks (nix/nixgen)
+  toolOnly = [ "crates/schemars-nixgen" ];
+
   # the recorder and the crates whose source its build script indexes (komorebi-recorder/build.rs)
   recorderMembers = [
     "komorebi-recorder"
@@ -58,8 +64,9 @@ let
 
   membersOf = {
     recorder = recorderMembers;
-    # everything but the other two platforms' daemons
-    windows = builtins.filter (m: !(builtins.elem m (linuxOnly ++ macosOnly))) allMembers;
+    nixgen = toolOnly;
+    # everything but the other two platforms' daemons and the tool
+    windows = builtins.filter (m: !(builtins.elem m (linuxOnly ++ macosOnly ++ toolOnly))) allMembers;
     linux = linuxOnly ++ linuxShared;
     macos =
       macosOnly
@@ -72,7 +79,7 @@ let
         "komorebi-scrolling"
         "komorebi-themes"
       ]
-      ++ builtins.filter (m: lib.hasPrefix "crates/" m) allMembers;
+      ++ builtins.filter (m: lib.hasPrefix "crates/" m && !(builtins.elem m toolOnly)) allMembers;
   };
 
   members = builtins.filter (m: builtins.elem m membersOf.${platform}) allMembers;
@@ -95,7 +102,7 @@ let
     macos = "(src/macos(\\.rs|/.*)|tests/macos_.*)";
   };
   # the recorder indexes every platform's files
-  otherMarkers = if platform == "recorder" then [ ] else builtins.attrValues (removeAttrs markers [ platform ]);
+  otherMarkers = if platform == "recorder" || platform == "nixgen" then [ ] else builtins.attrValues (removeAttrs markers [ platform ]);
   ofOtherPlatform =
     rel:
     builtins.any (
@@ -111,7 +118,9 @@ let
     members
     ++ lib.optional (platform == "windows") "wix"
     ++ (
-      if platform == "recorder" then
+      if platform == "nixgen" then
+        [ ".cargo" ]
+      else if platform == "recorder" then
         [
           ".cargo"
           # the installer, which a test of the recorder checks for its binaries
@@ -178,6 +187,7 @@ let
         || lib.hasPrefix "komorebic/fixtures/" rel;
       # the guide and the icon the recorder embeds, and the installer
       recorder = lib.hasPrefix "komorebi-recorder/" rel || lib.hasPrefix "wix/" rel;
+      nixgen = false;
     }
     .${platform};
 
