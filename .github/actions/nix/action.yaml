@@ -74,12 +74,16 @@ runs:
         # named so that rerun-no-kvm.yaml can tell this failure from a failed suite and run it again.
         test -w /dev/kvm || { echo "::error::this runner has no usable /dev/kvm"; exit 1; }
 
+    # `fallback` builds a derivation from source when its substitute cannot be downloaded (a NAR of 460 MB
+    # that the cache served wrongly once, with `Stream error in the HTTP/2 framing layer`), so one dropped
+    # connection costs minutes of compiling in that job and not the job. HTTP/2 stays at its default.
     - name: Install nix
       if: inputs.install == 'true'
       uses: cachix/install-nix-action@v31
       with:
         extra_nix_config: |
           accept-flake-config = false
+          fallback = true
           system-features = nixos-test benchmark big-parallel ${{ inputs.kvm == 'true' && 'kvm' || '' }}
 
     # The token is handed over only where writing is wanted; without it the action only reads. The cache
