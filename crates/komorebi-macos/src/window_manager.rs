@@ -3211,6 +3211,15 @@ impl WindowManager {
             self.update_focused_workspace(false, false)?;
         }
 
+        // The windows that moved are on their new workspaces now, and `known_window_ids` is what
+        // a `Show` event is checked against to tell a window komorebi has put away from a new
+        // one. Left as it was before the move it says the window is still on the focused
+        // workspace, so the next `Show` for the application brings it back there as well, and the
+        // window is on two workspaces and in view on the one it was sent from.
+        if !to_move.is_empty() {
+            self.update_known_window_ids();
+        }
+
         Ok(())
     }
 
@@ -6023,6 +6032,28 @@ mod tests {
         assert_eq!(op.target_monitor_idx, target_monitor_idx); // 2
         assert_eq!(op.target_workspace_idx, target_workspace_idx); // 3
         assert_eq!(op.floating, floating); // false
+    }
+
+    #[test]
+    fn known_window_ids_follow_a_window_that_a_rule_moved() {
+        // what `enforce_workspace_rules` does to a window, short of reading it from the
+        // application: out of the container on the focused workspace, into one on another
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[7]);
+        wm.update_known_window_ids();
+        assert_eq!(wm.known_window_ids.get(&7), Some(&(0, 0)));
+
+        let monitor = wm.monitors_mut().front_mut().unwrap();
+        monitor.ensure_workspace_count(2);
+        let window = monitor.workspaces_mut()[0].remove_window(7).unwrap();
+        monitor.workspaces_mut()[1]
+            .new_container_for_window(window)
+            .unwrap();
+
+        // nothing has told the window manager yet, so a `Show` would still be read against 0
+        assert_eq!(wm.known_window_ids.get(&7), Some(&(0, 0)));
+
+        wm.update_known_window_ids();
+        assert_eq!(wm.known_window_ids.get(&7), Some(&(0, 1)));
     }
 
     // Resizing a tile by dragging an edge. A Rect is `left, top, width, height` (`right` and
