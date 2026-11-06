@@ -47,7 +47,10 @@ let
     "crates/komorebi-linux"
     "crates/komorebi-hotkeys"
   ];
-  macosOnly = [ "crates/komorebi-macos" ];
+  macosOnly = [
+    "crates/komorebi-macos"
+    "crates/komorebi-macos-e2e"
+  ];
 
   # crates that no Linux package depends on, but whose tests need no macOS and so run in `linux-nextest`:
   # the FFI-free part of the macOS daemon. They are not in linux/root-crates.json (that list is the

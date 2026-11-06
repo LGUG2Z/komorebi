@@ -29,6 +29,7 @@ members = [
   "crates/komorebi-linux",
   "crates/komorebi-macos",
   "crates/komorebi-macos-core",
+  "crates/komorebi-macos-e2e",
   "crates/komorebi-hotkeys",
   "crates/komorebi-version",
   "komorebi-recorder",
