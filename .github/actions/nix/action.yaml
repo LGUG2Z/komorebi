@@ -28,7 +28,7 @@ inputs:
     description: Add 16 GB of swap, for the jobs that evaluate NixOS systems (about 11 GB of memory at the peak)
     default: "false"
   push:
-    description: Push what the job builds when the event allows it (the canary turns it off: it builds against another nixpkgs, which nobody else needs)
+    description: "Push what the job builds when the event allows it (the canary turns it off, because it builds against another nixpkgs, which nobody else needs)"
     default: "true"
   cachix-cache:
     description: The name of the Cachix cache, vars.CACHIX_CACHE
