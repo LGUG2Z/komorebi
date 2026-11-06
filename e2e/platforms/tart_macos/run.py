@@ -23,7 +23,7 @@ import traceback
 from pathlib import Path
 
 from komorebi_vm.core.suite import shared
-from komorebi_vm.runner import RecordedChecks, commit, run_steps
+from komorebi_vm.runner import RecordedChecks, commit, run_steps, with_kwargs
 
 from .guest import Guest
 from .macos_platform import MacosPlatform
@@ -32,16 +32,15 @@ BINARIES = ["komorebi", "komorebic", "komorebi-testwin"]
 
 # scenarios that take the windows `tiling` opens
 WITH_CLIENTS = {
-    "focus", "moving", "stacks", "workspaces", "resize", "monocle", "closing",
-    "commands", "lifecycle", "layouts", "floating", "minimizing", "padding",
-    "maximizing", "workspace_moves", "resize_commands", "promoting",
+    "focus", "moving", "stacks", "workspaces", "monocle", "closing",
+    "lifecycle", "layouts", "floating", "minimizing", "padding",
+    "workspace_moves", "resize_commands", "promoting",
     "flipping", "pausing", "tiling_off", "lifecycle_hidden",
     "scrolling", "handover", "fullscreen",
 }
 
 # what a scenario file has besides `run`, which its suite runs after it
 MORE = {
-    "resize": ("edge_cases",),
     "lifecycle_hidden": ("crash",),
     "monocle": ("focus_behaviour",),
 }
@@ -57,6 +56,9 @@ UNSUPPORTED = {
     "wallpaper": "the wallpaper of a macOS guest is not read yet",
     "rules_class": "a macOS window has no class",
     "placement": "the macOS daemon has no initial_window_placement_rules",
+    "resize": "a macOS guest has no pointer to drag an edge with",
+    "maximizing": "the macOS komorebic has no toggle-maximize",
+    "commands": "the sweep of every command is not wired to the macOS command set yet",
 }
 
 # what the macOS daemon does differently, which checks of a scenario are about, and the difference
@@ -78,10 +80,6 @@ DIFFERENCES = {
     "class": (
         "a macOS window has no class: the daemon matches the role of the window, which every "
         "window of the test program shares"
-    ),
-    "initial": (
-        "the macOS daemon puts a window an initial workspace rule matches on the workspace the "
-        "rule names and leaves it on the first one too: it is in the containers of both, and in view"
     ),
 }
 
@@ -108,10 +106,6 @@ KNOWN_CHECKS = {
     },
     "state_fidelity": {
         "the state has the class a window was given": "class",
-    },
-    "rules": {
-        "a window an initial rule matches goes to the workspace the rule names": "initial",
-        "... where it is put away while another workspace is in view": "initial",
     },
 }
 KNOWN_CHECKS = {
@@ -154,9 +148,15 @@ def run_one(golden: str, bin_dir: Path, out: Path, name: str) -> RecordedChecks:
         try:
             if name in WITH_CLIENTS:
                 clients = tiling.run(platform, checks)
+                # `closing` closes the window that was opened last
+                run_scenario = (
+                    with_kwargs(scenario.run, closing=clients[-1])
+                    if name == "closing"
+                    else scenario.run
+                )
                 run_steps(
                     checks,
-                    shared(scenario.run, platform, checks, clients),
+                    shared(run_scenario, platform, checks, clients),
                     *(
                         shared(getattr(scenario, more), platform, checks, clients)
                         for more in MORE.get(name, ())
