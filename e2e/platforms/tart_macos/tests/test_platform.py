@@ -152,3 +152,13 @@ def test_the_extra_steps_of_a_scenario_exist() -> None:
 
 def test_a_scenario_is_not_both_supported_and_not() -> None:
     assert not set(run.UNSUPPORTED) & set(run.WITH_CLIENTS)
+
+
+def test_every_scenario_with_marks_exists_and_has_a_reason_for_each() -> None:
+    for scenario, marks in run.KNOWN_CHECKS.items():
+        importlib.import_module(f"komorebi_vm.core.scenarios.{scenario}")
+        assert marks and all(reason.strip() for reason in marks.values()), scenario
+
+
+def test_a_scenario_is_not_both_marked_and_skipped() -> None:
+    assert not set(run.KNOWN_CHECKS) & set(run.UNSUPPORTED)

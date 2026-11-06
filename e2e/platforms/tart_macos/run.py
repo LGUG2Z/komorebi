@@ -59,44 +59,63 @@ UNSUPPORTED = {
     "placement": "the macOS daemon has no initial_window_placement_rules",
 }
 
-# the checks of a scenario that are about a difference of the macOS daemon, by a part of their
-# description, and the difference; the others of the scenario are checks as any. A mark whose check
-# passes is a failure, to say that it can go.
-KNOWN_CHECKS = {
-    # stacks
-    "exactly one window is put away": "STACK",
-    "after 'cycle-stack next' the other window of the stack is in view and the first is away": "STACK",
-    "cycling back, the first is in view again": "STACK",
-    # fullscreen
-    "it does not take the window out of fullscreen": "FULLSCREEN",
-    "not on any other window": "FULLSCREEN",
-    # layout_flip
-    "BSP, 3 windows, layout_flip Vertical: ... each where the mirror of its place is": "MARGINS",
-    "BSP, 3 windows, layout_flip HorizontalAndVertical: ... each where the mirror of its place is": "MARGINS",
-    # the class of a window
-    "an ignore rule by class matches is not managed": "CLASS",
-    "keeps its place (class)": "CLASS",
-    "the state has the class a window was given": "CLASS",
-}
+# what the macOS daemon does differently, which checks of a scenario are about, and the difference
 DIFFERENCES = {
-    "STACK": (
+    "stack": (
         "the macOS daemon stacks by raising the focused window over the others: the other windows "
         "of a stack stay on the display, at the same place, where Windows and KDE put them away"
     ),
-    "FULLSCREEN": (
+    "fullscreen": (
         "the macOS daemon has no fullscreen detection: it tiles a window that covers the whole "
         "display with the others"
     ),
-    "MARGINS": (
+    "margins": (
         "the daemon tiles 10 px below the top of the work area the system reports and 12 px above "
         "its bottom, so a vertical mirror is a few pixels off"
     ),
-    "CLASS": (
+    "class": (
         "a macOS window has no class: the daemon matches the role of the window, which every "
         "window of the test program shares"
     ),
+    "initial": (
+        "the macOS daemon puts a window an initial workspace rule matches on the workspace the "
+        "rule names and leaves it on the first one too: it is in the containers of both, and in view"
+    ),
 }
-KNOWN_CHECKS = {key: DIFFERENCES[name] for key, name in KNOWN_CHECKS.items()}
+
+# the checks of a scenario that are about one of them, by a part of their description; the others
+# of the scenario are checks as any. A mark whose check passes is a failure, to say it can go. The
+# marks are of one scenario each: the same words are a check that passes in another.
+KNOWN_CHECKS = {
+    "stacks": {
+        "exactly one window is put away": "stack",
+        "after 'cycle-stack next' the other window of the stack is in view and the first is away": "stack",
+        "cycling back, the first is in view again": "stack",
+    },
+    "fullscreen": {
+        "it does not take the window out of fullscreen": "fullscreen",
+        "not on any other window": "fullscreen",
+    },
+    "layout_flip": {
+        "BSP, 3 windows, layout_flip Vertical: ... each where the mirror of its place is": "margins",
+        "BSP, 3 windows, layout_flip HorizontalAndVertical: ... each where the mirror of its place is": "margins",
+    },
+    "manage_rules": {
+        "an ignore rule by class matches is not managed": "class",
+        "keeps its place (class)": "class",
+    },
+    "state_fidelity": {
+        "the state has the class a window was given": "class",
+    },
+    "rules": {
+        "a window an initial rule matches goes to the workspace the rule names": "initial",
+        "... where it is put away while another workspace is in view": "initial",
+    },
+}
+KNOWN_CHECKS = {
+    scenario: {key: DIFFERENCES[name] for key, name in marks.items()}
+    for scenario, marks in KNOWN_CHECKS.items()
+}
 
 
 class GuestDied(RuntimeError):
@@ -108,7 +127,7 @@ def run_one(golden: str, bin_dir: Path, out: Path, name: str) -> RecordedChecks:
     scenario = importlib.import_module(f"komorebi_vm.core.scenarios.{name}")
     tiling = importlib.import_module("komorebi_vm.core.scenarios.tiling")
 
-    checks = RecordedChecks(KNOWN_CHECKS)
+    checks = RecordedChecks(KNOWN_CHECKS.get(name, {}))
     print(f"== {name}")
     began = time.monotonic()
     timings: dict[str, float] = {}
