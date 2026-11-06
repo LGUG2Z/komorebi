@@ -27,7 +27,7 @@ each is `success` or `skipped`: it is the only check a ruleset needs to require.
 | 3 | `test` (4 legs) | ubuntu-24.04, nix | `checkSets.{linux-test,windows-test,recorder-test,nixgen-test}`: Linux tests, the Windows test executables cross-built (not run), the recorder's and nixgen's tests | always |
 | 3 | `windows-native-test` | windows-latest | `cargo nextest` of the `windows` and `os_sensitive` classes of `tools/test-partition` | Windows or shared paths |
 | 3 | `windows-native-test-arm` | windows-11-arm | the same on ARM | label `ci:win-arm`; a push to master with Windows paths; by hand |
-| 3 | `macos-hosted` | macos-latest (`_macos.yaml`) | the macOS checks, the recorder's macOS tests, the binaries, the schemas | macOS paths |
+| 3 | `macos-hosted` | macos-latest (`_macos.yaml`) | the macOS checks, the recorder's macOS tests (in `nix develop .#native`: the default shell builds for Windows), the binaries, the schemas | macOS paths |
 | 4 | `discover`, `vm-fast` | ubuntu-24.04, KVM | the fast tier of the KDE VM suites, one machine each (`max-parallel: 8`, 45 minutes), a machine with no KVM drawn again (`_vm.yaml`, see KVM) | Linux paths; label `ci:vm`; every push to master |
 
 Beside the ladder:

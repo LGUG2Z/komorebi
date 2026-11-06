@@ -31,11 +31,12 @@ jobs:
       - name: The macOS checks
         run: nix build -L --no-link .#checkSets.macos-lint .#checkSets.macos-test .#checkSets.macos-options
       # the recorder's tests of the macOS sources (oslog, av, capture, platform, power, system state): the
-      # filterset is tools/test-partition's
+      # filterset is tools/test-partition's. It runs in the native shell: the default one exports
+      # CARGO_BUILD_TARGET=x86_64-pc-windows-msvc, and nextest cannot list the tests of a Windows .exe on a Mac
       - name: The recorder's macOS tests
         run: |
           # shellcheck disable=SC2016
-          nix develop --command bash -c 'cargo nextest run --locked -p komorebi-recorder -E "$(tools/test-partition expr recorder-macos)"'
+          nix develop .#native --command bash -c 'cargo nextest run --locked -p komorebi-recorder -E "$(tools/test-partition expr recorder-macos)"'
       - name: The binaries
         run: |
           nix build -L --no-link --print-out-paths .#komorebi .#komorebic .#komorebi-bar |
