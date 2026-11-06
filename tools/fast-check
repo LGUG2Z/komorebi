@@ -88,7 +88,7 @@ add() { NAMES+=("$1"); DIRS+=("$2"); CMDS+=("$3"); }
 
 if [ "$want_native" = 1 ]; then
   add "native: shared crates tests" "." \
-    "CARGO_TARGET_DIR=$S/target-fast-native nix shell nixpkgs#gcc -c cargo test --locked -p komorebi-layouts -p komorebi-scrolling"
+    "CARGO_TARGET_DIR=$S/target-fast-native env -u CARGO_BUILD_TARGET nix shell nixpkgs#gcc -c cargo test --locked -p komorebi-layouts -p komorebi-scrolling"
 fi
 if [ "$want_win" = 1 ]; then
   # a bare cargo command builds default-members (the Windows crates) of the one workspace
@@ -97,7 +97,7 @@ if [ "$want_win" = 1 ]; then
 fi
 if [ "$want_kde" = 1 ]; then
   add "kde: cargo check + lib tests (komorebi-linux)" "." \
-    "export CARGO_TARGET_DIR=$S/kde-target COMMIT_HASH=\${COMMIT_HASH:-dev}; nix shell nixpkgs#gcc -c bash -c 'cargo check --locked -p komorebi-linux && cargo check --locked -p komorebi && cargo test --locked -p komorebi-linux --lib && cargo test --locked -p komorebi-linux --test schemas -- --test-threads=1'"
+    "export CARGO_TARGET_DIR=$S/kde-target COMMIT_HASH=\${COMMIT_HASH:-dev}; unset CARGO_BUILD_TARGET; nix shell nixpkgs#gcc -c bash -c 'cargo check --locked -p komorebi-linux && cargo check --locked -p komorebi && cargo test --locked -p komorebi-linux --lib && cargo test --locked -p komorebi-linux --test schemas -- --test-threads=1'"
 fi
 if [ "$want_mac" = 1 ]; then
   add "macos: type-check only (fake CC, cannot link)" "." \

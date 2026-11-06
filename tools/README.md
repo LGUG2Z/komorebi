@@ -40,6 +40,11 @@ this tool.
 | `flake.nix`, `flake.lock`, `nix/**` | evaluation only: `nix flake show` and `nix eval ...drvPath` of one check and one package per platform (no `nix flake check`) |
 | `*.md`, `docs/`, `tools/`, images, `.github` | nothing |
 
+The native and KDE checks drop `CARGO_BUILD_TARGET` from their environment: the default `nix develop` shell exports it
+(`x86_64-pc-windows-msvc`, for the Windows cross build), and a `cargo test` that inherited it would build test programs for
+Windows and fail with `cannot execute binary file`, so `fast-check` gives the same result from any shell. The macOS check
+names its target and the Windows check wants the variable.
+
 Persistent target directories live under `$FAST_CHECK_SCRATCH` (default `${XDG_CACHE_HOME:-~/.cache}/komorebi-fast-check`):
 `target-fast-win` (2.8 GB), `kde-target` (shared, 30 GB, grows with test binaries: `tools/trim-target`),
 `target-fast-mac` (2.2 GB), `target-fast-native` (0.5 GB). Delete them to reclaim disk; the next run is cold.
