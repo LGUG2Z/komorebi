@@ -47,6 +47,9 @@ use objc2_core_foundation::CFString;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_foundation::Type;
+use objc2_foundation::NSDate;
+use objc2_foundation::NSDefaultRunLoopMode;
+use objc2_foundation::NSRunLoop;
 use serde::Deserialize;
 use serde_json::Value;
 use serde_json::json;
@@ -66,6 +69,8 @@ struct Request {
     path: String,
     #[serde(default)]
     size: u64,
+    #[serde(default)]
+    line: String,
     #[serde(default)]
     title: String,
     #[serde(default)]
@@ -144,7 +149,20 @@ struct Window {
     title: String,
 }
 
+/// Lets the main run loop turn once. What the workspace says of the running applications, and of
+/// which one is active, is kept up to date by that loop, and the agent otherwise waits in
+/// `accept`: it would list the applications of the time it started, and not see a window that
+/// opened since.
+fn turn_run_loop() {
+    NSRunLoop::mainRunLoop().runMode_beforeDate(
+        // SAFETY: the default mode, which is what the main loop runs in.
+        unsafe { NSDefaultRunLoopMode },
+        &NSDate::dateWithTimeIntervalSinceNow(0.05),
+    );
+}
+
 fn windows() -> Vec<Window> {
+    turn_run_loop();
     let mut out = Vec::new();
     let applications = NSWorkspace::sharedWorkspace().runningApplications();
     for application in applications.iter() {
@@ -306,7 +324,8 @@ fn exec(args: &[String], env: &HashMap<String, String>) -> Result<Value, String>
 }
 
 /// Starts a program that keeps running and returns at once. The agent keeps the child, so that
-/// `status` can say how it ended and it is not left a zombie.
+/// `status` can say how it ended and it is not left a zombie, and keeps the write end of its
+/// standard input open: the test window leaves when its input closes, and `send` writes to it.
 fn spawn(
     args: &[String],
     env: &HashMap<String, String>,
@@ -315,7 +334,7 @@ fn spawn(
 ) -> Result<Value, String> {
     let (program, rest) = args.split_first().ok_or("spawn wants a program")?;
     let mut command = Command::new(program);
-    command.args(rest).envs(env).stdin(Stdio::null());
+    command.args(rest).envs(env).stdin(Stdio::piped());
     match out {
         Some(path) => {
             let file = std::fs::File::create(path).map_err(|e| format!("{path}: {e}"))?;
@@ -343,6 +362,20 @@ fn status(pid: u32, children: &mut HashMap<u32, Child>) -> Result<Value, String>
     }
 }
 
+/// Writes a line to the standard input of a program `spawn` started.
+fn send(pid: u32, line: &str, children: &mut HashMap<u32, Child>) -> Result<Value, String> {
+    let input = children
+        .get_mut(&pid)
+        .ok_or_else(|| format!("{pid} was not started by this agent"))?
+        .stdin
+        .as_mut()
+        .ok_or_else(|| format!("{pid} has no standard input"))?;
+    writeln!(input, "{line}")
+        .and_then(|()| input.flush())
+        .map(|()| json!(true))
+        .map_err(|e| format!("{pid}: {e}"))
+}
+
 fn serve(
     stream: TcpStream,
     mtm: MainThreadMarker,
@@ -368,6 +401,7 @@ fn serve(
             "exec" => exec(&req.args, &req.env),
             "spawn" => spawn(&req.args, &req.env, &req.out, children),
             "status" => status(req.pid, children),
+            "send" => send(req.pid, &req.line, children),
             "os_windows" => Ok(Value::Array(windows().iter().map(describe).collect())),
             "displays" => Ok(Value::Array(displays(mtm))),
             "activate" => activate(&req.title),
