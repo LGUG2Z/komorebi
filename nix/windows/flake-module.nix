@@ -65,7 +65,7 @@ in
       # the packages whose tests the guest runs by default: the partition (tools/test-partition.json, the
       # one list of which package is tested where) says which are the Windows ones, and which are neutral
       # but depend on the OS (sockets, pipes, paths, the registry). The neutral ones run on Linux.
-      partition = builtins.fromJSON (builtins.readFile (lib'.repoFile "tools/test-partition.json"));
+      partition = builtins.fromJSON (builtins.readFile (lib'.repoRoot + "/tools/test-partition.json"));
       windowsPackages = partition.windows ++ partition.os_sensitive;
       selected = pkgs.lib.concatMapStringsSep " " (p: "-p ${p}") windowsPackages;
       # the members that are stubs here (the Linux and macOS packages) have no test and do not build

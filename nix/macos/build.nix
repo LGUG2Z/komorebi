@@ -35,7 +35,10 @@ in
         # would then change the dependencies
         cargoLock = lockFile;
         cargoToml = tomlFile;
-        cargoVendorDir = craneLib.vendorCargoDeps { cargoLock = lockFile; };
+        cargoVendorDir = craneLib.vendorCargoDeps {
+          cargoLock = lockFile;
+          inherit (lib') cargoLockParsed;
+        };
       };
 
       commonArgs = workspaceArgs // {

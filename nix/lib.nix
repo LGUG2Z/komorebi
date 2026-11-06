@@ -14,6 +14,14 @@ rec {
       name = builtins.baseNameOf rel;
     };
 
+  # The lock, parsed at evaluation from the source of the flake itself. crane's `vendorCargoDeps` reads the lock it is
+  # given while evaluating (`pathExists`, `readFile`), and `repoFile` above is a store path that `builtins.path` makes
+  # during evaluation: Nix 2.35 on a runner whose store is empty does not have it there yet under
+  # `nix flake check --no-build` ("path ... is not valid"), though Lix and a store that has seen it do. The
+  # parsed lock is handed to `vendorCargoDeps` next to `cargoLock = repoFile "Cargo.lock"`, which is still what
+  # the derivations name, so that an edit of any other file does not change them.
+  cargoLockParsed = builtins.fromTOML (builtins.readFile (repoRoot + "/Cargo.lock"));
+
   # the version of the workspace: every package says `version.workspace = true`
   version =
     (builtins.fromTOML (builtins.readFile (repoRoot + "/Cargo.toml"))).workspace.package.version;

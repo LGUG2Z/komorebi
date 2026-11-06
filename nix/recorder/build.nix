@@ -38,7 +38,10 @@ in
         # would then change the dependencies
         cargoLock = lockFile;
         cargoToml = tomlFile;
-        cargoVendorDir = craneLib.vendorCargoDeps { cargoLock = lockFile; };
+        cargoVendorDir = craneLib.vendorCargoDeps {
+          cargoLock = lockFile;
+          inherit (lib') cargoLockParsed;
+        };
         strictDeps = true;
         # the commit of the komorebi source the build script indexes: a constant, so that the
         # dependencies and every check are the same derivations for every commit; only the build
