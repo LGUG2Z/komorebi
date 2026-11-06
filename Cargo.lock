@@ -3767,6 +3767,11 @@ dependencies = [
 name = "komorebi-e2e-agent"
 version = "0.2.0-dev"
 dependencies = [
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-application-services",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
  "serde",
  "serde_json_lenient",
  "windows 0.62.2",
@@ -3914,19 +3919,6 @@ dependencies = [
  "komorebi-protocol",
  "parking_lot 0.12.5",
  "tracing",
-]
-
-[[package]]
-name = "komorebi-macos-e2e"
-version = "0.2.0-dev"
-dependencies = [
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "objc2-application-services",
- "objc2-core-foundation",
- "objc2-foundation 0.3.2",
- "serde",
- "serde_json_lenient",
 ]
 
 [[package]]

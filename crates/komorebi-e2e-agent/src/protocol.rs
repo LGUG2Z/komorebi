@@ -62,7 +62,19 @@ pub struct Request {
     pub line: String,
     /// A window handle, on a platform that has them (Windows).
     #[serde(default)]
+    #[cfg_attr(not(windows), allow(dead_code))]
     pub hwnd: isize,
+    /// A window's title, on a platform that finds a window by it (macOS), and a place on the
+    /// desktop for `move`.
+    #[serde(default)]
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub title: String,
+    #[serde(default)]
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub x: f64,
+    #[serde(default)]
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub y: f64,
 }
 
 /// Why a command is being prepared: it runs to its end, or it keeps running.

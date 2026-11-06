@@ -7,6 +7,8 @@
 // no console window on Windows: it would be a window for the daemon to tile
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
+#[cfg(target_os = "macos")]
+mod macos;
 mod protocol;
 #[cfg(windows)]
 mod windows;
@@ -16,8 +18,13 @@ fn main() -> std::io::Result<()> {
     windows::run()
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+fn main() -> std::io::Result<()> {
+    macos::run()
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
 fn main() {
-    eprintln!("komorebi-e2e-agent runs on Windows only");
+    eprintln!("komorebi-e2e-agent runs on Windows and macOS only");
     std::process::exit(1);
 }

@@ -1,31 +1,15 @@
-//! The guest half of the e2e suite on macOS.
+//! The verbs of the macOS agent: the windows and displays of the logged-in GUI session.
 //!
-//! It has to run inside the logged-in GUI session, and be started by a program that holds the
-//! Accessibility and Screen Recording grants (the golden image starts it from a Terminal window),
-//! because the daemon it starts, and the windows it reads, are attributed to that program. The
-//! host talks to it over TCP, on the guest's own address. The protocol is the one of the Windows
-//! agent (`komorebi-e2e-agent`): one request is one line of JSON, `{"id": 1, "verb": "...", ...}`,
-//! answered by one line, `{"id": 1, "ok": ...}` or `{"id": 1, "error": "..."}`, and `put_file` and
-//! `get_file` move `size` raw bytes after the line.
-//!
-//! The agent serves one connection at a time on the main thread, because AppKit (`NSScreen`) is
-//! for the main thread. It injects no input.
+//! It has to run inside that session, and be started by a program that holds the Accessibility and
+//! Screen Recording grants (the golden image starts it from a Terminal window), because the daemon
+//! it starts, and the windows it reads, are attributed to that program.
 //!
 //! The windows it describes are the ones the accessibility API gives, as the daemon sees them;
-//! their frames are in points, with the origin at the top left of the main display, as the
-//! daemon's are. A frame is `{left, top, right, bottom}` where `right` and `bottom` are the width
-//! and the height, the shape komorebi itself prints.
+//! their frames are in points, with the origin at the top left of the main display, as the daemon's
+//! are. AppKit (`NSScreen`) is for the main thread, so one connection is served at a time, on it.
+//! The agent injects no input.
 
-#![cfg(target_os = "macos")]
-
-use std::collections::HashMap;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Read;
-use std::io::Write;
 use std::net::TcpListener;
-use std::net::TcpStream;
-use std::process::Child;
 use std::process::Command;
 use std::process::Stdio;
 use std::ptr::NonNull;
@@ -50,40 +34,25 @@ use objc2_core_foundation::Type;
 use objc2_foundation::NSDate;
 use objc2_foundation::NSDefaultRunLoopMode;
 use objc2_foundation::NSRunLoop;
-use serde::Deserialize;
 use serde_json::Value;
 use serde_json::json;
 
-const DEFAULT_PORT: u16 = 7879;
+use crate::protocol::Mode;
+use crate::protocol::Request;
+use crate::protocol::Verbs;
+use crate::protocol::frame_json;
 
 /// How long a call to an application that does not answer holds the agent.
 const AX_TIMEOUT: f32 = 2.0;
 
-#[derive(Deserialize)]
-struct Request {
-    id: Value,
-    verb: String,
-    #[serde(default)]
-    args: Vec<String>,
-    #[serde(default)]
-    path: String,
-    #[serde(default)]
-    size: u64,
-    #[serde(default)]
-    line: String,
-    #[serde(default)]
-    title: String,
-    #[serde(default)]
-    pid: u32,
-    #[serde(default)]
-    x: f64,
-    #[serde(default)]
-    y: f64,
-    #[serde(default)]
-    env: HashMap<String, String>,
-    /// a file that gets what a spawned program prints, standard output and error
-    #[serde(default)]
-    out: Option<String>,
+/// A frame as the protocol has it, from points.
+fn frame_json_f(x: f64, y: f64, width: f64, height: f64) -> Value {
+    frame_json(
+        x.round() as i64,
+        y.round() as i64,
+        width.round() as i64,
+        height.round() as i64,
+    )
 }
 
 fn copy_attribute<T: Type>(element: &AXUIElement, attribute: &str) -> Option<CFRetained<T>> {
@@ -130,14 +99,6 @@ fn frame_of(element: &AXUIElement) -> Option<CGRect> {
         );
     }
     Some(rect)
-}
-
-fn rect_json(x: f64, y: f64, width: f64, height: f64) -> Value {
-    // the shape komorebi itself prints: right and bottom are width and height
-    json!({
-        "left": x.round() as i64, "top": y.round() as i64,
-        "right": width.round() as i64, "bottom": height.round() as i64,
-    })
 }
 
 /// A window of a regular application, with what the agent needs to act on it.
@@ -211,7 +172,7 @@ fn describe(window: &Window) -> Value {
         "pid": window.pid,
         "role": copy_attribute::<CFString>(&window.element, "AXRole").map(|r| r.to_string()),
         "subrole": copy_attribute::<CFString>(&window.element, "AXSubrole").map(|r| r.to_string()),
-        "frame": rect_json(frame.origin.x, frame.origin.y, frame.size.width, frame.size.height),
+        "frame": frame_json_f(frame.origin.x, frame.origin.y, frame.size.width, frame.size.height),
         "minimized": minimized,
         "focused": focused,
     })
@@ -232,7 +193,7 @@ fn displays(mtm: MainThreadMarker) -> Vec<Value> {
     };
     let main_height = main.frame().size.height;
     let flip = |rect: CGRect| {
-        rect_json(
+        frame_json_f(
             rect.origin.x,
             main_height - (rect.origin.y + rect.size.height),
             rect.size.width,
@@ -300,151 +261,52 @@ fn move_to(title: &str, x: f64, y: f64) -> Result<Value, String> {
     }
 }
 
-fn answer(stream: &mut TcpStream, id: &Value, result: Result<Value, String>) {
-    let line = match result {
-        Ok(ok) => json!({"id": id, "ok": ok}),
-        Err(error) => json!({"id": id, "error": error}),
-    };
-    let _ = writeln!(stream, "{line}");
-}
-
-fn exec(args: &[String], env: &HashMap<String, String>) -> Result<Value, String> {
-    let (program, rest) = args.split_first().ok_or("exec wants a program")?;
-    let out = Command::new(program)
-        .args(rest)
-        .envs(env)
-        .stdin(Stdio::null())
-        .output()
-        .map_err(|e| format!("{program}: {e}"))?;
-    Ok(json!({
-        "status": out.status.code(),
-        "stdout": String::from_utf8_lossy(&out.stdout),
-        "stderr": String::from_utf8_lossy(&out.stderr),
-    }))
-}
-
-/// Starts a program that keeps running and returns at once. The agent keeps the child, so that
-/// `status` can say how it ended and it is not left a zombie, and keeps the write end of its
-/// standard input open: the test window leaves when its input closes, and `send` writes to it.
-fn spawn(
-    args: &[String],
-    env: &HashMap<String, String>,
-    out: &Option<String>,
-    children: &mut HashMap<u32, Child>,
-) -> Result<Value, String> {
-    let (program, rest) = args.split_first().ok_or("spawn wants a program")?;
-    let mut command = Command::new(program);
-    command.args(rest).envs(env).stdin(Stdio::piped());
-    match out {
-        Some(path) => {
-            let file = std::fs::File::create(path).map_err(|e| format!("{path}: {e}"))?;
-            let again = file.try_clone().map_err(|e| format!("{path}: {e}"))?;
-            command.stdout(file).stderr(again);
-        }
-        None => {
-            command.stdout(Stdio::null()).stderr(Stdio::null());
-        }
-    }
-    let child = command.spawn().map_err(|e| format!("{program}: {e}"))?;
-    let pid = child.id();
-    children.insert(pid, child);
-    Ok(json!({"pid": pid}))
-}
-
-fn status(pid: u32, children: &mut HashMap<u32, Child>) -> Result<Value, String> {
-    let child = children
-        .get_mut(&pid)
-        .ok_or_else(|| format!("{pid} was not started by this agent"))?;
-    match child.try_wait() {
-        Ok(Some(status)) => Ok(json!({"running": false, "code": status.code()})),
-        Ok(None) => Ok(json!({"running": true})),
-        Err(e) => Err(e.to_string()),
-    }
-}
-
-/// Writes a line to the standard input of a program `spawn` started.
-fn send(pid: u32, line: &str, children: &mut HashMap<u32, Child>) -> Result<Value, String> {
-    let input = children
-        .get_mut(&pid)
-        .ok_or_else(|| format!("{pid} was not started by this agent"))?
-        .stdin
-        .as_mut()
-        .ok_or_else(|| format!("{pid} has no standard input"))?;
-    writeln!(input, "{line}")
-        .and_then(|()| input.flush())
-        .map(|()| json!(true))
-        .map_err(|e| format!("{pid}: {e}"))
-}
-
-fn serve(
-    stream: TcpStream,
+struct MacosVerbs {
     mtm: MainThreadMarker,
-    children: &mut HashMap<u32, Child>,
-) -> std::io::Result<()> {
-    let mut writer = stream.try_clone()?;
-    let mut reader = BufReader::new(stream);
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader.read_line(&mut line)? == 0 {
-            return Ok(());
-        }
-        let req: Request = match serde_json::from_str(&line) {
-            Ok(req) => req,
-            Err(e) => {
-                answer(&mut writer, &Value::Null, Err(format!("bad request: {e}")));
-                continue;
+}
+
+impl Verbs for MacosVerbs {
+    fn prepare(&self, command: &mut Command, mode: Mode) {
+        match mode {
+            Mode::Exec => {
+                command.stdin(Stdio::null());
             }
-        };
-        let result = match req.verb.as_str() {
-            "ping" => Ok(json!("pong")),
-            "exec" => exec(&req.args, &req.env),
-            "spawn" => spawn(&req.args, &req.env, &req.out, children),
-            "status" => status(req.pid, children),
-            "send" => send(req.pid, &req.line, children),
+            // the standard input stays open, because the test window leaves when it closes, and
+            // `send` writes to it; what the program prints goes nowhere unless `out` names a file
+            Mode::Spawn => {
+                command
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null());
+            }
+        }
+    }
+
+    fn handle(&mut self, request: &Request) -> Option<Result<Value, String>> {
+        Some(match request.verb.as_str() {
             "os_windows" => Ok(Value::Array(windows().iter().map(describe).collect())),
-            "displays" => Ok(Value::Array(displays(mtm))),
-            "activate" => activate(&req.title),
-            "minimize" => find(&req.title)
+            "displays" => Ok(Value::Array(displays(self.mtm))),
+            "activate" => activate(&request.title),
+            "minimize" => find(&request.title)
                 .and_then(|w| set_bool(&w.element, "AXMinimized", true))
                 .map(|()| json!(true)),
-            "close" => close(&req.title),
-            "move" => move_to(&req.title, req.x, req.y),
-            "put_file" => {
-                let mut bytes = vec![0u8; req.size as usize];
-                reader.read_exact(&mut bytes)?;
-                std::fs::write(&req.path, bytes)
-                    .map(|()| json!(req.size))
-                    .map_err(|e| format!("{}: {e}", req.path))
-            }
-            "get_file" => match std::fs::read(&req.path) {
-                Ok(bytes) => {
-                    answer(&mut writer, &req.id, Ok(json!({"size": bytes.len()})));
-                    writer.write_all(&bytes)?;
-                    continue;
-                }
-                Err(e) => Err(format!("{}: {e}", req.path)),
-            },
-            other => Err(format!("unknown verb {other}")),
-        };
-        answer(&mut writer, &req.id, result);
+            "close" => close(&request.title),
+            "move" => move_to(&request.title, request.x, request.y),
+            _ => return None,
+        })
     }
 }
 
-fn main() -> std::io::Result<()> {
+pub fn run() -> std::io::Result<()> {
     let mtm = MainThreadMarker::new().expect("main runs on the main thread");
     // the window server connection that NSScreen needs, with no Dock icon and no window
     let application = NSApplication::sharedApplication(mtm);
     application.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
 
-    let port = std::env::var("KOMOREBI_E2E_AGENT_PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(DEFAULT_PORT);
-    let listener = TcpListener::bind(("0.0.0.0", port))?;
-    let mut children = HashMap::new();
+    let listener = TcpListener::bind(("0.0.0.0", crate::protocol::port()))?;
+    let mut verbs = MacosVerbs { mtm };
     for stream in listener.incoming() {
-        if let Err(e) = serve(stream?, mtm, &mut children) {
+        if let Err(e) = crate::protocol::serve(stream?, &mut verbs) {
             eprintln!("connection ended: {e}");
         }
     }

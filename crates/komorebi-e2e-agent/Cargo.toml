@@ -11,3 +11,40 @@ serde_json = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSResponder",
+  "NSWorkspace",
+  "NSRunningApplication",
+  "NSScreen",
+  "libc",
+] }
+objc2-application-services = { version = "0.3", default-features = false, features = [
+  "std",
+  "HIServices",
+  "AXUIElement",
+  "AXValue",
+  "AXError",
+  "libc",
+  "Accessibility",
+] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "CFString",
+  "CFArray",
+  "CFNumber",
+  "CFCGTypes",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSString",
+  "NSGeometry",
+  "NSArray",
+  "NSDate",
+  "NSRunLoop",
+  "NSEnumerator",
+] }
