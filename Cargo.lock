@@ -4019,6 +4019,10 @@ dependencies = [
 name = "komorebi-testwin"
 version = "0.2.0-dev"
 dependencies = [
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.2",
  "serde_json_lenient",
  "windows 0.62.2",
 ]

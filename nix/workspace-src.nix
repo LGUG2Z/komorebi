@@ -60,7 +60,6 @@ let
   windowsOnly = [
     "crates/komorebi-windows"
     "crates/komorebi-e2e-agent"
-    "crates/komorebi-testwin"
     "komorebi-gui"
     "komorebic-no-console"
     "komorebi-shortcuts"

@@ -23,6 +23,8 @@
 //! On Windows the message `WM_APP + 2` also takes the window fullscreen (`wparam` 1: a borderless
 //! window over its monitor, as a program's own key does) or brings it back (`wparam` 0).
 
+#[cfg(target_os = "macos")]
+mod appkit;
 mod cli;
 #[cfg(windows)]
 mod win32;
@@ -32,8 +34,13 @@ fn main() -> ::windows::core::Result<()> {
     win32::run(cli::parse(std::env::args().skip(1)))
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
 fn main() {
-    eprintln!("komorebi-testwin opens a window on Windows only");
+    appkit::run(cli::parse(std::env::args().skip(1)));
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn main() {
+    eprintln!("komorebi-testwin opens a window on Windows and on macOS only");
     std::process::exit(1);
 }
