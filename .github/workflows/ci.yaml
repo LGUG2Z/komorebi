@@ -66,26 +66,37 @@ jobs:
             echo "windows=$WINDOWS"
           } | tee -a "$GITHUB_OUTPUT"
 
-  # ---- stage 0: no nix, no compilation, about two minutes ----
+  # ---- stage 0: the pinned tools of the flake, no builds, about two minutes ----
+  #
+  # Every step of these jobs runs in `nix develop .#hygiene` (nix/common.nix): the versions of rustfmt,
+  # cargo-deny, shellcheck, actionlint, jq and ripgrep are the ones the flake pins, not the ones the runner
+  # image or an action ships, so a local run of the same step gives the same answer.
 
   hygiene:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    defaults:
+      run:
+        shell: nix develop .#hygiene --command bash -euo pipefail {0}
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/nix
+        with:
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: No file is stored with CRLF
         run: |
           if git ls-files --eol | grep '^i/crlf'; then
             echo "::error::files are stored with CRLF"
             exit 1
           fi
-      # what `just lint` bans, with git grep (no ripgrep on the runner)
+      # what `just lint` bans
       - name: The banned macros
         run: |
           status=0
-          if git grep -n 'eyre!' -- '*.rs'; then echo "::error::eyre! macro not allowed"; status=1; fi
-          if git grep -n 'dbg!' -- '*.rs'; then echo "::error::dbg! macro not allowed"; status=1; fi
-          if git grep -n 'println!' -- 'crates/komorebi-linux/src/*.rs' 'crates/komorebi-macos/src/*.rs'; then
+          if rg -n 'eyre!' --type rust .; then echo "::error::eyre! macro not allowed"; status=1; fi
+          if rg -n 'dbg!' --type rust .; then echo "::error::dbg! macro not allowed"; status=1; fi
+          if rg -n 'println!' --type rust crates/komorebi-linux/src crates/komorebi-macos/src; then
             echo "::error::println! macro not allowed"; status=1
           fi
           exit "$status"
@@ -95,7 +106,7 @@ jobs:
         run: |
           files=$(git ls-files '.github/workflows/*.yaml' ':!:.github/workflows/windows.yaml')
           # shellcheck disable=SC2086
-          docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color $files
+          actionlint -color $files
       - name: shellcheck
         run: |
           files=(scripts/linux/wsl2-probe.sh)
@@ -109,9 +120,6 @@ jobs:
         run: tools/kde-closure-check
       - name: Every crate is in one class of the test partition
         run: tools/test-partition check
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny
       - name: dependencies.json is current
         run: |
           cargo deny list --format json |
@@ -120,22 +128,35 @@ jobs:
           diff -u dependencies.json "$RUNNER_TEMP/dependencies.json" ||
             { echo "::error::dependencies.json is stale: regenerate it with just depgen"; exit 1; }
 
-  # the nightly rustfmt over every .rs file of the repository (the pinned nightly of the flake is what
-  # stage 1 checks: a difference between the two is the nightly of the day, not the code)
+  # the nightly rustfmt of the flake over every .rs file of the repository: the same one `checkSets.fmt`
+  # runs in stage 1, so that a difference is the code and not the nightly of the day
   fmt:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    defaults:
+      run:
+        shell: nix develop .#hygiene --command bash -euo pipefail {0}
     steps:
       - uses: actions/checkout@v6
-      - run: rustup toolchain install nightly --profile minimal --component rustfmt
-      - run: RUSTFMT="$(rustup which --toolchain nightly rustfmt)" tools/format-all --check --root .
+      - uses: ./.github/actions/nix
+        with:
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: RUSTFMT=rustfmt tools/format-all --check --root .
 
   deny:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    defaults:
+      run:
+        shell: nix develop .#hygiene --command bash -euo pipefail {0}
     steps:
       - uses: actions/checkout@v6
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: ./.github/actions/nix
+        with:
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - run: cargo deny check
 
   # ---- stage 1: nix evaluation, and the checks that are options and formatting ----
 
