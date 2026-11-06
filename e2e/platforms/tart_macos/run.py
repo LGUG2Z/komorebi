@@ -62,12 +62,14 @@ UNSUPPORTED = {
 # what the macOS daemon does differently, which checks of a scenario are about, and the difference
 DIFFERENCES = {
     "stack": (
-        "the macOS daemon stacks by raising the focused window over the others: the other windows "
-        "of a stack stay on the display, at the same place, where Windows and KDE put them away"
+        "by design: the macOS daemon stacks by raising the focused window over the others, so the "
+        "other windows of a stack stay on the display at the same place, where Windows and KDE "
+        "put them away"
     ),
     "fullscreen": (
-        "the macOS daemon has no fullscreen detection: it tiles a window that covers the whole "
-        "display with the others"
+        "not applicable: macOS fullscreen is a Space of its own, which the daemon does not tile, "
+        "so there is no fullscreen window for it to leave alone; the test window's borderless "
+        "stand-in is tiled like any window"
     ),
     "margins": (
         "the daemon tiles 10 px below the top of the work area the system reports and 12 px above "
