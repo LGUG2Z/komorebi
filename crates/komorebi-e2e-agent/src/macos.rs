@@ -213,6 +213,28 @@ fn displays(mtm: MainThreadMarker) -> Vec<Value> {
         .collect()
 }
 
+/// The displays as a process that has just started sees them.
+///
+/// `NSScreen` caches the visible frame in the process, and turning the run loop does not refresh
+/// it: an agent that has been up for a while keeps answering with the work area of the time it
+/// started. The Dock of a guest is that kind of change: with the room it has on a display of 1280
+/// points it shrinks its icons, and the work area gains 9 points, once the first test windows have
+/// opened. The daemon reads the screens as it starts, so the work area it is held to is the one
+/// that the system has now, and only a process of its own can say what that is.
+fn fresh_displays(mtm: MainThreadMarker) -> Vec<Value> {
+    let asked = std::env::current_exe()
+        .and_then(|exe| {
+            Command::new(exe)
+                .arg(DISPLAYS_ARG)
+                .stdin(Stdio::null())
+                .output()
+        })
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| serde_json::from_slice::<Vec<Value>>(&output.stdout).ok());
+    asked.unwrap_or_else(|| displays(mtm))
+}
+
 fn activate(title: &str) -> Result<Value, String> {
     let window = find(title)?;
     if bool_attribute(&window.element, "AXMinimized") {
@@ -285,7 +307,7 @@ impl Verbs for MacosVerbs {
     fn handle(&mut self, request: &Request) -> Option<Result<Value, String>> {
         Some(match request.verb.as_str() {
             "os_windows" => Ok(Value::Array(windows().iter().map(describe).collect())),
-            "displays" => Ok(Value::Array(displays(self.mtm))),
+            "displays" => Ok(Value::Array(fresh_displays(self.mtm))),
             "activate" => activate(&request.title),
             "minimize" => find(&request.title)
                 .and_then(|w| set_bool(&w.element, "AXMinimized", true))
@@ -297,11 +319,19 @@ impl Verbs for MacosVerbs {
     }
 }
 
+/// The argument that makes the agent print its displays and exit, as `fresh_displays` asks.
+const DISPLAYS_ARG: &str = "--print-displays";
+
 pub fn run() -> std::io::Result<()> {
     let mtm = MainThreadMarker::new().expect("main runs on the main thread");
     // the window server connection that NSScreen needs, with no Dock icon and no window
     let application = NSApplication::sharedApplication(mtm);
     application.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
+
+    if std::env::args().nth(1).as_deref() == Some(DISPLAYS_ARG) {
+        println!("{}", Value::Array(displays(mtm)));
+        return Ok(());
+    }
 
     let listener = TcpListener::bind(("0.0.0.0", crate::protocol::port()))?;
     let mut verbs = MacosVerbs { mtm };
