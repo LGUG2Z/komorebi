@@ -34,6 +34,42 @@ in
       build = macos.mkKomorebiPackages { inherit pkgs; };
       # rustfmt.toml uses options only a nightly rustfmt knows
       nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
+
+      # Tart runs the macOS guests of the e2e suite (e2e/platforms/tart_macos). Its licence (Fair Source)
+      # is an unfree one in nixpkgs, so it is allowed here, and only it
+      tart =
+        (import inputs.nixpkgs {
+          inherit system;
+          config.allowUnfreePredicate = pkg: lib.getName pkg == "tart";
+        }).tart;
+
+      # the scenarios of the shared e2e core against a macOS guest: the golden image is built once by
+      # e2e/platforms/tart_macos/build-golden.sh, and the programs under test are this checkout's, or those
+      # of another build (KOMOREBI_E2E_BINS, made by build-bins.sh)
+      e2eMacos = pkgs.writeShellApplication {
+        name = "e2e-macos";
+        runtimeInputs = [ (pkgs.python3.withPackages (p: [ p.pillow ])) ];
+        text = ''
+          golden=''${KOMOREBI_E2E_GOLDEN:-komorebi-e2e-golden}
+          out=''${1:?usage: e2e-macos OUT SCENARIO...}
+          shift
+          if [ -n "''${KOMOREBI_E2E_BINS:-}" ]; then
+            bins=$KOMOREBI_E2E_BINS
+            if [ -f "$bins/commit" ]; then
+              KOMOREBI_E2E_COMMIT=$(cat "$bins/commit")
+            fi
+          else
+            bins=$(mktemp -d)
+            trap 'rm -rf "$bins"' EXIT
+            cp ${build.komorebi}/bin/komorebi ${build.komorebic}/bin/komorebic \
+              ${build.e2eBuild}/bin/komorebi-testwin "$bins"
+          fi
+          export KOMOREBI_E2E_TART=''${KOMOREBI_E2E_TART:-${tart}/bin/tart}
+          export KOMOREBI_E2E_COMMIT=''${KOMOREBI_E2E_COMMIT:-${self.rev or "dirty"}}
+          export PYTHONPATH=${lib'.repoFile "e2e/lib"}:${lib'.repoFile "e2e"}
+          exec python -m platforms.tart_macos.run "$golden" "$bins" "$out" "$@"
+        '';
+      };
     in
     lib.optionalAttrs (builtins.elem system lib'.macosSystems) {
       allChecks = {
@@ -78,6 +114,9 @@ in
         inherit (build) komorebi komorebic komorebi-bar;
         komorebi-full = build.fullBuild;
         default = build.fullBuild;
+      }
+      // lib.optionalAttrs (system == "aarch64-darwin") {
+        komorebi-e2e-macos = build.e2eBuild;
       };
 
       apps = {
@@ -96,6 +135,13 @@ in
         default = {
           type = "app";
           program = "${build.fullBuild}/bin/komorebi";
+        };
+      }
+      // lib.optionalAttrs (system == "aarch64-darwin") {
+        # nix run .#e2e-macos -- OUT tiling focus
+        e2e-macos = {
+          type = "app";
+          program = "${e2eMacos}/bin/e2e-macos";
         };
       };
     };

@@ -88,6 +88,17 @@ in
         }
       );
 
+      # the programs the e2e guest runs besides the daemon: the window to tile and the agent that answers
+      # the host. They are not part of fullBuild, which is what users get.
+      e2eBuild = craneLib.buildPackage (
+        individualCrateArgs
+        // {
+          pname = "komorebi-e2e-macos";
+          cargoExtraArgs = "--locked -p komorebi-testwin -p komorebi-e2e-agent";
+          COMMIT_HASH = "e2e";
+        }
+      );
+
       extractBinary =
         binaryName:
         pkgs.runCommand "komorebi-${binaryName}"
@@ -109,6 +120,7 @@ in
         packages
         individualCrateArgs
         fullBuild
+        e2eBuild
         ;
       komorebi = extractBinary "komorebi";
       komorebic = extractBinary "komorebic";
