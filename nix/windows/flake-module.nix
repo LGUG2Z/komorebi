@@ -204,8 +204,8 @@ in
         windows-nextest-full-build = windowsNextestFullBuild;
       }
       // {
-        # the Python of the Windows e2e guest that needs no guest: the
-        # vendored core's tests and those of the runner
+        # the Python of the e2e guests that needs no guest: the vendored core's tests and those of
+        # the runners of the Windows and the macOS guest
         windows-e2e-tests =
           pkgs.runCommand "windows-e2e-tests"
             {
@@ -222,7 +222,7 @@ in
               chmod -R u+w e2e
               cd e2e
               export HOME=$TMPDIR PYTHONPATH=$PWD/lib:$PWD
-              python -m pytest -q -p no:cacheprovider lib/tests platforms/qemu_windows/tests
+              python -m pytest -q -p no:cacheprovider lib/tests platforms/qemu_windows/tests platforms/tart_macos/tests
               touch $out
             '';
       };
