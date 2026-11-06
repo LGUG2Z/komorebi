@@ -15,6 +15,7 @@ use std::time::Instant;
 use objc2::MainThreadMarker;
 use objc2::MainThreadOnly;
 use objc2::rc::Retained;
+use objc2_app_kit::NSAccessibility;
 use objc2_app_kit::NSApplication;
 use objc2_app_kit::NSApplicationActivationPolicy;
 use objc2_app_kit::NSBackingStoreType;
@@ -154,6 +155,11 @@ pub fn run(options: cli::Options) {
     // SAFETY: this program owns the window, so a close does not release it a second time.
     unsafe { window.setReleasedWhenClosed(false) };
     window.setTitle(&NSString::from_str(&options.title));
+    if let Some(class) = &options.class {
+        // a macOS window has no class: the daemon takes the accessibility subrole of a window for
+        // it, which a program is free to name as it likes
+        window.setAccessibilitySubrole(Some(&NSString::from_str(class)));
+    }
     if let Some(rgb) = options.color {
         window.setBackgroundColor(Some(&color(rgb)));
     }

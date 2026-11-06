@@ -254,8 +254,11 @@ class MacosPlatform:
         rename_to: str | None = None,
         after: float = 0,
     ) -> Client:
-        # `app_id` is a window class, which a macOS window does not have: it is not passed
         args = ["--title", title]
+        if app_id is not None:
+            # a macOS window has no class: the daemon takes its accessibility subrole for one, which
+            # the test window is given as this
+            args += ["--class", app_id]
         if rename_to is not None:
             # the window gives itself this title `after` seconds from now
             args += ["--rename-to", rename_to, "--after", str(after)]

@@ -9,7 +9,8 @@ pub struct Options {
     pub title: String,
     /// The size of the window, in pixels (points on macOS).
     pub size: (i32, i32),
-    /// The window class on Windows; no other platform has one, and ignores it.
+    /// The window class on Windows; on macOS, which has none, the accessibility subrole of the
+    /// window, which is what the daemon takes for one; no other platform has one, and ignores it.
     pub class: Option<String>,
     /// `0xRRGGBB`.
     pub color: Option<u32>,
