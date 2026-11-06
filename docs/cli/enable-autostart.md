@@ -15,6 +15,9 @@ Options:
       --bar
           Enable autostart of komorebi-bar
 
+      --tray
+          Enable autostart of komorebi-tray
+
       --masir
           Enable autostart of masir
 

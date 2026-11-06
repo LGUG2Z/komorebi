@@ -1,0 +1,13 @@
+[package]
+name = "komorebi-tray"
+version = "0.1.42"
+edition = "2024"
+
+[dependencies]
+komorebi-client = { path = "../komorebi-client", default-features = false }
+
+color-eyre = { workspace = true }
+dirs = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+windows = { workspace = true, features = ["Win32_Security"] }

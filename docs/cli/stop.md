@@ -12,6 +12,9 @@ Options:
       --bar
           Stop komorebi-bar if it is running as a background process
 
+      --tray
+          Stop komorebi-tray if it is running
+
       --masir
           Stop masir if it is running as a background process
 
