@@ -69,6 +69,26 @@ def test_a_window_off_every_display_is_hidden(tmp_path: Path) -> None:
     assert platform(agent, tmp_path).hidden(Client("away"))
 
 
+@pytest.mark.parametrize(
+    "where",
+    [
+        (1279, 799, 600, 400),  # the corner the daemon hides a window in: one pixel shows
+        (-599, 799, 600, 400),  # the other corner
+        (1275, 100, 600, 400),  # a window that scrolled away: a 5 px strip
+    ],
+)
+def test_a_window_with_only_a_sliver_on_the_display_is_hidden(
+    where: tuple[int, int, int, int], tmp_path: Path
+) -> None:
+    agent = FakeAgent([window("parked", *where)])
+    assert platform(agent, tmp_path).hidden(Client("parked"))
+
+
+def test_a_window_cut_to_more_than_a_sliver_is_in_view(tmp_path: Path) -> None:
+    agent = FakeAgent([window("cut", 1200, 100, 600, 400)])
+    assert not platform(agent, tmp_path).hidden(Client("cut"))
+
+
 def test_a_window_on_the_display_is_not_hidden(tmp_path: Path) -> None:
     agent = FakeAgent([window("here", 100, 100, 400, 300)])
     assert not platform(agent, tmp_path).hidden(Client("here"))

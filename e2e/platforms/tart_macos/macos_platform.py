@@ -35,6 +35,10 @@ LAUNCHES = 3
 # the programs whose windows are not for the daemon to tile: the Terminal the agent runs in, and
 # the desktop widgets of the stock image (Notification Center draws them as windows)
 IGNORED_APPS = ("Terminal", "Notification Center")
+# macOS does not let a window go entirely off the screen, so the daemon parks one with a sliver of it
+# on the display (1 px in the corner it hides a window in, 5 px for one that scrolled away): a window
+# with no more than this showing in either direction is put away
+HIDDEN_SLIVER = 5
 
 
 def with_ignored_apps(config: dict[str, Any]) -> dict[str, Any]:
@@ -46,6 +50,14 @@ def with_ignored_apps(config: dict[str, Any]) -> dict[str, Any]:
     ]
     merged["ignore_rules"] = rules
     return merged
+
+
+def _shows_more_than_a_sliver(frame: Rect, display: Rect) -> bool:
+    """Whether more than `HIDDEN_SLIVER` pixels of the window are on the display, in both
+    directions: a window that is cut to a thin strip is put away as much as one that is gone."""
+    width = min(frame.x + frame.w, display.x + display.w) - max(frame.x, display.x)
+    height = min(frame.y + frame.h, display.y + display.h) - max(frame.y, display.y)
+    return width > HIDDEN_SLIVER and height > HIDDEN_SLIVER
 
 
 class MacosPlatform:
@@ -264,14 +276,15 @@ class MacosPlatform:
         )
 
     def hidden(self, client: Client) -> bool:
-        # the daemon puts a window of another workspace away by moving it off every display; a
-        # minimized one is the user's, and one that is on a display is in view
+        # the daemon puts a window of another workspace away by moving it to the corner of its
+        # display, with a sliver showing (`HIDDEN_SLIVER`); a minimized one is the user's, and one
+        # that shows more than that is in view
         window = self._find(client.title)
         if window is None or window["minimized"]:
             return False
         f = window["frame"]
         frame = Rect(f["left"], f["top"], f["right"], f["bottom"])
-        return not any(frame.overlaps(display) for display in self.displays())
+        return not any(_shows_more_than_a_sliver(frame, d) for d in self.displays())
 
     def close(self, client: Client) -> None:
         self._agent.call("close", title=client.title)
