@@ -32,6 +32,13 @@ TEMP_DIR = f"{GUEST_ROOT}/tmp"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 # a daemon that exited at start is launched again, this many times in all
 LAUNCHES = 3
+# how long after it answers the daemon takes to see a change of its configuration file: it watches
+# it with FSEvents, and a file written in the first half second after it started is not noticed (a
+# later one is, after two or three seconds). Nobody edits a file that fast, so a start waits this
+# long (measured: 0 s loses the change, 0.5 s does not).
+WATCH_SETTLE = 1.0
+# the commands of `komorebic` that change nothing, which need no barrier after them
+READ_ONLY = {"state", "global-state", "query", "visible-windows", "monitor-information"}
 # the programs whose windows are not for the daemon to tile: the Terminal the agent runs in, and
 # the desktop widgets of the stock image (Notification Center draws them as windows)
 IGNORED_APPS = ("Terminal", "Notification Center")
@@ -116,6 +123,7 @@ class MacosPlatform:
             )
             outcome = self._wait_launched(self._daemon_pid)
             if outcome is None:
+                time.sleep(WATCH_SETTLE * self._scale)
                 return
             self.start_notes.append(f"launch {launch}: {outcome}")
             print(f"     komorebi: launch {launch} failed: {outcome}")
@@ -185,7 +193,22 @@ class MacosPlatform:
         result = self._agent.exec(f"{GUEST_BIN}/komorebic", *args)
         if result["status"] != 0:
             raise RuntimeError(f"komorebic {' '.join(args)}: {result['stderr'] or result}")
+        if args and args[0] not in READ_ONLY:
+            self._barrier()
         return result["stdout"]
+
+    def _barrier(self) -> None:
+        """Returns once the daemon has taken up what `komorebic` sent it.
+
+        `komorebic` is done when the command is in the daemon's queue, not when it has been
+        carried out, and a window that opens right after (the scenarios do that) is an event of
+        the same queue: a rule or a name given just before it could come after it. The daemon
+        answers `state` in the order it got things, so its answer says the commands before it
+        have run. Nothing is asked of Windows, where the daemon is quick enough not to need it."""
+        try:
+            self._agent.exec(f"{GUEST_BIN}/komorebic", "state")
+        except AgentError:
+            pass
 
     def komorebic_status(self, *args: str) -> tuple[int, str]:
         result = self._agent.exec(f"{GUEST_BIN}/komorebic", *args)
