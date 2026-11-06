@@ -95,7 +95,7 @@ jobs:
         run: |
           files=$(git ls-files '.github/workflows/*.yaml' ':!:.github/workflows/windows.yaml')
           # shellcheck disable=SC2086
-          docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color $files
+          docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color $files
       - name: shellcheck
         run: |
           files=(scripts/linux/wsl2-probe.sh)
