@@ -21,6 +21,9 @@ inputs:
   kvm:
     description: Make /dev/kvm usable and tell nix that this machine can run NixOS tests
     default: "false"
+  defer-no-kvm:
+    description: "With kvm, a host without a usable /dev/kvm does not fail the step: the output kvm is `missing`, every other step of the action is skipped, and the caller runs the job again on another host (.github/workflows/_vm.yaml). Off, that host fails the step"
+    default: "false"
   free-disk:
     description: Delete the toolchains of the hosted image that this repository does not use (about 25 GB)
     default: "false"
@@ -37,20 +40,86 @@ inputs:
     description: The token that may push to the cache, secrets.CACHIX_AUTH_TOKEN
     default: ""
 
+outputs:
+  kvm:
+    description: "`ready` (kvm asked for and /dev/kvm is usable), `missing` (asked for with defer-no-kvm, and the host has none), empty (not asked for)"
+    value: ${{ steps.kvm.outputs.state }}
+
 runs:
   using: composite
   steps:
+    # The udev rule is what makes /dev/kvm writable for the runner's user (the one GitHub documents:
+    # https://github.blog/changelog/2024-04-02-github-actions-hardware-accelerated-android-virtualization-now-available/ ).
+    # `udevadm trigger` returns before the rule is applied, so the device is polled, for 30 seconds at
+    # most, and not tested once. The step comes first: a host without KVM is known in a second and not
+    # after the disk and the nix install. cachix/install-nix-action writes the same rule and ignores the
+    # outcome (`KVM is not available`), so its enable_kvm is off below: this step is the only one.
+    #
+    # The caller can tell the failure of this step from a failed suite: it is the step "Run
+    # ./.github/actions/nix" of the job (the API lists a composite action as one step), and with
+    # defer-no-kvm it is not a failure at all but the output kvm=missing.
+    - name: Enable KVM
+      id: kvm
+      if: inputs.kvm == 'true'
+      shell: bash
+      env:
+        DEFER: ${{ inputs.defer-no-kvm }}
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+          sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        diagnose() {
+          echo "::group::KVM diagnostics ($1)"
+          ls -l /dev/kvm 2>&1 || true
+          id
+          getent group kvm || true
+          systemd-detect-virt || true
+          echo "cpu flags vmx/svm: $(grep -E -c 'vmx|svm' /proc/cpuinfo || true)"
+          lsmod | grep -E '^kvm' || echo "no kvm module listed"
+          echo "::endgroup::"
+        }
+        diagnose "before the rule"
+        # a module that is not loaded is the one case that the rule cannot fix; harmless where it is
+        sudo modprobe -q kvm_intel 2>/dev/null || sudo modprobe -q kvm_amd 2>/dev/null || true
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+        sudo udevadm settle --timeout=30 || true
+        ready=false
+        for second in $(seq 0 30); do
+          if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+            echo "/dev/kvm is usable after $second s"
+            ready=true
+            break
+          fi
+          sleep 1
+        done
+        if [ "$ready" = false ] && [ -e /dev/kvm ]; then
+          # the device is there and the rule did not reach it: set the mode by hand
+          echo "/dev/kvm exists and is not usable after 30 s: udev did not apply the rule, setting the mode by hand"
+          sudo chmod 0666 /dev/kvm && [ -r /dev/kvm ] && [ -w /dev/kvm ] && ready=true
+        fi
+        diagnose "after"
+        if [ "$ready" = true ]; then
+          echo "state=ready" >> "$GITHUB_OUTPUT"
+        elif [ "$DEFER" = true ]; then
+          echo "state=missing" >> "$GITHUB_OUTPUT"
+          echo "::warning::this host has no usable /dev/kvm ($([ -e /dev/kvm ] || echo 'the device is absent: no nested virtualization'))"
+        else
+          # the host of a hosted runner is not chosen: some have no nested virtualization
+          echo "::error::this runner has no usable /dev/kvm"
+          exit 1
+        fi
+
     # A Plasma guest is a closure of about 10 GB, and a hosted runner has little free space on /
     # until the toolchains it ships with are gone.
     - name: Free disk space
-      if: inputs.free-disk == 'true' || inputs.kvm == 'true'
+      if: steps.kvm.outputs.state != 'missing' && (inputs.free-disk == 'true' || inputs.kvm == 'true')
       shell: bash
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
         df -h /
 
     - name: Add swap
-      if: inputs.swap == 'true'
+      if: steps.kvm.outputs.state != 'missing' && inputs.swap == 'true'
       shell: bash
       run: |
         sudo swapoff -a || true
@@ -60,27 +129,15 @@ runs:
         sudo swapon /mnt/ci-swapfile
         free -h
 
-    # The udev rule is what makes /dev/kvm writable for the runner's user. KVM on hosted runners
-    # is documented for public repositories; `test -w` is what says whether this one has it.
-    - name: Enable KVM
-      if: inputs.kvm == 'true'
-      shell: bash
-      run: |
-        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
-          sudo tee /etc/udev/rules.d/99-kvm4all.rules
-        sudo udevadm control --reload-rules
-        sudo udevadm trigger --name-match=kvm
-        # The host of a hosted runner is not chosen: some have no nested virtualization. The step is
-        # named so that rerun-no-kvm.yaml can tell this failure from a failed suite and run it again.
-        test -w /dev/kvm || { echo "::error::this runner has no usable /dev/kvm"; exit 1; }
-
     # `fallback` builds a derivation from source when its substitute cannot be downloaded (a NAR of 460 MB
     # that the cache served wrongly once, with `Stream error in the HTTP/2 framing layer`), so one dropped
     # connection costs minutes of compiling in that job and not the job. HTTP/2 stays at its default.
     - name: Install nix
-      if: inputs.install == 'true'
+      if: steps.kvm.outputs.state != 'missing' && inputs.install == 'true'
       uses: cachix/install-nix-action@v31
       with:
+        # off: the step above is the one that enables KVM, and checks that it is usable
+        enable_kvm: false
         extra_nix_config: |
           accept-flake-config = false
           fallback = true
@@ -89,7 +146,7 @@ runs:
     # The token is handed over only where writing is wanted; without it the action only reads. The cache
     # is public, so reading needs no token.
     - name: Cachix
-      if: inputs.cachix-cache != ''
+      if: steps.kvm.outputs.state != 'missing' && inputs.cachix-cache != ''
       uses: cachix/cachix-action@v16
       with:
         name: ${{ inputs.cachix-cache }}

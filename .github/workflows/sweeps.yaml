@@ -46,33 +46,19 @@ jobs:
           echo "slow=$(jq -c '.slow // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
 
   # The suites that draw and move a pointer. The driver is run by hand, outside the sandbox, so that the
-  # screenshots and the journals of a failed run can be uploaded.
+  # screenshots and the journals of a failed run can be uploaded (_vm-attempt.yaml). A machine with no
+  # KVM is drawn again, three draws at most (_vm.yaml).
   vm-slow:
     needs: [discover]
     if: ${{ needs.discover.outputs.slow != '[]' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix:
-        suite: ${{ fromJson(needs.discover.outputs.slow) }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/nix
-        with:
-          kvm: "true"
-          cachix-cache: ${{ vars.CACHIX_CACHE }}
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - run: nix build -L .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}.driver -o driver
-      - run: mkdir -p out && cd out && ../driver/bin/nixos-test-driver -o .
-      - if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ci-vm-${{ matrix.suite }}-${{ github.sha }}
-          path: out/
-          if-no-files-found: ignore
-          retention-days: 7
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_vm.yaml
+    with:
+      suites: ${{ needs.discover.outputs.slow }}
+      slow: true
+    secrets: inherit
 
   # Evaluating every NixOS system of the module and of the Plasma guests peaks at about 11.6 GB (see
   # docs/dev/flake-checks.md): the swap is for that, and the free disk for the guests' closures.

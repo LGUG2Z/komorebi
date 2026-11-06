@@ -1,0 +1,105 @@
+# One attempt at a list of VM suites, one machine each. Called by _vm.yaml, which calls it up to three
+# times: a hosted runner may land on a host with no KVM, and the host cannot be chosen, only drawn again.
+#
+# With `defer-no-kvm` a leg that lands on such a host does not fail: it uploads the artifact
+# `kvm-missing-<run attempt>-<attempt>-<suite>` and succeeds without having run the suite, and the next
+# attempt reads the artifacts to find the suites it has to run. The last attempt does not defer: a suite
+# that found no KVM in every attempt fails.
+
+name: vm-attempt
+
+on:
+  workflow_call:
+    inputs:
+      suites:
+        description: The suites to run, as a JSON list (the first attempt); later attempts find theirs
+        type: string
+        default: "[]"
+      attempt:
+        description: 1, 2 or 3
+        type: number
+        required: true
+      slow:
+        description: The slow tier (the driver is run by hand, and its output kept), not the sandboxed `nix build`
+        type: boolean
+        default: false
+      defer-no-kvm:
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # the suites that the attempt before found no KVM for
+  plan:
+    if: ${{ inputs.attempt > 1 }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      suites: ${{ steps.plan.outputs.suites }}
+    steps:
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          ATTEMPT: ${{ inputs.attempt }}
+        run: |
+          # GitHub expressions cannot subtract: the attempt before is computed here
+          PREFIX="kvm-missing-$RUN_ATTEMPT-$((ATTEMPT - 1))-"
+          suites=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq '.artifacts[].name' |
+            jq -R --arg prefix "$PREFIX" 'select(startswith($prefix)) | ltrimstr($prefix)' |
+            jq -sc .)
+          echo "suites to run again: $suites"
+          echo "suites=$suites" >> "$GITHUB_OUTPUT"
+
+  suite:
+    needs: [plan]
+    if: ${{ !cancelled() && needs.plan.result != 'failure' && (inputs.attempt == 1 || needs.plan.outputs.suites != '[]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ inputs.slow && 60 || 45 }}
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        suite: ${{ fromJson(inputs.attempt == 1 && inputs.suites || needs.plan.outputs.suites) }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: nix
+        uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+          defer-no-kvm: ${{ inputs.defer-no-kvm }}
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Remember that this host had no KVM
+        if: steps.nix.outputs.kvm == 'missing'
+        run: echo "${{ matrix.suite }}" > kvm-missing
+      - if: steps.nix.outputs.kvm == 'missing'
+        uses: actions/upload-artifact@v7
+        with:
+          name: kvm-missing-${{ github.run_attempt }}-${{ inputs.attempt }}-${{ matrix.suite }}
+          path: kvm-missing
+          retention-days: 1
+
+      # each suite in its own machine, in a sandboxed `nix build` like any other check
+      - if: steps.nix.outputs.kvm == 'ready' && !inputs.slow
+        run: nix build -L --no-link .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}
+
+      # the driver is run by hand, outside the sandbox, so that the screenshots and the journals of a
+      # failed run can be uploaded
+      - if: steps.nix.outputs.kvm == 'ready' && inputs.slow
+        run: nix build -L .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}.driver -o driver
+      - if: steps.nix.outputs.kvm == 'ready' && inputs.slow
+        run: mkdir -p out && cd out && ../driver/bin/nixos-test-driver -o .
+      - if: ${{ always() && steps.nix.outputs.kvm == 'ready' && inputs.slow }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-vm-${{ matrix.suite }}-${{ github.sha }}
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 7

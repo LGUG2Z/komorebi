@@ -1,0 +1,66 @@
+# The KDE VM suites of a tier, with the draw of the host repeated for the ones that found no KVM.
+#
+# GitHub documents hardware acceleration on its Linux runners, and does not promise it of every host of
+# the pool (docs/dev/ci.md, "KVM"). A suite whose machine has no /dev/kvm is run again on a new machine,
+# in the attempt after, up to three in all. Everything is in this one run, so that it works on any
+# branch and any event, and the check that a ruleset requires is the result of this workflow call: green
+# when every suite ran and passed, red when a suite failed, or when no machine had KVM in three draws.
+#
+# The caller grants `actions: read`, which the planning of the later attempts needs.
+
+name: vm
+
+on:
+  workflow_call:
+    inputs:
+      suites:
+        description: The suites of the tier, as a JSON list
+        type: string
+        required: true
+      slow:
+        description: The slow tier
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  attempt-1:
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_vm-attempt.yaml
+    with:
+      suites: ${{ inputs.suites }}
+      attempt: 1
+      slow: ${{ inputs.slow }}
+      defer-no-kvm: true
+    secrets: inherit
+
+  attempt-2:
+    needs: [attempt-1]
+    if: ${{ !cancelled() && needs.attempt-1.result != 'skipped' }}
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_vm-attempt.yaml
+    with:
+      attempt: 2
+      slow: ${{ inputs.slow }}
+      defer-no-kvm: true
+    secrets: inherit
+
+  # the last draw: a host with no KVM fails the suite
+  attempt-3:
+    needs: [attempt-2]
+    if: ${{ !cancelled() && needs.attempt-2.result != 'skipped' }}
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_vm-attempt.yaml
+    with:
+      attempt: 3
+      slow: ${{ inputs.slow }}
+      defer-no-kvm: false
+    secrets: inherit

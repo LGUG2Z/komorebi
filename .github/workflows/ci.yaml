@@ -333,25 +333,18 @@ jobs:
           tiers=$(nix eval --json .#legacyPackages.x86_64-linux.vmTiers)
           echo "fast=$(jq -c '.fast // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
 
-  # each suite in its own machine, in a sandboxed `nix build` like any other check
+  # Each suite in its own machine, in a sandboxed `nix build` like any other check. A machine with no
+  # KVM is drawn again, three draws at most (_vm.yaml); `actions: read` is for the planning of the later draws.
   vm-fast:
     needs: [discover]
     if: ${{ !cancelled() && !failure() && needs.discover.result == 'success' && needs.discover.outputs.fast != '[]' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix:
-        suite: ${{ fromJson(needs.discover.outputs.fast) }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/nix
-        with:
-          kvm: "true"
-          cachix-cache: ${{ vars.CACHIX_CACHE }}
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - run: nix build -L --no-link .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_vm.yaml
+    with:
+      suites: ${{ needs.discover.outputs.fast }}
+    secrets: inherit
 
   # ---- stage 5: macOS ----
 
