@@ -56,7 +56,47 @@ UNSUPPORTED = {
     "locking": "a macOS guest has no lock screen to test",
     "wallpaper": "the wallpaper of a macOS guest is not read yet",
     "rules_class": "a macOS window has no class",
+    "placement": "the macOS daemon has no initial_window_placement_rules",
 }
+
+# the checks of a scenario that are about a difference of the macOS daemon, by a part of their
+# description, and the difference; the others of the scenario are checks as any. A mark whose check
+# passes is a failure, to say that it can go.
+KNOWN_CHECKS = {
+    # stacks
+    "exactly one window is put away": "STACK",
+    "after 'cycle-stack next' the other window of the stack is in view and the first is away": "STACK",
+    "cycling back, the first is in view again": "STACK",
+    # fullscreen
+    "it does not take the window out of fullscreen": "FULLSCREEN",
+    "not on any other window": "FULLSCREEN",
+    # layout_flip
+    "BSP, 3 windows, layout_flip Vertical: ... each where the mirror of its place is": "MARGINS",
+    "BSP, 3 windows, layout_flip HorizontalAndVertical: ... each where the mirror of its place is": "MARGINS",
+    # the class of a window
+    "an ignore rule by class matches is not managed": "CLASS",
+    "keeps its place (class)": "CLASS",
+    "the state has the class a window was given": "CLASS",
+}
+DIFFERENCES = {
+    "STACK": (
+        "the macOS daemon stacks by raising the focused window over the others: the other windows "
+        "of a stack stay on the display, at the same place, where Windows and KDE put them away"
+    ),
+    "FULLSCREEN": (
+        "the macOS daemon has no fullscreen detection: it tiles a window that covers the whole "
+        "display with the others"
+    ),
+    "MARGINS": (
+        "the daemon tiles 10 px below the top of the work area the system reports and 12 px above "
+        "its bottom, so a vertical mirror is a few pixels off"
+    ),
+    "CLASS": (
+        "a macOS window has no class: the daemon matches the role of the window, which every "
+        "window of the test program shares"
+    ),
+}
+KNOWN_CHECKS = {key: DIFFERENCES[name] for key, name in KNOWN_CHECKS.items()}
 
 
 class GuestDied(RuntimeError):
@@ -68,7 +108,7 @@ def run_one(golden: str, bin_dir: Path, out: Path, name: str) -> RecordedChecks:
     scenario = importlib.import_module(f"komorebi_vm.core.scenarios.{name}")
     tiling = importlib.import_module("komorebi_vm.core.scenarios.tiling")
 
-    checks = RecordedChecks()
+    checks = RecordedChecks(KNOWN_CHECKS)
     print(f"== {name}")
     began = time.monotonic()
     timings: dict[str, float] = {}
@@ -110,6 +150,7 @@ def run_one(golden: str, bin_dir: Path, out: Path, name: str) -> RecordedChecks:
                         for more in MORE.get(name, ())
                     ),
                 )
+            checks.stale_marks()
         except Exception as e:
             died = guest.died()
             if died:
