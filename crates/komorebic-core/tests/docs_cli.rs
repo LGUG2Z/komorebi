@@ -1,4 +1,13 @@
 //! The pages of `docs/cli` that are checked in are what the command line renders today.
+//!
+//! The identifiers are worded per platform (`ApplicationIdentifier::Class` is "Class" on Windows,
+//! "Accessibility subrole or role, such as AXStandardWindow" on macOS and "Role or subrole" on Linux),
+//! and the command line renders the wording of the host it is built for: only a macOS host renders the
+//! pages of `docs/macos/cli` as they are checked in. So the test is built on macOS only, and the macOS
+//! job of ci runs it (`_macos.yaml`); on another host there is nothing to run, and nothing that passes
+//! without having checked.
+
+#![cfg(target_os = "macos")]
 
 use komorebic_core::cli::Meta;
 use komorebic_core::cli::command;
@@ -28,16 +37,10 @@ fn macos_page(name: &str, page: &str) -> String {
 #[test]
 fn every_macos_page_is_as_checked_in() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/macos/cli");
-    if !dir.is_dir() {
-        // a source tree without the macOS tree (the nix build of the Windows workspace)
-        return;
-    }
-    if cfg!(windows) {
-        // the identifiers are worded per platform, and a Windows host renders its own wording;
-        // the pages are the same on the hosts that have the macOS one, which the linux run covers
-        return;
-    }
-
+    assert!(
+        dir.is_dir(),
+        "the pages of the macOS command line are not in {dir:?}"
+    );
     let rendered = pages(command::<MacosCommands>(&META), &DocFormat::PLAIN);
     let mut stale = Vec::new();
     for (name, page) in &rendered {
