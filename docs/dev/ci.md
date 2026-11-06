@@ -27,7 +27,7 @@ each is `success` or `skipped`: it is the only check a ruleset needs to require.
 | 3 | `test` (4 legs) | ubuntu-24.04, nix | `checkSets.{linux-test,windows-test,recorder-test,nixgen-test}`: Linux tests, the Windows test executables cross-built (not run), the recorder's and nixgen's tests | always |
 | 3 | `windows-native-test` | windows-latest | `cargo nextest` of the `windows` and `os_sensitive` classes of `tools/test-partition` | Windows or shared paths |
 | 3 | `windows-native-test-arm` | windows-11-arm | the same on ARM | label `ci:win-arm`; a push to master with Windows paths; by hand |
-| 4 | `discover`, `vm-fast` | ubuntu-24.04, KVM | the fast tier of the KDE VM suites, one machine each (`max-parallel: 8`, 45 minutes) | Linux paths; label `ci:vm`; every push to master |
+| 4 | `discover`, `vm-fast` | ubuntu-24.04, KVM | the fast tier of the KDE VM suites, one machine each (`max-parallel: 8`, 45 minutes), a machine with no KVM drawn again (`_vm.yaml`, see KVM) | Linux paths; label `ci:vm`; every push to master |
 | 5 | `macos-hosted` | macos-14 (`_macos.yaml`) | the macOS checks, the recorder's macOS tests, the binaries, the schemas | label `ci:macos` on a pull request; macOS paths on a push |
 
 Beside the ladder:
@@ -35,11 +35,10 @@ Beside the ladder:
 | workflow | jobs | runner | what it covers | when it runs |
 |---|---|---|---|---|
 | `macos-selfhosted.yaml` | `macos` (`_macos.yaml`) | the Mac Mini | the same as `macos-hosted`, on the machine of the owner | variable `MACOS_SELF_HOSTED=true`, and: by hand, a push to master, or label `ci:macos-self` on a pull request from this repository |
-| `sweeps.yaml` | `vm-slow` | ubuntu-24.04, KVM | the slow tier of the VM suites, 60 minutes each, logs kept 7 days | label `ci:vm-slow`; every push to master; by hand |
+| `sweeps.yaml` | `vm-slow` | ubuntu-24.04, KVM | the slow tier of the VM suites, 60 minutes each, logs kept 7 days, a machine with no KVM drawn again (see KVM) | label `ci:vm-slow`; every push to master; by hand |
 | | `nixos-eval`, `linux-demo` | ubuntu-24.04, swap | every NixOS system of the module and of the Plasma guests (about 11.6 GB to evaluate), and the demo guest | the same |
 | | `canary` (3 legs) | ubuntu-24.04, KVM | every check against the tip of nixpkgs-unstable, one leg for the checks, one for each VM tier; it opens an issue when one fails | Saturday 05:20 UTC; by hand |
 | `update-flake-lock.yaml` | `update` | ubuntu-24.04 | a pull request that moves `flake.lock` | Monday 03:00 UTC; by hand |
-| `rerun-no-kvm.yaml` | `rerun` | ubuntu-24.04 | runs the failed jobs again when every one failed for want of `/dev/kvm` (three attempts at most) | after `ci` or `sweeps` |
 | `windows-guest.yaml` | `guest` | ubuntu-24.04, KVM | EXPERIMENTAL: builds the Windows guest from the evaluation ISO and runs `nix run .#windows-nextest` in it | by hand only |
 
 `ci` runs on a pull request (opened, pushed to, reopened, labeled), in the merge queue, on a push to `master`, and by hand. A
@@ -121,6 +120,42 @@ None of these can be set from a workflow.
    `EmbarkStudios/cargo-deny-action`) if the repository restricts them.
 
 
+## KVM on hosted runners
+
+What GitHub documents: hardware acceleration (KVM) on the Linux runners, with the udev rule that `.github/actions/nix` writes
+(changelog of 2024-04-02, and of 2023-02-23 for the first release on larger runners). What it does not document: that every
+host of the `ubuntu-24.04` pool has it. The pages "GitHub-hosted runners" and "Larger runners" say nothing about nested
+virtualization, and no service level covers it. Nothing in the repository can choose the host: a job is given whichever one the
+pool has. In run 42182554717 (all 16 hosts the same image, `ubuntu24/20261101.360`, spread over six Azure regions) 3 of 16 failed
+the check of `/dev/kvm`, 13 had it; what is known of those 3 is only that the check failed 42 to 46 ms after the udev trigger, which
+cannot tell a missing device from a rule that was not applied yet. The step now logs which of the two it is.
+
+What the repository does:
+
+- `.github/actions/nix`, step "Enable KVM" (the only place that enables it: `enable_kvm` of `cachix/install-nix-action` writes the
+  same rule, ignores the outcome, and is turned off): writes the rule, loads `kvm_intel` or `kvm_amd`, reloads and triggers udev,
+  waits for `udevadm settle`, polls `/dev/kvm` for 30 seconds for read and write access, and as the last resort sets the mode by
+  hand. It prints `ls -l /dev/kvm`, `id`, `systemd-detect-virt`, the count of `vmx`/`svm` flags and the loaded `kvm` modules, before and after.
+- `_vm.yaml` calls `_vm-attempt.yaml` up to three times. In the first two a host with no KVM does not fail its leg: the leg
+  uploads the artifact `kvm-missing-<run attempt>-<attempt>-<suite>` and ends green without having run the suite, and the next
+  attempt (a job `plan` that lists the artifacts) runs those suites again, each on a new machine. In the third, a host with no KVM fails
+  the suite. So a suite is run, or the call fails: three draws without KVM are the only way a suite is not run and the check is red for it.
+- `vm-fast` (`ci.yaml`) and `vm-slow` (`sweeps.yaml`) are calls of `_vm.yaml`; `required` reads the result of the call. It works on any
+  branch and any event, because it is inside the one run: it needs no workflow on the default branch and no rerun. (A rerun of the
+  failed jobs of a run cannot be started by the run itself while it is in progress, and a `workflow_run` workflow runs only from the file
+  on the default branch; that is why the earlier `rerun-no-kvm.yaml` is gone.)
+- Not covered: the three legs of `canary` and `windows-guest.yaml` (one machine each, hours long): a host with no KVM fails the
+  step "Enable KVM", with the message `this runner has no usable /dev/kvm`; run them again by hand.
+
+When GitHub gives no KVM at all for a long stretch (every leg of three draws fails, the log of the step says the device is absent
+and `systemd-detect-virt` or the `vmx` count says why): the check cannot pass on hosted runners. The ways out are a larger
+runner (`runs-on` with a label of a larger-runner group: billed per minute also on a public repository, and nothing in the
+documentation promises nested virtualization there either, only that the Android emulator is supported), or a self-hosted x86-64
+Linux machine with KVM, with `runs-on` changed in `_vm-attempt.yaml`.
+
+Not verified: none of this has run on GitHub. In particular the artifact listing of `plan`, the nesting of two reusable workflows
+and the result of a call whose legs are skipped.
+
 ## The `komomono` removal checklist
 
 `ci.yaml` and `macos-selfhosted.yaml` run on a push to the temporary branch `komomono`, so that the stack can be tried before it is merged to `master`. Each
@@ -159,7 +194,7 @@ the post step runs when the job fails too).
 ## Open items
 
 - Cachix: whether the free tier of the cache `komorebi` is large enough for the store of this flake (several GB per system) is not verified.
-- KVM on hosted runners: documented for public repositories; the action fails with a named step when a host has none, and `rerun-no-kvm` tries again.
+- KVM on hosted runners: documented for public repositories; see KVM below: GitHub does not promise it of every host, so the workflows draw again, up to three times in all.
 - The macOS image: `macos-14` is Apple silicon with its own nix install each run; whether the cache makes the checks fit the 2 hours of the job is not known.
 - The first run of stage 0 sets up the `hygiene` shell, which is a download of about 1 GB until the Cachix cache has it (a push and a manual run push it).
 - The memory of `nix flake check --no-build` over the nixosConfigurations (about 7 GB) against a runner that has 7 GB (private repositories) or 16 GB (public): the swap of the action is the mitigation.
