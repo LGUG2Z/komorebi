@@ -212,6 +212,22 @@ in
           name = "komorebi-native";
           cross = false;
         };
+        # What the first stage of CI runs (.github/workflows/ci.yaml: hygiene, fmt, deny) and nothing more:
+        # the versions the flake pins, without the Windows SDK, the VM tooling and the rest of the full shell,
+        # so that the checks of that stage take seconds to set up and a local `nix develop .#hygiene` runs
+        # the same tools as CI does.
+        hygiene = pkgs.mkShell {
+          name = "komorebi-hygiene";
+          packages = [
+            rustToolchainWithNightlyRustfmt
+            pkgs.actionlint
+            pkgs.cargo-deny
+            pkgs.git
+            pkgs.jq
+            pkgs.ripgrep
+            pkgs.shellcheck
+          ];
+        };
       };
 
       # the two checks of these modules are members of the set `fmt` (nix/checks.nix), which adds them
