@@ -81,9 +81,10 @@ impl komorebi_core::WorkspaceWindow for Window {
         Window::exe(self)
     }
 
-    /// macOS has no window class: the role, which is what `komorebi.json` matches as a class
+    /// macOS has no window class: the subrole, or the role without one (see
+    /// [`crate::window::class_of`]), which is what the state shows as the class
     fn class(&self) -> Option<String> {
-        self.role()
+        Window::class(self)
     }
 
     fn path(&self) -> Option<String> {

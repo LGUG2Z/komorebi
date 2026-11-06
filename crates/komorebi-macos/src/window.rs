@@ -446,6 +446,10 @@ pub struct WindowDetails {
     pub exe: String,
     pub role: String,
     pub subrole: String,
+    /// The class of the window, as a `Class` rule matches it: the subrole, or the role when there
+    /// is no subrole. The windows of the other platforms have a `class` in their state too
+    #[serde(default)]
+    pub class: String,
     pub icon_path: PathBuf,
 }
 
@@ -456,6 +460,7 @@ impl From<&Window> for WindowDetails {
             exe: value.exe().unwrap_or_default(),
             role: value.role().unwrap_or_default(),
             subrole: value.subrole().unwrap_or_default(),
+            class: value.class().unwrap_or_default(),
             icon_path: value.icon_path().unwrap_or_default(),
         }
     }
@@ -538,6 +543,7 @@ struct SerializedWindow {
     exe: String,
     role: String,
     subrole: String,
+    class: String,
     rect: Rect,
 }
 
@@ -550,6 +556,15 @@ impl schemars::JsonSchema for Window {
     fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
         <SerializedWindow as schemars::JsonSchema>::json_schema(generator)
     }
+}
+
+/// The class of a window, which macOS does not have: the accessibility subrole of the window
+/// (`AXStandardWindow` of an ordinary window, `AXDialog`, `AXFloatingWindow`, ...), which tells
+/// the kinds of window apart, or its role (`AXWindow`, that every window has) when it has no
+/// subrole. A `Class` rule matches either of the two, so a rule that names the role keeps working;
+/// the state shows this one.
+pub fn class_of(role: Option<String>, subrole: Option<String>) -> Option<String> {
+    subrole.filter(|subrole| !subrole.is_empty()).or(role)
 }
 
 /// The id of the window that has the focus, if any window does
@@ -961,6 +976,12 @@ impl Window {
     pub fn subrole(&self) -> Option<String> {
         AccessibilityApi::copy_attribute_value::<CFString>(&self.element, kAXSubroleAttribute)
             .map(|s| s.to_string())
+    }
+
+    /// What `komorebi.json` and the state call the class of the window: its subrole, or its role
+    /// when it has no subrole (see [`class_of`])
+    pub fn class(&self) -> Option<String> {
+        class_of(self.role(), self.subrole())
     }
 
     fn running_application(&self) -> Result<Retained<NSRunningApplication>, AccessibilityError> {
@@ -1487,6 +1508,11 @@ impl AdhocWindow {
             .map(|s| s.to_string())
     }
 
+    /// The class of the window: its subrole, or its role when it has no subrole (see [`class_of`])
+    pub fn class(element: &CFRetained<AXUIElement>) -> Option<String> {
+        class_of(AdhocWindow::role(element), AdhocWindow::subrole(element))
+    }
+
     pub fn title(element: &CFRetained<AXUIElement>) -> Option<String> {
         AccessibilityApi::copy_attribute_value::<CFString>(element, kAXTitleAttribute)
             .map(|s| s.to_string())
@@ -1876,6 +1902,100 @@ pub fn should_act_individual(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::ApplicationIdentifier;
+    use crate::core::config_generation::MatchingStrategy;
+
+    fn class_rule(id: &str, strategy: MatchingStrategy) -> MatchingRule {
+        MatchingRule::Simple(IdWithIdentifier {
+            kind: ApplicationIdentifier::Class,
+            id: id.to_string(),
+            matching_strategy: Some(strategy),
+        })
+    }
+
+    fn matches(classes: &[&str], rule: &MatchingRule) -> bool {
+        should_act(
+            "title",
+            "exe",
+            classes,
+            "/path",
+            std::slice::from_ref(rule),
+            &HashMap::new(),
+        )
+        .is_some()
+    }
+
+    fn some(value: &str) -> Option<String> {
+        Some(value.to_string())
+    }
+
+    #[test]
+    fn the_class_of_a_window_is_its_subrole() {
+        assert_eq!(
+            class_of(some("AXWindow"), some("AXStandardWindow")),
+            some("AXStandardWindow")
+        );
+        assert_eq!(
+            class_of(some("AXWindow"), some("e2e-class")),
+            some("e2e-class")
+        );
+    }
+
+    #[test]
+    fn the_class_of_a_window_without_a_subrole_is_its_role() {
+        assert_eq!(class_of(some("AXWindow"), None), some("AXWindow"));
+        assert_eq!(class_of(some("AXWindow"), some("")), some("AXWindow"));
+        assert_eq!(class_of(None, None), None);
+    }
+
+    #[test]
+    fn a_class_rule_matches_the_subrole_and_the_role_of_a_window() {
+        let classes = ["AXWindow", "AXStandardWindow"];
+
+        assert!(matches(
+            &classes,
+            &class_rule("AXStandardWindow", MatchingStrategy::Equals)
+        ));
+        // a rule written for the role, before the class was the subrole, still holds
+        assert!(matches(
+            &classes,
+            &class_rule("AXWindow", MatchingStrategy::Equals)
+        ));
+        assert!(!matches(
+            &classes,
+            &class_rule("AXDialog", MatchingStrategy::Equals)
+        ));
+        assert!(matches(
+            &classes,
+            &class_rule("AXStandard", MatchingStrategy::StartsWith)
+        ));
+        assert!(matches(
+            &classes,
+            &class_rule("Standard", MatchingStrategy::Contains)
+        ));
+        assert!(!matches(
+            &classes,
+            &class_rule("Dialog", MatchingStrategy::Contains)
+        ));
+    }
+
+    #[test]
+    fn the_state_of_a_window_has_a_class() {
+        let details: WindowDetails = serde_json::from_value(serde_json::json!({
+            "title": "t", "exe": "e", "role": "AXWindow", "subrole": "AXStandardWindow",
+            "class": "AXStandardWindow", "icon_path": "",
+        }))
+        .unwrap();
+        assert_eq!(details.class, "AXStandardWindow");
+
+        // the state of a daemon from before there was a class has none
+        let older: WindowDetails = serde_json::from_value(serde_json::json!({
+            "title": "t", "exe": "e", "role": "AXWindow", "subrole": "AXStandardWindow",
+            "icon_path": "",
+        }))
+        .unwrap();
+        assert_eq!(older.class, "");
+    }
 
     #[test]
     fn nothing_is_dragged_before_a_drag_begins() {

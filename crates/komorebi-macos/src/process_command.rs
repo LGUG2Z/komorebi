@@ -1408,7 +1408,7 @@ impl WindowManager {
         let (exe, title, role) = (
             AdhocWindow::exe(&foreground_window),
             AdhocWindow::title(&foreground_window),
-            AdhocWindow::role(&foreground_window),
+            AdhocWindow::class(&foreground_window),
         );
 
         if let (Some(exe), Some(title), Some(role)) = (exe, title, role) {
@@ -1472,11 +1472,9 @@ impl WindowManager {
                             }
                         }
                         ApplicationIdentifier::Class => {
-                            if window.role().unwrap_or_default() == *id {
-                                window_ids_to_purge.push((i, window.id));
-                            }
-
-                            if window.subrole().unwrap_or_default() == *id {
+                            if window.role().unwrap_or_default() == *id
+                                || window.subrole().unwrap_or_default() == *id
+                            {
                                 window_ids_to_purge.push((i, window.id));
                             }
                         }
