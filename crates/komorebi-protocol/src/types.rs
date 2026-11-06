@@ -98,8 +98,14 @@ pub enum ApplicationIdentifier {
     Exe,
     // the description is part of the checked-in schemas, which differ per platform
     #[cfg_attr(target_os = "windows", doc = " Class")]
-    #[cfg_attr(target_os = "macos", doc = " Accessibility subrole or role, such as AXStandardWindow")]
-    #[cfg_attr(not(any(target_os = "windows", target_os = "macos")), doc = " Role or subrole")]
+    #[cfg_attr(
+        target_os = "macos",
+        doc = " Accessibility subrole or role, such as AXStandardWindow"
+    )]
+    #[cfg_attr(
+        not(any(target_os = "windows", target_os = "macos")),
+        doc = " Role or subrole"
+    )]
     #[serde(alias = "class")]
     Class,
     #[serde(alias = "title")]

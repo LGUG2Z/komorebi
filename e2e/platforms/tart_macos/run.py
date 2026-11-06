@@ -72,10 +72,6 @@ DIFFERENCES = {
         "so there is no fullscreen window for it to leave alone; the test window's borderless "
         "stand-in is tiled like any window"
     ),
-    "margins": (
-        "the daemon tiles 10 px below the top of the work area the system reports and 12 px above "
-        "its bottom, so a vertical mirror is a few pixels off"
-    ),
 }
 
 # the checks of a scenario that are about one of them, by a part of their description; the others
@@ -90,10 +86,6 @@ KNOWN_CHECKS = {
     "fullscreen": {
         "it does not take the window out of fullscreen": "fullscreen",
         "not on any other window": "fullscreen",
-    },
-    "layout_flip": {
-        "BSP, 3 windows, layout_flip Vertical: ... each where the mirror of its place is": "margins",
-        "BSP, 3 windows, layout_flip HorizontalAndVertical: ... each where the mirror of its place is": "margins",
     },
 }
 KNOWN_CHECKS = {
