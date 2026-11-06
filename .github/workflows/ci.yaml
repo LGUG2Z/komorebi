@@ -11,7 +11,7 @@ name: ci
 
 on:
   pull_request:
-    # `labeled` so that adding ci:vm, ci:macos or ci:win-arm starts the stage the label asks for
+    # `labeled` so that adding ci:vm or ci:win-arm starts the stage the label asks for
     types: [opened, synchronize, reopened, labeled]
   merge_group:
   push:
@@ -306,6 +306,15 @@ jobs:
           # shellcheck disable=SC2046
           cargo nextest run --locked $(tools/test-partition packages windows) $(tools/test-partition packages os_sensitive)
 
+  # A hosted runner of Apple silicon with the latest macOS, the only one that is supported; free on a public repository.
+  macos-hosted:
+    needs: [changes, lint]
+    if: ${{ !cancelled() && !failure() && needs.changes.outputs.macos == 'true' }}
+    uses: ./.github/workflows/_macos.yaml
+    with:
+      runs-on: '"macos-latest"'
+    secrets: inherit
+
   # ---- stage 4: the KDE guests ----
 
   # The suites are found in the flake, so that a new directory under nix/linux/tests/vm/suites is run
@@ -343,19 +352,6 @@ jobs:
     uses: ./.github/workflows/_vm.yaml
     with:
       suites: ${{ needs.discover.outputs.fast }}
-    secrets: inherit
-
-  # ---- stage 5: macOS ----
-
-  macos-hosted:
-    needs: [changes, vm-fast, mac-typecheck]
-    if: >-
-      ${{ !cancelled() && !failure() && (
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:macos')) ||
-      (github.event_name != 'pull_request' && needs.changes.outputs.macos == 'true')) }}
-    uses: ./.github/workflows/_macos.yaml
-    with:
-      runs-on: '"macos-14"'
     secrets: inherit
 
   # the only check that a ruleset requires: every job above passed or was skipped

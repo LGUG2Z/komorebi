@@ -67,7 +67,6 @@ macos:
   - nix/recorder/**
   - schemas/macos/**
   - docs/macos/**
-  - .github/workflows/macos-selfhosted.yaml
 
 windows:
   - *shared

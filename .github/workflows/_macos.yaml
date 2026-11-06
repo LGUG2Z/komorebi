@@ -1,5 +1,4 @@
-# The macOS jobs, called by ci.yaml on a hosted runner and by macos-selfhosted.yaml on the Mac Mini.
-# `runs-on` is JSON: '"macos-14"' or '["self-hosted","macOS","ARM64"]'.
+# The macOS jobs, called by ci.yaml on a hosted runner.
 
 name: macos
 
@@ -7,13 +6,9 @@ on:
   workflow_call:
     inputs:
       runs-on:
-        description: The runner, as JSON
+        description: The runner, as JSON, for example '"macos-latest"'
         type: string
         required: true
-      install-nix:
-        description: Install nix (a self-hosted machine already has it)
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -31,7 +26,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/nix
         with:
-          install: ${{ inputs.install-nix }}
           cachix-cache: ${{ vars.CACHIX_CACHE }}
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: The macOS checks

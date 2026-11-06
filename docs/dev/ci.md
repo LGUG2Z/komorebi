@@ -27,14 +27,13 @@ each is `success` or `skipped`: it is the only check a ruleset needs to require.
 | 3 | `test` (4 legs) | ubuntu-24.04, nix | `checkSets.{linux-test,windows-test,recorder-test,nixgen-test}`: Linux tests, the Windows test executables cross-built (not run), the recorder's and nixgen's tests | always |
 | 3 | `windows-native-test` | windows-latest | `cargo nextest` of the `windows` and `os_sensitive` classes of `tools/test-partition` | Windows or shared paths |
 | 3 | `windows-native-test-arm` | windows-11-arm | the same on ARM | label `ci:win-arm`; a push to master with Windows paths; by hand |
+| 3 | `macos-hosted` | macos-latest (`_macos.yaml`) | the macOS checks, the recorder's macOS tests, the binaries, the schemas | macOS paths |
 | 4 | `discover`, `vm-fast` | ubuntu-24.04, KVM | the fast tier of the KDE VM suites, one machine each (`max-parallel: 8`, 45 minutes), a machine with no KVM drawn again (`_vm.yaml`, see KVM) | Linux paths; label `ci:vm`; every push to master |
-| 5 | `macos-hosted` | macos-14 (`_macos.yaml`) | the macOS checks, the recorder's macOS tests, the binaries, the schemas | label `ci:macos` on a pull request; macOS paths on a push |
 
 Beside the ladder:
 
 | workflow | jobs | runner | what it covers | when it runs |
 |---|---|---|---|---|
-| `macos-selfhosted.yaml` | `macos` (`_macos.yaml`) | the Mac Mini | the same as `macos-hosted`, on the machine of the owner | variable `MACOS_SELF_HOSTED=true`, and: by hand, a push to master, or label `ci:macos-self` on a pull request from this repository |
 | `sweeps.yaml` | `vm-slow` | ubuntu-24.04, KVM | the slow tier of the VM suites, 60 minutes each, logs kept 7 days, a machine with no KVM drawn again (see KVM) | label `ci:vm-slow`; every push to master; by hand |
 | | `nixos-eval`, `linux-demo` | ubuntu-24.04, swap | every NixOS system of the module and of the Plasma guests (about 11.6 GB to evaluate), and the demo guest | the same |
 | | `canary` (3 legs) | ubuntu-24.04, KVM | every check against the tip of nixpkgs-unstable, one leg for the checks, one for each VM tier; it opens an issue when one fails | Saturday 05:20 UTC; by hand |
@@ -43,7 +42,7 @@ Beside the ladder:
 
 `ci` runs on a pull request (opened, pushed to, reopened, labeled), in the merge queue, on a push to `master`, and by hand. A
 pull request cancels its own earlier run; nothing else cancels. The token of every workflow is read-only (`contents: read`), and
-no workflow uses `pull_request_target`: a pull request from a fork gets no secret and no self-hosted runner.
+no workflow uses `pull_request_target`: a pull request from a fork gets no secret.
 
 
 ### The tools of stage 0 are the latest, and the flake is how CI gets them
@@ -77,8 +76,9 @@ installs nextest on the Windows runners, which have no nix, and `windows.yaml` (
 The gaps:
 
 - No Windows e2e: the guest needs the evaluation ISO and about 20 minutes of Windows Setup, and nothing says a hosted runner can do it.
-- macOS is run only when asked for (the label, the paths on a push) or on the Mac Mini: hosted macOS minutes cost ten times those of Linux and the
-  macOS image may not have the nix store warm. Until then a macOS break is caught by `mac-typecheck` (types) and `nix-eval` (evaluation), not by a test.
+- macOS runs on every change to its paths, on `macos-latest` (Apple silicon, the latest macOS, the only one supported): standard hosted runners are free and
+  unlimited on a public repository. Nothing starts the daemon there, so tiling on macOS is not exercised; whether a hosted runner has a GUI session with the
+  Accessibility and Screen Recording permissions is not known.
 - The nightly rustfmt of `fmt` is the nightly of the day; `checkSets.fmt` in stage 1 uses the one the flake pins. When only `fmt` fails, the nightly moved.
 - `mac-typecheck` takes the std of `aarch64-apple-darwin` from the toolchain of the runner (`rustup target add`), because the dev shell of the
   flake only has the Windows target. clippy could run the same way (`cargo clippy --target aarch64-apple-darwin`); `tools/mac-check.sh` does not.
@@ -114,8 +114,7 @@ None of these can be set from a workflow.
    with `secrets: inherit`). The write token is handed to `cachix-action` (as its `authToken` input) on a `push` (master, and the temporary komomono trigger, which no expression
    names), on `workflow_dispatch` and on `schedule`; on a `pull_request` or in the merge queue it is an empty string and the action logs `Pushing is disabled`. The only job
    that reads and never writes is the nixpkgs canary (`push: "false"`): it builds against another nixpkgs, which nothing else needs. A job that has no `CACHIX_CACHE` builds with no cache.
-   Still the owner's: the variable `MACOS_SELF_HOSTED` (`true` once the Mac Mini has a runner with the labels `self-hosted`, `macOS`, `ARM64`).
-4. The labels: `ci:macos`, `ci:macos-self`, `ci:vm`, `ci:vm-slow`, `ci:win-arm`.
+4. The labels: `ci:vm`, `ci:vm-slow`, `ci:win-arm`.
 5. Settings, Actions: allow the actions the workflows use (`cachix/*`, `dorny/paths-filter`, `taiki-e/install-action`, `Swatinem/rust-cache`, `DeterminateSystems/update-flake-lock`,
    `EmbarkStudios/cargo-deny-action`) if the repository restricts them.
 
@@ -158,11 +157,10 @@ and the result of a call whose legs are skipped.
 
 ## The `komomono` removal checklist
 
-`ci.yaml` and `macos-selfhosted.yaml` run on a push to the temporary branch `komomono`, so that the stack can be tried before it is merged to `master`. Each
+`ci.yaml` runs on a push to the temporary branch `komomono`, so that the stack can be tried before it is merged to `master`. It
 has a line `- komomono` under the comment `# TEMPORARY: remove when komomono is merged to master`. When it is merged:
 
 - [ ] delete the `- komomono` line and its comment in `.github/workflows/ci.yaml`
-- [ ] delete the same two lines in `.github/workflows/macos-selfhosted.yaml`
 - [ ] `sweeps.yaml` never runs on that branch (its push trigger is `master` only): nothing to delete there
 
 `grep -rn komomono .github` finds nothing afterwards. No expression in a workflow names the branch: the conditions say "a push" and "a push to master".
@@ -175,7 +173,7 @@ Nothing can be run on GitHub from a checkout, so the first run is the test.
 2. `nix eval` of every attribute the workflows build, for example `nix eval .#legacyPackages.x86_64-linux.checkSets.linux-lint.name` and `nix eval --json .#legacyPackages.x86_64-linux.vmTiers`;
    `nix flake check --no-build --all-systems`.
 3. Push the stack to a scratch branch, add that branch to the `push` list of `ci.yaml` in the scratch branch, and run `ci` with `workflow_dispatch` (all platforms). Then:
-   a pull request with no label (stages 0 to 3), one with `ci:vm`, one with `ci:macos`, and one with `ci:win-arm`.
+   a pull request with no label (stages 0 to 3), one with `ci:vm`, and one with `ci:win-arm`.
 4. Break a check on purpose and see that `ci / required` fails; skip a stage with a path and see that it passes.
 5. Run `sweeps` and `windows-guest` by hand once.
 
@@ -195,7 +193,7 @@ the post step runs when the job fails too).
 
 - Cachix: whether the free tier of the cache `komorebi` is large enough for the store of this flake (several GB per system) is not verified.
 - KVM on hosted runners: documented for public repositories; see KVM below: GitHub does not promise it of every host, so the workflows draw again, up to three times in all.
-- The macOS image: `macos-14` is Apple silicon with its own nix install each run; whether the cache makes the checks fit the 2 hours of the job is not known.
+- The macOS image: `macos-latest` (macOS 26 today; `macos-14` was retired on 2 November 2026) is Apple silicon with its own nix install each run; whether the cache makes the checks fit the 2 hours of the job is not known.
 - The first run of stage 0 sets up the `hygiene` shell, which is a download of about 1 GB until the Cachix cache has it (a push and a manual run push it).
 - The memory of `nix flake check --no-build` over the nixosConfigurations (about 7 GB) against a runner that has 7 GB (private repositories) or 16 GB (public): the swap of the action is the mitigation.
 - `windows-native-test-arm` assumes the `windows-11-arm` runner exists for this repository and installs Rust itself when the image has none.
