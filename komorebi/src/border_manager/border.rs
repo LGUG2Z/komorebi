@@ -79,9 +79,15 @@ use windows_numerics::Matrix3x2;
 pub const WM_UPDATE_BRUSHES: u32 = WM_USER + 1;
 
 /// Custom WM_USER message used to drive the border in lockstep with an active
-/// movement animation. lparam carries a `Box<Rect>` ownership transfer that the
-/// receiving WndProc reclaims and applies as the new tracked rect.
+/// movement animation. The receiving WndProc takes the newest rect the animation
+/// has for it from `border_manager::take_animated_rect` and applies it as the
+/// new tracked rect.
 pub const WM_ANIMATE_RECT: u32 = WM_USER + 2;
+
+/// Custom WM_USER message that tells the border window thread to invalidate its own window, so
+/// that it is painted after the window has been shown, which is done on this thread too when
+/// windows are handled asynchronously.
+pub const WM_INVALIDATE: u32 = WM_USER + 3;
 
 pub struct RenderFactory(ID2D1Factory);
 unsafe impl Sync for RenderFactory {}
@@ -121,16 +127,16 @@ static BRUSH_PROPERTIES: LazyLock<D2D1_BRUSH_PROPERTIES> =
 unsafe fn apply_tracked_rect(border_pointer: *mut Border, rect: Rect) {
     unsafe {
         let reference_hwnd = (*border_pointer).tracking_hwnd;
-        let old_rect = (*border_pointer).window_rect;
+        // what was last drawn, and not `window_rect`, which the border manager sets from its
+        // own thread to where it found the window, whether the border has been drawn there or not
+        let drawn = (*border_pointer).rendered_rect;
         (*border_pointer).window_rect = rect;
 
         if let Err(error) = (*border_pointer).set_position(&rect, reference_hwnd) {
             tracing::error!("failed to update border position {error}");
         }
 
-        if (rect.is_same_size_as(&old_rect) && rect.has_same_position_as(&old_rect))
-            || (*border_pointer).render_target.is_none()
-        {
+        if !needs_redraw(&drawn, &rect) || (*border_pointer).render_target.is_none() {
             return;
         }
 
@@ -200,7 +206,14 @@ unsafe fn apply_tracked_rect(border_pointer: *mut Border, rect: Rect) {
         }
 
         let _ = render_target.EndDraw(None, None);
+        (*border_pointer).rendered_rect = rect;
     }
+}
+
+/// Whether a border that was last drawn around `drawn` is to be drawn again for a window that
+/// is at `rect`
+fn needs_redraw(drawn: &Rect, rect: &Rect) -> bool {
+    !(rect.is_same_size_as(drawn) && rect.has_same_position_as(drawn))
 }
 
 pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -224,6 +237,9 @@ pub struct Border {
     pub render_target: Option<RenderTarget>,
     pub tracking_hwnd: isize,
     pub window_rect: Rect,
+    /// The rect that the border was last drawn around: nothing is drawn again for a window that
+    /// is where it was drawn, whatever `window_rect` says
+    pub rendered_rect: Rect,
     pub window_kind: WindowKind,
     pub style: BorderStyle,
     pub width: i32,
@@ -243,6 +259,7 @@ impl From<isize> for Border {
             render_target: None,
             tracking_hwnd: 0,
             window_rect: Rect::default(),
+            rendered_rect: Rect::default(),
             window_kind: WindowKind::Unfocused,
             style: STYLE.load(),
             width: BORDER_WIDTH.load(Ordering::Relaxed),
@@ -292,6 +309,7 @@ impl Border {
                 render_target: None,
                 tracking_hwnd,
                 window_rect: WindowsApi::window_rect(tracking_hwnd).unwrap_or_default(),
+                rendered_rect: Rect::default(),
                 window_kind: WindowKind::Unfocused,
                 style: STYLE.load(),
                 width: BORDER_WIDTH.load(Ordering::Relaxed),
@@ -330,6 +348,10 @@ impl Border {
         });
 
         let mut border = border_receiver.recv()?;
+        tracing::trace!(
+            "border {}: created for {id} to track {tracking_hwnd}",
+            border.hwnd
+        );
 
         // I have literally no idea, apparently this is to get rid of the black pixels
         // around the edges of rounded corners? @lukeyou05 borrowed this from PowerToys
@@ -446,42 +468,36 @@ impl Border {
         };
     }
 
-    /// Drive the border to follow `rect` during a movement animation. Hands
-    /// ownership of a boxed `Rect` to the border's message-loop thread via
-    /// `WM_ANIMATE_RECT`, which mirrors the redraw path normally driven by
-    /// `EVENT_OBJECT_LOCATIONCHANGE` on the real source window.
-    pub fn animate_to(&self, rect: Rect) {
-        let boxed = Box::new(rect);
-        let ptr = Box::into_raw(boxed);
-        let posted = unsafe {
-            PostMessageW(
-                Option::from(self.hwnd()),
-                WM_ANIMATE_RECT,
-                WPARAM(0),
-                LPARAM(ptr as isize),
-            )
-        };
-        if posted.is_err() {
-            // Reclaim the box on failure to avoid leaking.
-            unsafe {
-                drop(Box::from_raw(ptr));
-            }
-        }
-    }
-
     pub fn set_position(&self, rect: &Rect, reference_hwnd: isize) -> color_eyre::Result<()> {
         let mut rect = *rect;
         rect.add_margin(self.width);
         rect.add_padding(-self.offset);
 
-        WindowsApi::set_border_pos(self.hwnd, &rect, reference_hwnd)?;
+        // a border that is held is put where it is to be and left hidden: it is
+        // shown along with its window, not when it is created
+        let show = !crate::border_manager::is_held(reference_hwnd);
+        tracing::trace!(
+            "border {}: set to {rect:?} above {reference_hwnd}, shown: {show}",
+            self.hwnd
+        );
+        WindowsApi::set_border_pos(self.hwnd, &rect, reference_hwnd, show)?;
+        tracing::trace!("border {}: put in place", self.hwnd);
 
         Ok(())
     }
 
-    // this triggers WM_PAINT in the callback below
+    // this triggers WM_PAINT in the callback below, from the thread of the border's window: a
+    // window that is shown asynchronously is shown by that thread, and what is invalidated before
+    // it is shown is not painted when it is, as the show does not redraw it
     pub fn invalidate(&self) {
-        let _ = unsafe { InvalidateRect(Option::from(self.hwnd()), None, false) };
+        let _ = unsafe {
+            PostMessageW(
+                Option::from(self.hwnd()),
+                WM_INVALIDATE,
+                WPARAM(0),
+                LPARAM(0),
+            )
+        };
     }
 
     pub extern "system" fn callback(
@@ -539,13 +555,29 @@ impl Border {
                     }
 
                     let reference_hwnd = (*border_pointer).tracking_hwnd;
+
+                    // The window is hidden while a ghost stands in for it, and
+                    // is not where the ghost is, which is where the border
+                    // belongs: the animation moves it.
+                    if crate::border_manager::leaves_border_alone(reference_hwnd) {
+                        tracing::trace!(
+                            "border: left the border of hwnd {reference_hwnd} to its ghost's animation"
+                        );
+                        return LRESULT(0);
+                    }
+
                     let rect = WindowsApi::window_rect(reference_hwnd).unwrap_or_default();
                     apply_tracked_rect(border_pointer, rect);
                     LRESULT(0)
                 }
                 WM_ANIMATE_RECT => {
-                    // lparam carries an owned Box<Rect> from the animation thread.
-                    let rect_box = Box::from_raw(lparam.0 as *mut Rect);
+                    // The newest rect there is, which is all there is to draw
+                    // if the animation sent more than one since the last time.
+                    let Some(rect) = crate::border_manager::take_animated_rect(window.0 as isize)
+                    else {
+                        return LRESULT(0);
+                    };
+
                     let border_pointer: *mut Border = GetWindowLongPtrW(window, GWLP_USERDATA) as _;
 
                     if border_pointer.is_null() {
@@ -556,19 +588,35 @@ impl Border {
                         return LRESULT(0);
                     }
 
-                    apply_tracked_rect(border_pointer, *rect_box);
+                    apply_tracked_rect(border_pointer, rect);
                     LRESULT(0)
                 }
                 WM_PAINT => {
+                    tracing::trace!("border {}: WM_PAINT", window.0 as isize);
+                    if let Err(error) = WindowsApi::window_rect(window.0 as isize) {
+                        tracing::trace!(
+                            "border {}: not painted, its own rect cannot be read: {error}",
+                            window.0 as isize
+                        );
+                    }
+
                     if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
                         let border_pointer: *mut Border =
                             GetWindowLongPtrW(window, GWLP_USERDATA) as _;
 
                         if border_pointer.is_null() {
+                            tracing::trace!(
+                                "border {}: not painted, it has no border data",
+                                window.0 as isize
+                            );
                             return LRESULT(0);
                         }
 
                         if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                            tracing::trace!(
+                                "border {}: not painted, it is being destroyed",
+                                window.0 as isize
+                            );
                             return LRESULT(0);
                         }
 
@@ -584,9 +632,20 @@ impl Border {
                             tracing::error!("failed to update border position {error}");
                         }
 
+                        if (*border_pointer).render_target.is_none() {
+                            tracing::trace!(
+                                "border {}: not painted, it has no render target",
+                                window.0 as isize
+                            );
+                        }
+
                         if let Some(render_target) = (*border_pointer).render_target.as_ref() {
                             // double-check destruction flag before rendering
                             if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                                tracing::trace!(
+                                    "border {}: not painted, it is being destroyed",
+                                    window.0 as isize
+                                );
                                 return LRESULT(0);
                             }
 
@@ -610,7 +669,18 @@ impl Border {
 
                             // Get window kind and color
                             let window_kind = (*border_pointer).window_kind;
+                            if !(*border_pointer).brushes.contains_key(&window_kind) {
+                                tracing::trace!(
+                                    "border {}: not painted, it has no brush for {window_kind:?}",
+                                    window.0 as isize
+                                );
+                            }
+
                             if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
+                                tracing::trace!(
+                                    "border {}: painting {window_kind:?}",
+                                    window.0 as isize
+                                );
                                 render_target.BeginDraw();
                                 render_target.Clear(None);
 
@@ -656,6 +726,10 @@ impl Border {
                     let _ = ValidateRect(Option::from(window), None);
                     LRESULT(0)
                 }
+                WM_INVALIDATE => {
+                    let _ = InvalidateRect(Option::from(window), None, false);
+                    LRESULT(0)
+                }
                 WM_UPDATE_BRUSHES => {
                     let border_pointer: *mut Border = GetWindowLongPtrW(window, GWLP_USERDATA) as _;
                     if border_pointer.is_null() {
@@ -683,5 +757,117 @@ impl Border {
                 _ => DefWindowProcW(window, message, wparam, lparam),
             }
         }
+    }
+}
+
+/// Tell a border, from any thread, that the animation has a rect for it to
+/// draw, which it takes with `border_manager::take_animated_rect`.
+pub fn post_animated_rect(border_hwnd: isize) {
+    let _ = unsafe {
+        PostMessageW(
+            Option::from(HWND(border_hwnd as *mut std::ffi::c_void)),
+            WM_ANIMATE_RECT,
+            WPARAM(0),
+            LPARAM(0),
+        )
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rect(left: i32, top: i32, width: i32, height: i32) -> Rect {
+        Rect {
+            left,
+            top,
+            right: width,
+            bottom: height,
+        }
+    }
+
+    #[test]
+    fn a_border_is_drawn_again_for_a_window_that_is_not_where_it_was_drawn() {
+        let drawn = rect(1310, 37, 2500, 2086);
+
+        assert!(!needs_redraw(&drawn, &rect(1310, 37, 2500, 2086)));
+        assert!(needs_redraw(&drawn, &rect(1210, 37, 2700, 2086)), "bigger");
+        assert!(needs_redraw(&drawn, &rect(1210, 37, 2500, 2086)), "moved");
+        assert!(needs_redraw(&drawn, &rect(1310, 37, 2500, 2000)), "shorter");
+
+        // a border that has been drawn nowhere is drawn for every window
+        assert!(needs_redraw(&Rect::default(), &drawn));
+    }
+
+    /// Whether a border that is made and shown the way the border manager does is painted
+    #[allow(clippy::expect_used)]
+    fn is_painted(handling: crate::WindowHandlingBehaviour) -> bool {
+        use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
+        use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
+        use windows::Win32::UI::WindowsAndMessaging::WINDOW_EX_STYLE;
+        use windows::Win32::UI::WindowsAndMessaging::WS_OVERLAPPEDWINDOW;
+        use windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
+        use windows::core::w;
+
+        let tracked = unsafe {
+            CreateWindowExW(
+                WINDOW_EX_STYLE(0),
+                w!("STATIC"),
+                w!("komorebi-border-test"),
+                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                200,
+                200,
+                400,
+                300,
+                None,
+                None,
+                None,
+                None,
+            )
+        }
+        .expect("a window to put a border around");
+
+        let tracked_hwnd = tracked.0 as isize;
+        let previous = crate::WINDOW_HANDLING_BEHAVIOUR.load();
+        crate::WINDOW_HANDLING_BEHAVIOUR.store(handling);
+
+        let mut border =
+            Border::create("komorebi-border-test", tracked_hwnd, 0).expect("a border to paint");
+        let rect = rect(200, 200, 400, 300);
+        border.window_rect = rect;
+
+        // as the border manager makes a border for a window
+        border
+            .set_position(&rect, tracked_hwnd)
+            .expect("a border to put in place");
+        border.invalidate();
+
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        // the paint sizes what it draws to its window, which it does for nothing else
+        let painted =
+            unsafe { std::ptr::read_volatile(&raw const border.rounded_rect.rect.right) } > 0.0;
+
+        crate::WINDOW_HANDLING_BEHAVIOUR.store(previous);
+
+        let border = Box::into_raw(border);
+        unsafe {
+            let _ = (*border).destroy();
+            let _ = DestroyWindow(tracked);
+        }
+
+        painted
+    }
+
+    #[test]
+    #[ignore = "needs a real desktop to paint on"]
+    fn a_new_border_is_painted_when_windows_are_handled_synchronously() {
+        assert!(is_painted(crate::WindowHandlingBehaviour::Sync));
+    }
+
+    #[test]
+    #[ignore = "needs a real desktop to paint on"]
+    fn a_new_border_is_painted_when_windows_are_handled_asynchronously() {
+        assert!(is_painted(crate::WindowHandlingBehaviour::Async));
     }
 }

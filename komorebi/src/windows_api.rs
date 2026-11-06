@@ -148,7 +148,6 @@ use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
-use windows::Win32::UI::WindowsAndMessaging::WS_EX_TRANSPARENT;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
@@ -170,6 +169,7 @@ use crate::WindowManager;
 use crate::container::Container;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor_reconciliator::same_device;
 use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
@@ -261,6 +261,22 @@ impl WindowsApi {
             .process()
     }
 
+    /// The rectangle of every monitor that is attached.
+    pub fn monitor_rects() -> Vec<Rect> {
+        let mut rects: Vec<Rect> = vec![];
+
+        if Self::enum_display_monitors(
+            Some(windows_callbacks::enum_monitor_rects),
+            &raw mut rects as isize,
+        )
+        .is_err()
+        {
+            tracing::warn!("could not enumerate the monitors");
+        }
+
+        rects
+    }
+
     pub fn valid_hmonitors() -> eyre::Result<Vec<(String, isize)>> {
         Ok(win32_display_data::connected_displays_all()
             .flatten()
@@ -318,7 +334,7 @@ impl WindowsApi {
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
 
             for monitor in monitors.elements() {
-                if device_id.eq(&monitor.device_id) {
+                if same_device((&device_id, &name), (&monitor.device_id, &monitor.name)) {
                     continue 'read;
                 }
             }
@@ -590,11 +606,19 @@ impl WindowsApi {
         )
     }
 
-    pub fn set_border_pos(hwnd: isize, layout: &Rect, position: isize) -> eyre::Result<()> {
+    pub fn set_border_pos(
+        hwnd: isize,
+        layout: &Rect,
+        position: isize,
+        show: bool,
+    ) -> eyre::Result<()> {
         let mut flags = SetWindowPosition::NO_SEND_CHANGING
             | SetWindowPosition::NO_ACTIVATE
-            | SetWindowPosition::NO_REDRAW
-            | SetWindowPosition::SHOW_WINDOW;
+            | SetWindowPosition::NO_REDRAW;
+
+        if show {
+            flags |= SetWindowPosition::SHOW_WINDOW;
+        }
 
         if matches!(
             WINDOW_HANDLING_BEHAVIOUR.load(),
@@ -1346,26 +1370,6 @@ impl WindowsApi {
             )?;
             Ok(alpha)
         }
-    }
-
-    pub fn create_ghost_host_window(name: PCWSTR, instance: isize) -> eyre::Result<isize> {
-        unsafe {
-            CreateWindowExW(
-                WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT,
-                name,
-                name,
-                WS_POPUP,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                CW_USEDEFAULT,
-                None,
-                None,
-                Option::from(HINSTANCE(as_ptr!(instance))),
-                None,
-            )?
-        }
-        .process()
     }
 
     pub fn dwm_register_thumbnail(dest_hwnd: isize, src_hwnd: isize) -> eyre::Result<isize> {

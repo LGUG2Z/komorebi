@@ -23,6 +23,7 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -74,6 +75,7 @@ impl Deref for RenderTarget {
     }
 }
 
+#[derive(Debug)]
 pub enum Notification {
     Update(Option<isize>),
     ForceUpdate,
@@ -105,6 +107,116 @@ fn event_rx() -> Receiver<Notification> {
     channel().1.clone()
 }
 
+lazy_static! {
+    /// The windows that a ghost is standing in for, which are hidden and not
+    /// where the ghost is, with the border of each, if it had one when the
+    /// ghost was made. The animation moves their borders.
+    static ref GHOSTED: Mutex<HashMap<isize, Option<isize>>> = Mutex::new(HashMap::new());
+
+    /// The newest rect an animation has for a border, by the handle of the
+    /// border, for as long as the border has not got round to drawing it.
+    static ref ANIMATED_RECTS: Mutex<HashMap<isize, crate::core::Rect>> =
+        Mutex::new(HashMap::new());
+}
+
+/// Say that a ghost is, or has stopped being, what is seen of a window: from
+/// then until then the border of the window follows the animation of the ghost
+/// (see `animate_to`) and not the window, which is not where it is seen.
+pub fn set_ghosted(hwnd: isize, ghosted: bool) {
+    if ghosted {
+        // looked up once here, and not for every frame of the animation
+        let border = window_border(hwnd).map(|border| border.border_hwnd);
+        GHOSTED.lock().insert(hwnd, border);
+    } else if let Some(Some(border)) = GHOSTED.lock().remove(&hwnd) {
+        ANIMATED_RECTS.lock().remove(&border);
+    }
+}
+
+pub(crate) fn is_ghosted(hwnd: isize) -> bool {
+    GHOSTED.lock().contains_key(&hwnd)
+}
+
+lazy_static! {
+    /// The windows whose borders are not to be seen until they are let go of:
+    /// the border of a window that is sliding into a monitor cannot be cut off
+    /// at the edge of the monitor, as the picture of the window is, so it is
+    /// not shown until the window is.
+    static ref HELD: Mutex<HashSet<isize>> = Mutex::new(HashSet::new());
+}
+
+/// Hold, or let go of, the border of a window: while it is held it is hidden
+/// and nothing that happens to the window shows it or moves it. Letting go of
+/// it does not show it: showing the window does.
+pub fn set_held(hwnd: isize, held: bool) {
+    if held {
+        HELD.lock().insert(hwnd);
+        hide_border(hwnd);
+    } else {
+        HELD.lock().remove(&hwnd);
+    }
+}
+
+pub(crate) fn is_held(hwnd: isize) -> bool {
+    HELD.lock().contains(&hwnd)
+}
+
+/// Whether the border of a window is not to be moved to where the window is,
+/// because something else is putting it where it is to be seen
+pub(crate) fn leaves_border_alone(hwnd: isize) -> bool {
+    is_ghosted(hwnd) || is_held(hwnd)
+}
+
+lazy_static! {
+    /// What kind of border the windows of the workspaces that are being slid
+    /// in and out are to be given in their ghosts: the borders themselves
+    /// do not slide, so the ghosts carry theirs
+    static ref GHOST_KINDS: Mutex<HashMap<isize, WindowKind>> = Mutex::new(HashMap::new());
+}
+
+/// How a border is drawn, for a picture of the window it is around
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BorderLook {
+    pub width: i32,
+    pub offset: i32,
+    pub rounded: bool,
+    /// As a `COLORREF`: 0x00BBGGRR
+    pub colour: u32,
+}
+
+/// Say what kind of border each of these windows has, or would have if it were
+/// shown, for `border_look`
+pub fn set_ghost_kinds(kinds: impl IntoIterator<Item = (isize, WindowKind)>) {
+    let mut ghost_kinds = GHOST_KINDS.lock();
+    // only what was asked about most lately is of any use
+    if ghost_kinds.len() > 256 {
+        ghost_kinds.clear();
+    }
+    ghost_kinds.extend(kinds);
+}
+
+/// The border to draw into the picture of a window that is sliding, if it has
+/// one
+pub fn border_look(hwnd: isize) -> Option<BorderLook> {
+    if !BORDER_ENABLED.load(Ordering::Relaxed) {
+        return None;
+    }
+
+    let kind = GHOST_KINDS.lock().get(&hwnd).copied()?;
+
+    let rounded = match STYLE.load() {
+        BorderStyle::System => *crate::WINDOWS_11,
+        BorderStyle::Rounded => true,
+        BorderStyle::Square => false,
+    };
+
+    Some(BorderLook {
+        width: BORDER_WIDTH.load(Ordering::Relaxed),
+        offset: BORDER_OFFSET.load(Ordering::Relaxed),
+        rounded,
+        colour: window_kind_colour(kind),
+    })
+}
+
 pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
     let id = WINDOWS_BORDERS.lock().get(&hwnd)?.clone();
     BORDER_STATE.lock().get(&id).map(|b| BorderInfo {
@@ -113,18 +225,59 @@ pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
     })
 }
 
+/// Say what the newest rect an animation has for a border is, and whether that
+/// is the first since the border last drew one, in which case the border has to
+/// be told to.
+fn queue_animated_rect(
+    pending: &mut HashMap<isize, crate::core::Rect>,
+    border: isize,
+    rect: crate::core::Rect,
+) -> bool {
+    pending.insert(border, rect).is_none()
+}
+
 /// Drive the border that tracks `source_hwnd` to follow `rect`. No-op when no
 /// border is registered for the source window. Used by movement animations to
 /// keep the border visually in sync while the source window is cloaked.
+///
+/// A border draws on a thread of its own, and an animation sends it a rect
+/// for every frame, which it can take longer to draw than a frame lasts. It is
+/// only told when there is a rect to draw, and draws the newest when it gets
+/// there, instead of every one it was sent in turn and further and further
+/// behind.
 pub fn animate_to(source_hwnd: isize, rect: crate::core::Rect) {
-    let border_id = match WINDOWS_BORDERS.lock().get(&source_hwnd).cloned() {
-        Some(id) => id,
-        None => return,
+    let Some(known) = GHOSTED.lock().get(&source_hwnd).copied() else {
+        return;
     };
-    let state = BORDER_STATE.lock();
-    if let Some(border) = state.get(&border_id) {
-        border.animate_to(rect);
+
+    let border = match known {
+        Some(border) => border,
+        None => {
+            // A window that had no border when its ghost was made can get one. It is looked for
+            // with nothing held: the border manager has the borders locked while it handles a
+            // notification, and asks if a window is ghosted as it does, which it is not to wait
+            // for to be answered by a thread that is waiting for it.
+            let Some(border) = window_border(source_hwnd).map(|border| border.border_hwnd) else {
+                return;
+            };
+
+            if let Some(slot) = GHOSTED.lock().get_mut(&source_hwnd) {
+                *slot = Some(border);
+            }
+
+            border
+        }
+    };
+
+    if queue_animated_rect(&mut ANIMATED_RECTS.lock(), border, rect) {
+        border::post_animated_rect(border);
     }
+}
+
+/// The newest rect an animation has for a border, which the border takes from
+/// the animation to draw
+pub(crate) fn take_animated_rect(border: isize) -> Option<crate::core::Rect> {
+    ANIMATED_RECTS.lock().remove(&border)
 }
 
 pub fn send_notification(hwnd: Option<isize>) {
@@ -183,7 +336,57 @@ fn window_kind_colour(focus_kind: WindowKind) -> u32 {
     }
 }
 
+lazy_static! {
+    /// What the thread that handles notifications is doing, and since when
+    static ref STEP: Mutex<(&'static str, std::time::Instant)> =
+        Mutex::new(("waiting", std::time::Instant::now()));
+}
+
+/// Say what the thread that handles notifications is doing, for the watchdog to say when it has
+/// been doing it for too long, and for the log to say what it was when it stopped
+fn step(name: &'static str) {
+    tracing::trace!("border manager: {name}");
+    *STEP.lock() = (name, std::time::Instant::now());
+}
+
+/// Says that the thread that handles notifications is waiting for one, when it goes out of scope
+struct Waiting;
+
+impl Drop for Waiting {
+    fn drop(&mut self) {
+        step("waiting");
+    }
+}
+
+/// Warn about the thread that handles notifications, once, when it has not got past one step in
+/// two seconds. It is not heard from again after that when it is stuck, and the notifications
+/// pile up until they are dropped.
+fn watch_steps() {
+    std::thread::spawn(|| {
+        let mut warned: Option<std::time::Instant> = None;
+
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+
+            let (name, since) = *STEP.lock();
+
+            if name != "waiting"
+                && since.elapsed() >= std::time::Duration::from_secs(2)
+                && warned != Some(since)
+            {
+                tracing::warn!(
+                    "border manager: stuck for {} ms in `{name}`",
+                    since.elapsed().as_millis()
+                );
+                warned = Some(since);
+            }
+        }
+    });
+}
+
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
+    watch_steps();
+
     std::thread::spawn(move || {
         loop {
             match handle_notifications(wm.clone()) {
@@ -211,6 +414,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     let mut previous_layer = WorkspaceLayer::default();
 
     'receiver: for notification in receiver {
+        step("locking the window manager");
+        // however this pass ends, `continue` included, the thread is waiting for the next
+        let _waiting = Waiting;
         // Check the wm state every time we receive a notification
         let state = wm.lock();
         let is_paused = state.is_paused;
@@ -233,6 +439,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let forced_update = matches!(notification, Notification::ForceUpdate);
 
         drop(state);
+
+        tracing::trace!(
+            "border notification {notification:?}: foreground {foreground_window} (zoomed: {})",
+            WindowsApi::is_zoomed(foreground_window)
+        );
 
         match IMPLEMENTATION.load() {
             BorderImplementation::Windows => {
@@ -372,8 +583,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     continue 'receiver;
                 }
 
+                step("locking the borders");
                 let mut borders = BORDER_STATE.lock();
                 let mut windows_borders = WINDOWS_BORDERS.lock();
+                step("handling the notification");
 
                 // If borders are disabled
                 if !BORDER_ENABLED.load_consume()
@@ -424,6 +637,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                         new_border = true;
                                         entry.insert(border)
                                     } else {
+                                        tracing::trace!(
+                                            "border: could not create one for monocle {} ({focused_window_hwnd})",
+                                            monocle.id
+                                        );
                                         continue 'monitors;
                                     }
                                 }
@@ -457,7 +674,14 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             // Update the border's monitor idx in case it changed
                             border.monitor_idx = Some(monitor_idx);
 
-                            let rect = WindowsApi::window_rect(focused_window_hwnd)?;
+                            let rect = if !new_border && leaves_border_alone(focused_window_hwnd) {
+                                tracing::trace!(
+                                    "border: left the border of hwnd {focused_window_hwnd} to its ghost's animation"
+                                );
+                                border.window_rect
+                            } else {
+                                WindowsApi::window_rect(focused_window_hwnd)?
+                            };
                             border.window_rect = rect;
 
                             if new_border {
@@ -521,6 +745,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             foreground_monitor_id == m.id && WindowsApi::is_zoomed(foreground_hwnd);
 
                         if is_maximized {
+                            tracing::trace!(
+                                "border: removing the borders of monitor {monitor_idx}, the foreground window {foreground_hwnd} is maximized"
+                            );
                             // Remove all borders on this monitor
                             remove_borders(
                                 &mut borders,
@@ -531,6 +758,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             continue 'monitors;
                         }
+
+                        tracing::trace!(
+                            "border: {} container(s) on monitor {monitor_idx}, {} border(s) known",
+                            ws.containers().len(),
+                            borders.len()
+                        );
 
                         // Collect focused workspace container and floating windows ID's
                         let mut container_and_floating_window_ids = ws
@@ -561,12 +794,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let border = match borders.entry(id.clone()) {
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
+                                    step("creating a border");
                                     if let Ok(border) =
                                         Border::create(&c.id, focused_window_hwnd, monitor_idx)
                                     {
                                         new_border = true;
                                         entry.insert(border)
                                     } else {
+                                        tracing::trace!(
+                                            "border: could not create one for container {} ({focused_window_hwnd})",
+                                            c.id
+                                        );
                                         continue 'monitors;
                                     }
                                 }
@@ -615,11 +853,18 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             // avoid getting into a thread restart loop if we try to look up
                             // rect info for a window that has been destroyed by the time
                             // we get here
-                            let rect = match WindowsApi::window_rect(focused_window_hwnd) {
-                                Ok(rect) => rect,
-                                Err(_) => {
-                                    remove_border(&c.id, &mut borders, &mut windows_borders)?;
-                                    continue 'containers;
+                            let rect = if !new_border && leaves_border_alone(focused_window_hwnd) {
+                                tracing::trace!(
+                                    "border: left the border of hwnd {focused_window_hwnd} to its ghost's animation"
+                                );
+                                border.window_rect
+                            } else {
+                                match WindowsApi::window_rect(focused_window_hwnd) {
+                                    Ok(rect) => rect,
+                                    Err(_) => {
+                                        remove_border(&c.id, &mut borders, &mut windows_borders)?;
+                                        continue 'containers;
+                                    }
                                 }
                             };
                             border.window_rect = rect;
@@ -639,13 +884,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     // thread mid-render holding a reference to it.
                                     border.request_brush_update();
                                 }
+                                step("putting a border in place");
                                 border.set_position(&rect, focused_window_hwnd)?;
+                                step("invalidating a border");
                                 border.invalidate();
+                                step("handling the notification");
                             }
 
                             windows_borders.insert(focused_window_hwnd, id);
                         }
 
+                        step("handling floating borders");
                         handle_floating_borders(
                             &mut borders,
                             &mut windows_borders,
@@ -709,7 +958,15 @@ fn handle_floating_borders(
         // Update the border's monitor idx in case it changed
         border.monitor_idx = Some(monitor_idx);
 
-        let rect = WindowsApi::window_rect(window.hwnd)?;
+        let rect = if !new_border && leaves_border_alone(window.hwnd) {
+            tracing::trace!(
+                "border: left the border of hwnd {} to its ghost's animation",
+                window.hwnd
+            );
+            border.window_rect
+        } else {
+            WindowsApi::window_rect(window.hwnd)?
+        };
         border.window_rect = rect;
 
         let should_invalidate =
@@ -772,6 +1029,16 @@ fn remove_border(
     borders: &mut HashMap<String, Box<Border>>,
     windows_borders: &mut HashMap<isize, String>,
 ) -> color_eyre::Result<()> {
+    // the border of a window that is about to slide out is the only one there is
+    // until its ghost, which has one drawn in it, is up: the window is hidden,
+    // and its border with it, when that is
+    if borders
+        .get(id)
+        .is_some_and(|border| crate::animation::transition::is_exiting(border.tracking_hwnd))
+    {
+        return Ok(());
+    }
+
     if let Some(removed_border) = borders.remove(id) {
         windows_borders.remove(&removed_border.tracking_hwnd);
         destroy_border(removed_border)?;
@@ -868,5 +1135,132 @@ impl From<ZOrder> for isize {
             ZOrder::Bottom => 1,
             ZOrder::TopMost => -1,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_window_is_ghosted_from_when_it_is_said_to_be_until_it_is_not() {
+        // a window handle nothing else in the tests uses
+        let hwnd = 0x7e57_0001;
+
+        assert!(!is_ghosted(hwnd));
+
+        set_ghosted(hwnd, true);
+        assert!(is_ghosted(hwnd));
+        assert!(!is_ghosted(hwnd + 1));
+
+        // saying it twice does not make it take two to undo
+        set_ghosted(hwnd, true);
+        set_ghosted(hwnd, false);
+        assert!(!is_ghosted(hwnd));
+
+        // and undoing what was never done is fine
+        set_ghosted(hwnd, false);
+        assert!(!is_ghosted(hwnd));
+    }
+
+    /// The border manager holds the locks of the borders while it handles a notification, and
+    /// asks whether a window is ghosted as it does, while an animation of a ghost, which is told
+    /// the border of a window that has none as it is ghosted when it gets one, asks for it
+    #[test]
+    fn a_ghost_that_is_animated_does_not_keep_the_border_manager_from_asking_about_it() {
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+
+        // a window handle nothing else in the tests uses, that has no border to follow
+        let hwnd = 0x7e57_0100;
+        set_ghosted(hwnd, true);
+
+        let (holding_tx, holding_rx) = channel();
+        let (done_tx, done_rx) = channel();
+
+        // the border manager: it has the borders locked
+        std::thread::spawn(move || {
+            let _borders = BORDER_STATE.lock();
+            let _windows_borders = WINDOWS_BORDERS.lock();
+            holding_tx.send(()).ok();
+
+            // until the animation is waiting for them
+            std::thread::sleep(Duration::from_millis(300));
+            done_tx.send(is_ghosted(hwnd)).ok();
+        });
+
+        // the animation of the ghost, a frame of it
+        holding_rx.recv().ok();
+        std::thread::spawn(move || {
+            animate_to(
+                hwnd,
+                crate::core::Rect {
+                    left: 0,
+                    top: 0,
+                    right: 10,
+                    bottom: 10,
+                },
+            );
+        });
+
+        let asked = done_rx.recv_timeout(Duration::from_secs(5));
+        set_ghosted(hwnd, false);
+
+        assert_eq!(
+            asked,
+            Ok(true),
+            "the border manager never got to ask, as the animation held what it asks for"
+        );
+    }
+
+    #[test]
+    fn a_border_is_only_told_of_a_rect_when_it_has_none_waiting() {
+        let mut pending = HashMap::new();
+        let rect = |left| crate::core::Rect {
+            left,
+            top: 0,
+            right: 10,
+            bottom: 10,
+        };
+
+        // the first rect has to be sent, and the ones after it only replace it
+        assert!(queue_animated_rect(&mut pending, 7, rect(1)));
+        assert!(!queue_animated_rect(&mut pending, 7, rect(2)));
+        assert!(!queue_animated_rect(&mut pending, 7, rect(3)));
+
+        // another border has its own
+        assert!(queue_animated_rect(&mut pending, 8, rect(9)));
+
+        // and what the border draws is the newest, after which it is told again
+        assert_eq!(pending.remove(&7).map(|rect| rect.left), Some(3));
+        assert!(queue_animated_rect(&mut pending, 7, rect(4)));
+    }
+
+    #[test]
+    fn nothing_is_waiting_for_a_border_that_was_not_ghosted() {
+        assert!(take_animated_rect(0x7e57_0003).is_none());
+    }
+
+    #[test]
+    fn a_window_whose_border_is_held_has_it_left_alone_until_it_is_let_go_of() {
+        let hwnd = 0x7e57_0004;
+
+        assert!(!leaves_border_alone(hwnd));
+
+        set_held(hwnd, true);
+        assert!(is_held(hwnd));
+        assert!(leaves_border_alone(hwnd));
+        assert!(!leaves_border_alone(hwnd + 1));
+
+        set_held(hwnd, false);
+        assert!(!is_held(hwnd));
+        assert!(!leaves_border_alone(hwnd));
+
+        // a ghost leaves it alone too, which is not holding it
+        set_ghosted(hwnd, true);
+        assert!(leaves_border_alone(hwnd));
+        assert!(!is_held(hwnd));
+        set_ghosted(hwnd, false);
+        assert!(!leaves_border_alone(hwnd));
     }
 }

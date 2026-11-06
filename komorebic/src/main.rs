@@ -6,6 +6,8 @@ use chrono::Utc;
 use komorebi_client::PathExt;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::splash;
+mod pan;
+
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
@@ -55,6 +57,7 @@ use komorebi_client::HidingBehaviour;
 use komorebi_client::MoveBehaviour;
 use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
+use komorebi_client::PanDirection;
 use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
@@ -151,6 +154,7 @@ macro_rules! gen_enum_subcommand_args {
 gen_enum_subcommand_args! {
     Focus: OperationDirection,
     Move: OperationDirection,
+    Consume: OperationDirection,
     PreselectDirection: OperationDirection,
     CycleFocus: CycleDirection,
     CycleMove: CycleDirection,
@@ -1009,6 +1013,32 @@ struct ScrollingLayoutColumns {
 }
 
 #[derive(Parser)]
+struct Pan {
+    /// The way that the view goes
+    #[clap(
+        value_enum,
+        required_unless_present = "stream",
+        conflicts_with = "stream"
+    )]
+    direction: Option<PanDirection>,
+    /// Read the gestures of fingers on a touchpad from standard input, as whkd writes them for
+    /// a swipe of three or four fingers, and pan with them
+    #[clap(long)]
+    stream: bool,
+    /// What the distances of a gesture are multiplied by, which is 1 if it is left out, with
+    /// --stream
+    #[clap(long)]
+    sensitivity: Option<f64>,
+    /// Go the other way to the fingers, with --stream
+    #[clap(long)]
+    reversed: bool,
+    /// Take a step for every two centimetres that the fingers go, and not move the view with
+    /// them, with --stream
+    #[clap(long)]
+    paging: bool,
+}
+
+#[derive(Parser)]
 struct LayoutRatios {
     /// Column width ratios (space-separated values between 0.1 and 0.9)
     #[clap(short, long, num_args = 1..)]
@@ -1284,6 +1314,27 @@ enum SubCommand {
     /// Set the number of visible columns for the Scrolling layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ScrollingLayoutColumns(ScrollingLayoutColumns),
+    /// Make the focused column of the Scrolling layout as wide as the screen, or put it back to
+    /// the width that it had
+    ScrollingLayoutFullWidth,
+    /// Scroll the Scrolling layout so that the focused column is in the middle of the screen, once
+    CenterFocus,
+    /// Make the focused column of the Scrolling layout fill the room that the columns in view leave
+    /// on the screen, which does nothing in any other layout
+    Expand,
+    /// Take the neighbouring window on one side into the focused column of the Scrolling layout
+    #[clap(arg_required_else_help = true)]
+    Consume(Consume),
+    /// Take the focused window out of its column in the Scrolling layout and put it in a column
+    /// of its own on the right
+    Expel,
+    /// Stack the windows of the focused column of the Scrolling layout, or spread the focused
+    /// stack out into a column with a window in each slot
+    ToggleColumnStack,
+    /// Move the view of the Scrolling layout a column to the left or the right, or with the
+    /// fingers on a touchpad, which does nothing in any other layout
+    #[clap(arg_required_else_help = true)]
+    Pan(Pan),
     /// Set the layout column and row ratios for the focused workspace
     LayoutRatios(LayoutRatios),
     /// Load a custom layout from file for the focused workspace
@@ -2955,6 +3006,50 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
+        }
+        SubCommand::ScrollingLayoutFullWidth => {
+            send_message(&SocketMessage::ScrollingLayoutFullWidth)?;
+        }
+        SubCommand::CenterFocus => {
+            send_message(&SocketMessage::CenterFocus)?;
+        }
+        SubCommand::Expand => {
+            send_message(&SocketMessage::Expand)?;
+        }
+        SubCommand::Consume(args) => {
+            send_message(&SocketMessage::Consume(args.operation_direction))?;
+        }
+        SubCommand::Expel => {
+            send_message(&SocketMessage::Expel)?;
+        }
+        SubCommand::ToggleColumnStack => {
+            send_message(&SocketMessage::ToggleColumnStack)?;
+        }
+        SubCommand::Pan(args) => {
+            // a flag that has a default counts as given, so what only goes with --stream
+            // cannot be left to the parser to say
+            if !args.stream && (args.sensitivity.is_some() || args.reversed || args.paging) {
+                Opts::command()
+                    .error(
+                        clap::error::ErrorKind::ArgumentConflict,
+                        "--sensitivity, --reversed and --paging can only be used with --stream",
+                    )
+                    .exit();
+            }
+
+            if args.stream {
+                pan::run(
+                    BufReader::new(io::stdin()),
+                    pan::Options {
+                        sensitivity: args.sensitivity.unwrap_or(1.0),
+                        reversed: args.reversed,
+                        paging: args.paging,
+                    },
+                    &mut pan::Socket::new(komorebi_client::Connection::open),
+                )?;
+            } else if let Some(direction) = args.direction {
+                send_message(&SocketMessage::Pan(direction))?;
+            }
         }
         SubCommand::LayoutRatios(args) => {
             if args.columns.is_none() && args.rows.is_none() {

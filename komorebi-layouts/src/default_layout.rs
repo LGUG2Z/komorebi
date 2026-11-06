@@ -234,14 +234,33 @@ pub struct LayoutOptions {
     pub row_ratios: Option<[Option<f32>; MAX_RATIOS]>,
 }
 
+/// A centring is one of its names, or a boolean, which is what it used to be
+#[cfg(feature = "schemars")]
+fn centering_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "description": "When to centre the focused column: `Never` (the default), `Always`, or
+`OnOverflow`, which is when it does not fit on the screen together with the column that
+focus came from. A boolean is also accepted, where `true` is `Always` and `false` is `Never`",
+        "anyOf": [
+            { "type": "boolean" },
+            generator.subschema_for::<crate::scrolling::ScrollingCentering>(),
+            { "type": "null" }
+        ]
+    })
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Options for the Scrolling layout
 pub struct ScrollingLayoutOptions {
     /// Desired number of visible columns (default: 3)
     pub columns: usize,
-    /// With an odd number of visible columns, keep the focused window column centered
-    pub center_focused_column: Option<bool>,
+    /// When to centre the focused column: `Never` (the default), `Always`, or `OnOverflow`, which
+    /// is when it does not fit on the screen together with the column that focus came from. A
+    /// boolean is also accepted, where `true` is `Always` and `false` is `Never`
+    #[serde(default)]
+    #[cfg_attr(feature = "schemars", schemars(schema_with = "centering_schema"))]
+    pub center_focused_column: Option<crate::scrolling::ScrollingCentering>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -323,10 +342,9 @@ impl DefaultLayout {
     }
 
     #[must_use]
-    #[allow(clippy::cast_precision_loss, clippy::only_used_in_recursion)]
     pub fn resize(
         &self,
-        unaltered: &Rect,
+        _unaltered: &Rect,
         resize: &Option<Rect>,
         edge: OperationDirection,
         sizing: Sizing,
@@ -348,23 +366,25 @@ impl DefaultLayout {
 
         let mut r = resize.unwrap_or_default();
 
-        let resize_delta = match sizing {
-            Sizing::Increase => delta,
-            Sizing::Decrease => -delta,
-        };
-
+        // Bounds are the caller's concern: no tile may end up smaller than a tenth of the work
+        // area (or smaller than it already is), which depends on the neighbours, not on the
+        // container being resized
         match edge {
-            OperationDirection::Left => {
-                r.left -= resize_delta;
+            OperationDirection::Left => match sizing {
+                Sizing::Increase => r.left -= delta,
+                Sizing::Decrease => r.left += delta,
             },
-            OperationDirection::Up => {
-                r.top -= resize_delta;
+            OperationDirection::Up => match sizing {
+                Sizing::Increase => r.top -= delta,
+                Sizing::Decrease => r.top += delta,
             },
-            OperationDirection::Right => {
-                r.right += resize_delta;
+            OperationDirection::Right => match sizing {
+                Sizing::Increase => r.right += delta,
+                Sizing::Decrease => r.right -= delta,
             },
-            OperationDirection::Down => {
-                r.bottom += resize_delta;
+            OperationDirection::Down => match sizing {
+                Sizing::Increase => r.bottom += delta,
+                Sizing::Decrease => r.bottom -= delta,
             },
         };
 

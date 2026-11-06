@@ -54,6 +54,10 @@ jobs:
           cache-on-failure: "true"
           cache-all-crates: "true"
           key: ${{ matrix.platform.target }}
+      - name: Check that no file is stored with CRLF
+        run: |
+          $crlf = git ls-files --eol | Select-String -Pattern '^i/crlf'
+          if ($crlf) { $crlf; exit 1 }
       - run: cargo +nightly fmt --check
       - run: cargo clippy
       - run: cargo test

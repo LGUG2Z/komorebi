@@ -25,6 +25,8 @@ pub enum WindowManagerEvent {
     MoveResizeStart(WinEvent, Window),
     MoveResizeEnd(WinEvent, Window),
     MouseCapture(WinEvent, Window),
+    Maximize(WinEvent, Window),
+    Unmaximize(WinEvent, Window),
     Manage(Window),
     Unmanage(Window),
     Raise(Window),
@@ -73,6 +75,12 @@ impl Display for WindowManagerEvent {
             Self::MouseCapture(winevent, window) => {
                 write!(f, "MouseCapture (WinEvent: {winevent}, Window: {window})",)
             }
+            Self::Maximize(winevent, window) => {
+                write!(f, "Maximize (WinEvent: {winevent}, Window: {window})")
+            }
+            Self::Unmaximize(winevent, window) => {
+                write!(f, "Unmaximize (WinEvent: {winevent}, Window: {window})")
+            }
             Self::Raise(window) => {
                 write!(f, "Raise (Window: {window})")
             }
@@ -96,6 +104,8 @@ impl WindowManagerEvent {
             | Self::MoveResizeStart(_, window)
             | Self::MoveResizeEnd(_, window)
             | Self::MouseCapture(_, window)
+            | Self::Maximize(_, window)
+            | Self::Unmaximize(_, window)
             | Self::Raise(window)
             | Self::Manage(window)
             | Self::Unmanage(window)
@@ -119,6 +129,8 @@ impl WindowManagerEvent {
             WindowManagerEvent::MoveResizeStart(_, _) => "MoveResizeStart",
             WindowManagerEvent::MoveResizeEnd(_, _) => "MoveResizeEnd",
             WindowManagerEvent::MouseCapture(_, _) => "MouseCapture",
+            WindowManagerEvent::Maximize(_, _) => "Maximize",
+            WindowManagerEvent::Unmaximize(_, _) => "Unmaximize",
             WindowManagerEvent::Manage(_) => "Manage",
             WindowManagerEvent::Unmanage(_) => "Unmanage",
             WindowManagerEvent::Raise(_) => "Raise",
@@ -138,6 +150,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::MoveResizeStart(event, _)
             | WindowManagerEvent::MoveResizeEnd(event, _)
             | WindowManagerEvent::MouseCapture(event, _)
+            | WindowManagerEvent::Maximize(event, _)
+            | WindowManagerEvent::Unmaximize(event, _)
             | WindowManagerEvent::TitleUpdate(event, _) => Some(event.to_string()),
             WindowManagerEvent::Manage(_)
             | WindowManagerEvent::Unmanage(_)

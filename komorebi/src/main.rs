@@ -341,6 +341,7 @@ fn main() -> eyre::Result<()> {
     }
 
     listen_for_events(wm.clone());
+    komorebi::live_resize::listen_for_steps(wm.clone());
 
     if CUSTOM_FFM.load(Ordering::SeqCst) {
         listen_for_movements(wm.clone());

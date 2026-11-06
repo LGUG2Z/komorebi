@@ -382,15 +382,7 @@ where
                 // Make sure that in our state any attached displays have the latest Win32 data
                 for monitor in wm.monitors_mut() {
                     for attached in &attached_devices {
-                        let serial_number_ids_match = if let (Some(attached_snid), Some(m_snid)) =
-                            (&attached.serial_number_id, &monitor.serial_number_id)
-                        {
-                            attached_snid.eq(m_snid)
-                        } else {
-                            false
-                        };
-
-                        if serial_number_ids_match || attached.device_id.eq(&monitor.device_id) {
+                        if same_display(attached, monitor) {
                             monitor.id = attached.id;
                             monitor.device = attached.device.clone();
                             monitor.device_id = attached.device_id.clone();
@@ -461,18 +453,7 @@ where
                         // Update Win32 data for all monitors
                         for monitor in wm.monitors_mut() {
                             for attached in &re_queried_devices {
-                                let serial_number_ids_match =
-                                    if let (Some(attached_snid), Some(m_snid)) =
-                                        (&attached.serial_number_id, &monitor.serial_number_id)
-                                    {
-                                        attached_snid.eq(m_snid)
-                                    } else {
-                                        false
-                                    };
-
-                                if serial_number_ids_match
-                                    || attached.device_id.eq(&monitor.device_id)
-                                {
+                                if same_display(attached, monitor) {
                                     monitor.id = attached.id;
                                     monitor.device = attached.device.clone();
                                     monitor.device_id = attached.device_id.clone();
@@ -559,17 +540,7 @@ where
                     // We must do this again because we dropped the lock and are working with new data
                     for monitor in wm.monitors_mut() {
                         for attached in &re_queried_devices {
-                            let serial_number_ids_match =
-                                if let (Some(attached_snid), Some(m_snid)) =
-                                    (&attached.serial_number_id, &monitor.serial_number_id)
-                                {
-                                    attached_snid.eq(m_snid)
-                                } else {
-                                    false
-                                };
-
-                            if serial_number_ids_match || attached.device_id.eq(&monitor.device_id)
-                            {
+                            if same_display(attached, monitor) {
                                 monitor.id = attached.id;
                                 monitor.device = attached.device.clone();
                                 monitor.device_id = attached.device_id.clone();
@@ -593,21 +564,17 @@ where
                     // Windows to remove from `known_hwnds`
                     let mut windows_to_remove = Vec::new();
 
-                    // Collect the ids in our state which aren't in the current attached display ids
-                    // These are monitors that have been removed
-                    let mut newly_removed_displays = vec![];
+                    // Collect the monitors in our state which aren't among the current attached
+                    // displays; these are the monitors that have been removed
+                    let newly_removed_displays =
+                        disconnected_monitor_indices(wm.monitors(), &attached_devices);
 
                     for (m_idx, m) in wm.monitors().iter().enumerate() {
-                        if !attached_devices.iter().any(|attached| {
-                            attached.serial_number_id.eq(&m.serial_number_id)
-                                || attached.device_id.eq(&m.device_id)
-                        }) {
+                        if newly_removed_displays.contains(&m_idx) {
                             let id = m
                                 .serial_number_id
                                 .as_ref()
                                 .map_or(m.device_id.clone(), |sn| sn.clone());
-
-                            newly_removed_displays.push(id.clone());
 
                             let focused_workspace_idx = m.focused_workspace_idx();
 
@@ -696,11 +663,11 @@ where
 
                     if !newly_removed_displays.is_empty() {
                         // After we have cached them, remove them from our state
-                        wm.monitors_mut().retain(|m| {
-                            !newly_removed_displays.iter().any(|id| {
-                                m.serial_number_id.as_ref().is_some_and(|sn| sn == id)
-                                    || m.device_id.eq(id)
-                            })
+                        let mut m_idx = 0;
+                        wm.monitors_mut().retain(|_| {
+                            let keep = !newly_removed_displays.contains(&m_idx);
+                            m_idx += 1;
+                            keep
                         });
                     }
 
@@ -982,6 +949,48 @@ where
     }
 
     Ok(())
+}
+
+/// The device id of a display the OS reports no device path for
+const UNKNOWN_DEVICE_ID: &str = "UNKNOWN";
+
+/// Whether `attached`, a display the OS reports, is the same display as `monitor` in our state
+///
+/// A missing or empty serial number says nothing about a display, since many have none (virtual
+/// displays among them), so two of them are not the same display for lacking one. The same goes for
+/// the device id of a display without a device path, which is shared by every such display; only
+/// the name of those tells them apart.
+fn same_display(attached: &Monitor, monitor: &Monitor) -> bool {
+    if let (Some(attached_snid), Some(monitor_snid)) =
+        (&attached.serial_number_id, &monitor.serial_number_id)
+        && !attached_snid.is_empty()
+        && attached_snid.eq(monitor_snid)
+    {
+        return true;
+    }
+
+    same_device(
+        (&attached.device_id, &attached.name),
+        (&monitor.device_id, &monitor.name),
+    )
+}
+
+/// Whether two displays, each given as its device id and name, are the same device
+pub fn same_device((device_id, name): (&str, &str), (other_id, other_name): (&str, &str)) -> bool {
+    device_id.eq(other_id) && (device_id != UNKNOWN_DEVICE_ID || name.eq(other_name))
+}
+
+/// The indices of the monitors in our state which none of the attached displays is
+fn disconnected_monitor_indices<'a>(
+    monitors: impl IntoIterator<Item = &'a Monitor>,
+    attached: &[Monitor],
+) -> Vec<usize> {
+    monitors
+        .into_iter()
+        .enumerate()
+        .filter(|(_, m)| !attached.iter().any(|a| same_display(a, m)))
+        .map(|(idx, _)| idx)
+        .collect()
 }
 
 #[cfg(test)]
@@ -1282,5 +1291,117 @@ mod tests {
         } else {
             panic!("No monitors found");
         }
+    }
+
+    fn display(id: isize, name: &str, device_id: &str, serial: Option<&str>) -> Monitor {
+        monitor::new(
+            id,
+            Rect::default(),
+            Rect::default(),
+            name.to_string(),
+            device_id.split('-').next().unwrap_or_default().to_string(),
+            device_id.to_string(),
+            serial.map(String::from),
+        )
+    }
+
+    const PRIMARY: &str = "Default_Monitor-4&183790ca&0&UID0";
+
+    // the displays of the virtual machine in which the unplug was recorded: neither has a serial
+    // number, and the second one has no device path either
+    fn vm_primary() -> Monitor {
+        display(65537, "DISPLAY1", PRIMARY, None)
+    }
+
+    fn vm_secondary() -> Monitor {
+        display(131073, "DISPLAY2", "UNKNOWN", None)
+    }
+
+    #[test]
+    fn a_display_without_a_serial_number_is_not_the_one_that_is_left() {
+        // the OS reports the primary only, and under a new handle as it does after a hotplug
+        let attached = [display(393783, "DISPLAY1", PRIMARY, None)];
+        let state = [vm_primary(), vm_secondary()];
+
+        assert_eq!(disconnected_monitor_indices(&state, &attached), vec![1]);
+    }
+
+    #[test]
+    fn a_display_without_a_device_path_is_kept_while_it_is_attached() {
+        // the primary is the one unplugged
+        let attached = [display(131073, "DISPLAY2", "UNKNOWN", None)];
+        let state = [vm_primary(), vm_secondary()];
+
+        assert_eq!(disconnected_monitor_indices(&state, &attached), vec![0]);
+    }
+
+    #[test]
+    fn nothing_is_disconnected_while_every_display_is_attached() {
+        let attached = [vm_primary(), vm_secondary()];
+        let state = [vm_primary(), vm_secondary()];
+
+        assert!(disconnected_monitor_indices(&state, &attached).is_empty());
+    }
+
+    #[test]
+    fn displays_without_a_device_path_are_told_apart_by_name() {
+        let third = display(131074, "DISPLAY3", "UNKNOWN", None);
+        let state = [vm_primary(), vm_secondary(), third];
+
+        // the second is attached, the third is not
+        let attached = [vm_primary(), vm_secondary()];
+        assert_eq!(disconnected_monitor_indices(&state, &attached), vec![2]);
+
+        // the third is attached, the second is not
+        let attached = [vm_primary(), display(131074, "DISPLAY3", "UNKNOWN", None)];
+        assert_eq!(disconnected_monitor_indices(&state, &attached), vec![1]);
+    }
+
+    #[test]
+    fn empty_serial_numbers_do_not_identify_a_display() {
+        let state = [
+            display(1, "DISPLAY1", "AAA-1", Some("")),
+            display(2, "DISPLAY2", "BBB-2", Some("")),
+        ];
+        let attached = [display(1, "DISPLAY1", "AAA-1", Some(""))];
+
+        assert_eq!(disconnected_monitor_indices(&state, &attached), vec![1]);
+    }
+
+    #[test]
+    fn a_serial_number_still_identifies_a_display_that_moved_to_another_port() {
+        let state = [
+            display(1, "DISPLAY1", "AAA-1", Some("S1")),
+            display(2, "DISPLAY2", "BBB-2", Some("S2")),
+        ];
+        let attached = [
+            display(1, "DISPLAY1", "AAA-1", Some("S1")),
+            display(3, "DISPLAY3", "CCC-3", Some("S2")),
+        ];
+
+        assert!(disconnected_monitor_indices(&state, &attached).is_empty());
+    }
+
+    #[test]
+    fn a_new_serial_number_does_not_make_a_display_a_new_one() {
+        let state = [display(2, "DISPLAY2", "BBB-2", Some("S2"))];
+        let attached = [display(2, "DISPLAY2", "BBB-2", Some("S9"))];
+
+        // the device id is the same, so it is the same display with a new serial number
+        assert!(disconnected_monitor_indices(&state, &attached).is_empty());
+    }
+
+    #[test]
+    fn displays_without_a_device_path_are_the_same_device_by_name_only() {
+        assert!(same_device(
+            ("UNKNOWN", "DISPLAY2"),
+            ("UNKNOWN", "DISPLAY2")
+        ));
+        assert!(!same_device(
+            ("UNKNOWN", "DISPLAY2"),
+            ("UNKNOWN", "DISPLAY3")
+        ));
+        assert!(same_device(("AAA-1", "DISPLAY1"), ("AAA-1", "DISPLAY7")));
+        assert!(!same_device(("AAA-1", "DISPLAY1"), ("BBB-2", "DISPLAY1")));
     }
 }
