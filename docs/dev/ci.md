@@ -70,15 +70,17 @@ installs nextest on the Windows runners, which have no nix, and `windows.yaml` (
 | format | `fmt`, `checkSets.fmt` | the same | the same |
 | clippy | `lint` (cross build) | `lint` | `macos-hosted` only (`macos-lint`); `mac-typecheck` type-checks on Linux |
 | unit tests | `windows-native-test` on Windows, and `windows.yaml` on every event | `test` (`linux-test`) | `macos-hosted` only |
-| integration | none (the guest is experimental: `windows-guest.yaml`) | `vm-fast`, `vm-slow` | none |
+| integration | none (the guest is experimental: `windows-guest.yaml`) | `vm-fast`, `vm-slow` | none in CI; by hand on a Mac: `nix run .#e2e-macos` (a Tart guest, `e2e/platforms/tart_macos`) |
 | options and schemas | `linux-options`, `macos-options` on Linux; the Windows schemas are checked by the Windows e2e Python | `linux-options` | `macos-options` on Linux; the schemas by `macos-hosted` |
 
 The gaps:
 
 - No Windows e2e: the guest needs the evaluation ISO and about 20 minutes of Windows Setup, and nothing says a hosted runner can do it.
 - macOS runs on every change to its paths, on `macos-latest` (Apple silicon, the latest macOS, the only one supported): standard hosted runners are free and
-  unlimited on a public repository. Nothing starts the daemon there, so tiling on macOS is not exercised; whether a hosted runner has a GUI session with the
-  Accessibility and Screen Recording permissions is not known.
+  unlimited on a public repository. Nothing starts the daemon there, so tiling on macOS is not exercised in CI; whether a hosted runner has a GUI session with the
+  Accessibility and Screen Recording permissions is not known. The shared e2e scenarios do run on macOS, by hand, on a Mac (`nix run .#e2e-macos`,
+  `e2e/platforms/tart_macos/README.md`): a hosted runner is itself a virtual machine and cannot start a macOS guest, and a guest runs on Apple
+  hardware only, two at a time, so CI would need a Mac of its own.
 - The nightly rustfmt of `fmt` is the nightly of the day; `checkSets.fmt` in stage 1 uses the one the flake pins. When only `fmt` fails, the nightly moved.
 - `mac-typecheck` takes the std of `aarch64-apple-darwin` from the toolchain of the runner (`rustup target add`), because the dev shell of the
   flake only has the Windows target. clippy could run the same way (`cargo clippy --target aarch64-apple-darwin`); `tools/mac-check.sh` does not.

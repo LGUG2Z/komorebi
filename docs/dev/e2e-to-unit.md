@@ -59,9 +59,11 @@ times (Windows `komorebi/src/window.rs:1178`, KDE `window.rs:661`, macOS `window
 | lifecycle (7), lifecycle_hidden (13), locking (7), handover (6), fullscreen (6), display_change (4), focus_follows_mouse (7) | stop/start restores windows, screen lock, minimize/unmanage/manage, fullscreen, mode change, pointer focus | A for hide/restore: `container_behaviour.rs` `restoring_*`, `workspace_layers.rs` `hiding_a_workspace_*`; the process, session, OS events and pointer are C | - | - | - |
 | Windows extras: bar (21), windows_padding, cloaking, config_file, tracking, second_display, display_change | bar process and window, 7 px border, cloaking, file watch, system focus setting, QXL display | bar schema: A (`crates/komorebi-bar-core/tests/schema_oracle.rs`); rest C | - | - | - |
 
-## macOS-origin behaviour (never e2e-tested): what the shared tests now give
+## macOS-origin behaviour: what the shared tests give besides the e2e
 
-macOS has no e2e. The shared-crate tests that exist protect its code path as far as the hooks do:
+The shared e2e scenarios run on macOS in a Tart guest, by hand on a Mac (`nix run .#e2e-macos`,
+`e2e/platforms/tart_macos/README.md`; not in CI). What a macOS guest cannot do (a second display, a
+pointer, a lock screen) is still never e2e-tested. The shared-crate tests that exist protect its code path as far as the hooks do:
 `state_roundtrip.rs` `a_macos_shaped_state_is_written_as_it_was_read_with_the_corner_last`,
 `a_macos_state_cannot_be_read_without_its_corner`, the `StubWindow` that is `Clone` but not `Copy`,
 and now `e2e_layouts.rs` (the tiles every macOS tiling goes through). Proposed B tests, platform
