@@ -37,6 +37,14 @@ jobs:
         run: |
           # shellcheck disable=SC2016
           nix develop .#native --command bash -c 'cargo nextest run --locked -p komorebi-recorder -E "$(tools/test-partition expr recorder-macos)"'
+      # the packages whose tests depend on the OS (tools/test-partition.json, class os_sensitive: the wording
+      # of the identifiers, the schemas, the pages of the cli) run on each platform they describe, as
+      # windows-native-test does on Windows: the checked-in pages of docs/macos/cli are what only a macOS
+      # host renders. macos-nextest above runs the macOS packages only
+      - name: The OS-sensitive tests
+        run: |
+          # shellcheck disable=SC2016
+          nix develop .#native --command bash -c 'cargo nextest run --locked $(tools/test-partition packages os_sensitive)'
       - name: The binaries
         run: |
           nix build -L --no-link --print-out-paths .#komorebi .#komorebic .#komorebi-bar |
