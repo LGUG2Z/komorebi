@@ -29,15 +29,17 @@ another (state-kfw-stack.json) and after the focused one is floated
 import importlib
 import json
 import os
-import subprocess
 import sys
 import time
 import traceback
 import zipfile
 from pathlib import Path
 
-from komorebi_vm.core.checks import Checks
-from komorebi_vm.core.suite import platform_only, run_suite, shared
+from komorebi_vm.core.suite import platform_only, shared
+from komorebi_vm.runner import RecordedChecks, run_steps
+from komorebi_vm.runner import commit as _commit
+from komorebi_vm.runner import contains as _contains
+from komorebi_vm.runner import with_kwargs as _with
 
 from .agent import AgentError, AgentLost
 from .guest import Guest
@@ -91,125 +93,17 @@ class GuestDied(RuntimeError):
     """QEMU exited while a scenario was running: not what kfw did."""
 
 
-class RecordedChecks(Checks):
-    """`Checks` that also keeps each check, for the result file."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.results: list[dict[str, object]] = []
-        # how long each step of the suite took, for the result file
-        self.steps: list[dict[str, object]] = []
-        # the reason the failing checks of the step being run are known ones
-        self.expected: str | None = None
-
-    def _record(self, **fields: object) -> None:
-        if self.scope:
-            fields["scope"] = self.scope
-        self.results.append(fields)
-
-    def ok(self, description: str) -> None:
-        super().ok(description)
-        self._record(check=description, passed=True)
-
-    def bad(self, description: str) -> None:
-        if self.expected:
-            self.known.append(f"{self.labelled(description)} ({self.expected})")
-            print(f"  known failure {self.labelled(description)}: {self.expected}")
-            self._record(
-                check=description, known_failure=True, reason=self.expected
-            )
-            return
-        super().bad(description)
-        self._record(check=description, passed=False)
-
-    def skip(self, description: str, reason: str) -> None:
-        super().skip(description, reason)
-        self._record(check=description, skipped=True, reason=reason)
-
-    def known_failure(
-        self, description: str, condition: bool, reason: str
-    ) -> bool:
-        holds = super().known_failure(description, condition, reason)
-        if not holds:
-            self._record(
-                check=description, known_failure=True, reason=reason
-            )
-        return holds
-
-
-def _suite(checks: "RecordedChecks", *steps):
-    """`run_suite`, one step at a time, keeping how long each took."""
-    results: list[object] = []
-    for step in steps:
-        began = time.monotonic()
-        counted = checks.passed + checks.failed + len(checks.known)
-        fixed = KNOWN_STEPS_FIXED_BY.get(step.name)
-        checks.expected = (
-            fixed[1] if fixed and _contains(fixed[0])
-            else KNOWN_STEPS.get(step.name)
-        )
-        known_before = len(checks.known)
-        try:
-            results.extend(run_suite(checks, step))
-        finally:
-            reason, checks.expected = checks.expected, None
-        ran = checks.passed + checks.failed + len(checks.known) > counted
-        if reason and ran and len(checks.known) == known_before:
-            checks.bad(
-                f"{step.name}: nothing failed, so it is no longer a known "
-                "failure"
-            )
-        checks.steps.append({
-            "step": f"[{step.scope}] {step.name}",
-            "seconds": round(time.monotonic() - began, 1),
-        })
-    return results
-
-
-def _with(fn, **kwargs):
-    """`fn` with keyword arguments, for a suite step, which takes positional
-    ones only; it keeps the name the step prints."""
-    def step(*args):
-        return fn(*args, **kwargs)
-
-    step.__module__ = fn.__module__
-    step.__name__ = fn.__name__
-    return step
-
-
-def _contains(fix: str, repo: Path | None = None) -> bool:
-    """Whether the commit under test has the commit `fix` in its history, so that
-    a marker for the bug it fixed no longer applies. Not known: no."""
-    commit = os.environ.get("KOMOREBI_E2E_COMMIT")
-    if not commit:
-        return False
-    here = repo or Path(__file__).resolve().parent
-    git = subprocess.run(
-        ["git", "-C", str(here), "merge-base", "--is-ancestor", fix, commit],
-        capture_output=True,
+def _suite(checks: RecordedChecks, *steps):
+    """`run_steps` with the known failures of this port."""
+    return run_steps(
+        checks, *steps, known=KNOWN_STEPS, fixed_by=KNOWN_STEPS_FIXED_BY,
+        contains=_contains,
     )
-    return git.returncode == 0
 
 
 # the commit that fixed each bug a marker is for (komorebi's `next`)
 UNKNOWN_MONITOR_FIX = "837ca257"
 PLACEMENT_INTEGER_FIX = "3b424dd7"
-
-
-def _commit() -> str:
-    """The kfw commit under test: set `KOMOREBI_E2E_COMMIT` to the commit the
-    binaries were built from; otherwise this tree's HEAD, which may not be it."""
-    if os.environ.get("KOMOREBI_E2E_COMMIT"):
-        return os.environ["KOMOREBI_E2E_COMMIT"]
-    here = Path(__file__).resolve().parent
-    try:
-        git = subprocess.run(
-            ["git", "-C", str(here), "rev-parse", "HEAD"],
-            capture_output=True, text=True,
-        )
-    except FileNotFoundError:
-        return "unknown"
-    return git.stdout.strip() or "unknown"
 
 
 BINARIES = ["komorebi.exe", "komorebic.exe", "komorebi-testwin.exe"]
