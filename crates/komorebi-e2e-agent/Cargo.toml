@@ -8,4 +8,6 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
 windows = { workspace = true }
