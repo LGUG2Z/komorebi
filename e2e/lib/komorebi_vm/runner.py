@@ -18,13 +18,33 @@ from komorebi_vm.core.suite import run_suite
 class RecordedChecks(Checks):
     """`Checks` that also keeps each check, for the result file."""
 
-    def __init__(self) -> None:
+    def __init__(self, known_checks: dict[str, str] | None = None) -> None:
         super().__init__()
         self.results: list[dict[str, object]] = []
         # how long each step of the suite took, for the result file
         self.steps: list[dict[str, object]] = []
         # the reason the failing checks of the step being run are known ones
         self.expected: str | None = None
+        # a part of the description of a check, and the reason it is a known failure of the port: a
+        # finer mark than a step, for a scenario of which only some checks are about the difference
+        self.known_checks = known_checks or {}
+        # the marks whose check passed, which a run says can go
+        self.known_passed: list[str] = []
+
+    def _known_check(self, description: str) -> tuple[str, str] | None:
+        for key, reason in self.known_checks.items():
+            if key in description:
+                return key, reason
+        return None
+
+    def stale_marks(self) -> None:
+        """Fails once for each known-check mark whose check passed: the difference is gone."""
+        for key in self.known_passed:
+            description = f"known-failure mark no longer needed, its check passes: {key}"
+            # not `self.bad`: this text holds the mark's own words, and would be taken for the
+            # check it is about
+            Checks.bad(self, description)
+            self._record(check=description, passed=False)
 
     def _record(self, **fields: object) -> None:
         if self.scope:
@@ -34,14 +54,16 @@ class RecordedChecks(Checks):
     def ok(self, description: str) -> None:
         super().ok(description)
         self._record(check=description, passed=True)
+        if (mark := self._known_check(description)) and mark[0] not in self.known_passed:
+            self.known_passed.append(mark[0])
 
     def bad(self, description: str) -> None:
-        if self.expected:
-            self.known.append(f"{self.labelled(description)} ({self.expected})")
-            print(f"  known failure {self.labelled(description)}: {self.expected}")
-            self._record(
-                check=description, known_failure=True, reason=self.expected
-            )
+        mark = self._known_check(description)
+        reason = self.expected or (mark[1] if mark else None)
+        if reason:
+            self.known.append(f"{self.labelled(description)} ({reason})")
+            print(f"  known failure {self.labelled(description)}: {reason}")
+            self._record(check=description, known_failure=True, reason=reason)
             return
         super().bad(description)
         self._record(check=description, passed=False)
@@ -123,7 +145,7 @@ def contains(fix: str, repo: Path | None = None) -> bool:
     here = repo or Path(__file__).resolve().parent
     git = subprocess.run(
         ["git", "-C", str(here), "merge-base", "--is-ancestor", fix, commit],
-        capture_output=True,
+        capture_output=True, check=False,
     )
     return git.returncode == 0
 
@@ -138,7 +160,7 @@ def commit() -> str:
     try:
         git = subprocess.run(
             ["git", "-C", str(here), "rev-parse", "HEAD"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, check=False,
         )
     except FileNotFoundError:
         return "unknown"
