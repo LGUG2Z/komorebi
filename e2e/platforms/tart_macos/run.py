@@ -54,7 +54,6 @@ UNSUPPORTED = {
     "focus_follows_mouse": "a macOS guest has no pointer, and the daemon has no focus follows mouse",
     "locking": "a macOS guest has no lock screen to test",
     "wallpaper": "the wallpaper of a macOS guest is not read yet",
-    "rules_class": "a macOS window has no class",
     "placement": "the macOS daemon has no initial_window_placement_rules",
     "resize": "a macOS guest has no pointer to drag an edge with",
     "maximizing": "the macOS komorebic has no toggle-maximize",
@@ -77,10 +76,6 @@ DIFFERENCES = {
         "the daemon tiles 10 px below the top of the work area the system reports and 12 px above "
         "its bottom, so a vertical mirror is a few pixels off"
     ),
-    "class": (
-        "a macOS window has no class: the daemon matches the role of the window, which every "
-        "window of the test program shares"
-    ),
 }
 
 # the checks of a scenario that are about one of them, by a part of their description; the others
@@ -99,13 +94,6 @@ KNOWN_CHECKS = {
     "layout_flip": {
         "BSP, 3 windows, layout_flip Vertical: ... each where the mirror of its place is": "margins",
         "BSP, 3 windows, layout_flip HorizontalAndVertical: ... each where the mirror of its place is": "margins",
-    },
-    "manage_rules": {
-        "an ignore rule by class matches is not managed": "class",
-        "keeps its place (class)": "class",
-    },
-    "state_fidelity": {
-        "the state has the class a window was given": "class",
     },
 }
 KNOWN_CHECKS = {
