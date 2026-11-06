@@ -18,9 +18,9 @@ each is `success` or `skipped`: it is the only check a ruleset needs to require.
 | stage | jobs | runner | what it covers | when it runs |
 |---|---|---|---|---|
 | (gate) | `changes` | ubuntu-24.04 | `dorny/paths-filter` over `.github/ci-paths.yaml`: `linux`, `macos`, `windows` | always; a manual run concerns all platforms |
-| 0 | `hygiene` | ubuntu-24.04, no nix | no CRLF; the macros `just lint` bans (`eyre!`, `dbg!`, `println!` in the Linux and macOS daemons); actionlint; shellcheck of `scripts/linux/wsl2-probe.sh` and `tools/*`; `tools/kde-closure-check`; `tools/test-partition check`; `dependencies.json` is what `just depgen` writes | always |
-| 0 | `fmt` | ubuntu-24.04 | nightly rustfmt over every file (`tools/format-all --check`), all platforms | always |
-| 0 | `deny` | ubuntu-24.04 | `cargo deny` over the workspace | always |
+| 0 | `hygiene` | ubuntu-24.04, `nix develop .#hygiene` | no CRLF; the macros `just lint` bans (`eyre!`, `dbg!`, `println!` in the Linux and macOS daemons); actionlint; shellcheck of `scripts/linux/wsl2-probe.sh` and `tools/*`; `tools/kde-closure-check`; `tools/test-partition check`; `dependencies.json` is what `just depgen` writes | always |
+| 0 | `fmt` | ubuntu-24.04, `nix develop .#hygiene` | the nightly rustfmt of the flake over every file (`tools/format-all --check`), all platforms | always |
+| 0 | `deny` | ubuntu-24.04, `nix develop .#hygiene` | `cargo deny check` over the workspace | always |
 | 1 | `nix-eval` | ubuntu-24.04, nix, swap | `nix flake check --no-build --all-systems` (every output of every system evaluates: the Windows, Linux and macOS packages and checks); builds `checkSets.fmt`, `checkSets.linux-options`, `checkSets.macos-options` (the macOS options and the nix-darwin module, evaluated on Linux), and the Windows e2e Python | always |
 | 2 | `lint` (4 legs) | ubuntu-24.04, nix | `checkSets.{windows-lint,linux-lint,recorder-lint,nixgen-lint}`: clippy and rustdoc, Windows by cross build | always |
 | 2 | `mac-typecheck` | ubuntu-24.04, nix | `tools/mac-check.sh`: the macOS packages type-checked for `aarch64-apple-darwin`, no link, no run | macOS paths on a pull request; always on a push |
@@ -45,6 +45,25 @@ Beside the ladder:
 `ci` runs on a pull request (opened, pushed to, reopened, labeled), in the merge queue, on a push to `master`, and by hand. A
 pull request cancels its own earlier run; nothing else cancels. The token of every workflow is read-only (`contents: read`), and
 no workflow uses `pull_request_target`: a pull request from a fork gets no secret and no self-hosted runner.
+
+
+### The tools of stage 0 are the latest, and the flake is how CI gets them
+
+Every step of `hygiene`, `fmt` and `deny` runs in `nix develop .#hygiene` (`nix/common.nix`), not with the
+copy of a tool that the runner image or an action ships, so that a local `nix develop .#hygiene` and CI give the
+same answer. The policy for those tools is to run the latest release and to change the code to satisfy it, not to
+pin an older one or to silence a finding: when a mismatch shows up, move the flake forward first. The shell holds
+the toolchain of `rust-toolchain.toml` (stable), the nightly rustfmt, `cargo-deny`, `shellcheck`, `actionlint`, `jq`
+and `ripgrep`, and `hygiene` prints their versions at the start of every run, so a stale pin is visible in the log.
+When this was written every one of them was the latest upstream release (actionlint 1.7.12, shellcheck 0.11.0,
+cargo-deny 0.20.2, ripgrep 15.2.0, jq 1.8.2, cargo 1.99.1) and the nightly rustfmt was the one of 2026-11-04.
+
+They stay current in two ways: the weekly `update-flake-lock` workflow (Mondays) moves every input, and a tool that
+is behind the release in between is brought forward by hand with `nix flake update rust-overlay` (the toolchains
+and the nightly rustfmt) or `nix flake update nixpkgs` (the rest; this one also moves Plasma, which the VM suites
+test, so check them after it). Two tools are not in the shell and keep their own versions: `taiki-e/install-action`
+installs nextest on the Windows runners, which have no nix, and `windows.yaml` (the release workflow) runs its own
+`cargo-deny` action.
 
 ## What is and is not covered
 
@@ -128,6 +147,6 @@ Nothing can be run on GitHub from a checkout, so the first run is the test.
 - Cachix: whether the free tier of the cache `komorebi` is large enough for the store of this flake (several GB per system) is not verified.
 - KVM on hosted runners: documented for public repositories; the action fails with a named step when a host has none, and `rerun-no-kvm` tries again.
 - The macOS image: `macos-14` is Apple silicon with its own nix install each run; whether the cache makes the checks fit the 2 hours of the job is not known.
-- The `dependencies.json` step of `hygiene` installs the latest `cargo-deny`; run on a Mac with cargo-deny 0.19.6 and no network it did not reproduce the checked-in file (the git dependency was missing and the workspace crates sat under another license), so the first run on GitHub may show a difference that is the version of `cargo-deny` and not a stale file. If so, pin the version in the `taiki-e/install-action` step to the one that wrote the file.
+- The first run of stage 0 sets up the `hygiene` shell, which is a download of about 1 GB until the Cachix cache has it (master and manual runs push it).
 - The memory of `nix flake check --no-build` over the nixosConfigurations (about 7 GB) against a runner that has 7 GB (private repositories) or 16 GB (public): the swap of the action is the mitigation.
 - `windows-native-test-arm` assumes the `windows-11-arm` runner exists for this repository and installs Rust itself when the image has none.

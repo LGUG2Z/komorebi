@@ -84,6 +84,17 @@ jobs:
         with:
           cachix-cache: ${{ vars.CACHIX_CACHE }}
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      # the versions of the shell, in every log: the latest releases are the policy, so a pin that has fallen
+      # behind shows here
+      - name: The tools of the flake
+        run: |
+          rustc --version
+          rustfmt --version
+          cargo deny --version
+          shellcheck --version | sed -n 2p
+          echo "actionlint $(actionlint -version | head -1)"
+          jq --version
+          rg --version | head -1
       - name: No file is stored with CRLF
         run: |
           if git ls-files --eol | grep '^i/crlf'; then
