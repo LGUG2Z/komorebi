@@ -177,7 +177,7 @@ fn platform_text(platform: Platform) -> &'static [(&'static str, &'static str, &
             (
                 "ApplicationIdentifier",
                 "/oneOf/1/description",
-                "Role or subrole",
+                "Accessibility subrole or role, such as AXStandardWindow",
             ),
         ],
     }

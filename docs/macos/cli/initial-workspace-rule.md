@@ -9,7 +9,7 @@ Arguments:
   <IDENTIFIER>
           Possible values:
           - exe:   Executable name
-          - class: Role or subrole
+          - class: Accessibility subrole or role, such as AXStandardWindow
           - title: Window title
           - path:  Executable path
 

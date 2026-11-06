@@ -618,7 +618,7 @@
           "const": "Exe"
         },
         {
-          "description": "Role or subrole",
+          "description": "Accessibility subrole or role, such as AXStandardWindow",
           "type": "string",
           "const": "Class"
         },
