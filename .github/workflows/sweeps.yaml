@@ -133,10 +133,9 @@ jobs:
       - uses: ./.github/actions/nix
         with:
           kvm: "true"
-          cache: "false"
+          push: "false"
           swap: "true"
           cachix-cache: ${{ vars.CACHIX_CACHE }}
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Move nixpkgs to the tip in a copy of the checkout
         run: |
           cp -a . "$RUNNER_TEMP/canary"

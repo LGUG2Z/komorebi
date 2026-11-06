@@ -109,10 +109,12 @@ None of these can be set from a workflow.
 2. Settings, Actions, General: the default token permission is read-only; approval to run workflows from outside collaborators (first-time contributors at least).
 3. Already created, nothing to do: the public Cachix cache `komorebi` and the variable `CACHIX_CACHE=komorebi`, the secret `CACHIX_AUTH_TOKEN` (read and write), the secret
    `CACHIX_AUTH_TOKEN_RO` and the variable `CACHIX_PUBLIC_KEY`. The workflows use only `CACHIX_CACHE` and `CACHIX_AUTH_TOKEN`: the cache is public, and `cachix/cachix-action`
-   configures the substituter and its key with no token at all, so a pull request, a fork and the temporary branch read the cache without one and
-   `CACHIX_AUTH_TOKEN_RO` and `CACHIX_PUBLIC_KEY` are not needed (they would only be for a hand-written `extra-substituters`). The write token is handed to the action
-   (as its `authToken` input, by `.github/actions/nix`, which cannot read secrets itself) only on a push to master, on `workflow_dispatch` and on `schedule`; on a
-   pull request it is an empty string. A job that has no `CACHIX_CACHE` builds with no cache.
+   configures the substituter and its key with no token at all, so a pull request, a fork and the merge queue read the cache without one and
+   `CACHIX_AUTH_TOKEN_RO` and `CACHIX_PUBLIC_KEY` are not needed (they would only be for a hand-written `extra-substituters`). Every job that runs nix goes through
+   `.github/actions/nix` (the `update-flake-lock` job too), whose callers pass `vars.CACHIX_CACHE` and `secrets.CACHIX_AUTH_TOKEN` (the reusable `_macos.yaml` gets the secrets
+   with `secrets: inherit`). The write token is handed to `cachix-action` (as its `authToken` input) on a `push` (master, and the temporary komomono trigger, which no expression
+   names), on `workflow_dispatch` and on `schedule`; on a `pull_request` or in the merge queue it is an empty string and the action logs `Pushing is disabled`. The only job
+   that reads and never writes is the nixpkgs canary (`push: "false"`): it builds against another nixpkgs, which nothing else needs. A job that has no `CACHIX_CACHE` builds with no cache.
    Still the owner's: the variable `MACOS_SELF_HOSTED` (`true` once the Mac Mini has a runner with the labels `self-hosted`, `macOS`, `ARM64`).
 4. The labels: `ci:macos`, `ci:macos-self`, `ci:vm`, `ci:vm-slow`, `ci:win-arm`.
 5. Settings, Actions: allow the actions the workflows use (`cachix/*`, `dorny/paths-filter`, `taiki-e/install-action`, `Swatinem/rust-cache`, `DeterminateSystems/update-flake-lock`,
@@ -142,11 +144,23 @@ Nothing can be run on GitHub from a checkout, so the first run is the test.
 4. Break a check on purpose and see that `ci / required` fails; skip a stage with a path and see that it passes.
 5. Run `sweeps` and `windows-guest` by hand once.
 
+## Verify the cache after the first push to komomono
+
+Pushes happen in the post step of `cachix-action` (the daemon registers a post-build hook, so only paths the job builds are pushed, not those substituted from cache.nixos.org;
+the post step runs when the job fails too).
+
+- [ ] the log of the `Post Run ./.github/actions/nix` step of `hygiene` shows `Cachix: push` and `Pushing` lines (and not `Pushing is disabled`)
+- [ ] the Cachix dashboard of `komorebi` lists new store paths and a size
+- [ ] a second run of the same commit is faster, and its log shows `copying path ... from 'https://komorebi.cachix.org'`
+- [ ] a pull request run of the same jobs shows `Pushing is disabled` and still copies from `komorebi.cachix.org`
+- [ ] the size of the cache against the plan of the account: the xwin Windows SDK (over 1 GB) and the NixOS guest closures (about 10 GB each for Plasma) are pushed unfiltered; if the free
+  tier is too small, a `pushFilter` on the `cachix-action` step is the lever, at the price of rebuilding what it excludes
+
 ## Open items
 
 - Cachix: whether the free tier of the cache `komorebi` is large enough for the store of this flake (several GB per system) is not verified.
 - KVM on hosted runners: documented for public repositories; the action fails with a named step when a host has none, and `rerun-no-kvm` tries again.
 - The macOS image: `macos-14` is Apple silicon with its own nix install each run; whether the cache makes the checks fit the 2 hours of the job is not known.
-- The first run of stage 0 sets up the `hygiene` shell, which is a download of about 1 GB until the Cachix cache has it (master and manual runs push it).
+- The first run of stage 0 sets up the `hygiene` shell, which is a download of about 1 GB until the Cachix cache has it (a push and a manual run push it).
 - The memory of `nix flake check --no-build` over the nixosConfigurations (about 7 GB) against a runner that has 7 GB (private repositories) or 16 GB (public): the swap of the action is the mitigation.
 - `windows-native-test-arm` assumes the `windows-11-arm` runner exists for this repository and installs Rust itself when the image has none.

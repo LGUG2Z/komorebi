@@ -1,5 +1,5 @@
 name: nix
-description: Install nix on a runner, with the Cachix cache of the project read (and, on master, written) and, on request, KVM enabled
+description: Install nix on a runner, with the Cachix cache of the project read (and, on a push, a manual run and a schedule, written) and, on request, KVM enabled
 
 # A composite action cannot read `vars` or `secrets`: the caller passes them as inputs
 #
@@ -9,8 +9,10 @@ description: Install nix on a runner, with the Cachix cache of the project read 
 #
 # With no cache name there is no cache and the job builds everything. With a name and no token (a fork,
 # or a repository that has not made the secret) the cache is only read. With a token, the store paths
-# of the job are pushed only on master, on a manual run and on a schedule: a pull request or the
-# temporary branch never writes to the cache.
+# that the job builds are pushed (by the post step of cachix-action, also when the job fails) on a push
+# (master, and any branch that a workflow lists under `push`), on a manual run and on a schedule. A pull
+# request, a fork and the merge queue only read: the token goes to cachix-action only for those events,
+# and without one cachix-action says "Pushing is disabled".
 
 inputs:
   install:
@@ -25,8 +27,8 @@ inputs:
   swap:
     description: Add 16 GB of swap, for the jobs that evaluate NixOS systems (about 11 GB of memory at the peak)
     default: "false"
-  cache:
-    description: Use the Cachix cache (the canary turns it off, because it builds against another nixpkgs)
+  push:
+    description: Push what the job builds when the event allows it (the canary turns it off: it builds against another nixpkgs, which nobody else needs)
     default: "true"
   cachix-cache:
     description: The name of the Cachix cache, vars.CACHIX_CACHE
@@ -80,10 +82,11 @@ runs:
           accept-flake-config = false
           system-features = nixos-test benchmark big-parallel ${{ inputs.kvm == 'true' && 'kvm' || '' }}
 
-    # The token is handed over only where writing is wanted; without it the action only reads.
+    # The token is handed over only where writing is wanted; without it the action only reads. The cache
+    # is public, so reading needs no token.
     - name: Cachix
-      if: inputs.cache == 'true' && inputs.cachix-cache != ''
+      if: inputs.cachix-cache != ''
       uses: cachix/cachix-action@v16
       with:
         name: ${{ inputs.cachix-cache }}
-        authToken: ${{ (github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && inputs.cachix-auth-token || '' }}
+        authToken: ${{ (inputs.push == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')) && inputs.cachix-auth-token || '' }}

@@ -19,7 +19,10 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
-      - uses: cachix/install-nix-action@v31
+      - uses: ./.github/actions/nix
+        with:
+          cachix-cache: ${{ vars.CACHIX_CACHE }}
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - uses: DeterminateSystems/update-flake-lock@v29
         with:
           commit-msg: "chore(deps): flake.lock: Update"
