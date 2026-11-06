@@ -127,7 +127,8 @@ fn reconfigure() -> eyre::Result<()> {
 ///
 /// Returns an error when the file cannot be read or written, or KWin cannot be asked.
 pub fn ensure() -> eyre::Result<()> {
-    let path = rules_path().ok_or_else(|| eyre::eyre!("there is no configuration directory"))?;
+    let path =
+        rules_path().ok_or_else(|| eyre::Report::msg("there is no configuration directory"))?;
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),

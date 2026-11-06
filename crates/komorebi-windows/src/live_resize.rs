@@ -946,7 +946,7 @@ impl WindowManager {
 
         let _snapping = Snapping::new(true);
         self.focused_monitor_mut()
-            .ok_or_else(|| eyre::eyre!("there is no monitor"))
+            .ok_or_else(|| eyre::Report::msg("there is no monitor"))
             .and_then(|monitor| monitor.update_focused_workspace(monitor_offset))
     }
 

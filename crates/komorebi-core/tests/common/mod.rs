@@ -152,7 +152,7 @@ fn fails(operation: &str) -> bool {
 fn op(line: String, key: String) -> eyre::Result<()> {
     push(line);
     if fails(&key) {
-        Err(eyre::eyre!("{key} failed"))
+        Err(eyre::Report::msg(format!("{key} failed")))
     } else {
         Ok(())
     }
@@ -304,7 +304,7 @@ impl WorkspacePlatform for StubPlatform {
     fn begin_update(_: &mut Workspace<Self>) -> eyre::Result<Flow> {
         push("begin_update".to_string());
         if fails("begin_update") {
-            return Err(eyre::eyre!("begin_update failed"));
+            return Err(eyre::Report::msg("begin_update failed"));
         }
         if settings(|s| s.skip_update) {
             return Ok(Flow::Skip);
@@ -414,7 +414,7 @@ impl WorkspacePlatform for StubPlatform {
             "end_update pass={pass} around={around_window} viewport={viewport_width}"
         ));
         if fails("end_update") {
-            return Err(eyre::eyre!("end_update failed"));
+            return Err(eyre::Report::msg("end_update failed"));
         }
         Ok(settings(|s| s.passes.pop()).unwrap_or(Pass::Done))
     }

@@ -552,7 +552,9 @@ fn run_owner_loop(cmd_rx: crossbeam_channel::Receiver<GhostCmd>) {
             }) => {
                 let result = match host.as_mut() {
                     Some(host) => host.register(&snapshot, start_rect, clip),
-                    None => Err(eyre::eyre!("the ghost host window could not be created")),
+                    None => Err(eyre::Report::msg(
+                        "the ghost host window could not be created",
+                    )),
                 };
                 let _ = reply.send(result);
             }
@@ -687,7 +689,7 @@ impl GhostWindow {
                 clip,
                 reply: reply_tx,
             })
-            .map_err(|e| eyre::eyre!("ghost owner channel send failed: {e}"))?;
+            .map_err(|e| eyre::Report::msg(format!("ghost owner channel send failed: {e}")))?;
         let Registered {
             hthumb,
             origin,
@@ -789,7 +791,7 @@ impl GhostWindow {
             .send(GhostCmd::Destroy {
                 hthumb: self.hthumb,
             })
-            .map_err(|e| eyre::eyre!("ghost owner channel send failed: {e}"))
+            .map_err(|e| eyre::Report::msg(format!("ghost owner channel send failed: {e}")))
     }
 }
 

@@ -155,8 +155,8 @@ where
     };
 
     if !errors.is_empty() {
-        return Err(color_eyre::eyre::eyre!(
-            "could not successfully enumerate all displays"
+        return Err(color_eyre::eyre::Report::msg(
+            "could not successfully enumerate all displays",
         ));
     }
 

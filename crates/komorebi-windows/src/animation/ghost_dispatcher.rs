@@ -414,9 +414,12 @@ impl GhostDispatcher {
     /// Wait for the resize started by `start_resize` to be done
     fn finish_resize(&self) -> eyre::Result<()> {
         match self.resize.lock().take() {
-            Some(resize) => resize
-                .join()
-                .unwrap_or_else(|_| Err(eyre::eyre!("the resize of hwnd {} panicked", self.hwnd))),
+            Some(resize) => resize.join().unwrap_or_else(|_| {
+                Err(eyre::Report::msg(format!(
+                    "the resize of hwnd {} panicked",
+                    self.hwnd
+                )))
+            }),
             None => Ok(()),
         }
     }

@@ -325,7 +325,9 @@ fn render(hwnd: isize) -> eyre::Result<Rendered> {
             if printed.as_bool() {
                 Ok(rendered)
             } else {
-                Err(eyre::eyre!("hwnd {hwnd} would not render itself"))
+                Err(eyre::Report::msg(format!(
+                    "hwnd {hwnd} would not render itself"
+                )))
             }
         })();
 

@@ -671,7 +671,7 @@ impl ViewerApp {
                 Ok(outcome) => outcome,
                 Err(crossbeam_channel::TryRecvError::Empty) => continue,
                 Err(crossbeam_channel::TryRecvError::Disconnected) => {
-                    Err(eyre::eyre!("the thread reading the session stopped"))
+                    Err(eyre::Report::msg("the thread reading the session stopped"))
                 }
             };
             self.tabs[index] = match outcome.and_then(|loaded| self.build_open(loaded)) {

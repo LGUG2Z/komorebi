@@ -850,7 +850,7 @@ impl komorebi_backend::Backend for KWinBackend {
     fn monitors(&self) -> komorebi_backend::Result<Vec<komorebi_backend::MonitorInfo>> {
         let monitors = self.shared.table.lock().monitors();
         if monitors.is_empty() {
-            return Err(platform(eyre::eyre!("KWin reported no outputs")));
+            return Err(platform(eyre::Report::msg("KWin reported no outputs")));
         }
         Ok(monitors.into_iter().map(Into::into).collect())
     }

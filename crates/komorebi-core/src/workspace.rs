@@ -201,12 +201,12 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
 
     /// Puts the monocle window on the work area it is given.
     fn place_monocle(_window: &mut Self::Window, _rect: &Rect) -> eyre::Result<()> {
-        Err(eyre::eyre!("this platform has no shared update"))
+        Err(eyre::Report::msg("this platform has no shared update"))
     }
 
     /// Lays the maximized window out: the platform's own maximize.
     fn maximize_in_layout(_window: &mut Self::Window) -> eyre::Result<()> {
-        Err(eyre::eyre!("this platform has no shared update"))
+        Err(eyre::Report::msg("this platform has no shared update"))
     }
 
     /// Whether the scrolling layout should learn the widths the windows really have before it is
@@ -258,7 +258,7 @@ pub trait WorkspacePlatform: Sized + Clone + std::fmt::Debug + PartialEq + 'stat
         _hidden: bool,
         _placement: &Placement<'_>,
     ) -> eyre::Result<()> {
-        Err(eyre::eyre!("this platform has no shared update"))
+        Err(eyre::Report::msg("this platform has no shared update"))
     }
 
     /// Called after every placement pass; `Pass::Again` runs one more (the Windows scrolling layout
