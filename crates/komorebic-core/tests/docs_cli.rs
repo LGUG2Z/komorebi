@@ -32,6 +32,11 @@ fn every_macos_page_is_as_checked_in() {
         // a source tree without the macOS tree (the nix build of the Windows workspace)
         return;
     }
+    if cfg!(windows) {
+        // the identifiers are worded per platform, and a Windows host renders its own wording;
+        // the pages are the same on the hosts that have the macOS one, which the linux run covers
+        return;
+    }
 
     let rendered = pages(command::<MacosCommands>(&META), &DocFormat::PLAIN);
     let mut stale = Vec::new();
