@@ -133,9 +133,10 @@ justfile and the Nix check sets (`nix/windows/flake-module.nix`) read it, so the
 
 `tools/test-partition check` fails when a member is in no class or in two, when a name is not a member, and when a
 `neutral` package is not neutral. `packages CLASS` prints `-p a -p b`; `expr CLASS` prints the nextest filterset
-`package(a) | package(b)`. `expr recorder-macos` is the filterset of the recorder tests that run on macOS (the macOS
-flavoured modules `sources::oslog`, `av`, `capture::sck`, `platform`, `power`, `system_state`: 36 tests); run it with
-`cargo nextest run -p komorebi-recorder -E "$(tools/test-partition expr recorder-macos)"`. `komorebi-bar` has one
+`package(a) | package(b)`. The recorder is `mixed`, and its tests are worded in `cfg!(target_os = "macos")` branches
+as much as in modules, so a macOS run takes the whole suite (`cargo nextest run -p komorebi-recorder`, 731 tests, about
+30 s): a filter of the macOS modules once selected 36 of them and left the macOS side of the rest untested.
+`komorebi-bar` has one
 Windows-only test and `komorebi-client` Linux-only ones: their jobs name the package with `-p`, the partition says
 only that the package is in no platform's default list. `tools/test-partition --self-test` (`just test-partition-check`)
 runs `check` on the tree and on deliberately broken copies of the classification.

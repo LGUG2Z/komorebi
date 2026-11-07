@@ -30,13 +30,14 @@ jobs:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: The macOS checks
         run: nix build -L --no-link .#checkSets.macos-lint .#checkSets.macos-test .#checkSets.macos-options
-      # the recorder's tests of the macOS sources (oslog, av, capture, platform, power, system state): the
-      # filterset is tools/test-partition's. It runs in the native shell: the default one exports
-      # CARGO_BUILD_TARGET=x86_64-pc-windows-msvc, and nextest cannot list the tests of a Windows .exe on a Mac
-      - name: The recorder's macOS tests
+      # the whole test suite of the recorder, in the native shell: the default one exports
+      # CARGO_BUILD_TARGET=x86_64-pc-windows-msvc, and nextest cannot list the tests of a Windows .exe on a
+      # Mac. Its tests are platform-neutral by module but worded in `cfg!(target_os = "macos")` branches
+      # (the options of a recording, the keys of the viewer, the frames), and a Linux or Windows run takes
+      # the other side of each: only a Mac takes this one. A filter of the macOS modules selected 36 of the 731
+      - name: The recorder's tests
         run: |
-          # shellcheck disable=SC2016
-          nix develop .#native --command bash -c 'cargo nextest run --locked -p komorebi-recorder -E "$(tools/test-partition expr recorder-macos)"'
+          nix develop .#native --command cargo nextest run --locked -p komorebi-recorder
       # the packages whose tests depend on the OS (tools/test-partition.json, class os_sensitive: the wording
       # of the identifiers, the schemas, the pages of the cli) run on each platform they describe, as
       # windows-native-test does on Windows: the checked-in pages of docs/macos/cli are what only a macOS
@@ -45,6 +46,15 @@ jobs:
         run: |
           # shellcheck disable=SC2016
           nix develop .#native --command bash -c 'cargo nextest run --locked $(tools/test-partition packages os_sensitive)'
+      # the programs of the e2e guests (class `tool`): the test window and the agent have macOS sources
+      # (AppKit, the accessibility API) that no other job compiles, and the tests of the test window's
+      # command line; clippy sees the sources the tests do not run
+      - name: The e2e tools
+        run: |
+          nix develop .#native --command bash -euo pipefail -c '
+            cargo nextest run --locked -p komorebi-testwin -p komorebi-e2e-agent --no-tests=pass
+            cargo clippy --locked --all-targets -p komorebi-testwin -p komorebi-e2e-agent -- -D warnings
+          '
       - name: The binaries
         run: |
           nix build -L --no-link --print-out-paths .#komorebi .#komorebic .#komorebi-bar |

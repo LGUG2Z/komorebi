@@ -27,7 +27,7 @@ each is `success` or `skipped`: it is the only check a ruleset needs to require.
 | 3 | `test` (4 legs) | ubuntu-24.04, nix | `checkSets.{linux-test,windows-test,recorder-test,nixgen-test}`: Linux tests, the Windows test executables cross-built (not run), the recorder's and nixgen's tests | always |
 | 3 | `windows-native-test` | windows-latest | `cargo nextest` of the `windows` and `os_sensitive` classes of `tools/test-partition` | Windows or shared paths |
 | 3 | `windows-native-test-arm` | windows-11-arm | the same on ARM | label `ci:win-arm`; a push to master with Windows paths; by hand |
-| 3 | `macos-hosted` | macos-latest (`_macos.yaml`) | the macOS checks, the recorder's macOS tests and the `os_sensitive` packages of `tools/test-partition` (both in `nix develop .#native`: the default shell builds for Windows), the binaries, the schemas | macOS paths |
+| 3 | `macos-hosted` | macos-latest (`_macos.yaml`) | the macOS checks, the whole test suite of the recorder, the `os_sensitive` packages of `tools/test-partition` and the tests and clippy of the e2e tools (all in `nix develop .#native`: the default shell builds for Windows), the binaries, the schemas | macOS paths |
 | 4 | `discover`, `vm-fast` | ubuntu-24.04, KVM | the fast tier of the KDE VM suites, one machine each (`max-parallel: 8`, 45 minutes), a machine with no KVM drawn again (`_vm.yaml`, see KVM) | Linux paths; label `ci:vm`; every push to master |
 
 Beside the ladder:
@@ -69,7 +69,7 @@ installs nextest on the Windows runners, which have no nix, and `windows.yaml` (
 |---|---|---|---|
 | format | `fmt`, `checkSets.fmt` | the same | the same |
 | clippy | `lint` (cross build) | `lint` | `macos-hosted` only (`macos-lint`); `mac-typecheck` type-checks on Linux |
-| unit tests | `windows-native-test` on Windows, and `windows.yaml` on every event | `test` (`linux-test`) | `macos-hosted` only (the macOS packages, and the `os_sensitive` ones natively) |
+| unit tests | `windows-native-test` on Windows, and `windows.yaml` on every event | `test` (`linux-test`) | `macos-hosted` only (the macOS packages, the `os_sensitive` ones and the whole recorder natively, and the e2e tools) |
 | integration | none (the guest is experimental: `windows-guest.yaml`) | `vm-fast`, `vm-slow` | none in CI; by hand on a Mac: `nix run .#e2e-macos` (a Tart guest, `e2e/platforms/tart_macos`) |
 | options and schemas | `linux-options`, `macos-options` on Linux; the Windows schemas are checked by the Windows e2e Python | `linux-options` | `macos-options` on Linux; the schemas by `macos-hosted` |
 
@@ -98,7 +98,7 @@ workflows do not publish anything, use no `write-all`, and use their own concurr
   it has been green for a while, the test step of `windows.yaml` can be removed by the owner of that file.
 - The partition (`tools/test-partition.json`) puts `komorebi-windows` in the class `windows` and `komorebi-config`, `-protocol`, `-transport` and `komorebic-core` in `os_sensitive`:
   those are what `windows-native-test` runs, and what `macos-hosted` runs on macOS: a test that renders text worded per platform (`docs_cli` of `komorebic-core` checks the pages of `docs/macos/cli`, and
-  skips on every host but a Mac) can only pass on the host whose wording it checks, so it is not covered by the `linux-test` run of the same package. `komorebi-client`, `komorebi-bar` and `komorebi-recorder` are `mixed`, so a platform job names them with `-p`. The nix set `windows-test` builds the
+  skips on every host but a Mac) can only pass on the host whose wording it checks, so it is not covered by the `linux-test` run of the same package. `komorebi-client`, `komorebi-bar` and `komorebi-recorder` are `mixed`, so a platform job names them with `-p`: `macos-hosted` runs the whole recorder (its tests are worded in `cfg!(target_os = "macos")` branches, and a Linux or Windows run takes the other side of each; a filter of the macOS modules once selected 36 of 731). The e2e tools (`tool`: the test window and the agent of the guests) have macOS sources that only that job compiles, so it runs their tests and clippy. The nix set `windows-test` builds the
   same subset; the whole suite is the set `windows-test-full` (not in the default sets, so not in `ci`) and `just test-windows-full`.
 - Both run `cargo-deny`; `ci / deny` is the cheaper copy and stops the ladder first.
 - `actionlint` in `hygiene` leaves `windows.yaml` out: it reads the PowerShell of that file as bash. `just lint` runs it on every workflow and fails on that file.

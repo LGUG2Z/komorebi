@@ -4,8 +4,6 @@
 #   tools/test-partition check             fail when the classification and the workspace disagree
 #   tools/test-partition packages <class>  print `-p a -p b` for cargo
 #   tools/test-partition expr <class>      print a nextest filterset: `package(a) | package(b)`
-#   tools/test-partition expr recorder-macos
-#                                          the filterset of the recorder tests that run on macOS
 #   tools/test-partition --self-test       run `check` against the tree and against deliberately broken copies
 #
 # The classification is tools/test-partition.json (class -> package names); it is the single source of truth
@@ -22,10 +20,6 @@ classes="neutral os_sensitive windows linux macos mixed tool none"
 
 # the crates a `neutral` package must not depend on, directly
 platform_crates='["komorebi-windows","komorebi-macos","komorebi-linux"]'
-
-# the tests of the recorder that run on macOS, by their module path: the macOS flavoured sources, which
-# the recorder's other tests (the platform-neutral ones) share a binary with
-recorder_macos_filter='package(komorebi-recorder) & test(/^(sources::oslog|av|capture::sck|platform|power|system_state)::/)'
 
 die() {
     echo "test-partition: $*" >&2
@@ -106,10 +100,6 @@ case "$cmd" in
         ;;
     expr)
         class=${2:-}
-        if [ "$class" = recorder-macos ]; then
-            echo "$recorder_macos_filter"
-            exit 0
-        fi
         valid_class "$class" || die "unknown class '$class' (one of: $classes)"
         members_of "$class" | sed 's/.*/package(&)/' | paste -sd'|' - | sed 's/|/ | /g'
         ;;
@@ -117,7 +107,7 @@ case "$cmd" in
         exec "$root/tools/test-partition.test" "$root/tools/test-partition"
         ;;
     *)
-        sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' >&2
+        sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//' >&2
         exit 2
         ;;
 esac
