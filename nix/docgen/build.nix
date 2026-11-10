@@ -1,143 +1,74 @@
+# The crane derivations of schemars-docgen, the tool that writes the reference pages of the docs site
+# (starlight/) from the JSON Schemas, from the one Cargo workspace (nix/workspace-src.nix, platform "docgen": the tool and nothing
+# else). It is pure Rust, so one build serves every system.
+{ inputs }:
+let
+  lib' = import ../lib.nix { inherit inputs; };
+  inherit (inputs) crane;
+  version =
+    (builtins.fromTOML (builtins.readFile ../../crates/schemars-docgen/Cargo.toml)).package.version;
+in
 {
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    crane.url = "github:ipetkov/crane";
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
-    treefmt-nix.url = "github:numtide/treefmt-nix";
-    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
-    git-hooks-nix.url = "github:cachix/git-hooks.nix";
-    git-hooks-nix.inputs.nixpkgs.follows = "nixpkgs";
-  };
+  mkDocgenPackages =
+    { pkgs }:
+    let
+      toolchain = pkgs.rust-bin.fromRustupToolchainFile ../../rust-toolchain.toml;
+      craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
 
-  outputs =
-    inputs@{
-      nixpkgs,
-      flake-parts,
-      crane,
-      rust-overlay,
-      ...
-    }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [
-        inputs.treefmt-nix.flakeModule
-        inputs.git-hooks-nix.flakeModule
-      ];
+      inherit
+        (import ../workspace-src.nix {
+          inherit pkgs craneLib;
+          repoRoot = ../..;
+          platform = "docgen";
+        })
+        src
+        ;
 
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "aarch64-darwin"
-      ];
+      lockFile = lib'.repoFile "Cargo.lock";
+      tomlFile = lib'.repoFile "Cargo.toml";
 
-      perSystem =
-        {
-          config,
-          system,
-          ...
-        }:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ rust-overlay.overlays.default ];
-          };
-
-          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-          nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
-          rustToolchainWithNightlyRustfmt = pkgs.symlinkJoin {
-            name = "rust-toolchain-with-nightly-rustfmt";
-            paths = [
-              nightlyRustfmt
-              rustToolchain
-            ];
-          };
-
-          nightlyToolchain = pkgs.rust-bin.nightly.latest.default;
-          cargo-udeps = pkgs.writeShellScriptBin "cargo-udeps" ''
-            export PATH="${nightlyToolchain}/bin:$PATH"
-            exec ${pkgs.cargo-udeps}/bin/cargo-udeps "$@"
-          '';
-
-          craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
-
-          src = pkgs.lib.cleanSourceWith {
-            src = ./.;
-            filter =
-              path: type:
-              (craneLib.filterCargoSources path type)
-              || (builtins.match ".*\\.css$" path != null)
-              || (builtins.match ".*\\.html$" path != null)
-              || (builtins.match ".*\\.md$" path != null)
-              || (builtins.match ".*\\.json$" path != null);
-          };
-
-          commonArgs = {
-            inherit src;
-            strictDeps = true;
-          };
-
-          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-
-          schemars-docgen = craneLib.buildPackage (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-            }
-          );
-        in
-        {
-          checks = {
-            clippy = craneLib.cargoClippy (
-              commonArgs
-              // {
-                inherit cargoArtifacts;
-              }
-            );
-            tests = craneLib.cargoTest (
-              commonArgs
-              // {
-                inherit cargoArtifacts;
-              }
-            );
-          };
-
-          packages = {
-            inherit schemars-docgen;
-            default = schemars-docgen;
-          };
-
-          devShells.default = pkgs.mkShell {
-            inputsFrom = [ schemars-docgen ];
-            packages = [
-              rustToolchainWithNightlyRustfmt
-              cargo-udeps
-              pkgs.cargo-outdated
-              pkgs.bacon
-            ];
-          };
-
-          pre-commit = {
-            check.enable = true;
-            settings.hooks.treefmt = {
-              enable = true;
-              package = config.treefmt.build.wrapper;
-              pass_filenames = false;
-            };
-          };
-
-          treefmt = {
-            projectRootFile = "flake.nix";
-            programs = {
-              rustfmt = {
-                enable = true;
-                package = nightlyRustfmt;
-              };
-              taplo.enable = true;
-              nixfmt.enable = true;
-              deadnix.enable = true;
-            };
-          };
+      commonArgs = {
+        pname = "schemars-docgen";
+        inherit version src;
+        cargoExtraArgs = "--locked -p schemars-docgen";
+        # the lock and the root manifest as files of their own: a path inside the filtered source
+        # would put all of it into the context of every derivation, and an edit of any file
+        # would then change the dependencies
+        cargoLock = lockFile;
+        cargoToml = tomlFile;
+        cargoVendorDir = craneLib.vendorCargoDeps {
+          cargoLock = lockFile;
+          inherit (lib') cargoLockParsed;
         };
+        strictDeps = true;
+      };
+
+      # the dummy source is of the manifests alone (nix/lib.nix): the dependencies are the same
+      # derivations for every source file and every stub, and nothing is built at evaluation
+      cargoArtifacts = craneLib.buildDepsOnly (
+        builtins.removeAttrs commonArgs [ "src" ]
+        // {
+          dummySrc = craneLib.mkDummySrc {
+            src = lib'.manifestSource pkgs.lib;
+            cargoLock = lockFile;
+          };
+        }
+      );
+
+      individualCrateArgs = commonArgs // {
+        inherit cargoArtifacts;
+        doCheck = false;
+        doDoc = false;
+      };
+
+      schemars-docgen = craneLib.buildPackage individualCrateArgs;
+    in
+    {
+      inherit
+        craneLib
+        src
+        individualCrateArgs
+        schemars-docgen
+        ;
     };
 }

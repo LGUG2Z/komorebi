@@ -90,6 +90,8 @@ in
         pkgs.cargo-outdated
         # writes the Nix options of the modules from the schemas (`just nixgen-linux`, `just nixgen-macos`)
         config.packages.schemars-nixgen
+        # writes the reference pages of the docs site from the schemas (`just docgen`)
+        config.packages.schemars-docgen
         # `komorebi-recorder frames` and `selftest` extract frames with ffmpeg; it is never used for
         # capture and is not bundled into the packaged binary
         pkgs.ffmpeg-headless

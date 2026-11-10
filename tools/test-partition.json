@@ -37,6 +37,7 @@
   "tool": [
     "komorebi-e2e-agent",
     "komorebi-testwin",
+    "schemars-docgen",
     "schemars-nixgen"
   ],
   "none": [

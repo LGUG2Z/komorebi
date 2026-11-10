@@ -36,6 +36,7 @@
         ./nix/macos/flake-module.nix
         ./nix/recorder/flake-module.nix
         ./nix/nixgen/flake-module.nix
+        ./nix/docgen/flake-module.nix
       ];
     };
 }

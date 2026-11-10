@@ -1,6 +1,6 @@
 # The source of a build of one platform, cut from the one Cargo workspace of this repository.
 #
-#   import ./workspace-src.nix { pkgs; craneLib; repoRoot; platform = "windows" | "linux" | "macos" | "recorder" | "nixgen"; }
+#   import ./workspace-src.nix { pkgs; craneLib; repoRoot; platform = "windows" | "linux" | "macos" | "recorder" | "nixgen" | "docgen"; }
 #
 # Cargo has to load every member of the workspace (the root manifest lists the members of all three
 # platforms), but a build of one platform needs the sources of that platform's crates only. The result:
@@ -17,8 +17,9 @@
 # indexes the log statements of the daemons of all three platforms (komorebi-recorder/build.rs), so it
 # has their sources, whole, and nothing else; the Windows build has the recorder as one of its members.
 #
-# The platform "nixgen" is the source of schemars-nixgen's own builds: the tool and nothing else. It is a
-# stub in every other platform, so that an edit of it changes none of their derivations.
+# The platforms "nixgen" and "docgen" are the sources of schemars-nixgen's and schemars-docgen's own builds:
+# the tool and nothing else. Each is a stub in every other platform, so that an edit of it changes none of
+# their derivations.
 #
 # An edit under one platform therefore changes nothing in the derivations of the others, except where
 # the edit is in a crate they share or in the root manifest, lock or toolchain files.
@@ -61,8 +62,12 @@ let
     "komorebi-shortcuts"
   ];
 
-  # the development tool that writes the Nix options: built by its own checks (nix/nixgen)
-  toolOnly = [ "crates/schemars-nixgen" ];
+  # the development tools: schemars-nixgen writes the Nix options (nix/nixgen) and schemars-docgen the
+  # reference pages of the docs site (nix/docgen); each is built by its own checks
+  toolOnly = [
+    "crates/schemars-nixgen"
+    "crates/schemars-docgen"
+  ];
 
   # the recorder and the crates whose source its build script indexes (komorebi-recorder/build.rs)
   recorderMembers = [
@@ -78,7 +83,8 @@ let
 
   membersOf = {
     recorder = recorderMembers;
-    nixgen = toolOnly;
+    nixgen = [ "crates/schemars-nixgen" ];
+    docgen = [ "crates/schemars-docgen" ];
     # everything but the other two platforms' crates and the tool
     windows = builtins.filter (m: !(builtins.elem m (linuxOnly ++ macosOnly ++ toolOnly))) allMembers;
     linux = linuxOnly ++ linuxShared ++ linuxNeutralTests;
@@ -109,7 +115,13 @@ let
   };
   # the recorder indexes every platform's files
   otherMarkers =
-    if platform == "recorder" || platform == "nixgen" then
+    if
+      builtins.elem platform [
+        "recorder"
+        "nixgen"
+        "docgen"
+      ]
+    then
       [ ]
     else
       builtins.attrValues (removeAttrs markers [ platform ]);
@@ -128,7 +140,7 @@ let
     members
     ++ lib.optional (platform == "windows") "wix"
     ++ (
-      if platform == "nixgen" then
+      if platform == "nixgen" || platform == "docgen" then
         [ ".cargo" ]
       else if platform == "recorder" then
         [
@@ -196,6 +208,8 @@ let
       # the guide and the icon the recorder embeds, and the installer
       recorder = lib.hasPrefix "komorebi-recorder/" rel || lib.hasPrefix "wix/" rel;
       nixgen = false;
+      # the templates the tool embeds (include_str!)
+      docgen = lib.hasPrefix "crates/schemars-docgen/src/templates/" rel;
     }
     .${platform};
 

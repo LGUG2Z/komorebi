@@ -61,6 +61,8 @@ let
     ];
     nixgen-lint = [ "nixgen-clippy" ];
     nixgen-test = [ "nixgen-nextest" ];
+    docgen-lint = [ "docgen-clippy" ];
+    docgen-test = [ "docgen-nextest" ];
     recorder-lint = [ "recorder-clippy" ];
     recorder-test = [ "recorder-nextest" ];
     macos-lint = [ "macos-clippy" ];
@@ -106,6 +108,8 @@ let
     "recorder-test"
     "nixgen-lint"
     "nixgen-test"
+    "docgen-lint"
+    "docgen-test"
   ];
 in
 {
