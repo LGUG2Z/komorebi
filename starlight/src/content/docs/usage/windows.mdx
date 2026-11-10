@@ -1,0 +1,88 @@
+---
+title: Windows
+description: Manipulating windows
+---
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+
+## Focus
+
+Windows can be focused in the following ways.
+
+### Relative Direction
+
+Windows can be focused in a relative direction using the <KomorebicPlatformLink command="focus"/> command.
+
+### Cycle Direction
+
+Windows can be focused in a cyclic direction using the <KomorebicPlatformLink command="cycle-focus" /> command.
+
+### Largest Tile
+
+The window at the largest tile can be focused using the <KomorebicPlatformLink command="promote-focus" /> command.
+
+### Eager focus
+
+It is possible to attempt to focus the first window on any workspace matching an executable name using the <KomorebicPlatformLink command="eager-focus" /> command.
+
+## Movement on a Workspace
+
+Windows can be moved in the following ways.
+
+### Relative Direction
+
+Windows can be moved in a relative direction using the <KomorebicPlatformLink command="move"/> command.
+
+### Cycle Direction
+
+Windows can be moved in a cyclic direction using the <KomorebicPlatformLink command="cycle-move" /> command.
+
+### Largest Tile
+
+Windows can be moved to the largest tile using the <KomorebicPlatformLink command="promote-swap" /> command. This command is reversible.
+
+## Movement Across Workspaces
+
+The commands covering movement of windows across workspaces in komorebi come in two flavors:
+
+- `move` - these commands move the focused window to a target workspace and then focus the target workspace
+- `send` - these commands move the focused window to a target workspace while remaining on the currently focused workspace
+
+### By Workspace Index
+
+The focused window can be moved or sent to a workspace on the focused monitor identified by an index using the <KomorebicPlatformLink command="move-to-workspace"/> and <KomorebicPlatformLink command="send-to-workspace"/> commands respectively.
+
+### Cycle Direction
+
+The focused window can be moved or sent to a workspace on the focused monitor in a cyclic direction using the <KomorebicPlatformLink command="cycle-move-to-workspace"/> and <KomorebicPlatformLink command="cycle-send-to-workspace"/> commands respectively.
+
+### By Monitor and Workspace Index
+
+The focused window can be moved or sent to a workspace on a specific monitor identified by monitor and workspace indicies using the <KomorebicPlatformLink command="move-to-monitor-workspace"/> and <KomorebicPlatformLink command="send-to-monitor-workspace"/> commands respectively.
+
+### By Name
+
+The focused window can be moved or sent to a workspace in a monitor-agnostic manner by name using the <KomorebicPlatformLink command="move-to-named-workspace"/> and <KomorebicPlatformLink command="send-to-named-workspace"/> commands respectively.
+
+### By Last Workspace
+
+The focused window can be moved or sent to a last focused workspace on the focused monitor using the <KomorebicPlatformLink command="move-to-last-workspace"/> and <KomorebicPlatformLink command="send-to-last-workspace"/> commands respectively.
+
+## Movement Across Monitors
+
+### By Monitor Index
+
+The focused window can be moved or sent the focused workspace at a monitor identified by index using the <KomorebicPlatformLink command="move-to-monitor"/> and <KomorebicPlatformLink command="send-to-monitor"/> commands respectively.
+
+### Cycle Direction
+
+The focused window can be moved or sent to the focused workspace of a monitor in a cyclic direction using the <KomorebicPlatformLink command="cycle-move-to-monitor"/> and <KomorebicPlatformLink command="cycle-send-to-monitor"/> commands respectively.

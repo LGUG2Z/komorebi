@@ -1,0 +1,14 @@
+```
+Set the alpha value for unfocused window transparency
+
+Usage: transparency-alpha <ALPHA>
+
+Arguments:
+  <ALPHA>
+          Alpha
+
+Options:
+  -h, --help
+          Print help
+
+```

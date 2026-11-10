@@ -1,0 +1,48 @@
+---
+title: Containers
+description: Manipulating containers
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+
+## Container Stacks
+
+Container stacks can be manipulated in the following ways.
+
+### Stacking
+
+#### Directional Stacking
+
+The focused window can be stacked on top of another window in a relative direction using the <KomorebicPlatformLink command="stack" /> command.
+
+#### Consolidation
+
+All windows on a workspace can be consolidated into a single stack using the <KomorebicPlatformLink command="stack-all" /> command.
+
+### Focus
+
+The focused window at the top of a container stack can be cycled using the <KomorebicPlatformLink command="cycle-stack" /> command.
+
+### Unstacking
+
+#### Single Windows
+
+The focused window at the top of a container stack can be popped into an independent container using the <KomorebicPlatformLink command="unstack" /> command.
+
+#### All Windows
+
+All windows in a stack can be split into independent containers using the <KomorebicPlatformLink command="unstack-all" /> command.
+
+## Monocle Containers
+
+A container can be set as the monocle container, hiding all other containers on the workspace, by using the <KomorebicPlatformLink command="toggle-monocle" /> command. This command is reversible.

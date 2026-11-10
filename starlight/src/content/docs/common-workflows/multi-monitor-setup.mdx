@@ -1,0 +1,189 @@
+---
+title: Multi Monitor Setup
+description: How to setup komorebi for multiple monitors
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+:::note
+This does not apply to swapping between monitors (i.e. a laptop which either uses only an external display or only the internal display), which is not a multi-monitor workflow, but a complete monitor replacement workflow
+
+When completely replacing monitors in this way, you should just use a hotkey to restart komorebi: `komorebic stop; sleep 1; komorebic start`
+:::
+
+
+## Two Static Monitors
+
+To set up komorebi to work with multiple monitors, the first step is to add <KomorebiConfigPlatformLink command="monitors" text="independent configurations" /> for each monitor.
+
+```json
+{
+  "monitors": [
+    // monitor 1 at arary index 0
+    {
+      "workspaces": [
+        {
+          "name": "Monitor 1, Workspace 1",
+          "layout": "BSP"
+        },
+        {
+          "name": "Monitor 1, Workspace 2",
+          "layout": "VerticalStack"
+        },
+        {
+          "name": "Monitor 1, Workspace 3",
+          "layout": "HorizontalStack"
+        }
+      ]
+    },
+    // monitor 2 at array index 1
+    {
+      "workspaces": [
+        {
+          "name": "Monitor 2, Workspace 1",
+          "layout": "BSP"
+        },
+        {
+          "name": "Monitor 2, Workspace 2",
+          "layout": "VerticalStack"
+        },
+        {
+          "name": "Monitor 2, Workspace 3",
+          "layout": "HorizontalStack"
+        }
+      ]
+    }
+  ]
+}
+```
+
+In the above example, two monitors are configured. The first monitor is at array index 0, and the second monitor is at array index 1.
+
+Now if you start komorebi with two monitors connected, the main monitor (as decided by the operating system) will use the configuration at array index 0 and the
+secondary monitor will use the configuration at array index 1.
+
+## Assigning Configurations to Specific Monitors
+
+Let's say there are more monitors, or that you want to make sure a certain configuration is always applied to a certain monitor.
+
+To do this we have to set our <KomorebiConfigPlatformLink command="display_index_preferences" text="display index preferences" />. The information required to do this can be retrieved using the <KomorebicPlatformLink command="monitor-information" /> command.
+
+```jsonc
+// ❯ komorebic monitor-information
+[
+  {
+    "id": 6620935,
+    "name": "DISPLAY1",
+    "device": "BOE0A1C",
+    "device_id": "BOE0A1C-5&a2bea0b&0&UID512",
+    "serial_number_id": "0",
+    "size": {
+      "left": 0,
+      "top": 0,
+      "right": 1920,
+      "bottom": 1080
+    }
+  },
+  {
+    "id": 181932057,
+    "name": "DISPLAY2",
+    "device": "VSC8C31",
+    "device_id": "VSC8C31-5&18560b1f&0&UID4356",
+    "serial_number_id": "UEP174021562",
+    "size": {
+      "left": 0,
+      "top": -1080,
+      "right": 1920,
+      "bottom": 1080
+    }
+  }
+]
+```
+
+In this case the setup is a laptop with a secondary monitor connected.
+
+Once you know which monitor is which, the `serial_number_id` can be mapped to a specific monitor configuration array index.
+
+```json
+{
+  "display_index_preferences": {
+    "0": "0",
+    "1": "UEP174021562"
+  }
+}
+```
+
+In the above example, the monitor configuration at array index `0` will be mapped to the monitor with the serial number `0`, and the monitor configuration at array index `1` will be mapped to the monitor with the serial number `UEP174021562`.
+
+## Multiple Monitors in Different Locations
+
+:::caution
+You can't use the same config on two different monitors; dedicated configs are required for each monitor
+:::
+
+```jsonc
+{
+  "display_index_preferences": {
+    "0": "HOME_MONITOR_1_ID",
+    "1": "HOME_MONITOR_2_ID",
+    "2": "WORK_MONITOR_1_ID",
+    "3": "WORK_MONITOR_2_ID"
+  },
+  "monitors": [
+    // HOME_MONITOR_1
+    {
+      "workspaces": [
+        // ...
+      ]
+    },
+    // HOME_MONITOR_2
+    {
+      "workspaces": [
+        // ...
+      ]
+    },
+    // WORK_MONITOR_1
+    {
+      "workspaces": [
+        // ...
+      ]
+    },
+    // WORK_MONITOR_2
+    {
+      "workspaces": [
+        // ...
+      ]
+    }
+  ]
+}
+```
+
+In the above example, although you will only ever have 2 monitors connected at any one time, the above configurations will still work in both physical locations.
+
+## Recommended Display Settings on Microsoft Windows
+
+In `Settings > System > Display > Multiple Displays`:
+
+- Disable "Remember windows locations on monitor connection"
+- Enable "Minimize windows when a monitor is disconnected"
+
+## Important Workflow Details
+
+* If you are using a laptop connected to one monitor at work and a different one at home, the work monitor and the home monitor are considered different monitors
+* When you disconnect from work, komorebi will keep the work monitor cached
+* You can still use a laptop alone without any monitor and if you need a window that was on the other monitor you can press the taskbar icon or use `alt + tab` to bring it to focus and that window will now be part of the laptop monitor
+* If you then reconnect the work monitor, the cached version will be applied with all its windows (except any window(s) you might have moved to another monitor)
+* If however, instead of reconnecting the work monitor, you connect the home monitor, then the work monitor will still remain cached, and komorebi will load the home monitor from the cache (if it exists)
+* Sometimes when you disconnect/reconnect a monitor the event might be missed by komorebi, meaning that Windows will show you both monitors but komorebi won't know about the existence of one of them
+* If you notice this type of weird behaviour, always run the <KomorebicPlatformLink command="monitor-information" /> command and validate if one of the monitors is missing
+* To fix this you can try disconnecting and reconnecting the monitor again, or restarting komorebi

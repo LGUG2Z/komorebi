@@ -1,0 +1,61 @@
+---
+title: Uninstallation
+description: How to uninstall komorebi
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Before upgrading, ensure that komorebi and the komorebi bar have been stopped.
+
+If you wish to uninstall whkd on Windows or skhd on macOS, ensure they have also
+been stopped.
+
+<Tabs syncKey="package-manager">
+  <TabItem label="Scoop">
+    ```bash title="Uninstall komorebi and whkd"
+    scoop uninstall komorebi whkd
+    ```
+  </TabItem>
+
+  <TabItem label="WinGet">
+    ```bash title="Uninstall komorebi and whkd"
+    winget uninstall LGUG2Z.komorebi
+    winget uninstall LGUG2Z.wkhd
+    ```
+  </TabItem>
+
+  <TabItem label="Homebrew">
+    ```bash title="Uninstall komorebi and skhd"
+    brew uninstall lgug2z/tap/komorebi-for-mac
+    brew uninstall skhd
+    ```
+  </TabItem>
+
+  <TabItem label="Homebrew (nightly)">
+    ```bash title="Uninstall komorebi and skhd"
+    brew uninstall lgug2z/tap/komorebi-for-mac-nightly
+    brew uninstall skhd
+    ```
+  </TabItem>
+</Tabs>
+
+Finally, you can run the following commands to clean up files created by the
+`quickstart` command and any other runtime files:
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+    ```bash title="Clean up runtime files"
+    rm $Env:USERPROFILE/komorebi.json
+    rm $Env:USERPROFILE/applications.json
+    rm $Env:USERPROFILE/.config/whkdrc
+    rm -r -Force $Env:LOCALAPPDATA/komorebi
+    ```
+  </TabItem>
+
+  <TabItem label="macOS">
+    ```bash title="Clean up runtime files"
+    rm -rf ~/.config/komorebi
+    rm -rf "~/Library/Application Support/komorebi"
+    ```
+  </TabItem>
+</Tabs>

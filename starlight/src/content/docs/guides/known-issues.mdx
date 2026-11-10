@@ -1,0 +1,26 @@
+---
+title: Known Issues
+description: A license registration guide for komorebi.
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+If you're interested in working on any of these issues you can drop by the
+[#development](https://discord.gg/mGkn66PHkx) channel on the Discord.
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+    * Resizing with the mouse is janky - This probably needs a whole rewrite but I don't use this feature enough to do it myself
+    * The Scrolling layout is limited to setups with a single monitor - This is to avoid bleeding windows into other monitors. There is a workaround which technically works which involves resizing windows at the edges when they move in and out of the viewport, but Electron sucks and every Electron app gives the black screen of death when resized like this
+  </TabItem>
+
+  <TabItem label="macOS">
+    * The flow for manually adding Accessibility and Screen Recording permissions sucks - I am open to ideas on how to improve this
+    * Fullscreen windows aren't supported and break the state - I don't have any plans or ideas on how to support them smoothly but I'm open to hear yours
+    * Application hiding isn't supported and breaks the state - This will probably never be supported and I suggest disabling the CMD+H hotkey entirely
+    * The hotkey CMD+H is used by macOS to hide the application - I suggest disabling it entirely
+    * Resizing with the mouse is janky - This probably needs a whole rewrite but I don't use this feature enough to do it myself
+    * Resizing windows with animations enabled is a train wreck - I suggest keeping animations disabled if you like to use the mouse to resize and move windows
+    * The Scrolling layout is limited to setups with a single monitor - This is due to the lack of public window hiding API which komorebi works around by stashing windows in hidden corners, which would bleed "hidden" windows into other monitors
+  </TabItem>
+</Tabs>

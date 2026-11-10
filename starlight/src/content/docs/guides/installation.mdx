@@ -1,0 +1,185 @@
+---
+title: Installation
+description: How to install komorebi
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Packages are available install via [Scoop](https://scoop.sh/#/apps?q=komorebi)
+and [WinGet](https://winget.run/pkg/LGUG2Z/komorebi) on Windows, and
+[Homebrew](https://github.com/LGUG2Z/homebrew-tap) and
+[Nix](https://github.com/KomoCorp/komorebi-for-mac) on macOS.
+
+You may also build from source on both platforms.
+
+:::note[komorebi for Mac availability]
+Early access nightly releases of komorebi for Mac are available to [GitHub Sponsors](https://github.com/sponsors/LGUG2Z) on the $10/month tier.
+:::
+
+## Suggested system settings
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+    It is highly recommended that you enable support for long paths in Windows by
+    running the following command in an Administrator Terminal before installing
+    komorebi.
+
+    ```powershell
+    Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+    ```
+
+    It is also highly recommended that you enable the "Turn off all unnecessary
+    animations (when possible)" option in "Control Panel > Ease of Access > Ease of
+    Access Centre / Make the computer easier to see" for the best performance with
+    komorebi.
+  </TabItem>
+
+  <TabItem label="macOS">
+    Go to `System Settings -> Desktop & Dock -> Mission Control -> Displays have
+        separate Spaces` and disable this option if you are using more than one monitor.
+
+    komorebi is scoped to a single macOS space (the one that is active when the
+    process is started), which means that you can still use other Spaces as if
+    komorebi were not running at all. If you are using monitors with the above
+    option enabled, komorebi will only be listening to events from the Space on the
+    monitor which it was launched on.
+
+    Go to `System Settings -> Desktop & Dock -> Mission Control -> Group windows
+        by application` and disable this option if you like to use mission control.
+  </TabItem>
+</Tabs>
+
+## Installation via Package Managers
+
+:::note[Windows $Env:PATH Issues]
+Issues with `komorebi` and related commands not being recognized in the
+terminal ultimately come down to the `$Env:PATH` environment variable not being
+correctly configured by your package manager and **should not** be raised as
+bugs or issues either on the GitHub repository or Discord server.
+:::
+
+<Tabs syncKey="package-manager">
+  <TabItem label="Scoop">
+    ```bash title="Add the extras bucket"
+    scoop bucket add extras
+    ```
+
+    ```bash title="Install komorebi and whkd"
+    scoop install komorebi whkd
+    ```
+  </TabItem>
+
+  <TabItem label="WinGet">
+    ```bash title="Install komorebi and whkd"
+    winget install LGUG2Z.komorebi
+    winget install LGUG2Z.whkd
+    ```
+
+    :::note
+    You must restart your terminal after installing with WinGet.
+    :::
+  </TabItem>
+
+  <TabItem label="Homebrew">
+    ```bash title="Add lgug2z/tap"
+    brew tap lgug2z/tap
+    ```
+
+    ```bash title="Install komorebi and skhd"
+    brew install lgug2z/tap/komorebi-for-mac
+    brew install skhd
+    ```
+  </TabItem>
+
+  <TabItem label="Homebrew (nightly)">
+    ```bash title="Add lgug2z/tap"
+    brew tap lgug2z/tap
+    ```
+
+    ```bash title="Install komorebi and skhd"
+    brew install lgug2z/tap/komorebi-for-mac-nightly
+    brew install skhd
+    ```
+  </TabItem>
+
+  <TabItem label="Nix">
+    Ensure that your system Flake is configured to use your GitHub token so that you
+    can add a private repository as an input.
+
+    ```nix title="flake.nix"
+    {
+      nix = {
+        settings = {
+          access-tokens = [
+            "github.com=YOUR ACCESS TOKEN"
+          ];
+        };
+      };
+    }
+    ```
+
+    Add the repository as an input:
+
+    ```nix title="flake.nix"
+    {
+      inputs.komorebi-for-mac.url = "github:KomoCorp/komorebi-for-mac";
+    }
+    ```
+
+    Add the overlay to your system's nixpkgs configuration:
+
+    ```nix title="flake.nix"
+    {
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ komorebi-for-mac.overlays.default ];
+        # the rest of your pkgs configuration
+      };
+    }
+    ```
+
+    Add `pkgs.komorebi-full` to `environment.systemPackages` (you may also add
+    `pkgs.komorebi`, `pkgs.komorebic` and `pkgs.komorebi-bar` individually)
+
+    ```nix title="flake.nix"
+    {
+      environment.systemPackages = [
+        pkgs.komorebi-full
+      ];
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## Building From Source
+
+Make sure you have installed [`rustup`](https://rustup.rs), a stable Rust
+compiler toolchain, and if compiling on Windows, the Visual Studio [Visual
+Studio prerequisites](https://rust-lang.github.io/rustup/installation/windows-msvc.html).
+
+Clone the git repository, enter the directory, and build the following binaries:
+
+```bash title="Build and install the individual binaries"
+# Windows and macOS
+cargo +stable install --path komorebi --locked
+cargo +stable install --path komorebic --locked
+cargo +stable install --path komorebi-bar --locked
+
+# Windows only
+cargo +stable install --path komorebi-shortcuts --locked
+cargo +stable install --path komorebic-no-console --locked
+cargo +stable install --path komorebi-gui --locked
+```
+
+The binaries will be installed to `$HOME/.cargo/bin`. It is your responsibility
+to ensure this directory is in your `$PATH`.
+
+You can follow similar instructions to build
+[`whkd`](https://github.com/LGUG2Z/whkd) from source on Windows.
+
+## Offline Installation
+
+Windows users can download the latest
+[komorebi](https://github.com/LGUG2Z/komorebi/releases) and
+[whkd](https://github.com/LGUG2Z/whkd/releases) MSI installers on an
+internet-connected computer, then copy them to an offline machine to install.

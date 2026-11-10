@@ -1,0 +1,169 @@
+---
+title: Rules
+description: Understanding komorebi's rules system
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+komorebi has a flexible rules system which aims to allow users to handle any
+problematic applications they encounter via configuration rather than requiring
+upstream code changes.
+
+## Matching Rules
+
+Applications or windows are identified using either simple or composite <KomorebiConfigPlatformLink command="matchingrule" text="matching rules" />.
+
+Simple matching rules use a <KomorebiConfigPlatformLink command="matchingstrategy" text="matching strategy" /> against a user-provided identifier targeting an <KomorebiConfigPlatformLink command="applicationidentifier" text="application identifier" />.
+
+<Tabs>
+    <TabItem label="Match on executable">
+    ```json
+    {
+        "kind": "Exe",
+        "id": "Discord",
+        "matching_strategy": "Equals"
+    }
+    ```
+    </TabItem>
+    <TabItem label="Match on title">
+    ```json
+    {
+        "kind": "Title",
+        "id": "Cloudflare Dashboard",
+        "matching_strategy": "Contains"
+    }
+    ```
+    </TabItem>
+    <TabItem label="Match on class">
+    ```json
+    {
+        "kind": "Class",
+        "id": "Ableton Live Window Class",
+        "matching_strategy": "Equals"
+    }
+    ```
+    </TabItem>
+</Tabs>
+
+Composite matching rules consist of multiple simple matching rules which must all evaluate to true to identify an application or window.
+
+```json
+[
+  {
+    "kind": "Exe",
+    "id": "zen.exe",
+    "matching_strategy": "Equals"
+  },
+  {
+    "kind": "Title",
+    "id": "Cloudflare Dashboard",
+    "matching_strategy": "Contains"
+  }
+]
+```
+
+## Workspace Rules
+
+<KomorebiConfigPlatformLink command="workspaceconfig-workspace_rules" text="Workspace rules" /> and <KomorebiConfigPlatformLink command="workspaceconfig-initial_workspace_rules" text="initial workspace rules" /> a are used to identify applications or windows which should be put on a specific workspace.
+
+```json
+{
+  "monitors": [
+    {
+      "workspaces": [
+        {
+          "name": "Chat",
+          "layout": "Columns",
+          "workspace_rules": [
+            {
+              "kind": "Exe",
+              "id": "Discord",
+              "matching_strategy": "Equals"
+            }
+          ],
+          "initial_workspace_rules": [
+            {
+              "kind": "Exe",
+              "id": "Slack",
+              "matching_strategy": "Equals"
+            }
+          ]
+        },
+      ]
+    }
+  ]
+}
+```
+
+Workspace rules will apply all the time, effectively making it impossible to move the identified application or window to another workspace.
+
+Initial workspace rules will only apply once when the identified application or window is first created, allowing it to be moved to another workspace later.
+
+Workspace rules (including initial workspace rules) can be enforced in realtime using the <KomorebicPlatformLink command="enforce-workspace-rules"/> command.
+
+
+## Application Handling Rules
+
+### Ignore Rules
+
+<KomorebiConfigPlatformLink command="ignore_rules" text="Ignore rules" /> are used to identify applications or windows which should be completely ignored by komorebi. Ignored applications cannot be targeted by any `komorebic` commands.
+
+### Floating Applications
+
+<KomorebiConfigPlatformLink command="floating_applications" text="Floating application rules" /> are used to identify applications or windows which should be put on the [floating layer](./usage/layers).
+
+### Manage Rules
+
+<KomorebiConfigPlatformLink command="manage_rules" text="Manage rules" /> are used to identify applications or windows which should be forcibly managed. This is typically a nuclear option for extremely uncooperative applications.
+
+### Tray and Multi-Window Applications
+:::note[Windows]
+These rules are only applicable to komorebi for Windows
+:::
+
+<KomorebiConfigPlatformLink command="tray_and_multi_window_applications" text="Tray and multi-window application rules" /> are used to identify multi-window applications and applications which minmize to the system tray.
+
+### Slow Application Identifier Rules
+:::note[Windows]
+These rules are only applicable to komorebi for Windows
+:::
+
+<KomorebiConfigPlatformLink command="slow_application_identifiers" text="Slow application identifier rules" /> are used to identify applications which are slow to send initial event notifications.
+
+### Layered Applications
+:::note[Windows]
+These rules are only applicable to komorebi for Windows
+:::
+
+<KomorebiConfigPlatformLink command="layered_applications" text="Layered application rules" /> are used to identify applications have the `WS_EX_LAYERED` extended window style, but should still be managed.
+
+### Object Name Change Applications
+:::note[Windows]
+These rules are only applicable to komorebi for Windows
+:::
+
+<KomorebiConfigPlatformLink command="object_name_change_applications" text="Object name change application rules" /> are used to identify applications which send `EVENT_OBJECT_NAMECHANGE` on launch. This is very rare, but includes popular applications such as Firefox (and derivatives), as well as JetBrains IDEs.
+
+### Tabbed Applications
+:::note[macOS]
+These rules are only applicable to komorebi for Mac
+:::
+
+<KomorebiConfigPlatformLink command="tabbed_applications" text="Tabbed application rules" /> are used to identify applications which use native macOS tabs (Finder, Ghostty etc.) - these are identified using their application name.
+
+### Titleless Applications
+:::note[macOS]
+These rules are only applicable to komorebi for Mac
+:::
+
+<KomorebiConfigPlatformLink command="titleless_applications" text="Titleless application rules" /> are used to identify applications which launch without a title - these are identified using their application name.

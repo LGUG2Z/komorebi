@@ -1,0 +1,19 @@
+---
+title: Multiple Bar Instances
+description: How to launch multiple instances of komorebi-bar
+---
+
+If you would like to run multiple instances of `komorebi-bar` to target different monitors, it is possible to do so by maintaining multiple `komorebi.bar.json` configuration files and specifying their paths in your configuration file.
+
+You may also use or `$KOMOREBI_CONFIG_HOME` when specifying the paths.
+
+```json
+{
+  "bar_configurations": [
+    "$KOMOREBI_CONFIG_HOME/komorebi.bar.monitor1.json",
+    "$KOMOREBI_CONFIG_HOME/komorebi.bar.monitor2.json"
+  ]
+}
+```
+
+The main difference between different `komorebi.bar.json` files will be the value of `monitor.index` which is used to target the monitor for each instance of `komorebi-bar`.

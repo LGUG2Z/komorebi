@@ -1,0 +1,23 @@
+---
+title: Ghost Tiles
+description: How to handle ghost tiles
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+
+Sometimes you may experience an application which leaves "ghost tiles" on a workspace, where there is space reserved for a window but no window visible.
+
+You will should add [ignore rules](/usage/rules/#ignore-rules) for these windows or applications using information from the <KomorebicPlatformLink command="visible-windows"/> command.
+
+If you think that the rule you create should be a default rule for everybody, please make a contribution to the [komorebi-application-specific-configuration](https://github.com/LGUG2Z/komorebi-application-specific-configuration) repository.

@@ -1,0 +1,8917 @@
+---
+title: "komorebi.json (macOS)"
+description: "komorebi for Mac configuration schema reference"
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## Configuration
+
+
+
+### animation {#animation}
+
+<Badge text="optional" variant="note" /> [`AnimationsConfig`](#animationsconfig)
+
+Animations configuration options
+
+
+
+---
+### app_specific_configuration_path {#app_specific_configuration_path}
+
+<Badge text="optional" variant="note" /> [`AppSpecificConfigurationPath`](#appspecificconfigurationpath)
+
+Path to applications.json from komorebi-application-specific-configurations
+
+
+
+---
+### border {#border}
+
+<Badge text="optional" variant="note" /> `boolean`
+
+Display window borders
+
+
+
+**Default:** `true`
+
+
+---
+### border_colours {#border_colours}
+
+<Badge text="optional" variant="note" /> [`BorderColours`](#bordercolours)
+
+Window border colours for different container types (has no effect if a theme is defined)
+
+
+
+---
+### border_offset {#border_offset}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Offset of window borders
+
+
+
+- **Format:** `int32`
+
+
+---
+### border_radius {#border_radius}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Radius of window borders
+
+
+
+- **Format:** `int32`
+
+
+**Default:** `10`
+
+
+---
+### border_width {#border_width}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Width of window borders
+
+
+
+- **Format:** `int32`
+
+
+**Default:** `10`
+
+
+---
+### cross_boundary_behaviour {#cross_boundary_behaviour}
+
+<Badge text="optional" variant="note" /> [`CrossBoundaryBehaviour`](#crossboundarybehaviour)
+
+Determine what happens when an action is called on a window at a monitor boundary
+
+
+
+**Default:** [`"Monitor"`](#crossboundarybehaviour)
+
+
+---
+### cross_monitor_move_behaviour {#cross_monitor_move_behaviour}
+
+<Badge text="optional" variant="note" /> [`MoveBehaviour`](#movebehaviour)
+
+Determine what happens when a window is moved across a monitor boundary
+
+
+
+**Default:** [`"Swap"`](#movebehaviour)
+
+
+---
+### default_container_padding {#default_container_padding}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Global default container padding
+
+
+
+- **Format:** `int32`
+
+
+**Default:** `5`
+
+
+---
+### default_workspace_padding {#default_workspace_padding}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Global default workspace padding
+
+
+
+- **Format:** `int32`
+
+
+**Default:** `5`
+
+
+---
+### display_index_preferences {#display_index_preferences}
+
+<Badge text="optional" variant="note" /> `object`
+
+Set display index preferences
+
+
+
+
+**Key:** `"<integer>"` **→** `string`
+
+
+
+
+
+---
+### float_override {#float_override}
+
+<Badge text="optional" variant="note" /> `boolean`
+
+Enable or disable float override, which makes it so every new window opens in floating mode
+
+
+
+---
+### float_override_placement {#float_override_placement}
+
+<Badge text="optional" variant="note" /> [`Placement`](#placement)
+
+Determines the `Placement` to be used when spawning a window with float override active
+
+
+
+---
+### float_rule_placement {#float_rule_placement}
+
+<Badge text="optional" variant="note" /> [`Placement`](#placement)
+
+Determines the `Placement` to be used when spawning a window that matches a
+'floating_applications' rule
+
+
+
+---
+### floating_applications {#floating_applications}
+
+<Badge text="optional" variant="note" /> `array` [`MatchingRule`](#matchingrule)
+
+Identify applications which should be managed as floating windows
+
+
+
+---
+### floating_layer_behaviour {#floating_layer_behaviour}
+
+<Badge text="optional" variant="note" /> [`FloatingLayerBehaviour`](#floatinglayerbehaviour)
+
+Determines what happens on a new window when on the `FloatingLayer`
+
+
+
+**Default:** [`"Tile"`](#floatinglayerbehaviour)
+
+
+---
+### floating_layer_placement {#floating_layer_placement}
+
+<Badge text="optional" variant="note" /> [`Placement`](#placement)
+
+Determines the `Placement` to be used when spawning a window on the floating layer with the
+`FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float`
+
+
+
+**Default:** [`"Center"`](#placement)
+
+
+---
+### floating_window_aspect_ratio {#floating_window_aspect_ratio}
+
+<Badge text="optional" variant="note" /> [`AspectRatio`](#aspectratio)
+
+Identify applications which are slow to send initial event notifications
+Aspect ratio to resize with when toggling floating mode for a window
+
+
+
+---
+### global_work_area_offset {#global_work_area_offset}
+
+<Badge text="optional" variant="note" /> [`Rect`](#rect)
+
+Global work area (space used for tiling) offset
+
+
+
+---
+### ignore_rules {#ignore_rules}
+
+<Badge text="optional" variant="note" /> `array` [`MatchingRule`](#matchingrule)
+
+Individual window floating rules
+
+
+
+---
+### layout_defaults {#layout_defaults}
+
+<Badge text="optional" variant="note" /> `object`
+
+Per-layout default options and rules, keyed by layout name.
+Applied as fallback when a workspace does not define its own layout_options or layout_options_rules.
+If a workspace defines either setting, all global defaults for that layout are completely replaced.
+
+<details open>
+<summary>Additional Properties</summary>
+
+[`LayoutDefaultEntry`](#layoutdefaultentry)
+
+
+
+</details>
+
+---
+### manage_rules {#manage_rules}
+
+<Badge text="optional" variant="note" /> `array` [`MatchingRule`](#matchingrule)
+
+Individual window force-manage rules
+
+
+
+---
+### monitors {#monitors}
+
+<Badge text="optional" variant="note" /> `array` [`MonitorConfig`](#monitorconfig)
+
+Monitor and workspace configurations
+
+
+
+---
+### mouse_follows_focus {#mouse_follows_focus}
+
+<Badge text="optional" variant="note" /> `boolean`
+
+Enable or disable mouse follows focus
+
+
+
+**Default:** `true`
+
+
+---
+### resize_delta {#resize_delta}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Delta to resize windows by
+
+
+
+- **Format:** `int32`
+
+
+**Default:** `50`
+
+
+---
+### tabbed_applications {#tabbed_applications}
+
+<Badge text="optional" variant="note" /> `array` `string`
+
+Identify applications which use native tabs for special handling
+
+
+
+---
+### theme {#theme}
+
+<Badge text="optional" variant="note" /> [`KomorebiTheme`](#komorebitheme)
+
+Theme configuration options
+
+If a theme is specified, `border_colours` will have no effect
+
+
+
+---
+### titleless_applications {#titleless_applications}
+
+<Badge text="optional" variant="note" /> `array` `string`
+
+Identify applications which should be managed despite not reporting titles to the system
+
+
+
+---
+### toggle_float_placement {#toggle_float_placement}
+
+<Badge text="optional" variant="note" /> [`Placement`](#placement)
+
+Determines the placement of a new window when toggling to float
+
+
+
+**Default:** [`"CenterAndResize"`](#placement)
+
+
+---
+### unmanaged_window_operation_behaviour {#unmanaged_window_operation_behaviour}
+
+<Badge text="optional" variant="note" /> [`OperationBehaviour`](#operationbehaviour)
+
+Determine what happens when commands are sent while an unmanaged window is in the foreground
+
+
+
+**Default:** [`"Op"`](#operationbehaviour)
+
+
+---
+### window_container_behaviour {#window_container_behaviour}
+
+<Badge text="optional" variant="note" /> [`WindowContainerBehaviour`](#windowcontainerbehaviour)
+
+Determine what happens when a new window is opened
+
+
+
+**Default:** [`"Create"`](#windowcontainerbehaviour)
+
+
+---
+
+
+
+## Type Definitions
+
+### AnimationStyle {#animationstyle}
+
+Mathematical function which describes the rate at which a value changes
+
+
+
+
+<details open>
+<summary>Enum variants (32)</summary>
+
+
+---
+
+#### Linear
+
+
+Linear
+
+
+
+
+**Value:** `"Linear"`
+
+
+
+
+---
+
+#### EaseInSine
+
+
+Ease in sine
+
+
+
+
+**Value:** `"EaseInSine"`
+
+
+
+
+---
+
+#### EaseOutSine
+
+
+Ease out sine
+
+
+
+
+**Value:** `"EaseOutSine"`
+
+
+
+
+---
+
+#### EaseInOutSine
+
+
+Ease in out sine
+
+
+
+
+**Value:** `"EaseInOutSine"`
+
+
+
+
+---
+
+#### EaseInQuad
+
+
+Ease in quad
+
+
+
+
+**Value:** `"EaseInQuad"`
+
+
+
+
+---
+
+#### EaseOutQuad
+
+
+Ease out quad
+
+
+
+
+**Value:** `"EaseOutQuad"`
+
+
+
+
+---
+
+#### EaseInOutQuad
+
+
+Ease in out quad
+
+
+
+
+**Value:** `"EaseInOutQuad"`
+
+
+
+
+---
+
+#### EaseInCubic
+
+
+Ease in cubic
+
+
+
+
+**Value:** `"EaseInCubic"`
+
+
+
+
+---
+
+#### EaseOutCubic
+
+
+Ease out cubic
+
+
+
+
+**Value:** `"EaseOutCubic"`
+
+
+
+
+---
+
+#### EaseInOutCubic
+
+
+Ease in out cubic
+
+
+
+
+**Value:** `"EaseInOutCubic"`
+
+
+
+
+---
+
+#### EaseInQuart
+
+
+Ease in quart
+
+
+
+
+**Value:** `"EaseInQuart"`
+
+
+
+
+---
+
+#### EaseOutQuart
+
+
+Ease out quart
+
+
+
+
+**Value:** `"EaseOutQuart"`
+
+
+
+
+---
+
+#### EaseInOutQuart
+
+
+Ease in out quart
+
+
+
+
+**Value:** `"EaseInOutQuart"`
+
+
+
+
+---
+
+#### EaseInQuint
+
+
+Ease in quint
+
+
+
+
+**Value:** `"EaseInQuint"`
+
+
+
+
+---
+
+#### EaseOutQuint
+
+
+Ease out quint
+
+
+
+
+**Value:** `"EaseOutQuint"`
+
+
+
+
+---
+
+#### EaseInOutQuint
+
+
+Ease in out quint
+
+
+
+
+**Value:** `"EaseInOutQuint"`
+
+
+
+
+---
+
+#### EaseInExpo
+
+
+Ease in expo
+
+
+
+
+**Value:** `"EaseInExpo"`
+
+
+
+
+---
+
+#### EaseOutExpo
+
+
+Ease out expo
+
+
+
+
+**Value:** `"EaseOutExpo"`
+
+
+
+
+---
+
+#### EaseInOutExpo
+
+
+Ease in out expo
+
+
+
+
+**Value:** `"EaseInOutExpo"`
+
+
+
+
+---
+
+#### EaseInCirc
+
+
+Ease in circ
+
+
+
+
+**Value:** `"EaseInCirc"`
+
+
+
+
+---
+
+#### EaseOutCirc
+
+
+Ease out circ
+
+
+
+
+**Value:** `"EaseOutCirc"`
+
+
+
+
+---
+
+#### EaseInOutCirc
+
+
+Ease in out circ
+
+
+
+
+**Value:** `"EaseInOutCirc"`
+
+
+
+
+---
+
+#### EaseInBack
+
+
+Ease in back
+
+
+
+
+**Value:** `"EaseInBack"`
+
+
+
+
+---
+
+#### EaseOutBack
+
+
+Ease out back
+
+
+
+
+**Value:** `"EaseOutBack"`
+
+
+
+
+---
+
+#### EaseInOutBack
+
+
+Ease in out back
+
+
+
+
+**Value:** `"EaseInOutBack"`
+
+
+
+
+---
+
+#### EaseInElastic
+
+
+Ease in elastic
+
+
+
+
+**Value:** `"EaseInElastic"`
+
+
+
+
+---
+
+#### EaseOutElastic
+
+
+Ease out elastic
+
+
+
+
+**Value:** `"EaseOutElastic"`
+
+
+
+
+---
+
+#### EaseInOutElastic
+
+
+Ease in out elastic
+
+
+
+
+**Value:** `"EaseInOutElastic"`
+
+
+
+
+---
+
+#### EaseInBounce
+
+
+Ease in bounce
+
+
+
+
+**Value:** `"EaseInBounce"`
+
+
+
+
+---
+
+#### EaseOutBounce
+
+
+Ease out bounce
+
+
+
+
+**Value:** `"EaseOutBounce"`
+
+
+
+
+---
+
+#### EaseInOutBounce
+
+
+Ease in out bounce
+
+
+
+
+**Value:** `"EaseInOutBounce"`
+
+
+
+
+---
+
+#### CubicBezier
+
+
+Custom Cubic Bézier function
+
+
+
+
+
+
+
+**Value:** `CubicBezier` → `array` `[double; 4]`
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.animation.style`](#peranimationprefixconfig3)
+
+
+**Referenced by:**
+- [`PerAnimationPrefixConfig`](#peranimationprefixconfig3)
+
+
+
+---
+
+
+### AnimationsConfig {#animationsconfig}
+
+Animation configuration
+
+
+<details open>
+<summary>Properties (4)</summary>
+
+
+#### enabled {#animationsconfig-enabled}
+
+<Badge text="required" variant="success" /> [`PerAnimationPrefixConfig`](#peranimationprefixconfig) `boolean`
+
+Enable or disable animations
+
+
+
+#### duration {#animationsconfig-duration}
+
+<Badge text="optional" variant="note" /> [`PerAnimationPrefixConfig`](#peranimationprefixconfig2) `integer`
+
+Set the animation duration in ms
+
+
+
+**Default:** [`250`](#peranimationprefixconfig2)
+
+#### fps {#animationsconfig-fps}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Set the animation FPS
+
+
+
+- **Format:** `uint64`
+- **Minimum:** 0
+
+
+**Default:** `60`
+
+#### style {#animationsconfig-style}
+
+<Badge text="optional" variant="note" /> [`PerAnimationPrefixConfig`](#peranimationprefixconfig3) [`AnimationStyle`](#animationstyle)
+
+Set the animation style
+
+
+
+**Default:** [`"Linear"`](#peranimationprefixconfig3)
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.animation`](#animation)
+
+
+
+
+---
+
+
+### AppSpecificConfigurationPath {#appspecificconfigurationpath}
+
+Path(s) to application-specific configuration file(s)
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### PathBuf
+
+
+A single applications.json file
+
+
+
+
+
+**Value:** [`PathBuf`](#pathbuf)
+
+
+
+
+---
+
+#### PathBuf Array
+
+
+Multiple applications.json files
+
+
+
+
+
+**Value:** `array` [`PathBuf`](#pathbuf)
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.app_specific_configuration_path`](#app_specific_configuration_path)
+
+
+
+
+---
+
+
+### ApplicationIdentifier {#applicationidentifier}
+
+Application identifier
+
+
+
+
+<details open>
+<summary>Enum variants (4)</summary>
+
+
+---
+
+#### Exe
+
+
+Executable name
+
+
+
+
+**Value:** `"Exe"`
+
+
+
+
+---
+
+#### Class
+
+
+Role or subrole
+
+
+
+
+**Value:** `"Class"`
+
+
+
+
+---
+
+#### Title
+
+
+Window title
+
+
+
+
+**Value:** `"Title"`
+
+
+
+
+---
+
+#### Path
+
+
+Executable path
+
+
+
+
+**Value:** `"Path"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.floating_applications[].kind`](#idwithidentifier-kind)
+- [`.floating_applications[][].kind`](#idwithidentifier-kind)
+- [`.ignore_rules[].kind`](#idwithidentifier-kind)
+- [`.ignore_rules[][].kind`](#idwithidentifier-kind)
+- [`.manage_rules[].kind`](#idwithidentifier-kind)
+- [`.manage_rules[][].kind`](#idwithidentifier-kind)
+- [`.monitors[].workspaces[].initial_workspace_rules[].kind`](#idwithidentifier-kind)
+- [`.monitors[].workspaces[].initial_workspace_rules[][].kind`](#idwithidentifier-kind)
+- [`.monitors[].workspaces[].workspace_rules[].kind`](#idwithidentifier-kind)
+- [`.monitors[].workspaces[].workspace_rules[][].kind`](#idwithidentifier-kind)
+
+
+**Referenced by:**
+- [`IdWithIdentifier`](#idwithidentifier)
+
+
+
+---
+
+
+### AspectRatio {#aspectratio}
+
+Aspect ratio for temporarily floating windows
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### Predefined
+
+
+A predefined aspect ratio
+
+
+
+
+
+**Value:** [`PredefinedAspectRatio`](#predefinedaspectratio)
+
+
+
+
+---
+
+#### Custom
+
+
+A custom W:H aspect ratio
+
+
+
+
+
+**Value:** `array` `[int32; 2]`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.floating_window_aspect_ratio`](#floating_window_aspect_ratio)
+
+
+
+
+---
+
+
+### Axis {#axis}
+
+Axis on which to perform an operation
+
+
+
+
+<details open>
+<summary>Enum variants (3)</summary>
+
+
+---
+
+#### Horizontal
+
+
+Horizontal axis
+
+
+
+
+**Value:** `"Horizontal"`
+
+
+
+
+---
+
+#### Vertical
+
+
+Vertical axis
+
+
+
+
+**Value:** `"Vertical"`
+
+
+
+
+---
+
+#### HorizontalAndVertical
+
+
+Both horizontal and vertical axes
+
+
+
+
+**Value:** `"HorizontalAndVertical"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].workspaces[].layout_flip`](#workspaceconfig-layout_flip)
+
+
+**Referenced by:**
+- [`WorkspaceConfig`](#workspaceconfig)
+
+
+
+---
+
+
+### Base16 {#base16}
+
+Base 16 colour palette
+
+
+
+
+<details open>
+<summary>Enum variants (269)</summary>
+
+
+---
+
+#### 3024
+
+
+3024 (https://tinted-theming.github.io/tinted-gallery/#base16-3024)
+
+
+
+
+**Value:** `"3024"`
+
+
+
+
+---
+
+#### Apathy
+
+
+Apathy (https://tinted-theming.github.io/tinted-gallery/#base16-apathy)
+
+
+
+
+**Value:** `"Apathy"`
+
+
+
+
+---
+
+#### Apprentice
+
+
+Apprentice (https://tinted-theming.github.io/tinted-gallery/#base16-apprentice)
+
+
+
+
+**Value:** `"Apprentice"`
+
+
+
+
+---
+
+#### Ashes
+
+
+Ashes (https://tinted-theming.github.io/tinted-gallery/#base16-ashes)
+
+
+
+
+**Value:** `"Ashes"`
+
+
+
+
+---
+
+#### AtelierCaveLight
+
+
+Atelier Cave Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-cave-light)
+
+
+
+
+**Value:** `"AtelierCaveLight"`
+
+
+
+
+---
+
+#### AtelierCave
+
+
+Atelier Cave (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-cave)
+
+
+
+
+**Value:** `"AtelierCave"`
+
+
+
+
+---
+
+#### AtelierDuneLight
+
+
+Atelier Dune Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-dune-light)
+
+
+
+
+**Value:** `"AtelierDuneLight"`
+
+
+
+
+---
+
+#### AtelierDune
+
+
+Atelier Dune (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-dune)
+
+
+
+
+**Value:** `"AtelierDune"`
+
+
+
+
+---
+
+#### AtelierEstuaryLight
+
+
+Atelier Estuary Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-estuary-light)
+
+
+
+
+**Value:** `"AtelierEstuaryLight"`
+
+
+
+
+---
+
+#### AtelierEstuary
+
+
+Atelier Estuary (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-estuary)
+
+
+
+
+**Value:** `"AtelierEstuary"`
+
+
+
+
+---
+
+#### AtelierForestLight
+
+
+Atelier Forest Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-forest-light)
+
+
+
+
+**Value:** `"AtelierForestLight"`
+
+
+
+
+---
+
+#### AtelierForest
+
+
+Atelier Forest (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-forest)
+
+
+
+
+**Value:** `"AtelierForest"`
+
+
+
+
+---
+
+#### AtelierHeathLight
+
+
+Atelier Heath Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-heath-light)
+
+
+
+
+**Value:** `"AtelierHeathLight"`
+
+
+
+
+---
+
+#### AtelierHeath
+
+
+Atelier Heath (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-heath)
+
+
+
+
+**Value:** `"AtelierHeath"`
+
+
+
+
+---
+
+#### AtelierLakesideLight
+
+
+Atelier Lakeside Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-lakeside-light)
+
+
+
+
+**Value:** `"AtelierLakesideLight"`
+
+
+
+
+---
+
+#### AtelierLakeside
+
+
+Atelier Lakeside (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-lakeside)
+
+
+
+
+**Value:** `"AtelierLakeside"`
+
+
+
+
+---
+
+#### AtelierPlateauLight
+
+
+Atelier Plateau Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-plateau-light)
+
+
+
+
+**Value:** `"AtelierPlateauLight"`
+
+
+
+
+---
+
+#### AtelierPlateau
+
+
+Atelier Plateau (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-plateau)
+
+
+
+
+**Value:** `"AtelierPlateau"`
+
+
+
+
+---
+
+#### AtelierSavannaLight
+
+
+Atelier Savanna Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-savanna-light)
+
+
+
+
+**Value:** `"AtelierSavannaLight"`
+
+
+
+
+---
+
+#### AtelierSavanna
+
+
+Atelier Savanna (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-savanna)
+
+
+
+
+**Value:** `"AtelierSavanna"`
+
+
+
+
+---
+
+#### AtelierSeasideLight
+
+
+Atelier Seaside Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-seaside-light)
+
+
+
+
+**Value:** `"AtelierSeasideLight"`
+
+
+
+
+---
+
+#### AtelierSeaside
+
+
+Atelier Seaside (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-seaside)
+
+
+
+
+**Value:** `"AtelierSeaside"`
+
+
+
+
+---
+
+#### AtelierSulphurpoolLight
+
+
+Atelier Sulphurpool Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-sulphurpool-light)
+
+
+
+
+**Value:** `"AtelierSulphurpoolLight"`
+
+
+
+
+---
+
+#### AtelierSulphurpool
+
+
+Atelier Sulphurpool (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-sulphurpool)
+
+
+
+
+**Value:** `"AtelierSulphurpool"`
+
+
+
+
+---
+
+#### Atlas
+
+
+Atlas (https://tinted-theming.github.io/tinted-gallery/#base16-atlas)
+
+
+
+
+**Value:** `"Atlas"`
+
+
+
+
+---
+
+#### AyuDark
+
+
+Ayu Dark (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-dark)
+
+
+
+
+**Value:** `"AyuDark"`
+
+
+
+
+---
+
+#### AyuLight
+
+
+Ayu Light (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-light)
+
+
+
+
+**Value:** `"AyuLight"`
+
+
+
+
+---
+
+#### AyuMirage
+
+
+Ayu Mirage (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-mirage)
+
+
+
+
+**Value:** `"AyuMirage"`
+
+
+
+
+---
+
+#### Aztec
+
+
+Aztec (https://tinted-theming.github.io/tinted-gallery/#base16-aztec)
+
+
+
+
+**Value:** `"Aztec"`
+
+
+
+
+---
+
+#### Bespin
+
+
+Bespin (https://tinted-theming.github.io/tinted-gallery/#base16-bespin)
+
+
+
+
+**Value:** `"Bespin"`
+
+
+
+
+---
+
+#### BlackMetalBathory
+
+
+Black Metal Bathory (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-bathory)
+
+
+
+
+**Value:** `"BlackMetalBathory"`
+
+
+
+
+---
+
+#### BlackMetalBurzum
+
+
+Black Metal Burzum (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-burzum)
+
+
+
+
+**Value:** `"BlackMetalBurzum"`
+
+
+
+
+---
+
+#### BlackMetalDarkFuneral
+
+
+Black Metal Dark Funeral (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-dark-funeral)
+
+
+
+
+**Value:** `"BlackMetalDarkFuneral"`
+
+
+
+
+---
+
+#### BlackMetalGorgoroth
+
+
+Black Metal Gorgoroth (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-gorgoroth)
+
+
+
+
+**Value:** `"BlackMetalGorgoroth"`
+
+
+
+
+---
+
+#### BlackMetalImmortal
+
+
+Black Metal Immortal (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-immortal)
+
+
+
+
+**Value:** `"BlackMetalImmortal"`
+
+
+
+
+---
+
+#### BlackMetalKhold
+
+
+Black Metal Khold (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-khold)
+
+
+
+
+**Value:** `"BlackMetalKhold"`
+
+
+
+
+---
+
+#### BlackMetalMarduk
+
+
+Black Metal Marduk (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-marduk)
+
+
+
+
+**Value:** `"BlackMetalMarduk"`
+
+
+
+
+---
+
+#### BlackMetalMayhem
+
+
+Black Metal Mayhem (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-mayhem)
+
+
+
+
+**Value:** `"BlackMetalMayhem"`
+
+
+
+
+---
+
+#### BlackMetalNile
+
+
+Black Metal Nile (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-nile)
+
+
+
+
+**Value:** `"BlackMetalNile"`
+
+
+
+
+---
+
+#### BlackMetalVenom
+
+
+Black Metal Venom (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-venom)
+
+
+
+
+**Value:** `"BlackMetalVenom"`
+
+
+
+
+---
+
+#### BlackMetal
+
+
+Black Metal (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal)
+
+
+
+
+**Value:** `"BlackMetal"`
+
+
+
+
+---
+
+#### Blueforest
+
+
+Blueforest (https://tinted-theming.github.io/tinted-gallery/#base16-blueforest)
+
+
+
+
+**Value:** `"Blueforest"`
+
+
+
+
+---
+
+#### Blueish
+
+
+Blueish (https://tinted-theming.github.io/tinted-gallery/#base16-blueish)
+
+
+
+
+**Value:** `"Blueish"`
+
+
+
+
+---
+
+#### Brewer
+
+
+Brewer (https://tinted-theming.github.io/tinted-gallery/#base16-brewer)
+
+
+
+
+**Value:** `"Brewer"`
+
+
+
+
+---
+
+#### Bright
+
+
+Bright (https://tinted-theming.github.io/tinted-gallery/#base16-bright)
+
+
+
+
+**Value:** `"Bright"`
+
+
+
+
+---
+
+#### Brogrammer
+
+
+Brogrammer (https://tinted-theming.github.io/tinted-gallery/#base16-brogrammer)
+
+
+
+
+**Value:** `"Brogrammer"`
+
+
+
+
+---
+
+#### BrushtreesDark
+
+
+Brushtrees Dark (https://tinted-theming.github.io/tinted-gallery/#base16-brushtrees-dark)
+
+
+
+
+**Value:** `"BrushtreesDark"`
+
+
+
+
+---
+
+#### Brushtrees
+
+
+Brushtrees (https://tinted-theming.github.io/tinted-gallery/#base16-brushtrees)
+
+
+
+
+**Value:** `"Brushtrees"`
+
+
+
+
+---
+
+#### Caroline
+
+
+Caroline (https://tinted-theming.github.io/tinted-gallery/#base16-caroline)
+
+
+
+
+**Value:** `"Caroline"`
+
+
+
+
+---
+
+#### CatppuccinFrappe
+
+
+Catppuccin Frappe (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-frappe)
+
+
+
+
+**Value:** `"CatppuccinFrappe"`
+
+
+
+
+---
+
+#### CatppuccinLatte
+
+
+Catppuccin Latte (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-latte)
+
+
+
+
+**Value:** `"CatppuccinLatte"`
+
+
+
+
+---
+
+#### CatppuccinMacchiato
+
+
+Catppuccin Macchiato (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-macchiato)
+
+
+
+
+**Value:** `"CatppuccinMacchiato"`
+
+
+
+
+---
+
+#### CatppuccinMocha
+
+
+Catppuccin Mocha (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-mocha)
+
+
+
+
+**Value:** `"CatppuccinMocha"`
+
+
+
+
+---
+
+#### Chalk
+
+
+Chalk (https://tinted-theming.github.io/tinted-gallery/#base16-chalk)
+
+
+
+
+**Value:** `"Chalk"`
+
+
+
+
+---
+
+#### Circus
+
+
+Circus (https://tinted-theming.github.io/tinted-gallery/#base16-circus)
+
+
+
+
+**Value:** `"Circus"`
+
+
+
+
+---
+
+#### ClassicDark
+
+
+Classic Dark (https://tinted-theming.github.io/tinted-gallery/#base16-classic-dark)
+
+
+
+
+**Value:** `"ClassicDark"`
+
+
+
+
+---
+
+#### ClassicLight
+
+
+Classic Light (https://tinted-theming.github.io/tinted-gallery/#base16-classic-light)
+
+
+
+
+**Value:** `"ClassicLight"`
+
+
+
+
+---
+
+#### Codeschool
+
+
+Codeschool (https://tinted-theming.github.io/tinted-gallery/#base16-codeschool)
+
+
+
+
+**Value:** `"Codeschool"`
+
+
+
+
+---
+
+#### Colors
+
+
+Colors (https://tinted-theming.github.io/tinted-gallery/#base16-colors)
+
+
+
+
+**Value:** `"Colors"`
+
+
+
+
+---
+
+#### Cupcake
+
+
+Cupcake (https://tinted-theming.github.io/tinted-gallery/#base16-cupcake)
+
+
+
+
+**Value:** `"Cupcake"`
+
+
+
+
+---
+
+#### Cupertino
+
+
+Cupertino (https://tinted-theming.github.io/tinted-gallery/#base16-cupertino)
+
+
+
+
+**Value:** `"Cupertino"`
+
+
+
+
+---
+
+#### DaOneBlack
+
+
+Da One Black (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-black)
+
+
+
+
+**Value:** `"DaOneBlack"`
+
+
+
+
+---
+
+#### DaOneGray
+
+
+Da One Gray (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-gray)
+
+
+
+
+**Value:** `"DaOneGray"`
+
+
+
+
+---
+
+#### DaOneOcean
+
+
+Da One Ocean (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-ocean)
+
+
+
+
+**Value:** `"DaOneOcean"`
+
+
+
+
+---
+
+#### DaOnePaper
+
+
+Da One Paper (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-paper)
+
+
+
+
+**Value:** `"DaOnePaper"`
+
+
+
+
+---
+
+#### DaOneSea
+
+
+Da One Sea (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-sea)
+
+
+
+
+**Value:** `"DaOneSea"`
+
+
+
+
+---
+
+#### DaOneWhite
+
+
+Da One White (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-white)
+
+
+
+
+**Value:** `"DaOneWhite"`
+
+
+
+
+---
+
+#### DanqingLight
+
+
+Danqing Light (https://tinted-theming.github.io/tinted-gallery/#base16-danqing-light)
+
+
+
+
+**Value:** `"DanqingLight"`
+
+
+
+
+---
+
+#### Danqing
+
+
+Danqing (https://tinted-theming.github.io/tinted-gallery/#base16-danqing)
+
+
+
+
+**Value:** `"Danqing"`
+
+
+
+
+---
+
+#### Darcula
+
+
+Darcula (https://tinted-theming.github.io/tinted-gallery/#base16-darcula)
+
+
+
+
+**Value:** `"Darcula"`
+
+
+
+
+---
+
+#### Darkmoss
+
+
+Darkmoss (https://tinted-theming.github.io/tinted-gallery/#base16-darkmoss)
+
+
+
+
+**Value:** `"Darkmoss"`
+
+
+
+
+---
+
+#### Darktooth
+
+
+Darktooth (https://tinted-theming.github.io/tinted-gallery/#base16-darktooth)
+
+
+
+
+**Value:** `"Darktooth"`
+
+
+
+
+---
+
+#### Darkviolet
+
+
+Darkviolet (https://tinted-theming.github.io/tinted-gallery/#base16-darkviolet)
+
+
+
+
+**Value:** `"Darkviolet"`
+
+
+
+
+---
+
+#### Decaf
+
+
+Decaf (https://tinted-theming.github.io/tinted-gallery/#base16-decaf)
+
+
+
+
+**Value:** `"Decaf"`
+
+
+
+
+---
+
+#### DefaultDark
+
+
+Default Dark (https://tinted-theming.github.io/tinted-gallery/#base16-default-dark)
+
+
+
+
+**Value:** `"DefaultDark"`
+
+
+
+
+---
+
+#### DefaultLight
+
+
+Default Light (https://tinted-theming.github.io/tinted-gallery/#base16-default-light)
+
+
+
+
+**Value:** `"DefaultLight"`
+
+
+
+
+---
+
+#### Dirtysea
+
+
+Dirtysea (https://tinted-theming.github.io/tinted-gallery/#base16-dirtysea)
+
+
+
+
+**Value:** `"Dirtysea"`
+
+
+
+
+---
+
+#### Dracula
+
+
+Dracula (https://tinted-theming.github.io/tinted-gallery/#base16-dracula)
+
+
+
+
+**Value:** `"Dracula"`
+
+
+
+
+---
+
+#### EdgeDark
+
+
+Edge Dark (https://tinted-theming.github.io/tinted-gallery/#base16-edge-dark)
+
+
+
+
+**Value:** `"EdgeDark"`
+
+
+
+
+---
+
+#### EdgeLight
+
+
+Edge Light (https://tinted-theming.github.io/tinted-gallery/#base16-edge-light)
+
+
+
+
+**Value:** `"EdgeLight"`
+
+
+
+
+---
+
+#### Eighties
+
+
+Eighties (https://tinted-theming.github.io/tinted-gallery/#base16-eighties)
+
+
+
+
+**Value:** `"Eighties"`
+
+
+
+
+---
+
+#### EmbersLight
+
+
+Embers Light (https://tinted-theming.github.io/tinted-gallery/#base16-embers-light)
+
+
+
+
+**Value:** `"EmbersLight"`
+
+
+
+
+---
+
+#### Embers
+
+
+Embers (https://tinted-theming.github.io/tinted-gallery/#base16-embers)
+
+
+
+
+**Value:** `"Embers"`
+
+
+
+
+---
+
+#### Emil
+
+
+Emil (https://tinted-theming.github.io/tinted-gallery/#base16-emil)
+
+
+
+
+**Value:** `"Emil"`
+
+
+
+
+---
+
+#### EquilibriumDark
+
+
+Equilibrium Dark (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-dark)
+
+
+
+
+**Value:** `"EquilibriumDark"`
+
+
+
+
+---
+
+#### EquilibriumGrayDark
+
+
+Equilibrium Gray Dark (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-gray-dark)
+
+
+
+
+**Value:** `"EquilibriumGrayDark"`
+
+
+
+
+---
+
+#### EquilibriumGrayLight
+
+
+Equilibrium Gray Light (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-gray-light)
+
+
+
+
+**Value:** `"EquilibriumGrayLight"`
+
+
+
+
+---
+
+#### EquilibriumLight
+
+
+Equilibrium Light (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-light)
+
+
+
+
+**Value:** `"EquilibriumLight"`
+
+
+
+
+---
+
+#### Eris
+
+
+Eris (https://tinted-theming.github.io/tinted-gallery/#base16-eris)
+
+
+
+
+**Value:** `"Eris"`
+
+
+
+
+---
+
+#### Espresso
+
+
+Espresso (https://tinted-theming.github.io/tinted-gallery/#base16-espresso)
+
+
+
+
+**Value:** `"Espresso"`
+
+
+
+
+---
+
+#### EvaDim
+
+
+Eva Dim (https://tinted-theming.github.io/tinted-gallery/#base16-eva-dim)
+
+
+
+
+**Value:** `"EvaDim"`
+
+
+
+
+---
+
+#### Eva
+
+
+Eva (https://tinted-theming.github.io/tinted-gallery/#base16-eva)
+
+
+
+
+**Value:** `"Eva"`
+
+
+
+
+---
+
+#### EvenokDark
+
+
+Evenok Dark (https://tinted-theming.github.io/tinted-gallery/#base16-evenok-dark)
+
+
+
+
+**Value:** `"EvenokDark"`
+
+
+
+
+---
+
+#### EverforestDarkHard
+
+
+Everforest Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-everforest-dark-hard)
+
+
+
+
+**Value:** `"EverforestDarkHard"`
+
+
+
+
+---
+
+#### Everforest
+
+
+Everforest (https://tinted-theming.github.io/tinted-gallery/#base16-everforest)
+
+
+
+
+**Value:** `"Everforest"`
+
+
+
+
+---
+
+#### Flat
+
+
+Flat (https://tinted-theming.github.io/tinted-gallery/#base16-flat)
+
+
+
+
+**Value:** `"Flat"`
+
+
+
+
+---
+
+#### Framer
+
+
+Framer (https://tinted-theming.github.io/tinted-gallery/#base16-framer)
+
+
+
+
+**Value:** `"Framer"`
+
+
+
+
+---
+
+#### FruitSoda
+
+
+Fruit Soda (https://tinted-theming.github.io/tinted-gallery/#base16-fruit-soda)
+
+
+
+
+**Value:** `"FruitSoda"`
+
+
+
+
+---
+
+#### Gigavolt
+
+
+Gigavolt (https://tinted-theming.github.io/tinted-gallery/#base16-gigavolt)
+
+
+
+
+**Value:** `"Gigavolt"`
+
+
+
+
+---
+
+#### Github
+
+
+Github (https://tinted-theming.github.io/tinted-gallery/#base16-github)
+
+
+
+
+**Value:** `"Github"`
+
+
+
+
+---
+
+#### GoogleDark
+
+
+Google Dark (https://tinted-theming.github.io/tinted-gallery/#base16-google-dark)
+
+
+
+
+**Value:** `"GoogleDark"`
+
+
+
+
+---
+
+#### GoogleLight
+
+
+Google Light (https://tinted-theming.github.io/tinted-gallery/#base16-google-light)
+
+
+
+
+**Value:** `"GoogleLight"`
+
+
+
+
+---
+
+#### Gotham
+
+
+Gotham (https://tinted-theming.github.io/tinted-gallery/#base16-gotham)
+
+
+
+
+**Value:** `"Gotham"`
+
+
+
+
+---
+
+#### GrayscaleDark
+
+
+Grayscale Dark (https://tinted-theming.github.io/tinted-gallery/#base16-grayscale-dark)
+
+
+
+
+**Value:** `"GrayscaleDark"`
+
+
+
+
+---
+
+#### GrayscaleLight
+
+
+Grayscale Light (https://tinted-theming.github.io/tinted-gallery/#base16-grayscale-light)
+
+
+
+
+**Value:** `"GrayscaleLight"`
+
+
+
+
+---
+
+#### Greenscreen
+
+
+Greenscreen (https://tinted-theming.github.io/tinted-gallery/#base16-greenscreen)
+
+
+
+
+**Value:** `"Greenscreen"`
+
+
+
+
+---
+
+#### Gruber
+
+
+Gruber (https://tinted-theming.github.io/tinted-gallery/#base16-gruber)
+
+
+
+
+**Value:** `"Gruber"`
+
+
+
+
+---
+
+#### GruvboxDarkHard
+
+
+Gruvbox Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-hard)
+
+
+
+
+**Value:** `"GruvboxDarkHard"`
+
+
+
+
+---
+
+#### GruvboxDarkMedium
+
+
+Gruvbox Dark Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-medium)
+
+
+
+
+**Value:** `"GruvboxDarkMedium"`
+
+
+
+
+---
+
+#### GruvboxDarkPale
+
+
+Gruvbox Dark Pale (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-pale)
+
+
+
+
+**Value:** `"GruvboxDarkPale"`
+
+
+
+
+---
+
+#### GruvboxDarkSoft
+
+
+Gruvbox Dark Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-soft)
+
+
+
+
+**Value:** `"GruvboxDarkSoft"`
+
+
+
+
+---
+
+#### GruvboxLightHard
+
+
+Gruvbox Light Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-hard)
+
+
+
+
+**Value:** `"GruvboxLightHard"`
+
+
+
+
+---
+
+#### GruvboxLightMedium
+
+
+Gruvbox Light Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-medium)
+
+
+
+
+**Value:** `"GruvboxLightMedium"`
+
+
+
+
+---
+
+#### GruvboxLightSoft
+
+
+Gruvbox Light Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-soft)
+
+
+
+
+**Value:** `"GruvboxLightSoft"`
+
+
+
+
+---
+
+#### GruvboxMaterialDarkHard
+
+
+Gruvbox Material Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-hard)
+
+
+
+
+**Value:** `"GruvboxMaterialDarkHard"`
+
+
+
+
+---
+
+#### GruvboxMaterialDarkMedium
+
+
+Gruvbox Material Dark Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-medium)
+
+
+
+
+**Value:** `"GruvboxMaterialDarkMedium"`
+
+
+
+
+---
+
+#### GruvboxMaterialDarkSoft
+
+
+Gruvbox Material Dark Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-soft)
+
+
+
+
+**Value:** `"GruvboxMaterialDarkSoft"`
+
+
+
+
+---
+
+#### GruvboxMaterialLightHard
+
+
+Gruvbox Material Light Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-hard)
+
+
+
+
+**Value:** `"GruvboxMaterialLightHard"`
+
+
+
+
+---
+
+#### GruvboxMaterialLightMedium
+
+
+Gruvbox Material Light Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-medium)
+
+
+
+
+**Value:** `"GruvboxMaterialLightMedium"`
+
+
+
+
+---
+
+#### GruvboxMaterialLightSoft
+
+
+Gruvbox Material Light Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-soft)
+
+
+
+
+**Value:** `"GruvboxMaterialLightSoft"`
+
+
+
+
+---
+
+#### Hardcore
+
+
+Hardcore (https://tinted-theming.github.io/tinted-gallery/#base16-hardcore)
+
+
+
+
+**Value:** `"Hardcore"`
+
+
+
+
+---
+
+#### Harmonic16Dark
+
+
+Harmonic16 Dark (https://tinted-theming.github.io/tinted-gallery/#base16-harmonic16-dark)
+
+
+
+
+**Value:** `"Harmonic16Dark"`
+
+
+
+
+---
+
+#### Harmonic16Light
+
+
+Harmonic16 Light (https://tinted-theming.github.io/tinted-gallery/#base16-harmonic16-light)
+
+
+
+
+**Value:** `"Harmonic16Light"`
+
+
+
+
+---
+
+#### HeetchLight
+
+
+Heetch Light (https://tinted-theming.github.io/tinted-gallery/#base16-heetch-light)
+
+
+
+
+**Value:** `"HeetchLight"`
+
+
+
+
+---
+
+#### Heetch
+
+
+Heetch (https://tinted-theming.github.io/tinted-gallery/#base16-heetch)
+
+
+
+
+**Value:** `"Heetch"`
+
+
+
+
+---
+
+#### Helios
+
+
+Helios (https://tinted-theming.github.io/tinted-gallery/#base16-helios)
+
+
+
+
+**Value:** `"Helios"`
+
+
+
+
+---
+
+#### Hopscotch
+
+
+Hopscotch (https://tinted-theming.github.io/tinted-gallery/#base16-hopscotch)
+
+
+
+
+**Value:** `"Hopscotch"`
+
+
+
+
+---
+
+#### HorizonDark
+
+
+Horizon Dark (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-dark)
+
+
+
+
+**Value:** `"HorizonDark"`
+
+
+
+
+---
+
+#### HorizonLight
+
+
+Horizon Light (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-light)
+
+
+
+
+**Value:** `"HorizonLight"`
+
+
+
+
+---
+
+#### HorizonTerminalDark
+
+
+Horizon Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-terminal-dark)
+
+
+
+
+**Value:** `"HorizonTerminalDark"`
+
+
+
+
+---
+
+#### HorizonTerminalLight
+
+
+Horizon Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-terminal-light)
+
+
+
+
+**Value:** `"HorizonTerminalLight"`
+
+
+
+
+---
+
+#### HumanoidDark
+
+
+Humanoid Dark (https://tinted-theming.github.io/tinted-gallery/#base16-humanoid-dark)
+
+
+
+
+**Value:** `"HumanoidDark"`
+
+
+
+
+---
+
+#### HumanoidLight
+
+
+Humanoid Light (https://tinted-theming.github.io/tinted-gallery/#base16-humanoid-light)
+
+
+
+
+**Value:** `"HumanoidLight"`
+
+
+
+
+---
+
+#### IaDark
+
+
+Ia Dark (https://tinted-theming.github.io/tinted-gallery/#base16-ia-dark)
+
+
+
+
+**Value:** `"IaDark"`
+
+
+
+
+---
+
+#### IaLight
+
+
+Ia Light (https://tinted-theming.github.io/tinted-gallery/#base16-ia-light)
+
+
+
+
+**Value:** `"IaLight"`
+
+
+
+
+---
+
+#### Icy
+
+
+Icy (https://tinted-theming.github.io/tinted-gallery/#base16-icy)
+
+
+
+
+**Value:** `"Icy"`
+
+
+
+
+---
+
+#### Irblack
+
+
+Irblack (https://tinted-theming.github.io/tinted-gallery/#base16-irblack)
+
+
+
+
+**Value:** `"Irblack"`
+
+
+
+
+---
+
+#### Isotope
+
+
+Isotope (https://tinted-theming.github.io/tinted-gallery/#base16-isotope)
+
+
+
+
+**Value:** `"Isotope"`
+
+
+
+
+---
+
+#### Jabuti
+
+
+Jabuti (https://tinted-theming.github.io/tinted-gallery/#base16-jabuti)
+
+
+
+
+**Value:** `"Jabuti"`
+
+
+
+
+---
+
+#### Kanagawa
+
+
+Kanagawa (https://tinted-theming.github.io/tinted-gallery/#base16-kanagawa)
+
+
+
+
+**Value:** `"Kanagawa"`
+
+
+
+
+---
+
+#### Katy
+
+
+Katy (https://tinted-theming.github.io/tinted-gallery/#base16-katy)
+
+
+
+
+**Value:** `"Katy"`
+
+
+
+
+---
+
+#### Kimber
+
+
+Kimber (https://tinted-theming.github.io/tinted-gallery/#base16-kimber)
+
+
+
+
+**Value:** `"Kimber"`
+
+
+
+
+---
+
+#### Lime
+
+
+Lime (https://tinted-theming.github.io/tinted-gallery/#base16-lime)
+
+
+
+
+**Value:** `"Lime"`
+
+
+
+
+---
+
+#### Macintosh
+
+
+Macintosh (https://tinted-theming.github.io/tinted-gallery/#base16-macintosh)
+
+
+
+
+**Value:** `"Macintosh"`
+
+
+
+
+---
+
+#### Marrakesh
+
+
+Marrakesh (https://tinted-theming.github.io/tinted-gallery/#base16-marrakesh)
+
+
+
+
+**Value:** `"Marrakesh"`
+
+
+
+
+---
+
+#### Materia
+
+
+Materia (https://tinted-theming.github.io/tinted-gallery/#base16-materia)
+
+
+
+
+**Value:** `"Materia"`
+
+
+
+
+---
+
+#### MaterialDarker
+
+
+Material Darker (https://tinted-theming.github.io/tinted-gallery/#base16-material-darker)
+
+
+
+
+**Value:** `"MaterialDarker"`
+
+
+
+
+---
+
+#### MaterialLighter
+
+
+Material Lighter (https://tinted-theming.github.io/tinted-gallery/#base16-material-lighter)
+
+
+
+
+**Value:** `"MaterialLighter"`
+
+
+
+
+---
+
+#### MaterialPalenight
+
+
+Material Palenight (https://tinted-theming.github.io/tinted-gallery/#base16-material-palenight)
+
+
+
+
+**Value:** `"MaterialPalenight"`
+
+
+
+
+---
+
+#### MaterialVivid
+
+
+Material Vivid (https://tinted-theming.github.io/tinted-gallery/#base16-material-vivid)
+
+
+
+
+**Value:** `"MaterialVivid"`
+
+
+
+
+---
+
+#### Material
+
+
+Material (https://tinted-theming.github.io/tinted-gallery/#base16-material)
+
+
+
+
+**Value:** `"Material"`
+
+
+
+
+---
+
+#### MeasuredDark
+
+
+Measured Dark (https://tinted-theming.github.io/tinted-gallery/#base16-measured-dark)
+
+
+
+
+**Value:** `"MeasuredDark"`
+
+
+
+
+---
+
+#### MeasuredLight
+
+
+Measured Light (https://tinted-theming.github.io/tinted-gallery/#base16-measured-light)
+
+
+
+
+**Value:** `"MeasuredLight"`
+
+
+
+
+---
+
+#### MellowPurple
+
+
+Mellow Purple (https://tinted-theming.github.io/tinted-gallery/#base16-mellow-purple)
+
+
+
+
+**Value:** `"MellowPurple"`
+
+
+
+
+---
+
+#### MexicoLight
+
+
+Mexico Light (https://tinted-theming.github.io/tinted-gallery/#base16-mexico-light)
+
+
+
+
+**Value:** `"MexicoLight"`
+
+
+
+
+---
+
+#### Mocha
+
+
+Mocha (https://tinted-theming.github.io/tinted-gallery/#base16-mocha)
+
+
+
+
+**Value:** `"Mocha"`
+
+
+
+
+---
+
+#### Monokai
+
+
+Monokai (https://tinted-theming.github.io/tinted-gallery/#base16-monokai)
+
+
+
+
+**Value:** `"Monokai"`
+
+
+
+
+---
+
+#### Moonlight
+
+
+Moonlight (https://tinted-theming.github.io/tinted-gallery/#base16-moonlight)
+
+
+
+
+**Value:** `"Moonlight"`
+
+
+
+
+---
+
+#### Mountain
+
+
+Mountain (https://tinted-theming.github.io/tinted-gallery/#base16-mountain)
+
+
+
+
+**Value:** `"Mountain"`
+
+
+
+
+---
+
+#### Nebula
+
+
+Nebula (https://tinted-theming.github.io/tinted-gallery/#base16-nebula)
+
+
+
+
+**Value:** `"Nebula"`
+
+
+
+
+---
+
+#### NordLight
+
+
+Nord Light (https://tinted-theming.github.io/tinted-gallery/#base16-nord-light)
+
+
+
+
+**Value:** `"NordLight"`
+
+
+
+
+---
+
+#### Nord
+
+
+Nord (https://tinted-theming.github.io/tinted-gallery/#base16-nord)
+
+
+
+
+**Value:** `"Nord"`
+
+
+
+
+---
+
+#### Nova
+
+
+Nova (https://tinted-theming.github.io/tinted-gallery/#base16-nova)
+
+
+
+
+**Value:** `"Nova"`
+
+
+
+
+---
+
+#### Ocean
+
+
+Ocean (https://tinted-theming.github.io/tinted-gallery/#base16-ocean)
+
+
+
+
+**Value:** `"Ocean"`
+
+
+
+
+---
+
+#### Oceanicnext
+
+
+Oceanicnext (https://tinted-theming.github.io/tinted-gallery/#base16-oceanicnext)
+
+
+
+
+**Value:** `"Oceanicnext"`
+
+
+
+
+---
+
+#### OneLight
+
+
+One Light (https://tinted-theming.github.io/tinted-gallery/#base16-one-light)
+
+
+
+
+**Value:** `"OneLight"`
+
+
+
+
+---
+
+#### OnedarkDark
+
+
+Onedark Dark (https://tinted-theming.github.io/tinted-gallery/#base16-onedark-dark)
+
+
+
+
+**Value:** `"OnedarkDark"`
+
+
+
+
+---
+
+#### Onedark
+
+
+Onedark (https://tinted-theming.github.io/tinted-gallery/#base16-onedark)
+
+
+
+
+**Value:** `"Onedark"`
+
+
+
+
+---
+
+#### OutrunDark
+
+
+Outrun Dark (https://tinted-theming.github.io/tinted-gallery/#base16-outrun-dark)
+
+
+
+
+**Value:** `"OutrunDark"`
+
+
+
+
+---
+
+#### OxocarbonDark
+
+
+Oxocarbon Dark (https://tinted-theming.github.io/tinted-gallery/#base16-oxocarbon-dark)
+
+
+
+
+**Value:** `"OxocarbonDark"`
+
+
+
+
+---
+
+#### OxocarbonLight
+
+
+Oxocarbon Light (https://tinted-theming.github.io/tinted-gallery/#base16-oxocarbon-light)
+
+
+
+
+**Value:** `"OxocarbonLight"`
+
+
+
+
+---
+
+#### Pandora
+
+
+Pandora (https://tinted-theming.github.io/tinted-gallery/#base16-pandora)
+
+
+
+
+**Value:** `"Pandora"`
+
+
+
+
+---
+
+#### PapercolorDark
+
+
+Papercolor Dark (https://tinted-theming.github.io/tinted-gallery/#base16-papercolor-dark)
+
+
+
+
+**Value:** `"PapercolorDark"`
+
+
+
+
+---
+
+#### PapercolorLight
+
+
+Papercolor Light (https://tinted-theming.github.io/tinted-gallery/#base16-papercolor-light)
+
+
+
+
+**Value:** `"PapercolorLight"`
+
+
+
+
+---
+
+#### Paraiso
+
+
+Paraiso (https://tinted-theming.github.io/tinted-gallery/#base16-paraiso)
+
+
+
+
+**Value:** `"Paraiso"`
+
+
+
+
+---
+
+#### Pasque
+
+
+Pasque (https://tinted-theming.github.io/tinted-gallery/#base16-pasque)
+
+
+
+
+**Value:** `"Pasque"`
+
+
+
+
+---
+
+#### Phd
+
+
+Phd (https://tinted-theming.github.io/tinted-gallery/#base16-phd)
+
+
+
+
+**Value:** `"Phd"`
+
+
+
+
+---
+
+#### Pico
+
+
+Pico (https://tinted-theming.github.io/tinted-gallery/#base16-pico)
+
+
+
+
+**Value:** `"Pico"`
+
+
+
+
+---
+
+#### Pinky
+
+
+Pinky (https://tinted-theming.github.io/tinted-gallery/#base16-pinky)
+
+
+
+
+**Value:** `"Pinky"`
+
+
+
+
+---
+
+#### Pop
+
+
+Pop (https://tinted-theming.github.io/tinted-gallery/#base16-pop)
+
+
+
+
+**Value:** `"Pop"`
+
+
+
+
+---
+
+#### Porple
+
+
+Porple (https://tinted-theming.github.io/tinted-gallery/#base16-porple)
+
+
+
+
+**Value:** `"Porple"`
+
+
+
+
+---
+
+#### PreciousDarkEleven
+
+
+Precious Dark Eleven (https://tinted-theming.github.io/tinted-gallery/#base16-precious-dark-eleven)
+
+
+
+
+**Value:** `"PreciousDarkEleven"`
+
+
+
+
+---
+
+#### PreciousDarkFifteen
+
+
+Precious Dark Fifteen (https://tinted-theming.github.io/tinted-gallery/#base16-precious-dark-fifteen)
+
+
+
+
+**Value:** `"PreciousDarkFifteen"`
+
+
+
+
+---
+
+#### PreciousLightWarm
+
+
+Precious Light Warm (https://tinted-theming.github.io/tinted-gallery/#base16-precious-light-warm)
+
+
+
+
+**Value:** `"PreciousLightWarm"`
+
+
+
+
+---
+
+#### PreciousLightWhite
+
+
+Precious Light White (https://tinted-theming.github.io/tinted-gallery/#base16-precious-light-white)
+
+
+
+
+**Value:** `"PreciousLightWhite"`
+
+
+
+
+---
+
+#### PrimerDarkDimmed
+
+
+Primer Dark Dimmed (https://tinted-theming.github.io/tinted-gallery/#base16-primer-dark-dimmed)
+
+
+
+
+**Value:** `"PrimerDarkDimmed"`
+
+
+
+
+---
+
+#### PrimerDark
+
+
+Primer Dark (https://tinted-theming.github.io/tinted-gallery/#base16-primer-dark)
+
+
+
+
+**Value:** `"PrimerDark"`
+
+
+
+
+---
+
+#### PrimerLight
+
+
+Primer Light (https://tinted-theming.github.io/tinted-gallery/#base16-primer-light)
+
+
+
+
+**Value:** `"PrimerLight"`
+
+
+
+
+---
+
+#### Purpledream
+
+
+Purpledream (https://tinted-theming.github.io/tinted-gallery/#base16-purpledream)
+
+
+
+
+**Value:** `"Purpledream"`
+
+
+
+
+---
+
+#### Qualia
+
+
+Qualia (https://tinted-theming.github.io/tinted-gallery/#base16-qualia)
+
+
+
+
+**Value:** `"Qualia"`
+
+
+
+
+---
+
+#### Railscasts
+
+
+Railscasts (https://tinted-theming.github.io/tinted-gallery/#base16-railscasts)
+
+
+
+
+**Value:** `"Railscasts"`
+
+
+
+
+---
+
+#### Rebecca
+
+
+Rebecca (https://tinted-theming.github.io/tinted-gallery/#base16-rebecca)
+
+
+
+
+**Value:** `"Rebecca"`
+
+
+
+
+---
+
+#### RosePineDawn
+
+
+Rose Pine Dawn (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine-dawn)
+
+
+
+
+**Value:** `"RosePineDawn"`
+
+
+
+
+---
+
+#### RosePineMoon
+
+
+Rose Pine Moon (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine-moon)
+
+
+
+
+**Value:** `"RosePineMoon"`
+
+
+
+
+---
+
+#### RosePine
+
+
+Rose Pine (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine)
+
+
+
+
+**Value:** `"RosePine"`
+
+
+
+
+---
+
+#### Saga
+
+
+Saga (https://tinted-theming.github.io/tinted-gallery/#base16-saga)
+
+
+
+
+**Value:** `"Saga"`
+
+
+
+
+---
+
+#### Sagelight
+
+
+Sagelight (https://tinted-theming.github.io/tinted-gallery/#base16-sagelight)
+
+
+
+
+**Value:** `"Sagelight"`
+
+
+
+
+---
+
+#### Sakura
+
+
+Sakura (https://tinted-theming.github.io/tinted-gallery/#base16-sakura)
+
+
+
+
+**Value:** `"Sakura"`
+
+
+
+
+---
+
+#### Sandcastle
+
+
+Sandcastle (https://tinted-theming.github.io/tinted-gallery/#base16-sandcastle)
+
+
+
+
+**Value:** `"Sandcastle"`
+
+
+
+
+---
+
+#### SelenizedBlack
+
+
+Selenized Black (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-black)
+
+
+
+
+**Value:** `"SelenizedBlack"`
+
+
+
+
+---
+
+#### SelenizedDark
+
+
+Selenized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-dark)
+
+
+
+
+**Value:** `"SelenizedDark"`
+
+
+
+
+---
+
+#### SelenizedLight
+
+
+Selenized Light (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-light)
+
+
+
+
+**Value:** `"SelenizedLight"`
+
+
+
+
+---
+
+#### SelenizedWhite
+
+
+Selenized White (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-white)
+
+
+
+
+**Value:** `"SelenizedWhite"`
+
+
+
+
+---
+
+#### Seti
+
+
+Seti (https://tinted-theming.github.io/tinted-gallery/#base16-seti)
+
+
+
+
+**Value:** `"Seti"`
+
+
+
+
+---
+
+#### ShadesOfPurple
+
+
+Shades Of Purple (https://tinted-theming.github.io/tinted-gallery/#base16-shades-of-purple)
+
+
+
+
+**Value:** `"ShadesOfPurple"`
+
+
+
+
+---
+
+#### ShadesmearDark
+
+
+Shadesmear Dark (https://tinted-theming.github.io/tinted-gallery/#base16-shadesmear-dark)
+
+
+
+
+**Value:** `"ShadesmearDark"`
+
+
+
+
+---
+
+#### ShadesmearLight
+
+
+Shadesmear Light (https://tinted-theming.github.io/tinted-gallery/#base16-shadesmear-light)
+
+
+
+
+**Value:** `"ShadesmearLight"`
+
+
+
+
+---
+
+#### Shapeshifter
+
+
+Shapeshifter (https://tinted-theming.github.io/tinted-gallery/#base16-shapeshifter)
+
+
+
+
+**Value:** `"Shapeshifter"`
+
+
+
+
+---
+
+#### SilkDark
+
+
+Silk Dark (https://tinted-theming.github.io/tinted-gallery/#base16-silk-dark)
+
+
+
+
+**Value:** `"SilkDark"`
+
+
+
+
+---
+
+#### SilkLight
+
+
+Silk Light (https://tinted-theming.github.io/tinted-gallery/#base16-silk-light)
+
+
+
+
+**Value:** `"SilkLight"`
+
+
+
+
+---
+
+#### Snazzy
+
+
+Snazzy (https://tinted-theming.github.io/tinted-gallery/#base16-snazzy)
+
+
+
+
+**Value:** `"Snazzy"`
+
+
+
+
+---
+
+#### SolarflareLight
+
+
+Solarflare Light (https://tinted-theming.github.io/tinted-gallery/#base16-solarflare-light)
+
+
+
+
+**Value:** `"SolarflareLight"`
+
+
+
+
+---
+
+#### Solarflare
+
+
+Solarflare (https://tinted-theming.github.io/tinted-gallery/#base16-solarflare)
+
+
+
+
+**Value:** `"Solarflare"`
+
+
+
+
+---
+
+#### SolarizedDark
+
+
+Solarized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-solarized-dark)
+
+
+
+
+**Value:** `"SolarizedDark"`
+
+
+
+
+---
+
+#### SolarizedLight
+
+
+Solarized Light (https://tinted-theming.github.io/tinted-gallery/#base16-solarized-light)
+
+
+
+
+**Value:** `"SolarizedLight"`
+
+
+
+
+---
+
+#### Spaceduck
+
+
+Spaceduck (https://tinted-theming.github.io/tinted-gallery/#base16-spaceduck)
+
+
+
+
+**Value:** `"Spaceduck"`
+
+
+
+
+---
+
+#### Spacemacs
+
+
+Spacemacs (https://tinted-theming.github.io/tinted-gallery/#base16-spacemacs)
+
+
+
+
+**Value:** `"Spacemacs"`
+
+
+
+
+---
+
+#### Sparky
+
+
+Sparky (https://tinted-theming.github.io/tinted-gallery/#base16-sparky)
+
+
+
+
+**Value:** `"Sparky"`
+
+
+
+
+---
+
+#### StandardizedDark
+
+
+Standardized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-standardized-dark)
+
+
+
+
+**Value:** `"StandardizedDark"`
+
+
+
+
+---
+
+#### StandardizedLight
+
+
+Standardized Light (https://tinted-theming.github.io/tinted-gallery/#base16-standardized-light)
+
+
+
+
+**Value:** `"StandardizedLight"`
+
+
+
+
+---
+
+#### Stella
+
+
+Stella (https://tinted-theming.github.io/tinted-gallery/#base16-stella)
+
+
+
+
+**Value:** `"Stella"`
+
+
+
+
+---
+
+#### StillAlive
+
+
+Still Alive (https://tinted-theming.github.io/tinted-gallery/#base16-still-alive)
+
+
+
+
+**Value:** `"StillAlive"`
+
+
+
+
+---
+
+#### Summercamp
+
+
+Summercamp (https://tinted-theming.github.io/tinted-gallery/#base16-summercamp)
+
+
+
+
+**Value:** `"Summercamp"`
+
+
+
+
+---
+
+#### SummerfruitDark
+
+
+Summerfruit Dark (https://tinted-theming.github.io/tinted-gallery/#base16-summerfruit-dark)
+
+
+
+
+**Value:** `"SummerfruitDark"`
+
+
+
+
+---
+
+#### SummerfruitLight
+
+
+Summerfruit Light (https://tinted-theming.github.io/tinted-gallery/#base16-summerfruit-light)
+
+
+
+
+**Value:** `"SummerfruitLight"`
+
+
+
+
+---
+
+#### SynthMidnightDark
+
+
+Synth Midnight Dark (https://tinted-theming.github.io/tinted-gallery/#base16-synth-midnight-dark)
+
+
+
+
+**Value:** `"SynthMidnightDark"`
+
+
+
+
+---
+
+#### SynthMidnightLight
+
+
+Synth Midnight Light (https://tinted-theming.github.io/tinted-gallery/#base16-synth-midnight-light)
+
+
+
+
+**Value:** `"SynthMidnightLight"`
+
+
+
+
+---
+
+#### Tango
+
+
+Tango (https://tinted-theming.github.io/tinted-gallery/#base16-tango)
+
+
+
+
+**Value:** `"Tango"`
+
+
+
+
+---
+
+#### Tarot
+
+
+Tarot (https://tinted-theming.github.io/tinted-gallery/#base16-tarot)
+
+
+
+
+**Value:** `"Tarot"`
+
+
+
+
+---
+
+#### Tender
+
+
+Tender (https://tinted-theming.github.io/tinted-gallery/#base16-tender)
+
+
+
+
+**Value:** `"Tender"`
+
+
+
+
+---
+
+#### TerracottaDark
+
+
+Terracotta Dark (https://tinted-theming.github.io/tinted-gallery/#base16-terracotta-dark)
+
+
+
+
+**Value:** `"TerracottaDark"`
+
+
+
+
+---
+
+#### Terracotta
+
+
+Terracotta (https://tinted-theming.github.io/tinted-gallery/#base16-terracotta)
+
+
+
+
+**Value:** `"Terracotta"`
+
+
+
+
+---
+
+#### TokyoCityDark
+
+
+Tokyo City Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-dark)
+
+
+
+
+**Value:** `"TokyoCityDark"`
+
+
+
+
+---
+
+#### TokyoCityLight
+
+
+Tokyo City Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-light)
+
+
+
+
+**Value:** `"TokyoCityLight"`
+
+
+
+
+---
+
+#### TokyoCityTerminalDark
+
+
+Tokyo City Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-terminal-dark)
+
+
+
+
+**Value:** `"TokyoCityTerminalDark"`
+
+
+
+
+---
+
+#### TokyoCityTerminalLight
+
+
+Tokyo City Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-terminal-light)
+
+
+
+
+**Value:** `"TokyoCityTerminalLight"`
+
+
+
+
+---
+
+#### TokyoNightDark
+
+
+Tokyo Night Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-dark)
+
+
+
+
+**Value:** `"TokyoNightDark"`
+
+
+
+
+---
+
+#### TokyoNightLight
+
+
+Tokyo Night Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-light)
+
+
+
+
+**Value:** `"TokyoNightLight"`
+
+
+
+
+---
+
+#### TokyoNightMoon
+
+
+Tokyo Night Moon (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-moon)
+
+
+
+
+**Value:** `"TokyoNightMoon"`
+
+
+
+
+---
+
+#### TokyoNightStorm
+
+
+Tokyo Night Storm (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-storm)
+
+
+
+
+**Value:** `"TokyoNightStorm"`
+
+
+
+
+---
+
+#### TokyoNightTerminalDark
+
+
+Tokyo Night Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-dark)
+
+
+
+
+**Value:** `"TokyoNightTerminalDark"`
+
+
+
+
+---
+
+#### TokyoNightTerminalLight
+
+
+Tokyo Night Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-light)
+
+
+
+
+**Value:** `"TokyoNightTerminalLight"`
+
+
+
+
+---
+
+#### TokyoNightTerminalStorm
+
+
+Tokyo Night Terminal Storm (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-storm)
+
+
+
+
+**Value:** `"TokyoNightTerminalStorm"`
+
+
+
+
+---
+
+#### TokyodarkTerminal
+
+
+Tokyodark Terminal (https://tinted-theming.github.io/tinted-gallery/#base16-tokyodark-terminal)
+
+
+
+
+**Value:** `"TokyodarkTerminal"`
+
+
+
+
+---
+
+#### Tokyodark
+
+
+Tokyodark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyodark)
+
+
+
+
+**Value:** `"Tokyodark"`
+
+
+
+
+---
+
+#### TomorrowNightEighties
+
+
+Tomorrow Night Eighties (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow-night-eighties)
+
+
+
+
+**Value:** `"TomorrowNightEighties"`
+
+
+
+
+---
+
+#### TomorrowNight
+
+
+Tomorrow Night (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow-night)
+
+
+
+
+**Value:** `"TomorrowNight"`
+
+
+
+
+---
+
+#### Tomorrow
+
+
+Tomorrow (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow)
+
+
+
+
+**Value:** `"Tomorrow"`
+
+
+
+
+---
+
+#### Tube
+
+
+Tube (https://tinted-theming.github.io/tinted-gallery/#base16-tube)
+
+
+
+
+**Value:** `"Tube"`
+
+
+
+
+---
+
+#### Twilight
+
+
+Twilight (https://tinted-theming.github.io/tinted-gallery/#base16-twilight)
+
+
+
+
+**Value:** `"Twilight"`
+
+
+
+
+---
+
+#### UnikittyDark
+
+
+Unikitty Dark (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-dark)
+
+
+
+
+**Value:** `"UnikittyDark"`
+
+
+
+
+---
+
+#### UnikittyLight
+
+
+Unikitty Light (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-light)
+
+
+
+
+**Value:** `"UnikittyLight"`
+
+
+
+
+---
+
+#### UnikittyReversible
+
+
+Unikitty Reversible (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-reversible)
+
+
+
+
+**Value:** `"UnikittyReversible"`
+
+
+
+
+---
+
+#### Uwunicorn
+
+
+Uwunicorn (https://tinted-theming.github.io/tinted-gallery/#base16-uwunicorn)
+
+
+
+
+**Value:** `"Uwunicorn"`
+
+
+
+
+---
+
+#### Vesper
+
+
+Vesper (https://tinted-theming.github.io/tinted-gallery/#base16-vesper)
+
+
+
+
+**Value:** `"Vesper"`
+
+
+
+
+---
+
+#### Vice
+
+
+Vice (https://tinted-theming.github.io/tinted-gallery/#base16-vice)
+
+
+
+
+**Value:** `"Vice"`
+
+
+
+
+---
+
+#### Vulcan
+
+
+Vulcan (https://tinted-theming.github.io/tinted-gallery/#base16-vulcan)
+
+
+
+
+**Value:** `"Vulcan"`
+
+
+
+
+---
+
+#### Windows10Light
+
+
+Windows 10 Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-10-light)
+
+
+
+
+**Value:** `"Windows10Light"`
+
+
+
+
+---
+
+#### Windows10
+
+
+Windows 10 (https://tinted-theming.github.io/tinted-gallery/#base16-windows-10)
+
+
+
+
+**Value:** `"Windows10"`
+
+
+
+
+---
+
+#### Windows95Light
+
+
+Windows 95 Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-95-light)
+
+
+
+
+**Value:** `"Windows95Light"`
+
+
+
+
+---
+
+#### Windows95
+
+
+Windows 95 (https://tinted-theming.github.io/tinted-gallery/#base16-windows-95)
+
+
+
+
+**Value:** `"Windows95"`
+
+
+
+
+---
+
+#### WindowsHighcontrastLight
+
+
+Windows Highcontrast Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-highcontrast-light)
+
+
+
+
+**Value:** `"WindowsHighcontrastLight"`
+
+
+
+
+---
+
+#### WindowsHighcontrast
+
+
+Windows Highcontrast (https://tinted-theming.github.io/tinted-gallery/#base16-windows-highcontrast)
+
+
+
+
+**Value:** `"WindowsHighcontrast"`
+
+
+
+
+---
+
+#### WindowsNtLight
+
+
+Windows Nt Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-nt-light)
+
+
+
+
+**Value:** `"WindowsNtLight"`
+
+
+
+
+---
+
+#### WindowsNt
+
+
+Windows Nt (https://tinted-theming.github.io/tinted-gallery/#base16-windows-nt)
+
+
+
+
+**Value:** `"WindowsNt"`
+
+
+
+
+---
+
+#### Woodland
+
+
+Woodland (https://tinted-theming.github.io/tinted-gallery/#base16-woodland)
+
+
+
+
+**Value:** `"Woodland"`
+
+
+
+
+---
+
+#### XcodeDusk
+
+
+Xcode Dusk (https://tinted-theming.github.io/tinted-gallery/#base16-xcode-dusk)
+
+
+
+
+**Value:** `"XcodeDusk"`
+
+
+
+
+---
+
+#### Zenbones
+
+
+Zenbones (https://tinted-theming.github.io/tinted-gallery/#base16-zenbones)
+
+
+
+
+**Value:** `"Zenbones"`
+
+
+
+
+---
+
+#### Zenburn
+
+
+Zenburn (https://tinted-theming.github.io/tinted-gallery/#base16-zenburn)
+
+
+
+
+**Value:** `"Zenburn"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.theme.name`](#komorebithemebase16-name)
+
+
+**Referenced by:**
+- [`KomorebiThemeBase16`](#komorebithemebase16)
+
+
+
+---
+
+
+### Base16ColourPalette {#base16colourpalette}
+
+Base16 colour palette: https://github.com/chriskempson/base16
+
+
+<details open>
+<summary>Properties (16)</summary>
+
+
+#### base_00 {#base16colourpalette-base_00}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base00
+
+
+#### base_01 {#base16colourpalette-base_01}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base01
+
+
+#### base_02 {#base16colourpalette-base_02}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base02
+
+
+#### base_03 {#base16colourpalette-base_03}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base03
+
+
+#### base_04 {#base16colourpalette-base_04}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base04
+
+
+#### base_05 {#base16colourpalette-base_05}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base05
+
+
+#### base_06 {#base16colourpalette-base_06}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base06
+
+
+#### base_07 {#base16colourpalette-base_07}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base07
+
+
+#### base_08 {#base16colourpalette-base_08}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base08
+
+
+#### base_09 {#base16colourpalette-base_09}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base09
+
+
+#### base_0a {#base16colourpalette-base_0a}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base0A
+
+
+#### base_0b {#base16colourpalette-base_0b}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base0B
+
+
+#### base_0c {#base16colourpalette-base_0c}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base0C
+
+
+#### base_0d {#base16colourpalette-base_0d}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base0D
+
+
+#### base_0e {#base16colourpalette-base_0e}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base0E
+
+
+#### base_0f {#base16colourpalette-base_0f}
+
+<Badge text="required" variant="success" /> [`Colour`](#colour)
+
+Base0F
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.theme.colours`](#komorebithemecustom-colours)
+
+
+**Referenced by:**
+- [`KomorebiThemeCustom`](#komorebithemecustom)
+
+
+
+---
+
+
+### Base16Value {#base16value}
+
+Base16 value
+
+
+
+
+<details open>
+<summary>Enum variants (16)</summary>
+
+
+---
+
+#### Base00
+
+
+Base00
+
+
+
+
+**Value:** `"Base00"`
+
+
+
+
+---
+
+#### Base01
+
+
+Base01
+
+
+
+
+**Value:** `"Base01"`
+
+
+
+
+---
+
+#### Base02
+
+
+Base02
+
+
+
+
+**Value:** `"Base02"`
+
+
+
+
+---
+
+#### Base03
+
+
+Base03
+
+
+
+
+**Value:** `"Base03"`
+
+
+
+
+---
+
+#### Base04
+
+
+Base04
+
+
+
+
+**Value:** `"Base04"`
+
+
+
+
+---
+
+#### Base05
+
+
+Base05
+
+
+
+
+**Value:** `"Base05"`
+
+
+
+
+---
+
+#### Base06
+
+
+Base06
+
+
+
+
+**Value:** `"Base06"`
+
+
+
+
+---
+
+#### Base07
+
+
+Base07
+
+
+
+
+**Value:** `"Base07"`
+
+
+
+
+---
+
+#### Base08
+
+
+Base08
+
+
+
+
+**Value:** `"Base08"`
+
+
+
+
+---
+
+#### Base09
+
+
+Base09
+
+
+
+
+**Value:** `"Base09"`
+
+
+
+
+---
+
+#### Base0A
+
+
+Base0A
+
+
+
+
+**Value:** `"Base0A"`
+
+
+
+
+---
+
+#### Base0B
+
+
+Base0B
+
+
+
+
+**Value:** `"Base0B"`
+
+
+
+
+---
+
+#### Base0C
+
+
+Base0C
+
+
+
+
+**Value:** `"Base0C"`
+
+
+
+
+---
+
+#### Base0D
+
+
+Base0D
+
+
+
+
+**Value:** `"Base0D"`
+
+
+
+
+---
+
+#### Base0E
+
+
+Base0E
+
+
+
+
+**Value:** `"Base0E"`
+
+
+
+
+---
+
+#### Base0F
+
+
+Base0F
+
+
+
+
+**Value:** `"Base0F"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].wallpaper.theme_options.bar_accent`](#themeoptions-bar_accent)
+- [`.monitors[].wallpaper.theme_options.floating_border`](#themeoptions-floating_border)
+- [`.monitors[].wallpaper.theme_options.monocle_border`](#themeoptions-monocle_border)
+- [`.monitors[].wallpaper.theme_options.single_border`](#themeoptions-single_border)
+- [`.monitors[].wallpaper.theme_options.stack_border`](#themeoptions-stack_border)
+- [`.monitors[].wallpaper.theme_options.unfocused_border`](#themeoptions-unfocused_border)
+- [`.monitors[].wallpaper.theme_options.unfocused_locked_border`](#themeoptions-unfocused_locked_border)
+- [`.monitors[].workspaces[].wallpaper.theme_options.bar_accent`](#themeoptions-bar_accent)
+- [`.monitors[].workspaces[].wallpaper.theme_options.floating_border`](#themeoptions-floating_border)
+- [`.monitors[].workspaces[].wallpaper.theme_options.monocle_border`](#themeoptions-monocle_border)
+- [`.monitors[].workspaces[].wallpaper.theme_options.single_border`](#themeoptions-single_border)
+- [`.monitors[].workspaces[].wallpaper.theme_options.stack_border`](#themeoptions-stack_border)
+- [`.monitors[].workspaces[].wallpaper.theme_options.unfocused_border`](#themeoptions-unfocused_border)
+- [`.monitors[].workspaces[].wallpaper.theme_options.unfocused_locked_border`](#themeoptions-unfocused_locked_border)
+- [`.theme.bar_accent`](#komorebithemebase16-bar_accent)
+- [`.theme.bar_accent`](#komorebithemecustom-bar_accent)
+- [`.theme.floating_border`](#komorebithemebase16-floating_border)
+- [`.theme.floating_border`](#komorebithemecustom-floating_border)
+- [`.theme.monocle_border`](#komorebithemebase16-monocle_border)
+- [`.theme.monocle_border`](#komorebithemecustom-monocle_border)
+- [`.theme.single_border`](#komorebithemebase16-single_border)
+- [`.theme.single_border`](#komorebithemecustom-single_border)
+- [`.theme.stack_border`](#komorebithemebase16-stack_border)
+- [`.theme.stack_border`](#komorebithemecustom-stack_border)
+- [`.theme.unfocused_border`](#komorebithemebase16-unfocused_border)
+- [`.theme.unfocused_border`](#komorebithemecustom-unfocused_border)
+- [`.theme.unfocused_locked_border`](#komorebithemebase16-unfocused_locked_border)
+- [`.theme.unfocused_locked_border`](#komorebithemecustom-unfocused_locked_border)
+
+
+**Referenced by:**
+- [`KomorebiThemeBase16`](#komorebithemebase16)
+- [`KomorebiThemeCustom`](#komorebithemecustom)
+- [`ThemeOptions`](#themeoptions)
+
+
+
+---
+
+
+### BorderColours {#bordercolours}
+
+Border colours for different container states
+
+These options will have no effect if a `theme` is set
+
+
+<details open>
+<summary>Properties (6)</summary>
+
+
+
+#### floating {#bordercolours-floating}
+
+<Badge text="optional" variant="note" /> [`Colour`](#colour)
+
+Border colour when the container is in floating mode
+
+
+#### monocle {#bordercolours-monocle}
+
+<Badge text="optional" variant="note" /> [`Colour`](#colour)
+
+Border colour when the container is in monocle mode
+
+
+#### single {#bordercolours-single}
+
+<Badge text="optional" variant="note" /> [`Colour`](#colour)
+
+Border colour when the container contains a single window
+
+
+#### stack {#bordercolours-stack}
+
+<Badge text="optional" variant="note" /> [`Colour`](#colour)
+
+Border colour when the container contains multiple windows
+
+
+#### unfocused {#bordercolours-unfocused}
+
+<Badge text="optional" variant="note" /> [`Colour`](#colour)
+
+Border colour when the container is unfocused
+
+
+#### unfocused_locked {#bordercolours-unfocused_locked}
+
+<Badge text="optional" variant="note" /> [`Colour`](#colour)
+
+Border colour when the container is unfocused and locked
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.border_colours`](#border_colours)
+
+
+
+
+---
+
+
+### Catppuccin {#catppuccin}
+
+Catppuccin palette
+
+
+
+
+<details open>
+<summary>Enum variants (4)</summary>
+
+
+---
+
+#### Frappe
+
+
+Frappe (https://catppuccin.com/palette#flavor-frappe)
+
+
+
+
+**Value:** `"Frappe"`
+
+
+
+
+---
+
+#### Latte
+
+
+Latte (https://catppuccin.com/palette#flavor-latte)
+
+
+
+
+**Value:** `"Latte"`
+
+
+
+
+---
+
+#### Macchiato
+
+
+Macchiato (https://catppuccin.com/palette#flavor-macchiato)
+
+
+
+
+**Value:** `"Macchiato"`
+
+
+
+
+---
+
+#### Mocha
+
+
+Mocha (https://catppuccin.com/palette#flavor-mocha)
+
+
+
+
+**Value:** `"Mocha"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.theme.name`](#komorebithemecatppuccin-name)
+
+
+**Referenced by:**
+- [`KomorebiThemeCatppuccin`](#komorebithemecatppuccin)
+
+
+
+---
+
+
+### CatppuccinValue {#catppuccinvalue}
+
+Catppuccin Value
+
+
+
+
+<details open>
+<summary>Enum variants (26)</summary>
+
+
+---
+
+#### Rosewater
+
+
+Rosewater
+
+
+
+
+**Value:** `"Rosewater"`
+
+
+
+
+---
+
+#### Flamingo
+
+
+Flamingo
+
+
+
+
+**Value:** `"Flamingo"`
+
+
+
+
+---
+
+#### Pink
+
+
+Pink
+
+
+
+
+**Value:** `"Pink"`
+
+
+
+
+---
+
+#### Mauve
+
+
+Mauve
+
+
+
+
+**Value:** `"Mauve"`
+
+
+
+
+---
+
+#### Red
+
+
+Red
+
+
+
+
+**Value:** `"Red"`
+
+
+
+
+---
+
+#### Maroon
+
+
+Maroon
+
+
+
+
+**Value:** `"Maroon"`
+
+
+
+
+---
+
+#### Peach
+
+
+Peach
+
+
+
+
+**Value:** `"Peach"`
+
+
+
+
+---
+
+#### Yellow
+
+
+Yellow
+
+
+
+
+**Value:** `"Yellow"`
+
+
+
+
+---
+
+#### Green
+
+
+Green
+
+
+
+
+**Value:** `"Green"`
+
+
+
+
+---
+
+#### Teal
+
+
+Teal
+
+
+
+
+**Value:** `"Teal"`
+
+
+
+
+---
+
+#### Sky
+
+
+Sky
+
+
+
+
+**Value:** `"Sky"`
+
+
+
+
+---
+
+#### Sapphire
+
+
+Sapphire
+
+
+
+
+**Value:** `"Sapphire"`
+
+
+
+
+---
+
+#### Blue
+
+
+Blue
+
+
+
+
+**Value:** `"Blue"`
+
+
+
+
+---
+
+#### Lavender
+
+
+Lavender
+
+
+
+
+**Value:** `"Lavender"`
+
+
+
+
+---
+
+#### Text
+
+
+Text
+
+
+
+
+**Value:** `"Text"`
+
+
+
+
+---
+
+#### Subtext1
+
+
+Subtext1
+
+
+
+
+**Value:** `"Subtext1"`
+
+
+
+
+---
+
+#### Subtext0
+
+
+Subtext0
+
+
+
+
+**Value:** `"Subtext0"`
+
+
+
+
+---
+
+#### Overlay2
+
+
+Overlay2
+
+
+
+
+**Value:** `"Overlay2"`
+
+
+
+
+---
+
+#### Overlay1
+
+
+Overlay1
+
+
+
+
+**Value:** `"Overlay1"`
+
+
+
+
+---
+
+#### Overlay0
+
+
+Overlay0
+
+
+
+
+**Value:** `"Overlay0"`
+
+
+
+
+---
+
+#### Surface2
+
+
+Surface2
+
+
+
+
+**Value:** `"Surface2"`
+
+
+
+
+---
+
+#### Surface1
+
+
+Surface1
+
+
+
+
+**Value:** `"Surface1"`
+
+
+
+
+---
+
+#### Surface0
+
+
+Surface0
+
+
+
+
+**Value:** `"Surface0"`
+
+
+
+
+---
+
+#### Base
+
+
+Base
+
+
+
+
+**Value:** `"Base"`
+
+
+
+
+---
+
+#### Mantle
+
+
+Mantle
+
+
+
+
+**Value:** `"Mantle"`
+
+
+
+
+---
+
+#### Crust
+
+
+Crust
+
+
+
+
+**Value:** `"Crust"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.theme.bar_accent`](#komorebithemecatppuccin-bar_accent)
+- [`.theme.floating_border`](#komorebithemecatppuccin-floating_border)
+- [`.theme.monocle_border`](#komorebithemecatppuccin-monocle_border)
+- [`.theme.single_border`](#komorebithemecatppuccin-single_border)
+- [`.theme.stack_border`](#komorebithemecatppuccin-stack_border)
+- [`.theme.unfocused_border`](#komorebithemecatppuccin-unfocused_border)
+- [`.theme.unfocused_locked_border`](#komorebithemecatppuccin-unfocused_locked_border)
+
+
+**Referenced by:**
+- [`KomorebiThemeCatppuccin`](#komorebithemecatppuccin)
+
+
+
+---
+
+
+### Colour {#colour}
+
+Colour representation
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### Rgb
+
+
+Colour represented as RGB
+
+
+
+
+
+**Value:** [`Rgb`](#rgb)
+
+
+
+
+---
+
+#### Hex
+
+
+Colour represented as Hex
+
+
+
+
+
+**Value:** [`Hex`](#hex)
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.border_colours.floating`](#bordercolours-floating)
+- [`.border_colours.monocle`](#bordercolours-monocle)
+- [`.border_colours.single`](#bordercolours-single)
+- [`.border_colours.stack`](#bordercolours-stack)
+- [`.border_colours.unfocused`](#bordercolours-unfocused)
+- [`.border_colours.unfocused_locked`](#bordercolours-unfocused_locked)
+- [`.theme.colours.base_00`](#base16colourpalette-base_00)
+- [`.theme.colours.base_01`](#base16colourpalette-base_01)
+- [`.theme.colours.base_02`](#base16colourpalette-base_02)
+- [`.theme.colours.base_03`](#base16colourpalette-base_03)
+- [`.theme.colours.base_04`](#base16colourpalette-base_04)
+- [`.theme.colours.base_05`](#base16colourpalette-base_05)
+- [`.theme.colours.base_06`](#base16colourpalette-base_06)
+- [`.theme.colours.base_07`](#base16colourpalette-base_07)
+- [`.theme.colours.base_08`](#base16colourpalette-base_08)
+- [`.theme.colours.base_09`](#base16colourpalette-base_09)
+- [`.theme.colours.base_0a`](#base16colourpalette-base_0a)
+- [`.theme.colours.base_0b`](#base16colourpalette-base_0b)
+- [`.theme.colours.base_0c`](#base16colourpalette-base_0c)
+- [`.theme.colours.base_0d`](#base16colourpalette-base_0d)
+- [`.theme.colours.base_0e`](#base16colourpalette-base_0e)
+- [`.theme.colours.base_0f`](#base16colourpalette-base_0f)
+
+
+**Referenced by:**
+- [`Base16ColourPalette`](#base16colourpalette)
+- [`BorderColours`](#bordercolours)
+
+
+
+---
+
+
+### CrossBoundaryBehaviour {#crossboundarybehaviour}
+
+Behaviour when an action would cross a monitor boundary
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### Workspace
+
+
+Attempt to perform actions across a workspace boundary
+
+
+
+
+**Value:** `"Workspace"`
+
+
+
+
+---
+
+#### Monitor
+
+
+Attempt to perform actions across a monitor boundary
+
+
+
+
+**Value:** `"Monitor"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.cross_boundary_behaviour`](#cross_boundary_behaviour)
+
+
+
+
+---
+
+
+### DefaultLayout {#defaultlayout}
+
+A predefined komorebi layout
+
+
+
+
+<details open>
+<summary>Enum variants (9)</summary>
+
+
+---
+
+#### BSP
+
+
+BSP Layout
+
+```text
++-------+-----+
+|       |     |
+|       +--+--+
+|       |  |--|
++-------+--+--+
+```
+
+
+
+
+**Value:** `"BSP"`
+
+
+
+
+---
+
+#### Columns
+
+
+Columns Layout
+
+```text
++--+--+--+--+
+|  |  |  |  |
+|  |  |  |  |
+|  |  |  |  |
++--+--+--+--+
+```
+
+
+
+
+**Value:** `"Columns"`
+
+
+
+
+---
+
+#### Rows
+
+
+Rows Layout
+
+```text
++-----------+
+|-----------|
+|-----------|
+|-----------|
++-----------+
+```
+
+
+
+
+**Value:** `"Rows"`
+
+
+
+
+---
+
+#### VerticalStack
+
+
+Vertical Stack Layout
+
+```text
++-------+-----+
+|       |     |
+|       +-----+
+|       |     |
++-------+-----+
+```
+
+
+
+
+**Value:** `"VerticalStack"`
+
+
+
+
+---
+
+#### HorizontalStack
+
+
+Horizontal Stack Layout
+
+```text
++------+------+
+|             |
+|------+------+
+|      |      |
++------+------+
+```
+
+
+
+
+**Value:** `"HorizontalStack"`
+
+
+
+
+---
+
+#### UltrawideVerticalStack
+
+
+Ultrawide Vertical Stack Layout
+
+```text
++-----+-----------+-----+
+|     |           |     |
+|     |           +-----+
+|     |           |     |
+|     |           +-----+
+|     |           |     |
++-----+-----------+-----+
+```
+
+
+
+
+**Value:** `"UltrawideVerticalStack"`
+
+
+
+
+---
+
+#### Grid
+
+
+Grid Layout
+
+```text
++-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
+|     |     |   |   |   |   |   |   |   |   |   |   |   |   |
+|     |     |   |   |   |   |   |   |   |   |   |   |   +---+
++-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |
+|     |     |   |   |   |   |   |   |   |   |   |   |   +---+
+|     |     |   |   |   |   |   |   |   |   |   |   |   |   |
++-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
+  4 windows       5 windows       6 windows       7 windows
+```
+
+
+
+
+**Value:** `"Grid"`
+
+
+
+
+---
+
+#### RightMainVerticalStack
+
+
+Right Main Vertical Stack Layout
+
+```text
++-----+-------+
+|     |       |
++-----+       |
+|     |       |
++-----+-------+
+```
+
+
+
+
+**Value:** `"RightMainVerticalStack"`
+
+
+
+
+---
+
+#### Scrolling
+
+
+Scrolling Layout
+
+```text
++--+--+--+--+--+--+
+|     |     |     |
+|     |     |     |
+|     |     |     |
++--+--+--+--+--+--+
+```
+
+
+
+
+**Value:** `"Scrolling"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].workspaces[].layout`](#workspaceconfig-layout)
+- [`.monitors[].workspaces[].layout_rules[*]`](#workspaceconfig-layout_rules)
+
+
+**Referenced by:**
+- [`WorkspaceConfig`](#workspaceconfig)
+
+
+
+---
+
+
+### FloatingLayerBehaviour {#floatinglayerbehaviour}
+
+Floating layer behaviour when a new window is opened
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### Tile
+
+
+Tile new windows (unless they match a float rule or float override is active)
+
+
+
+
+**Value:** `"Tile"`
+
+
+
+
+---
+
+#### Float
+
+
+Float new windows
+
+
+
+
+**Value:** `"Float"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.floating_layer_behaviour`](#floating_layer_behaviour)
+- [`.monitors[].floating_layer_behaviour`](#monitorconfig-floating_layer_behaviour)
+- [`.monitors[].workspaces[].floating_layer_behaviour`](#workspaceconfig-floating_layer_behaviour)
+
+
+**Referenced by:**
+- [`MonitorConfig`](#monitorconfig)
+- [`WorkspaceConfig`](#workspaceconfig)
+
+
+
+---
+
+
+### GridLayoutOptions {#gridlayoutoptions}
+
+Options for the Grid layout
+
+
+<details open>
+<summary>Properties (1)</summary>
+
+
+#### rows {#gridlayoutoptions-rows}
+
+<Badge text="required" variant="success" /> `integer`
+
+Maximum number of rows per grid column
+
+
+
+- **Format:** `uint`
+- **Minimum:** 0
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.layout_defaults[*].layout_options.grid`](#layoutoptions-grid)
+- [`.layout_defaults[*].layout_options_rules[*].grid`](#layoutoptions-grid)
+- [`.monitors[].workspaces[].layout_options.grid`](#layoutoptions-grid)
+- [`.monitors[].workspaces[].layout_options_rules[*].grid`](#layoutoptions-grid)
+
+
+**Referenced by:**
+- [`LayoutOptions`](#layoutoptions)
+
+
+
+---
+
+
+### Hex {#hex}
+
+Colour represented as a Hex string
+
+
+
+- **Format:** `color-hex`
+
+
+#### Usages
+
+**Configuration:**
+- [`.border_colours.floating`](#colour)
+- [`.border_colours.monocle`](#colour)
+- [`.border_colours.single`](#colour)
+- [`.border_colours.stack`](#colour)
+- [`.border_colours.unfocused`](#colour)
+- [`.border_colours.unfocused_locked`](#colour)
+- [`.theme.colours.base_00`](#colour)
+- [`.theme.colours.base_01`](#colour)
+- [`.theme.colours.base_02`](#colour)
+- [`.theme.colours.base_03`](#colour)
+- [`.theme.colours.base_04`](#colour)
+- [`.theme.colours.base_05`](#colour)
+- [`.theme.colours.base_06`](#colour)
+- [`.theme.colours.base_07`](#colour)
+- [`.theme.colours.base_08`](#colour)
+- [`.theme.colours.base_09`](#colour)
+- [`.theme.colours.base_0a`](#colour)
+- [`.theme.colours.base_0b`](#colour)
+- [`.theme.colours.base_0c`](#colour)
+- [`.theme.colours.base_0d`](#colour)
+- [`.theme.colours.base_0e`](#colour)
+- [`.theme.colours.base_0f`](#colour)
+
+
+**Referenced by:**
+- [`Colour`](#colour)
+
+
+
+---
+
+
+### IdWithIdentifier {#idwithidentifier}
+
+Rule for matching applications
+
+
+<details open>
+<summary>Properties (3)</summary>
+
+
+#### id {#idwithidentifier-id}
+
+<Badge text="required" variant="success" /> `string`
+
+Target identifier
+
+
+#### kind {#idwithidentifier-kind}
+
+<Badge text="required" variant="success" /> [`ApplicationIdentifier`](#applicationidentifier)
+
+Kind of identifier to target
+
+
+
+#### matching_strategy {#idwithidentifier-matching_strategy}
+
+<Badge text="optional" variant="note" /> [`MatchingStrategy`](#matchingstrategy)
+
+Matching strategy to use
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.floating_applications[]`](#matchingrule)
+- [`.floating_applications[][]`](#matchingrule)
+- [`.ignore_rules[]`](#matchingrule)
+- [`.ignore_rules[][]`](#matchingrule)
+- [`.manage_rules[]`](#matchingrule)
+- [`.manage_rules[][]`](#matchingrule)
+- [`.monitors[].workspaces[].initial_workspace_rules[]`](#matchingrule)
+- [`.monitors[].workspaces[].initial_workspace_rules[][]`](#matchingrule)
+- [`.monitors[].workspaces[].workspace_rules[]`](#matchingrule)
+- [`.monitors[].workspaces[].workspace_rules[][]`](#matchingrule)
+
+
+**Referenced by:**
+- [`MatchingRule`](#matchingrule)
+
+
+
+---
+
+
+### KomorebiTheme {#komorebitheme}
+
+Komorebi theme
+
+
+
+
+<details open>
+<summary>Enum variants (3)</summary>
+
+
+---
+
+#### Catppuccin
+
+
+Theme from catppuccin-egui
+
+
+
+
+
+**Value:** [`KomorebiThemeCatppuccin`](#komorebithemecatppuccin)
+
+
+
+  
+  
+
+
+
+
+---
+
+#### Base16
+
+
+Theme from base16-egui-themes
+
+
+
+
+
+**Value:** [`KomorebiThemeBase16`](#komorebithemebase16)
+
+
+
+  
+  
+
+
+
+
+---
+
+#### Custom
+
+
+Custom Base16 theme
+
+
+
+
+
+**Value:** [`KomorebiThemeCustom`](#komorebithemecustom)
+
+
+
+  
+  
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.theme`](#theme)
+
+
+
+
+---
+
+
+### KomorebiThemeBase16 {#komorebithemebase16}
+
+Theme from base16-egui-themes
+
+
+<details open>
+<summary>Properties (8)</summary>
+
+
+#### name {#komorebithemebase16-name}
+
+<Badge text="required" variant="success" /> [`Base16`](#base16)
+
+Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
+
+
+
+#### bar_accent {#komorebithemebase16-bar_accent}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Bar accent colour
+
+
+
+**Default:** [`"Base0D"`](#base16value)
+
+#### floating_border {#komorebithemebase16-floating_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Floating window border colour
+
+
+
+**Default:** [`"Base09"`](#base16value)
+
+#### monocle_border {#komorebithemebase16-monocle_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Monocle window border colour
+
+
+
+**Default:** [`"Base0F"`](#base16value)
+
+#### single_border {#komorebithemebase16-single_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Single window border colour
+
+
+
+**Default:** [`"Base0D"`](#base16value)
+
+#### stack_border {#komorebithemebase16-stack_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Stack window border colour
+
+
+
+**Default:** [`"Base0B"`](#base16value)
+
+#### unfocused_border {#komorebithemebase16-unfocused_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Unfocused window border colour
+
+
+
+**Default:** [`"Base01"`](#base16value)
+
+#### unfocused_locked_border {#komorebithemebase16-unfocused_locked_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Unfocused locked window border colour
+
+
+
+**Default:** [`"Base08"`](#base16value)
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.theme`](#komorebitheme)
+
+
+**Referenced by:**
+- [`KomorebiTheme`](#komorebitheme)
+
+
+
+---
+
+
+### KomorebiThemeCatppuccin {#komorebithemecatppuccin}
+
+Theme from catppuccin-egui
+
+
+<details open>
+<summary>Properties (8)</summary>
+
+
+#### name {#komorebithemecatppuccin-name}
+
+<Badge text="required" variant="success" /> [`Catppuccin`](#catppuccin)
+
+Name of the Catppuccin theme (previews: https://github.com/catppuccin/catppuccin)
+
+
+
+#### bar_accent {#komorebithemecatppuccin-bar_accent}
+
+<Badge text="optional" variant="note" /> [`CatppuccinValue`](#catppuccinvalue)
+
+Bar accent colour
+
+
+
+**Default:** [`"Blue"`](#catppuccinvalue)
+
+#### floating_border {#komorebithemecatppuccin-floating_border}
+
+<Badge text="optional" variant="note" /> [`CatppuccinValue`](#catppuccinvalue)
+
+Floating window border colour
+
+
+
+**Default:** [`"Yellow"`](#catppuccinvalue)
+
+#### monocle_border {#komorebithemecatppuccin-monocle_border}
+
+<Badge text="optional" variant="note" /> [`CatppuccinValue`](#catppuccinvalue)
+
+Monocle window border colour
+
+
+
+**Default:** [`"Pink"`](#catppuccinvalue)
+
+#### single_border {#komorebithemecatppuccin-single_border}
+
+<Badge text="optional" variant="note" /> [`CatppuccinValue`](#catppuccinvalue)
+
+Single window border colour
+
+
+
+**Default:** [`"Blue"`](#catppuccinvalue)
+
+#### stack_border {#komorebithemecatppuccin-stack_border}
+
+<Badge text="optional" variant="note" /> [`CatppuccinValue`](#catppuccinvalue)
+
+Stack window border colour
+
+
+
+**Default:** [`"Green"`](#catppuccinvalue)
+
+#### unfocused_border {#komorebithemecatppuccin-unfocused_border}
+
+<Badge text="optional" variant="note" /> [`CatppuccinValue`](#catppuccinvalue)
+
+Unfocused window border colour
+
+
+
+**Default:** [`"Base"`](#catppuccinvalue)
+
+#### unfocused_locked_border {#komorebithemecatppuccin-unfocused_locked_border}
+
+<Badge text="optional" variant="note" /> [`CatppuccinValue`](#catppuccinvalue)
+
+Unfocused locked window border colour
+
+
+
+**Default:** [`"Red"`](#catppuccinvalue)
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.theme`](#komorebitheme)
+
+
+**Referenced by:**
+- [`KomorebiTheme`](#komorebitheme)
+
+
+
+---
+
+
+### KomorebiThemeCustom {#komorebithemecustom}
+
+Custom Base16 theme
+
+
+<details open>
+<summary>Properties (8)</summary>
+
+
+#### colours {#komorebithemecustom-colours}
+
+<Badge text="required" variant="success" /> [`Base16ColourPalette`](#base16colourpalette)
+
+Colours of the custom Base16 theme palette
+
+
+
+#### bar_accent {#komorebithemecustom-bar_accent}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Bar accent colour
+
+
+
+**Default:** [`"Base0D"`](#base16value)
+
+#### floating_border {#komorebithemecustom-floating_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Floating window border colour
+
+
+
+**Default:** [`"Base09"`](#base16value)
+
+#### monocle_border {#komorebithemecustom-monocle_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Monocle window border colour
+
+
+
+**Default:** [`"Base0F"`](#base16value)
+
+#### single_border {#komorebithemecustom-single_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Single window border colour
+
+
+
+**Default:** [`"Base0D"`](#base16value)
+
+#### stack_border {#komorebithemecustom-stack_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Stack window border colour
+
+
+
+**Default:** [`"Base0B"`](#base16value)
+
+#### unfocused_border {#komorebithemecustom-unfocused_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Unfocused window border colour
+
+
+
+**Default:** [`"Base01"`](#base16value)
+
+#### unfocused_locked_border {#komorebithemecustom-unfocused_locked_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Unfocused locked window border colour
+
+
+
+**Default:** [`"Base08"`](#base16value)
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.theme`](#komorebitheme)
+
+
+**Referenced by:**
+- [`KomorebiTheme`](#komorebitheme)
+
+
+
+---
+
+
+### LayoutDefaultEntry {#layoutdefaultentry}
+
+Per-layout default options entry for the `layout_defaults` global setting.
+Contains both base layout options and threshold-based layout options rules.
+
+
+<details open>
+<summary>Properties (2)</summary>
+
+
+
+#### layout_options {#layoutdefaultentry-layout_options}
+
+<Badge text="optional" variant="note" /> [`LayoutOptions`](#layoutoptions)
+
+Default layout options for this layout
+
+
+#### layout_options_rules {#layoutdefaultentry-layout_options_rules}
+
+<Badge text="optional" variant="note" /> `object`
+
+Threshold-based layout options rules in the format of threshold => options.
+When container count >= threshold, the highest matching threshold's options
+fully replace the base `layout_options`.
+
+
+
+
+**Key:** `"<integer>"` **→** [`LayoutOptions`](#layoutoptions)
+
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.layout_defaults[*]`](#layout_defaults)
+
+
+
+
+---
+
+
+### LayoutOptions {#layoutoptions}
+
+Options for specific layouts
+
+
+<details open>
+<summary>Properties (4)</summary>
+
+
+
+#### column_ratios {#layoutoptions-column_ratios}
+
+<Badge text="optional" variant="note" /> `array` <Badge text="optional" variant="note" /> `number`
+
+Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)
+
+- Used by Columns layout: ratios for each column width
+- Used by Grid layout: ratios for column widths
+- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio
+- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)
+- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio
+
+Columns without a ratio share remaining space equally.
+Example: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns
+
+
+
+- **Min items:** 5
+- **Max items:** 5
+<details open>
+<summary>Array Items</summary>
+
+<Badge text="optional" variant="note" /> `number`
+
+
+
+
+- **Format:** `float`
+
+</details>
+#### grid {#layoutoptions-grid}
+
+<Badge text="optional" variant="note" /> [`GridLayoutOptions`](#gridlayoutoptions)
+
+Options related to the Grid layout
+
+
+#### row_ratios {#layoutoptions-row_ratios}
+
+<Badge text="optional" variant="note" /> `array` <Badge text="optional" variant="note" /> `number`
+
+Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)
+
+- Used by Rows layout: ratios for each row height
+- Used by Grid layout: ratios for row heights
+
+Rows without a ratio share remaining space equally.
+Example: `[0.5, 0.5]` for 50%-50% rows
+
+
+
+- **Min items:** 5
+- **Max items:** 5
+<details open>
+<summary>Array Items</summary>
+
+<Badge text="optional" variant="note" /> `number`
+
+
+
+
+- **Format:** `float`
+
+</details>
+#### scrolling {#layoutoptions-scrolling}
+
+<Badge text="optional" variant="note" /> [`ScrollingLayoutOptions`](#scrollinglayoutoptions)
+
+Options related to the Scrolling layout
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.layout_defaults[*].layout_options`](#layoutdefaultentry-layout_options)
+- [`.layout_defaults[*].layout_options_rules[*]`](#layoutdefaultentry-layout_options_rules)
+- [`.monitors[].workspaces[].layout_options`](#workspaceconfig-layout_options)
+- [`.monitors[].workspaces[].layout_options_rules[*]`](#workspaceconfig-layout_options_rules)
+
+
+**Referenced by:**
+- [`LayoutDefaultEntry`](#layoutdefaultentry)
+- [`WorkspaceConfig`](#workspaceconfig)
+
+
+
+---
+
+
+### MatchingRule {#matchingrule}
+
+Rule for matching applications
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### IdWithIdentifier
+
+
+Simple matching rule which must evaluate to true
+
+
+
+
+
+**Value:** [`IdWithIdentifier`](#idwithidentifier)
+
+
+
+
+---
+
+#### IdWithIdentifier Array
+
+
+Composite matching rule where all conditions must evaluate to true
+
+
+
+
+
+**Value:** `array` [`IdWithIdentifier`](#idwithidentifier)
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.floating_applications[]`](#floating_applications)
+- [`.ignore_rules[]`](#ignore_rules)
+- [`.manage_rules[]`](#manage_rules)
+- [`.monitors[].workspaces[].initial_workspace_rules[]`](#workspaceconfig-initial_workspace_rules)
+- [`.monitors[].workspaces[].workspace_rules[]`](#workspaceconfig-workspace_rules)
+
+
+**Referenced by:**
+- [`WorkspaceConfig`](#workspaceconfig)
+
+
+
+---
+
+
+### MatchingStrategy {#matchingstrategy}
+
+Strategy for matching identifiers
+
+
+
+
+<details open>
+<summary>Enum variants (10)</summary>
+
+
+---
+
+#### Legacy
+
+
+Should not be used, only kept for backward compatibility
+
+
+
+
+**Value:** `"Legacy"`
+
+
+
+
+---
+
+#### Equals
+
+
+Equals
+
+
+
+
+**Value:** `"Equals"`
+
+
+
+
+---
+
+#### StartsWith
+
+
+Starts With
+
+
+
+
+**Value:** `"StartsWith"`
+
+
+
+
+---
+
+#### EndsWith
+
+
+Ends With
+
+
+
+
+**Value:** `"EndsWith"`
+
+
+
+
+---
+
+#### Contains
+
+
+Contains
+
+
+
+
+**Value:** `"Contains"`
+
+
+
+
+---
+
+#### Regex
+
+
+Regex
+
+
+
+
+**Value:** `"Regex"`
+
+
+
+
+---
+
+#### DoesNotEndWith
+
+
+Does not end with
+
+
+
+
+**Value:** `"DoesNotEndWith"`
+
+
+
+
+---
+
+#### DoesNotStartWith
+
+
+Does not start with
+
+
+
+
+**Value:** `"DoesNotStartWith"`
+
+
+
+
+---
+
+#### DoesNotEqual
+
+
+Does not equal
+
+
+
+
+**Value:** `"DoesNotEqual"`
+
+
+
+
+---
+
+#### DoesNotContain
+
+
+Does not contain
+
+
+
+
+**Value:** `"DoesNotContain"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.floating_applications[].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.floating_applications[][].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.ignore_rules[].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.ignore_rules[][].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.manage_rules[].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.manage_rules[][].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.monitors[].workspaces[].initial_workspace_rules[].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.monitors[].workspaces[].initial_workspace_rules[][].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.monitors[].workspaces[].workspace_rules[].matching_strategy`](#idwithidentifier-matching_strategy)
+- [`.monitors[].workspaces[].workspace_rules[][].matching_strategy`](#idwithidentifier-matching_strategy)
+
+
+**Referenced by:**
+- [`IdWithIdentifier`](#idwithidentifier)
+
+
+
+---
+
+
+### MonitorConfig {#monitorconfig}
+
+Monitor configuration
+
+
+<details open>
+<summary>Properties (9)</summary>
+
+
+#### workspaces {#monitorconfig-workspaces}
+
+<Badge text="required" variant="success" /> `array` [`WorkspaceConfig`](#workspaceconfig)
+
+Workspace configurations
+
+
+
+#### container_padding {#monitorconfig-container_padding}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Container padding
+
+
+
+- **Format:** `int32`
+
+#### floating_layer_behaviour {#monitorconfig-floating_layer_behaviour}
+
+<Badge text="optional" variant="note" /> [`FloatingLayerBehaviour`](#floatinglayerbehaviour)
+
+Determine what happens to a new window when the Floating workspace layer is active
+
+
+
+**Default:** [`"Tile"`](#floatinglayerbehaviour)
+
+#### wallpaper {#monitorconfig-wallpaper}
+
+<Badge text="optional" variant="note" /> [`Wallpaper`](#wallpaper)
+
+Specify a wallpaper for this monitor
+
+
+#### window_based_work_area_offset {#monitorconfig-window_based_work_area_offset}
+
+<Badge text="optional" variant="note" /> [`Rect`](#rect)
+
+Window based work area offset
+
+
+#### window_based_work_area_offset_limit {#monitorconfig-window_based_work_area_offset_limit}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Open window limit after which the window based work area offset will no longer be applied
+
+
+
+- **Format:** `int`
+
+
+**Default:** `1`
+
+#### window_hiding_position {#monitorconfig-window_hiding_position}
+
+<Badge text="optional" variant="note" /> [`WindowHidingPosition`](#windowhidingposition)
+
+Determine which position windows should be hidden at on this monitor
+
+
+#### work_area_offset {#monitorconfig-work_area_offset}
+
+<Badge text="optional" variant="note" /> [`Rect`](#rect)
+
+Monitor-specific work area offset
+
+
+#### workspace_padding {#monitorconfig-workspace_padding}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Workspace padding (default: global)
+
+
+
+- **Format:** `int32`
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[]`](#monitors)
+
+
+
+
+---
+
+
+### MoveBehaviour {#movebehaviour}
+
+Move behaviour when the operation works across a monitor boundary
+
+
+
+
+<details open>
+<summary>Enum variants (3)</summary>
+
+
+---
+
+#### Swap
+
+
+Swap the window container with the window container at the edge of the adjacent monitor
+
+
+
+
+**Value:** `"Swap"`
+
+
+
+
+---
+
+#### Insert
+
+
+Insert the window container into the focused workspace on the adjacent monitor
+
+
+
+
+**Value:** `"Insert"`
+
+
+
+
+---
+
+#### NoOp
+
+
+Do nothing if trying to move a window container in the direction of an adjacent monitor
+
+
+
+
+**Value:** `"NoOp"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.cross_monitor_move_behaviour`](#cross_monitor_move_behaviour)
+
+
+
+
+---
+
+
+### OperationBehaviour {#operationbehaviour}
+
+Operation behaviour for temporarily unmanaged and floating windows
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### Op
+
+
+Process commands on temporarily unmanaged/floated windows
+
+
+
+
+**Value:** `"Op"`
+
+
+
+
+---
+
+#### NoOp
+
+
+Ignore commands on temporarily unmanaged/floated windows
+
+
+
+
+**Value:** `"NoOp"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.unmanaged_window_operation_behaviour`](#unmanaged_window_operation_behaviour)
+
+
+
+
+---
+
+
+### PathBuf {#pathbuf}
+
+A file system path. Environment variables like $VAR are automatically resolved.
+
+
+
+#### Usages
+
+**Configuration:**
+- [`.app_specific_configuration_path`](#appspecificconfigurationpath)
+- [`.app_specific_configuration_path[]`](#appspecificconfigurationpath)
+- [`.monitors[].wallpaper.path`](#wallpaper-path)
+- [`.monitors[].workspaces[].wallpaper.path`](#wallpaper-path)
+
+
+**Referenced by:**
+- [`AppSpecificConfigurationPath`](#appspecificconfigurationpath)
+- [`Wallpaper`](#wallpaper)
+
+
+
+---
+
+
+### PerAnimationPrefixConfig {#peranimationprefixconfig}
+
+Animation configuration
+
+This can be either global:
+```json
+{
+    "enabled": true,
+    "style": "EaseInSine",
+    "fps": 60,
+    "duration": 250
+}
+```
+
+Or scoped by an animation kind prefix:
+```json
+{
+    "movement": {
+        "enabled": true,
+        "style": "EaseInSine",
+        "fps": 60,
+        "duration": 250
+    }
+}
+```
+
+
+
+#### Usages
+
+**Configuration:**
+- [`.animation.enabled`](#animationsconfig-enabled)
+
+
+**Referenced by:**
+- [`AnimationsConfig`](#animationsconfig)
+
+
+
+---
+
+
+### PerAnimationPrefixConfig {#peranimationprefixconfig2}
+
+Animation configuration
+
+This can be either global:
+```json
+{
+    "enabled": true,
+    "style": "EaseInSine",
+    "fps": 60,
+    "duration": 250
+}
+```
+
+Or scoped by an animation kind prefix:
+```json
+{
+    "movement": {
+        "enabled": true,
+        "style": "EaseInSine",
+        "fps": 60,
+        "duration": 250
+    }
+}
+```
+
+
+
+#### Usages
+
+**Configuration:**
+- [`.animation.duration`](#animationsconfig-duration)
+
+
+**Referenced by:**
+- [`AnimationsConfig`](#animationsconfig)
+
+
+
+---
+
+
+### PerAnimationPrefixConfig {#peranimationprefixconfig3}
+
+Animation configuration
+
+This can be either global:
+```json
+{
+    "enabled": true,
+    "style": "EaseInSine",
+    "fps": 60,
+    "duration": 250
+}
+```
+
+Or scoped by an animation kind prefix:
+```json
+{
+    "movement": {
+        "enabled": true,
+        "style": "EaseInSine",
+        "fps": 60,
+        "duration": 250
+    }
+}
+```
+
+
+
+#### Usages
+
+**Configuration:**
+- [`.animation.style`](#animationsconfig-style)
+
+
+**Referenced by:**
+- [`AnimationsConfig`](#animationsconfig)
+
+
+
+---
+
+
+### Placement {#placement}
+
+Placement behaviour for floating windows
+
+
+
+
+<details open>
+<summary>Enum variants (3)</summary>
+
+
+---
+
+#### None
+
+
+Does not change the size or position of the window
+
+
+
+
+**Value:** `"None"`
+
+
+
+
+---
+
+#### Center
+
+
+Center the window without changing the size
+
+
+
+
+**Value:** `"Center"`
+
+
+
+
+---
+
+#### CenterAndResize
+
+
+Center the window and resize it according to the `AspectRatio`
+
+
+
+
+**Value:** `"CenterAndResize"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.float_override_placement`](#float_override_placement)
+- [`.float_rule_placement`](#float_rule_placement)
+- [`.floating_layer_placement`](#floating_layer_placement)
+- [`.toggle_float_placement`](#toggle_float_placement)
+
+
+
+
+---
+
+
+### PredefinedAspectRatio {#predefinedaspectratio}
+
+Predefined aspect ratio
+
+
+
+
+<details open>
+<summary>Enum variants (3)</summary>
+
+
+---
+
+#### Ultrawide
+
+
+21:9
+
+
+
+
+**Value:** `"Ultrawide"`
+
+
+
+
+---
+
+#### Widescreen
+
+
+16:9
+
+
+
+
+**Value:** `"Widescreen"`
+
+
+
+
+---
+
+#### Standard
+
+
+4:3
+
+
+
+
+**Value:** `"Standard"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.floating_window_aspect_ratio`](#aspectratio)
+
+
+**Referenced by:**
+- [`AspectRatio`](#aspectratio)
+
+
+
+---
+
+
+### Rect {#rect}
+
+Rectangle dimensions
+
+
+<details open>
+<summary>Properties (4)</summary>
+
+
+#### bottom {#rect-bottom}
+
+<Badge text="required" variant="success" /> `integer`
+
+Height of the rectangle (from the top point)
+
+
+
+- **Format:** `int32`
+
+#### left {#rect-left}
+
+<Badge text="required" variant="success" /> `integer`
+
+Left point of the rectangle
+
+
+
+- **Format:** `int32`
+
+#### right {#rect-right}
+
+<Badge text="required" variant="success" /> `integer`
+
+Width of the recentangle (from the left point)
+
+
+
+- **Format:** `int32`
+
+#### top {#rect-top}
+
+<Badge text="required" variant="success" /> `integer`
+
+Top point of the rectangle
+
+
+
+- **Format:** `int32`
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.global_work_area_offset`](#global_work_area_offset)
+- [`.monitors[].window_based_work_area_offset`](#monitorconfig-window_based_work_area_offset)
+- [`.monitors[].work_area_offset`](#monitorconfig-work_area_offset)
+- [`.monitors[].workspaces[].work_area_offset`](#workspaceconfig-work_area_offset)
+- [`.monitors[].workspaces[].work_area_offset_rules[*]`](#workspaceconfig-work_area_offset_rules)
+
+
+**Referenced by:**
+- [`MonitorConfig`](#monitorconfig)
+- [`WorkspaceConfig`](#workspaceconfig)
+
+
+
+---
+
+
+### Rgb {#rgb}
+
+Colour represented as RGB
+
+
+<details open>
+<summary>Properties (3)</summary>
+
+
+#### b {#rgb-b}
+
+<Badge text="required" variant="success" /> `integer`
+
+Blue
+
+
+
+- **Format:** `uint32`
+- **Minimum:** 0
+
+#### g {#rgb-g}
+
+<Badge text="required" variant="success" /> `integer`
+
+Green
+
+
+
+- **Format:** `uint32`
+- **Minimum:** 0
+
+#### r {#rgb-r}
+
+<Badge text="required" variant="success" /> `integer`
+
+Red
+
+
+
+- **Format:** `uint32`
+- **Minimum:** 0
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.border_colours.floating`](#colour)
+- [`.border_colours.monocle`](#colour)
+- [`.border_colours.single`](#colour)
+- [`.border_colours.stack`](#colour)
+- [`.border_colours.unfocused`](#colour)
+- [`.border_colours.unfocused_locked`](#colour)
+- [`.theme.colours.base_00`](#colour)
+- [`.theme.colours.base_01`](#colour)
+- [`.theme.colours.base_02`](#colour)
+- [`.theme.colours.base_03`](#colour)
+- [`.theme.colours.base_04`](#colour)
+- [`.theme.colours.base_05`](#colour)
+- [`.theme.colours.base_06`](#colour)
+- [`.theme.colours.base_07`](#colour)
+- [`.theme.colours.base_08`](#colour)
+- [`.theme.colours.base_09`](#colour)
+- [`.theme.colours.base_0a`](#colour)
+- [`.theme.colours.base_0b`](#colour)
+- [`.theme.colours.base_0c`](#colour)
+- [`.theme.colours.base_0d`](#colour)
+- [`.theme.colours.base_0e`](#colour)
+- [`.theme.colours.base_0f`](#colour)
+
+
+**Referenced by:**
+- [`Colour`](#colour)
+
+
+
+---
+
+
+### ScrollingLayoutOptions {#scrollinglayoutoptions}
+
+Options for the Scrolling layout
+
+
+<details open>
+<summary>Properties (2)</summary>
+
+
+#### columns {#scrollinglayoutoptions-columns}
+
+<Badge text="required" variant="success" /> `integer`
+
+Desired number of visible columns (default: 3)
+
+
+
+- **Format:** `uint`
+- **Minimum:** 0
+
+
+#### center_focused_column {#scrollinglayoutoptions-center_focused_column}
+
+<Badge text="optional" variant="note" /> `boolean`
+
+With an odd number of visible columns, keep the focused window column centered
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.layout_defaults[*].layout_options.scrolling`](#layoutoptions-scrolling)
+- [`.layout_defaults[*].layout_options_rules[*].scrolling`](#layoutoptions-scrolling)
+- [`.monitors[].workspaces[].layout_options.scrolling`](#layoutoptions-scrolling)
+- [`.monitors[].workspaces[].layout_options_rules[*].scrolling`](#layoutoptions-scrolling)
+
+
+**Referenced by:**
+- [`LayoutOptions`](#layoutoptions)
+
+
+
+---
+
+
+### ThemeOptions {#themeoptions}
+
+Theme options
+
+
+<details open>
+<summary>Properties (8)</summary>
+
+
+
+#### bar_accent {#themeoptions-bar_accent}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Komorebi status bar accent
+
+
+
+**Default:** [`"Base0D"`](#base16value)
+
+#### floating_border {#themeoptions-floating_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Border colour when the window is floating
+
+
+
+**Default:** [`"Base09"`](#base16value)
+
+#### monocle_border {#themeoptions-monocle_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Border colour when the container is in monocle mode
+
+
+
+**Default:** [`"Base0F"`](#base16value)
+
+#### single_border {#themeoptions-single_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Border colour when the container contains a single window
+
+
+
+**Default:** [`"Base0D"`](#base16value)
+
+#### stack_border {#themeoptions-stack_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Border colour when the container contains multiple windows
+
+
+
+**Default:** [`"Base0B"`](#base16value)
+
+#### theme_variant {#themeoptions-theme_variant}
+
+<Badge text="optional" variant="note" /> [`ThemeVariant`](#themevariant)
+
+Specify Light or Dark variant for theme generation
+
+
+
+**Default:** [`"Dark"`](#themevariant)
+
+#### unfocused_border {#themeoptions-unfocused_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Border colour when the container is unfocused
+
+
+
+**Default:** [`"Base01"`](#base16value)
+
+#### unfocused_locked_border {#themeoptions-unfocused_locked_border}
+
+<Badge text="optional" variant="note" /> [`Base16Value`](#base16value)
+
+Border colour when the container is unfocused and locked
+
+
+
+**Default:** [`"Base08"`](#base16value)
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].wallpaper.theme_options`](#wallpaper-theme_options)
+- [`.monitors[].workspaces[].wallpaper.theme_options`](#wallpaper-theme_options)
+
+
+**Referenced by:**
+- [`Wallpaper`](#wallpaper)
+
+
+
+---
+
+
+### ThemeVariant {#themevariant}
+
+Theme variant
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### Dark
+
+
+Dark variant
+
+
+
+
+**Value:** `"Dark"`
+
+
+
+
+---
+
+#### Light
+
+
+Light variant
+
+
+
+
+**Value:** `"Light"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].wallpaper.theme_options.theme_variant`](#themeoptions-theme_variant)
+- [`.monitors[].workspaces[].wallpaper.theme_options.theme_variant`](#themeoptions-theme_variant)
+
+
+**Referenced by:**
+- [`ThemeOptions`](#themeoptions)
+
+
+
+---
+
+
+### Wallpaper {#wallpaper}
+
+Wallpaper configuration
+
+
+<details open>
+<summary>Properties (3)</summary>
+
+
+#### path {#wallpaper-path}
+
+<Badge text="required" variant="success" /> [`PathBuf`](#pathbuf)
+
+Path to the wallpaper image file
+
+
+
+#### generate_theme {#wallpaper-generate_theme}
+
+<Badge text="optional" variant="note" /> `boolean`
+
+Generate and apply Base16 theme for this wallpaper
+
+
+
+**Default:** `true`
+
+#### theme_options {#wallpaper-theme_options}
+
+<Badge text="optional" variant="note" /> [`ThemeOptions`](#themeoptions)
+
+Specify theme options
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].wallpaper`](#monitorconfig-wallpaper)
+- [`.monitors[].workspaces[].wallpaper`](#workspaceconfig-wallpaper)
+
+
+**Referenced by:**
+- [`MonitorConfig`](#monitorconfig)
+- [`WorkspaceConfig`](#workspaceconfig)
+
+
+
+---
+
+
+### WindowContainerBehaviour {#windowcontainerbehaviour}
+
+Window container behaviour when a new window is opened
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### Create
+
+
+Create a new container for each new window
+
+
+
+
+**Value:** `"Create"`
+
+
+
+
+---
+
+#### Append
+
+
+Append new windows to the focused window container
+
+
+
+
+**Value:** `"Append"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].workspaces[].window_container_behaviour`](#workspaceconfig-window_container_behaviour)
+- [`.monitors[].workspaces[].window_container_behaviour_rules[*]`](#workspaceconfig-window_container_behaviour_rules)
+- [`.window_container_behaviour`](#window_container_behaviour)
+
+
+**Referenced by:**
+- [`WorkspaceConfig`](#workspaceconfig)
+
+
+
+---
+
+
+### WindowHidingPosition {#windowhidingposition}
+
+Window hiding position
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### BottomLeft
+
+
+Hide windows in the bottom left corner of the screen
+
+
+
+
+**Value:** `"BottomLeft"`
+
+
+
+
+---
+
+#### BottomRight
+
+
+Hide windows in the bottom right corner of the screen
+
+
+
+
+**Value:** `"BottomRight"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].window_hiding_position`](#monitorconfig-window_hiding_position)
+
+
+**Referenced by:**
+- [`MonitorConfig`](#monitorconfig)
+
+
+
+---
+
+
+### WorkspaceConfig {#workspaceconfig}
+
+Workspace configuration
+
+
+<details open>
+<summary>Properties (19)</summary>
+
+
+#### name {#workspaceconfig-name}
+
+<Badge text="required" variant="success" /> `string`
+
+Name
+
+
+
+#### apply_window_based_work_area_offset {#workspaceconfig-apply_window_based_work_area_offset}
+
+<Badge text="optional" variant="note" /> `boolean`
+
+Apply this monitor's window-based work area offset
+
+
+
+**Default:** `true`
+
+#### container_padding {#workspaceconfig-container_padding}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Container padding (default: global)
+
+
+
+- **Format:** `int32`
+
+#### float_override {#workspaceconfig-float_override}
+
+<Badge text="optional" variant="note" /> `boolean`
+
+Enable or disable float override, which makes it so every new window opens in floating mode
+
+
+#### floating_layer_behaviour {#workspaceconfig-floating_layer_behaviour}
+
+<Badge text="optional" variant="note" /> [`FloatingLayerBehaviour`](#floatinglayerbehaviour)
+
+Determine what happens to a new window when the Floating workspace layer is active
+
+
+
+**Default:** [`"Tile"`](#floatinglayerbehaviour)
+
+#### initial_workspace_rules {#workspaceconfig-initial_workspace_rules}
+
+<Badge text="optional" variant="note" /> `array` [`MatchingRule`](#matchingrule)
+
+Initial workspace application rules
+
+
+#### layout {#workspaceconfig-layout}
+
+<Badge text="optional" variant="note" /> [`DefaultLayout`](#defaultlayout)
+
+Layout
+
+
+
+**Default:** [`"BSP"`](#defaultlayout)
+
+#### layout_flip {#workspaceconfig-layout_flip}
+
+<Badge text="optional" variant="note" /> [`Axis`](#axis)
+
+Specify an axis on which to flip the selected layout
+
+
+#### layout_options {#workspaceconfig-layout_options}
+
+<Badge text="optional" variant="note" /> [`LayoutOptions`](#layoutoptions)
+
+Layout-specific options
+
+
+#### layout_options_rules {#workspaceconfig-layout_options_rules}
+
+<Badge text="optional" variant="note" /> `object`
+
+Threshold-based layout options rules in the format of threshold => options.
+When container count >= threshold, the highest matching threshold's options
+fully replace the base `layout_options`.
+This follows the same threshold logic as `layout_rules`.
+
+
+
+
+**Key:** `"<integer>"` **→** [`LayoutOptions`](#layoutoptions)
+
+
+
+
+#### layout_rules {#workspaceconfig-layout_rules}
+
+<Badge text="optional" variant="note" /> `object`
+
+Layout rules in the format of threshold => layout
+
+
+
+
+**Key:** `"<integer>"` **→** [`DefaultLayout`](#defaultlayout)
+
+
+
+
+#### tile {#workspaceconfig-tile}
+
+<Badge text="optional" variant="note" /> `boolean`
+
+Enable or disable tiling for the workspace
+
+
+
+**Default:** `true`
+
+#### wallpaper {#workspaceconfig-wallpaper}
+
+<Badge text="optional" variant="note" /> [`Wallpaper`](#wallpaper)
+
+Specify a wallpaper for this workspace
+
+
+#### window_container_behaviour {#workspaceconfig-window_container_behaviour}
+
+<Badge text="optional" variant="note" /> [`WindowContainerBehaviour`](#windowcontainerbehaviour)
+
+Determine what happens when a new window is opened
+
+
+
+**Default:** [`"Create"`](#windowcontainerbehaviour)
+
+#### window_container_behaviour_rules {#workspaceconfig-window_container_behaviour_rules}
+
+<Badge text="optional" variant="note" /> `object`
+
+Window container behaviour rules in the format of threshold => behaviour
+
+
+
+
+**Key:** `"<integer>"` **→** [`WindowContainerBehaviour`](#windowcontainerbehaviour)
+
+
+
+
+#### work_area_offset {#workspaceconfig-work_area_offset}
+
+<Badge text="optional" variant="note" /> [`Rect`](#rect)
+
+Workspace specific work area offset
+
+
+#### work_area_offset_rules {#workspaceconfig-work_area_offset_rules}
+
+<Badge text="optional" variant="note" /> `object`
+
+Work area offset rules in the format of threshold => Rect (default: None)
+
+
+
+
+**Key:** `"<integer>"` **→** [`Rect`](#rect)
+
+
+
+
+#### workspace_padding {#workspaceconfig-workspace_padding}
+
+<Badge text="optional" variant="note" /> `integer`
+
+Workspace padding (default: global)
+
+
+
+- **Format:** `int32`
+
+#### workspace_rules {#workspaceconfig-workspace_rules}
+
+<Badge text="optional" variant="note" /> `array` [`MatchingRule`](#matchingrule)
+
+Permanent workspace application rules
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monitors[].workspaces[]`](#monitorconfig-workspaces)
+
+
+**Referenced by:**
+- [`MonitorConfig`](#monitorconfig)
+
+
+
+---
+
+
+
+

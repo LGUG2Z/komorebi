@@ -1,0 +1,42 @@
+---
+title: Wallpapers
+description: Configuring monitor and workspace wallpapers
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+Wallpapers can be configured at the <KomorebiConfigPlatformLink command="monitorconfig-wallpaper" text="monitor-level"/> and at the <KomorebiConfigPlatformLink command="workspaceconfig-wallpaper" text="workspace-level"/>.
+
+```json
+{
+  "wallpaper": {
+    "path": "$HOME/Pictures/wallpaper.jpg"
+  }
+}
+```
+
+## Theme Generation
+
+Base16 [themes](./usage/themes) can optionally <KomorebiConfigPlatformLink command="wallpaper-generate_theme" text="be generated"/> for each configured wallpaper, and overrides can be set as <KomorebiConfigPlatformLink command="themeoptions" text="theme options"/>.
+
+```json
+{
+  "wallpaper": {
+    "path": "$HOME/Pictures/wallpaper.jpg",
+    "generate_theme": true,
+    "theme_options": {
+      "stack_border": "Base07"
+    }
+  }
+}
+```

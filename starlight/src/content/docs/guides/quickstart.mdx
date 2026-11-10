@@ -1,0 +1,76 @@
+---
+title: Quickstart
+description: A quickstart guide for komorebi
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Tiling window managers in general are very complex pieces of software.
+
+In an attempt to reduce some of the initial configuration burden for users who
+are looking to try out the software for the first time, example configurations
+are provided and updated whenever appropriate.
+
+Run the following command to download example configuration files for
+komorebi, whkd (on Windows) and skhd (on macOS).
+
+Pay attention to the output of the command to see where the example files have
+been downloaded.
+
+```shell title="Install the example configurations"
+komorebic quickstart
+```
+
+:::note[macOS Permissions]
+The `quickstart` command will also prompt you to grant komorebi and the terminal
+emulator you are start komorebi with the permissions it requires to run, and
+will open the following System Settings tabs for you:
+
+* Settings -> Privacy & Security -> Accessibility
+* Settings -> Privacy & Security -> Screen & System Audio Recording
+
+komorebi will not run unless it has the required permissions.
+:::
+
+## Starting komorebi
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+    With the example configurations downloaded, you can now start `komorebi`,
+    `komorebi-bar` and `whkd`.
+
+    ```bash title="Start komorebi, komorebi-bar and whkd in the background"
+    komorebic start --whkd --bar
+    ```
+
+    If you decide you don't like the komorebi-bar and want to use a different bar,
+    you can kill the bar, and next time you start komorebi, omit the `--bar` flag.
+
+    ```bash title="Kill the komorebi-bar and start komorebi without it"
+    komorebic kill --bar
+    komorebic start --whkd
+    ```
+  </TabItem>
+
+  <TabItem label="macOS">
+    With the example configurations downloaded, you can now start `komorebi`,
+    `komorebi-bar` and `skhd`.
+
+    ```bash title="Start komorebi, komorebi-bar in the background"
+    komorebic start --bar
+    ```
+
+    ```bash title="Start skhd in the foreground"
+    skhd --config ~/.config/komorebi/skhdrc
+    ```
+
+
+    If you decide you don't like the komorebi-bar and want to use a different bar,
+    you can kill the bar, and next time you start komorebi, omit the `--bar` flag.
+
+    ```bash title="Kill the komorebi-bar and start komorebi without it"
+    pkill komorebi-bar
+    komorebic start
+    ```
+  </TabItem>
+</Tabs>

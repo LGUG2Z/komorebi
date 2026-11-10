@@ -1,0 +1,33 @@
+---
+title: Layers
+description: Understanding workspace layers
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+komorebi has two distinct workspace layers for tiling and floating windows.
+
+## Layer Selection
+
+Whenever a layer is toggled, the windows associated with that layer will be brought to the foreground.
+
+The layer for the focused workspace can be toggled in realtime using the <KomorebicPlatformLink command="toggle-workspace-layer"/> command.
+
+## Floating Layer Behaviour
+
+The <KomorebiConfigPlatformLink command="floatinglayerbehaviour" text="floating layer behaviour"/> can be set <KomorebiConfigPlatformLink command="monitorconfig-floating_layer_behaviour" text="globally"/>, at the <KomorebiConfigPlatformLink command="monitorconfig-floating_layer_behaviour" text="monitor-level"/> and at the <KomorebiConfigPlatformLink command="workspaceconfig-floating_layer_behaviour" text="workspace-level"/> to determine if new windows opened while the floating layer is active shout float or be tiled.
+
+
+## Floating Layer Placement
+
+The <KomorebiConfigPlatformLink command="placement" text="floating layer placement"/> is set <KomorebiConfigPlatformLink command="monitorconfig-floating_layer_placement" text="globally"/> and determines where a new window is placed is the floating layer behaviour is set to make new windows float.

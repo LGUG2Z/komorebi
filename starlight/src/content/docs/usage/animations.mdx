@@ -1,0 +1,47 @@
+---
+title: Animations
+description: Configuring animations
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+Animations are an experimental feature in both komorebi for Windows and komorebi for Mac.
+
+## Enable Animations
+
+Animations are <KomorebiConfigPlatformLink command="animationsconfig-enabled" text="disabled by default"/> in the configuration file.
+
+```json
+{
+  "animation": {
+    "enabled": true,
+    "duration": 250,
+    "fps": 120,
+    "style": "EaseOutSine"
+  }
+}
+```
+
+Animations can be enabled (and disabled) in realtime using the <KomorebicPlatformLink command="animation"/> command.
+
+## Animation Duration
+
+The duration of animations can be <KomorebiConfigPlatformLink command="animationsconfig-duration" text="configured in milliseconds"/> and defaults to `250`.
+
+## Animation FPS
+
+The FPS of animations can be <KomorebiConfigPlatformLink command="animationsconfig-fps" text="configured to match your display refresh rate"/> and defaults to `60`. Note that increasing this value will increase CPU usage.
+
+## Animation Style
+
+The Animation style can be configured using <KomorebiConfigPlatformLink command="animationstyle" text="Cubic Bézier curves"/> and defaults to `Linear`.

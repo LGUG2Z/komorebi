@@ -1,0 +1,53 @@
+---
+title: Borders
+description: Configuring borders
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+Borders are an experimental feature in both komorebi for Windows and komorebi for Mac.
+
+## Enable Borders
+
+Borders are <KomorebiConfigPlatformLink command="border" text="enabled by default"/> in the configuration file.
+
+Borders can be enabled (and disabled) in realtime using the <KomorebicPlatformLink command="border"/> command.
+
+## Border Width
+
+Border width is configured using a mixture of the <KomorebiConfigPlatformLink command="border_width" text="width"/> and <KomorebiConfigPlatformLink command="border_offset" text="offset"/> configuration options.
+
+These options can be set in realtime using the <KomorebicPlatformLink command="border-width"/> and <KomorebicPlatformLink command="border-offset"/> commands.
+
+The border offset is the distance out from the edge of the window. Setting this to a greater value will increase the size of the border (the distance of the outer edge of the border from the outer edge of the window)
+
+The border width is the width of the border from the border offset towards the edge of the window. Setting this to a greater value will increase the color fill of the border (towards the outer edge of the window).
+
+It is safe to set the border width to a value which would fill inwards past the outer edge of the window, as the border will be drawn behind the window. This can be useful when running on an operating system which does not enforce a consistent radius for windows with rounded corners.
+
+## Border Colours
+
+:::note[Border Colours and Themes]
+[Themes](/usage/themes) take priority over border colours - make sure you unset any themes in your configuration file before trying to configure individual border colours.
+:::
+
+komorebi uses border colours to indicate different window container states:
+
+- <KomorebiConfigPlatformLink command="bordercolours-single" text="Single"/> - an active container with a single window
+- <KomorebiConfigPlatformLink command="bordercolours-stack" text="Stack"/> - an active container with multiple stacked windows
+- <KomorebiConfigPlatformLink command="bordercolours-monocle" text="Monocle"/> - an active container in monocle mode
+- <KomorebiConfigPlatformLink command="bordercolours-floating" text="Floating"/> - an active floating window
+- <KomorebiConfigPlatformLink command="bordercolours-unfocused" text="Unfocused"/> - an unfocused window container
+- <KomorebiConfigPlatformLink command="bordercolours-unfocused-locked" text="Unfocused/Locked"/> - an unfocused window container in the locked state
+
+These border colours can be <KomorebiConfigPlatformLink command="border_colours" text="configured"/> using either RGB or hexadecimal values.

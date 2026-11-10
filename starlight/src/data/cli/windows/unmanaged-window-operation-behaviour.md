@@ -1,0 +1,16 @@
+```
+Set the operation behaviour when the focused window is not managed
+
+Usage: unmanaged-window-operation-behaviour <OPERATION_BEHAVIOUR>
+
+Arguments:
+  <OPERATION_BEHAVIOUR>
+          Possible values:
+          - op:    Process commands on temporarily unmanaged/floated windows
+          - no-op: Ignore commands on temporarily unmanaged/floated windows
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+```

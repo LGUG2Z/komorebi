@@ -1,0 +1,54 @@
+---
+title: Themes
+description: Selecting and defining themes
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+komorebi comes with a number of [Base16](https://tinted-theming.github.io/tinted-gallery/) and [Catppuccin](https://catppuccin.com) themes which can be applied to [borders](/usage/borders) and the komorebi-bar.
+
+Themes are configured by specifying a <KomorebiConfigPlatformLink command="komorebitheme" text="palette"/> (Base16 or Catppuccin), and then specifying the `name` of a theme variant.
+
+<Tabs>
+<TabItem label="Base16">
+```json
+{
+  "theme": {
+    "palette": "Base16",
+    "name": "Ashes"
+  }
+}
+```
+</TabItem>
+
+<TabItem label="Catppuccin">
+```json
+{
+  "theme": {
+    "palette": "Catppuccin",
+    "name": "Latte"
+  }
+}
+```
+</TabItem>
+</Tabs>
+
+Various overrides can be set by specifying the desired <KomorebiConfigPlatformLink command="base16value" text="Base16"/> or <KomorebiConfigPlatformLink command="catppuccinvalue" text="Catppuccin"/> value:
+
+- `theme.bar_accent`
+- `theme.floating_border`
+- `theme.monocle_border`
+- `theme.single_border`
+- `theme.stack_border`
+- `theme.unfocused_border`
+- `theme.unfocused_locked_border`

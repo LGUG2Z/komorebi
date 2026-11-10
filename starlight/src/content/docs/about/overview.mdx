@@ -1,0 +1,53 @@
+---
+title: Overview
+description: About komorebi
+---
+
+komorebi is an educational source cross-platform tiling window manager for
+Windows and macOS.
+
+komorebi allows you to control application windows, virtual workspaces and
+display monitors with a CLI which can be used with any hotkey software.
+
+komorebi aims to make *as few modifications as possible* to the operating
+system and desktop environment by default.
+
+## Design
+
+komorebi only responds to operating system events and the messages it receives on a
+dedicated socket.
+
+komorebic is a CLI that writes messages on komorebi's socket.
+
+komorebi doesn't handle any keyboard or mouse inputs directly.
+
+This architecture, popularised by [bspwm](https://github.com/baskerville/bspwm)
+on Linux and [yabai](https://github.com/koekeishiya/yabai) on macOS, is outlined
+as follows:
+
+```
+               PROCESS                SOCKET
+hotkey daemon  -------->  komorebic  <------>  komorebi
+```
+
+## Data Model
+
+komorebi holds a list of physical monitors.
+
+A monitor is a rectangle of the available work area which contains one or more
+virtual workspaces.
+
+A workspace holds a list of containers.
+
+A container is a rectangle where one or more application windows can be
+displayed.
+
+This means that:
+
+* Every monitor has its own collection of virtual workspaces
+* Workspaces only know about containers and their dimensions, not about
+  individual application windows
+* Every application window must belong to a container, even if that container
+  only contains one application window
+* Many application windows can be stacked and cycled through in the same
+  container within a workspace

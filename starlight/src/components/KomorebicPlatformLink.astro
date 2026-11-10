@@ -1,0 +1,51 @@
+---
+// src/components/KomorebicPlatformLink.astro
+interface Props {
+  command: string;
+  text?: string;
+}
+
+const { command, text } = Astro.props;
+const displayText = text || `komorebic ${command}`;
+---
+<a
+  class="command-platform-link"
+  data-command={command}
+  href={`/reference/komorebic-macos/#${command}`}
+>{displayText}</a>
+
+<script>
+  function getPlatform(): string {
+    const stored = localStorage.getItem('starlight-synced-tabs__platform');
+    if (!stored) return 'macos';
+
+    // Starlight stores as plain string (e.g., "Windows", "macOS")
+    const label = stored.toLowerCase();
+    if (label === 'windows' || label === 'win') return 'windows';
+    return 'macos';
+  }
+
+  function updateLinks() {
+    const platform = getPlatform();
+    document.querySelectorAll('.command-platform-link').forEach(link => {
+      const cmd = link.getAttribute('data-command');
+      link.setAttribute('href', `/reference/komorebic-${platform}/#${cmd}`);
+    });
+  }
+
+  // Update on page load
+  updateLinks();
+
+  // Listen for tab changes via storage event (works across tabs too)
+  window.addEventListener('storage', updateLinks);
+
+  // Listen for tab clicks on the same page
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const tab = target.closest('[role="tab"]');
+    if (tab) {
+      // Small delay to let Starlight update localStorage
+      setTimeout(updateLinks, 50);
+    }
+  });
+</script>

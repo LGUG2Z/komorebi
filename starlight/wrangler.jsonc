@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "komorebi-starlight",
+  "compatibility_date": "2025-12-26",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "routes": [
+    {
+      "pattern": "komorebi.lgug2z.com",
+      "custom_domain": true,
+    },
+  ],
+}

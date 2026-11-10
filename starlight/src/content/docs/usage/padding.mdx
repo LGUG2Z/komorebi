@@ -1,0 +1,101 @@
+
+---
+title: Padding
+description: Configuring padding
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+## Workspace Padding
+
+Workspace padding (the padding between the workspace and the screen edges) can be manipulated on three different levels:
+
+* The <KomorebiConfigPlatformLink command="default_workspace_padding" text="default workspace padding"/> which will apply to all workspaces unless explicitly configured otherwise on a workspace
+* The <KomorebiConfigPlatformLink command="monitorconfig-workspace_padding" text="monitor-level workspace padding"/> which will apply to all workspaces on a monitor unless explicitly configured otherwise on a workspace
+* The <KomorebiConfigPlatformLink command="workspaceconfig-workspace_padding" text="workspace-level workspace padding"/> which will take priority over all other padding configurations for the specified workspace
+
+The workspace padding on the focused workspace can be adjusted (increased or decreased) in realtime using the <KomorebicPlatformLink command="adjust-workspace-padding"/> command.
+
+The workspace padding on the focused workspace can be set to a specific value in realtime using the <KomorebicPlatformLink command="focused-workspace-padding"/> command.
+
+The workspace padding on for a workspace identified by monitor and workspace index can set to a specific value in realtime using the <KomorebicPlatformLink command="workspace-padding"/> command.
+
+The workspace padding on for a named workspace can set to a specific value in realtime using the <KomorebicPlatformLink command="named-workspace-padding"/> command.
+
+## Container Padding
+
+Container padding (the padding between each container on a workspace) can be manipulated on three different levels:
+
+* The <KomorebiConfigPlatformLink command="default_container_padding" text="default container padding"/> which will apply to all workspaces unless explicitly configured otherwise on a workspace
+* The <KomorebiConfigPlatformLink command="monitorconfig-container_padding" text="monitor-level container padding"/> which will apply to all workspaces on a monitor unless explicitly configured otherwise on a workspace
+* The <KomorebiConfigPlatformLink command="workspaceconfig-container_padding" text="workspace-level container padding"/> which will take priority over all other padding configurations for the specified workspace
+
+The container padding on the focused workspace can be adjusted (increased or decreased) in realtime using the <KomorebicPlatformLink command="adjust-container-padding"/> command.
+
+The container padding on the focused workspace can be set to a specific value in realtime using the <KomorebicPlatformLink command="focused-workspace-container-padding"/> command.
+
+The container padding on for a workspace identified by monitor and workspace index can set to a specific value in realtime using the <KomorebicPlatformLink command="container-padding"/> command.
+
+The container padding on for a named workspace can set to a specific value in realtime using the <KomorebicPlatformLink command="named-workspace-container-padding"/> command.
+
+
+## Offsets
+
+### Work Area Offsets
+
+Work area (the area in which komorebi will manage windows) offsets can be manipulated on three different levels:
+
+* The <KomorebiConfigPlatformLink command="global_work_area_offset" text="global work area offset"/> which will apply to all monitors and workspaces unless explicitly configured otherwise on a monitor or workspace
+* The <KomorebiConfigPlatformLink command="monitorconfig-work_area_offset" text="monitor-level work area offset"/> which will apply to workspaces on a monitor unless explicitly configured otherwise on a workspace
+* The <KomorebiConfigPlatformLink command="workspaceconfig-work_area_offset" text="workspace-level work area offset"/> which will take priority over all other work area offset configurations for the specified workspace
+
+The global work area offset can be set in realtime using the <KomorebicPlatformLink command="global-work-area-offset"/> command.
+The monitor work area offset can be set for a monitor identified by monitor index in realtime using the <KomorebicPlatformLink command="monitor-work-area-offset"/> command.
+The workspace work area offset can be set for a workspace identified by workspace and monitor index in realtime using the <KomorebicPlatformLink command="workspace-work-area-offset"/> command.
+
+### Dynamic Window-Based Work Area Offsets
+
+Work area offsets can also be dynamically adjusted based on the number of window containers present on a workspace.
+
+This is particularly useful for ultrawide monitors when only a single window container is visible, allowing offsets to be added to the left and right to constrain the work area to the center of the monitor.
+
+These dynamic offsets are set at the <KomorebiConfigPlatformLink command="monitorconfig-window_based_work_area_offset_limit" text="monitor-level"/> and can be disabled individually at the <KomorebiConfigPlatformLink command="workspaceconfig-apply_window_based_work_area_offset" text="workspace-level"/>.
+
+```json
+{
+  "monitors": [
+    {
+      "window_based_work_area_offset_limit": 1,
+      "window_based_work_area_offset": {
+        "left": 400,
+        "top": 0,
+        "right": 800,
+        "bottom": 0
+      },
+      "workspaces": [
+        {
+          "name": "workspace which inherits the monitor-level window-based work area offset",
+          "layout": "BSP",
+        },
+        {
+          "name": "workspace which overrides the monitor-level window-based work area offset",
+          "layout": "BSP",
+          "apply_window_based_work_area_offset": false
+        },
+      ]
+    }
+  ]
+}
+```
+
+The work area offset will only be applied when the number of window containers visible on the workspace is less than or equal to the `window_based_work_area_offset_limit`.

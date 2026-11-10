@@ -1,0 +1,14 @@
+```
+Set container padding on the focused workspace
+
+Usage: focused-workspace-container-padding <SIZE>
+
+Arguments:
+  <SIZE>
+          Pixels size to set as an integer
+
+Options:
+  -h, --help
+          Print help
+
+```

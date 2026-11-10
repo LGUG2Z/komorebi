@@ -1,0 +1,22 @@
+{
+  "name": "komorebi-starlight",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "generate:cli-reference": "node scripts/generate-cli-reference.cjs",
+    "dev": "npm run generate:cli-reference && astro dev",
+    "start": "npm run generate:cli-reference && astro dev",
+    "build": "npm run generate:cli-reference && astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.6",
+    "@astrojs/starlight": "^0.37.1",
+    "astro": "^5.16.6",
+    "remark-custom-heading-id": "^2.0.0",
+    "sharp": "^0.34.5",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.61.1"
+  }
+}

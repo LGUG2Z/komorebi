@@ -1,0 +1,46 @@
+---
+title: Upgrades
+description: How to upgrade komorebi
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Before upgrading, ensure that komorebi and the komorebi bar have been stopped.
+
+```bash title="Stop komorebi and komorebi bar"
+komorebic stop --bar
+```
+
+Once the processes have been stopped, you can upgrade komorebi using your
+package manager.
+
+<Tabs syncKey="package-manager">
+  <TabItem label="Scoop">
+    ```bash title="Upgrade komorebi"
+    scoop update komorebi
+    ```
+  </TabItem>
+
+  <TabItem label="WinGet">
+    ```bash title="Upgrade komorebi"
+    winget upgrade LGUG2Z.komorebi
+    ```
+  </TabItem>
+
+  <TabItem label="Homebrew">
+    ```bash title="Upgrade komorebi"
+    brew update
+    brew upgrade lgug2z/tap/komorebi-for-mac
+    ```
+  </TabItem>
+
+  <TabItem label="Homebrew (nightly)">
+    ```bash title="Upgrade komorebi"
+    brew update
+    brew upgrade lgug2z/tap/komorebi-for-mac-nightly
+    ```
+  </TabItem>
+</Tabs>
+
+Once the upgrade is completed you can confirm that you have the latest version
+by running `komorebic --version`, and then start it with `komorebic start --whkd --bar`.

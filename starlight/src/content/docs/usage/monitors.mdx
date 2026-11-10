@@ -1,0 +1,52 @@
+---
+title: Monitors
+description: Configuring monitors
+---
+
+import KomorebicPlatformLink from '../../../components/KomorebicPlatformLink.astro';
+import KomorebiConfigPlatformLink from '../../../components/KomorebiConfigPlatformLink.astro';
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+<Tabs syncKey="platform">
+  <TabItem label="Windows">
+  </TabItem>
+
+  <TabItem label="macOS">
+  </TabItem>
+</Tabs>
+
+
+## Focus
+
+Monitors can be focused in the following ways.
+
+### By Index
+
+Monitors can be focused by index using the <KomorebicPlatformLink command="focus-monitor"/> command, or by a mixture of monitor index and workspace index using the <KomorebicPlatformLink command="focus-monitor-workspace"/> command.
+
+### Cycle Direction
+
+Monitors can be focused in a cyclic direction using the <KomorebicPlatformLink command="cycle-monitor" /> command.
+
+### By Cursor
+
+Monitors can be focused by cursor position using the <KomorebicPlatformLink command="focus-monitor-at-cursor"/> command.
+
+## Boundary Behaviour
+
+### Cross Boundary Behaviour
+
+There are two behaviours which can be configured when an action on a window container would cross a monitor boundary:
+
+* <KomorebiConfigPlatformLink command="crossboundarybehaviour" text="Workspace"/> - attempts to perform the action across a workspace boundary on the same monitor
+* <KomorebiConfigPlatformLink command="crossboundarybehaviour" text="Monitor"/> - attempts to perform the action across a monitor boundary
+
+### Cross Monitor Move Behaviour
+
+There are three behaviours which can be configured when attempting to move a window across a monitor boundary:
+
+* <KomorebiConfigPlatformLink command="movebehaviour" text="Swap"/> the window container with the window container at the edge of the adjacent monitor
+* <KomorebiConfigPlatformLink command="movebehaviour" text="Insert"/> the window container into the focused workspace on the adjacent monitor
+* <KomorebiConfigPlatformLink command="movebehaviour" text="NoOp"/> (do nothing) if trying to move a window container in the direction of an adjacent monitor
+
+This behaviour can be changed in realtime using the <KomorebicPlatformLink command="cross-monitor-move-behaviour"/> command.

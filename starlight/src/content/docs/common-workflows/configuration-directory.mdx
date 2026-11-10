@@ -1,0 +1,16 @@
+---
+title: Configuration Directory
+description: How to set a custom configuration directory
+---
+
+You can specify a custom configuration directory by setting the `KOMOREBI_CONFIG_HOME` environment variable.
+
+If you already have configuration files that you wish to keep, move them to the directory specified by the `KOMOREBI_CONFIG_HOME` environment variable.
+
+You may reference `$KOMOREBI_CONFIG_HOME` in various options of the configuration when giving file paths, for example:
+
+```json
+{
+  "app_specific_configuration_path": "$KOMOREBI_CONFIG_HOME/applications.json"
+}
+```
