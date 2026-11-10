@@ -458,21 +458,22 @@ fn get_map_inner_type(schema: &Value) -> Option<&Value> {
     }
 
     // Pattern 1: additionalProperties as object schema (schemars 1.1)
-    if let Some(additional) = obj.get("additionalProperties") {
-        if additional.is_object() {
-            return Some(additional);
-        }
+    if let Some(additional) = obj.get("additionalProperties")
+        && additional.is_object()
+    {
+        return Some(additional);
     }
 
     // Pattern 2: enum-keyed map (schemars 1.2)
     // Has properties with additionalProperties: false
-    if let Some(props) = obj.get("properties").and_then(|v| v.as_object()) {
-        if obj.get("additionalProperties") == Some(&Value::Bool(false)) && !props.is_empty() {
-            // Return the first property's value as the inner type
-            // (all properties should have the same schema for enum-keyed maps)
-            if let Some((_, first_prop)) = props.iter().next() {
-                return Some(first_prop);
-            }
+    if let Some(props) = obj.get("properties").and_then(|v| v.as_object())
+        && obj.get("additionalProperties") == Some(&Value::Bool(false))
+        && !props.is_empty()
+    {
+        // Return the first property's value as the inner type
+        // (all properties should have the same schema for enum-keyed maps)
+        if let Some((_, first_prop)) = props.iter().next() {
+            return Some(first_prop);
         }
     }
 
@@ -682,7 +683,7 @@ fn build_outline_tree(
             });
         }
         // Sort alphabetically
-        entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        entries.sort_by_key(|a| a.name.to_lowercase());
     }
 
     entries
@@ -761,14 +762,12 @@ fn is_array_type(schema: &Value) -> bool {
 /// become explicit property keys with additionalProperties: false.
 /// These properties are rendered inline in templates (Pattern 7), not as separate headings.
 fn is_enum_keyed_map(schema: &Value) -> bool {
-    if let Some(obj) = schema.as_object() {
-        if obj.get("type").and_then(|t| t.as_str()) == Some("object") {
-            if obj.get("additionalProperties") == Some(&Value::Bool(false)) {
-                if let Some(props) = obj.get("properties").and_then(|v| v.as_object()) {
-                    return !props.is_empty();
-                }
-            }
-        }
+    if let Some(obj) = schema.as_object()
+        && obj.get("type").and_then(|t| t.as_str()) == Some("object")
+        && obj.get("additionalProperties") == Some(&Value::Bool(false))
+        && let Some(props) = obj.get("properties").and_then(|v| v.as_object())
+    {
+        return !props.is_empty();
     }
     false
 }
@@ -864,29 +863,29 @@ fn collect_config_usages(
 
     // Recurse into properties
     // Skip enum-keyed maps (schemars 1.2) - they render inline without heading anchors
-    if !is_enum_keyed_map(schema) {
-        if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
-            for (prop_name, prop_schema) in props {
-                let new_path = if path.is_empty() {
-                    format!(".{}", prop_name)
-                } else {
-                    format!("{}.{}", path, prop_name)
-                };
-                let new_type_relative = if type_relative_path.is_empty() {
-                    prop_name.clone()
-                } else {
-                    format!("{}.{}", type_relative_path, prop_name)
-                };
-                collect_config_usages(
-                    prop_schema,
-                    new_path,
-                    usages,
-                    defs,
-                    visited,
-                    current_type,
-                    new_type_relative,
-                );
-            }
+    if !is_enum_keyed_map(schema)
+        && let Some(props) = schema.get("properties").and_then(|v| v.as_object())
+    {
+        for (prop_name, prop_schema) in props {
+            let new_path = if path.is_empty() {
+                format!(".{}", prop_name)
+            } else {
+                format!("{}.{}", path, prop_name)
+            };
+            let new_type_relative = if type_relative_path.is_empty() {
+                prop_name.clone()
+            } else {
+                format!("{}.{}", type_relative_path, prop_name)
+            };
+            collect_config_usages(
+                prop_schema,
+                new_path,
+                usages,
+                defs,
+                visited,
+                current_type,
+                new_type_relative,
+            );
         }
     }
 
@@ -1096,7 +1095,7 @@ pub fn build_navigation(schema: &Value) -> NavigationData {
     }
 
     // Sort definitions alphabetically
-    definitions.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    definitions.sort_by_key(|a| a.name.to_lowercase());
 
     // Deduplicate definitions by display_name (for wrapper types with same base name)
     // Keep only the first occurrence of each display_name
@@ -1979,7 +1978,7 @@ mod tests {
         // Should complete without hanging
         let node_usages = &nav.usages["Node"];
         // Node should have at least the direct usage at .root
-        assert!(node_usages.config_usages.len() >= 1);
+        assert!(!node_usages.config_usages.is_empty());
         assert!(node_usages.config_usages.iter().any(|u| u.path == ".root"));
     }
 
