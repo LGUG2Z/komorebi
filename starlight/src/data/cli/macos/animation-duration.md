@@ -10,10 +10,13 @@ Arguments:
 Options:
   -a, --animation-type <ANIMATION_TYPE>
           Animation type to apply the duration to. If not specified, sets global duration
-          
-          [possible values: movement]
+
+          Possible values:
+          - movement
+          - transparency
+          - workspace:    A workspace sliding in and out of a monitor when it is switched to
 
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 
 ```

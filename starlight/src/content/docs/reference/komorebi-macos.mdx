@@ -1,6 +1,6 @@
 ---
-title: "komorebi.json (macOS)"
-description: "komorebi for Mac configuration schema reference"
+title: "komorebi.json (macos)"
+description: "komorebi configuration schema reference for macos"
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -283,6 +283,18 @@ Individual window force-manage rules
 
 Monitor and workspace configurations
 
+
+
+---
+### monocle_focus_behaviour {#monocle_focus_behaviour}
+
+<Badge text="optional" variant="note" /> [`MonocleFocusBehaviour`](#monoclefocusbehaviour)
+
+Determine what happens when focusing in a direction while a monocle container is active
+
+
+
+**Default:** [`"NoOp"`](#monoclefocusbehaviour)
 
 
 ---
@@ -864,7 +876,7 @@ Ease in out bounce
 #### CubicBezier
 
 
-Custom Cubic Bézier function
+Custom Cubic Bezier function
 
 
 
@@ -880,6 +892,7 @@ Custom Cubic Bézier function
 
 **Configuration:**
 - [`.animation.style`](#peranimationprefixconfig3)
+- [`.animation.style[*]`](#peranimationprefixconfig3)
 
 
 **Referenced by:**
@@ -1040,7 +1053,7 @@ Executable name
 #### Class
 
 
-Role or subrole
+Accessibility subrole or role, such as AXStandardWindow
 
 
 
@@ -1120,7 +1133,7 @@ Aspect ratio for temporarily floating windows
 #### Predefined
 
 
-A predefined aspect ratio
+Predefined aspect ratio
 
 
 
@@ -1136,7 +1149,7 @@ A predefined aspect ratio
 #### Custom
 
 
-A custom W:H aspect ratio
+Custom W:H aspect ratio
 
 
 
@@ -7761,6 +7774,59 @@ Workspace padding (default: global)
 ---
 
 
+### MonocleFocusBehaviour {#monoclefocusbehaviour}
+
+Behaviour when focusing in a direction while a monocle container is active
+
+
+
+
+<details open>
+<summary>Enum variants (2)</summary>
+
+
+---
+
+#### Cycle
+
+
+Cycle the monocle container to the next/previous container in the workspace
+
+
+
+
+**Value:** `"Cycle"`
+
+
+
+
+---
+
+#### NoOp
+
+
+Do nothing, allowing focus to fall through to cross-monitor logic
+
+
+
+
+**Value:** `"NoOp"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.monocle_focus_behaviour`](#monocle_focus_behaviour)
+
+
+
+
+---
+
+
 ### MoveBehaviour {#movebehaviour}
 
 Move behaviour when the operation works across a monitor boundary
@@ -8325,6 +8391,84 @@ Red
 ---
 
 
+### ScrollingCentering {#scrollingcentering}
+
+When the Scrolling layout centres the focused column
+
+A boolean is also accepted when reading, for the layout option that used to be one: `true` is
+`Always` and `false` is `Never`.
+
+
+
+
+<details open>
+<summary>Enum variants (3)</summary>
+
+
+---
+
+#### Never
+
+
+Scroll just far enough to bring the focused column into view, and no further
+
+
+
+
+**Value:** `"Never"`
+
+
+
+
+---
+
+#### Always
+
+
+Keep the focused column in the middle of the screen
+
+
+
+
+**Value:** `"Always"`
+
+
+
+
+---
+
+#### OnOverflow
+
+
+Centre the focused column when it does not fit on the screen together with the column that
+focus came from
+
+
+
+
+**Value:** `"OnOverflow"`
+
+
+
+
+</details>
+#### Usages
+
+**Configuration:**
+- [`.layout_defaults[*].layout_options.scrolling.center_focused_column`](#scrollinglayoutoptions-center_focused_column)
+- [`.layout_defaults[*].layout_options_rules[*].scrolling.center_focused_column`](#scrollinglayoutoptions-center_focused_column)
+- [`.monitors[].workspaces[].layout_options.scrolling.center_focused_column`](#scrollinglayoutoptions-center_focused_column)
+- [`.monitors[].workspaces[].layout_options_rules[*].scrolling.center_focused_column`](#scrollinglayoutoptions-center_focused_column)
+
+
+**Referenced by:**
+- [`ScrollingLayoutOptions`](#scrollinglayoutoptions)
+
+
+
+---
+
+
 ### ScrollingLayoutOptions {#scrollinglayoutoptions}
 
 Options for the Scrolling layout
@@ -8348,11 +8492,61 @@ Desired number of visible columns (default: 3)
 
 #### center_focused_column {#scrollinglayoutoptions-center_focused_column}
 
-<Badge text="optional" variant="note" /> `boolean`
+`enum`
 
-With an odd number of visible columns, keep the focused window column centered
+When to centre the focused column: `Never` (the default), `Always`, or `OnOverflow`, which
+is when it does not fit on the screen together with the column that focus came from. A
+boolean is also accepted, where `true` is `Always` and `false` is `Never`
 
 
+
+<details open>
+<summary>Enum variants (3)</summary>
+
+
+---
+
+#### Boolean
+
+
+
+
+
+
+**Value:** `boolean`
+
+
+
+
+---
+
+#### ScrollingCentering
+
+
+
+
+
+
+**Value:** [`ScrollingCentering`](#scrollingcentering)
+
+
+
+
+---
+
+#### Null
+
+
+
+
+
+
+**Value:** `null`
+
+
+
+
+</details>
 
 </details>
 #### Usages

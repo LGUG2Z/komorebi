@@ -44,8 +44,11 @@ Options:
 
   -a, --animation-type <ANIMATION_TYPE>
           Animation type to apply the style to. If not specified, sets global style
-          
-          [possible values: movement]
+
+          Possible values:
+          - movement
+          - transparency
+          - workspace:    A workspace sliding in and out of a monitor when it is switched to
 
   -h, --help
           Print help (see a summary with '-h')
