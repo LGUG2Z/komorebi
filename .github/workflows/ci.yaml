@@ -41,6 +41,7 @@ jobs:
       linux: ${{ steps.final.outputs.linux }}
       macos: ${{ steps.final.outputs.macos }}
       windows: ${{ steps.final.outputs.windows }}
+      starlight: ${{ steps.final.outputs.starlight }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -58,12 +59,14 @@ jobs:
           LINUX: ${{ steps.filter.outputs.linux }}
           MACOS: ${{ steps.filter.outputs.macos }}
           WINDOWS: ${{ steps.filter.outputs.windows }}
+          STARLIGHT: ${{ steps.filter.outputs.starlight }}
         run: |
-          if [ "$ALL" = true ]; then LINUX=true MACOS=true WINDOWS=true; fi
+          if [ "$ALL" = true ]; then LINUX=true MACOS=true WINDOWS=true STARLIGHT=true; fi
           {
             echo "linux=$LINUX"
             echo "macos=$MACOS"
             echo "windows=$WINDOWS"
+            echo "starlight=$STARLIGHT"
           } | tee -a "$GITHUB_OUTPUT"
 
   # ---- stage 0: the pinned tools of the flake, no builds, about two minutes ----
@@ -231,6 +234,26 @@ jobs:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - run: rustup target add aarch64-apple-darwin
       - run: tools/mac-check.sh
+
+  # the docs site (starlight/), built as it is deployed. Informational: not in the needs of `required`, as the site
+  # has not been built by this workflow before. The reference pages in it are what `just docgen` writes.
+  starlight:
+    needs: [changes]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.starlight == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: starlight
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: starlight/package-lock.json
+      - run: npm ci
+      - run: npm run build
 
   # ---- stage 3: tests ----
 

@@ -10,6 +10,16 @@ updates:
       prefix: chore
       include: scope
 
+  - package-ecosystem: "npm"
+    directory: "/starlight"
+    schedule:
+      interval: "weekly"
+    assignees:
+      - "LGUG2Z"
+    commit-message:
+      prefix: chore
+      include: scope
+
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:

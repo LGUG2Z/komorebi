@@ -89,3 +89,8 @@ windows:
   - e2e/lib/**
   - e2e/platforms/**
   - wix/**
+
+# the docs site: it does not concern a platform, so a change of it starts the build of the site and nothing else
+starlight:
+  - starlight/**
+  - .github/ci-paths.yaml
