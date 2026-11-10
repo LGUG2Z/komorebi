@@ -180,6 +180,22 @@ Nix, on a Mac: the `macos-*` checks (`macos-{clippy,fmt,toml-fmt,deny,nextest}`,
 `komorebi-bar` of `aarch64-darwin`. From Linux they can be evaluated only (`nix flake check --no-build
 --all-systems`, `nix eval`), which proves nothing builds.
 
+## The docs site (`starlight/`)
+
+The site is an Astro Starlight project, with the pages of Windows and macOS. The guides are written by hand in
+`starlight/src/content/docs/`; the reference is generated, and `just docgen` on Windows or macOS writes it in its
+final form into the same directory (`komorebic-<platform>.mdx`, `komorebi-<platform>.mdx`, `bar-<platform>.mdx`, and
+the page of every command in `starlight/src/data/cli/<platform>/`). Run it again after a change of a command, of its
+help or of `schemas/<platform>/`; it needs `node` (in the dev shell) and builds `komorebic` and `schemars-docgen`.
+
+```sh
+just docgen                          # the reference pages of this platform
+cd starlight && npm ci && npm run dev    # the site on localhost; `npm run build` makes dist/
+```
+
+`ci / starlight` runs `npm ci` and `npm run build` when a file of `starlight/` changes. `nix build
+.#checkSets.docgen-lint .#checkSets.docgen-test` checks the tool.
+
 ## 4. Windows e2e (QEMU guest)
 
 Full text: `e2e/platforms/qemu_windows/README.md` (building the golden image, every variable). Short form:

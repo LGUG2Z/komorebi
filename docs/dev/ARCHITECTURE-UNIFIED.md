@@ -24,7 +24,7 @@ The root `Cargo.toml` is the only workspace. One rule says where a member lives:
   the `komorebi` binary;
 - every **library** and every **development tool** lives under `crates/<package name>/`: the daemon
   libraries of the three platforms, the shared crates, the end-to-end guests (`crates/komorebi-e2e-agent`,
-  `crates/komorebi-testwin`) and `crates/schemars-nixgen`.
+  `crates/komorebi-testwin`), `crates/schemars-nixgen` and `crates/schemars-docgen`.
 
 The platform-specific parts are:
 
@@ -36,7 +36,8 @@ The platform-specific parts are:
 
 Shared: `crates/` (the libraries; including `crates/komorebi-version`, the version string of the Linux and macOS
 binaries), `schemas/{windows,linux,macos}/` (the generated JSON schemas), one `deny.toml`, `rustfmt.toml`,
-`rust-toolchain.toml`, `.gitignore`, `LICENSE.md` and `justfile` at the root. The old repositories'
+`rust-toolchain.toml`, `.gitignore`, `LICENSE.md` and `justfile` at the root; `starlight/` (the docs site, an Astro
+Starlight project whose reference pages `just docgen` writes with `crates/schemars-docgen`). The old repositories'
 workflows, dependabot files, the Homebrew formula template and the macOS docs-site files are kept, inert, in
 `docs/dev/old-ci/{linux,macos}/` for the CI and release plan. There is no `komorebi-for-kde/` or
 `komorebi-for-mac/` any more except the two flakes that `flake-one` is replacing.
