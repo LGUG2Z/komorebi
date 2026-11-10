@@ -210,12 +210,29 @@ docgen-local:
 docgen-local:
     {{ cargo_stable }} run --package komorebic --locked -- docgen --output docs/{{ platform }}/cli
 
-# the reference pages of the Windows or macOS site, from the schemas and the command line
-docgen starlight:
+# the docs site, in this repository
+starlight := "starlight"
+
+# schemars-docgen, built from this tree: the tool is a member of the workspace (crates/schemars-docgen)
+schemars_docgen := cargo_stable + " run --package schemars-docgen --locked --"
+
+# What it writes: the configuration and bar schema pages (schemars-docgen, from schemas/<platform>/), the page of every
+# komorebic command (komorebic docgen) and the one komorebic page of the platform that the site makes from them.
+
+# the reference pages of the docs site for this platform, in their final form, into starlight/
+[macos]
+[windows]
+docgen:
     rm {{ starlight }}/src/data/cli/{{ platform }}/*.md
-    {{ cargo_stable }} run --package komorebic -- docgen --output {{ starlight }}/src/data/cli/{{ platform }}
-    schemars-docgen ./schemas/{{ platform }}/schema.json --output {{ starlight }}/src/content/docs/reference/komorebi-{{ platform }}.mdx --title "komorebi.json ({{ platform }})" --description "komorebi configuration schema reference for {{ platform }}"
-    schemars-docgen ./schemas/{{ platform }}/schema.bar.json --output {{ starlight }}/src/content/docs/reference/bar-{{ platform }}.mdx --title "komorebi.bar.json ({{ platform }})" --description "komorebi-bar configuration schema reference for {{ platform }}"
+    {{ cargo_stable }} run --package komorebic --locked -- docgen --output {{ starlight }}/src/data/cli/{{ platform }}
+    {{ schemars_docgen }} schemas/{{ platform }}/schema.json --output {{ starlight }}/src/content/docs/reference/komorebi-{{ platform }}.mdx --title "komorebi.json ({{ platform }})" --description "komorebi configuration schema reference for {{ platform }}"
+    {{ schemars_docgen }} schemas/{{ platform }}/schema.bar.json --output {{ starlight }}/src/content/docs/reference/bar-{{ platform }}.mdx --title "komorebi.bar.json ({{ platform }})" --description "komorebi-bar configuration schema reference for {{ platform }}"
+    node {{ starlight }}/scripts/generate-cli-reference.cjs
+
+# the site has the pages of Windows and macOS only; the Linux documents are docs/linux
+[linux]
+docgen:
+    @echo "the docs site has no pages for Linux: run this on Windows or macOS" && exit 1
 
 # schemars-nixgen, built from this tree: the tool is a member of the workspace (crates/schemars-nixgen)
 nixgen := cargo_stable + " run --package schemars-nixgen --locked --"
