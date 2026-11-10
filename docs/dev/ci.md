@@ -22,9 +22,9 @@ each is `success` or `skipped`: it is the only check a ruleset needs to require.
 | 0 | `fmt` | ubuntu-24.04, `nix develop .#hygiene` | the nightly rustfmt of the flake over every file (`tools/format-all --check`), all platforms | always |
 | 0 | `deny` | ubuntu-24.04, `nix develop .#hygiene` | `cargo deny check` over the workspace | always |
 | 1 | `nix-eval` | ubuntu-24.04, nix, swap | `nix flake check --no-build --all-systems` (every output of every system evaluates: the Windows, Linux and macOS packages and checks); builds `checkSets.fmt`, `checkSets.linux-options`, `checkSets.macos-options` (the macOS options and the nix-darwin module, evaluated on Linux), and the Windows e2e Python | always |
-| 2 | `lint` (4 legs) | ubuntu-24.04, nix | `checkSets.{windows-lint,linux-lint,recorder-lint,nixgen-lint}`: clippy and rustdoc, Windows by cross build | always |
+| 2 | `lint` (5 legs) | ubuntu-24.04, nix | `checkSets.{windows-lint,linux-lint,recorder-lint,nixgen-lint,docgen-lint}`: clippy and rustdoc, Windows by cross build | always |
 | 2 | `mac-typecheck` | ubuntu-24.04, nix | `tools/mac-check.sh`: the macOS packages type-checked for `aarch64-apple-darwin`, no link, no run | macOS paths on a pull request; always on a push |
-| 3 | `test` (4 legs) | ubuntu-24.04, nix | `checkSets.{linux-test,windows-test,recorder-test,nixgen-test}`: Linux tests, the Windows test executables cross-built (not run), the recorder's and nixgen's tests | always |
+| 3 | `test` (5 legs) | ubuntu-24.04, nix | `checkSets.{linux-test,windows-test,recorder-test,nixgen-test,docgen-test}`: Linux tests, the Windows test executables cross-built (not run), the recorder's, nixgen's and docgen's tests | always |
 | 3 | `windows-native-test` | windows-latest | `cargo nextest` of the `windows` and `os_sensitive` classes of `tools/test-partition` | Windows or shared paths |
 | 3 | `windows-native-test-arm` | windows-11-arm | the same on ARM | label `ci:win-arm`; a push to master with Windows paths; by hand |
 | 3 | `macos-hosted` | macos-latest (`_macos.yaml`) | the macOS checks, the whole test suite of the recorder, the `os_sensitive` packages of `tools/test-partition` and the tests and clippy of the e2e tools (all in `nix develop .#native`: the default shell builds for Windows), the binaries, the schemas | macOS paths |

@@ -34,7 +34,7 @@ packages := ""
 packages := "--workspace --exclude komorebi-windows --exclude komorebi-linux --exclude komorebi-gui --exclude komorebic-no-console --exclude komorebi-shortcuts --exclude komorebi-e2e-agent --exclude komorebi-testwin"
 
 [linux]
-packages := "-p schemars-nixgen -p komorebi-recorder -p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
+packages := "-p schemars-nixgen -p schemars-docgen -p komorebi-recorder -p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
 
 # How cargo is invoked. Outside nix it is rustup's, which takes the +toolchain. Inside `nix develop` (IN_NIX_SHELL) the
 # toolchain is the nix one: there is no rustup to take +toolchain, and its cargo already formats with the nightly
@@ -93,7 +93,7 @@ test-windows:
 # every test of the Windows workspace, the neutral packages and the recorder included
 [windows]
 test-windows-full:
-    cargo test --workspace --exclude komorebi-recorder --exclude komorebi-linux --exclude komorebi-macos --exclude komorebi-hotkeys --exclude schemars-nixgen
+    cargo test --workspace --exclude komorebi-recorder --exclude komorebi-linux --exclude komorebi-macos --exclude komorebi-hotkeys --exclude schemars-nixgen --exclude schemars-docgen
     cargo test -p komorebi-recorder
 
 # the KWin bridge of the KDE daemon (JavaScript): its types by tsc, its tests by node against a fake KWin

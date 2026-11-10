@@ -37,6 +37,8 @@ shared: &shared
   - crates/komorebic-core/**
   - crates/schemars-nixgen/**
   - nix/nixgen/**
+  - crates/schemars-docgen/**
+  - nix/docgen/**
   - nix/recorder/**
   - komorebi-recorder/**
   - docs/recorder/**

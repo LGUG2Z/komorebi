@@ -204,7 +204,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        set: [windows-lint, linux-lint, recorder-lint, nixgen-lint]
+        set: [windows-lint, linux-lint, recorder-lint, nixgen-lint, docgen-lint]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/nix
@@ -241,7 +241,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        set: [linux-test, windows-test, recorder-test, nixgen-test]
+        set: [linux-test, windows-test, recorder-test, nixgen-test, docgen-test]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/nix
