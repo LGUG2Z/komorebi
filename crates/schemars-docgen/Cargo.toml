@@ -2,7 +2,8 @@
 name = "schemars-docgen"
 version = "0.1.0"
 edition = "2024"
-license-file = "LICENSE.md"
+license-file = "../../LICENSE.md"
+publish = false
 
 [lib]
 name = "schemars_docgen"
@@ -13,10 +14,11 @@ name = "schemars-docgen"
 path = "src/main.rs"
 
 [dependencies]
-schemars = "1"
-serde = { version = "1", features = ["derive"] }
+clap = { workspace = true }
+pulldown-cmark = "0.13"
+schemars = { workspace = true }
+serde = { workspace = true }
+# not the workspace's serde_json_lenient: tera takes the values of serde_json itself
 serde_json = "1"
 tera = "1"
-pulldown-cmark = "0.13"
-clap = { version = "4", features = ["derive"] }
 thiserror = "2"

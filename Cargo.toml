@@ -35,6 +35,9 @@ members = [
   # a development tool (it writes the Nix options of the modules): built and tested by its own checks,
   # not a default member, so that a bare `cargo build --release` never builds it and no release ships it
   "crates/schemars-nixgen",
+  # a development tool (it writes the reference pages of the docs site from the schemas): built and tested by
+  # its own checks, not a default member, for the same reason
+  "crates/schemars-docgen",
 ]
 
 default-members = [
