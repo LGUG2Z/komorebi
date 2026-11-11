@@ -88,6 +88,14 @@ Unstack() {
     RunWait("komorebic.exe unstack", , "Hide")
 }
 
+ToggleStack() {
+    RunWait("komorebic.exe toggle-stack", , "Hide")
+}
+
+MoveWindowOrStack(operation_direction) {
+    RunWait("komorebic.exe move-window-or-stack " operation_direction, , "Hide")
+}
+
 CycleStack(cycle_direction) {
     RunWait("komorebic.exe cycle-stack " cycle_direction, , "Hide")
 }
@@ -150,6 +158,10 @@ FocusMonitorWorkspace(target_monitor, target_workspace) {
 
 FocusNamedWorkspace(workspace) {
     RunWait("komorebic.exe focus-named-workspace " workspace, , "Hide")
+}
+
+ToggleNamedWorkspace(workspace) {
+    RunWait("komorebic.exe toggle-named-workspace " workspace, , "Hide")
 }
 
 CycleMonitor(cycle_direction) {

@@ -14,6 +14,11 @@ pub struct Container {
     pub id: String,
     #[serde(default)]
     pub locked: bool,
+    /// Whether this container is marked as a stack even when it only contains
+    /// one window, allowing single-window stacks to be created and dissolved
+    /// with the toggle-stack command
+    #[serde(default)]
+    pub grouped: bool,
     windows: Ring<Window>,
 }
 
@@ -24,6 +29,7 @@ impl Default for Container {
         Self {
             id: nanoid!(),
             locked: false,
+            grouped: false,
             windows: Ring::default(),
         }
     }
@@ -45,12 +51,20 @@ impl Container {
         Self {
             id: "PRESELECT".to_string(),
             locked: false,
+            grouped: false,
             windows: Default::default(),
         }
     }
 
     pub fn is_preselect(&self) -> bool {
         self.id == "PRESELECT"
+    }
+
+    /// Whether this container should be treated as a stack, either because it
+    /// contains more than one window or because it has been explicitly marked
+    /// as a stack while containing a single window
+    pub fn is_group(&self) -> bool {
+        self.grouped || self.windows().len() > 1
     }
 
     pub fn hide(&self, omit: Option<isize>) {
@@ -300,15 +314,47 @@ mod tests {
     }
 
     #[test]
+    fn deserializes_with_missing_grouped_field_defaults_to_false() {
+        let json = r#"{
+            "id": "test-1",
+            "windows": { "elements": [ { "hwnd": 5 } ], "focused": 0 }
+        }"#;
+        let container: Container = serde_json::from_str(json).expect("Should deserialize");
+
+        assert!(!container.grouped);
+        assert!(!container.is_group());
+    }
+
+    #[test]
+    fn is_group_reflects_multiple_windows_and_flag() {
+        let mut container = Container::default();
+
+        // A container with a single window and no flag is not a stack
+        container.add_window(Window::from(1));
+        assert!(!container.is_group());
+
+        // Marking it as grouped makes it a stack even with a single window
+        container.grouped = true;
+        assert!(container.is_group());
+
+        // A container with multiple windows is always a stack
+        container.grouped = false;
+        container.add_window(Window::from(2));
+        assert!(container.is_group());
+    }
+
+    #[test]
     fn serializes_and_deserializes() {
         let mut container = Container::default();
         container.set_locked(true);
+        container.grouped = true;
 
         let serialized = serde_json::to_string(&container).expect("Should serialize");
         let deserialized: Container =
             serde_json::from_str(&serialized).expect("Should deserialize");
 
         assert!(deserialized.locked);
+        assert!(deserialized.grouped);
         assert_eq!(deserialized.id, container.id);
     }
 }

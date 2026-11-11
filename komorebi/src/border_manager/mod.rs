@@ -487,7 +487,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 } else {
                                     WindowKind::Unfocused
                                 }
-                            } else if c.windows().len() > 1 {
+                            } else if c.is_group() {
                                 WindowKind::Stack
                             } else {
                                 WindowKind::Single
@@ -821,7 +821,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 } else {
                                     WindowKind::Unfocused
                                 }
-                            } else if c.windows().len() > 1 {
+                            } else if c.is_group() {
                                 WindowKind::Stack
                             } else {
                                 WindowKind::Single

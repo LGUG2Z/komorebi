@@ -124,6 +124,8 @@ nav:
       - cli/eager-focus.md
       - cli/stack.md
       - cli/unstack.md
+      - cli/toggle-stack.md
+      - cli/move-window-or-stack.md
       - cli/cycle-stack.md
       - cli/cycle-stack-index.md
       - cli/focus-stack-window.md
@@ -152,6 +154,7 @@ nav:
       - cli/focus-workspaces.md
       - cli/focus-monitor-workspace.md
       - cli/focus-named-workspace.md
+      - cli/toggle-named-workspace.md
       - cli/close-workspace.md
       - cli/cycle-monitor.md
       - cli/cycle-workspace.md

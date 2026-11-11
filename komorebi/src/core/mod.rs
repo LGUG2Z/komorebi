@@ -73,6 +73,13 @@ pub enum SocketMessage {
     CycleMoveWindow(CycleDirection),
     StackWindow(OperationDirection),
     UnstackWindow,
+    /// Toggle the stack state of the focused container: create a stack around
+    /// the focused window if it is not in one, or remove it from its stack if
+    /// it is, dissolving single-window stacks
+    ToggleStack,
+    /// Move the focused window in the given direction, moving into or out of
+    /// stacks along the way, mimicking Hyprland's `movewindoworgroup`
+    MoveWindowOrStack(OperationDirection),
     CycleStack(CycleDirection),
     CycleStackIndex(CycleDirection),
     FocusStackWindow(usize),
@@ -167,6 +174,9 @@ pub enum SocketMessage {
     FocusWorkspaceNumbers(usize),
     FocusMonitorWorkspaceNumber(usize, usize),
     FocusNamedWorkspace(String),
+    /// Toggle focus between the named workspace and the last focused workspace,
+    /// mimicking Hyprland's `togglespecialworkspace`
+    ToggleNamedWorkspace(String),
     ContainerPadding(usize, usize, i32),
     NamedWorkspaceContainerPadding(String, i32),
     FocusedWorkspaceContainerPadding(i32),

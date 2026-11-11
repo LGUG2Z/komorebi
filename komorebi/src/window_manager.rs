@@ -1167,8 +1167,8 @@ impl WindowManager {
 
             // if we passed false for follow_focus and there is a container on the workspace
             if self.focused_container_mut().is_ok() {
-                // and we have a stack with >1 windows
-                if self.focused_container_mut()?.windows().len() > 1
+                // and we have a stack
+                if self.focused_container_mut()?.is_group()
                     // and we don't have a maxed window
                     && self.focused_workspace()?.maximized_window.is_none()
                     // and we don't have a monocle container
@@ -2929,13 +2929,13 @@ impl WindowManager {
             let mut target_container_is_stack = false;
 
             if let Some(container) = workspace.containers().get(adjusted_new_index)
-                && container.windows().len() > 1
+                && container.is_group()
             {
                 target_container_is_stack = true;
             }
 
             if let Some(current) = workspace.focused_container() {
-                if current.windows().len() > 1 && !target_container_is_stack {
+                if current.is_group() && !target_container_is_stack {
                     workspace.focus_container(adjusted_new_index);
                     changed_focus = true;
                     workspace.move_window_to_container(current_container_idx)?;
@@ -3036,6 +3036,13 @@ impl WindowManager {
         tracing::info!("removing window");
 
         if self.focused_container()?.windows().len() == 1 {
+            // unstacking the only window of a single-window stack dissolves it
+            if self.focused_container()?.grouped {
+                self.focused_container_mut()?.grouped = false;
+                self.update_focused_workspace(self.mouse_follows_focus, true)?;
+                return Ok(());
+            }
+
             bail!("a container must have at least one window");
         }
 
@@ -3043,6 +3050,107 @@ impl WindowManager {
 
         workspace.new_container_for_focused_window()?;
         self.update_focused_workspace(self.mouse_follows_focus, false)
+    }
+
+    /// Toggles the stack state of the focused container, mimicking Hyprland's
+    /// `togglegroup` dispatcher:
+    /// - if the focused window is not in a stack, mark its container as a stack
+    ///   containing a single window
+    /// - if the focused window is in a stack, remove it from the stack, leaving
+    ///   the remaining windows in a stack that persists even if only one window
+    ///   is left
+    /// - if the focused window is the only window of a stack, dissolve the stack
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_stack(&mut self) -> eyre::Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
+        tracing::info!("toggling stack");
+
+        let (is_stack, grouped) = {
+            let workspace = self.focused_workspace()?;
+            let Some(container) = workspace.focused_container() else {
+                bail!("there is no container");
+            };
+
+            (container.windows().len() > 1, container.grouped)
+        };
+
+        let workspace = self.focused_workspace_mut()?;
+
+        if is_stack {
+            // the remainder of the stack must persist as a stack even if the
+            // removal of the focused window leaves a single window behind
+            workspace
+                .focused_container_mut()
+                .ok_or_eyre("there is no container")?
+                .grouped = true;
+
+            workspace.new_container_for_focused_window()?;
+        } else {
+            workspace
+                .focused_container_mut()
+                .ok_or_eyre("there is no container")?
+                .grouped = !grouped;
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    /// Moves the focused window in the given direction, mimicking Hyprland's
+    /// `movewindoworgroup` dispatcher:
+    /// - if the focused window is in a stack, it is removed from the stack and
+    ///   then moved in the given direction
+    /// - otherwise, if there is a stack in the given direction, the focused
+    ///   window is moved into it
+    /// - otherwise, this behaves like a regular move
+    #[tracing::instrument(skip(self))]
+    pub fn move_window_or_stack(&mut self, direction: OperationDirection) -> eyre::Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
+        let (is_stack, grouped, target_is_stack) = {
+            let workspace = self.focused_workspace()?;
+
+            if workspace.is_focused_window_monocle_or_maximized()? {
+                bail!("ignoring command while active window is in monocle mode or maximized");
+            }
+
+            let Some(container) = workspace.focused_container() else {
+                bail!("there is no container");
+            };
+
+            let is_stack = container.windows().len() > 1;
+            let grouped = container.grouped;
+            let target_is_stack = workspace
+                .new_idx_for_direction(direction)
+                .and_then(|idx| workspace.containers().get(idx))
+                .is_some_and(Container::is_group);
+
+            (is_stack, grouped, target_is_stack)
+        };
+
+        tracing::info!("moving window or stack");
+
+        if is_stack || grouped {
+            // the focused window is in a stack; remove it from the stack before
+            // moving it in the requested direction
+            if is_stack {
+                self.focused_workspace_mut()?
+                    .new_container_for_focused_window()?;
+            } else if let Some(container) = self.focused_workspace_mut()?.focused_container_mut() {
+                container.grouped = false;
+            }
+
+            self.move_container_in_direction(direction)?;
+        } else if target_is_stack {
+            // the focused window is not in a stack, but there is one in the
+            // requested direction; move into it
+            self.add_window_to_container(direction)?;
+        } else {
+            // otherwise, behave like a regular move
+            self.move_container_in_direction(direction)?;
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -3896,6 +4004,69 @@ impl WindowManager {
         }
 
         None
+    }
+
+    /// Focuses the last focused workspace on the focused monitor, and swaps the
+    /// record so that the workspace that was just left becomes the last focused
+    /// workspace, allowing two workspaces to be toggled between
+    #[tracing::instrument(skip(self))]
+    pub fn focus_last_workspace(&mut self) -> eyre::Result<()> {
+        tracing::info!("focusing last workspace");
+
+        // This is to ensure that even on an empty workspace on a secondary monitor, the
+        // secondary monitor where the cursor is focused will be used as the target for
+        // the workspace switch op
+        if let Some(monitor_idx) = self.monitor_idx_from_current_pos()
+            && monitor_idx != self.focused_monitor_idx()
+            && let Some(monitor) = self.monitors().get(monitor_idx)
+            && let Some(workspace) = monitor.focused_workspace()
+            && workspace.is_empty()
+        {
+            self.focus_monitor(monitor_idx)?;
+        }
+
+        let idx = self
+            .focused_monitor()
+            .ok_or_eyre("there is no monitor")?
+            .focused_workspace_idx();
+
+        if let Some(monitor) = self.focused_monitor_mut()
+            && let Some(last_focused_workspace) = monitor.last_focused_workspace
+        {
+            self.focus_workspace(last_focused_workspace)?;
+        }
+
+        self.focused_monitor_mut()
+            .ok_or_eyre("there is no monitor")?
+            .last_focused_workspace = Option::from(idx);
+
+        Ok(())
+    }
+
+    /// Toggles focus between the named workspace and the previously focused
+    /// workspace, mimicking Hyprland's `togglespecialworkspace` dispatcher:
+    /// - if the named workspace is focused, the last focused workspace is
+    ///   focused instead
+    /// - otherwise, the named workspace is focused
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_named_workspace(&mut self, name: &str) -> eyre::Result<()> {
+        tracing::info!("toggling named workspace");
+
+        let is_focused = self
+            .focused_monitor()
+            .and_then(Monitor::focused_workspace_name)
+            .is_some_and(|workspace_name| workspace_name == name);
+
+        if is_focused {
+            self.focus_last_workspace()?;
+        } else if let Some((monitor_idx, workspace_idx)) =
+            self.monitor_workspace_index_by_name(name)
+        {
+            self.focus_monitor(monitor_idx)?;
+            self.focus_workspace(workspace_idx)?;
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

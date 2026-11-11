@@ -169,6 +169,7 @@ gen_enum_subcommand_args! {
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     CycleStackIndex: CycleDirection,
+    MoveWindowOrStack: OperationDirection,
     FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
     CycleLayout: CycleDirection,
@@ -224,6 +225,7 @@ gen_named_target_subcommand_args! {
     MoveToNamedWorkspace,
     SendToNamedWorkspace,
     FocusNamedWorkspace,
+    ToggleNamedWorkspace,
     ClearNamedWorkspaceLayoutRules
 }
 
@@ -1175,6 +1177,14 @@ enum SubCommand {
     Stack(Stack),
     /// Unstack the focused window
     Unstack,
+    /// Toggle the stack state of the focused container: create a stack around
+    /// the focused window if it is not in one, or remove it from its stack if
+    /// it is, dissolving single-window stacks
+    ToggleStack,
+    /// Move the focused window in the specified direction, moving into or out
+    /// of stacks along the way
+    #[clap(arg_required_else_help = true)]
+    MoveWindowOrStack(MoveWindowOrStack),
     /// Cycle the focused stack in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleStack(CycleStack),
@@ -1254,6 +1264,10 @@ enum SubCommand {
     /// Focus the specified workspace
     #[clap(arg_required_else_help = true)]
     FocusNamedWorkspace(FocusNamedWorkspace),
+    /// Toggle focus between the specified named workspace and the last focused
+    /// workspace
+    #[clap(arg_required_else_help = true)]
+    ToggleNamedWorkspace(ToggleNamedWorkspace),
     /// Close the focused workspace (must be empty and unnamed)
     CloseWorkspace,
     /// Focus the monitor in the given cycle direction
@@ -2986,6 +3000,12 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         SubCommand::Unstack => {
             send_message(&SocketMessage::UnstackWindow)?;
         }
+        SubCommand::ToggleStack => {
+            send_message(&SocketMessage::ToggleStack)?;
+        }
+        SubCommand::MoveWindowOrStack(args) => {
+            send_message(&SocketMessage::MoveWindowOrStack(args.operation_direction))?;
+        }
         SubCommand::UnstackAll => {
             send_message(&SocketMessage::UnstackAll)?;
         }
@@ -3089,6 +3109,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::FocusNamedWorkspace(args) => {
             send_message(&SocketMessage::FocusNamedWorkspace(args.workspace))?;
+        }
+        SubCommand::ToggleNamedWorkspace(args) => {
+            send_message(&SocketMessage::ToggleNamedWorkspace(args.workspace))?;
         }
         SubCommand::CloseWorkspace => {
             send_message(&SocketMessage::CloseWorkspace)?;

@@ -44,6 +44,17 @@ using the [`komorebic focus-named-workspace`](../cli/focus-named-workspace.md)  
 alt + c                 : komorebic focus-named-workspace coding
 ```
 
+Focus can be toggled between a named workspace and the last focused workspace using the
+[`komorebic toggle-named-workspace`](../cli/toggle-named-workspace.md) command, mimicking Hyprland's
+`togglespecialworkspace` dispatcher. If the named workspace is focused, the last focused workspace is focused instead;
+otherwise, the named workspace is focused. This can be used to emulate a scratchpad workspace on a single keybind.
+
+```
+# example showing how you might bind this command
+
+alt + a                 : komorebic toggle-named-workspace scratchpad
+```
+
 Workspaces on all monitors can be set to the same index (emulating single workspaces which span across all monitors)
 using the [`komorebic focus-workspaces`](../cli/focus-workspaces.md) command.
 

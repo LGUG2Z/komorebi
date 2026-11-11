@@ -352,6 +352,16 @@ impl WindowManager {
             }
             SocketMessage::StackWindow(direction) => self.add_window_to_container(direction)?,
             SocketMessage::UnstackWindow => self.remove_window_from_container()?,
+            SocketMessage::ToggleStack => self.toggle_stack()?,
+            SocketMessage::MoveWindowOrStack(direction) => {
+                let focused_workspace = self.focused_workspace()?;
+                match focused_workspace.layer {
+                    WorkspaceLayer::Tiling => self.move_window_or_stack(direction)?,
+                    WorkspaceLayer::Floating => {
+                        self.move_floating_window_in_direction(direction)?
+                    }
+                }
+            }
             SocketMessage::StackAll => self.stack_all()?,
             SocketMessage::UnstackAll => self.unstack_all(true)?,
             SocketMessage::CycleStack(direction) => {
@@ -1164,32 +1174,7 @@ impl WindowManager {
                 }
             }
             SocketMessage::FocusLastWorkspace => {
-                // This is to ensure that even on an empty workspace on a secondary monitor, the
-                // secondary monitor where the cursor is focused will be used as the target for
-                // the workspace switch op
-                if let Some(monitor_idx) = self.monitor_idx_from_current_pos()
-                    && monitor_idx != self.focused_monitor_idx()
-                    && let Some(monitor) = self.monitors().get(monitor_idx)
-                    && let Some(workspace) = monitor.focused_workspace()
-                    && workspace.is_empty()
-                {
-                    self.focus_monitor(monitor_idx)?;
-                }
-
-                let idx = self
-                    .focused_monitor()
-                    .ok_or_eyre("there is no monitor")?
-                    .focused_workspace_idx();
-
-                if let Some(monitor) = self.focused_monitor_mut()
-                    && let Some(last_focused_workspace) = monitor.last_focused_workspace
-                {
-                    self.focus_workspace(last_focused_workspace)?;
-                }
-
-                self.focused_monitor_mut()
-                    .ok_or_eyre("there is no monitor")?
-                    .last_focused_workspace = Option::from(idx);
+                self.focus_last_workspace()?;
             }
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
@@ -1250,6 +1235,9 @@ impl WindowManager {
                     self.focus_monitor(monitor_idx)?;
                     self.focus_workspace(workspace_idx)?;
                 }
+            }
+            SocketMessage::ToggleNamedWorkspace(ref name) => {
+                self.toggle_named_workspace(name)?;
             }
             SocketMessage::ToggleWorkspaceLayer => {
                 let mouse_follows_focus = self.mouse_follows_focus;
@@ -1474,7 +1462,7 @@ impl WindowManager {
                         match self.focused_workspace()?.focused_container() {
                             None => "None".to_string(),
                             Some(container) => {
-                                if container.windows().len() > 1 {
+                                if container.is_group() {
                                     "Stack".to_string()
                                 } else {
                                     "Single".to_string()

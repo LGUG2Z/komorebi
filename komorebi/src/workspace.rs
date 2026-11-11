@@ -2060,7 +2060,7 @@ impl Workspace {
                     } else {
                         WindowKind::Unfocused
                     }
-                } else if container.windows().len() > 1 {
+                } else if container.is_group() {
                     WindowKind::Stack
                 } else {
                     WindowKind::Single
