@@ -2,55 +2,47 @@ set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
 
 export RUST_BACKTRACE := "full"
 
-# The conditional attributes ([windows], [macos], [linux], [unix]) enable an item only on that OS, so each of the
-# variables and recipes below that differ by platform is written once per platform instead of branching inside.
+# The conditional attributes ([windows], [macos], [linux], [unix]) enable a recipe only on that OS, so each of the
+# recipes below that differ by platform is written once per platform. just only accepts them on recipes before 1.56,
+# so the variables branch on os() instead.
 
 # the platform of the schemas and docs that `jsonschema` and `docgen` write
-[windows]
-platform := "windows"
-
-[macos]
-platform := "macos"
-
-[linux]
-platform := "linux"
+platform := os()
 
 # the binaries that are built, installed and run on this platform, by package name
-[windows]
-targets := "komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts komorebi-recorder"
-
-[macos]
-targets := "komorebic komorebi komorebi-bar komorebi-recorder"
-
-[linux]
-targets := "komorebic komorebi komorebi-recorder"
+targets := if os() == "windows" {
+    "komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts komorebi-recorder"
+} else if os() == "macos" {
+    "komorebic komorebi komorebi-bar komorebi-recorder"
+} else {
+    "komorebic komorebi komorebi-recorder"
+}
 
 # the packages the workspace-wide commands (fmt, fix) run on: a bare cargo command builds the Windows set, and the
 # crates of the other platforms do not compile here
-[windows]
-packages := ""
-
-[macos]
-packages := "--workspace --exclude komorebi-windows --exclude komorebi-linux --exclude komorebi-gui --exclude komorebic-no-console --exclude komorebi-shortcuts --exclude komorebi-e2e-agent --exclude komorebi-testwin"
-
-[linux]
-packages := "-p schemars-nixgen -p schemars-docgen -p komorebi-recorder -p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
+packages := if os() == "windows" {
+    ""
+} else if os() == "macos" {
+    "--workspace --exclude komorebi-windows --exclude komorebi-linux --exclude komorebi-gui --exclude komorebic-no-console --exclude komorebi-shortcuts --exclude komorebi-e2e-agent --exclude komorebi-testwin"
+} else {
+    "-p schemars-nixgen -p schemars-docgen -p komorebi-recorder -p komorebi-linux -p komorebi -p komorebic -p komorebi-client -p komorebi-hotkeys -p komorebi-protocol -p komorebi-config -p komorebi-collections -p komorebi-core -p komorebi-backend -p komorebi-settings -p komorebi-transport -p komorebic-core -p komorebi-bar-core -p komorebi-layouts -p komorebi-scrolling"
+}
 
 # How cargo is invoked. Outside nix it is rustup's, which takes the +toolchain. Inside `nix develop` (IN_NIX_SHELL) the
 # toolchain is the nix one: there is no rustup to take +toolchain, and its cargo already formats with the nightly
 # rustfmt. The default shell also exports CARGO_BUILD_TARGET=x86_64-pc-windows-msvc for the Windows cross build,
 # which every native recipe on macOS and Linux drops (`nix develop .#native` leaves it out to begin with).
-[windows]
-cargo_stable := "cargo +stable"
+cargo_stable := if os_family() == "windows" {
+    "cargo +stable"
+} else {
+    "env -u CARGO_BUILD_TARGET cargo" + if env("IN_NIX_SHELL", "") == "" { " +stable" } else { "" }
+}
 
-[windows]
-cargo_nightly := "cargo +nightly"
-
-[unix]
-cargo_stable := "env -u CARGO_BUILD_TARGET cargo" + if env("IN_NIX_SHELL", "") == "" { " +stable" } else { "" }
-
-[unix]
-cargo_nightly := "env -u CARGO_BUILD_TARGET cargo" + if env("IN_NIX_SHELL", "") == "" { " +nightly" } else { "" }
+cargo_nightly := if os_family() == "windows" {
+    "cargo +nightly"
+} else {
+    "env -u CARGO_BUILD_TARGET cargo" + if env("IN_NIX_SHELL", "") == "" { " +nightly" } else { "" }
+}
 
 clean:
     cargo clean
