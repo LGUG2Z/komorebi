@@ -51,6 +51,9 @@ fn should_refocus_after_destroy(foreground_hwnd: Option<isize>) -> bool {
 }
 
 #[cfg(test)]
+mod tests;
+
+#[cfg(test)]
 mod focus_change_tests {
     use super::should_skip_focus_change;
 
@@ -523,6 +526,24 @@ impl WindowManager {
                             .any(|ws| ws.contains_window(window.hwnd));
 
                         if window_already_managed {
+                            let workspace = self.focused_workspace()?;
+                            if workspace.layer == WorkspaceLayer::Tiling
+                                && workspace.container_idx_for_window(window.hwnd).is_some()
+                                && let Some(monocle_window) = workspace
+                                    .monocle_container
+                                    .as_ref()
+                                    .and_then(|monocle| monocle.focused_window())
+                            {
+                                // An external activation can reveal an existing tiled window.
+                                // Keep monocle exclusive even when no new window is added.
+                                let refocus = window.is_focused();
+                                tracing::debug!(refocus, "re-hiding tiled window behind monocle");
+                                window.hide();
+                                if refocus {
+                                    monocle_window.focus(false)?;
+                                }
+                            }
+
                             tracing::debug!(
                                 "skipping window addition, already managed after workspace rule enforcement"
                             );
@@ -538,7 +559,6 @@ impl WindowManager {
                         );
                         let workspace = self.focused_workspace_mut()?;
                         let workspace_contains_window = workspace.contains_window(window.hwnd);
-                        let monocle_container = workspace.monocle_container.clone();
 
                         if !workspace_contains_window && needs_reconciliation.is_none() {
                             let floating_applications = FLOATING_APPLICATIONS.lock();
@@ -622,23 +642,6 @@ impl WindowManager {
                                 // and we will be focusing the desktop on the `FocusChange` event since
                                 // it is still empty.
                                 window.focus(self.mouse_follows_focus)?;
-                            }
-                        }
-
-                        if workspace_contains_window {
-                            let mut monocle_window_event = false;
-                            if let Some(ref monocle) = monocle_container
-                                && let Some(monocle_window) = monocle.focused_window()
-                                && monocle_window.hwnd == window.hwnd
-                            {
-                                monocle_window_event = true;
-                            }
-
-                            let workspace = self.focused_workspace()?;
-                            if !(monocle_window_event || workspace.layer != WorkspaceLayer::Tiling)
-                                && monocle_container.is_some()
-                            {
-                                window.hide();
                             }
                         }
                     }
