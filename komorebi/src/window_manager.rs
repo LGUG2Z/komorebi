@@ -4205,6 +4205,61 @@ mod tests {
     }
 
     #[test]
+    fn test_monitor_information_preserves_displays_without_device_paths() {
+        use crate::DISPLAY_INDEX_PREFERENCES;
+        use crate::config_generation::MatchingRule;
+        use crate::config_generation::WorkspaceMatchingRule;
+
+        let (_context, mut wm) = setup_window_manager();
+        let make_monitor = |name: &str, device_id: &str| {
+            monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                name.to_string(),
+                device_id.to_string(),
+                device_id.to_string(),
+                None,
+            )
+        };
+        let mut attached = vec![
+            make_monitor("DISPLAY2", "UNKNOWN"),
+            make_monitor("DISPLAY3", "UNKNOWN"),
+        ];
+        assert!(wm.monitors().is_empty());
+
+        WindowsApi::apply_monitor_information(&mut wm, &attached);
+
+        assert_eq!(wm.monitors().len(), 2);
+        assert_eq!(wm.monitors()[0].name, "DISPLAY2");
+        assert_eq!(wm.monitors()[1].name, "DISPLAY3");
+        wm.monitors.focus(1);
+        wm.monitors_mut()[1].workspaces_mut()[0]
+            .floating_windows_mut()
+            .push_back(Window::from(123));
+        *WORKSPACE_MATCHING_RULES.lock() = vec![WorkspaceMatchingRule {
+            monitor_index: 1,
+            workspace_index: 0,
+            matching_rule: MatchingRule::Composite(vec![]),
+            initial_only: false,
+        }];
+        DISPLAY_INDEX_PREFERENCES
+            .write()
+            .insert(0, "NEW".to_string());
+        assert_eq!(wm.focused_monitor().unwrap().name, "DISPLAY3");
+        attached.push(make_monitor("DISPLAY1", "NEW"));
+
+        WindowsApi::apply_monitor_information(&mut wm, &attached);
+
+        assert_eq!(wm.monitors().len(), 3);
+        assert_eq!(wm.monitors()[0].device_id, "NEW");
+        assert_eq!(wm.focused_monitor().unwrap().name, "DISPLAY3");
+        assert_eq!(wm.focused_monitor_idx(), 2);
+        assert_eq!(WORKSPACE_MATCHING_RULES.lock()[0].monitor_index, 2);
+        assert_eq!(wm.known_hwnds[&123], (2, 0));
+    }
+
+    #[test]
     fn test_remove_monitors_repairs_references() {
         use crate::config_generation::MatchingRule;
         use crate::config_generation::WorkspaceMatchingRule;
@@ -6290,7 +6345,7 @@ mod tests {
 
     #[test]
     fn test_move_container_to_missing_monitor_keeps_the_container() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
         wm.monitors_mut().push_back(monitor_with_containers(3));
 
         assert!(wm.move_container_to_monitor(7, None, false, None).is_err());
@@ -6304,7 +6359,7 @@ mod tests {
 
     #[test]
     fn test_move_workspace_to_missing_monitor_keeps_the_workspace() {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
         wm.monitors_mut().push_back(monitor_with_containers(3));
 
         assert!(wm.move_workspace_to_monitor(7).is_err());
@@ -6320,7 +6375,7 @@ mod tests {
         edge: OperationDirection,
         sizing: Sizing,
     ) -> Vec<Option<Rect>> {
-        let (mut wm, _context) = setup_window_manager();
+        let (_context, mut wm) = setup_window_manager();
         let area = Rect {
             left: 0,
             top: 0,

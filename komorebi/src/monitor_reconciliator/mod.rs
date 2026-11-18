@@ -52,7 +52,85 @@ static LAST_DISPLAY_CHANGE_TIMESTAMP: AtomicI64 = AtomicI64::new(0);
 static CHANNEL: OnceLock<(Sender<MonitorNotification>, Receiver<MonitorNotification>)> =
     OnceLock::new();
 
-static MONITOR_CACHE: OnceLock<Mutex<HashMap<String, Monitor>>> = OnceLock::new();
+static MONITOR_CACHE: OnceLock<Mutex<Vec<CachedMonitor>>> = OnceLock::new();
+
+struct CachedMonitor {
+    // Configured bindings must not fall back to the cached display's other identities.
+    configured_id: Option<String>,
+    monitor: Monitor,
+}
+
+fn configured_cache_id(id: &str, monitor: &Monitor) -> Option<String> {
+    let preferences = DISPLAY_INDEX_PREFERENCES.read();
+    if preferences.values().any(|id| id == &monitor.device_id) {
+        Some(monitor.device_id.clone())
+    } else if let Some(serial) = monitor.serial_number_id.as_ref().filter(|s| !s.is_empty())
+        && preferences.values().any(|id| id == serial)
+    {
+        Some(serial.clone())
+    } else if monitor.device_id.is_empty() && monitor.name.is_empty() && !id.is_empty() {
+        // Static config can cache a future monitor before any physical identity is known.
+        Some(id.to_string())
+    } else {
+        None
+    }
+}
+
+fn cached_session_monitor_index(cache: &[CachedMonitor], monitor: &Monitor) -> Option<usize> {
+    // A physical serial takes precedence when another cached display occupied the same port.
+    monitor
+        .serial_number_id
+        .as_ref()
+        .filter(|serial| !serial.is_empty())
+        .and_then(|serial| {
+            cache.iter().position(|cached| {
+                cached.configured_id.is_none()
+                    && cached.monitor.serial_number_id.as_ref() == Some(serial)
+            })
+        })
+        .or_else(|| {
+            cache.iter().position(|cached| {
+                cached.configured_id.is_none() && same_display(&cached.monitor, monitor)
+            })
+        })
+}
+
+fn cache_monitor(cache: &mut Vec<CachedMonitor>, configured_id: Option<String>, monitor: Monitor) {
+    let existing = match &configured_id {
+        Some(id) => cache
+            .iter()
+            .position(|cached| cached.configured_id.as_ref() == Some(id)),
+        None => cached_session_monitor_index(cache, &monitor),
+    };
+    let entry = CachedMonitor {
+        configured_id,
+        monitor,
+    };
+    if let Some(index) = existing {
+        cache[index] = entry;
+    } else {
+        cache.push(entry);
+    }
+}
+
+fn cached_monitor_index(cache: &[CachedMonitor], monitor: &Monitor) -> Option<usize> {
+    // Preserve configured device-id priority over serial, then try session identity.
+    cache
+        .iter()
+        .position(|cached| cached.configured_id.as_ref() == Some(&monitor.device_id))
+        .or_else(|| {
+            monitor
+                .serial_number_id
+                .as_ref()
+                .filter(|s| !s.is_empty())
+                .and_then(|serial| {
+                    cache
+                        .iter()
+                        .position(|cached| cached.configured_id.as_ref() == Some(serial))
+                })
+        })
+        .or_else(|| cached_session_monitor_index(cache, monitor))
+}
 
 pub fn channel() -> &'static (Sender<MonitorNotification>, Receiver<MonitorNotification>) {
     CHANNEL.get_or_init(|| crossbeam_channel::bounded(20))
@@ -102,30 +180,10 @@ pub fn display_change_in_progress(grace_period: std::time::Duration) -> bool {
 }
 
 pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
-    let dip = DISPLAY_INDEX_PREFERENCES.read();
-    let mut dip_ids = dip.values();
-    let preferred_id = if dip_ids.any(|id| id.eq(&monitor.device_id)) {
-        monitor.device_id.clone()
-    } else if dip_ids.any(|id| Some(id) == monitor.serial_number_id.as_ref()) {
-        monitor.serial_number_id.clone().unwrap_or_default()
-    } else {
-        serial_or_device_id.to_string()
-    };
-    let mut monitor_cache = MONITOR_CACHE
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock();
+    let configured_id = configured_cache_id(serial_or_device_id, &monitor);
+    let mut monitor_cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new())).lock();
 
-    monitor_cache.insert(preferred_id, monitor);
-}
-
-fn monitor_is_disconnected(monitor: &Monitor, attached_devices: &[Monitor]) -> bool {
-    !attached_devices.iter().any(|attached| {
-        let serial_matches = match (&attached.serial_number_id, &monitor.serial_number_id) {
-            (Some(attached), Some(tracked)) => attached == tracked,
-            _ => false,
-        };
-        serial_matches || attached.device_id == monitor.device_id
-    })
+    cache_monitor(&mut monitor_cache, configured_id, monitor);
 }
 
 fn monitor_topology_matches(
@@ -133,9 +191,7 @@ fn monitor_topology_matches(
     attached_devices: &[Monitor],
 ) -> bool {
     monitors.len() == attached_devices.len()
-        && !monitors
-            .iter()
-            .any(|monitor| monitor_is_disconnected(monitor, attached_devices))
+        && disconnected_monitor_indices(monitors, attached_devices).is_empty()
 }
 
 pub fn attached_display_devices<F, I>(display_provider: F) -> color_eyre::Result<Vec<Monitor>>
@@ -400,9 +456,7 @@ where
             | MonitorNotification::SessionUnlocked
             | MonitorNotification::DisplayConnectionChange => {
                 tracing::debug!("handling display connection change notification");
-                let mut monitor_cache = MONITOR_CACHE
-                    .get_or_init(|| Mutex::new(HashMap::new()))
-                    .lock();
+                let mut monitor_cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new())).lock();
 
                 let initial_monitor_count = wm.monitors().len();
 
@@ -439,10 +493,11 @@ where
                 }
 
                 // Handle potential monitor removal with verification
-                let attached_devices = if wm
-                    .monitors()
-                    .iter()
-                    .any(|monitor| monitor_is_disconnected(monitor, &attached_devices))
+                let attached_devices = if !disconnected_monitor_indices(
+                    wm.monitors(),
+                    &attached_devices,
+                )
+                .is_empty()
                 {
                     tracing::info!(
                         "potential monitor removal detected ({initial_monitor_count} vs {}), verifying in 3s",
@@ -568,9 +623,7 @@ where
                     );
 
                     // Re-acquire the cache lock for removal processing.
-                    monitor_cache = MONITOR_CACHE
-                        .get_or_init(|| Mutex::new(HashMap::new()))
-                        .lock();
+                    monitor_cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new())).lock();
 
                     // Make sure that in our state any attached displays have the latest Win32 data
                     // We must do this again because we dropped the lock and are working with new data
@@ -594,24 +647,13 @@ where
                     attached_devices
                 };
 
-                let removed_monitor_indices: Vec<_> = wm
-                    .monitors()
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, monitor)| {
-                        monitor_is_disconnected(monitor, &attached_devices).then_some(index)
-                    })
-                    .collect();
+                let removed_monitor_indices =
+                    disconnected_monitor_indices(wm.monitors(), &attached_devices);
                 if !removed_monitor_indices.is_empty() {
                     tracing::info!("removing disconnected monitors");
 
                     for &m_idx in &removed_monitor_indices {
                         if let Some(m) = wm.monitors().get(m_idx) {
-                            let id = m
-                                .serial_number_id
-                                .as_ref()
-                                .map_or(m.device_id.clone(), |sn| sn.clone());
-
                             let focused_workspace_idx = m.focused_workspace_idx();
 
                             for (idx, workspace) in m.workspaces().iter().enumerate() {
@@ -661,18 +703,8 @@ where
                                 }
                             }
 
-                            // Let's add their state to the cache for later, make sure to use what
-                            // the user set as preference as the id.
-                            let dip = DISPLAY_INDEX_PREFERENCES.read();
-                            let mut dip_ids = dip.values();
-                            let preferred_id = if dip_ids.any(|id| id.eq(&m.device_id)) {
-                                m.device_id.clone()
-                            } else if dip_ids.any(|id| Some(id) == m.serial_number_id.as_ref()) {
-                                m.serial_number_id.clone().unwrap_or_default()
-                            } else {
-                                id
-                            };
-                            monitor_cache.insert(preferred_id, m.clone());
+                            let configured_id = configured_cache_id(&m.device_id, m);
+                            cache_monitor(&mut monitor_cache, configured_id, m.clone());
                         }
                     }
 
@@ -692,16 +724,9 @@ where
 
                 let post_removal_monitor_count = wm.monitors().len();
 
-                // This is the list of device ids after we have removed detached displays. We can
-                // keep this with just the device_ids without the serial numbers since this is used
-                // only to check which one is the newly added monitor below if there is a new
-                // monitor. Everything done after with said new monitor will again consider both
-                // serial number and device ids.
-                let post_removal_device_ids = wm
-                    .monitors()
+                let new_monitors = attached_devices
                     .iter()
-                    .map(|m| &m.device_id)
-                    .cloned()
+                    .filter(|attached| !wm.monitors().iter().any(|m| same_display(attached, m)))
                     .collect::<Vec<_>>();
 
                 // Check for and add any new monitors that may have been plugged in
@@ -720,204 +745,188 @@ where
 
                     // Look in the updated state for new monitors
                     for (i, m) in wm.monitors_mut().iter_mut().enumerate() {
-                        let device_id = &m.device_id;
-                        // We identify a new monitor when we encounter a new device id
-                        if !post_removal_device_ids.contains(device_id) {
-                            let mut cache_hit = false;
-                            let mut cached_id = String::new();
-                            // Check if that device id exists in the cache for this session
-                            if let Some((id, cached)) = monitor_cache.get_key_value(device_id).or(m
-                                .serial_number_id
-                                .as_ref()
-                                .and_then(|sn| monitor_cache.get_key_value(sn)))
-                            {
-                                cache_hit = true;
-                                cached_id = id.clone();
+                        if new_monitors
+                            .iter()
+                            .any(|attached| same_display(attached, m))
+                            && let Some(cache_index) = cached_monitor_index(&monitor_cache, m)
+                        {
+                            let cached = &monitor_cache[cache_index].monitor;
+                            tracing::info!(
+                                "found monitor and workspace configuration for {} in the monitor cache, applying",
+                                m.device_id
+                            );
 
-                                tracing::info!(
-                                    "found monitor and workspace configuration for {id} in the monitor cache, applying"
-                                );
+                            // If it does, update the cached monitor info with the new one and
+                            // load the cached monitor removing any window that has since been
+                            // closed or moved to another workspace
+                            *m = Monitor {
+                                // Data that should be the one just read from `win32-display-data`
+                                id: m.id,
+                                name: m.name.clone(),
+                                device: m.device.clone(),
+                                device_id: m.device_id.clone(),
+                                serial_number_id: m.serial_number_id.clone(),
+                                size: m.size,
+                                work_area_size: m.work_area_size,
 
-                                // If it does, update the cached monitor info with the new one and
-                                // load the cached monitor removing any window that has since been
-                                // closed or moved to another workspace
-                                *m = Monitor {
-                                    // Data that should be the one just read from `win32-display-data`
-                                    id: m.id,
-                                    name: m.name.clone(),
-                                    device: m.device.clone(),
-                                    device_id: m.device_id.clone(),
-                                    serial_number_id: m.serial_number_id.clone(),
-                                    size: m.size,
-                                    work_area_size: m.work_area_size,
+                                // The rest should come from the cached monitor
+                                work_area_offset: cached.work_area_offset,
+                                window_based_work_area_offset: cached.window_based_work_area_offset,
+                                window_based_work_area_offset_limit: cached
+                                    .window_based_work_area_offset_limit,
+                                workspaces: cached.workspaces.clone(),
+                                last_focused_workspace: cached.last_focused_workspace,
+                                workspace_names: cached.workspace_names.clone(),
+                                container_padding: cached.container_padding,
+                                workspace_padding: cached.workspace_padding,
+                                wallpaper: cached.wallpaper.clone(),
+                                floating_layer_behaviour: cached.floating_layer_behaviour,
+                            };
 
-                                    // The rest should come from the cached monitor
-                                    work_area_offset: cached.work_area_offset,
-                                    window_based_work_area_offset: cached
-                                        .window_based_work_area_offset,
-                                    window_based_work_area_offset_limit: cached
-                                        .window_based_work_area_offset_limit,
-                                    workspaces: cached.workspaces.clone(),
-                                    last_focused_workspace: cached.last_focused_workspace,
-                                    workspace_names: cached.workspace_names.clone(),
-                                    container_padding: cached.container_padding,
-                                    workspace_padding: cached.workspace_padding,
-                                    wallpaper: cached.wallpaper.clone(),
-                                    floating_layer_behaviour: cached.floating_layer_behaviour,
-                                };
+                            let focused_workspace_idx = m.focused_workspace_idx();
 
-                                let focused_workspace_idx = m.focused_workspace_idx();
+                            for (j, workspace) in m.workspaces_mut().iter_mut().enumerate() {
+                                // If this is the focused workspace we need to show (restore) all
+                                // windows that were visible since they were probably minimized by
+                                // Windows.
+                                let is_focused_workspace = j == focused_workspace_idx;
+                                let focused_container_idx = workspace.focused_container_idx();
 
-                                for (j, workspace) in m.workspaces_mut().iter_mut().enumerate() {
-                                    // If this is the focused workspace we need to show (restore) all
-                                    // windows that were visible since they were probably minimized by
-                                    // Windows.
-                                    let is_focused_workspace = j == focused_workspace_idx;
-                                    let focused_container_idx = workspace.focused_container_idx();
-
-                                    let mut empty_containers = Vec::new();
-                                    for (idx, container) in
-                                        workspace.containers_mut().iter_mut().enumerate()
-                                    {
-                                        container.windows_mut().retain(|window| {
-                                            window.exe().is_ok()
-                                                && !known_hwnds.contains_key(&window.hwnd)
-                                        });
-
-                                        if container.windows().is_empty() {
-                                            empty_containers.push(idx);
-                                        }
-
-                                        if is_focused_workspace {
-                                            if let Some(window) = container.focused_window()
-                                                && WindowsApi::is_window(window.hwnd)
-                                            {
-                                                tracing::debug!(
-                                                    "restoring window: {}",
-                                                    window.hwnd
-                                                );
-                                                WindowsApi::restore_window(window.hwnd);
-                                            } else {
-                                                // If the focused window was moved or removed by
-                                                // the user after the disconnect then focus the
-                                                // first window and show that one
-                                                container.focus_window(0);
-
-                                                if let Some(window) = container.focused_window()
-                                                    && WindowsApi::is_window(window.hwnd)
-                                                {
-                                                    WindowsApi::restore_window(window.hwnd);
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Remove empty containers
-                                    for empty_idx in empty_containers {
-                                        if empty_idx == focused_container_idx {
-                                            workspace.remove_container(empty_idx);
-                                        } else {
-                                            workspace.remove_container_by_idx(empty_idx);
-                                        }
-                                    }
-
-                                    if let Some(window) = &workspace.maximized_window {
-                                        if window.exe().is_err()
-                                            || known_hwnds.contains_key(&window.hwnd)
-                                        {
-                                            workspace.maximized_window = None;
-                                        } else if is_focused_workspace
-                                            && WindowsApi::is_window(window.hwnd)
-                                        {
-                                            WindowsApi::restore_window(window.hwnd);
-                                        }
-                                    }
-
-                                    if let Some(container) = &mut workspace.monocle_container {
-                                        container.windows_mut().retain(|window| {
-                                            window.exe().is_ok()
-                                                && !known_hwnds.contains_key(&window.hwnd)
-                                        });
-
-                                        if container.windows().is_empty() {
-                                            workspace.monocle_container = None;
-                                        } else if is_focused_workspace {
-                                            if let Some(window) = container.focused_window()
-                                                && WindowsApi::is_window(window.hwnd)
-                                            {
-                                                WindowsApi::restore_window(window.hwnd);
-                                            } else {
-                                                // If the focused window was moved or removed by
-                                                // the user after the disconnect then focus the
-                                                // first window and show that one
-                                                container.focus_window(0);
-
-                                                if let Some(window) = container.focused_window()
-                                                    && WindowsApi::is_window(window.hwnd)
-                                                {
-                                                    WindowsApi::restore_window(window.hwnd);
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    workspace.floating_windows_mut().retain(|window| {
+                                let mut empty_containers = Vec::new();
+                                for (idx, container) in
+                                    workspace.containers_mut().iter_mut().enumerate()
+                                {
+                                    container.windows_mut().retain(|window| {
                                         window.exe().is_ok()
                                             && !known_hwnds.contains_key(&window.hwnd)
                                     });
 
+                                    if container.windows().is_empty() {
+                                        empty_containers.push(idx);
+                                    }
+
                                     if is_focused_workspace {
-                                        for window in workspace.floating_windows() {
-                                            if WindowsApi::is_window(window.hwnd) {
+                                        if let Some(window) = container.focused_window()
+                                            && WindowsApi::is_window(window.hwnd)
+                                        {
+                                            tracing::debug!("restoring window: {}", window.hwnd);
+                                            WindowsApi::restore_window(window.hwnd);
+                                        } else {
+                                            // If the focused window was moved or removed by
+                                            // the user after the disconnect then focus the
+                                            // first window and show that one
+                                            container.focus_window(0);
+
+                                            if let Some(window) = container.focused_window()
+                                                && WindowsApi::is_window(window.hwnd)
+                                            {
                                                 WindowsApi::restore_window(window.hwnd);
                                             }
                                         }
                                     }
+                                }
 
-                                    // Apply workspace rules
-                                    let mut workspace_matching_rules =
-                                        WORKSPACE_MATCHING_RULES.lock();
-                                    if let Some(rules) = workspace
-                                        .workspace_config
-                                        .as_ref()
-                                        .and_then(|c| c.workspace_rules.as_ref())
-                                    {
-                                        for r in rules {
-                                            workspace_matching_rules.push(WorkspaceMatchingRule {
-                                                monitor_index: i,
-                                                workspace_index: j,
-                                                matching_rule: r.clone(),
-                                                initial_only: false,
-                                            });
-                                        }
+                                // Remove empty containers
+                                for empty_idx in empty_containers {
+                                    if empty_idx == focused_container_idx {
+                                        workspace.remove_container(empty_idx);
+                                    } else {
+                                        workspace.remove_container_by_idx(empty_idx);
                                     }
+                                }
 
-                                    if let Some(rules) = workspace
-                                        .workspace_config
-                                        .as_ref()
-                                        .and_then(|c| c.initial_workspace_rules.as_ref())
+                                if let Some(window) = &workspace.maximized_window {
+                                    if window.exe().is_err()
+                                        || known_hwnds.contains_key(&window.hwnd)
                                     {
-                                        for r in rules {
-                                            workspace_matching_rules.push(WorkspaceMatchingRule {
-                                                monitor_index: i,
-                                                workspace_index: j,
-                                                matching_rule: r.clone(),
-                                                initial_only: true,
-                                            });
+                                        workspace.maximized_window = None;
+                                    } else if is_focused_workspace
+                                        && WindowsApi::is_window(window.hwnd)
+                                    {
+                                        WindowsApi::restore_window(window.hwnd);
+                                    }
+                                }
+
+                                if let Some(container) = &mut workspace.monocle_container {
+                                    container.windows_mut().retain(|window| {
+                                        window.exe().is_ok()
+                                            && !known_hwnds.contains_key(&window.hwnd)
+                                    });
+
+                                    if container.windows().is_empty() {
+                                        workspace.monocle_container = None;
+                                    } else if is_focused_workspace {
+                                        if let Some(window) = container.focused_window()
+                                            && WindowsApi::is_window(window.hwnd)
+                                        {
+                                            WindowsApi::restore_window(window.hwnd);
+                                        } else {
+                                            // If the focused window was moved or removed by
+                                            // the user after the disconnect then focus the
+                                            // first window and show that one
+                                            container.focus_window(0);
+
+                                            if let Some(window) = container.focused_window()
+                                                && WindowsApi::is_window(window.hwnd)
+                                            {
+                                                WindowsApi::restore_window(window.hwnd);
+                                            }
                                         }
                                     }
                                 }
 
-                                // Restore windows from new monitor and update the focused
-                                // workspace
-                                m.load_focused_workspace_without_focus()?;
-                                m.update_focused_workspace(offset)?;
+                                workspace.floating_windows_mut().retain(|window| {
+                                    window.exe().is_ok() && !known_hwnds.contains_key(&window.hwnd)
+                                });
+
+                                if is_focused_workspace {
+                                    for window in workspace.floating_windows() {
+                                        if WindowsApi::is_window(window.hwnd) {
+                                            WindowsApi::restore_window(window.hwnd);
+                                        }
+                                    }
+                                }
+
+                                // Apply workspace rules
+                                let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+                                if let Some(rules) = workspace
+                                    .workspace_config
+                                    .as_ref()
+                                    .and_then(|c| c.workspace_rules.as_ref())
+                                {
+                                    for r in rules {
+                                        workspace_matching_rules.push(WorkspaceMatchingRule {
+                                            monitor_index: i,
+                                            workspace_index: j,
+                                            matching_rule: r.clone(),
+                                            initial_only: false,
+                                        });
+                                    }
+                                }
+
+                                if let Some(rules) = workspace
+                                    .workspace_config
+                                    .as_ref()
+                                    .and_then(|c| c.initial_workspace_rules.as_ref())
+                                {
+                                    for r in rules {
+                                        workspace_matching_rules.push(WorkspaceMatchingRule {
+                                            monitor_index: i,
+                                            workspace_index: j,
+                                            matching_rule: r.clone(),
+                                            initial_only: true,
+                                        });
+                                    }
+                                }
                             }
 
-                            // Entries in the cache should only be used once; remove the entry there was a cache hit
-                            if cache_hit && !cached_id.is_empty() {
-                                monitor_cache.remove(&cached_id);
-                            }
+                            // Restore windows from new monitor and update the focused
+                            // workspace
+                            m.load_focused_workspace_without_focus()?;
+                            m.update_focused_workspace(offset)?;
+
+                            // Consume exactly the selected entry, only after restoration succeeds.
+                            monitor_cache.remove(cache_index);
                         }
                     }
                 }
@@ -1122,7 +1131,7 @@ mod tests {
         }
         assert_eq!(
             MONITOR_CACHE
-                .get_or_init(|| Mutex::new(HashMap::new()))
+                .get_or_init(|| Mutex::new(Vec::new()))
                 .lock()
                 .len(),
             2
@@ -1138,7 +1147,7 @@ mod tests {
 
         assert!(
             MONITOR_CACHE
-                .get_or_init(|| Mutex::new(HashMap::new()))
+                .get_or_init(|| Mutex::new(Vec::new()))
                 .lock()
                 .is_empty()
         );
@@ -1184,17 +1193,14 @@ mod tests {
 
     struct TestContext {
         _shared: crate::test_support::TestContext,
-        monitor_cache: HashMap<String, Monitor>,
+        monitor_cache: Vec<CachedMonitor>,
     }
 
     impl TestContext {
         fn new() -> Self {
             let shared = crate::test_support::TestContext::new();
-            let monitor_cache = std::mem::take(
-                &mut *MONITOR_CACHE
-                    .get_or_init(|| Mutex::new(HashMap::new()))
-                    .lock(),
-            );
+            let monitor_cache =
+                std::mem::take(&mut *MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new())).lock());
             Self {
                 _shared: shared,
                 monitor_cache,
@@ -1204,9 +1210,8 @@ mod tests {
 
     impl Drop for TestContext {
         fn drop(&mut self) {
-            *MONITOR_CACHE
-                .get_or_init(|| Mutex::new(HashMap::new()))
-                .lock() = std::mem::take(&mut self.monitor_cache);
+            *MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new())).lock() =
+                std::mem::take(&mut self.monitor_cache);
         }
     }
 
@@ -1238,29 +1243,578 @@ mod tests {
     }
 
     #[test]
-    fn test_disconnected_monitors_without_serial_numbers() {
-        let attached = vec![
-            identity_monitor("DELA0DE-5&42b49c9&0&UID264", None),
-            identity_monitor("GSM76E4-5&42b49c9&0&UID256", None),
-        ];
-        let mut tracked = attached.clone();
-        tracked.push(identity_monitor(
-            "Default_Monitor-1&1f0c3c2f&1&UID256",
-            None,
-        ));
-        tracked.push(identity_monitor("UNKNOWN", None));
+    fn test_replacement_does_not_restore_another_display_cache() -> color_eyre::Result<()> {
+        let mut inherited_cases = Vec::new();
+        for empty_serial in [true, false] {
+            let (_context, mut wm) = setup_window_manager();
+            let device_path = |id: &str| format!(r"\\?\DISPLAY#{id}#instance#{{test}}");
+            let attached = MockDevice {
+                hmonitor: 2,
+                device_path: if empty_serial {
+                    device_path("new")
+                } else {
+                    String::new()
+                },
+                device_name: String::from(r"\\.\DISPLAY2"),
+                device_description: String::new(),
+                serial_number_id: empty_serial.then(String::new),
+                size: RECT::default(),
+                work_area_size: RECT::default(),
+                device_key: String::new(),
+                output_technology: None,
+            };
+            let mut old = attached.clone();
+            old.hmonitor = 1;
+            old.device_name = String::from(r"\\.\DISPLAY1");
+            if empty_serial {
+                old.device_path = device_path("old");
+            }
+            let mut old =
+                attached_display_devices(|| std::iter::once(Ok(old.clone().into())))?.remove(0);
+            old.workspaces_mut()[0].name = Some(String::from("disconnected workspace"));
+            let provider = || std::iter::once(Ok(attached.clone().into()));
+            let replacement = attached_display_devices(provider)?.remove(0);
+            assert!(!same_display(&replacement, &old));
+            assert_eq!(
+                old.workspaces()[0].name.as_deref(),
+                Some("disconnected workspace")
+            );
+            wm.monitors_mut().push_back(old);
+            assert_eq!(wm.monitors().len(), 1);
+            let wm = Arc::new(Mutex::new(wm));
+            let (sender, receiver) = bounded(1);
+            sender.send(MonitorNotification::DisplayConnectionChange)?;
+            drop(sender);
 
-        assert_eq!(tracked.len(), 4);
-        assert_eq!(attached.len(), 2);
-        let disconnected: Vec<_> = tracked
-            .iter()
-            .filter(|monitor| monitor_is_disconnected(monitor, &attached))
-            .map(|monitor| monitor.device_id.as_str())
-            .collect();
-        assert_eq!(
-            disconnected,
-            ["Default_Monitor-1&1f0c3c2f&1&UID256", "UNKNOWN"]
+            handle_notifications_with_receiver(Arc::clone(&wm), provider, receiver)?;
+
+            let wm = wm.lock();
+            assert_eq!(wm.monitors().len(), 1);
+            assert!(same_display(&replacement, &wm.monitors()[0]));
+            if wm.monitors()[0].workspaces()[0].name.is_some() {
+                inherited_cases.push(empty_serial);
+            }
+        }
+        assert!(
+            inherited_cases.is_empty(),
+            "replacement inherited another display's workspace; empty_serial cases={inherited_cases:?}"
         );
+        Ok(())
+    }
+
+    fn mock_display(device: Option<&str>, name: &str, serial: Option<&str>) -> MockDevice {
+        MockDevice {
+            hmonitor: 0,
+            device_path: device
+                .map(|id| format!(r"\\?\DISPLAY#{id}#instance#{{test}}"))
+                .unwrap_or_default(),
+            device_name: name.to_string(),
+            device_description: String::new(),
+            serial_number_id: serial.map(str::to_string),
+            size: RECT::default(),
+            work_area_size: RECT::default(),
+            device_key: String::new(),
+            output_technology: None,
+        }
+    }
+
+    fn mock_monitor(display: &MockDevice) -> color_eyre::Result<Monitor> {
+        Ok(attached_display_devices(|| std::iter::once(Ok(display.clone().into())))?.remove(0))
+    }
+
+    fn reconcile_displays(
+        wm: &Arc<Mutex<WindowManager>>,
+        devices: &[MockDevice],
+    ) -> color_eyre::Result<()> {
+        let (sender, receiver) = bounded(1);
+        sender.send(MonitorNotification::DisplayConnectionChange)?;
+        drop(sender);
+        handle_notifications_with_receiver(
+            Arc::clone(wm),
+            || devices.iter().cloned().map(|d| Ok(d.into())),
+            receiver,
+        )
+    }
+
+    #[test]
+    fn test_cached_unknown_displays_restore_independently() -> color_eyre::Result<()> {
+        let (_context, mut wm) = setup_window_manager();
+        assert!(wm.monitors().is_empty());
+        assert!(WORKSPACE_MATCHING_RULES.lock().is_empty());
+        assert!(DISPLAY_INDEX_PREFERENCES.read().is_empty());
+        let anchor = mock_display(Some("anchor"), "anchor", None);
+        let first = mock_display(None, "UNKNOWN-first", None);
+        let second = mock_display(None, "UNKNOWN-second", None);
+        let first_monitor = mock_monitor(&first)?;
+        let second_monitor = mock_monitor(&second)?;
+        assert_eq!(first_monitor.device_id, UNKNOWN_DEVICE_ID);
+        assert_eq!(second_monitor.device_id, UNKNOWN_DEVICE_ID);
+        assert!(!same_display(&first_monitor, &second_monitor));
+        wm.monitors_mut().push_back(mock_monitor(&anchor)?);
+        for (mut monitor, marker) in [(first_monitor, "first"), (second_monitor, "second")] {
+            monitor.workspaces_mut()[0].name = Some(marker.to_string());
+            wm.monitors_mut().push_back(monitor);
+        }
+        let cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new()));
+        assert!(cache.lock().is_empty());
+        assert_eq!(wm.monitors().len(), 3);
+        let wm = Arc::new(Mutex::new(wm));
+
+        // Exercise removal insertion, not just public config insertion.
+        reconcile_displays(&wm, std::slice::from_ref(&anchor))?;
+        assert_eq!(wm.lock().monitors().len(), 1);
+        assert_eq!(cache.lock().len(), 2);
+
+        reconcile_displays(&wm, &[anchor.clone(), second.clone()])?;
+        assert_eq!(wm.lock().monitors().len(), 2);
+        assert_eq!(
+            wm.lock().monitors()[1].workspaces()[0].name.as_deref(),
+            Some("second")
+        );
+        {
+            let cache = cache.lock();
+            assert_eq!(cache.len(), 1);
+            assert_eq!(
+                cache[0].monitor.workspaces()[0].name.as_deref(),
+                Some("first")
+            );
+        }
+
+        // A new UNKNOWN must be recognized alongside an already connected UNKNOWN.
+        let devices = [anchor, second, first];
+        reconcile_displays(&wm, &devices)?;
+        {
+            let wm = wm.lock();
+            assert_eq!(wm.monitors().len(), 3);
+            assert_eq!(
+                wm.monitors()[1].workspaces()[0].name.as_deref(),
+                Some("second")
+            );
+            assert_eq!(
+                wm.monitors()[2].workspaces()[0].name.as_deref(),
+                Some("first")
+            );
+        }
+        assert!(cache.lock().is_empty());
+
+        // Re-enumerating from empty manager state cannot restore consumed entries again.
+        wm.lock().monitors_mut().clear();
+        reconcile_displays(&wm, &devices)?;
+        assert!(
+            wm.lock()
+                .monitors()
+                .iter()
+                .all(|m| m.workspaces()[0].name.is_none())
+        );
+        assert!(cache.lock().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_session_cache_serial_priority_on_restore() -> color_eyre::Result<()> {
+        for reverse in [false, true] {
+            for returning_first in [false, true] {
+                let (_context, wm) = setup_window_manager();
+                assert!(wm.monitors().is_empty());
+                assert!(DISPLAY_INDEX_PREFERENCES.read().is_empty());
+                assert!(WORKSPACE_MATCHING_RULES.lock().is_empty());
+                let original = [
+                    mock_display(Some("priority-port-a"), "A", Some("priority-serial-a")),
+                    mock_display(Some("priority-port-b"), "B", Some("priority-serial-b")),
+                ];
+                let moved = [
+                    mock_display(Some("priority-port-b"), "A", Some("priority-serial-a")),
+                    mock_display(Some("priority-port-a"), "B", Some("priority-serial-b")),
+                ];
+                let monitors = [mock_monitor(&original[0])?, mock_monitor(&original[1])?];
+                assert!(!same_display(&monitors[0], &monitors[1]));
+                let target = usize::from(!returning_first);
+                let competitor = 1 - target;
+                let returning = mock_monitor(&moved[target])?;
+                assert!(
+                    !returning
+                        .serial_number_id
+                        .as_deref()
+                        .unwrap_or_default()
+                        .is_empty()
+                );
+                assert_eq!(
+                    returning.serial_number_id,
+                    monitors[target].serial_number_id
+                );
+                assert_ne!(
+                    returning.serial_number_id,
+                    monitors[competitor].serial_number_id
+                );
+                assert!(same_device(
+                    (&returning.device_id, &returning.name),
+                    (&monitors[competitor].device_id, &monitors[competitor].name),
+                ));
+                assert!(same_display(&returning, &monitors[target]));
+                assert!(same_display(&returning, &monitors[competitor]));
+                let cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new()));
+                assert!(cache.lock().is_empty());
+                for index in if reverse { [1, 0] } else { [0, 1] } {
+                    let mut monitor = monitors[index].clone();
+                    monitor.workspaces_mut()[0].name = Some(original[index].device_name.clone());
+                    insert_in_monitor_cache(
+                        monitor.serial_number_id.as_deref().unwrap_or_default(),
+                        monitor.clone(),
+                    );
+                }
+                assert_eq!(cache.lock().len(), 2);
+                assert!(
+                    cache
+                        .lock()
+                        .iter()
+                        .all(|entry| entry.configured_id.is_none())
+                );
+                let wm = Arc::new(Mutex::new(wm));
+
+                reconcile_displays(&wm, std::slice::from_ref(&moved[target]))?;
+
+                assert_eq!(wm.lock().monitors().len(), 1);
+                assert_eq!(
+                    wm.lock().monitors()[0].workspaces()[0].name.as_deref(),
+                    Some(original[target].device_name.as_str()),
+                    "reverse={reverse}, returning_first={returning_first}"
+                );
+                {
+                    let cache = cache.lock();
+                    assert_eq!(cache.len(), 1);
+                    assert_eq!(
+                        cache[0].monitor.serial_number_id,
+                        monitors[competitor].serial_number_id
+                    );
+                    assert_eq!(
+                        cache[0].monitor.workspaces()[0].name.as_deref(),
+                        Some(original[competitor].device_name.as_str())
+                    );
+                }
+
+                reconcile_displays(&wm, &[moved[target].clone(), moved[competitor].clone()])?;
+                assert_eq!(wm.lock().monitors().len(), 2);
+                assert_eq!(
+                    wm.lock().monitors()[1].workspaces()[0].name.as_deref(),
+                    Some(original[competitor].device_name.as_str())
+                );
+                assert!(cache.lock().is_empty());
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_session_cache_serial_priority_on_replacement() {
+        for reverse in [false, true] {
+            for returning_first in [false, true] {
+                let _context = TestContext::new();
+                assert!(DISPLAY_INDEX_PREFERENCES.read().is_empty());
+                assert!(WORKSPACE_MATCHING_RULES.lock().is_empty());
+                let mut monitors = [
+                    identity_monitor("priority-port-a", Some("priority-serial-a")),
+                    identity_monitor("priority-port-b", Some("priority-serial-b")),
+                ];
+                for (index, monitor) in monitors.iter_mut().enumerate() {
+                    monitor.workspaces_mut()[0].name = Some(format!("original-{index}"));
+                }
+                assert!(!same_display(&monitors[0], &monitors[1]));
+                let target = usize::from(!returning_first);
+                let competitor = 1 - target;
+                let mut returning = monitors[target].clone();
+                returning.device_id = monitors[competitor].device_id.clone();
+                returning.workspaces_mut()[0].name = Some("refreshed".to_string());
+                assert!(
+                    !returning
+                        .serial_number_id
+                        .as_deref()
+                        .unwrap_or_default()
+                        .is_empty()
+                );
+                assert_eq!(
+                    returning.serial_number_id,
+                    monitors[target].serial_number_id
+                );
+                assert_ne!(
+                    returning.serial_number_id,
+                    monitors[competitor].serial_number_id
+                );
+                assert!(same_display(&returning, &monitors[target]));
+                assert!(same_display(&returning, &monitors[competitor]));
+                let cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new()));
+                assert!(cache.lock().is_empty());
+                for index in if reverse { [1, 0] } else { [0, 1] } {
+                    insert_in_monitor_cache(
+                        monitors[index]
+                            .serial_number_id
+                            .as_deref()
+                            .unwrap_or_default(),
+                        monitors[index].clone(),
+                    );
+                }
+                assert_eq!(cache.lock().len(), 2);
+                assert!(
+                    cache
+                        .lock()
+                        .iter()
+                        .all(|entry| entry.configured_id.is_none())
+                );
+
+                insert_in_monitor_cache(
+                    returning.serial_number_id.as_deref().unwrap_or_default(),
+                    returning.clone(),
+                );
+
+                let cache = cache.lock();
+                assert_eq!(cache.len(), 2);
+                for (expected, marker) in [
+                    (&returning, "refreshed"),
+                    (
+                        &monitors[competitor],
+                        monitors[competitor].workspaces()[0]
+                            .name
+                            .as_deref()
+                            .unwrap_or_default(),
+                    ),
+                ] {
+                    let entry = cache
+                        .iter()
+                        .find(|entry| entry.monitor.serial_number_id == expected.serial_number_id);
+                    let Some(entry) = entry else {
+                        panic!("lost serial: reverse={reverse}, returning_first={returning_first}");
+                    };
+                    assert_eq!(entry.monitor.device_id, expected.device_id);
+                    assert_eq!(entry.monitor.workspaces()[0].name.as_deref(), Some(marker));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_session_cache_uses_display_identity() -> color_eyre::Result<()> {
+        let original = mock_display(Some("session-port"), "original", Some("session-serial"));
+        let empty_serial = mock_display(Some("empty-port"), "empty", Some(""));
+        let unknown = mock_display(None, "unknown-original", None);
+        for (case, old, connected, matches) in [
+            ("own reconnect", original.clone(), original.clone(), true),
+            (
+                "changed serial",
+                original.clone(),
+                mock_display(Some("session-port"), "original", Some("new-session-serial")),
+                true,
+            ),
+            (
+                "changed name without serial",
+                original.clone(),
+                mock_display(Some("session-port"), "renamed", None),
+                true,
+            ),
+            (
+                "serial moved ports",
+                original,
+                mock_display(Some("other-port"), "moved", Some("session-serial")),
+                true,
+            ),
+            (
+                "own empty serial reconnect",
+                empty_serial.clone(),
+                empty_serial.clone(),
+                true,
+            ),
+            (
+                "empty serial is not identity",
+                empty_serial,
+                mock_display(Some("different-port"), "empty", Some("")),
+                false,
+            ),
+            (
+                "own UNKNOWN reconnect",
+                unknown.clone(),
+                unknown.clone(),
+                true,
+            ),
+            (
+                "distinct UNKNOWN name",
+                unknown,
+                mock_display(None, "unknown-other", None),
+                false,
+            ),
+        ] {
+            let (_context, wm) = setup_window_manager();
+            assert!(wm.monitors().is_empty());
+            assert!(WORKSPACE_MATCHING_RULES.lock().is_empty());
+            assert!(DISPLAY_INDEX_PREFERENCES.read().is_empty());
+            let mut cached = mock_monitor(&old)?;
+            let connected_monitor = mock_monitor(&connected)?;
+            assert_eq!(same_display(&cached, &connected_monitor), matches, "{case}");
+            cached.workspaces_mut()[0].name = Some(case.to_string());
+            let cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new()));
+            assert!(cache.lock().is_empty());
+            insert_in_monitor_cache(&cached.device_id, cached.clone());
+            assert_eq!(cache.lock().len(), 1);
+            assert!(cache.lock()[0].configured_id.is_none());
+            let wm = Arc::new(Mutex::new(wm));
+
+            reconcile_displays(&wm, &[connected])?;
+
+            let wm = wm.lock();
+            assert_eq!(wm.monitors().len(), 1, "{case}");
+            assert_eq!(
+                wm.monitors()[0].workspaces()[0].name.as_deref(),
+                matches.then_some(case),
+                "{case}"
+            );
+            assert_eq!(cache.lock().len(), usize::from(!matches), "{case}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_configured_cache_preserves_identity_binding() -> color_eyre::Result<()> {
+        for (case, preference, connected, matches) in [
+            (
+                "device follows port despite new serial",
+                "configured-port-instance",
+                mock_display(
+                    Some("configured-port"),
+                    "renamed",
+                    Some("replacement-serial"),
+                ),
+                true,
+            ),
+            (
+                "device does not follow serial to another port",
+                "configured-port-instance",
+                mock_display(Some("another-port"), "original", Some("configured-serial")),
+                false,
+            ),
+            (
+                "serial follows physical display",
+                "configured-serial",
+                mock_display(Some("another-port"), "renamed", Some("configured-serial")),
+                true,
+            ),
+            (
+                "serial does not follow port to another serial",
+                "configured-serial",
+                mock_display(
+                    Some("configured-port"),
+                    "original",
+                    Some("replacement-serial"),
+                ),
+                false,
+            ),
+            (
+                "serial does not match absent serial",
+                "configured-serial",
+                mock_display(Some("configured-port"), "original", None),
+                false,
+            ),
+            (
+                "explicit UNKNOWN retains legacy mapping",
+                UNKNOWN_DEVICE_ID,
+                mock_display(None, "unknown-other", None),
+                true,
+            ),
+        ] {
+            let (_context, wm) = setup_window_manager();
+            assert!(wm.monitors().is_empty());
+            assert!(WORKSPACE_MATCHING_RULES.lock().is_empty());
+            assert!(DISPLAY_INDEX_PREFERENCES.read().is_empty());
+            DISPLAY_INDEX_PREFERENCES
+                .write()
+                .insert(0, preference.to_string());
+            let original = if preference == UNKNOWN_DEVICE_ID {
+                mock_display(None, "unknown-original", None)
+            } else {
+                mock_display(
+                    Some("configured-port"),
+                    "original",
+                    Some("configured-serial"),
+                )
+            };
+            let mut cached = mock_monitor(&original)?;
+            cached.workspaces_mut()[0].name = Some(case.to_string());
+            let cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new()));
+            assert!(cache.lock().is_empty());
+            // Static config supplies serial even when the explicit preference binds the device.
+            insert_in_monitor_cache(
+                cached
+                    .serial_number_id
+                    .as_deref()
+                    .unwrap_or(&cached.device_id),
+                cached.clone(),
+            );
+            assert_eq!(cache.lock().len(), 1);
+            assert_eq!(cache.lock()[0].configured_id.as_deref(), Some(preference));
+            let wm = Arc::new(Mutex::new(wm));
+
+            reconcile_displays(&wm, &[connected])?;
+
+            let wm = wm.lock();
+            assert_eq!(wm.monitors().len(), 1, "{case}");
+            assert_eq!(
+                wm.monitors()[0].workspaces()[0].name.as_deref(),
+                matches.then_some(case),
+                "{case}"
+            );
+            assert_eq!(cache.lock().len(), usize::from(!matches), "{case}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_configured_future_monitor_and_device_lookup_priority() -> color_eyre::Result<()> {
+        let (_context, wm) = setup_window_manager();
+        assert!(wm.monitors().is_empty());
+        assert!(WORKSPACE_MATCHING_RULES.lock().is_empty());
+        assert!(DISPLAY_INDEX_PREFERENCES.read().is_empty());
+        let device = mock_display(Some("future-port"), "future", Some("future-serial"));
+        let connected = mock_monitor(&device)?;
+        DISPLAY_INDEX_PREFERENCES.write().extend([
+            (0, connected.device_id.clone()),
+            (1, "future-serial".to_string()),
+        ]);
+        let cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new()));
+        assert!(cache.lock().is_empty());
+        for (id, marker) in [
+            ("future-serial", "serial-bound"),
+            (connected.device_id.as_str(), "device-bound"),
+        ] {
+            let mut placeholder = identity_monitor("", None);
+            assert!(placeholder.device_id.is_empty());
+            assert!(placeholder.name.is_empty());
+            assert!(placeholder.serial_number_id.is_none());
+            placeholder.workspaces_mut()[0].name = Some(marker.to_string());
+            insert_in_monitor_cache(id, placeholder);
+        }
+        assert_eq!(cache.lock().len(), 2);
+        let wm = Arc::new(Mutex::new(wm));
+
+        reconcile_displays(&wm, &[device])?;
+
+        assert_eq!(wm.lock().monitors().len(), 1);
+        assert_eq!(
+            wm.lock().monitors()[0].workspaces()[0].name.as_deref(),
+            Some("device-bound")
+        );
+        {
+            let cache = cache.lock();
+            assert_eq!(cache.len(), 1);
+            assert_eq!(cache[0].configured_id.as_deref(), Some("future-serial"));
+        }
+
+        // The unconsumed serial placeholder must still work when its display moves ports.
+        wm.lock().monitors_mut().clear();
+        let moved = mock_display(Some("future-moved"), "moved", Some("future-serial"));
+        reconcile_displays(&wm, &[moved])?;
+        assert_eq!(wm.lock().monitors().len(), 1);
+        assert_eq!(
+            wm.lock().monitors()[0].workspaces()[0].name.as_deref(),
+            Some("serial-bound")
+        );
+        assert!(cache.lock().is_empty());
+        Ok(())
     }
 
     #[test]
@@ -1279,54 +1833,6 @@ mod tests {
         assert!(monitor_topology_matches(
             &tracked,
             &[identity_monitor("new-device", Some("serial"))]
-        ));
-    }
-
-    #[test]
-    fn test_attached_monitor_identity() {
-        let cases = [
-            ("same-device", None, "same-device", None, true),
-            (
-                "old-device",
-                Some("serial"),
-                "new-device",
-                Some("serial"),
-                true,
-            ),
-            (
-                "old-device",
-                Some("old-serial"),
-                "new-device",
-                Some("new-serial"),
-                false,
-            ),
-            ("old-device", None, "new-device", None, false),
-            ("old-device", Some("serial"), "new-device", None, false),
-            ("old-device", None, "new-device", Some("serial"), false),
-            ("same-device", Some("serial"), "same-device", None, true),
-            ("same-device", None, "same-device", Some("serial"), true),
-            (
-                "same-device",
-                Some("old-serial"),
-                "same-device",
-                Some("new-serial"),
-                true,
-            ),
-        ];
-
-        for (device, serial, attached_device, attached_serial, expected) in cases {
-            let monitor = identity_monitor(device, serial);
-            let attached = identity_monitor(attached_device, attached_serial);
-            assert_eq!(
-                !monitor_is_disconnected(&monitor, &[attached]),
-                expected,
-                "tracked: ({device}, {serial:?}), attached: ({attached_device}, {attached_serial:?})"
-            );
-        }
-
-        assert!(monitor_is_disconnected(
-            &identity_monitor("device", Some("serial")),
-            &[]
         ));
     }
 
@@ -1399,10 +1905,9 @@ mod tests {
         insert_in_monitor_cache("TestMonitorID", m.clone());
 
         // Retrieve the monitor from the cache
-        let cache = MONITOR_CACHE
-            .get_or_init(|| Mutex::new(HashMap::new()))
-            .lock();
-        let retrieved_monitor = cache.get("TestMonitorID");
+        let cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new())).lock();
+        assert_eq!(cache.len(), 1);
+        let retrieved_monitor = cached_monitor_index(&cache, &m).map(|i| &cache[i].monitor);
 
         // Check that the monitor was inserted correctly and matches the expected value
         assert_eq!(retrieved_monitor, Some(&m));
@@ -1438,20 +1943,18 @@ mod tests {
         insert_in_monitor_cache("TestMonitorID2", m2.clone());
 
         // Retrieve the cache to check if the first and second monitors are present
-        let cache = MONITOR_CACHE
-            .get_or_init(|| Mutex::new(HashMap::new()))
-            .lock();
+        let cache = MONITOR_CACHE.get_or_init(|| Mutex::new(Vec::new())).lock();
 
         // Check if Monitor 1 was found in the cache
         assert_eq!(
-            cache.get("TestMonitorID"),
+            cached_monitor_index(&cache, &m1).map(|i| &cache[i].monitor),
             Some(&m1),
             "Monitor cache should contain monitor 1"
         );
 
         // Check if Monitor 2 was found in the cache
         assert_eq!(
-            cache.get("TestMonitorID2"),
+            cached_monitor_index(&cache, &m2).map(|i| &cache[i].monitor),
             Some(&m2),
             "Monitor cache should contain monitor 2"
         );

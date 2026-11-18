@@ -354,17 +354,21 @@ impl WindowsApi {
     }
 
     pub(crate) fn apply_monitor_information(wm: &mut WindowManager, attached: &[Monitor]) {
-        let old_device_ids: Vec<_> = wm.monitors().iter().map(|m| m.device_id.clone()).collect();
-        let focused_device = wm.focused_monitor().map(|m| m.device_id.clone());
+        let old_devices: Vec<_> = wm
+            .monitors()
+            .iter()
+            .map(|m| (m.device_id.clone(), m.name.clone()))
+            .collect();
+        let focused_device = wm
+            .focused_monitor()
+            .map(|m| (m.device_id.clone(), m.name.clone()));
         let monitors = &mut wm.monitors;
         let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
 
         for m in attached {
-            if monitors
-                .elements()
-                .iter()
-                .any(|monitor| monitor.device_id == m.device_id)
-            {
+            if monitors.elements().iter().any(|monitor| {
+                same_device((&m.device_id, &m.name), (&monitor.device_id, &monitor.name))
+            }) {
                 continue;
             }
             let m = m.clone();
@@ -439,18 +443,26 @@ impl WindowsApi {
             }
         }
 
-        let index_map: Vec<_> = old_device_ids
+        let index_map: Vec<_> = old_devices
             .iter()
-            .map(|id| monitors.elements().iter().position(|m| m.device_id == *id))
+            .map(|(id, name)| {
+                monitors
+                    .elements()
+                    .iter()
+                    .position(|m| same_device((id, name), (&m.device_id, &m.name)))
+            })
             .collect();
         for rule in crate::WORKSPACE_MATCHING_RULES.lock().iter_mut() {
             if let Some(index) = index_map.get(rule.monitor_index).copied().flatten() {
                 rule.monitor_index = index;
             }
         }
-        if let Some(index) =
-            focused_device.and_then(|id| monitors.elements().iter().position(|m| m.device_id == id))
-        {
+        if let Some(index) = focused_device.and_then(|(id, name)| {
+            monitors
+                .elements()
+                .iter()
+                .position(|m| same_device((&id, &name), (&m.device_id, &m.name)))
+        }) {
             monitors.focus(index);
         }
         wm.update_known_hwnds();
