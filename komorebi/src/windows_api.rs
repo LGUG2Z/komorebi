@@ -359,9 +359,7 @@ impl WindowsApi {
             .iter()
             .map(|m| (m.device_id.clone(), m.name.clone()))
             .collect();
-        let focused_device = wm
-            .focused_monitor()
-            .map(|m| (m.device_id.clone(), m.name.clone()));
+        let focused_monitor_idx = wm.focused_monitor_idx();
         let monitors = &mut wm.monitors;
         let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
 
@@ -457,12 +455,7 @@ impl WindowsApi {
                 rule.monitor_index = index;
             }
         }
-        if let Some(index) = focused_device.and_then(|(id, name)| {
-            monitors
-                .elements()
-                .iter()
-                .position(|m| same_device((&id, &name), (&m.device_id, &m.name)))
-        }) {
+        if let Some(index) = index_map.get(focused_monitor_idx).copied().flatten() {
             monitors.focus(index);
         }
         wm.update_known_hwnds();

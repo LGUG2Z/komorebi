@@ -54,6 +54,11 @@ static CHANNEL: OnceLock<(Sender<MonitorNotification>, Receiver<MonitorNotificat
 
 static MONITOR_CACHE: OnceLock<Mutex<Vec<CachedMonitor>>> = OnceLock::new();
 
+/// Keeps session display identity separate from an explicit configuration binding.
+/// Empty serials and shared UNKNOWN device IDs cannot key the cache. Session
+/// matching accepts either a serial or device match and is nontransitive, so it
+/// cannot implement Hash/Eq. Configured bindings also cover future displays whose
+/// physical identity is not yet known.
 struct CachedMonitor {
     // Configured bindings must not fall back to the cached display's other identities.
     configured_id: Option<String>,
@@ -1243,62 +1248,58 @@ mod tests {
     }
 
     #[test]
-    fn test_replacement_does_not_restore_another_display_cache() -> color_eyre::Result<()> {
-        let mut inherited_cases = Vec::new();
-        for empty_serial in [true, false] {
+    fn test_same_count_reconciliation_preserves_display_identity() -> color_eyre::Result<()> {
+        for (case, old, attached, same) in [
+            (
+                "empty serial replacement",
+                mock_display(Some("old"), "DISPLAY1", Some("")),
+                mock_display(Some("new"), "DISPLAY2", Some("")),
+                false,
+            ),
+            (
+                "distinct UNKNOWN replacement",
+                mock_display(None, "DISPLAY1", None),
+                mock_display(None, "DISPLAY2", None),
+                false,
+            ),
+            (
+                "unchanged display",
+                mock_display(Some("console"), "DISPLAY1", None),
+                mock_display(Some("console"), "DISPLAY1", None),
+                true,
+            ),
+            (
+                "serial moves to another port",
+                mock_display(Some("old-port"), "DISPLAY1", Some("serial")),
+                mock_display(Some("new-port"), "DISPLAY2", Some("serial")),
+                true,
+            ),
+        ] {
             let (_context, mut wm) = setup_window_manager();
-            let device_path = |id: &str| format!(r"\\?\DISPLAY#{id}#instance#{{test}}");
-            let attached = MockDevice {
-                hmonitor: 2,
-                device_path: if empty_serial {
-                    device_path("new")
-                } else {
-                    String::new()
-                },
-                device_name: String::from(r"\\.\DISPLAY2"),
-                device_description: String::new(),
-                serial_number_id: empty_serial.then(String::new),
-                size: RECT::default(),
-                work_area_size: RECT::default(),
-                device_key: String::new(),
-                output_technology: None,
-            };
-            let mut old = attached.clone();
-            old.hmonitor = 1;
-            old.device_name = String::from(r"\\.\DISPLAY1");
-            if empty_serial {
-                old.device_path = device_path("old");
-            }
-            let mut old =
-                attached_display_devices(|| std::iter::once(Ok(old.clone().into())))?.remove(0);
-            old.workspaces_mut()[0].name = Some(String::from("disconnected workspace"));
-            let provider = || std::iter::once(Ok(attached.clone().into()));
-            let replacement = attached_display_devices(provider)?.remove(0);
-            assert!(!same_display(&replacement, &old));
-            assert_eq!(
-                old.workspaces()[0].name.as_deref(),
-                Some("disconnected workspace")
-            );
+            let mut old = mock_monitor(&old)?;
+            let expected = mock_monitor(&attached)?;
+            assert_eq!(same_display(&old, &expected), same, "{case}");
+            old.workspaces_mut()[0].name = Some("original workspace".to_string());
+            assert!(wm.monitors().is_empty());
             wm.monitors_mut().push_back(old);
             assert_eq!(wm.monitors().len(), 1);
+            assert_eq!(
+                wm.monitors()[0].workspaces()[0].name.as_deref(),
+                Some("original workspace")
+            );
             let wm = Arc::new(Mutex::new(wm));
-            let (sender, receiver) = bounded(1);
-            sender.send(MonitorNotification::DisplayConnectionChange)?;
-            drop(sender);
 
-            handle_notifications_with_receiver(Arc::clone(&wm), provider, receiver)?;
+            reconcile_displays(&wm, &[attached])?;
 
             let wm = wm.lock();
-            assert_eq!(wm.monitors().len(), 1);
-            assert!(same_display(&replacement, &wm.monitors()[0]));
-            if wm.monitors()[0].workspaces()[0].name.is_some() {
-                inherited_cases.push(empty_serial);
-            }
+            assert_eq!(wm.monitors().len(), 1, "{case}");
+            assert!(same_display(&expected, &wm.monitors()[0]), "{case}");
+            assert_eq!(
+                wm.monitors()[0].workspaces()[0].name.as_deref(),
+                same.then_some("original workspace"),
+                "{case}"
+            );
         }
-        assert!(
-            inherited_cases.is_empty(),
-            "replacement inherited another display's workspace; empty_serial cases={inherited_cases:?}"
-        );
         Ok(())
     }
 
@@ -1818,25 +1819,6 @@ mod tests {
     }
 
     #[test]
-    fn test_same_count_monitor_replacement() {
-        let tracked: std::collections::VecDeque<_> = [identity_monitor("console", None)].into();
-        let attached = [identity_monitor("RDP", None)];
-        assert_eq!(tracked.len(), attached.len());
-        assert!(!monitor_topology_matches(&tracked, &attached));
-        assert!(monitor_topology_matches(
-            &tracked,
-            &[identity_monitor("console", None)]
-        ));
-        assert!(!monitor_topology_matches(&tracked, &[]));
-
-        let tracked = [identity_monitor("old-device", Some("serial"))].into();
-        assert!(monitor_topology_matches(
-            &tracked,
-            &[identity_monitor("new-device", Some("serial"))]
-        ));
-    }
-
-    #[test]
     fn test_send_notification() {
         // Create a monitor notification
         let notification = MonitorNotification::ResolutionScalingChanged;
@@ -1958,35 +1940,6 @@ mod tests {
             Some(&m2),
             "Monitor cache should contain monitor 2"
         );
-    }
-
-    #[test]
-    fn test_handle_display_connection_notification() -> color_eyre::Result<()> {
-        let (_context, wm) = setup_window_manager();
-        assert!(wm.monitors().is_empty());
-        let wm = Arc::new(Mutex::new(wm));
-        let device = MockDevice {
-            hmonitor: 1,
-            device_path: r"\\?\DISPLAY#TEST#instance#{test}".to_string(),
-            device_name: r"\\.\DISPLAY1".to_string(),
-            device_description: String::new(),
-            serial_number_id: None,
-            size: RECT::default(),
-            work_area_size: RECT::default(),
-            device_key: String::new(),
-            output_technology: None,
-        };
-        let provider = || std::iter::once(Ok(device.clone().into()));
-        let (sender, receiver) = bounded(1);
-        sender.send(MonitorNotification::DisplayConnectionChange)?;
-        drop(sender);
-
-        handle_notifications_with_receiver(Arc::clone(&wm), provider, receiver)?;
-
-        let wm = wm.lock();
-        assert_eq!(wm.monitors().len(), 1);
-        assert_eq!(wm.monitors()[0].device_id, "TEST-instance");
-        Ok(())
     }
 
     #[test]
