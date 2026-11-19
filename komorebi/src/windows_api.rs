@@ -290,9 +290,6 @@ impl WindowsApi {
     }
 
     pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
-        let monitors = &mut wm.monitors;
-        let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
-
         let all_displays = win32_display_data::connected_displays_all()
             .flatten()
             .collect::<Vec<_>>();
@@ -316,7 +313,8 @@ impl WindowsApi {
             }
         }
 
-        'read: for mut display in all_displays {
+        let mut attached = Vec::new();
+        for mut display in all_displays {
             let path = display.device_path.clone();
 
             let (device, device_id) = if path.is_empty() {
@@ -333,12 +331,6 @@ impl WindowsApi {
             let name = display.device_name.trim_start_matches(r"\\.\").to_string();
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
 
-            for monitor in monitors.elements() {
-                if same_device((&device_id, &name), (&monitor.device_id, &monitor.name)) {
-                    continue 'read;
-                }
-            }
-
             if let Some(id) = &display.serial_number_id {
                 let dupes = DUPLICATE_MONITOR_SERIAL_IDS.read();
                 if dupes.contains(id) {
@@ -346,7 +338,7 @@ impl WindowsApi {
                 }
             }
 
-            let m = monitor::new(
+            attached.push(monitor::new(
                 display.hmonitor,
                 display.size.into(),
                 display.work_area_size.into(),
@@ -354,8 +346,30 @@ impl WindowsApi {
                 device,
                 device_id,
                 display.serial_number_id,
-            );
+            ));
+        }
 
+        Self::apply_monitor_information(wm, &attached);
+        Ok(())
+    }
+
+    pub(crate) fn apply_monitor_information(wm: &mut WindowManager, attached: &[Monitor]) {
+        let old_devices: Vec<_> = wm
+            .monitors()
+            .iter()
+            .map(|m| (m.device_id.clone(), m.name.clone()))
+            .collect();
+        let focused_monitor_idx = wm.focused_monitor_idx();
+        let monitors = &mut wm.monitors;
+        let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
+
+        for m in attached {
+            if monitors.elements().iter().any(|monitor| {
+                same_device((&m.device_id, &m.name), (&monitor.device_id, &monitor.name))
+            }) {
+                continue;
+            }
+            let m = m.clone();
             let mut index_preference = None;
             let monitor_index_preferences = MONITOR_INDEX_PREFERENCES.lock();
             for (index, monitor_size) in &*monitor_index_preferences {
@@ -427,7 +441,24 @@ impl WindowsApi {
             }
         }
 
-        Ok(())
+        let index_map: Vec<_> = old_devices
+            .iter()
+            .map(|(id, name)| {
+                monitors
+                    .elements()
+                    .iter()
+                    .position(|m| same_device((id, name), (&m.device_id, &m.name)))
+            })
+            .collect();
+        for rule in crate::WORKSPACE_MATCHING_RULES.lock().iter_mut() {
+            if let Some(index) = index_map.get(rule.monitor_index).copied().flatten() {
+                rule.monitor_index = index;
+            }
+        }
+        if let Some(index) = index_map.get(focused_monitor_idx).copied().flatten() {
+            monitors.focus(index);
+        }
+        wm.update_known_hwnds();
     }
 
     pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> eyre::Result<()> {
@@ -740,10 +771,11 @@ impl WindowsApi {
                 SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_ASYNCWINDOWPOS,
             )
             .process();
-            SetForegroundWindow(HWND(as_ptr!(hwnd)))
+            if !SetForegroundWindow(HWND(as_ptr!(hwnd))).as_bool() {
+                bail!("Windows declined foreground activation for window {hwnd}");
+            }
         }
-        .ok()
-        .process()
+        Ok(())
     }
 
     #[allow(dead_code)]
