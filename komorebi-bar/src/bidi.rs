@@ -423,8 +423,8 @@ mod tests {
 
     #[test]
     fn marks_stay_with_their_letter() {
-        // The fatha of the reh is drawn on the reh: ر is isolated here because
-        // it does not join to the following beh.
-        assert_eq!(for_display("رَب"), "\u{FE8F}\u{064E}\u{FEAD}");
+        // ر is isolated here because it does not join to the following beh, and
+        // its fatha stays on it when the line is reversed.
+        assert_eq!(for_display("رَب"), "\u{FE8F}\u{FEAD}\u{064E}");
     }
 }
