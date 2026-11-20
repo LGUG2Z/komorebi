@@ -1,5 +1,6 @@
 use crate::MAX_LABEL_WIDTH;
 use crate::bar::Alignment;
+use crate::bidi;
 use crate::config::MediaDisplayFormat;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
@@ -122,15 +123,15 @@ impl Media {
             && let Ok(properties) = operation.join()
             && let (Ok(artist), Ok(title)) = (properties.Artist(), properties.Title())
         {
-            if artist.is_empty() {
-                return format!("{title}");
-            }
+            let text = if artist.is_empty() {
+                format!("{title}")
+            } else if title.is_empty() {
+                format!("{artist}")
+            } else {
+                format!("{artist} - {title}")
+            };
 
-            if title.is_empty() {
-                return format!("{artist}");
-            }
-
-            return format!("{artist} - {title}");
+            return bidi::for_display(&text).into_owned();
         }
 
         String::new()
