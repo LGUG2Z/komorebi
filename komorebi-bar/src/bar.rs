@@ -63,7 +63,6 @@ use komorebi_themes::catppuccin_egui;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::io::Error;
 use std::io::ErrorKind;
 use std::io::Write;
@@ -758,32 +757,44 @@ impl Komobar {
         });
     }
 
-    fn add_custom_font(ctx: &Context, name: &str) {
+    /// Font files shipped with Windows used as glyph fallbacks for scripts
+    /// that neither egui's bundled fonts nor the user's `font_family` cover.
+    /// Order matters: when two fallbacks contain the same glyph, the earlier
+    /// entry wins.
+    const FALLBACK_FONTS: [(&str, &str); 5] = [
+        ("Microsoft YaHei", "C:\\Windows\\Fonts\\msyh.ttc"), // chinese (simplified)
+        ("Malgun Gothic", "C:\\Windows\\Fonts\\malgun.ttf"), // korean
+        ("Leelawadee UI", "C:\\Windows\\Fonts\\LeelawUI.ttf"), // thai
+        ("Segoe UI", "C:\\Windows\\Fonts\\segoeui.ttf"),     // arabic, hebrew
+        ("Nirmala UI", "C:\\Windows\\Fonts\\Nirmala.ttc"),   // bengali, devanagari, ...
+    ];
+
+    fn build_font_definitions(name: &str) -> FontDefinitions {
         let mut fonts = FontDefinitions::default();
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
-        let mut fallbacks = HashMap::new();
-
-        fallbacks.insert("Microsoft YaHei", "C:\\Windows\\Fonts\\msyh.ttc"); // chinese
-        fallbacks.insert("Malgun Gothic", "C:\\Windows\\Fonts\\malgun.ttf"); // korean
-        fallbacks.insert("Leelawadee UI", "C:\\Windows\\Fonts\\LeelawUI.ttf"); // thai
-
-        for (name, path) in fallbacks {
+        // `rev` keeps the order declared in `FALLBACK_FONTS`, because every
+        // entry is inserted at the front so that it takes priority over the
+        // fonts bundled with egui.
+        for (fallback_name, path) in Self::FALLBACK_FONTS.iter().rev() {
             if let Ok(bytes) = std::fs::read(path) {
-                fonts
-                    .font_data
-                    .insert(name.to_owned(), Arc::from(FontData::from_owned(bytes)));
+                fonts.font_data.insert(
+                    (*fallback_name).to_owned(),
+                    Arc::from(FontData::from_owned(bytes)),
+                );
 
                 for family in [FontFamily::Proportional, FontFamily::Monospace] {
                     fonts
                         .families
                         .entry(family)
                         .or_default()
-                        .insert(0, name.to_owned());
+                        .insert(0, (*fallback_name).to_owned());
                 }
             }
         }
 
+        // The configured family is added last so that it wins over every
+        // fallback for the glyphs it does cover.
         let property = FontPropertyBuilder::new().family(name).build();
 
         if let Some((font, _)) = system_fonts::get(&property) {
@@ -800,8 +811,11 @@ impl Komobar {
             }
         }
 
-        // Tell egui to use these fonts:
-        ctx.set_fonts(fonts);
+        fonts
+    }
+
+    fn add_custom_font(ctx: &Context, name: &str) {
+        ctx.set_fonts(Self::build_font_definitions(name));
     }
 
     pub fn position_bar(&self) {
@@ -1398,6 +1412,50 @@ fn handle_notification(
                 tracing::info!("applied theme from komorebi socket message");
             }
             _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod fallback_font_tests {
+    use super::*;
+    use eframe::egui::epaint::AlphaFromCoverage;
+    use eframe::egui::epaint::text::Fonts;
+
+    /// Sample text for each script that the fonts bundled with egui do not
+    /// cover, paired with the fallback expected to provide it.
+    const SAMPLES: [(&str, &str, &str); 5] = [
+        ("Arabic", "مرحبا بالعالم", "Segoe UI"),
+        ("Hebrew", "שלום עולם", "Segoe UI"),
+        ("Bengali", "বাংলা", "Nirmala UI"),
+        ("Chinese", "你好世界", "Microsoft YaHei"),
+        ("Thai", "สวัสดีชาวโลก", "Leelawadee UI"),
+    ];
+
+    #[test]
+    fn fallback_fonts_cover_non_latin_scripts() {
+        // A family that covers none of the samples, so that every glyph has to
+        // come from the fallback list rather than from the configured font.
+        let definitions = Komobar::build_font_definitions("Consolas");
+        let mut fonts = Fonts::new(4096, AlphaFromCoverage::default(), definitions);
+        let font_id = FontId::new(12.0, FontFamily::Proportional);
+
+        for (script, sample, fallback) in SAMPLES {
+            let (_, path) = Komobar::FALLBACK_FONTS
+                .iter()
+                .find(|(name, _)| *name == fallback)
+                .expect("fallback font is declared in FALLBACK_FONTS");
+
+            if !std::path::Path::new(path).exists() {
+                // Some of these ship as optional Windows font packages.
+                eprintln!("skipping {script}: {path} is not installed");
+                continue;
+            }
+
+            assert!(
+                fonts.has_glyphs(&font_id, sample),
+                "{script} is not rendered: {sample:?} is missing from {fallback} ({path})"
+            );
         }
     }
 }
