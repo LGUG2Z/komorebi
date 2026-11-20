@@ -1,4 +1,5 @@
 mod bar;
+mod bidi;
 mod config;
 mod render;
 mod selected_frame;

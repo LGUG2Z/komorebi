@@ -1,6 +1,7 @@
 use super::ImageIcon;
 use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_INDEX;
+use crate::bidi;
 use crate::config::DisplayFormat;
 use crate::config::DisplayFormat::*;
 use crate::config::WorkspacesDisplayFormat;
@@ -865,7 +866,8 @@ impl MonitorInfo {
             WorkspaceInfo {
                 name: ws
                     .name
-                    .to_owned()
+                    .as_deref()
+                    .map(|name| bidi::for_display(name).into_owned())
                     .unwrap_or_else(|| format!("{}", index + 1)),
                 focused_container_idx: containers.iter().position(|c| c.is_focused),
                 has_icons: containers
@@ -1015,7 +1017,12 @@ pub struct WindowInfo {
 impl From<&Window> for WindowInfo {
     fn from(value: &Window) -> Self {
         Self {
-            title: value.title().ok(),
+            // Right-to-left titles have to be joined and reordered before they
+            // reach egui, which lays out every glyph left to right.
+            title: value
+                .title()
+                .ok()
+                .map(|title| bidi::for_display(&title).into_owned()),
             icon: ImageIcon::try_load(value.hwnd, || {
                 windows_icons::get_icon_by_hwnd(value.hwnd)
                     .or_else(|| windows_icons_fallback::get_icon_by_process_id(value.process_id()))

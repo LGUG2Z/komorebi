@@ -40,6 +40,7 @@ systray-util = "0.2.0"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+unicode-bidi = "0.3"
 which = { workspace = true }
 windows = { workspace = true }
 windows-core = { workspace = true }
