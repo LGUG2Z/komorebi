@@ -822,16 +822,16 @@ impl WindowManager {
             hwnd = Some(window.hwnd);
         }
 
-        // then check all workspaces
+        // then check the focused workspace of every monitor; windows on the other workspaces are
+        // hidden, so raising one of them would never succeed
         if hwnd.is_none() {
             for monitor in self.monitors() {
-                for ws in monitor.workspaces() {
-                    if let Some(container_idx) = ws.container_idx_from_current_point()
-                        && let Some(container) = ws.containers().get(container_idx)
-                        && let Some(window) = container.focused_window()
-                    {
-                        hwnd = Some(window.hwnd);
-                    }
+                if let Some(ws) = monitor.focused_workspace()
+                    && let Some(container_idx) = ws.container_idx_from_current_point()
+                    && let Some(container) = ws.containers().get(container_idx)
+                    && let Some(window) = container.focused_window()
+                {
+                    hwnd = Some(window.hwnd);
                 }
             }
         }

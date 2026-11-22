@@ -119,7 +119,15 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
         loop {
             if let Ok(event) = receiver.recv() {
                 let mut guard = wm.lock();
-                match guard.process_event(event) {
+                let is_raise = matches!(event, WindowManagerEvent::Raise(_));
+                let result = guard.process_event(event);
+                if is_raise {
+                    // process_event can return early (unmanaged window, paused, error) before it
+                    // handles the raise; the flag must still be cleared or focus follows mouse
+                    // stays blocked until it is toggled off and on again
+                    guard.has_pending_raise_op = false;
+                }
+                match result {
                     Ok(()) => {}
                     Err(error) => {
                         if cfg!(debug_assertions) {
