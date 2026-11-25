@@ -43,6 +43,8 @@ use sysinfo::ProcessesToUpdate;
 use which::which;
 use win_msgbox::OkayCancel;
 use windows::Win32::Foundation::HWND;
+use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
+use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
@@ -2489,6 +2491,8 @@ fn main() -> eyre::Result<()> {
                 flags.push("'--clean-state'".to_string());
             }
 
+            let session_id = current_session_id()?;
+
             let exec = exec.unwrap_or("komorebi.exe");
             let script = if flags.is_empty() {
                 format!("Start-Process '{exec}' -WindowStyle hidden",)
@@ -2503,7 +2507,10 @@ fn main() -> eyre::Result<()> {
             let mut attempts = 0;
             let mut running = system
                 .processes_by_name("komorebi.exe".as_ref())
-                .next()
+                .find(|proc| {
+                    proc.session_id()
+                        .map_or_default(|proc_session_id| proc_session_id.as_u32() == session_id)
+                })
                 .is_some();
 
             while !running && attempts <= 2 {
@@ -2523,7 +2530,10 @@ fn main() -> eyre::Result<()> {
 
                 if system
                     .processes_by_name("komorebi.exe".as_ref())
-                    .next()
+                    .find(|proc| {
+                        proc.session_id()
+                            .map_or_default(|proc_session_id| proc_session_id.as_u32() == session_id)
+                    })
                     .is_some()
                 {
                     println!("Started!");
@@ -2552,12 +2562,16 @@ fn main() -> eyre::Result<()> {
 
             if args.whkd {
                 let script = r"
-if (!(Get-Process whkd -ErrorAction SilentlyContinue))
+if (!(
+    Get-Process whkd -ErrorAction SilentlyContinue |
+        Where-Object { $_.SessionId -eq $SESSION_ID }
+))
 {
   Start-Process whkd -WindowStyle hidden
 }
-                ";
-                match powershell_script::run(script) {
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2625,12 +2639,16 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
 
                 if fallthrough {
                     let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+if (!(
+    Get-Process komorebi-bar -ErrorAction SilentlyContinue |
+        Where-Object { $_.SessionId -eq $SESSION_ID }
+))
 {
   Start-Process komorebi-bar -WindowStyle hidden
 }
-                ";
-                    match powershell_script::run(script) {
+                "
+                    .replace("$SESSION_ID", &session_id.to_string());
+                    match powershell_script::run(&script) {
                         Ok(_) => {
                             println!("{script}");
                         }
@@ -2643,12 +2661,16 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
 
             if args.masir {
                 let script = r"
-if (!(Get-Process masir -ErrorAction SilentlyContinue))
+if (!(
+    Get-Process masir -ErrorAction SilentlyContinue |
+        Where-Object { $_.SessionId -eq $SESSION_ID }
+))
 {
   Start-Process masir -WindowStyle hidden
 }
-                ";
-                match powershell_script::run(script) {
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2728,6 +2750,8 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
             }
         }
         SubCommand::Stop(args) => {
+            let session_id = current_session_id()?;
+
             if args.ahk {
                 println!(
                     "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
@@ -2736,9 +2760,12 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
 
             if args.whkd {
                 let script = r"
-Stop-Process -Name:whkd -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+Get-Process whkd -ErrorAction SilentlyContinue |
+    Where-Object { $_.SessionId -eq $SESSION_ID } |
+    Stop-Process -ErrorAction SilentlyContinue
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2750,9 +2777,12 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
 
             if args.bar {
                 let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+Get-Process komorebi-bar -ErrorAction SilentlyContinue |
+    Where-Object { $_.SessionId -eq $SESSION_ID } |
+    Stop-Process -ErrorAction SilentlyContinue
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2764,9 +2794,12 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
 
             if args.masir {
                 let script = r"
-Stop-Process -Name:masir -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+Get-Process masir -ErrorAction SilentlyContinue |
+    Where-Object { $_.SessionId -eq $SESSION_ID } |
+    Stop-Process -ErrorAction SilentlyContinue
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2781,21 +2814,24 @@ Stop-Process -Name:masir -ErrorAction SilentlyContinue
 if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
     (Get-CimInstance Win32_Process | Where-Object {
         ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe')) -and
+        ($_.SessionId -eq $SESSION_ID)
     } | Select-Object -First 1) | ForEach-Object {
         Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
     }
 } else {
     (Get-WmiObject Win32_Process | Where-Object {
         ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe')) -and
+        ($_.SessionId -eq $SESSION_ID)
     } | Select-Object -First 1) | ForEach-Object {
         Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
     }
 }
-"#;
+"#
+                .replace("$SESSION_ID", &session_id.to_string());
 
-                match powershell_script::run(script) {
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2813,13 +2849,24 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             let mut system = sysinfo::System::new_all();
             system.refresh_processes(ProcessesToUpdate::All, true);
 
-            if system.processes_by_name("komorebi.exe".as_ref()).count() >= 1 {
+            if system
+                .processes_by_name("komorebi.exe".as_ref())
+                .filter(|proc| {
+                    proc.session_id()
+                        .map_or_default(|proc_session_id| proc_session_id.as_u32() == session_id)
+                })
+                .count()
+                >= 1
+            {
                 println!("komorebi is still running, attempting to force-quit");
 
                 let script = r"
-Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+Get-Process komorebi -ErrorAction SilentlyContinue |
+    Where-Object { $_.SessionId -eq $SESSION_ID } |
+    Stop-Process -ErrorAction SilentlyContinue
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
 
@@ -2840,6 +2887,8 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             }
         }
         SubCommand::Kill(args) => {
+            let session_id = current_session_id()?;
+
             if args.ahk {
                 println!(
                     "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
@@ -2848,9 +2897,12 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
 
             if args.whkd {
                 let script = r"
-Stop-Process -Name:whkd -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+Get-Process whkd -ErrorAction SilentlyContinue |
+    Where-Object { $_.SessionId -eq $SESSION_ID } |
+    Stop-Process -ErrorAction SilentlyContinue
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2862,9 +2914,12 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
 
             if args.bar {
                 let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+Get-Process komorebi-bar -ErrorAction SilentlyContinue |
+    Where-Object { $_.SessionId -eq $SESSION_ID } |
+    Stop-Process -ErrorAction SilentlyContinue
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2876,9 +2931,12 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
 
             if args.masir {
                 let script = r"
-Stop-Process -Name:masir -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+Get-Process masir -ErrorAction SilentlyContinue |
+    Where-Object { $_.SessionId -eq $SESSION_ID } |
+    Stop-Process -ErrorAction SilentlyContinue
+                "
+                .replace("$SESSION_ID", &session_id.to_string());
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -2893,21 +2951,24 @@ Stop-Process -Name:masir -ErrorAction SilentlyContinue
 if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
     (Get-CimInstance Win32_Process | Where-Object {
         ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe')) -and
+        ($_.SessionId -eq $SESSION_ID)
     } | Select-Object -First 1) | ForEach-Object {
         Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
     }
 } else {
     (Get-WmiObject Win32_Process | Where-Object {
         ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe')) -and
+        ($_.SessionId -eq $SESSION_ID)
     } | Select-Object -First 1) | ForEach-Object {
         Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
     }
 }
-"#;
+"#
+                .replace("$SESSION_ID", &session_id.to_string());
 
-                match powershell_script::run(script) {
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
@@ -3529,4 +3590,17 @@ fn remove_transparency(hwnd: isize) {
 fn restore_window(hwnd: isize) {
     show_window(HWND(hwnd as *mut core::ffi::c_void), SW_RESTORE);
     remove_transparency(hwnd);
+}
+
+fn current_session_id() -> eyre::Result<u32> {
+    let process_id = unsafe { GetCurrentProcessId() };
+    let mut session_id = 0;
+
+    unsafe {
+        if ProcessIdToSessionId(process_id, &mut session_id).is_err() {
+            bail!("could not determine current session id");
+        }
+    }
+
+    Ok(session_id)
 }
