@@ -1419,8 +1419,6 @@ impl StaticConfig {
         workspace_matching_rules.clear();
         drop(workspace_matching_rules);
 
-        let monitor_count = wm.monitors().len();
-
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
@@ -1469,15 +1467,6 @@ impl StaticConfig {
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
                     if let Some(workspace_config) = monitor_config.workspaces.get_mut(j) {
-                        if monitor_count > 1
-                            && matches!(workspace_config.layout, Some(DefaultLayout::Scrolling))
-                        {
-                            tracing::warn!(
-                                "scrolling layout is only supported for a single monitor; falling back to columns layout"
-                            );
-                            workspace_config.layout = Some(DefaultLayout::Columns);
-                        }
-
                         ws.load_static_config(workspace_config, value.layout_defaults.as_ref())?;
                     }
                 }
@@ -1786,7 +1775,6 @@ impl StaticConfig {
         };
 
         let monitor_count = wm.monitors().len();
-
         for i in 0..monitor_count {
             wm.update_focused_workspace_by_monitor_idx(i)?;
             let ws_idx = wm.focused_workspace_idx_for_monitor_idx(i)?;

@@ -419,7 +419,10 @@ mod layout_options_rules_tests {
         let row = opts.row_ratios.unwrap();
         assert_eq!(row[0], Some(0.5));
         assert_eq!(opts.scrolling.unwrap().columns, 4);
-        assert_eq!(opts.scrolling.unwrap().center_focused_column, Some(true));
+        assert_eq!(
+            opts.scrolling.unwrap().center_focused_column,
+            Some(crate::scrolling::ScrollingCentering::Always)
+        );
         assert_eq!(opts.grid.unwrap().rows, 2);
     }
 
@@ -614,7 +617,10 @@ mod layout_default_entry_tests {
         let rules = entry.layout_options_rules.unwrap();
         let r4 = &rules[&4];
         assert_eq!(r4.scrolling.unwrap().columns, 5);
-        assert_eq!(r4.scrolling.unwrap().center_focused_column, Some(true));
+        assert_eq!(
+            r4.scrolling.unwrap().center_focused_column,
+            Some(crate::scrolling::ScrollingCentering::Always)
+        );
         // Rule doesn't inherit base fields - full replacement
         assert!(r4.column_ratios.is_none());
         assert!(r4.grid.is_none());

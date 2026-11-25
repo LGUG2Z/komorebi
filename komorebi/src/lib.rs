@@ -2,19 +2,23 @@
 
 pub mod animation;
 pub mod border_manager;
+pub mod cloaked;
 pub mod com;
 #[macro_use]
 pub mod ring;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
+pub mod live_resize;
 pub mod lockable_sequence;
 pub mod monitor;
 pub mod monitor_reconciliator;
+pub mod pan;
 pub mod process_command;
 pub mod process_event;
 pub mod process_movement;
 pub mod reaper;
+pub mod scrolling;
 pub mod set_window_position;
 pub mod splash;
 pub mod stackbar_manager;

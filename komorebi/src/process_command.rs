@@ -64,7 +64,6 @@ use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
-use crate::core::ScrollingLayoutOptions;
 use crate::core::Sizing;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
@@ -74,6 +73,7 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::current_virtual_desktop;
+use crate::live_resize;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
@@ -551,22 +551,7 @@ impl WindowManager {
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
 
-                let mut should_push = true;
-                for m in &*manage_identifiers {
-                    if let MatchingRule::Simple(m) = m
-                        && m.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    manage_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut manage_identifiers, identifier, id);
             }
             SocketMessage::SessionFloatRule => {
                 let foreground_window = WindowsApi::foreground_window()?;
@@ -618,22 +603,7 @@ impl WindowManager {
             SocketMessage::IgnoreRule(identifier, ref id) => {
                 let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
 
-                let mut should_push = true;
-                for i in &*ignore_identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut ignore_identifiers, identifier, id);
 
                 let offset = self.work_area_offset;
 
@@ -930,30 +900,37 @@ impl WindowManager {
             }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ScrollingLayoutColumns(count) => {
-                let focused_workspace = self.focused_workspace_mut()?;
-
-                let options = match focused_workspace.layout_options {
-                    Some(mut opts) => {
-                        if let Some(scrolling) = &mut opts.scrolling {
-                            scrolling.columns = count.into();
-                        }
-
-                        opts
-                    }
-                    None => LayoutOptions {
-                        scrolling: Some(ScrollingLayoutOptions {
-                            columns: count.into(),
-                            center_focused_column: Default::default(),
-                        }),
-                        grid: None,
-                        column_ratios: None,
-                        row_ratios: None,
-                    },
-                };
-
-                focused_workspace.layout_options = Some(options);
+                self.focused_workspace_mut()?
+                    .set_scrolling_columns(count.into());
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::ScrollingLayoutFullWidth => {
+                self.focused_workspace_mut()?.toggle_scrolling_full_width();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::CenterFocus => {
+                self.focused_workspace_mut()?.center_scrolling_column();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Expand => {
+                self.focused_workspace_mut()?.expand_scrolling_column();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Consume(direction) => {
+                self.focused_workspace_mut()?.consume_scrolling(direction);
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::ToggleColumnStack => {
+                self.focused_workspace_mut()?
+                    .toggle_scrolling_column_stack()?;
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Expel => {
+                self.focused_workspace_mut()?.expel_scrolling();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Pan(direction) => self.pan(direction)?,
+            SocketMessage::PanGesture(gesture) => self.pan_gesture(gesture)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::LayoutRatios(ref columns, ref rows) => {
@@ -1510,9 +1487,12 @@ impl WindowManager {
                 reply.write_all(response.as_bytes())?;
             }
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
+                let _in_place = live_resize::InPlace::new();
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
+                let _in_place = live_resize::InPlace::new();
+
                 // If the user has a custom layout, allow for the resizing of the primary column
                 // with this signal
                 let workspace = self.focused_workspace_mut()?;
@@ -1825,61 +1805,16 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::IdentifyObjectNameChangeApplication(identifier, ref id) => {
                 let mut identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
 
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut identifiers, identifier, id);
             }
             SocketMessage::IdentifyTrayApplication(identifier, ref id) => {
                 let mut identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut identifiers, identifier, id);
             }
             SocketMessage::IdentifyLayeredApplication(identifier, ref id) => {
                 let mut identifiers = LAYERED_WHITELIST.lock();
 
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut identifiers, identifier, id);
             }
             SocketMessage::ManageFocusedWindow => {
                 self.manage_focused_window()?;
@@ -2271,22 +2206,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::RemoveTitleBar(identifier, ref id) => {
                 let mut identifiers = NO_TITLEBAR.lock();
 
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i
-                        && i.id.eq(id)
-                    {
-                        should_push = false;
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
+                push_simple_rule(&mut identifiers, identifier, id);
             }
             SocketMessage::ToggleTitleBars => {
                 let current = REMOVE_TITLEBARS.load(Ordering::SeqCst);
@@ -2347,6 +2267,15 @@ pub fn read_commands_uds(
     // socket shutdown.
     for line in reader.lines() {
         let message = SocketMessage::from_str(&line?)?;
+
+        // the fingers of a gesture can be still for longer than a command is waited for, and
+        // what they do next is told on this connection: it is closed when they have lifted
+        if matches!(
+            message,
+            SocketMessage::PanGesture(crate::core::PanGesture::Begin)
+        ) {
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
+        }
 
         match wm.try_lock_for(Duration::from_secs(1)) {
             None => {
@@ -2424,11 +2353,31 @@ pub fn read_commands_tcp(
     Ok(())
 }
 
+/// Add a simple socket-created rule unless one with the same kind and id is already present;
+/// a rule of another kind with the same id is a different rule
+fn push_simple_rule(rules: &mut Vec<MatchingRule>, kind: ApplicationIdentifier, id: &str) {
+    let exists = rules
+        .iter()
+        .any(|r| matches!(r, MatchingRule::Simple(r) if r.kind == kind && r.id.eq(id)));
+
+    if !exists {
+        rules.push(MatchingRule::Simple(IdWithIdentifier {
+            kind,
+            id: id.to_string(),
+            matching_strategy: Option::from(MatchingStrategy::Legacy),
+        }));
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::push_simple_rule;
     use crate::Rect;
     use crate::SocketMessage;
     use crate::WindowManagerEvent;
+    use crate::core::ApplicationIdentifier;
+    use crate::core::config_generation::IdWithIdentifier;
+    use crate::core::config_generation::MatchingRule;
     use crate::monitor;
     use crate::window_manager::WindowManager;
     use crossbeam_channel::Receiver;
@@ -2491,5 +2440,27 @@ mod tests {
         assert_eq!(wm.focused_workspace_idx().unwrap(), 5);
 
         std::fs::remove_file(socket_path).unwrap();
+    }
+
+    #[test]
+    fn push_simple_rule_keeps_rules_of_another_kind_with_the_same_id() {
+        let mut rules = vec![];
+
+        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        assert_eq!(rules.len(), 2);
+
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        push_simple_rule(&mut rules, ApplicationIdentifier::Class, "foo");
+        assert_eq!(rules.len(), 2);
+
+        rules.clear();
+        rules.push(MatchingRule::Composite(vec![IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: "foo".to_string(),
+            matching_strategy: None,
+        }]));
+        push_simple_rule(&mut rules, ApplicationIdentifier::Exe, "foo");
+        assert_eq!(rules.len(), 2);
     }
 }

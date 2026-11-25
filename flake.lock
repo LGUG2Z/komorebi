@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "asc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792367351,
+        "narHash": "sha256-johba6Axn48WC13Qd4ZGk76kD4x7HNhlZCHOKNm13SY=",
+        "owner": "LGUG2Z",
+        "repo": "komorebi-application-specific-configuration",
+        "rev": "7bc0e8bedf824a76ce68355a953629a6becbce6b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "LGUG2Z",
+        "repo": "komorebi-application-specific-configuration",
+        "type": "github"
+      }
+    },
     "crane": {
       "locked": {
         "lastModified": 1766774972,
@@ -125,6 +141,7 @@
     },
     "root": {
       "inputs": {
+        "asc": "asc",
         "crane": "crane",
         "flake-parts": "flake-parts",
         "git-hooks-nix": "git-hooks-nix",
@@ -140,11 +157,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1766890375,
-        "narHash": "sha256-0Zi7ChAtjq/efwQYmp7kOJPcSt6ya9ynSUe6ppgZhsQ=",
+        "lastModified": 1793174968,
+        "narHash": "sha256-u5nUf4cewaT36iIzG1s/VECktqUMiZaGF5BsgervsvQ=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "91e1f7a0017065360f447622d11b7ce6ed04772f",
+        "rev": "19ecdd08213836b36c4296a3a4f4af5a3d5308db",
         "type": "github"
       },
       "original": {

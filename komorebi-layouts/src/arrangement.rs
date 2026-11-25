@@ -78,8 +78,10 @@ impl Arrangement for DefaultLayout {
                 let keep_centered = layout_options
                     .as_ref()
                     .and_then(|o| {
-                        o.scrolling
-                            .map(|s| s.center_focused_column.unwrap_or_default())
+                        o.scrolling.map(|s| {
+                            s.center_focused_column.unwrap_or_default()
+                                == crate::scrolling::ScrollingCentering::Always
+                        })
                     })
                     .unwrap_or(false);
 

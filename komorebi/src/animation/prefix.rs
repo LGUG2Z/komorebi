@@ -14,6 +14,8 @@ use strum::EnumString;
 pub enum AnimationPrefix {
     Movement,
     Transparency,
+    /// A workspace sliding in and out of a monitor when it is switched to
+    Workspace,
 }
 
 pub fn new_animation_key(prefix: AnimationPrefix, key: String) -> String {
